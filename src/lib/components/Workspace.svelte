@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { activeStep } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
-  import Timeline from '$lib/components/layout/Timeline.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
@@ -41,11 +40,39 @@
   };
 
   const doneSteps = new Set<string>();
+
+  // Detect macOS and fullscreen state to adjust traffic-light clearance
+  let isMac = false;
+  let isFullscreen = false;
+
+  async function checkFullscreen() {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      isFullscreen = await getCurrentWindow().isFullscreen();
+    } catch {}
+  }
+
+  let unlistenFullscreen: (() => void) | undefined;
+
+  onMount(async () => {
+    isMac = navigator.userAgent.includes('Mac');
+    if (!isMac) return;
+    await checkFullscreen();
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      unlistenFullscreen = await getCurrentWindow().onResized(() => checkFullscreen());
+    } catch {}
+  });
+
+  onDestroy(() => unlistenFullscreen?.());
+
+  // padding-left: 76px clears macOS traffic lights; 0 when fullscreen or non-mac
+  $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
 </script>
 
 <div class="workspace">
   <!-- Project tabs — padding-left clears native macOS traffic lights -->
-  <div class="tabs-row" style="padding-left: 76px;">
+  <div class="tabs-row" style="padding-left: {tabsPadding};">
     <div class="brand-chip">
       <button class="icon-btn" on:click={() => dispatch('goHome')} title="Home"><CairnLogo size={18}/></button>
       <span>Cairn</span>
@@ -142,8 +169,6 @@
       {:else if $activeStep === 'cicd'}
         <CiCdView/>
       {/if}
-
-      <Timeline/>
     </main>
   </div>
 </div>

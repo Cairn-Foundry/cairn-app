@@ -65,6 +65,11 @@
       <span class="count">{staged.length} hunks</span>
     </div>
     <div class="hunks-list">
+      {#if staged.length === 0}
+        <div style="padding: 20px; font-size: 12px; color: var(--fg-3); text-align: center;">
+          No staged changes — stage hunks to commit.
+        </div>
+      {/if}
       {#each staged as h}
         {@const idx = hunks.indexOf(h)}
         <div class="hunk-card">
