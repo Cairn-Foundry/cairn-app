@@ -39,6 +39,7 @@ fn run_agent_command(instruction: &str, cwd: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![run_shell_command, run_agent_command])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

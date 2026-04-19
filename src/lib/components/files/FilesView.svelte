@@ -1,16 +1,19 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import CodeEditor from './CodeEditor.svelte';
 
-  const MOCK_FILES = [
-    { path: 'src/auth/totp.ts',           kind: 'ts',   lines: 48 },
-    { path: 'src/auth/index.ts',          kind: 'ts',   lines: 142 },
-    { path: 'src/routes/auth.ts',         kind: 'ts',   lines: 82 },
-    { path: 'src/db/migrations/023_totp.sql', kind: 'sql', lines: 12 },
-    { path: 'src/auth/totp.test.ts',      kind: 'ts',   lines: 72 },
-    { path: 'package.json',               kind: 'json', lines: 34 },
-  ];
+  type LangKind = 'ts' | 'js' | 'sql' | 'json' | 'text';
 
-  const MOCK_CONTENT = `import { authenticator } from 'otplib';
+  interface ProjectFile {
+    path: string;
+    lang: LangKind;
+    content: string;
+  }
+
+  const FILES: ProjectFile[] = [
+    {
+      path: 'src/auth/totp.ts', lang: 'ts',
+      content: `import { authenticator } from 'otplib';
 import crypto from 'node:crypto';
 
 const SERVER_SECRET = process.env.TOTP_SERVER_SECRET!;
@@ -31,17 +34,107 @@ export function verifyTotp(user: User, token?: string): boolean {
 
 export function otpauthUri(email: string, secret: string): string {
   return authenticator.keyuri(email, 'Acme', secret);
-}`;
+}`,
+    },
+    {
+      path: 'src/auth/index.ts', lang: 'ts',
+      content: `import { findUser, createSession } from '../db/users';
+import { verifyPassword } from './password';
+import { verifyTotp } from './totp';
 
-  let activeFile = MOCK_FILES[0];
+export async function login(
+  email: string,
+  password: string,
+  totp?: string
+): Promise<Session | null> {
+  const user = await findUser(email);
+  if (!user) return null;
+  if (!verifyPassword(password, user)) return null;
+  if (user.totpEnabled && !verifyTotp(user, totp)) return null;
+  return createSession(user);
+}
+
+export async function logout(sessionId: string): Promise<void> {
+  await destroySession(sessionId);
+}
+
+export function requireSession(req: Request, res: Response, next: NextFunction) {
+  const session = getSession(req);
+  if (!session) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'No session' } });
+  req.user = session.user;
+  next();
+}`,
+    },
+    {
+      path: 'src/routes/auth.ts', lang: 'ts',
+      content: `import { Router } from 'express';
+import { login, logout, requireSession } from '../auth';
+import { generateSecret, otpauthUri } from '../auth/totp';
+import { enableTotp } from '../db/users';
+import { asyncHandler } from '../utils';
+
+const router = Router();
+
+router.post('/auth/login', asyncHandler(async (req, res) => {
+  const { email, password, totp } = req.body;
+  const session = await login(email, password, totp);
+  if (!session) return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' } });
+  res.json({ session });
+}));
+
+router.post('/auth/totp/enable', requireSession, asyncHandler(async (req, res) => {
+  const secret = generateSecret(req.user.id);
+  await enableTotp(req.user.id, secret);
+  res.json({ uri: otpauthUri(req.user.email, secret) });
+}));
+
+router.post('/auth/totp/verify', requireSession, asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  const ok = verifyTotp(req.user, token);
+  res.json({ ok });
+}));
+
+export default router;`,
+    },
+    {
+      path: 'src/db/migrations/023_totp.sql', lang: 'sql',
+      content: `-- Migration 023: Add TOTP columns to users table
+
+ALTER TABLE users
+  ADD COLUMN totp_secret TEXT,
+  ADD COLUMN totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE INDEX idx_users_totp_enabled ON users (totp_enabled)
+  WHERE totp_enabled = TRUE;`,
+    },
+    {
+      path: 'package.json', lang: 'json',
+      content: `{
+  "name": "acme-api",
+  "version": "2.4.1",
+  "dependencies": {
+    "express": "^4.19.2",
+    "otplib": "^12.0.1",
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.2",
+    "jest": "^29.7.0"
+  }
+}`,
+    },
+  ];
+
+  let activeFile = FILES[0];
 </script>
 
 <div class="files-layout">
   <aside class="files-tree">
-    <div class="files-section-title">
-      <Icon name="folder" size={12}/> Project files
+    <div class="files-tree-header">
+      <Icon name="folder" size={12}/>
+      <span>Project files</span>
     </div>
-    {#each MOCK_FILES as f}
+    {#each FILES as f}
       <button
         class="file-tree-item {f === activeFile ? 'active' : ''}"
         on:click={() => activeFile = f}
@@ -53,47 +146,25 @@ export function otpauthUri(email: string, secret: string): string {
     {/each}
   </aside>
 
-  <div class="files-editor">
+  <div class="files-editor-wrap">
     <div class="editor-topbar">
-      <Icon name="file" size={13} />
+      <Icon name="file" size={13}/>
       <span class="editor-path">
-        <span class="editor-dir">{activeFile.path.split('/').slice(0, -1).join('/')}/</span>
-        <strong>{activeFile.path.split('/').pop()}</strong>
+        <span class="editor-dir">{activeFile.path.split('/').slice(0, -1).join('/')}/</span><strong>{activeFile.path.split('/').pop()}</strong>
       </span>
       <div class="spacer"></div>
-      <span class="editor-meta">{activeFile.lines} lines</span>
+      <span class="editor-lang">{activeFile.lang.toUpperCase()}</span>
     </div>
     <div class="editor-body">
-      {#each MOCK_CONTENT.split('\n') as line, i}
-        <div class="editor-line">
-          <span class="ln">{i + 1}</span>
-          <span class="code">{@html highlightLine(line)}</span>
-        </div>
-      {/each}
+      {#key activeFile.path}
+        <CodeEditor content={activeFile.content} language={activeFile.lang} readonly={false}/>
+      {/key}
     </div>
   </div>
 </div>
 
-<script lang="ts" module>
-  function highlightLine(line: string): string {
-    const esc = line
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    return esc
-      .replace(/(\/\/.*)/g, '<span class="tok-c">$1</span>')
-      .replace(/('[^']*'|"[^"]*"|`[^`]*`)/g, '<span class="tok-s">$1</span>')
-      .replace(/\b(export|import|from|const|function|return|if|async|await)\b/g, '<span class="tok-k">$1</span>')
-      .replace(/\b(string|number|boolean|void|User)\b/g, '<span class="tok-t">$1</span>');
-  }
-</script>
-
 <style>
-  .files-layout {
-    display: flex;
-    height: 100%;
-    overflow: hidden;
-  }
+  .files-layout { display: flex; height: 100%; overflow: hidden; }
 
   .files-tree {
     width: 220px;
@@ -101,13 +172,14 @@ export function otpauthUri(email: string, secret: string): string {
     border-right: 1px solid var(--stroke-0);
     overflow-y: auto;
     padding: 8px 0;
+    background: var(--bg-1);
   }
 
-  .files-section-title {
+  .files-tree-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 16px 10px;
+    padding: 6px 14px 10px;
     font-size: 10px;
     font-family: var(--font-mono);
     letter-spacing: 0.06em;
@@ -132,15 +204,10 @@ export function otpauthUri(email: string, secret: string): string {
   .file-tree-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .file-tree-item.active { background: var(--accent-weak); color: var(--fg-0); }
 
-  .file-tree-name { flex-shrink: 0; color: inherit; }
+  .file-tree-name { flex-shrink: 0; }
   .file-tree-dir { font-size: 10px; color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .files-editor {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .files-editor-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
   .editor-topbar {
     display: flex;
@@ -153,42 +220,14 @@ export function otpauthUri(email: string, secret: string): string {
     flex-shrink: 0;
     font-size: 12.5px;
   }
-  .editor-path { display: flex; align-items: baseline; gap: 0; }
+  .editor-path { display: flex; align-items: baseline; }
   .editor-dir { color: var(--fg-3); }
-  .editor-meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
-
-  .editor-body {
-    flex: 1;
-    overflow: auto;
-    padding: 12px 0;
-    background: var(--bg-0);
-  }
-
-  .editor-line {
-    display: flex;
-    align-items: baseline;
-    gap: 0;
-    min-height: 20px;
+  .editor-lang {
     font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .editor-line:hover { background: var(--bg-3); }
-
-  .ln {
-    width: 44px;
-    flex-shrink: 0;
-    text-align: right;
-    padding-right: 20px;
-    color: var(--fg-4);
-    font-size: 11.5px;
-    user-select: none;
+    font-size: 10px;
+    color: var(--fg-3);
+    letter-spacing: 0.05em;
   }
 
-  .code { color: var(--fg-1); white-space: pre; }
-
-  :global(.tok-k) { color: oklch(0.72 0.14 280); }
-  :global(.tok-s) { color: oklch(0.74 0.14 150); }
-  :global(.tok-t) { color: oklch(0.80 0.14 75); }
-  :global(.tok-c) { color: var(--fg-3); font-style: italic; }
+  .editor-body { flex: 1; overflow: hidden; }
 </style>

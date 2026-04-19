@@ -8,10 +8,10 @@
   type Screen = 'home' | 'workspace';
 
   const PROJECTS = [
-    { id: 'fe',     name: 'Frontend', color: 'oklch(0.72 0.14 250)', path: '~/code/acme-web',   instances: 3, branches: 12, lastOpened: '2m ago' },
-    { id: 'be',     name: 'Backend',  color: 'oklch(0.74 0.14 150)', path: '~/code/acme-api',   instances: 2, branches: 8,  lastOpened: '14m ago' },
-    { id: 'infra',  name: 'Infra',    color: 'oklch(0.80 0.14 75)',  path: '~/code/acme-infra', instances: 0, branches: 4,  lastOpened: 'yesterday' },
-    { id: 'mobile', name: 'Mobile',   color: 'oklch(0.70 0.18 25)',  path: '~/code/acme-mobile',instances: 1, branches: 6,  lastOpened: '3d ago' },
+    { id: 'fe',     name: 'Frontend', color: 'oklch(0.72 0.14 250)', path: '~/code/acme-web',    instances: 3, branches: 12, lastOpened: '2m ago' },
+    { id: 'be',     name: 'Backend',  color: 'oklch(0.74 0.14 150)', path: '~/code/acme-api',    instances: 2, branches: 8,  lastOpened: '14m ago' },
+    { id: 'infra',  name: 'Infra',    color: 'oklch(0.80 0.14 75)',  path: '~/code/acme-infra',  instances: 0, branches: 4,  lastOpened: 'yesterday' },
+    { id: 'mobile', name: 'Mobile',   color: 'oklch(0.70 0.18 25)',  path: '~/code/acme-mobile', instances: 1, branches: 6,  lastOpened: '3d ago' },
   ];
 
   let screen: Screen = 'home';
@@ -19,7 +19,7 @@
   let activeProjectId = 'fe';
   let showCreate = false;
 
-  onMount(async () => {
+  onMount(() => {
     try {
       const savedScreen = localStorage.getItem('cairn.screen') as Screen | null;
       if (savedScreen) screen = savedScreen;
@@ -29,25 +29,7 @@
   });
 
   $: try { localStorage.setItem('cairn.screen', screen); } catch {}
-
-  activeStep.subscribe(step => {
-    try { localStorage.setItem('cairn.step', step); } catch {}
-  });
-
-  async function closeWindow() {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().close();
-  }
-
-  async function minimizeWindow() {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().minimize();
-  }
-
-  async function toggleMaximize() {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().toggleMaximize();
-  }
+  activeStep.subscribe(step => { try { localStorage.setItem('cairn.step', step); } catch {} });
 
   function handleOpenProject(id: string) {
     if (!openProjects.find(p => p.id === id)) {
@@ -65,16 +47,6 @@
 </script>
 
 <div class="os-window">
-  <div class="title-bar" data-tauri-drag-region>
-    <div class="traffic-lights">
-      <button class="tl red"   aria-label="Close"    on:click={closeWindow}></button>
-      <button class="tl yellow" aria-label="Minimize" on:click={minimizeWindow}></button>
-      <button class="tl green"  aria-label="Maximize" on:click={toggleMaximize}></button>
-    </div>
-    <div class="title-center" data-tauri-drag-region>Cairn</div>
-    <div style="width: 56px"></div>
-  </div>
-
   {#if screen === 'home'}
     <Home
       on:openProject={(e) => handleOpenProject(e.detail)}

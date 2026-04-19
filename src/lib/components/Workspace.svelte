@@ -4,6 +4,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import Timeline from '$lib/components/layout/Timeline.svelte';
+  import { draggableRegion } from '$lib/utils/window-drag.js';
   import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
   import ReviewView from '$lib/components/review/ReviewView.svelte';
@@ -43,8 +44,8 @@
 </script>
 
 <div class="workspace">
-  <!-- Project tabs -->
-  <div class="tabs-row">
+  <!-- Project tabs — padding-left clears native macOS traffic lights -->
+  <div class="tabs-row" style="padding-left: 76px;">
     <div class="brand-chip">
       <button class="icon-btn" on:click={() => dispatch('goHome')} title="Home"><CairnLogo size={18}/></button>
       <span>Cairn</span>
@@ -68,7 +69,7 @@
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> Project
     </button>
-    <div class="spacer"></div>
+    <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
     <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label="Settings"><Icon name="settings" size={14}/></button>
   </div>

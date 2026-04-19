@@ -77,7 +77,7 @@
     flex-shrink: 0;
     border-top: 1px solid var(--stroke-0);
     background: var(--bg-1);
-    padding: 6px 16px 8px;
+    padding: 6px 16px 0;
   }
 
   .tl-meta {
@@ -123,7 +123,9 @@
   }
 
   .tl-track-wrap {
+    position: relative;
     overflow-x: auto;
+    z-index: 2;
     scrollbar-width: none;
   }
   .tl-track-wrap::-webkit-scrollbar { display: none; }
@@ -133,7 +135,7 @@
     display: flex;
     align-items: center;
     gap: 0;
-    height: 32px;
+    height: 80px;
     min-width: max-content;
     padding: 0 8px;
   }
@@ -154,6 +156,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    height: 100%;
     cursor: pointer;
     z-index: 1;
   }
@@ -201,7 +205,7 @@
   /* Labels under checkpoints */
   .tl-ckpt-label {
     position: absolute;
-    top: calc(50% + 10px);
+    top: calc(50% + 12px);
     font-size: 9.5px;
     font-family: var(--font-mono);
     color: var(--accent);
@@ -210,7 +214,7 @@
 
   .tl-now-label {
     position: absolute;
-    top: calc(50% + 10px);
+    top: calc(50% + 12px);
     font-size: 9.5px;
     font-family: var(--font-mono);
     color: var(--accent);
@@ -219,7 +223,7 @@
   /* Tooltip */
   .tl-tooltip {
     position: absolute;
-    bottom: calc(50% + 12px);
+    top: 8px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-3);
