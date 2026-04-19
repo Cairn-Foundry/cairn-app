@@ -2,7 +2,7 @@ import type { Ticket } from './project.ts';
 
 export type InstanceStatus = 'idle' | 'running' | 'paused' | 'done';
 
-export type WorkflowStep = 'agent' | 'review' | 'git' | 'tests' | 'cicd';
+export type WorkflowStep = 'files' | 'agent' | 'review' | 'tests' | 'git' | 'cicd';
 
 export interface Instance {
   id: string;

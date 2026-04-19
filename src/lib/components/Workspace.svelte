@@ -4,10 +4,11 @@
   import Icon from '$lib/components/Icon.svelte';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import Timeline from '$lib/components/layout/Timeline.svelte';
+  import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
   import ReviewView from '$lib/components/review/ReviewView.svelte';
-  import GitView from '$lib/components/git/GitView.svelte';
   import TestsView from '$lib/components/tests/TestsView.svelte';
+  import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
@@ -22,10 +23,11 @@
   }>();
 
   const STEPS = [
+    { id: 'files',  num: '00', label: 'Files',  icon: 'folder' },
     { id: 'agent',  num: '01', label: 'Agent',  icon: 'agent'  },
     { id: 'review', num: '02', label: 'Review', icon: 'review' },
-    { id: 'git',    num: '03', label: 'Git',    icon: 'git'    },
-    { id: 'tests',  num: '04', label: 'Tests',  icon: 'tests'  },
+    { id: 'tests',  num: '03', label: 'Tests',  icon: 'tests'  },
+    { id: 'git',    num: '04', label: 'Git',    icon: 'git'    },
     { id: 'cicd',   num: '05', label: 'CI/CD',  icon: 'ci'     },
   ];
 
@@ -47,7 +49,7 @@
       <button class="icon-btn" on:click={() => dispatch('goHome')} title="Home"><CairnLogo size={18}/></button>
       <span>Cairn</span>
     </div>
-    <div class="tab-divider"/>
+    <div class="tab-divider"></div>
     {#each openProjects as p}
       <div
         class="project-tab {p.id === activeProjectId ? 'active' : ''}"
@@ -56,7 +58,7 @@
         tabindex="0"
         on:keydown={(e) => e.key === 'Enter' && dispatch('projectChange', p.id)}
       >
-        <span class="dot" style={p.id === activeProjectId ? `background: ${p.color}` : ''}/>
+        <span class="dot" style={p.id === activeProjectId ? `background: ${p.color}` : ''}></span>
         <span>{p.name}</span>
         <button class="close" on:click|stopPropagation={() => dispatch('closeProject', p.id)}>
           <Icon name="x" size={11}/>
@@ -66,10 +68,9 @@
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> Project
     </button>
-    <div class="spacer"/>
-    <button class="icon-btn"><Icon name="search" size={14}/></button>
-    <button class="icon-btn"><Icon name="terminal" size={14}/></button>
-    <button class="icon-btn"><Icon name="settings" size={14}/></button>
+    <div class="spacer"></div>
+    <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
+    <button class="icon-btn" aria-label="Settings"><Icon name="settings" size={14}/></button>
   </div>
 
   <!-- Instance header -->
@@ -82,7 +83,7 @@
     </button>
 
     <div class="instance-title">
-      <span class="instance-dot"/>
+      <span class="instance-dot"></span>
       <span class="ticket-id">{instance.ticketId}</span>
       <span class="ticket-name">{instance.title}</span>
     </div>
@@ -118,23 +119,25 @@
           {/if}
         </button>
       {/each}
-      <div class="divider"/>
-      <div class="spacer"/>
-      <button class="step">
+      <div class="divider"></div>
+      <div class="spacer"></div>
+      <button class="step" aria-label="Terminal">
         <span class="icon"><Icon name="terminal" size={18}/></span>
         <span class="label">Term</span>
       </button>
     </aside>
 
     <main class="main">
-      {#if $activeStep === 'agent'}
+      {#if $activeStep === 'files'}
+        <FilesView/>
+      {:else if $activeStep === 'agent'}
         <AgentView/>
       {:else if $activeStep === 'review'}
         <ReviewView/>
-      {:else if $activeStep === 'git'}
-        <GitView/>
       {:else if $activeStep === 'tests'}
         <TestsView/>
+      {:else if $activeStep === 'git'}
+        <GitView/>
       {:else if $activeStep === 'cicd'}
         <CiCdView/>
       {/if}
