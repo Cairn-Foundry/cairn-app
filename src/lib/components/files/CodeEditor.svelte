@@ -3,8 +3,20 @@
   import { EditorView, keymap, hoverTooltip } from '@codemirror/view';
   import { EditorState, Prec, type Extension } from '@codemirror/state';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
+  import { html } from '@codemirror/lang-html';
+  import { css } from '@codemirror/lang-css';
+  import { markdown } from '@codemirror/lang-markdown';
+  import { xml } from '@codemirror/lang-xml';
+  import { yaml } from '@codemirror/lang-yaml';
+  import { python } from '@codemirror/lang-python';
+  import { rust } from '@codemirror/lang-rust';
+  import { java } from '@codemirror/lang-java';
+  import { cpp } from '@codemirror/lang-cpp';
+  import { php } from '@codemirror/lang-php';
   import { sql } from '@codemirror/lang-sql';
   import { json } from '@codemirror/lang-json';
+  import { languages } from '@codemirror/language-data';
+  import { lineNumbers, rectangularSelection, crosshairCursor } from '@codemirror/view';
   import {
     autocompletion, completionKeymap, acceptCompletion,
     closeBrackets, closeBracketsKeymap,
@@ -27,7 +39,27 @@
   import { lintGutter, lintKeymap } from '@codemirror/lint';
 
   export let content: string = '';
-  export let language: 'ts' | 'js' | 'sql' | 'json' | 'text' = 'ts';
+  export let onChange: ((value: string) => void) | undefined = undefined;
+  export let onBlur: (() => void) | undefined = undefined;
+
+  type EditorLanguage =
+    | 'ts'
+    | 'js'
+    | 'sql'
+    | 'json'
+    | 'html'
+    | 'css'
+    | 'markdown'
+    | 'xml'
+    | 'yaml'
+    | 'python'
+    | 'rust'
+    | 'java'
+    | 'cpp'
+    | 'php'
+    | 'text';
+
+  export let language: EditorLanguage = 'ts';
   export let readonly: boolean = true;
 
   let container: HTMLDivElement;
@@ -557,20 +589,54 @@
     false: 'Boolean false.',
   };
 
+  function resolveLanguageExtension(lang: EditorLanguage): Extension {
+    switch (lang) {
+      case 'sql':
+        return sql();
+      case 'json':
+        return json();
+      case 'html':
+        return html();
+      case 'css':
+        return css();
+      case 'markdown':
+        // Enable fenced code block language awareness with language-data.
+        return markdown({ codeLanguages: languages });
+      case 'xml':
+        return xml();
+      case 'yaml':
+        return yaml();
+      case 'python':
+        return python();
+      case 'rust':
+        return rust();
+      case 'java':
+        return java();
+      case 'cpp':
+        return cpp();
+      case 'php':
+        return php();
+      case 'text':
+        return [];
+      default:
+        return javascript({ typescript: lang === 'ts', jsx: false });
+    }
+  }
+
   // ── Extensions ─────────────────────────────────────────────────────────────
 
   function buildExtensions(): Extension[] {
     const isJS = language === 'ts' || language === 'js';
-    const lang = language === 'sql'  ? sql()
-               : language === 'json' ? json()
-               : javascript({ typescript: language === 'ts', jsx: false });
+    const jsLang = isJS ? javascript({ typescript: language === 'ts', jsx: false }) : null;
+    const lang = jsLang ?? resolveLanguageExtension(language);
+    const jsLanguageData = jsLang ? jsLang.language.data : null;
 
-    const snippets: Extension[] = isJS
-      ? [lang.language.data.of({ autocomplete: completeFromList(language === 'ts' ? tsSnippets : jsSnippets) })]
+    const snippets: Extension[] = jsLanguageData
+      ? [jsLanguageData.of({ autocomplete: completeFromList(language === 'ts' ? tsSnippets : jsSnippets) })]
       : [];
 
-    const scopeCompletion: Extension[] = isJS
-      ? [lang.language.data.of({ autocomplete: scopeCompletionSource(globalThis) })]
+    const scopeCompletion: Extension[] = jsLanguageData
+      ? [jsLanguageData.of({ autocomplete: scopeCompletionSource(globalThis) })]
       : [];
 
     return [
@@ -597,11 +663,14 @@
       ])),
 
       lang,
+      lineNumbers(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       closeBrackets(),
       bracketMatching(),
       indentOnInput(),
+      rectangularSelection(),
+      crosshairCursor(),
       syntaxHighlighting(cairnHighlight),
       foldGutter({ markerDOM: (open) => {
         const el = document.createElement('span');
@@ -621,6 +690,12 @@
       cairnTheme,
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) onChange?.(update.state.doc.toString());
+      }),
+      EditorView.domEventHandlers({
+        blur: () => { onBlur?.(); return false; },
+      }),
     ];
   }
 
@@ -644,7 +719,11 @@
 <div bind:this={container} class="editor-mount"></div>
 
 <style>
-  .editor-mount { height: 100%; overflow: hidden; }
+  .editor-mount {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
   .editor-mount :global(.cm-editor) { height: 100%; }
   .editor-mount :global(.cm-scroller) {
     overflow: auto;

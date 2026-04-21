@@ -1,167 +1,182 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import { activeInstance } from '$lib/stores/instance';
+  import { readDirTree, readFile, writeFile, langFromPath, isBinaryPath, type FileNode } from '$lib/services/file-service';
 
-  type LangKind = 'ts' | 'js' | 'sql' | 'json' | 'text';
+  let tree: FileNode[] = [];
+  let expanded = new Set<string>();
+  let activePath: string | null = null;
+  let activeContent: string | null = null;
+  let pendingContent: string | null = null;
+  let loading = false;
+  let loadingFile = false;
+  let saving = false;
+  let error = '';
 
-  interface ProjectFile {
-    path: string;
-    lang: LangKind;
-    content: string;
+  $: worktreePath = $activeInstance?.worktreePath ?? null;
+
+  $: if (worktreePath) {
+    loadTree(worktreePath);
   }
 
-  const FILES: ProjectFile[] = [
-    {
-      path: 'src/auth/totp.ts', lang: 'ts',
-      content: `import { authenticator } from 'otplib';
-import crypto from 'node:crypto';
-
-const SERVER_SECRET = process.env.TOTP_SERVER_SECRET!;
-
-export function generateSecret(userId: string): string {
-  return crypto
-    .createHmac('sha256', SERVER_SECRET)
-    .update(userId)
-    .digest('base64')
-    .slice(0, 32);
-}
-
-export function verifyTotp(user: User, token?: string): boolean {
-  if (!token || !user.totpSecret) return false;
-  authenticator.options = { window: 0 };
-  return authenticator.check(token, user.totpSecret);
-}
-
-export function otpauthUri(email: string, secret: string): string {
-  return authenticator.keyuri(email, 'Acme', secret);
-}`,
-    },
-    {
-      path: 'src/auth/index.ts', lang: 'ts',
-      content: `import { findUser, createSession } from '../db/users';
-import { verifyPassword } from './password';
-import { verifyTotp } from './totp';
-
-export async function login(
-  email: string,
-  password: string,
-  totp?: string
-): Promise<Session | null> {
-  const user = await findUser(email);
-  if (!user) return null;
-  if (!verifyPassword(password, user)) return null;
-  if (user.totpEnabled && !verifyTotp(user, totp)) return null;
-  return createSession(user);
-}
-
-export async function logout(sessionId: string): Promise<void> {
-  await destroySession(sessionId);
-}
-
-export function requireSession(req: Request, res: Response, next: NextFunction) {
-  const session = getSession(req);
-  if (!session) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'No session' } });
-  req.user = session.user;
-  next();
-}`,
-    },
-    {
-      path: 'src/routes/auth.ts', lang: 'ts',
-      content: `import { Router } from 'express';
-import { login, logout, requireSession } from '../auth';
-import { generateSecret, otpauthUri } from '../auth/totp';
-import { enableTotp } from '../db/users';
-import { asyncHandler } from '../utils';
-
-const router = Router();
-
-router.post('/auth/login', asyncHandler(async (req, res) => {
-  const { email, password, totp } = req.body;
-  const session = await login(email, password, totp);
-  if (!session) return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' } });
-  res.json({ session });
-}));
-
-router.post('/auth/totp/enable', requireSession, asyncHandler(async (req, res) => {
-  const secret = generateSecret(req.user.id);
-  await enableTotp(req.user.id, secret);
-  res.json({ uri: otpauthUri(req.user.email, secret) });
-}));
-
-router.post('/auth/totp/verify', requireSession, asyncHandler(async (req, res) => {
-  const { token } = req.body;
-  const ok = verifyTotp(req.user, token);
-  res.json({ ok });
-}));
-
-export default router;`,
-    },
-    {
-      path: 'src/db/migrations/023_totp.sql', lang: 'sql',
-      content: `-- Migration 023: Add TOTP columns to users table
-
-ALTER TABLE users
-  ADD COLUMN totp_secret TEXT,
-  ADD COLUMN totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
-
-CREATE INDEX idx_users_totp_enabled ON users (totp_enabled)
-  WHERE totp_enabled = TRUE;`,
-    },
-    {
-      path: 'package.json', lang: 'json',
-      content: `{
-  "name": "acme-api",
-  "version": "2.4.1",
-  "dependencies": {
-    "express": "^4.19.2",
-    "otplib": "^12.0.1",
-    "pg": "^8.11.5"
-  },
-  "devDependencies": {
-    "typescript": "~5.6.2",
-    "jest": "^29.7.0"
+  async function loadTree(root: string) {
+    loading = true;
+    error = '';
+    try {
+      tree = await readDirTree(root);
+    } catch (e) {
+      error = String(e);
+    } finally {
+      loading = false;
+    }
   }
-}`,
-    },
-  ];
 
-  let activeFile = FILES[0];
+  async function openFile(node: FileNode) {
+    if (node.isDir) {
+      if (expanded.has(node.path)) expanded.delete(node.path);
+      else expanded.add(node.path);
+      expanded = expanded; // trigger reactivity
+      return;
+    }
+
+    if (activePath === node.path) return;
+
+    // Auto-save current file before switching
+    await flushSave();
+
+    activePath = node.path;
+    activeContent = null;
+    pendingContent = null;
+
+    if (isBinaryPath(node.path)) return;
+
+    loadingFile = true;
+    try {
+      const fullPath = `${worktreePath}/${node.path}`;
+      activeContent = await readFile(fullPath) ?? '';
+      pendingContent = activeContent;
+    } catch (e) {
+      error = String(e);
+    } finally {
+      loadingFile = false;
+    }
+  }
+
+  async function flushSave() {
+    if (!activePath || pendingContent === null || pendingContent === activeContent || saving) return;
+    saving = true;
+    try {
+      await writeFile(`${worktreePath}/${activePath}`, pendingContent);
+      activeContent = pendingContent;
+    } catch (e) {
+      error = String(e);
+    } finally {
+      saving = false;
+    }
+  }
+
+  function handleChange(value: string) {
+    pendingContent = value;
+  }
+
+  $: activeLang = (activePath ? langFromPath(activePath) : 'text') as any;
+  $: isDirty = pendingContent !== null && pendingContent !== activeContent;
+
+  function fileIcon(node: FileNode): string {
+    if (node.isDir) return expanded.has(node.path) ? 'folder-open' : 'folder';
+    const ext = node.name.split('.').pop()?.toLowerCase() ?? '';
+    if (['ts','tsx','js','jsx'].includes(ext)) return 'file-code';
+    if (['json','yaml','yml','toml'].includes(ext)) return 'file-code';
+    if (['md','mdx'].includes(ext)) return 'file';
+    return 'file';
+  }
 </script>
 
 <div class="files-layout">
   <aside class="files-tree">
     <div class="files-tree-header">
       <Icon name="folder" size={12}/>
-      <span>Project files</span>
+      <span>{$activeInstance ? $activeInstance.ticket.id : 'No instance'}</span>
     </div>
-    {#each FILES as f}
-      <button
-        class="file-tree-item {f === activeFile ? 'active' : ''}"
-        on:click={() => activeFile = f}
-      >
-        <Icon name="file" size={13}/>
-        <span class="file-tree-name">{f.path.split('/').pop()}</span>
-        <span class="file-tree-dir">{f.path.split('/').slice(0, -1).join('/')}/</span>
-      </button>
-    {/each}
+
+    {#if loading}
+      <div class="tree-state">Loading…</div>
+    {:else if error}
+      <div class="tree-state error">{error}</div>
+    {:else if tree.length === 0 && worktreePath}
+      <div class="tree-state">Empty worktree</div>
+    {:else if !worktreePath}
+      <div class="tree-state">No active instance</div>
+    {:else}
+      {#each tree as node}
+        {@render treeNode(node, 0)}
+      {/each}
+    {/if}
   </aside>
 
   <div class="files-editor-wrap">
-    <div class="editor-topbar">
-      <Icon name="file" size={13}/>
-      <span class="editor-path">
-        <span class="editor-dir">{activeFile.path.split('/').slice(0, -1).join('/')}/</span><strong>{activeFile.path.split('/').pop()}</strong>
-      </span>
-      <div class="spacer"></div>
-      <span class="editor-lang">{activeFile.lang.toUpperCase()}</span>
-    </div>
-    <div class="editor-body">
-      {#key activeFile.path}
-        <CodeEditor content={activeFile.content} language={activeFile.lang} readonly={false}/>
-      {/key}
-    </div>
+    {#if activePath}
+      <div class="editor-topbar">
+        <Icon name="file" size={13}/>
+        <span class="editor-path">
+          <span class="editor-dir">{activePath.split('/').slice(0, -1).join('/')}{activePath.includes('/') ? '/' : ''}</span><strong>{activePath.split('/').pop()}</strong>
+        </span>
+        <div class="spacer"></div>
+        {#if isDirty}
+          <span class="editor-dirty">●</span>
+        {/if}
+        {#if saving}
+          <span class="editor-saving">saving…</span>
+        {/if}
+        <span class="editor-lang">{activeLang.toUpperCase()}</span>
+      </div>
+      <div class="editor-body">
+{#if loadingFile}
+          <div class="editor-placeholder">Loading…</div>
+        {:else if isBinaryPath(activePath)}
+          <div class="editor-placeholder">
+            <Icon name="file" size={32}/>
+            <div>Binary file — preview not available</div>
+            <div class="editor-placeholder-path">{activePath}</div>
+          </div>
+        {:else if activeContent !== null}
+          {#key activePath}
+            <CodeEditor
+              content={activeContent}
+              language={activeLang}
+              readonly={false}
+              onChange={handleChange}
+              onBlur={flushSave}
+            />
+          {/key}
+        {/if}
+      </div>
+    {:else}
+      <div class="editor-placeholder">
+        <Icon name="file" size={32}/>
+        <div>Select a file to edit</div>
+      </div>
+    {/if}
   </div>
 </div>
+
+<!-- Recursive tree node -->
+{#snippet treeNode(node: FileNode, depth: number)}
+  <button
+    class="file-tree-item {node.path === activePath ? 'active' : ''}"
+    style="padding-left: {12 + depth * 14}px"
+    on:click={() => openFile(node)}
+  >
+    <Icon name={fileIcon(node)} size={13}/>
+    <span class="file-tree-name">{node.name}</span>
+  </button>
+  {#if node.isDir && expanded.has(node.path) && node.children}
+    {#each node.children as child}
+      {@render treeNode(child, depth + 1)}
+    {/each}
+  {/if}
+{/snippet}
 
 <style>
   .files-layout { display: flex; height: 100%; overflow: hidden; }
@@ -187,12 +202,21 @@ CREATE INDEX idx_users_totp_enabled ON users (totp_enabled)
     color: var(--fg-3);
   }
 
+  .tree-state {
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--fg-3);
+  }
+  .tree-state.error { color: oklch(0.70 0.18 15); }
+
   .file-tree-item {
     display: flex;
     align-items: center;
     gap: 7px;
     width: 100%;
-    padding: 5px 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-right: 12px;
     background: none;
     border: none;
     cursor: pointer;
@@ -204,8 +228,7 @@ CREATE INDEX idx_users_totp_enabled ON users (totp_enabled)
   .file-tree-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .file-tree-item.active { background: var(--accent-weak); color: var(--fg-0); }
 
-  .file-tree-name { flex-shrink: 0; }
-  .file-tree-dir { font-size: 10px; color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .files-editor-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -220,14 +243,33 @@ CREATE INDEX idx_users_totp_enabled ON users (totp_enabled)
     flex-shrink: 0;
     font-size: 12.5px;
   }
-  .editor-path { display: flex; align-items: baseline; }
-  .editor-dir { color: var(--fg-3); }
+  .editor-path { display: flex; align-items: baseline; overflow: hidden; }
+  .editor-dir { color: var(--fg-3); white-space: nowrap; }
   .editor-lang {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--fg-3);
     letter-spacing: 0.05em;
+    flex-shrink: 0;
   }
+  .editor-dirty { color: var(--accent); font-size: 16px; line-height: 1; flex-shrink: 0; }
+  .editor-saving { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); flex-shrink: 0; }
 
-  .editor-body { flex: 1; overflow: hidden; }
+  .editor-body { flex: 1; overflow: hidden; position: relative; }
+
+  .editor-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--fg-3);
+    font-size: 13px;
+  }
+  .editor-placeholder-path {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-4);
+  }
 </style>

@@ -3,50 +3,23 @@
   import Icon from '$lib/components/Icon.svelte';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
+  import { projects } from '$lib/stores/project';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
+    addProject: string;
     createInstance: void;
   }>();
 
-  type Section = 'projects' | 'tickets' | 'checkpoints' | 'activity' | 'account' | 'settings';
+  type Section = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
 
   let activeSection: Section = 'projects';
-
-  const PROJECTS = [
-    { id: 'fe',     name: 'Frontend', color: 'oklch(0.72 0.14 250)', path: '~/code/acme-web',    instances: 3, branches: 12, lastOpened: '2m ago' },
-    { id: 'be',     name: 'Backend',  color: 'oklch(0.74 0.14 150)', path: '~/code/acme-api',    instances: 2, branches: 8,  lastOpened: '14m ago' },
-    { id: 'infra',  name: 'Infra',    color: 'oklch(0.80 0.14 75)',  path: '~/code/acme-infra',  instances: 0, branches: 4,  lastOpened: 'yesterday' },
-    { id: 'mobile', name: 'Mobile',   color: 'oklch(0.70 0.18 25)',  path: '~/code/acme-mobile', instances: 1, branches: 6,  lastOpened: '3d ago' },
-  ];
-
-  const RECENT_TICKETS = [
-    { id: 'FEAT-43', title: 'Wire up OAuth provider switcher UI',           source: 'Jira',   labels: ['frontend', 'auth'] },
-    { id: 'BUG-121', title: 'Invoice PDF missing footer on long orders',     source: 'Jira',   labels: ['bug', 'billing'] },
-    { id: 'CHORE-08',title: 'Upgrade React to 18.3',                        source: 'GitHub', labels: ['deps'] },
-    { id: 'FEAT-47', title: 'Dark mode for onboarding flow',                 source: 'Linear', labels: ['ui'] },
-    { id: 'BUG-124', title: 'Session token not refreshed in background tab', source: 'GitHub', labels: ['bug', 'auth'] },
-  ];
-
-  const CHECKPOINTS = [
-    { id: 'ck-3', label: 'Before db migration',     instance: 'FEAT-42', time: '09:37', branch: 'feat/totp-auth' },
-    { id: 'ck-2', label: 'Before generating code',  instance: 'FEAT-42', time: '09:22', branch: 'feat/totp-auth' },
-    { id: 'ck-1', label: 'Before refactor start',   instance: 'BUG-118', time: 'yesterday', branch: 'fix/dropdown-scroll' },
-  ];
-
-  const ACTIVITY = [
-    { time: '09:45', label: 'Agent patching verifyTotp window',       instance: 'FEAT-42', kind: 'agent' },
-    { time: '09:37', label: 'Checkpoint saved — Before db migration', instance: 'FEAT-42', kind: 'checkpoint' },
-    { time: '09:34', label: 'Tests written (8 new)',                   instance: 'FEAT-42', kind: 'test' },
-    { time: '09:26', label: 'Created src/auth/totp.ts',               instance: 'FEAT-42', kind: 'file' },
-    { time: 'yesterday', label: 'Merged fix/dropdown-scroll → main',  instance: 'BUG-118', kind: 'git' },
-  ];
 
   async function openProjectDialog() {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const path = await open({ directory: true, title: 'Select project folder' });
-      if (path) alert(`Would open project at: ${path}`);
+      if (path) dispatch('addProject', path as string);
     } catch {
       alert('File dialog not available in dev mode');
     }
@@ -67,9 +40,6 @@
     <div class="section">Workspace</div>
     <button class="home-nav-item {activeSection === 'projects'    ? 'active' : ''}" on:click={() => activeSection = 'projects'}>
       <Icon name="folder" size={15}/> Projects
-    </button>
-    <button class="home-nav-item {activeSection === 'tickets'     ? 'active' : ''}" on:click={() => activeSection = 'tickets'}>
-      <Icon name="ticket" size={15}/> Recent tickets
     </button>
     <button class="home-nav-item {activeSection === 'checkpoints' ? 'active' : ''}" on:click={() => activeSection = 'checkpoints'}>
       <Icon name="bookmark" size={15}/> Saved checkpoints
@@ -137,50 +107,27 @@
       {/if}
 
       <div class="home-section-title">
-        <Icon name="folder" size={13}/> Projects <span class="count">— {PROJECTS.length}</span>
+        <Icon name="folder" size={13}/> Projects <span class="count">— {$projects.length}</span>
       </div>
-      <div class="projects-grid">
-        {#each PROJECTS as p}
-          <div class="project-card" role="button" tabindex="0"
-               on:click={() => dispatch('openProject', p.id)}
-               on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
-            <div class="pname">
-              <span class="swatch" style="background: {p.color}"></span>
-              {p.name}
+      {#if $projects.length === 0}
+        <div style="padding: 32px 0; color: var(--fg-3); font-size: 13px;">
+          No projects yet — open a local repo or clone one to get started.
+        </div>
+      {:else}
+        <div class="projects-grid">
+          {#each $projects as p}
+            <div class="project-card" role="button" tabindex="0"
+                 on:click={() => dispatch('openProject', p.id)}
+                 on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
+              <div class="pname">
+                <span class="swatch" style="background: {p.color}"></span>
+                {p.name}
+              </div>
+              <div class="ppath">{p.path}</div>
             </div>
-            <div class="ppath">{p.path}</div>
-            <div class="pstats">
-              <div class="stat"><Icon name="ticket" size={12}/> <b>{p.instances}</b> instances</div>
-              <div class="stat"><Icon name="branch" size={12}/> <b>{p.branches}</b> branches</div>
-              <div class="stat dim"><Icon name="clock" size={12}/> {p.lastOpened}</div>
-            </div>
-          </div>
-        {/each}
-      </div>
-
-    <!-- ── RECENT TICKETS ── -->
-    {:else if activeSection === 'tickets'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">Recent tickets</h1>
-        <div class="sub">Start a new instance from any ticket.</div>
-      </div>
-      <div class="recent-tickets" style="margin-top: 20px">
-        {#each RECENT_TICKETS as t}
-          <div class="ticket-row" role="button" tabindex="0"
-               on:click={() => dispatch('createInstance')}
-               on:keydown={(e) => e.key === 'Enter' && dispatch('createInstance')}>
-            <span class="tid">{t.id}</span>
-            <span class="tname">{t.title}</span>
-            <span class="tsrc">{t.source}</span>
-            <div style="display: flex; gap: 4px;">
-              {#each t.labels as l}
-                <span style="font-size: 10px; padding: 2px 6px; border-radius: var(--r-xs); background: var(--bg-4); color: var(--fg-2);">{l}</span>
-              {/each}
-            </div>
-            <span class="tbtn">New instance</span>
-          </div>
-        {/each}
-      </div>
+          {/each}
+        </div>
+      {/if}
 
     <!-- ── CHECKPOINTS ── -->
     {:else if activeSection === 'checkpoints'}
@@ -188,17 +135,8 @@
         <h1 style="font-size: 22px">Saved checkpoints</h1>
         <div class="sub">Rewind any instance to a saved state.</div>
       </div>
-      <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 8px;">
-        {#each CHECKPOINTS as ck}
-          <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--stroke-0);">
-            <div style="width: 10px; height: 10px; border-radius: 2px; transform: rotate(45deg); background: var(--accent); flex-shrink: 0;"></div>
-            <div style="flex: 1;">
-              <div style="font-size: 13px; color: var(--fg-0);">{ck.label}</div>
-              <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); margin-top: 2px;">{ck.instance} · {ck.branch} · {ck.time}</div>
-            </div>
-            <button class="btn ghost" style="font-size: 12px;">← Rewind here</button>
-          </div>
-        {/each}
+      <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
+        No checkpoints yet — they will appear here as instances run.
       </div>
 
     <!-- ── ACTIVITY ── -->
@@ -207,15 +145,8 @@
         <h1 style="font-size: 22px">Activity</h1>
         <div class="sub">Recent events across all instances.</div>
       </div>
-      <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 2px;">
-        {#each ACTIVITY as ev}
-          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-sm);">
-            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--fg-3); width: 60px; flex-shrink: 0;">{ev.time}</span>
-            <Icon name={ev.kind === 'agent' ? 'sparkles' : ev.kind === 'checkpoint' ? 'bookmark' : ev.kind === 'test' ? 'tests' : ev.kind === 'git' ? 'git' : 'file'} size={13}/>
-            <span style="font-size: 13px; color: var(--fg-1); flex: 1;">{ev.label}</span>
-            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--fg-3);">{ev.instance}</span>
-          </div>
-        {/each}
+      <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
+        No activity yet — events will appear here as instances run.
       </div>
 
     <!-- ── ACCOUNT ── -->

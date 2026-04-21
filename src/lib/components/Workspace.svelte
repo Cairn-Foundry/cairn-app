@@ -11,8 +11,20 @@
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
 
+  import type { Instance } from '$lib/types/instance';
+  import { instances } from '$lib/stores/instance';
+  import { activateInstance } from '$lib/stores/project';
+
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
+  export let activeInstance: Instance | null = null;
+
+  let showInstanceMenu = false;
+
+  async function selectInstance(id: string) {
+    showInstanceMenu = false;
+    await activateInstance(activeProjectId, id);
+  }
 
   const dispatch = createEventDispatcher<{
     projectChange: string;
@@ -30,14 +42,6 @@
     { id: 'git',    num: '04', label: 'Git',    icon: 'git'    },
     { id: 'cicd',   num: '05', label: 'CI/CD',  icon: 'ci'     },
   ];
-
-  const instance = {
-    ticketId: 'FEAT-42',
-    title: 'Add TOTP authentication',
-    branch: 'feat/totp-auth',
-    baseBranch: 'main',
-    files: 3,
-  };
 
   const doneSteps = new Set<string>();
 
@@ -103,32 +107,54 @@
 
   <!-- Instance header -->
   <div class="instance-header">
-    <button class="instance-switcher">
-      <Icon name="ticket" size={12}/>
-      <span class="mono">{instance.ticketId}</span>
-      <span class="count">· 1/3</span>
-      <Icon name="chev-d" size={11}/>
-    </button>
+    {#if activeInstance}
+      <div class="instance-switcher-wrap">
+        <button class="instance-switcher" on:click={() => showInstanceMenu = !showInstanceMenu}>
+          <Icon name="ticket" size={12}/>
+          <span class="mono">{activeInstance.ticket.id}</span>
+          <Icon name="chev-d" size={11}/>
+        </button>
+        {#if showInstanceMenu}
+          <div class="instance-menu">
+            {#each $instances as inst}
+              <button
+                class="instance-menu-item {inst.id === activeInstance?.id ? 'active' : ''}"
+                on:click={() => selectInstance(inst.id)}
+              >
+                <span class="mono">{inst.ticket.id}</span>
+                <span class="instance-menu-title">{inst.ticket.title}</span>
+              </button>
+            {/each}
+            <div class="instance-menu-divider"></div>
+            <button class="instance-menu-item instance-menu-new" on:click={() => { showInstanceMenu = false; dispatch('createInstance'); }}>
+              <Icon name="plus" size={11}/>
+              <span>New instance</span>
+            </button>
+          </div>
+        {/if}
+      </div>
 
-    <div class="instance-title">
-      <span class="instance-dot"></span>
-      <span class="ticket-id">{instance.ticketId}</span>
-      <span class="ticket-name">{instance.title}</span>
-    </div>
+      <div class="instance-title">
+        <span class="instance-dot"></span>
+        <span class="ticket-id">{activeInstance.ticket.id}</span>
+        <span class="ticket-name">{activeInstance.ticket.title}</span>
+      </div>
 
-    <div class="branch-info">
-      <Icon name="branch" size={11}/>
-      <span>{instance.baseBranch}</span>
-      <span class="arrow">→</span>
-      <span class="target">{instance.branch}</span>
-      <span class="mod">{instance.files} files modified</span>
-    </div>
+      <div class="branch-info">
+        <Icon name="branch" size={11}/>
+        <span class="target">{activeInstance.branch}</span>
+      </div>
 
-    <div class="instance-actions">
-      <button class="btn ghost"><Icon name="bookmark" size={13}/> Checkpoint</button>
-      <button class="btn"><Icon name="pause" size={13}/> Pause agent</button>
-      <button class="btn primary"><Icon name="check" size={13}/> Finalize instance</button>
-    </div>
+      <div class="instance-actions">
+        <button class="btn ghost"><Icon name="bookmark" size={13}/> Checkpoint</button>
+        <button class="btn"><Icon name="pause" size={13}/> Pause agent</button>
+        <button class="btn primary"><Icon name="check" size={13}/> Finalize instance</button>
+      </div>
+    {:else}
+      <div class="instance-title" style="color: var(--fg-3); font-size: 13px;">
+        No active instance — <button class="btn ghost" style="font-size: 12px; padding: 2px 8px;" on:click={() => dispatch('createInstance')}>create one</button>
+      </div>
+    {/if}
   </div>
 
   <!-- Content -->
@@ -172,3 +198,50 @@
     </main>
   </div>
 </div>
+
+<style>
+  .instance-switcher-wrap { position: relative; }
+
+  .instance-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 100;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 200px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .instance-menu-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--fg-2);
+    font-size: 12px;
+  }
+  .instance-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
+  .instance-menu-item.active { background: var(--accent-weak); color: var(--fg-0); }
+
+  .instance-menu-title { font-size: 11px; color: var(--fg-3); }
+
+  .instance-menu-divider { height: 1px; background: var(--stroke-0); margin: 4px 0; }
+
+  .instance-menu-new {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-3);
+    font-size: 12px;
+  }
+  .instance-menu-new:hover { color: var(--fg-0); }
+</style>
