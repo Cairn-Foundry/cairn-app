@@ -4,11 +4,25 @@ import { listProjects, addProject, removeProject, updateProject, duplicateProjec
 
 export const projects = writable<Project[]>([]);
 export const activeProjectId = writable<string | null>(null);
+export const openProjectIds = writable<Set<string>>(new Set());
 
 export const activeProject = derived(
   [projects, activeProjectId],
   ([$projects, $activeProjectId]) => $projects.find((p) => p.id === $activeProjectId) ?? null
 );
+
+export const openProjects = derived(
+  [projects, openProjectIds],
+  ([$projects, $openProjectIds]) => $projects.filter((p) => $openProjectIds.has(p.id))
+);
+
+export function openProject(id: string): void {
+  openProjectIds.update((s) => { s.add(id); return s; });
+}
+
+export function closeProjectTab(id: string): void {
+  openProjectIds.update((s) => { s.delete(id); return s; });
+}
 
 export async function loadProjects(): Promise<void> {
   const data = await listProjects();

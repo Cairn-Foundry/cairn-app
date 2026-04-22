@@ -15,6 +15,8 @@
   import { php } from '@codemirror/lang-php';
   import { sql } from '@codemirror/lang-sql';
   import { json } from '@codemirror/lang-json';
+  import { vue } from '@codemirror/lang-vue';
+  import { svelte } from 'codemirror-lang-svelte';
   import { languages } from '@codemirror/language-data';
   import { lineNumbers, rectangularSelection, crosshairCursor } from '@codemirror/view';
   import {
@@ -30,7 +32,7 @@
   import { tags as t } from '@lezer/highlight';
   import {
     history, historyKeymap, defaultKeymap,
-    indentWithTab, toggleComment, toggleBlockComment,
+    insertTab, toggleComment, toggleBlockComment,
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectLine, indentMore, indentLess,
     selectParentSyntax, cursorMatchingBracket,
@@ -44,7 +46,11 @@
 
   type EditorLanguage =
     | 'ts'
+    | 'tsx'
     | 'js'
+    | 'jsx'
+    | 'vue'
+    | 'svelte'
     | 'sql'
     | 'json'
     | 'html'
@@ -591,48 +597,39 @@
 
   function resolveLanguageExtension(lang: EditorLanguage): Extension {
     switch (lang) {
-      case 'sql':
-        return sql();
-      case 'json':
-        return json();
-      case 'html':
-        return html();
-      case 'css':
-        return css();
-      case 'markdown':
-        // Enable fenced code block language awareness with language-data.
-        return markdown({ codeLanguages: languages });
-      case 'xml':
-        return xml();
-      case 'yaml':
-        return yaml();
-      case 'python':
-        return python();
-      case 'rust':
-        return rust();
-      case 'java':
-        return java();
-      case 'cpp':
-        return cpp();
-      case 'php':
-        return php();
-      case 'text':
-        return [];
-      default:
-        return javascript({ typescript: lang === 'ts', jsx: false });
+      case 'tsx': return javascript({ typescript: true, jsx: true });
+      case 'jsx': return javascript({ typescript: false, jsx: true });
+      case 'vue': return vue();
+      case 'svelte': return svelte();
+      case 'sql': return sql();
+      case 'json': return json();
+      case 'html': return html();
+      case 'css': return css();
+      case 'markdown': return markdown({ codeLanguages: languages });
+      case 'xml': return xml();
+      case 'yaml': return yaml();
+      case 'python': return python();
+      case 'rust': return rust();
+      case 'java': return java();
+      case 'cpp': return cpp();
+      case 'php': return php();
+      case 'text': return [];
+      default: return javascript({ typescript: lang === 'ts', jsx: false });
     }
   }
 
   // ── Extensions ─────────────────────────────────────────────────────────────
 
   function buildExtensions(): Extension[] {
-    const isJS = language === 'ts' || language === 'js';
-    const jsLang = isJS ? javascript({ typescript: language === 'ts', jsx: false }) : null;
+    const isJS = language === 'ts' || language === 'tsx' || language === 'js' || language === 'jsx';
+    const isTS = language === 'ts' || language === 'tsx';
+    const isJSX = language === 'tsx' || language === 'jsx';
+    const jsLang = isJS ? javascript({ typescript: isTS, jsx: isJSX }) : null;
     const lang = jsLang ?? resolveLanguageExtension(language);
     const jsLanguageData = jsLang ? jsLang.language.data : null;
 
     const snippets: Extension[] = jsLanguageData
-      ? [jsLanguageData.of({ autocomplete: completeFromList(language === 'ts' ? tsSnippets : jsSnippets) })]
+      ? [jsLanguageData.of({ autocomplete: completeFromList(isTS ? tsSnippets : jsSnippets) })]
       : [];
 
     const scopeCompletion: Extension[] = jsLanguageData
@@ -642,7 +639,7 @@
     return [
       // Highest-priority keymap: Tab/Enter accept completion, indentWithTab, comments, line ops
       Prec.highest(keymap.of([
-        { key: 'Tab',            run: acceptCompletion },
+        { key: 'Tab',            run: (v) => acceptCompletion(v) || insertTab(v) },
         { key: 'Enter',          run: acceptCompletion },
         ...closeBracketsKeymap,
         ...completionKeymap,
@@ -665,7 +662,7 @@
       lang,
       lineNumbers(),
       history(),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
       closeBrackets(),
       bracketMatching(),
       indentOnInput(),

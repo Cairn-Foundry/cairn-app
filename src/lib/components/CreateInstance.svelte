@@ -119,10 +119,10 @@
 
       {#if step === 2}
         <div class="form-row">
-          <label>Agent profile</label>
+          <label for="profile-btn-feature">Agent profile</label>
           <div class="source-tabs" style="margin: 0;">
             {#each [['feature','Feature'],['refactor','Refactor'],['debug','Debug'],['docs','Documentation'],['review','Review']] as [k, l]}
-              <button class={profile === k ? 'active' : ''} on:click={() => profile = k}>{l}</button>
+              <button id={k === 'feature' ? 'profile-btn-feature' : undefined} class={profile === k ? 'active' : ''} on:click={() => profile = k}>{l}</button>
             {/each}
           </div>
         </div>
@@ -151,10 +151,10 @@
     <div class="modal-foot">
       <div class="step-dots">
         {#each [0, 1, 2] as i}
-          <span class={i === step ? 'active' : (i < step ? 'done' : '')}/>
+          <span class={i === step ? 'active' : (i < step ? 'done' : '')}></span>
         {/each}
       </div>
-      <div class="spacer"/>
+      <div class="spacer"></div>
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={creating}>Back</button>
       {/if}

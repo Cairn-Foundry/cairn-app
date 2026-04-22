@@ -20,8 +20,10 @@ export async function writeFile(path: string, content: string): Promise<void> {
 }
 
 const EXT_LANG: Record<string, string> = {
-  ts: 'ts', tsx: 'ts', mts: 'ts',
-  js: 'js', jsx: 'js', mjs: 'js', cjs: 'js',
+  ts: 'ts', tsx: 'tsx', mts: 'ts',
+  js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js',
+  vue: 'vue',
+  svelte: 'svelte',
   html: 'html', htm: 'html',
   css: 'css', scss: 'css', less: 'css',
   md: 'markdown', mdx: 'markdown',

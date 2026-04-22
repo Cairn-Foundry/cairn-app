@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeStep } from '$lib/stores/ui.js';
-  import { projects, activeProjectId, loadProjects } from '$lib/stores/project';
+  import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
@@ -24,6 +24,7 @@
 
     const savedActiveId = localStorage.getItem('cairn.activeProjectId');
     if (savedActiveId) {
+      openProject(savedActiveId);
       activeProjectId.set(savedActiveId);
       await loadInstances(savedActiveId);
     }
@@ -38,19 +39,24 @@
   });
 
   async function handleOpenProject(id: string) {
+    openProject(id);
     activeProjectId.set(id);
     screen = 'workspace';
   }
 
   function handleCloseProject(id: string) {
-    const remaining = $projects.filter(p => p.id !== id);
-    if (remaining.length === 0 || $activeProjectId === id) {
+    closeProjectTab(id);
+    const remaining = $openProjects.filter(p => p.id !== id);
+    if (remaining.length === 0) {
       screen = 'home';
-      activeProjectId.set(remaining[0]?.id ?? null);
+      activeProjectId.set(null);
+    } else if ($activeProjectId === id) {
+      activeProjectId.set(remaining[0].id);
     }
   }
 
   function handleProjectCreated(id: string) {
+    openProject(id);
     activeProjectId.set(id);
     screen = 'workspace';
   }
@@ -64,7 +70,7 @@
     />
   {:else}
     <Workspace
-      openProjects={$projects}
+      openProjects={$openProjects}
       activeProjectId={$activeProjectId ?? ''}
       activeInstance={$activeInstance}
       on:projectChange={(e) => activeProjectId.set(e.detail)}

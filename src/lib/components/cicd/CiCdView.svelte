@@ -32,7 +32,7 @@
   <div class="ci-header">
     <h2>Pipelines</h2>
     <span class="dim mono" style="font-size: 11px;">on feat/totp-auth · last 5</span>
-    <div class="spacer"/>
+    <div class="spacer"></div>
     <button class="btn"><Icon name="refresh" size={13}/> Refresh</button>
     <button class="btn"><Icon name="external" size={13}/> Open in GitLab</button>
   </div>
@@ -44,10 +44,10 @@
         feat(auth): add TOTP as second factor
         <span class="commit">· {PIPELINE.commit}</span>
       </div>
-      <div class="spacer"/>
+      <div class="spacer"></div>
       <span class="dim mono" style="font-size: 11px;">started 2m ago</span>
       <span class="status-pill running">
-        <span class="pulse" style="display: inline-block; width: 6px; height: 6px; border-radius: 3px; background: currentColor;"/>
+        <span class="pulse" style="display: inline-block; width: 6px; height: 6px; border-radius: 3px; background: currentColor;"></span>
         running
       </span>
     </div>
@@ -58,7 +58,7 @@
           <div class="stage-name">{i + 1}. {s.name}</div>
           {#each s.jobs as j}
             <div class="stage-job {j.status}">
-              <span class="dot"/>
+              <span class="dot"></span>
               <span>{j.name}</span>
               <span class="time">{j.time}</span>
             </div>
@@ -85,7 +85,7 @@
         feat(auth): scaffold TOTP module
         <span class="commit">· a17f9c3</span>
       </div>
-      <div class="spacer"/>
+      <div class="spacer"></div>
       <span class="dim mono" style="font-size: 11px;">18m ago · 2m 14s</span>
       <span class="status-pill passed"><Icon name="check" size={10}/> passed</span>
     </div>
@@ -94,7 +94,7 @@
         <div class="stage-card">
           <div class="stage-name">{i + 1}. {s.name}</div>
           <div class="stage-job passed">
-            <span class="dot"/>
+            <span class="dot"></span>
             <span>{s.jobs[0].name}</span>
             <span class="time">ok</span>
           </div>

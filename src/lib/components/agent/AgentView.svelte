@@ -124,7 +124,7 @@
                       <span class="targ">{tc.args}</span>
                       <span class="spin">
                         {#if tc.status === 'live'}
-                          <span class="typing-dots"><span/><span/><span/></span>
+                          <span class="typing-dots"><span></span><span></span><span></span></span>
                         {:else if tc.status === 'done'}
                           <span style="color: var(--success)"><Icon name="check" size={11}/></span>
                         {:else}
@@ -147,12 +147,12 @@
         <textarea
           placeholder="Redirect the agent, ask a question, or add context…"
           bind:value={draft}
-        />
+        ></textarea>
         <div class="chat-input-row">
-          <span class="profile-picker"><span class="dot"/> feature</span>
+          <span class="profile-picker"><span class="dot"></span> feature</span>
           <span class="chip"><Icon name="attach" size={11}/> FEAT-42 context</span>
           <span class="chip"><Icon name="at" size={11}/> mention file</span>
-          <div class="spacer"/>
+          <div class="spacer"></div>
           <button class="btn"><Icon name="send" size={12}/> Send<span class="kbd">⌘↵</span></button>
         </div>
       </div>
@@ -161,7 +161,7 @@
 
   <div class="activity">
     <div class="activity-head">
-      <span class="live-dot"/>
+      <span class="live-dot"></span>
       Live activity
       <span class="dim mono" style="font-size: 10px; margin-left: 4px;">— what the agent is doing, right now</span>
       <span class="pause"><Icon name="pause" size={11}/> auto-scroll</span>

@@ -142,7 +142,11 @@ input, textarea { font-family: inherit; color: inherit; }
   font-weight: 600;
   font-size: 13px;
   letter-spacing: -0.01em;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .12s;
 }
+.brand-chip:hover { background: var(--bg-1); }
 .brand-chip .logo { width: 20px; height: 20px; }
 
 .tab-divider {
@@ -184,6 +188,8 @@ input, textarea { font-family: inherit; color: inherit; }
   width: 16px; height: 16px; border-radius: 3px;
   display: grid; place-items: center;
   color: var(--fg-2);
+  padding: 0;
+  flex-shrink: 0;
 }
 .project-tab:hover .close { opacity: 1; }
 .project-tab .close:hover { background: var(--bg-3); color: var(--fg-0); }

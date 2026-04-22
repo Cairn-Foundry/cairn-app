@@ -77,10 +77,10 @@
 <div class="workspace">
   <!-- Project tabs — padding-left clears native macOS traffic lights -->
   <div class="tabs-row" style="padding-left: {tabsPadding};">
-    <div class="brand-chip">
-      <button class="icon-btn" on:click={() => dispatch('goHome')} title="Home"><CairnLogo size={18}/></button>
+    <button class="brand-chip" on:click={() => dispatch('goHome')} title="Home">
+      <CairnLogo size={18}/>
       <span>Cairn</span>
-    </div>
+    </button>
     <div class="tab-divider"></div>
     {#each openProjects as p}
       <div

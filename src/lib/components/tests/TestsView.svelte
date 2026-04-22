@@ -59,7 +59,7 @@
             {#if t.status === 'pass'}<Icon name="check" size={12}/>
             {:else if t.status === 'fail'}<Icon name="x" size={12}/>
             {:else if t.status === 'skip'}<Icon name="circle" size={10}/>
-            {:else if t.status === 'run'}<span class="spinner"/>
+            {:else if t.status === 'run'}<span class="spinner"></span>
             {/if}
           </span>
           <span class="name">{t.name}</span>
@@ -87,7 +87,7 @@
         <div class="k-num">{running}</div>
         <div class="k-label">Running</div>
       </div>
-      <div class="spacer"/>
+      <div class="spacer"></div>
       <button class="btn"><Icon name="refresh" size={13}/> Run all</button>
       <button class="btn primary"><Icon name="play" size={12}/> Watch mode</button>
     </div>

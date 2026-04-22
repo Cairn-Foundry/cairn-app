@@ -87,15 +87,15 @@
     <div class="commit-composer">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <span style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase;">Commit message</span>
-        <div style="flex: 1"/>
+        <div style="flex: 1"></div>
         <button class="ai-suggest"><Icon name="sparkles" size={11}/> Regenerate with AI</button>
       </div>
-      <textarea class="commit-msg" bind:value={commitMsg}/>
+      <textarea class="commit-msg" bind:value={commitMsg}></textarea>
       <div class="commit-row">
         <span class="dim mono" style="font-size: 11px;">
           on <span style="color: var(--fg-1)">feat/totp-auth</span> · 3 ahead of origin
         </span>
-        <div style="flex: 1"/>
+        <div style="flex: 1"></div>
         <button class="btn ghost"><Icon name="save" size={13}/> Commit</button>
         <button class="btn primary"><Icon name="upload" size={13}/> Commit &amp; push</button>
       </div>
