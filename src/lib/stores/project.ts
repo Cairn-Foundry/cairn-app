@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { Project } from '$lib/types/project';
-import { listProjects, addProject, removeProject, setActiveInstance } from '$lib/services/project-service';
+import { listProjects, addProject, removeProject, updateProject, duplicateProject, setActiveInstance } from '$lib/services/project-service';
 
 export const projects = writable<Project[]>([]);
 export const activeProjectId = writable<string | null>(null);
@@ -31,4 +31,15 @@ export async function unregisterProject(id: string): Promise<void> {
   const updated = await removeProject(id);
   projects.set(updated);
   activeProjectId.update((current) => (current === id ? null : current));
+}
+
+export async function editProject(id: string, name: string, color: string): Promise<void> {
+  const updated = await updateProject(id, name, color);
+  projects.set(updated);
+}
+
+export async function duplicateProjectInStore(id: string): Promise<void> {
+  const newId = crypto.randomUUID();
+  const updated = await duplicateProject(id, newId);
+  projects.set(updated);
 }

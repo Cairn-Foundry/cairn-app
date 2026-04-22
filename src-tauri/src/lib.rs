@@ -74,6 +74,15 @@ fn add_project(project: Project) -> Result<Vec<Project>, String> {
     if projects.iter().any(|p| p.id == project.id) {
         return Err(format!("Project with id '{}' already exists", project.id));
     }
+    let canonical = PathBuf::from(&project.path)
+        .canonicalize()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| project.path.clone());
+    if projects.iter().any(|p| {
+        PathBuf::from(&p.path).canonicalize().map(|c| c.to_string_lossy().to_string()).unwrap_or_else(|_| p.path.clone()) == canonical
+    }) {
+        return Err(format!("A project for '{}' already exists", canonical));
+    }
     // Ensure per-project dirs exist
     fs::create_dir_all(worktrees_dir(&project.id)?).map_err(|e| e.to_string())?;
     projects.push(project);
@@ -82,11 +91,84 @@ fn add_project(project: Project) -> Result<Vec<Project>, String> {
 }
 
 #[tauri::command]
+async fn clone_repository(url: String, dest_parent: String, name: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let expanded = shellexpand::tilde(&dest_parent).into_owned();
+        let dest = PathBuf::from(&expanded).join(&name);
+        if dest.exists() {
+            return Err(format!("Destination already exists: {}", dest.display()));
+        }
+        let output = Command::new("git")
+            .args(["clone", "--", &url, dest.to_str().unwrap_or(&name)])
+            .output()
+            .map_err(|e| format!("Failed to run git: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(stderr);
+        }
+        dest.canonicalize()
+            .map(|p| p.to_string_lossy().to_string())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn remove_project(id: String) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
     projects.retain(|p| p.id != id);
     write_projects(&projects)?;
+    // Delete all Cairn data for this project (instances + worktrees) — user files are untouched
+    let project_data_dir = cairn_dir()?.join("projects").join(&id);
+    if project_data_dir.exists() {
+        fs::remove_dir_all(&project_data_dir).map_err(|e| e.to_string())?;
+    }
     Ok(projects)
+}
+
+#[tauri::command]
+fn update_project(id: String, name: String, color: String) -> Result<Vec<Project>, String> {
+    let mut projects = read_projects()?;
+    let p = projects.iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("Project '{}' not found", id))?;
+    p.name = name;
+    p.color = color;
+    write_projects(&projects)?;
+    Ok(projects)
+}
+
+#[tauri::command]
+fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, String> {
+    let mut projects = read_projects()?;
+    let original = projects.iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("Project '{}' not found", id))?
+        .clone();
+    let duplicate = Project {
+        id: new_id.clone(),
+        name: format!("Copy of {}", original.name),
+        path: original.path,
+        color: original.color,
+        active_instance_id: None,
+    };
+    fs::create_dir_all(worktrees_dir(&new_id)?).map_err(|e| e.to_string())?;
+    projects.push(duplicate);
+    write_projects(&projects)?;
+    Ok(projects)
+}
+
+#[tauri::command]
+fn reveal_in_file_manager(path: String) -> Result<(), String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    #[cfg(target_os = "macos")]
+    Command::new("open").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    Command::new("explorer").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    Command::new("xdg-open").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -97,6 +179,19 @@ fn set_active_instance(project_id: String, instance_id: Option<String>) -> Resul
         .ok_or_else(|| format!("Project '{}' not found", project_id))?;
     project.active_instance_id = instance_id;
     write_projects(&projects)
+}
+
+#[tauri::command]
+fn validate_directory(path: String) -> Result<String, String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let dir_path = PathBuf::from(&expanded);
+    if !dir_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !dir_path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path));
+    }
+    dir_path.canonicalize().map_err(|e| e.to_string()).map(|p| p.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -432,7 +527,12 @@ pub fn run() {
             list_projects,
             add_project,
             remove_project,
+            update_project,
+            duplicate_project,
+            reveal_in_file_manager,
+            validate_directory,
             validate_git_repo,
+            clone_repository,
             list_branches,
             list_instances,
             create_instance,

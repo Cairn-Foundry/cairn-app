@@ -1,13 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeStep } from '$lib/stores/ui.js';
-  import { projects, activeProjectId, loadProjects, registerProject } from '$lib/stores/project';
+  import { projects, activeProjectId, loadProjects } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
-  import { validateGitRepo } from '$lib/services/project-service';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
-  import type { Project } from '$lib/types/project';
 
   type Screen = 'home' | 'workspace';
 
@@ -52,20 +50,9 @@
     }
   }
 
-  async function handleAddProject(path: string) {
-    try {
-      const resolvedPath = await validateGitRepo(path);
-      const name = resolvedPath.split('/').at(-1) ?? resolvedPath;
-      const id = crypto.randomUUID();
-      const hue = Math.abs(name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % 360;
-      const color = `oklch(0.72 0.14 ${hue})`;
-      const project: Project = { id, name, path: resolvedPath, color, activeInstanceId: null };
-      await registerProject(project);
-      activeProjectId.set(id);
-      screen = 'workspace';
-    } catch (err) {
-      alert(String(err));
-    }
+  function handleProjectCreated(id: string) {
+    activeProjectId.set(id);
+    screen = 'workspace';
   }
 </script>
 
@@ -73,8 +60,7 @@
   {#if screen === 'home'}
     <Home
       on:openProject={(e) => handleOpenProject(e.detail)}
-      on:addProject={(e) => handleAddProject(e.detail)}
-      on:createInstance={() => showCreate = true}
+      on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
     />
   {:else}
     <Workspace

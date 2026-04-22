@@ -223,6 +223,31 @@
     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
     <circle cx="12" cy="12" r="3"/>
   </svg>
+{:else if name === 'trash'}
+  <svg {...common} {...$$restProps}>
+    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+    <path d="M10 11v5M14 11v5"/>
+  </svg>
+{:else if name === 'copy'}
+  <svg {...common} {...$$restProps}>
+    <rect x="9" y="9" width="12" height="12" rx="2"/>
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+  </svg>
+{:else if name === 'clipboard'}
+  <svg {...common} {...$$restProps}>
+    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+    <rect x="9" y="3" width="6" height="4" rx="1"/>
+  </svg>
+{:else if name === 'lock'}
+  <svg {...common} {...$$restProps}>
+    <rect x="5" y="11" width="14" height="10" rx="2"/>
+    <path d="M8 11V7a4 4 0 018 0v4"/>
+  </svg>
+{:else if name === 'key'}
+  <svg {...common} {...$$restProps}>
+    <circle cx="8" cy="15" r="4"/>
+    <path d="M12 11l8-8M18 6l2 2M15 9l2 2"/>
+  </svg>
 {:else if name === 'dots-v'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <circle cx="12" cy="5" r="1.5"/>
