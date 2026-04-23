@@ -90,7 +90,7 @@
 
     <div style="flex: 1"></div>
     <div style="padding: 0 8px; font-size: 11px; color: var(--fg-3); font-family: var(--font-mono);">
-      v0.2.0
+      v{__APP_VERSION__ ?? 'dev'}
     </div>
   </aside>
 

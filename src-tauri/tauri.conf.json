@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "cairn",
-  "version": "0.2.0",
   "identifier": "com.bonneton-dev.cairn",
   "build": {
     "beforeDevCommand": "bun run dev",
