@@ -38,11 +38,21 @@
     selectParentSyntax, cursorMatchingBracket,
   } from '@codemirror/commands';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
-  import { lintGutter, lintKeymap } from '@codemirror/lint';
+  import { lintKeymap } from '@codemirror/lint';
 
   export let content: string = '';
   export let onChange: ((value: string) => void) | undefined = undefined;
   export let onBlur: (() => void) | undefined = undefined;
+  export let initialCursorPos: number = 0;
+  export let initialScrollTop: number = 0;
+
+  export function getState(): { cursorPos: number; scrollTop: number } {
+    if (!view) return { cursorPos: 0, scrollTop: 0 };
+    return {
+      cursorPos: view.state.selection.main.head,
+      scrollTop: view.scrollDOM.scrollTop,
+    };
+  }
 
   type EditorLanguage =
     | 'ts'
@@ -680,7 +690,6 @@
       search({ top: false }),
       highlightSelectionMatches({ minSelectionLength: 2, wholeWords: false }),
       autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: 12 }),
-      lintGutter(),
       ...snippets,
       ...scopeCompletion,
       buildHoverTooltip(),
@@ -701,6 +710,15 @@
       state: EditorState.create({ doc: content, extensions: buildExtensions() }),
       parent: container,
     });
+
+    if (initialCursorPos > 0) {
+      const maxPos = view.state.doc.length;
+      const pos = Math.min(initialCursorPos, maxPos);
+      view.dispatch({ selection: { anchor: pos, head: pos } });
+    }
+    if (initialScrollTop > 0) {
+      view.scrollDOM.scrollTop = initialScrollTop;
+    }
   });
 
   $: if (view) {
@@ -710,7 +728,7 @@
     }
   }
 
-  onDestroy(() => view?.destroy());
+  onDestroy(() => { view?.destroy(); });
 </script>
 
 <div bind:this={container} class="editor-mount"></div>
