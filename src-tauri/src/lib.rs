@@ -248,6 +248,8 @@ struct StoredInstance {
     pub created_at: u64,
     #[serde(rename = "useGit", default)]
     pub use_git: bool,
+    #[serde(rename = "baseBranch", default)]
+    pub base_branch: String,
 }
 
 // Returned to the frontend — includes projectId
@@ -265,6 +267,8 @@ pub struct Instance {
     pub created_at: u64,
     #[serde(rename = "useGit")]
     pub use_git: bool,
+    #[serde(rename = "baseBranch")]
+    pub base_branch: String,
 }
 
 impl StoredInstance {
@@ -278,6 +282,7 @@ impl StoredInstance {
             status: self.status,
             created_at: self.created_at,
             use_git: self.use_git,
+            base_branch: self.base_branch,
         }
     }
 }
@@ -391,6 +396,7 @@ async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
                 .unwrap_or_default()
                 .as_millis() as u64,
             use_git: args.use_git,
+            base_branch: args.base_branch.unwrap_or_default(),
         };
 
         let mut instances = read_instances(&args.project_id)?;

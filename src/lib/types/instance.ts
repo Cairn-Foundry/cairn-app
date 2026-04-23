@@ -16,6 +16,7 @@ export interface Instance {
   status: InstanceStatus;
   createdAt: number;
   useGit: boolean;
+  baseBranch: string;
 }
 
 export interface TimelineEvent {

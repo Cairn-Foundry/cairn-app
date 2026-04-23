@@ -14,12 +14,14 @@
   import type { Instance } from '$lib/types/instance';
   import { instances } from '$lib/stores/instance';
   import { activateInstance } from '$lib/stores/project';
+  import ManageInstances from '$lib/components/ManageInstances.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
   export let activeInstance: Instance | null = null;
 
   let showInstanceMenu = false;
+  let showManageModal = false;
 
   async function selectInstance(id: string) {
     showInstanceMenu = false;
@@ -194,6 +196,11 @@
               <Icon name="plus" size={11}/>
               <span>New instance</span>
             </button>
+            <div class="instance-menu-divider"></div>
+            <button class="instance-menu-item instance-menu-manage" on:click={() => { showInstanceMenu = false; showManageModal = true; }}>
+              <Icon name="settings" size={11}/>
+              <span>Manage instances</span>
+            </button>
           </div>
         {/if}
       </div>
@@ -263,6 +270,14 @@
   </div>
 </div>
 
+{#if showManageModal}
+  <ManageInstances
+    activeInstanceId={activeInstance?.id ?? null}
+    on:close={() => showManageModal = false}
+    on:newInstance={() => { showManageModal = false; dispatch('createInstance'); }}
+  />
+{/if}
+
 <style>
   .instance-switcher-wrap { position: relative; }
 
@@ -308,6 +323,15 @@
     font-size: 12px;
   }
   .instance-menu-new:hover { color: var(--fg-0); }
+
+  .instance-menu-manage {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-3);
+    font-size: 12px;
+  }
+  .instance-menu-manage:hover { color: var(--fg-0); }
 
   .create-instance-btn {
     display: flex;
