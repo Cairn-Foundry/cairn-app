@@ -26,6 +26,14 @@
     await activateInstance(activeProjectId, id);
   }
 
+  function clickOutside(node: HTMLElement, callback: () => void) {
+    const handler = (e: PointerEvent) => {
+      if (!node.contains(e.target as Node)) callback();
+    };
+    document.addEventListener('pointerdown', handler, true);
+    return { destroy: () => document.removeEventListener('pointerdown', handler, true) };
+  }
+
   const dispatch = createEventDispatcher<{
     projectChange: string;
     closeProject: string;
@@ -164,7 +172,7 @@
   <!-- Instance header -->
   <div class="instance-header">
     {#if activeInstance}
-      <div class="instance-switcher-wrap">
+      <div class="instance-switcher-wrap" use:clickOutside={() => showInstanceMenu = false}>
         <button class="instance-switcher" on:click={() => showInstanceMenu = !showInstanceMenu}>
           <Icon name="ticket" size={12}/>
           <span class="mono">{activeInstance.ticket.id}</span>
