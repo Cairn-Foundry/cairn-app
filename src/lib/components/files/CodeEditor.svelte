@@ -43,6 +43,7 @@
   export let content: string = '';
   export let onChange: ((value: string) => void) | undefined = undefined;
   export let onBlur: (() => void) | undefined = undefined;
+  export let onCursorChange: ((line: number, col: number) => void) | undefined = undefined;
   export let initialCursorPos: number = 0;
   export let initialScrollTop: number = 0;
 
@@ -698,6 +699,11 @@
       EditorState.readOnly.of(readonly),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) onChange?.(update.state.doc.toString());
+        if (update.docChanged || update.selectionSet) {
+          const head = update.state.selection.main.head;
+          const line = update.state.doc.lineAt(head);
+          onCursorChange?.(line.number, head - line.from + 1);
+        }
       }),
       EditorView.domEventHandlers({
         blur: () => { onBlur?.(); return false; },

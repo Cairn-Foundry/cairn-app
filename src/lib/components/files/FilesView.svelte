@@ -79,6 +79,18 @@
 
   let quickOpenVisible = false;
 
+  let cursorLine = 1;
+  let cursorCol = 1;
+
+  function handleCursorChange(line: number, col: number) {
+    cursorLine = line;
+    cursorCol = col;
+  }
+
+  function detectLineEndings(text: string): 'CRLF' | 'LF' {
+    return text.includes('\r\n') ? 'CRLF' : 'LF';
+  }
+
   onMount(() => {
     function handleGlobalKey(e: KeyboardEvent) {
       if (e.key === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -102,6 +114,9 @@
   $: worktreePath = $activeInstance?.worktreePath ?? null;
   $: activeTab = tabs[activeTabIdx] ?? null;
   $: activeLang = (activeTab ? langFromPath(activeTab.path) : 'text') as any;
+  $: activeLineEndings = activeTab ? detectLineEndings(activeTab.pending) : 'LF';
+  $: isDirty = activeTab ? activeTab.pending !== activeTab.content : false;
+  $: { if (activeTab) { cursorLine = 1; cursorCol = 1; } }
 
   function saveCurrentState() {
     if (currentInstanceId === null) return;
@@ -372,11 +387,6 @@
         <span class="editor-path">
           <span class="editor-dir">{activeTab.path.split('/').slice(0, -1).join('/')}{activeTab.path.includes('/') ? '/' : ''}</span><strong>{activeTab.path.split('/').pop()}</strong>
         </span>
-        <div class="spacer"></div>
-        {#if saving}
-          <span class="editor-saving">saving…</span>
-        {/if}
-        <span class="editor-lang">{activeLang.toUpperCase()}</span>
       </div>
       <div class="editor-body">
         {#if loadingPaths.has(activeTab.path)}
@@ -398,8 +408,26 @@
               initialScrollTop={activeTab.scrollTop}
               onChange={handleChange}
               onBlur={flushSave}
+              onCursorChange={handleCursorChange}
             />
           {/key}
+        {/if}
+      </div>
+      <div class="editor-statusbar">
+        <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
+        <span class="statusbar-sep">|</span>
+        <span class="statusbar-item">{activeLang.toUpperCase()}</span>
+        <span class="statusbar-sep">|</span>
+        <span class="statusbar-item">{activeLineEndings}</span>
+        <span class="statusbar-sep">|</span>
+        <span class="statusbar-item">UTF-8</span>
+        {#if isDirty}
+          <span class="statusbar-sep">|</span>
+          <span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>
+        {/if}
+        {#if saving}
+          <span class="statusbar-sep">|</span>
+          <span class="statusbar-item statusbar-saving">saving…</span>
         {/if}
       </div>
     {:else}
@@ -581,19 +609,30 @@
     flex-shrink: 0;
     font-size: 12px;
   }
-  .editor-path { display: flex; align-items: baseline; overflow: hidden; }
+  .editor-path { display: flex; align-items: baseline; overflow: hidden; flex: 1; }
   .editor-dir { color: var(--fg-3); white-space: nowrap; font-size: 11.5px; }
-  .editor-lang {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--fg-3);
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
-  }
-  .editor-saving { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); flex-shrink: 0; }
-  .spacer { flex: 1; }
-
   .editor-body { flex: 1; overflow: hidden; position: relative; }
+
+  /* ── Status bar ──────────────────────────────────────────────── */
+
+  .editor-statusbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 22px;
+    border-top: 1px solid var(--stroke-0);
+    background: var(--bg-1);
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-3);
+  }
+
+  .statusbar-item { white-space: nowrap; }
+  .statusbar-sep { color: var(--fg-4); }
+  .statusbar-dirty { color: var(--accent); }
+  .statusbar-saving { color: var(--fg-3); font-style: italic; }
 
   .editor-placeholder {
     display: flex;
