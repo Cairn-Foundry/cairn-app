@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import QuickOpen from './QuickOpen.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { readDirTree, readFile, writeFile, langFromPath, isBinaryPath, type FileNode } from '$lib/services/file-service';
 
@@ -75,6 +76,23 @@
   let saving = false;
   let error = '';
   let editorRef: CodeEditor | undefined;
+
+  let quickOpenVisible = false;
+
+  onMount(() => {
+    function handleGlobalKey(e: KeyboardEvent) {
+      if (e.key === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        quickOpenVisible = true;
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  });
+
+  function quickOpenFile(path: string) {
+    openFile({ path, name: path.split('/').pop() ?? path, isDir: false });
+  }
 
   let tabsBarEl: HTMLElement | null = null;
   let dragSrcIndex: number | null = null;
@@ -392,6 +410,10 @@
     {/if}
   </div>
 </div>
+
+{#if quickOpenVisible}
+  <QuickOpen tree={tree} onOpen={quickOpenFile} onClose={() => { quickOpenVisible = false; }} />
+{/if}
 
 <!-- Recursive tree node -->
 {#snippet treeNode(node: FileNode, depth: number)}
