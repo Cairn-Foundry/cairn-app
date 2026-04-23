@@ -37,6 +37,27 @@ fn worktrees_dir(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("worktrees"))
 }
 
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name();
+        // Skip .git directory to avoid copying repository internals
+        if name == ".git" {
+            continue;
+        }
+        let src_path = entry.path();
+        let dst_path = dst.join(&name);
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        if file_type.is_dir() {
+            fs::create_dir_all(&dst_path).map_err(|e| e.to_string())?;
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path).map(|_| ()).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -382,6 +403,7 @@ async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
             let slug = args.ticket.id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
             let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
             fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
+            copy_dir_recursive(&std::path::Path::new(&expanded_project), &worktree_path)?;
             (String::new(), worktree_path.to_string_lossy().to_string())
         };
 
