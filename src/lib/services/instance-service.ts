@@ -6,8 +6,9 @@ export interface CreateInstanceArgs {
   projectId: string;
   projectPath: string;
   ticket: { id: string; title: string };
-  branch: string;
-  baseBranch: string;
+  useGit: boolean;
+  branch?: string;
+  baseBranch?: string;
 }
 
 export async function listInstances(projectId: string): Promise<Instance[]> {

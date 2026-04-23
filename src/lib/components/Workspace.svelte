@@ -32,7 +32,54 @@
     addProject: void;
     goHome: void;
     createInstance: void;
+    reorderTabs: string[];
   }>();
+
+  let dragSrcIndex: number | null = null;
+  let insertIndex: number | null = null;
+  let didDrag = false;
+  let tabsRowEl: HTMLElement | null = null;
+
+  function computeInsertIndex(clientX: number): number {
+    const tabs = tabsRowEl?.querySelectorAll<HTMLElement>('.project-tab');
+    if (!tabs || tabs.length === 0) return 0;
+    for (let i = 0; i < tabs.length; i++) {
+      const rect = tabs[i].getBoundingClientRect();
+      if (clientX < rect.left + rect.width / 2) return i;
+    }
+    return tabs.length;
+  }
+
+  function tabPointerDown(e: PointerEvent, index: number) {
+    if ((e.target as Element).closest('button')) return;
+    e.preventDefault();
+    dragSrcIndex = index;
+    insertIndex = index;
+    didDrag = false;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function tabPointerMove(e: PointerEvent) {
+    if (dragSrcIndex === null) return;
+    const next = computeInsertIndex(e.clientX);
+    if (next !== insertIndex) didDrag = true;
+    insertIndex = next;
+  }
+
+  function tabPointerUp() {
+    if (dragSrcIndex === null || insertIndex === null) return;
+    const isNoop = insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1;
+    if (!isNoop) {
+      const reordered = openProjects.map((p) => p.id);
+      const [moved] = reordered.splice(dragSrcIndex, 1);
+      // After removal, positions after dragSrcIndex shift down by 1
+      const adjustedInsert = insertIndex > dragSrcIndex ? insertIndex - 1 : insertIndex;
+      reordered.splice(adjustedInsert, 0, moved);
+      dispatch('reorderTabs', reordered);
+    }
+    dragSrcIndex = null;
+    insertIndex = null;
+  }
 
   const STEPS = [
     { id: 'files',  num: '00', label: 'Files',  icon: 'folder' },
@@ -76,27 +123,36 @@
 
 <div class="workspace">
   <!-- Project tabs — padding-left clears native macOS traffic lights -->
-  <div class="tabs-row" style="padding-left: {tabsPadding};">
+  <div class="tabs-row" style="padding-left: {tabsPadding};" bind:this={tabsRowEl}>
     <button class="brand-chip" on:click={() => dispatch('goHome')} title="Home">
       <CairnLogo size={18}/>
       <span>Cairn</span>
     </button>
     <div class="tab-divider"></div>
-    {#each openProjects as p}
+    {#each openProjects as p, i}
+      {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
+        <div class="drop-indicator"></div>
+      {/if}
       <div
-        class="project-tab {p.id === activeProjectId ? 'active' : ''}"
-        on:click={() => dispatch('projectChange', p.id)}
+        class="project-tab {p.id === activeProjectId ? 'active' : ''} {dragSrcIndex === i ? 'dragging' : ''}"
         role="tab"
         tabindex="0"
+        on:pointerdown={(e) => tabPointerDown(e, i)}
+        on:pointermove={tabPointerMove}
+        on:pointerup={tabPointerUp}
+        on:click={() => { if (!didDrag) dispatch('projectChange', p.id); didDrag = false; }}
         on:keydown={(e) => e.key === 'Enter' && dispatch('projectChange', p.id)}
       >
-        <span class="dot" style={p.id === activeProjectId ? `background: ${p.color}` : ''}></span>
+        <span class="dot" style="background: {p.color}"></span>
         <span>{p.name}</span>
         <button class="close" on:click|stopPropagation={() => dispatch('closeProject', p.id)}>
           <Icon name="x" size={11}/>
         </button>
       </div>
     {/each}
+    {#if dragSrcIndex !== null && insertIndex === openProjects.length && insertIndex !== dragSrcIndex + 1}
+      <div class="drop-indicator"></div>
+    {/if}
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> Project
     </button>
@@ -136,24 +192,25 @@
 
       <div class="instance-title">
         <span class="instance-dot"></span>
-        <span class="ticket-id">{activeInstance.ticket.id}</span>
         <span class="ticket-name">{activeInstance.ticket.title}</span>
       </div>
 
-      <div class="branch-info">
-        <Icon name="branch" size={11}/>
-        <span class="target">{activeInstance.branch}</span>
-      </div>
+      {#if activeInstance.branch}
+        <div class="branch-info">
+          <Icon name="branch" size={11}/>
+          <span class="target">{activeInstance.branch}</span>
+        </div>
+      {/if}
 
       <div class="instance-actions">
-        <button class="btn ghost"><Icon name="bookmark" size={13}/> Checkpoint</button>
         <button class="btn"><Icon name="pause" size={13}/> Pause agent</button>
         <button class="btn primary"><Icon name="check" size={13}/> Finalize instance</button>
       </div>
     {:else}
-      <div class="instance-title" style="color: var(--fg-3); font-size: 13px;">
-        No active instance — <button class="btn ghost" style="font-size: 12px; padding: 2px 8px;" on:click={() => dispatch('createInstance')}>create one</button>
-      </div>
+      <button class="create-instance-btn" on:click={() => dispatch('createInstance')}>
+        <Icon name="plus" size={13}/>
+        Create an instance
+      </button>
     {/if}
   </div>
 
@@ -165,7 +222,6 @@
           class="step {$activeStep === s.id ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
           on:click={() => activeStep.set(s.id as any)}
         >
-          <span class="num">{s.num}</span>
           <span class="icon"><Icon name={s.icon} size={20}/></span>
           <span class="label">{s.label}</span>
           {#if doneSteps.has(s.id)}
@@ -244,4 +300,35 @@
     font-size: 12px;
   }
   .instance-menu-new:hover { color: var(--fg-0); }
+
+  .create-instance-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    color: var(--fg-2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .create-instance-btn:hover {
+    background: var(--accent-weak);
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+
+  :global(.project-tab) { cursor: grab; }
+  :global(.project-tab:active) { cursor: grabbing; }
+  :global(.project-tab.dragging) { opacity: 0.4; cursor: grabbing; }
+  :global(.drop-indicator) {
+    width: 2px;
+    align-self: stretch;
+    background: var(--accent, #6c8eff);
+    border-radius: 1px;
+    margin: 4px 1px;
+    pointer-events: none;
+  }
 </style>

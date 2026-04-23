@@ -1,66 +1,101 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { activeProject } from '$lib/stores/project';
-  import { spawnInstance } from '$lib/stores/instance';
+  import { spawnInstance, instances } from '$lib/stores/instance';
   import { listBranches } from '$lib/services/instance-service';
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
+  // step: 0 = ticket, 1 = mode, 2 = git config (skipped for local), 3 = agent + recap
   let step = 0;
   let ticketId = '';
   let ticketTitle = '';
+  let useGit = true;
   let branchName = '';
   let baseBranch = 'main';
   let profile = 'feature';
   let availableBranches: string[] = [];
+  let branchSearch = '';
+  let isGitRepo = false;
   let creating = false;
   let error = '';
-
-  const headers = [
-    { step: 'Ticket', title: 'Describe the work' },
-    { step: 'Branch', title: 'Shape the worktree' },
-    { step: 'Agent', title: 'Brief the agent' },
-  ];
+  let prevSlug = '';
 
   onMount(async () => {
     if ($activeProject) {
       try {
         availableBranches = await listBranches($activeProject.path);
+        isGitRepo = true;
         if (availableBranches.includes('main')) baseBranch = 'main';
         else if (availableBranches.includes('master')) baseBranch = 'master';
         else if (availableBranches.length > 0) baseBranch = availableBranches[0];
       } catch {
         availableBranches = [];
+        isGitRepo = false;
+        useGit = false;
       }
     }
   });
 
   $: if (ticketId) {
     const slug = ticketId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (!branchName || branchName === prevSlug) branchName = `feat/${slug}`;
-    prevSlug = `feat/${slug}`;
+    const generated = `feat/${slug}`;
+    if (!branchName || branchName === prevSlug) branchName = generated;
+    prevSlug = generated;
   }
-  let prevSlug = '';
 
-  $: worktreePath = `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`;
-  $: canNext = step === 0 ? (ticketId.trim().length > 0 && ticketTitle.trim().length > 0) : true;
+  $: worktreePath = useGit
+    ? `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`
+    : `~/.cairn/worktrees/${ticketId.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-  function next() { error = ''; step = Math.min(2, step + 1); }
-  function back() { error = ''; step = Math.max(0, step - 1); }
+  $: totalSteps = useGit ? 4 : 3;
+
+  $: displayStep = (!useGit && step === 3) ? 3 : step + 1;
+
+  const stepMeta: Record<number, { label: string; title: string }> = {
+    0: { label: 'Ticket',    title: 'Describe the work'   },
+    1: { label: 'Mode',      title: 'Choose a setup mode' },
+    2: { label: 'Branch',    title: 'Shape the worktree'  },
+    3: { label: 'Agent',     title: 'Brief the agent'     },
+  };
+
+  $: duplicateBranch = useGit && branchName.trim().length > 0
+    && $instances.some(i => i.branch === branchName.trim());
+
+  $: canNext =
+    step === 0 ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
+    step === 2 ? branchName.trim().length > 0 && !duplicateBranch :
+    true;
+
+  function next() {
+    error = '';
+    if (step === 1 && !useGit) { step = 3; return; }
+    step = Math.min(3, step + 1);
+  }
+
+  function back() {
+    error = '';
+    if (step === 3 && !useGit) { step = 1; return; }
+    step = Math.max(0, step - 1);
+  }
+
+  $: dots = useGit ? [0, 1, 2, 3] : [0, 1, 3];
 
   async function handleCreate() {
     if (!$activeProject) return;
     creating = true;
     error = '';
+    await tick();
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     try {
       const instance = await spawnInstance({
         id: crypto.randomUUID(),
         projectId: $activeProject.id,
         projectPath: $activeProject.path,
         ticket: { id: ticketId.trim(), title: ticketTitle.trim() },
-        branch: branchName.trim(),
-        baseBranch,
+        useGit,
+        ...(useGit ? { branch: branchName.trim(), baseBranch } : {}),
       });
       dispatch('create', { instanceId: instance.id });
     } catch (err) {
@@ -74,13 +109,20 @@
   <div class="modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">Step {step + 1} of 3 — {headers[step].step}</div>
-        <h3>{headers[step].title}</h3>
+        <div class="step-count">Step {displayStep} of {totalSteps} — {stepMeta[step].label}</div>
+        <h3>{stepMeta[step].title}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')}><Icon name="x" size={16}/></button>
     </div>
 
-    <div class="modal-body">
+    <div class="modal-body" class:loading={creating}>
+      {#if creating}
+        <div class="creating-overlay">
+          <span class="ci-spinner large"></span>
+          <span class="creating-label">Setting up instance…</span>
+        </div>
+      {/if}
+
       {#if step === 0}
         <div class="form-row">
           <label for="ticket-id">Ticket ID</label>
@@ -93,31 +135,93 @@
       {/if}
 
       {#if step === 1}
+        <div class="mode-grid">
+          <button
+            class="mode-card {useGit ? 'active' : ''} {!isGitRepo ? 'disabled' : ''}"
+            disabled={!isGitRepo}
+            on:click={() => { if (isGitRepo) useGit = true; }}
+          >
+            <span class="mode-icon"><Icon name="branch" size={22}/></span>
+            <span class="mode-label">Git worktree</span>
+            <span class="mode-desc">
+              {#if isGitRepo}
+                Isolated branch + worktree. Recommended for collaborative or tracked work.
+              {:else}
+                Not available — this project is not a git repository.
+              {/if}
+            </span>
+          </button>
+          <button
+            class="mode-card {!useGit ? 'active' : ''}"
+            on:click={() => useGit = false}
+          >
+            <span class="mode-icon"><Icon name="folder" size={22}/></span>
+            <span class="mode-label">Local only</span>
+            <span class="mode-desc">Work directly in the project directory. No branch or worktree is created.</span>
+          </button>
+        </div>
+      {/if}
+
+      {#if step === 2}
         <div class="form-row">
-          <label for="base-branch">Base branch</label>
+          <div class="field-label">Base branch</div>
           {#if availableBranches.length > 0}
-            <select id="base-branch" bind:value={baseBranch}>
-              {#each availableBranches as b}
-                <option value={b}>{b}</option>
-              {/each}
-            </select>
+            <div class="branch-list-wrap">
+              <div class="branch-search-row">
+                <Icon name="search" size={13}/>
+                <input
+                  class="branch-search"
+                  type="text"
+                  bind:value={branchSearch}
+                  placeholder="Filter branches…"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="branch-list">
+                {#each availableBranches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())) as b}
+                  <button
+                    class="branch-item {baseBranch === b ? 'active' : ''}"
+                    on:click={() => baseBranch = b}
+                  >
+                    <Icon name="branch" size={13}/>
+                    <span class="branch-name">{b}</span>
+                    {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
+                  </button>
+                {:else}
+                  <div class="branch-empty">No branches match "{branchSearch}"</div>
+                {/each}
+              </div>
+            </div>
           {:else}
             <input id="base-branch" type="text" bind:value={baseBranch} placeholder="main" />
           {/if}
         </div>
         <div class="form-row">
           <label for="branch-name">New branch name</label>
-          <input id="branch-name" type="text" bind:value={branchName} />
+          <input
+            id="branch-name"
+            type="text"
+            bind:value={branchName}
+            class:input-error={duplicateBranch}
+          />
+          {#if duplicateBranch}
+            <div class="field-error">
+              <Icon name="info" size={12}/>
+              A branch named <strong>{branchName.trim()}</strong> already exists in this project.
+            </div>
+          {/if}
         </div>
-        <div style="padding: 12px 14px; background: var(--bg-0); border-radius: var(--r-md); border: 1px solid var(--stroke-0); font-size: 12px; color: var(--fg-2); line-height: 1.55; display: flex; gap: 10px;">
-          <div style="color: var(--accent); margin-top: 2px;"><Icon name="info" size={14}/></div>
+        <div class="info-box">
+          <div class="info-icon"><Icon name="info" size={14}/></div>
           <div>
-            <strong style="color: var(--fg-0)">git worktree</strong> will create an isolated checkout at <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>. Your main working tree stays untouched.
+            <strong style="color: var(--fg-0)">git worktree</strong> will create an isolated checkout at
+            <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
+            Your main working tree stays untouched.
           </div>
         </div>
       {/if}
 
-      {#if step === 2}
+      {#if step === 3}
         <div class="form-row">
           <label for="profile-btn-feature">Agent profile</label>
           <div class="source-tabs" style="margin: 0;">
@@ -129,36 +233,43 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
           <div class="summary-card">
             <div class="sum-row"><span class="label">Ticket</span><span class="val">{ticketId}</span></div>
-            <div class="sum-row"><span class="label">Branch</span><span class="val">{branchName}</span></div>
-            <div class="sum-row"><span class="label">Base</span><span class="val">{baseBranch}</span></div>
+            <div class="sum-row"><span class="label">Mode</span><span class="val">{useGit ? 'Git worktree' : 'Local'}</span></div>
+            {#if useGit}
+              <div class="sum-row"><span class="label">Branch</span><span class="val">{branchName}</span></div>
+              <div class="sum-row"><span class="label">Base</span><span class="val">{baseBranch}</span></div>
+            {/if}
+            <div class="sum-row"><span class="label">Worktree</span><span class="val mono-small">{worktreePath}</span></div>
             <div class="sum-row"><span class="label">Profile</span><span class="val">{profile}</span></div>
           </div>
           <div class="summary-card">
             <div class="sum-row" style="color: var(--fg-2); font-size: 11px;">
               <Icon name="sparkles" size={13} style="color: var(--accent)"/>
-              <span>Cairn will create the branch, check out a worktree, and start the agent with ticket context.</span>
+              {#if useGit}
+                <span>Cairn will create the branch, check out a worktree, and start the agent with ticket context.</span>
+              {:else}
+                <span>Cairn will start the agent in the project directory with ticket context. No git operations will be performed.</span>
+              {/if}
             </div>
           </div>
         </div>
         {#if error}
-          <div style="margin-top: 12px; padding: 10px 14px; background: var(--bg-0); border: 1px solid var(--red, #e55); border-radius: var(--r-md); font-size: 12px; color: var(--red, #e55); font-family: var(--font-mono);">
-            {error}
-          </div>
+          <div class="error-box">{error}</div>
         {/if}
       {/if}
+
     </div>
 
     <div class="modal-foot">
       <div class="step-dots">
-        {#each [0, 1, 2] as i}
-          <span class={i === step ? 'active' : (i < step ? 'done' : '')}></span>
+        {#each dots as d}
+          <span class={d === step ? 'active' : (d < step ? 'done' : '')}></span>
         {/each}
       </div>
       <div class="spacer"></div>
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={creating}>Back</button>
       {/if}
-      {#if step < 2}
+      {#if step < 3}
         <button
           class="btn primary"
           disabled={!canNext}
@@ -167,11 +278,10 @@
         >
           Continue <Icon name="chev-r" size={14}/>
         </button>
-      {/if}
-      {#if step === 2}
+      {:else}
         <button class="btn primary" on:click={handleCreate} disabled={creating}>
           {#if creating}
-            <Icon name="spinner" size={14}/> Creating…
+            <span class="ci-spinner"></span> Creating…
           {:else}
             <Icon name="sparkles" size={14}/> Create instance
           {/if}
@@ -180,3 +290,216 @@
     </div>
   </div>
 </div>
+
+<style>
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mode-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--fg-1);
+  }
+
+  .mode-card:hover {
+    border-color: var(--fg-3);
+    background: var(--bg-2);
+  }
+
+  .mode-card.active {
+    border-color: var(--accent);
+    background: var(--accent-weak);
+  }
+
+  .mode-card.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .mode-card.disabled:hover {
+    border-color: var(--stroke-0);
+    background: var(--bg-0);
+  }
+
+  .mode-icon {
+    color: var(--fg-2);
+    margin-bottom: 2px;
+  }
+
+  .mode-card.active .mode-icon { color: var(--accent); }
+
+  .mode-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .mode-desc {
+    font-size: 11px;
+    color: var(--fg-3);
+    line-height: 1.5;
+  }
+
+  :global(input.input-error) {
+    border-color: var(--danger, oklch(0.62 0.18 15)) !important;
+    box-shadow: 0 0 0 3px var(--danger-weak, oklch(0.28 0.06 15));
+  }
+
+  .field-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--danger, oklch(0.75 0.18 15));
+  }
+
+  .info-box {
+    padding: 12px 14px;
+    background: var(--bg-0);
+    border-radius: var(--r-md);
+    border: 1px solid var(--stroke-0);
+    font-size: 12px;
+    color: var(--fg-2);
+    line-height: 1.55;
+    display: flex;
+    gap: 10px;
+  }
+
+  .info-icon { color: var(--accent); margin-top: 2px; }
+
+  .error-box {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-0);
+    border: 1px solid var(--red, #e55);
+    border-radius: var(--r-md);
+    font-size: 12px;
+    color: var(--red, #e55);
+    font-family: var(--font-mono);
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* Branch list */
+  .branch-list-wrap {
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    background: var(--bg-0);
+    overflow: hidden;
+  }
+
+  .branch-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--stroke-0);
+    color: var(--fg-3);
+  }
+
+  .branch-search {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: var(--fg-0);
+    font-family: var(--font-ui);
+  }
+  .branch-search::placeholder { color: var(--fg-4); }
+
+  .branch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 148px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .branch-empty {
+    padding: 10px;
+    font-size: 12px;
+    color: var(--fg-3);
+    text-align: center;
+  }
+
+  .branch-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--r-sm);
+    border: none;
+    background: none;
+    color: var(--fg-2);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+  }
+  .branch-item:hover { background: var(--bg-3); color: var(--fg-0); }
+  .branch-item.active { background: var(--accent-weak); color: var(--fg-0); }
+  .branch-item.active :global(svg) { color: var(--accent); }
+  .branch-name { flex: 1; }
+
+  /* Loading overlay */
+  :global(.modal-body.loading) { position: relative; }
+
+  .creating-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--bg-1);
+    border-radius: var(--r-md);
+    z-index: 10;
+  }
+
+  .creating-label {
+    font-size: 13px;
+    color: var(--fg-2);
+  }
+
+  /* Spinner */
+  .ci-spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid oklch(1 0 0 / 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: ci-spin 0.6s linear infinite;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .ci-spinner.large {
+    width: 28px;
+    height: 28px;
+    border-width: 3px;
+    border-color: var(--stroke-1);
+    border-top-color: var(--accent);
+  }
+  @keyframes ci-spin { to { transform: rotate(360deg); } }
+</style>

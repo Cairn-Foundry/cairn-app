@@ -15,6 +15,7 @@ export interface Instance {
   worktreePath: string;
   status: InstanceStatus;
   createdAt: number;
+  useGit: boolean;
 }
 
 export interface TimelineEvent {

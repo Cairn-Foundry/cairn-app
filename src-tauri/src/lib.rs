@@ -246,6 +246,8 @@ struct StoredInstance {
     pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: u64,
+    #[serde(rename = "useGit", default)]
+    pub use_git: bool,
 }
 
 // Returned to the frontend — includes projectId
@@ -261,6 +263,8 @@ pub struct Instance {
     pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: u64,
+    #[serde(rename = "useGit")]
+    pub use_git: bool,
 }
 
 impl StoredInstance {
@@ -273,6 +277,7 @@ impl StoredInstance {
             worktree_path: self.worktree_path,
             status: self.status,
             created_at: self.created_at,
+            use_git: self.use_git,
         }
     }
 }
@@ -285,9 +290,11 @@ pub struct CreateInstanceArgs {
     #[serde(rename = "projectPath")]
     pub project_path: String,
     pub ticket: InstanceTicket,
-    pub branch: String,
+    #[serde(rename = "useGit")]
+    pub use_git: bool,
+    pub branch: Option<String>,
     #[serde(rename = "baseBranch")]
-    pub base_branch: String,
+    pub base_branch: Option<String>,
 }
 
 fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
@@ -311,78 +318,89 @@ fn list_instances(project_id: String) -> Result<Vec<Instance>, String> {
 }
 
 #[tauri::command]
-fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
-    let expanded_project = shellexpand::tilde(&args.project_path).into_owned();
-    let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let expanded_project = shellexpand::tilde(&args.project_path).into_owned();
 
-    // Resolve base branch HEAD
-    let base_ref = format!("refs/heads/{}", args.base_branch);
-    let base_obj = repo.revparse_single(&base_ref)
-        .map_err(|_| format!("Base branch '{}' not found", args.base_branch))?;
-    let base_commit = base_obj.peel_to_commit().map_err(|e| e.to_string())?;
+        let (branch, worktree_path_str) = if args.use_git {
+            let branch = args.branch.clone().ok_or("branch is required for git mode")?;
+            let base_branch = args.base_branch.clone().ok_or("baseBranch is required for git mode")?;
 
-    // Create branch, reusing it if it already exists (idempotent retry)
-    let branch_created = match repo.branch(&args.branch, &base_commit, false) {
-        Ok(_) => true,
-        Err(e) if e.code() == git2::ErrorCode::Exists => false,
-        Err(e) => return Err(format!("Failed to create branch '{}': {}", args.branch, e)),
-    };
+            let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-    // Slug used as the worktree name (no slashes allowed by libgit2)
-    let slug = args.branch.replace('/', "-");
+            let base_ref = format!("refs/heads/{}", base_branch);
+            let base_obj = repo.revparse_single(&base_ref)
+                .map_err(|_| format!("Base branch '{}' not found", base_branch))?;
+            let base_commit = base_obj.peel_to_commit().map_err(|e| e.to_string())?;
 
-    // Worktree lives under the project's own worktrees dir
-    let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
+            let branch_created = match repo.branch(&branch, &base_commit, false) {
+                Ok(_) => true,
+                Err(e) if e.code() == git2::ErrorCode::Exists => false,
+                Err(e) => return Err(format!("Failed to create branch '{}': {}", branch, e)),
+            };
 
-    // Remove stale worktree entries
-    let git_worktree_entry = repo.path().join("worktrees").join(&slug);
-    if git_worktree_entry.exists() {
-        fs::remove_dir_all(&git_worktree_entry).map_err(|e| e.to_string())?;
-    }
-    if worktree_path.exists() {
-        fs::remove_dir_all(&worktree_path).map_err(|e| e.to_string())?;
-    }
+            let slug = branch.replace('/', "-");
+            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
 
-    // Ensure parent exists; libgit2 creates the final dir itself
-    fs::create_dir_all(worktree_path.parent().unwrap()).map_err(|e| e.to_string())?;
-
-    let worktree_result = repo.worktree(
-        &slug,
-        &worktree_path,
-        Some(git2::WorktreeAddOptions::new().reference(Some(
-            &repo.find_branch(&args.branch, BranchType::Local)
-                .map_err(|e| e.to_string())?
-                .into_reference(),
-        ))),
-    );
-
-    if let Err(e) = worktree_result {
-        if branch_created {
-            if let Ok(mut b) = repo.find_branch(&args.branch, BranchType::Local) {
-                let _ = b.delete();
+            let git_worktree_entry = repo.path().join("worktrees").join(&slug);
+            if git_worktree_entry.exists() {
+                fs::remove_dir_all(&git_worktree_entry).map_err(|e| e.to_string())?;
             }
-        }
-        let _ = fs::remove_dir_all(&worktree_path);
-        return Err(format!("Failed to create worktree: {}", e));
-    }
+            if worktree_path.exists() {
+                fs::remove_dir_all(&worktree_path).map_err(|e| e.to_string())?;
+            }
 
-    let stored = StoredInstance {
-        id: args.id,
-        ticket: args.ticket,
-        branch: args.branch,
-        worktree_path: worktree_path.to_string_lossy().to_string(),
-        status: "idle".to_string(),
-        created_at: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64,
-    };
+            fs::create_dir_all(worktree_path.parent().unwrap()).map_err(|e| e.to_string())?;
 
-    let mut instances = read_instances(&args.project_id)?;
-    instances.push(stored.clone());
-    write_instances(&args.project_id, &instances)?;
+            let worktree_result = repo.worktree(
+                &slug,
+                &worktree_path,
+                Some(git2::WorktreeAddOptions::new().reference(Some(
+                    &repo.find_branch(&branch, BranchType::Local)
+                        .map_err(|e| e.to_string())?
+                        .into_reference(),
+                ))),
+            );
 
-    Ok(stored.with_project(args.project_id))
+            if let Err(e) = worktree_result {
+                if branch_created {
+                    if let Ok(mut b) = repo.find_branch(&branch, BranchType::Local) {
+                        let _ = b.delete();
+                    };
+                }
+                let _ = fs::remove_dir_all(&worktree_path);
+                return Err(format!("Failed to create worktree: {}", e));
+            }
+
+            (branch, worktree_path.to_string_lossy().to_string())
+        } else {
+            let slug = args.ticket.id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
+            fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
+            (String::new(), worktree_path.to_string_lossy().to_string())
+        };
+
+        let stored = StoredInstance {
+            id: args.id,
+            ticket: args.ticket,
+            branch,
+            worktree_path: worktree_path_str,
+            status: "idle".to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64,
+            use_git: args.use_git,
+        };
+
+        let mut instances = read_instances(&args.project_id)?;
+        instances.push(stored.clone());
+        write_instances(&args.project_id, &instances)?;
+
+        Ok(stored.with_project(args.project_id))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -392,24 +410,27 @@ fn delete_instance(id: String, project_id: String) -> Result<(), String> {
         .ok_or_else(|| format!("Instance '{}' not found", id))?
         .clone();
 
-    let projects = read_projects()?;
-    let expanded_project = projects.iter()
-        .find(|p| p.id == project_id)
-        .map(|p| shellexpand::tilde(&p.path).into_owned())
-        .ok_or_else(|| "Project not found".to_string())?;
-
-    let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
-
-    let slug = instance.branch.replace('/', "-");
-    if let Ok(wt) = repo.find_worktree(&slug) {
-        let _ = wt.prune(None);
-    }
     let wt_path = PathBuf::from(&instance.worktree_path);
     if wt_path.exists() {
         fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
     }
-    if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
-        let _ = branch.delete();
+
+    if instance.use_git {
+        let projects = read_projects()?;
+        let expanded_project = projects.iter()
+            .find(|p| p.id == project_id)
+            .map(|p| shellexpand::tilde(&p.path).into_owned())
+            .ok_or_else(|| "Project not found".to_string())?;
+
+        let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+
+        let slug = instance.branch.replace('/', "-");
+        if let Ok(wt) = repo.find_worktree(&slug) {
+            let _ = wt.prune(None);
+        }
+        if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
+            let _ = branch.delete();
+        };
     }
 
     instances.retain(|i| i.id != id);

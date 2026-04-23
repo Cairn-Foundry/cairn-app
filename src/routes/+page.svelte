@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeStep } from '$lib/stores/ui.js';
-  import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab } from '$lib/stores/project';
+  import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
@@ -11,6 +11,7 @@
 
   let screen: Screen = 'home';
   let showCreate = false;
+  let mounted = false;
 
   onMount(async () => {
     try {
@@ -22,18 +23,27 @@
 
     await loadProjects();
 
+    try {
+      const savedOrder = localStorage.getItem('cairn.openTabOrder');
+      if (savedOrder) reorderTabs(JSON.parse(savedOrder));
+    } catch {}
+
     const savedActiveId = localStorage.getItem('cairn.activeProjectId');
     if (savedActiveId) {
       openProject(savedActiveId);
       activeProjectId.set(savedActiveId);
       await loadInstances(savedActiveId);
+      screen = 'workspace';
     }
+
+    mounted = true;
   });
 
-  // Persist screen + step + activeProjectId
-  $: try { localStorage.setItem('cairn.screen', screen); } catch {}
-  activeStep.subscribe(step => { try { localStorage.setItem('cairn.step', step); } catch {} });
+  $: if (mounted) try { localStorage.setItem('cairn.screen', screen); } catch {}
+  activeStep.subscribe(step => { if (!mounted) return; try { localStorage.setItem('cairn.step', step); } catch {} });
+  openTabOrder.subscribe(order => { if (!mounted) return; try { localStorage.setItem('cairn.openTabOrder', JSON.stringify(order)); } catch {} });
   activeProjectId.subscribe(async (id) => {
+    if (!mounted) return;
     try { if (id) localStorage.setItem('cairn.activeProjectId', id); } catch {}
     if (id) await loadInstances(id);
   });
@@ -75,6 +85,7 @@
       activeInstance={$activeInstance}
       on:projectChange={(e) => activeProjectId.set(e.detail)}
       on:closeProject={(e) => handleCloseProject(e.detail)}
+      on:reorderTabs={(e) => reorderTabs(e.detail)}
       on:addProject={() => screen = 'home'}
       on:goHome={() => screen = 'home'}
       on:createInstance={() => showCreate = true}

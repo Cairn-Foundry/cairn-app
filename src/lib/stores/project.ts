@@ -4,7 +4,7 @@ import { listProjects, addProject, removeProject, updateProject, duplicateProjec
 
 export const projects = writable<Project[]>([]);
 export const activeProjectId = writable<string | null>(null);
-export const openProjectIds = writable<Set<string>>(new Set());
+export const openTabOrder = writable<string[]>([]);
 
 export const activeProject = derived(
   [projects, activeProjectId],
@@ -12,16 +12,24 @@ export const activeProject = derived(
 );
 
 export const openProjects = derived(
-  [projects, openProjectIds],
-  ([$projects, $openProjectIds]) => $projects.filter((p) => $openProjectIds.has(p.id))
+  [projects, openTabOrder],
+  ([$projects, $openTabOrder]) =>
+    $openTabOrder.flatMap((id) => {
+      const p = $projects.find((proj) => proj.id === id);
+      return p ? [p] : [];
+    })
 );
 
 export function openProject(id: string): void {
-  openProjectIds.update((s) => { s.add(id); return s; });
+  openTabOrder.update((order) => order.includes(id) ? order : [...order, id]);
 }
 
 export function closeProjectTab(id: string): void {
-  openProjectIds.update((s) => { s.delete(id); return s; });
+  openTabOrder.update((order) => order.filter((oid) => oid !== id));
+}
+
+export function reorderTabs(newOrder: string[]): void {
+  openTabOrder.set(newOrder);
 }
 
 export async function loadProjects(): Promise<void> {
