@@ -41,6 +41,7 @@
     closeProject: string;
     addProject: void;
     goHome: void;
+    goSettings: void;
     createInstance: void;
     reorderTabs: string[];
   }>();
@@ -168,7 +169,7 @@
     </button>
     <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
     <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
-    <button class="icon-btn" aria-label="Settings"><Icon name="settings" size={14}/></button>
+    <button class="icon-btn" aria-label="Settings" on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
   </div>
 
   <!-- Instance header -->

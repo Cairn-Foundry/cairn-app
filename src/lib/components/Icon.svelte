@@ -94,6 +94,17 @@
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
   </svg>
+{:else if name === 'folder-open'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M3 9a2 2 0 012-2h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+    <path d="M3 9l2 9"/>
+  </svg>
+{:else if name === 'file-code'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/>
+    <path d="M14 3v6h6"/>
+    <path d="M9 15l-2-2 2-2M15 11l2 2-2 2"/>
+  </svg>
 {:else if name === 'file'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/>
@@ -152,6 +163,11 @@
     <path d="M21 3v5h-5"/>
     <path d="M21 12a9 9 0 01-15 6.7L3 16"/>
     <path d="M3 21v-5h5"/>
+  </svg>
+{:else if name === 'undo'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M9 14l-4-4 4-4"/>
+    <path d="M5 10h7a5 5 0 015 5v1"/>
   </svg>
 {:else if name === 'download'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>

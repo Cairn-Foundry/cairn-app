@@ -214,6 +214,7 @@ input, textarea { font-family: inherit; color: inherit; }
   transition: background .12s, color .12s;
 }
 .icon-btn:hover { background: var(--bg-2); color: var(--fg-0); }
+.icon-btn.active { background: var(--accent-weak); color: var(--accent); }
 
 /* ==============================
    Workspace layout

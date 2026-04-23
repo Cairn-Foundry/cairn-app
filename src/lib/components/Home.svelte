@@ -7,16 +7,26 @@
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import { projects, unregisterProject, duplicateProjectInStore } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
+  import { settings } from '$lib/stores/settings';
   import type { Project } from '$lib/types/project';
+
+  type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
     projectCreated: { id: string };
+    sectionShown: void;
   }>();
 
-  type Section = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
+  export let openSection: HomeSection | null = null;
 
-  let activeSection: Section = 'projects';
+  let activeSection: HomeSection = 'projects';
+
+  $: if (openSection !== null) {
+    activeSection = openSection;
+    dispatch('sectionShown');
+  }
+
   let addProjectMode: 'new' | 'open' | 'clone' | null = null;
   let search = '';
 
@@ -257,21 +267,54 @@
       <div class="home-hero" style="padding-bottom: 0">
         <h1 style="font-size: 22px">Settings</h1>
       </div>
-      <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px; max-width: 520px;">
+
+      <div class="settings-group">
+        <div class="settings-group-title">General</div>
         {#each [
-          { label: 'AI provider',       value: 'Claude Code CLI',   desc: 'Agent Bridge driver' },
-          { label: 'Default branch',    value: 'main',              desc: 'Base for new worktrees' },
-          { label: 'Worktree location', value: '~/.cairn/worktrees',desc: 'Where git worktrees are created' },
-          { label: 'Format on stage',   value: 'Prettier',          desc: 'Auto-format before staging' },
+          { label: 'AI provider',       value: 'Claude Code CLI',    desc: 'Agent Bridge driver' },
+          { label: 'Default branch',    value: 'main',               desc: 'Base for new worktrees' },
+          { label: 'Worktree location', value: '~/.cairn/worktrees', desc: 'Where git worktrees are created' },
+          { label: 'Format on stage',   value: 'Prettier',           desc: 'Auto-format before staging' },
         ] as s}
-          <div style="display: flex; align-items: center; padding: 12px 16px; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--stroke-0); gap: 16px;">
-            <div style="flex: 1;">
-              <div style="font-size: 13px; color: var(--fg-0);">{s.label}</div>
-              <div style="font-size: 11px; color: var(--fg-3); margin-top: 2px;">{s.desc}</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <span class="settings-row-label">{s.label}</span>
+              <span class="settings-row-desc">{s.desc}</span>
             </div>
-            <span style="font-family: var(--font-mono); font-size: 12px; color: var(--accent);">{s.value}</span>
+            <span class="settings-row-value">{s.value}</span>
           </div>
         {/each}
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Customization</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <span class="settings-row-label">File tree panel width</span>
+            <span class="settings-row-desc">Width of the file explorer sidebar in the Files view.</span>
+          </div>
+          <div class="settings-row-control">
+            <input
+              class="settings-number-input"
+              type="number"
+              min="140"
+              max="480"
+              value={$settings.treePanelWidth}
+              on:change={(e) => {
+                const v = parseInt((e.target as HTMLInputElement).value, 10);
+                if (!isNaN(v)) settings.save({ treePanelWidth: Math.max(140, Math.min(480, v)) });
+              }}
+            />
+            <span class="settings-row-unit">px</span>
+            <button
+              class="settings-reset-btn"
+              title="Reset to default (220 px)"
+              on:click={() => settings.save({ treePanelWidth: 220 })}
+            >
+              <Icon name="undo" size={12}/>
+            </button>
+          </div>
+        </div>
       </div>
     {/if}
 
@@ -487,4 +530,80 @@
   }
   .home-nav-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .home-nav-item.active { background: var(--accent-weak); color: var(--fg-0); }
+
+  /* ── Settings ──────────────────────────────────────────────────── */
+
+  .settings-group {
+    margin-top: 28px;
+    max-width: 560px;
+  }
+
+  .settings-group-title {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--stroke-0);
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 11px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    margin-bottom: 6px;
+  }
+
+  .settings-row-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .settings-row-label { font-size: 13px; color: var(--fg-0); }
+  .settings-row-desc  { font-size: 11px; color: var(--fg-3); }
+  .settings-row-value { font-family: var(--font-mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+
+  .settings-row-control { display: flex; align-items: center; gap: 6px; }
+
+  .settings-number-input {
+    width: 64px;
+    background: var(--bg-1);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    color: var(--fg-0);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    padding: 4px 8px;
+    outline: none;
+    text-align: right;
+  }
+  .settings-number-input:focus { border-color: var(--accent); }
+  .settings-number-input::-webkit-inner-spin-button,
+  .settings-number-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  .settings-row-unit { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
+
+  .settings-reset-btn {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    color: var(--fg-3);
+    cursor: pointer;
+    padding: 0;
+    transition: color .12s, border-color .12s;
+  }
+  .settings-reset-btn:hover { color: var(--fg-0); border-color: var(--fg-2); }
 </style>

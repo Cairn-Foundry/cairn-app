@@ -5,6 +5,7 @@
   import QuickOpen from './QuickOpen.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { readDirTree, readFile, writeFile, langFromPath, isBinaryPath, type FileNode } from '$lib/services/file-service';
+  import { settings } from '$lib/stores/settings';
 
   interface Tab {
     path: string;
@@ -79,6 +80,29 @@
 
   let quickOpenVisible = false;
 
+  let treeWidth = 220;
+  let isResizing = false;
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
+
+  function startResize(e: PointerEvent) {
+    isResizing = true;
+    resizeStartX = e.clientX;
+    resizeStartWidth = treeWidth;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onResizeMove(e: PointerEvent) {
+    if (!isResizing) return;
+    treeWidth = Math.max(140, Math.min(480, resizeStartWidth + (e.clientX - resizeStartX)));
+  }
+
+  function stopResize() {
+    if (!isResizing) return;
+    isResizing = false;
+    settings.save({ treePanelWidth: treeWidth });
+  }
+
   let cursorLine = 1;
   let cursorCol = 1;
 
@@ -110,6 +134,8 @@
   let dragSrcIndex: number | null = null;
   let insertIndex: number | null = null;
   let didDrag = false;
+
+  $: if (!isResizing) treeWidth = $settings.treePanelWidth;
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
   $: activeTab = tabs[activeTabIdx] ?? null;
@@ -326,7 +352,7 @@
 </script>
 
 <div class="files-layout">
-  <aside class="files-tree">
+  <aside class="files-tree" style="width: {treeWidth}px">
     <div class="files-tree-header">
       <Icon name="folder" size={12}/>
       <span>{$activeInstance ? $activeInstance.ticket.id : 'No instance'}</span>
@@ -346,6 +372,17 @@
       {/each}
     {/if}
   </aside>
+
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="resize-handle"
+    on:pointerdown={startResize}
+    on:pointermove={onResizeMove}
+    on:pointerup={stopResize}
+    on:pointercancel={stopResize}
+    role="separator"
+    aria-orientation="vertical"
+  ></div>
 
   <div class="files-editor-wrap">
     {#if tabs.length > 0}
@@ -470,13 +507,23 @@
   /* ── File tree ───────────────────────────────────────────────── */
 
   .files-tree {
-    width: 220px;
     flex-shrink: 0;
-    border-right: 1px solid var(--stroke-0);
     overflow-y: auto;
     padding: 8px 0;
     background: var(--bg-1);
   }
+
+  .resize-handle {
+    width: 3px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background: var(--stroke-0);
+    transition: background 0.15s;
+    position: relative;
+    z-index: 1;
+  }
+  .resize-handle:hover,
+  .resize-handle:active { background: var(--accent); }
 
   .files-tree-header {
     display: flex;
@@ -649,4 +696,5 @@
     font-size: 11px;
     color: var(--fg-4);
   }
+
 </style>

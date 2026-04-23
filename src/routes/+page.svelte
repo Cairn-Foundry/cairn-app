@@ -3,17 +3,22 @@
   import { activeStep } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
+  import { settings } from '$lib/stores/settings';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
 
   type Screen = 'home' | 'workspace';
+  type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
 
   let screen: Screen = 'home';
+  let homeOpenSection: HomeSection | null = null;
   let showCreate = false;
   let mounted = false;
 
   onMount(async () => {
+    settings.load();
+
     try {
       const savedScreen = localStorage.getItem('cairn.screen') as Screen | null;
       if (savedScreen) screen = savedScreen;
@@ -75,8 +80,10 @@
 <div class="os-window">
   {#if screen === 'home'}
     <Home
+      openSection={homeOpenSection}
       on:openProject={(e) => handleOpenProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
+      on:sectionShown={() => { homeOpenSection = null; }}
     />
   {:else}
     <Workspace
@@ -86,8 +93,9 @@
       on:projectChange={(e) => activeProjectId.set(e.detail)}
       on:closeProject={(e) => handleCloseProject(e.detail)}
       on:reorderTabs={(e) => reorderTabs(e.detail)}
-      on:addProject={() => screen = 'home'}
-      on:goHome={() => screen = 'home'}
+      on:addProject={() => { homeOpenSection = null; screen = 'home'; }}
+      on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
+      on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:createInstance={() => showCreate = true}
     />
   {/if}

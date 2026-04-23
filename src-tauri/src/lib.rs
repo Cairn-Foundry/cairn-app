@@ -14,6 +14,7 @@ pub struct CommandOutput {
 // ── Storage layout ────────────────────────────────────────────────────────────
 //
 //  ~/.cairn/
+//    settings.json              → CairnSettings
 //    projects/
 //      projects.json              → Vec<Project>
 //      {project_id}/
@@ -23,6 +24,10 @@ pub struct CommandOutput {
 fn cairn_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
     Ok(home.join(".cairn"))
+}
+
+fn settings_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("settings.json"))
 }
 
 fn projects_file() -> Result<PathBuf, String> {
@@ -536,6 +541,45 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     fs::write(&p, content).map_err(|e| e.to_string())
 }
 
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CairnSettings {
+    #[serde(rename = "treePanelWidth", default = "default_tree_panel_width")]
+    pub tree_panel_width: u32,
+}
+
+fn default_tree_panel_width() -> u32 { 220 }
+
+impl Default for CairnSettings {
+    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width() } }
+}
+
+fn read_settings() -> Result<CairnSettings, String> {
+    let path = settings_file()?;
+    if !path.exists() { return Ok(CairnSettings::default()); }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+fn write_settings(settings: &CairnSettings) -> Result<(), String> {
+    let path = settings_file()?;
+    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&path, serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_settings() -> Result<CairnSettings, String> {
+    read_settings()
+}
+
+#[tauri::command]
+fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
+    write_settings(&settings)?;
+    Ok(settings)
+}
+
 // ── Shell / Agent stubs ───────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -590,6 +634,8 @@ pub fn run() {
             read_dir_tree,
             read_file,
             write_file,
+            get_settings,
+            update_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
