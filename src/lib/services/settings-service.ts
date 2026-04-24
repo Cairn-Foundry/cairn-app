@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 export interface CairnSettings {
   treePanelWidth: number;
+  showMinimap: boolean;
 }
 
 export function getSettings(): Promise<CairnSettings> {

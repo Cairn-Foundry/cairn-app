@@ -762,6 +762,7 @@
               content={activeTab.content}
               language={activeLang}
               readonly={false}
+              minimapEnabled={$settings.showMinimap ?? true}
               initialCursorPos={activeTab.cursorPos}
               initialScrollTop={activeTab.scrollTop}
               onChange={handleChange}

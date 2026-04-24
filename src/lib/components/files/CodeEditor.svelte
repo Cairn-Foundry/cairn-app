@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, keymap, hoverTooltip } from '@codemirror/view';
-  import { EditorState, EditorSelection, Prec, type Extension } from '@codemirror/state';
+  import { EditorState, EditorSelection, Compartment, Prec, type Extension } from '@codemirror/state';
+  import { showMinimap } from '@replit/codemirror-minimap';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import { html } from '@codemirror/lang-html';
   import { css } from '@codemirror/lang-css';
@@ -90,9 +91,20 @@
 
   export let language: EditorLanguage = 'ts';
   export let readonly: boolean = true;
+  export let minimapEnabled: boolean = true;
 
   let container: HTMLDivElement;
   let view: EditorView;
+
+  const minimapCompartment = new Compartment();
+
+  function buildMinimapExtension(enabled: boolean): Extension {
+    return minimapCompartment.of(
+      enabled
+        ? showMinimap.of({ create: () => { const dom = document.createElement('div'); return { dom }; }, displayText: 'blocks', showOverlay: 'always' })
+        : []
+    );
+  }
 
   // ── Highlight style ────────────────────────────────────────────────────────
 
@@ -314,6 +326,17 @@
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
       fontStyle: 'normal',
       marginTop: '4px',
+    },
+
+    // Minimap
+    '.cm-minimap-gutter': {
+      backgroundColor: 'oklch(0.14 0.008 70)',
+      borderLeft: '1px solid oklch(0.22 0.008 70)',
+    },
+    '.cm-minimap-overlay-container': { cursor: 'pointer' },
+    '.cm-minimap-overlay': {
+      backgroundColor: 'oklch(0.72 0.14 250 / 0.10)',
+      border: '1px solid oklch(0.72 0.14 250 / 0.22)',
     },
   }, { dark: true });
 
@@ -706,6 +729,7 @@
       ...snippets,
       ...scopeCompletion,
       buildHoverTooltip(),
+      buildMinimapExtension(minimapEnabled),
       cairnTheme,
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
@@ -744,6 +768,13 @@
     if (current !== content) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: content } });
     }
+  }
+
+  $: if (view) {
+    const ext = minimapEnabled
+      ? showMinimap.of({ create: () => { const dom = document.createElement('div'); return { dom }; }, displayText: 'blocks', showOverlay: 'always' })
+      : [];
+    view.dispatch({ effects: minimapCompartment.reconfigure(ext) });
   }
 
   onDestroy(() => { view?.destroy(); });

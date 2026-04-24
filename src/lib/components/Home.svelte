@@ -315,6 +315,20 @@
             </button>
           </div>
         </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <span class="settings-row-label">Show minimap</span>
+            <span class="settings-row-desc">Scrollbar overview panel on the right side of the code editor.</span>
+          </div>
+          <label class="settings-toggle" aria-label="Toggle minimap">
+            <input
+              type="checkbox"
+              checked={$settings.showMinimap}
+              on:change={(e) => settings.save({ showMinimap: (e.target as HTMLInputElement).checked })}
+            />
+            <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+          </label>
+        </div>
       </div>
     {/if}
 
@@ -606,4 +620,34 @@
     transition: color .12s, border-color .12s;
   }
   .settings-reset-btn:hover { color: var(--fg-0); border-color: var(--fg-2); }
+
+  .settings-toggle { display: flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+  .settings-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .settings-toggle-track {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-0);
+    border-radius: 9px;
+    transition: background .15s, border-color .15s;
+  }
+  .settings-toggle input:checked + .settings-toggle-track {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .settings-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--fg-3);
+    border-radius: 50%;
+    transition: transform .15s, background .15s;
+  }
+  .settings-toggle input:checked + .settings-toggle-track .settings-toggle-thumb {
+    transform: translateX(14px);
+    background: #fff;
+  }
 </style>
