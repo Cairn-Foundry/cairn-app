@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -649,6 +650,52 @@ fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     Ok(settings)
 }
 
+// ── Git status ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn git_status(worktree_path: String) -> Result<HashMap<String, String>, String> {
+    let expanded = shellexpand::tilde(&worktree_path).into_owned();
+    let output = Command::new("git")
+        .args(["status", "--porcelain", "-u"])
+        .current_dir(&expanded)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Ok(HashMap::new());
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut map = HashMap::new();
+
+    for line in text.lines() {
+        if line.len() < 4 { continue; }
+        let x = line.chars().nth(0).unwrap_or(' ');
+        let y = line.chars().nth(1).unwrap_or(' ');
+        let path = line[3..].trim_end().to_string();
+        // Handle renames: "old -> new" format
+        let file_path = if path.contains(" -> ") {
+            path.split(" -> ").last().unwrap_or(&path).to_string()
+        } else {
+            path
+        };
+
+        let category = if x == '?' && y == '?' {
+            "untracked"
+        } else if x != ' ' && x != '?' {
+            "staged"
+        } else if y == 'D' {
+            "deleted"
+        } else {
+            "modified"
+        };
+
+        map.insert(file_path, category.to_string());
+    }
+
+    Ok(map)
+}
+
 // ── Shell / Agent stubs ───────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -710,6 +757,7 @@ pub fn run() {
             create_file_or_dir,
             get_settings,
             update_settings,
+            git_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

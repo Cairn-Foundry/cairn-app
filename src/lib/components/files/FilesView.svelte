@@ -4,7 +4,7 @@
   import CodeEditor from './CodeEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
   import { activeInstance } from '$lib/stores/instance';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, type FileNode } from '$lib/services/file-service';
+  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
 
   interface Tab {
@@ -69,6 +69,7 @@
   const savedState = new Map<string, InstanceTabState>();
 
   let tree: FileNode[] = [];
+  let gitStatusMap: GitStatusMap = {};
   let expanded = new Set<string>();
   let tabs: Tab[] = [];
   let activeTabIdx = -1;
@@ -342,7 +343,10 @@
     loading = true;
     error = '';
     try {
-      tree = await readDirTree(root);
+      [tree, gitStatusMap] = await Promise.all([
+        readDirTree(root),
+        gitStatus(root).catch(() => ({} as GitStatusMap)),
+      ]);
     } catch (e) {
       error = String(e);
     } finally {
@@ -502,6 +506,21 @@
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  const GIT_STATUS_PRIORITY = ['staged', 'modified', 'deleted', 'untracked'] as const;
+
+  function nodeGitStatus(node: FileNode): string | null {
+    if (!node.isDir) return gitStatusMap[node.path] ?? null;
+    const prefix = node.path + '/';
+    let best: number = GIT_STATUS_PRIORITY.length;
+    for (const [path, status] of Object.entries(gitStatusMap)) {
+      if (path.startsWith(prefix)) {
+        const idx = GIT_STATUS_PRIORITY.indexOf(status as typeof GIT_STATUS_PRIORITY[number]);
+        if (idx !== -1 && idx < best) best = idx;
+      }
+    }
+    return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
+  }
 
   function fileIcon(node: FileNode): string {
     if (node.isDir) return expanded.has(node.path) ? 'folder-open' : 'folder';
@@ -730,7 +749,7 @@
   {:else}
     <button
       type="button"
-      class="file-tree-item {tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTab?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''}"
+      class="file-tree-item {tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTab?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''} {nodeGitStatus(node) ? 'git-' + nodeGitStatus(node) : ''}"
       style="padding-left: {12 + depth * 14}px"
       on:click={() => openFile(node)}
       on:contextmenu={(e) => openContextMenu(e, node)}
@@ -831,6 +850,11 @@
   .file-tree-item.active { background: var(--accent-weak); color: var(--fg-0); }
   .file-tree-item.selected-dir { background: var(--bg-3); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
   .file-tree-item.loading { opacity: 0.6; }
+
+  .file-tree-item.git-modified .file-tree-name { color: oklch(81.824% 0.15379 73.092); }
+  .file-tree-item.git-untracked .file-tree-name { color: oklch(88.84% 0.22143 145.482); }
+  .file-tree-item.git-deleted .file-tree-name { color: oklch(0.70 0.18 15); }
+  .file-tree-item.git-staged .file-tree-name { color: oklch(75.595% 0.13163 248.231); }
 
   .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-loading-dot { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }

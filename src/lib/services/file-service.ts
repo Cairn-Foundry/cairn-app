@@ -43,6 +43,12 @@ export async function openInTerminal(path: string): Promise<void> {
   return invoke<void>('open_in_terminal', { path });
 }
 
+export type GitStatusMap = Record<string, 'staged' | 'modified' | 'untracked' | 'deleted'>;
+
+export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
+  return invoke<GitStatusMap>('git_status', { worktreePath });
+}
+
 const EXT_LANG: Record<string, string> = {
   ts: 'ts', tsx: 'tsx', mts: 'ts',
   js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js',
