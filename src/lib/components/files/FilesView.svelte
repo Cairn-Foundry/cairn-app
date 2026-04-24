@@ -70,8 +70,33 @@
 
   const savedState = new Map<string, InstanceTabState>();
 
+  let rawTree: FileNode[] = [];
   let tree: FileNode[] = [];
   let gitStatusMap: GitStatusMap = {};
+
+  function withPhantomDeleted(nodes: FileNode[], map: GitStatusMap, prefix = ''): FileNode[] {
+    const existingPaths = new Set(nodes.map(n => n.path));
+    const levelPrefix = prefix ? prefix + '/' : '';
+    const phantoms: FileNode[] = [];
+
+    for (const [filePath, status] of Object.entries(map)) {
+      if (status !== 'deleted') continue;
+      if (!filePath.startsWith(levelPrefix)) continue;
+      const rel = filePath.slice(levelPrefix.length);
+      if (rel.includes('/')) continue;
+      if (!existingPaths.has(filePath)) {
+        phantoms.push({ name: rel, path: filePath, isDir: false });
+      }
+    }
+
+    const updated = nodes.map(node =>
+      node.isDir && node.children
+        ? { ...node, children: withPhantomDeleted(node.children, map, node.path) }
+        : node
+    );
+
+    return phantoms.length ? [...updated, ...phantoms] : updated;
+  }
   let expanded = new Set<string>();
   let tabs: Tab[] = [];
   let activeTabIdx = -1;
@@ -279,6 +304,8 @@
     return text.includes('\r\n') ? 'CRLF' : 'LF';
   }
 
+  let gitPollInterval: ReturnType<typeof setInterval> | null = null;
+
   onMount(() => {
     function handleGlobalKey(e: KeyboardEvent) {
       if (e.key === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -291,7 +318,28 @@
       }
     }
     window.addEventListener('keydown', handleGlobalKey);
-    return () => window.removeEventListener('keydown', handleGlobalKey);
+
+    gitPollInterval = setInterval(async () => {
+      if (!worktreePath) return;
+      const updated = await gitStatus(worktreePath).catch(() => null);
+      if (updated !== null) {
+        gitStatusMap = updated;
+        tree = withPhantomDeleted(rawTree, updated);
+      }
+    }, 3000);
+
+    let unlistenFocus: (() => void) | null = null;
+    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+      getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+        if (focused && worktreePath) loadTree(worktreePath);
+      }).then(unlisten => { unlistenFocus = unlisten; });
+    });
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKey);
+      unlistenFocus?.();
+      if (gitPollInterval !== null) clearInterval(gitPollInterval);
+    };
   });
 
   function quickOpenFile(path: string) {
@@ -364,10 +412,11 @@
     loading = true;
     error = '';
     try {
-      [tree, gitStatusMap] = await Promise.all([
+      [rawTree, gitStatusMap] = await Promise.all([
         readDirTree(root),
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
+      tree = withPhantomDeleted(rawTree, gitStatusMap);
     } catch (e) {
       error = String(e);
     } finally {
@@ -376,6 +425,7 @@
   }
 
   async function openFile(node: FileNode) {
+    if (gitStatusMap[node.path] === 'deleted') return;
     if (node.isDir) {
       if (expanded.has(node.path)) expanded.delete(node.path);
       else expanded.add(node.path);
@@ -466,10 +516,12 @@
   async function flushSave() {
     if (!activeTab || activeTab.pending === activeTab.content || saving || !worktreePath) return;
     saving = true;
+    const wasDeleted = gitStatusMap[activeTab.path] === 'deleted';
     try {
       await writeFile(`${worktreePath}/${activeTab.path}`, activeTab.pending);
       tabs[activeTabIdx].content = activeTab.pending;
       tabs = tabs;
+      if (wasDeleted) await loadTree(worktreePath);
     } catch (e) {
       error = String(e);
     } finally {
@@ -580,6 +632,9 @@
         <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" title="Search (⌘⇧F)" on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
           <Icon name="search" size={12}/>
         </button>
+        <button type="button" class="tree-action-btn" title="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
+          <Icon name="refresh-cw" size={12}/>
+        </button>
       </div>
     </div>
 
@@ -639,7 +694,7 @@
           {/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''}"
+            class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
             role="tab"
             aria-selected={i === activeTabIdx}
             tabindex="0"
@@ -897,7 +952,8 @@
 
   .file-tree-item.git-modified .file-tree-name { color: oklch(81.824% 0.15379 73.092); }
   .file-tree-item.git-untracked .file-tree-name { color: oklch(88.84% 0.22143 145.482); }
-  .file-tree-item.git-deleted .file-tree-name { color: oklch(0.70 0.18 15); }
+  .file-tree-item.git-deleted .file-tree-name { color: oklch(0.70 0.18 15); text-decoration: line-through; opacity: 0.7; }
+  .file-tree-item.git-deleted { cursor: default; }
   .file-tree-item.git-staged .file-tree-name { color: oklch(75.595% 0.13163 248.231); }
 
   .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -945,6 +1001,7 @@
     border-bottom: 2px solid var(--accent);
   }
   .file-tab.tab-dragging { opacity: 0.4; cursor: grabbing; }
+  .file-tab.tab-deleted .tab-name { text-decoration: line-through; color: oklch(0.70 0.18 15); opacity: 0.7; }
 
   .tab-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
   .tab-dot { color: var(--accent); font-size: 10px; line-height: 1; }
