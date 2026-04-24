@@ -19,6 +19,30 @@ export async function writeFile(path: string, content: string): Promise<void> {
   return invoke<void>('write_file', { path, content });
 }
 
+export async function deletePath(path: string): Promise<void> {
+  return invoke<void>('delete_path', { path });
+}
+
+export async function renamePath(from: string, to: string): Promise<void> {
+  return invoke<void>('rename_path', { from, to });
+}
+
+export async function createFileOrDir(path: string, isDir: boolean): Promise<void> {
+  return invoke<void>('create_file_or_dir', { path, isDir });
+}
+
+export async function copyPath(from: string, to: string): Promise<void> {
+  return invoke<void>('copy_path', { from, to });
+}
+
+export async function revealInFileManager(path: string): Promise<void> {
+  return invoke<void>('reveal_in_file_manager', { path });
+}
+
+export async function openInTerminal(path: string): Promise<void> {
+  return invoke<void>('open_in_terminal', { path });
+}
+
 const EXT_LANG: Record<string, string> = {
   ts: 'ts', tsx: 'tsx', mts: 'ts',
   js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js',

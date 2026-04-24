@@ -189,11 +189,42 @@ fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, String>
 fn reveal_in_file_manager(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     #[cfg(target_os = "macos")]
-    Command::new("open").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    Command::new("open").arg("-R").arg(&expanded).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "windows")]
-    Command::new("explorer").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    Command::new("explorer").arg(format!("/select,{}", expanded)).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
-    Command::new("xdg-open").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    Command::new("xdg-open").arg(std::path::Path::new(&expanded).parent().unwrap_or(std::path::Path::new(&expanded))).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn copy_path(from: String, to: String) -> Result<(), String> {
+    let src = std::path::Path::new(&from);
+    let dst = std::path::Path::new(&to);
+    if src.is_dir() {
+        fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+        copy_dir_recursive(src, dst)
+    } else {
+        if let Some(parent) = dst.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::copy(src, dst).map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn open_in_terminal(path: String) -> Result<(), String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let dir = {
+        let p = std::path::Path::new(&expanded);
+        if p.is_dir() { expanded.clone() } else { p.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or(expanded.clone()) }
+    };
+    #[cfg(target_os = "macos")]
+    Command::new("open").args(["-a", "Terminal", &dir]).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    Command::new("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    Command::new("x-terminal-emulator").current_dir(&dir).spawn().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -541,6 +572,44 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     fs::write(&p, content).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn delete_path(path: String) -> Result<(), String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let p = PathBuf::from(&expanded);
+    if !p.exists() { return Err(format!("Path does not exist: {}", path)); }
+    if p.is_dir() {
+        fs::remove_dir_all(&p).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(&p).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn rename_path(from: String, to: String) -> Result<(), String> {
+    let from_expanded = shellexpand::tilde(&from).into_owned();
+    let to_expanded = shellexpand::tilde(&to).into_owned();
+    let from_p = PathBuf::from(&from_expanded);
+    let to_p = PathBuf::from(&to_expanded);
+    if !from_p.exists() { return Err(format!("Path does not exist: {}", from)); }
+    if to_p.exists() { return Err(format!("Destination already exists: {}", to)); }
+    fs::rename(&from_p, &to_p).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let p = PathBuf::from(&expanded);
+    if p.exists() { return Err(format!("Already exists: {}", path)); }
+    if is_dir {
+        fs::create_dir_all(&p).map_err(|e| e.to_string())
+    } else {
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::File::create(&p).map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -623,6 +692,8 @@ pub fn run() {
             update_project,
             duplicate_project,
             reveal_in_file_manager,
+            copy_path,
+            open_in_terminal,
             validate_directory,
             validate_git_repo,
             clone_repository,
@@ -634,6 +705,9 @@ pub fn run() {
             read_dir_tree,
             read_file,
             write_file,
+            delete_path,
+            rename_path,
+            create_file_or_dir,
             get_settings,
             update_settings,
         ])

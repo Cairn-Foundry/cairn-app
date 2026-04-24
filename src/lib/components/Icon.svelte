@@ -254,6 +254,11 @@
     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
     <rect x="9" y="3" width="6" height="4" rx="1"/>
   </svg>
+{:else if name === 'scissors'}
+  <svg {...common} {...$$restProps}>
+    <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+    <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>
+  </svg>
 {:else if name === 'lock'}
   <svg {...common} {...$$restProps}>
     <rect x="5" y="11" width="14" height="10" rx="2"/>
