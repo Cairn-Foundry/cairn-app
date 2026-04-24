@@ -340,6 +340,7 @@ version = "0.3.0"
 dependencies = [
  "dirs",
  "git2",
+ "regex",
  "serde",
  "serde_json",
  "shellexpand",

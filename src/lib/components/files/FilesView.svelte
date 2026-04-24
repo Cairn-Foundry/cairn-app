@@ -3,7 +3,9 @@
   import Icon from '$lib/components/Icon.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
+  import SearchPanel from './SearchPanel.svelte';
   import { activeInstance } from '$lib/stores/instance';
+  import { activeProjectId } from '$lib/stores/project';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
 
@@ -80,6 +82,19 @@
   let editorRef: CodeEditor | undefined;
 
   let quickOpenVisible = false;
+  let searchPanelByProject: Record<string, boolean> = {};
+  let pendingJump: { line: number; col: number } | null = null;
+
+  $: searchPanelOpen = searchPanelByProject[$activeProjectId ?? ''] ?? false;
+
+  function toggleSearchPanel() {
+    const id = $activeProjectId ?? '';
+    searchPanelByProject = { ...searchPanelByProject, [id]: !searchPanelOpen };
+  }
+  function closeSearchPanel() {
+    const id = $activeProjectId ?? '';
+    searchPanelByProject = { ...searchPanelByProject, [id]: false };
+  }
 
   // ── Context menu & inline editing ────────────────────────────────────────────
 
@@ -269,6 +284,10 @@
       if (e.key === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
         quickOpenVisible = true;
+      }
+      if (e.key === 'f' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault();
+        toggleSearchPanel();
       }
     }
     window.addEventListener('keydown', handleGlobalKey);
@@ -524,6 +543,17 @@
     return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
   }
 
+  async function openFileAtLine(path: string, line: number, col: number) {
+    pendingJump = { line, col };
+    await openFile({ path, name: path.split('/').pop() ?? path, isDir: false });
+  }
+
+  $: if (activeTab && pendingJump) {
+    const jump = pendingJump;
+    pendingJump = null;
+    setTimeout(() => editorRef?.jumpTo(jump.line, jump.col), 60);
+  }
+
   function fileIcon(node: FileNode): string {
     if (node.isDir) return expanded.has(node.path) ? 'folder-open' : 'folder';
     const ext = node.name.split('.').pop()?.toLowerCase() ?? '';
@@ -546,6 +576,9 @@
         </button>
         <button type="button" class="tree-action-btn" title="New Folder" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}>
           <Icon name="folder" size={12}/>
+        </button>
+        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" title="Search (⌘⇧F)" on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
+          <Icon name="search" size={12}/>
         </button>
       </div>
     </div>
@@ -578,6 +611,13 @@
       {/each}
     {/if}
   </aside>
+
+  <SearchPanel
+    {worktreePath}
+    hidden={!searchPanelOpen}
+    onOpen={openFileAtLine}
+    onClose={closeSearchPanel}
+  />
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
@@ -798,6 +838,7 @@
     overflow-y: auto;
     padding: 8px 0;
     background: var(--bg-1);
+    border-right: 1px solid var(--stroke-0);
   }
 
   .resize-handle {
@@ -1000,10 +1041,7 @@
     display: flex;
     gap: 2px;
     margin-left: auto;
-    opacity: 0;
-    transition: opacity 0.1s;
   }
-  .files-tree-header:hover .tree-header-actions { opacity: 1; }
   .tree-action-btn {
     display: flex;
     align-items: center;
@@ -1018,6 +1056,7 @@
     padding: 0;
   }
   .tree-action-btn:hover { background: var(--bg-4); color: var(--fg-0); }
+  .tree-action-btn.active { color: var(--accent); }
 
   /* ── Inline edit ─────────────────────────────────────────────────── */
 

@@ -45,6 +45,33 @@ export async function openInTerminal(path: string): Promise<void> {
 
 export type GitStatusMap = Record<string, 'staged' | 'modified' | 'untracked' | 'deleted'>;
 
+export interface SearchMatch {
+  path: string;
+  line: number;
+  col: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface SearchOptions {
+  caseSensitive: boolean;
+  isRegex: boolean;
+  includeGlob: string;
+  excludeGlob: string;
+}
+
+export async function searchInFiles(root: string, query: string, opts: SearchOptions): Promise<SearchMatch[]> {
+  return invoke<SearchMatch[]>('search_in_files', {
+    root,
+    query,
+    caseSensitive: opts.caseSensitive,
+    isRegex: opts.isRegex,
+    includeGlob: opts.includeGlob,
+    excludeGlob: opts.excludeGlob,
+  });
+}
+
 export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
   return invoke<GitStatusMap>('git_status', { worktreePath });
 }

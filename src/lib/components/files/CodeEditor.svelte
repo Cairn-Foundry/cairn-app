@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, keymap, hoverTooltip } from '@codemirror/view';
-  import { EditorState, Prec, type Extension } from '@codemirror/state';
+  import { EditorState, EditorSelection, Prec, type Extension } from '@codemirror/state';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import { html } from '@codemirror/lang-html';
   import { css } from '@codemirror/lang-css';
@@ -53,6 +53,18 @@
       cursorPos: view.state.selection.main.head,
       scrollTop: view.scrollDOM.scrollTop,
     };
+  }
+
+  export function jumpTo(line: number, col: number) {
+    if (!view) return;
+    const doc = view.state.doc;
+    const lineObj = doc.line(Math.max(1, Math.min(line, doc.lines)));
+    const pos = Math.min(lineObj.from + Math.max(0, col - 1), lineObj.to);
+    view.dispatch({
+      selection: EditorSelection.cursor(pos),
+      effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+    });
+    view.focus();
   }
 
   type EditorLanguage =

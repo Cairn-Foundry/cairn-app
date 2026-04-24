@@ -78,14 +78,15 @@
 </script>
 
 <div class="os-window">
-  {#if screen === 'home'}
+  <div class="screen-wrap" class:screen-hidden={screen !== 'home'}>
     <Home
       openSection={homeOpenSection}
       on:openProject={(e) => handleOpenProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
       on:sectionShown={() => { homeOpenSection = null; }}
     />
-  {:else}
+  </div>
+  <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
     <Workspace
       openProjects={$openProjects}
       activeProjectId={$activeProjectId ?? ''}
@@ -98,7 +99,7 @@
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:createInstance={() => showCreate = true}
     />
-  {/if}
+  </div>
 
   {#if showCreate}
     <CreateInstance

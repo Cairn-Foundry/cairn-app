@@ -254,19 +254,12 @@
     </aside>
 
     <main class="main">
-      {#if $activeStep === 'files'}
-        <FilesView/>
-      {:else if $activeStep === 'agent'}
-        <AgentView/>
-      {:else if $activeStep === 'review'}
-        <ReviewView/>
-      {:else if $activeStep === 'tests'}
-        <TestsView/>
-      {:else if $activeStep === 'git'}
-        <GitView/>
-      {:else if $activeStep === 'cicd'}
-        <CiCdView/>
-      {/if}
+      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
     </main>
   </div>
 </div>

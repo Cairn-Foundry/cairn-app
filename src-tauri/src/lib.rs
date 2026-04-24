@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use git2::{Repository, BranchType};
+use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -611,6 +612,152 @@ fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
     }
 }
 
+// ── Search ────────────────────────────────────────────────────────────────────
+
+const BINARY_EXTENSIONS: &[&str] = &[
+    "png","jpg","jpeg","gif","webp","ico","bmp","tiff",
+    "pdf","doc","docx","xls","xlsx","ppt","pptx",
+    "zip","tar","gz","bz2","xz","7z","rar",
+    "mp3","mp4","wav","ogg","flac","avi","mov","mkv",
+    "wasm","bin","exe","dll","so","dylib","a","o",
+    "ttf","otf","woff","woff2","eot",
+    "db","sqlite","sqlite3",
+];
+
+fn glob_match(pattern: &str, name: &str) -> bool {
+    let p: Vec<char> = pattern.to_lowercase().chars().collect();
+    let n: Vec<char> = name.to_lowercase().chars().collect();
+    let mut dp = vec![vec![false; n.len() + 1]; p.len() + 1];
+    dp[0][0] = true;
+    for i in 1..=p.len() {
+        if p[i - 1] == '*' { dp[i][0] = dp[i - 1][0]; }
+    }
+    for i in 1..=p.len() {
+        for j in 1..=n.len() {
+            dp[i][j] = if p[i - 1] == '*' {
+                dp[i - 1][j] || dp[i][j - 1]
+            } else if p[i - 1] == '?' || p[i - 1] == n[j - 1] {
+                dp[i - 1][j - 1]
+            } else {
+                false
+            };
+        }
+    }
+    dp[p.len()][n.len()]
+}
+
+fn path_matches_exclude(rel_path: &str, patterns: &[&str]) -> bool {
+    patterns.iter().any(|pat| {
+        let pat = pat.trim();
+        if pat.is_empty() { return false; }
+        rel_path.split('/').any(|seg| glob_match(pat, seg))
+    })
+}
+
+fn file_matches_include(name: &str, patterns: &[&str]) -> bool {
+    if patterns.iter().all(|p| p.trim().is_empty()) { return true; }
+    patterns.iter().any(|pat| {
+        let pat = pat.trim();
+        !pat.is_empty() && glob_match(pat, name)
+    })
+}
+
+#[derive(Serialize)]
+pub struct SearchMatch {
+    pub path: String,
+    pub line: u32,
+    pub col: u32,
+    pub text: String,
+    #[serde(rename = "matchStart")]
+    pub match_start: u32,
+    #[serde(rename = "matchEnd")]
+    pub match_end: u32,
+}
+
+fn collect_text_files(dir: &PathBuf, root: &PathBuf, include: &[&str], exclude: &[&str], out: &mut Vec<PathBuf>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = match path.file_name() { Some(n) => n.to_string_lossy().to_string(), None => continue };
+        if name.starts_with('.') { continue; }
+        let rel = match path.strip_prefix(root) { Ok(r) => r.to_string_lossy().to_string(), Err(_) => continue };
+        if path.is_dir() {
+            if path_matches_exclude(&rel, exclude) { continue; }
+            collect_text_files(&path, root, include, exclude, out);
+        } else {
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+            if BINARY_EXTENSIONS.contains(&ext.as_str()) { continue; }
+            if path_matches_exclude(&rel, exclude) { continue; }
+            if !file_matches_include(&name, include) { continue; }
+            out.push(path);
+        }
+    }
+}
+
+#[tauri::command]
+async fn search_in_files(
+    root: String,
+    query: String,
+    case_sensitive: bool,
+    is_regex: bool,
+    include_glob: String,
+    exclude_glob: String,
+) -> Result<Vec<SearchMatch>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if query.trim().is_empty() { return Ok(vec![]); }
+        let expanded = shellexpand::tilde(&root).into_owned();
+        let root_path = PathBuf::from(&expanded);
+
+        let pattern = if is_regex { query.clone() } else { regex::escape(&query) };
+        let re = RegexBuilder::new(&pattern)
+            .case_insensitive(!case_sensitive)
+            .build()
+            .map_err(|e| format!("Invalid regex: {}", e))?;
+
+        let include_parts: Vec<&str> = include_glob.split(',').collect();
+        let exclude_parts: Vec<&str> = exclude_glob.split(',').collect();
+
+        let mut files = vec![];
+        collect_text_files(&root_path, &root_path, &include_parts, &exclude_parts, &mut files);
+        files.sort();
+
+        let mut results: Vec<SearchMatch> = vec![];
+        'file: for file_path in &files {
+            let content = match fs::read(file_path) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let text = match std::str::from_utf8(&content) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            let rel = file_path.strip_prefix(&root_path)
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            for (line_idx, line_text) in text.lines().enumerate() {
+                for m in re.find_iter(line_text) {
+                    results.push(SearchMatch {
+                        path: rel.clone(),
+                        line: (line_idx + 1) as u32,
+                        col: (m.start() + 1) as u32,
+                        text: line_text.to_string(),
+                        match_start: m.start() as u32,
+                        match_end: m.end() as u32,
+                    });
+                    if results.len() >= 2000 { break 'file; }
+                }
+            }
+        }
+        Ok(results)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -758,6 +905,7 @@ pub fn run() {
             get_settings,
             update_settings,
             git_status,
+            search_in_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
