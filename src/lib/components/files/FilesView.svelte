@@ -246,6 +246,7 @@
 
   async function commitEdit() {
     if (!editState || !editValue.trim() || !worktreePath) { editState = null; return; }
+    if (editConflict) return;
     const state = editState;
     const name = editValue.trim();
     editState = null;
@@ -267,7 +268,26 @@
     } catch (e) { error = String(e); }
   }
 
-  function cancelEdit() { editState = null; }
+  function cancelEdit() { editState = null; editValue = ''; }
+
+  function getSiblingNames(parentPath: string): Set<string> {
+    if (!parentPath) return new Set(tree.map(n => n.name));
+    function find(nodes: FileNode[], path: string): FileNode | null {
+      for (const n of nodes) {
+        if (n.path === path) return n;
+        if (n.isDir && n.children) { const f = find(n.children, path); if (f) return f; }
+      }
+      return null;
+    }
+    return new Set(find(tree, parentPath)?.children?.map(n => n.name) ?? []);
+  }
+
+  $: editConflict = !!editState && !!editValue.trim() && (() => {
+    const siblings = new Set([...getSiblingNames(editState!.parentPath)].map(n => n.toLowerCase()));
+    const val = editValue.trim().toLowerCase();
+    const isSelf = editState!.type === 'rename' && val === editState!.node?.name.toLowerCase();
+    return siblings.has(val) && !isSelf;
+  })();
 
   let treeWidth = 220;
   let isResizing = false;
@@ -633,7 +653,7 @@
           <Icon name="search" size={12}/>
         </button>
         <button type="button" class="tree-action-btn" title="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
-          <Icon name="refresh-cw" size={12}/>
+          <Icon name="refresh" size={12}/>
         </button>
       </div>
     </div>
@@ -839,7 +859,7 @@
       <input
         use:focusOnMount
         bind:value={editValue}
-        class="tree-edit-input"
+        class="tree-edit-input {editConflict ? 'input-conflict' : ''}"
         on:keydown={(e) => { if (e.key === 'Enter') commitEdit(); else if (e.key === 'Escape') cancelEdit(); }}
         on:blur={cancelEdit}
       />
@@ -876,7 +896,7 @@
       use:focusOnMount
       bind:value={editValue}
       placeholder={editState?.type === 'new-dir' ? 'folder name' : 'file name'}
-      class="tree-edit-input"
+      class="tree-edit-input {editConflict ? 'input-conflict' : ''}"
       on:keydown={(e) => { if (e.key === 'Enter') commitEdit(); else if (e.key === 'Escape') cancelEdit(); }}
       on:blur={cancelEdit}
     />
@@ -1130,6 +1150,11 @@
     outline: none;
     min-width: 0;
     pointer-events: all;
+  }
+  .tree-edit-input.input-conflict {
+    border-color: oklch(0.70 0.18 15);
+    background: oklch(0.18 0.06 15);
+    color: oklch(0.88 0.14 15);
   }
 
   /* ── Context menu ────────────────────────────────────────────────── */
