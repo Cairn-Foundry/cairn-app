@@ -6,7 +6,7 @@
   import SearchPanel from './SearchPanel.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap } from '$lib/services/file-service';
+  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, type FileNode, type GitStatusMap, type DiffHunk } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
 
   interface Tab {
@@ -105,6 +105,38 @@
   let saving = false;
   let error = '';
   let editorRef: CodeEditor | undefined;
+
+  let currentDiffHunks: DiffHunk[] = [];
+  let activeDiffHunk: DiffHunk | null = null;
+
+  function handleDiffClick(hunk: DiffHunk) {
+    activeDiffHunk = activeDiffHunk === hunk ? null : hunk;
+  }
+
+  async function loadDiffHunks(tab: { path: string } | null): Promise<void> {
+    if (!tab || !worktreePath) { currentDiffHunks = []; return; }
+    try {
+      const status = gitStatusMap[tab.path];
+      if (!status || status === 'deleted') { currentDiffHunks = []; return; }
+
+      if (status === 'untracked') {
+        const content = tabs.find(t => t.path === tab.path)?.pending ?? '';
+        const lines = content.split('\n');
+        currentDiffHunks = [{ newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        return;
+      }
+
+      const result = await gitFileDiff(worktreePath, tab.path);
+      currentDiffHunks = result.hunks;
+    } catch {
+      currentDiffHunks = [];
+    }
+  }
+
+  async function refreshDiff(tab: { path: string } | null) {
+    activeDiffHunk = null;
+    await loadDiffHunks(tab);
+  }
 
   let quickOpenVisible = false;
   let searchPanelByProject: Record<string, boolean> = {};
@@ -408,6 +440,8 @@
     if (id !== currentInstanceId) {
       saveCurrentState();
       currentInstanceId = id;
+      currentDiffHunks = [];
+      activeDiffHunk = null;
       editState = null;
       contextMenu = null;
       if (id !== null && savedState.has(id)) {
@@ -416,11 +450,12 @@
         activeTabIdx = s.activeTabIdx;
         expanded = s.expanded;
         syncActiveTabToTree();
+        refreshDiff(tabs[activeTabIdx] ?? null);
       } else if (id !== null && wtp !== null) {
         selectedDir = '';
         const persisted = readPersistedState(id);
         if (persisted) {
-          rehydrateTabs(wtp, persisted).then(() => syncActiveTabToTree());
+          rehydrateTabs(wtp, persisted).then(() => { syncActiveTabToTree(); refreshDiff(tabs[activeTabIdx] ?? null); });
         } else {
           tabs = [];
           activeTabIdx = -1;
@@ -450,6 +485,7 @@
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
       tree = withPhantomDeleted(rawTree, gitStatusMap);
+      loadDiffHunks(tabs[activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
     } finally {
@@ -472,6 +508,7 @@
     if (existingIdx !== -1) {
       captureEditorState();
       activeTabIdx = existingIdx;
+      refreshDiff({ path: node.path });
       return;
     }
 
@@ -483,6 +520,7 @@
     if (isBinaryPath(node.path)) {
       tabs = [...tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       activeTabIdx = tabs.length - 1;
+      currentDiffHunks = [];
       return;
     }
 
@@ -493,6 +531,7 @@
       const text = await readFile(fullPath) ?? '';
       tabs = [...tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0 }];
       activeTabIdx = tabs.length - 1;
+      refreshDiff({ path: node.path });
     } catch (e) {
       error = String(e);
     } finally {
@@ -523,6 +562,7 @@
     await flushSave();
     activeTabIdx = idx;
     syncActiveTabToTree();
+    refreshDiff(tabs[idx] ?? null);
   }
 
   async function closeTab(idx: number, event: MouseEvent) {
@@ -555,6 +595,7 @@
       tabs[activeTabIdx].content = activeTab.pending;
       tabs = tabs;
       if (wasDeleted) await loadTree(worktreePath);
+      refreshDiff(activeTab);
     } catch (e) {
       error = String(e);
     } finally {
@@ -779,6 +820,8 @@
               fontSize={$settings.editorFontSize ?? 13}
               initialCursorPos={activeTab.cursorPos}
               initialScrollTop={activeTab.scrollTop}
+              diffHunks={currentDiffHunks}
+              onDiffClick={handleDiffClick}
               onChange={handleChange}
               onBlur={flushSave}
               onCursorChange={handleCursorChange}
@@ -786,6 +829,22 @@
           {/key}
         {/if}
       </div>
+      {#if activeDiffHunk}
+        <div class="diff-peek">
+          <div class="diff-peek-header">
+            <span class="diff-peek-title">Changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
+            <button class="diff-peek-close" on:click={() => activeDiffHunk = null} aria-label="Close diff">✕</button>
+          </div>
+          <div class="diff-peek-body">
+            {#each activeDiffHunk.lines as line}
+              <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
+                <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
+                <span class="diff-peek-content">{line.content}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
       <div class="editor-statusbar">
         <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
         <span class="statusbar-sep">|</span>
@@ -1086,6 +1145,82 @@
   .editor-path { display: flex; align-items: baseline; overflow: hidden; flex: 1; }
   .editor-dir { color: var(--fg-3); white-space: nowrap; font-size: 11.5px; }
   .editor-body { flex: 1; overflow: hidden; position: relative; }
+
+  /* ── Diff peek panel ────────────────────────────────────────── */
+
+  .diff-peek {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    border-top: 1px solid var(--stroke-1);
+    background: oklch(0.145 0.008 70);
+  }
+
+  .diff-peek-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 14px;
+    border-bottom: 1px solid var(--stroke-0);
+    flex-shrink: 0;
+  }
+
+  .diff-peek-title {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--fg-3);
+    letter-spacing: 0.02em;
+  }
+
+  .diff-peek-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: none;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--fg-3);
+    padding: 0;
+  }
+  .diff-peek-close:hover { background: var(--bg-4); color: var(--fg-0); }
+
+  .diff-peek-body {
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.32 0.008 70) transparent;
+    padding: 4px 0;
+  }
+
+  .diff-peek-line {
+    display: flex;
+    align-items: baseline;
+    padding: 0 14px;
+    line-height: 1.65;
+    white-space: pre;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .diff-peek-add { background: oklch(0.78 0.14 135 / 0.10); }
+  .diff-peek-del { background: oklch(0.70 0.18 15 / 0.10); }
+
+  .diff-peek-sign {
+    width: 14px;
+    flex-shrink: 0;
+    user-select: none;
+    font-weight: 600;
+  }
+  .diff-peek-add .diff-peek-sign { color: oklch(0.78 0.14 135); }
+  .diff-peek-del .diff-peek-sign { color: oklch(0.70 0.18 15 / 0.9); }
+  .diff-peek-ctx .diff-peek-sign { color: transparent; }
+
+  .diff-peek-content { color: var(--fg-1); }
+  .diff-peek-add .diff-peek-content { color: oklch(0.90 0.04 135); }
+  .diff-peek-del .diff-peek-content { color: oklch(0.80 0.06 15); }
 
   /* ── Status bar ──────────────────────────────────────────────── */
 

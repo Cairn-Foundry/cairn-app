@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { EditorView, keymap, hoverTooltip } from '@codemirror/view';
-  import { EditorState, EditorSelection, Compartment, Prec, type Extension } from '@codemirror/state';
+  import { EditorView, keymap, hoverTooltip, GutterMarker, gutter } from '@codemirror/view';
+  import { EditorState, EditorSelection, Compartment, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { showMinimap } from '@replit/codemirror-minimap';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import { html } from '@codemirror/lang-html';
@@ -93,9 +93,75 @@
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
   export let fontSize: number = 13;
+  type DiffHunkLine = { type: '+' | '-' | ' '; content: string };
+  type DiffHunk = { newStart: number; newEnd: number; lines: DiffHunkLine[] };
+
+  export let diffHunks: DiffHunk[] = [];
+  export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
 
   let container: HTMLDivElement;
   let view: EditorView;
+
+  // ── Git diff gutter ────────────────────────────────────────────────────────
+
+  const diffEffect = StateEffect.define<Map<number, 'added' | 'modified'>>();
+  const diffField = StateField.define<Map<number, 'added' | 'modified'>>({
+    create: () => new Map(),
+    update: (value, tr) => {
+      for (const e of tr.effects) if (e.is(diffEffect)) return e.value;
+      return value;
+    },
+  });
+
+  function hunksToLineMap(hunks: DiffHunk[]): Map<number, 'added' | 'modified'> {
+    const map = new Map<number, 'added' | 'modified'>();
+    for (const hunk of hunks) {
+      let newLine = hunk.newStart;
+      let pendingDelete = false;
+      for (const l of hunk.lines) {
+        if (l.type === '-') { pendingDelete = true; }
+        else if (l.type === '+') { map.set(newLine, pendingDelete ? 'modified' : 'added'); newLine++; }
+        else { pendingDelete = false; newLine++; }
+      }
+    }
+    return map;
+  }
+
+  class DiffMarker extends GutterMarker {
+    kind: 'added' | 'modified';
+    constructor(kind: 'added' | 'modified') { super(); this.kind = kind; }
+    toDOM() {
+      const el = document.createElement('div');
+      el.className = `cm-diff-marker cm-diff-${this.kind}`;
+      return el;
+    }
+  }
+
+  function buildDiffGutter(): Extension {
+    return [
+      diffField,
+      gutter({
+        class: 'cm-diff-gutter',
+        lineMarker(v, line) {
+          const num = v.state.doc.lineAt(line.from).number;
+          const kind = v.state.field(diffField).get(num);
+          return kind ? new DiffMarker(kind) : null;
+        },
+        lineMarkerChange: (update) =>
+          update.startState.field(diffField) !== update.state.field(diffField),
+        initialSpacer: () => new DiffMarker('added'),
+        domEventHandlers: {
+          mousedown(v, line) {
+            const lineNum = v.state.doc.lineAt(line.from).number;
+            if (!v.state.field(diffField).has(lineNum)) return false;
+            const hunk = diffHunks.find(h => lineNum >= h.newStart && lineNum <= h.newEnd);
+            if (hunk) onDiffClick?.(hunk);
+            return true;
+          },
+        },
+      }),
+    ];
+  }
 
   const minimapCompartment = new Compartment();
   const fontSizeCompartment = new Compartment();
@@ -335,6 +401,13 @@
       fontStyle: 'normal',
       marginTop: '4px',
     },
+
+    // Diff gutter markers
+    '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
+    '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
+    '.cm-diff-marker': { width: '3px', height: '100%' },
+    '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
+    '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
 
     // Minimap
     '.cm-minimap-gutter': {
@@ -737,6 +810,7 @@
       ...snippets,
       ...scopeCompletion,
       buildHoverTooltip(),
+      buildDiffGutter(),
       buildMinimapExtension(minimapEnabled),
       cairnTheme,
       buildFontSizeTheme(fontSize),
@@ -791,6 +865,10 @@
       '&': { fontSize: `${fontSize}px` },
       '.cm-lineNumbers .cm-gutterElement': { fontSize: `${fontSize - 1.5}px` },
     })) });
+  }
+
+  $: if (view) {
+    view.dispatch({ effects: diffEffect.of(hunksToLineMap(diffHunks)) });
   }
 
   onDestroy(() => { view?.destroy(); });

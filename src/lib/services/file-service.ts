@@ -76,6 +76,77 @@ export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
   return invoke<GitStatusMap>('git_status', { worktreePath });
 }
 
+export type DiffLineKind = 'added' | 'modified';
+export type DiffLineMap = Map<number, DiffLineKind>;
+
+export interface DiffHunkLine {
+  type: '+' | '-' | ' ';
+  content: string;
+}
+
+export interface DiffHunk {
+  newStart: number;
+  newEnd: number;
+  lines: DiffHunkLine[];
+}
+
+export interface DiffResult {
+  lineMap: DiffLineMap;
+  hunks: DiffHunk[];
+}
+
+export async function gitFileDiff(worktreePath: string, relPath: string): Promise<DiffResult> {
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command',
+    { program: 'git', args: ['diff', 'HEAD', '--', relPath], cwd: worktreePath }
+  );
+  return parseUnifiedDiff(result.stdout);
+}
+
+function parseUnifiedDiff(diff: string): DiffResult {
+  const lineMap: DiffLineMap = new Map();
+  const hunks: DiffHunk[] = [];
+
+  let currentHunk: DiffHunk | null = null;
+  let newLine = 0;
+  let pendingDelete = false;
+
+  for (const line of diff.split('\n')) {
+    if (line.startsWith('@@')) {
+      if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
+      const m = line.match(/\+(\d+)/);
+      newLine = m ? parseInt(m[1], 10) : 1;
+      pendingDelete = false;
+      currentHunk = { newStart: newLine, newEnd: newLine, lines: [] };
+      continue;
+    }
+    if (line.startsWith('---') || line.startsWith('+++')) continue;
+    if (!currentHunk) continue;
+
+    if (line.startsWith('-')) {
+      pendingDelete = true;
+      currentHunk.lines.push({ type: '-', content: line.slice(1) });
+      continue;
+    }
+    if (line.startsWith('+')) {
+      lineMap.set(newLine, pendingDelete ? 'modified' : 'added');
+      currentHunk.lines.push({ type: '+', content: line.slice(1) });
+      currentHunk.newEnd = newLine;
+      newLine++;
+      continue;
+    }
+    // context line
+    pendingDelete = false;
+    currentHunk.lines.push({ type: ' ', content: line.slice(1) });
+    currentHunk.newEnd = newLine;
+    newLine++;
+  }
+
+  if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
+
+  return { lineMap, hunks };
+}
+
 const EXT_LANG: Record<string, string> = {
   ts: 'ts', tsx: 'tsx', mts: 'ts',
   js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js',
