@@ -308,6 +308,8 @@
     if (id !== currentInstanceId) {
       saveCurrentState();
       currentInstanceId = id;
+      editState = null;
+      contextMenu = null;
       if (id !== null && savedState.has(id)) {
         const s = savedState.get(id)!;
         tabs = s.tabs;
@@ -552,8 +554,6 @@
       <div class="tree-state">Loading…</div>
     {:else if error}
       <div class="tree-state error">{error}</div>
-    {:else if tree.length === 0 && worktreePath}
-      <div class="tree-state">Empty worktree</div>
     {:else if !worktreePath}
       <div class="tree-state">No active instance</div>
     {:else}
@@ -569,6 +569,9 @@
       </button>
       {#if editState && editState.parentPath === '' && editState.type !== 'rename'}
         {@render inlineInput(0)}
+      {/if}
+      {#if tree.length === 0 && !editState}
+        <div class="tree-state">Empty worktree</div>
       {/if}
       {#each tree as node}
         {@render treeNode(node, 0)}
