@@ -317,6 +317,33 @@
         </div>
         <div class="settings-row">
           <div class="settings-row-info">
+            <span class="settings-row-label">Editor font size</span>
+            <span class="settings-row-desc">Base font size for the code editor. Use Cmd+= / Cmd+- to adjust while editing, Cmd+0 to reset.</span>
+          </div>
+          <div class="settings-row-control">
+            <input
+              class="settings-number-input"
+              type="number"
+              min="8"
+              max="32"
+              value={$settings.editorFontSize}
+              on:change={(e) => {
+                const v = parseInt((e.target as HTMLInputElement).value, 10);
+                if (!isNaN(v)) settings.save({ editorFontSize: Math.max(8, Math.min(32, v)) });
+              }}
+            />
+            <span class="settings-row-unit">px</span>
+            <button
+              class="settings-reset-btn"
+              title="Reset to default (13 px)"
+              on:click={() => settings.save({ editorFontSize: 13 })}
+            >
+              <Icon name="undo" size={12}/>
+            </button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
             <span class="settings-row-label">Show minimap</span>
             <span class="settings-row-desc">Scrollbar overview panel on the right side of the code editor.</span>
           </div>

@@ -766,13 +766,16 @@ pub struct CairnSettings {
     pub tree_panel_width: u32,
     #[serde(rename = "showMinimap", default = "default_show_minimap")]
     pub show_minimap: bool,
+    #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
+    pub editor_font_size: u32,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
+fn default_editor_font_size() -> u32 { 13 }
 
 impl Default for CairnSettings {
-    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width(), show_minimap: default_show_minimap() } }
+    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width(), show_minimap: default_show_minimap(), editor_font_size: default_editor_font_size() } }
 }
 
 fn read_settings() -> Result<CairnSettings, String> {

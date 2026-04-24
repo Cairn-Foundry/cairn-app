@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 export interface CairnSettings {
   treePanelWidth: number;
   showMinimap: boolean;
+  editorFontSize: number;
 }
 
 export function getSettings(): Promise<CairnSettings> {

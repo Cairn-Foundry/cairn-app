@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { getSettings, updateSettings, type CairnSettings } from '$lib/services/settings-service';
 
-const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true };
+const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true, editorFontSize: 13 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
 

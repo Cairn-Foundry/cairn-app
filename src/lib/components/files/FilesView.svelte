@@ -336,6 +336,19 @@
         e.preventDefault();
         toggleSearchPanel();
       }
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) });
+      }
+      if (mod && e.key === '-') {
+        e.preventDefault();
+        settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) });
+      }
+      if (mod && e.key === '0') {
+        e.preventDefault();
+        settings.save({ editorFontSize: 13 });
+      }
     }
     window.addEventListener('keydown', handleGlobalKey);
 
@@ -763,6 +776,7 @@
               language={activeLang}
               readonly={false}
               minimapEnabled={$settings.showMinimap ?? true}
+              fontSize={$settings.editorFontSize ?? 13}
               initialCursorPos={activeTab.cursorPos}
               initialScrollTop={activeTab.scrollTop}
               onChange={handleChange}

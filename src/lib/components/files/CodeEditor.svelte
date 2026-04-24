@@ -92,11 +92,20 @@
   export let language: EditorLanguage = 'ts';
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
+  export let fontSize: number = 13;
 
   let container: HTMLDivElement;
   let view: EditorView;
 
   const minimapCompartment = new Compartment();
+  const fontSizeCompartment = new Compartment();
+
+  function buildFontSizeTheme(size: number): Extension {
+    return fontSizeCompartment.of(EditorView.theme({
+      '&': { fontSize: `${size}px` },
+      '.cm-lineNumbers .cm-gutterElement': { fontSize: `${size - 1.5}px` },
+    }));
+  }
 
   function buildMinimapExtension(enabled: boolean): Extension {
     return minimapCompartment.of(
@@ -157,7 +166,6 @@
       backgroundColor: 'oklch(0.16 0.008 70)',
       color: 'oklch(0.88 0.005 80)',
       height: '100%',
-      fontSize: '13px',
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
     },
     '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
@@ -731,6 +739,7 @@
       buildHoverTooltip(),
       buildMinimapExtension(minimapEnabled),
       cairnTheme,
+      buildFontSizeTheme(fontSize),
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
       EditorView.updateListener.of((update) => {
@@ -775,6 +784,13 @@
       ? showMinimap.of({ create: () => { const dom = document.createElement('div'); return { dom }; }, displayText: 'blocks', showOverlay: 'always' })
       : [];
     view.dispatch({ effects: minimapCompartment.reconfigure(ext) });
+  }
+
+  $: if (view) {
+    view.dispatch({ effects: fontSizeCompartment.reconfigure(EditorView.theme({
+      '&': { fontSize: `${fontSize}px` },
+      '.cm-lineNumbers .cm-gutterElement': { fontSize: `${fontSize - 1.5}px` },
+    })) });
   }
 
   onDestroy(() => { view?.destroy(); });
