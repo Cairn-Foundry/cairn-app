@@ -4,12 +4,15 @@
   import CodeEditor from './CodeEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
   import SearchPanel from './SearchPanel.svelte';
+  import CommandPalette from './CommandPalette.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen } from '$lib/stores/ui';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, type FileNode, type GitStatusMap, type DiffHunk } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
-  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels } from '$lib/stores/shortcuts';
+  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+
+  export let onGoSettings: (() => void) | undefined = undefined;
 
   interface Tab {
     path: string;
@@ -239,8 +242,8 @@
     refreshDiff2(tabs2[idx] ?? null);
   }
 
-  async function closeTab2(idx: number, event: MouseEvent) {
-    event.stopPropagation();
+  async function closeTab2(idx: number, event: MouseEvent | null) {
+    if (event) event.stopPropagation();
     const tab = tabs2[idx];
     if (!tab) return;
     if (tab.pending !== tab.content && worktreePath) {
@@ -333,6 +336,21 @@
   let quickOpenVisible = false;
   let searchPanelByProject: Record<string, boolean> = {};
   let pendingJump: { line: number; col: number } | null = null;
+
+  // ── Closed-tab history (for ⌘⇧T reopen) ────────────────────────────────────
+  let closedTabsStack: Tab[] = [];
+
+  // ── Tab navigation history (for ⌘Alt+←/→) ──────────────────────────────────
+  let tabNavBack: number[] = [];
+  let tabNavForward: number[] = [];
+  let tabNavSkip = false;
+
+  // ── Sidebar visibility ───────────────────────────────────────────────────────
+  let sidebarHidden = false;
+
+  // ── Command palette ──────────────────────────────────────────────────────────
+  let commandPaletteVisible = false;
+  export function openCommandPalette() { commandPaletteVisible = true; }
 
   $: searchPanelOpen = searchPanelByProject[$activeProjectId ?? ''] ?? false;
 
@@ -580,10 +598,63 @@
       e.preventDefault();
       toggleSplit();
     }
+    // ── Tab management ─────────────────────────��────────────────────────────
+    if (matchesShortcut(e, $activeShortcuts.closeTab)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const activePane = focusedPane === 1 && splitMode ? 1 : 0;
+      if (activePane === 1) closeTab2(activeTabIdx2, null);
+      else closeTab(activeTabIdx, null);
+    }
+    if (matchesShortcut(e, $activeShortcuts.reopenClosedTab)) {
+      e.preventDefault();
+      reopenClosedTab();
+    }
+    if (matchesShortcut(e, $activeShortcuts.nextTab)) {
+      e.preventDefault();
+      if (tabs.length > 1) switchTab((activeTabIdx + 1) % tabs.length);
+    }
+    if (matchesShortcut(e, $activeShortcuts.prevTab)) {
+      e.preventDefault();
+      if (tabs.length > 1) switchTab((activeTabIdx - 1 + tabs.length) % tabs.length);
+    }
+    if (matchesShortcut(e, $activeShortcuts.tabHistoryBack)) {
+      e.preventDefault();
+      tabHistoryBack();
+    }
+    if (matchesShortcut(e, $activeShortcuts.tabHistoryForward)) {
+      e.preventDefault();
+      tabHistoryForward();
+    }
+    // ── Jump to tab by number (⌘1–⌘9, always active, not configurable) ────
+    const IS_MAC_FV = typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac');
+    if ((IS_MAC_FV ? e.metaKey : e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+      const idx = parseInt(e.key) - 1;
+      if (idx < tabs.length) { e.preventDefault(); switchTab(idx); }
+    }
+    // ── Editing ─────────────────────────────────────────────────────────────
+    if (matchesShortcut(e, $activeShortcuts.saveFile)) {
+      e.preventDefault();
+      if (focusedPane === 1 && splitMode) flushSave2();
+      else flushSave();
+    }
+    // ── View ────────────────────────────────────────────────────────────────
+    if (matchesShortcut(e, $activeShortcuts.toggleSidebar)) {
+      e.preventDefault();
+      sidebarHidden = !sidebarHidden;
+    }
+    if (matchesShortcut(e, $activeShortcuts.commandPalette)) {
+      e.preventDefault();
+      commandPaletteVisible = true;
+    }
+    if (matchesShortcut(e, $activeShortcuts.openSettings)) {
+      e.preventDefault();
+      onGoSettings?.();
+    }
   }
 
   onMount(() => {
-    window.addEventListener('keydown', handleGlobalKey);
+    window.addEventListener('keydown', handleGlobalKey, { capture: true });
 
     gitPollInterval = setInterval(async () => {
       if (!worktreePath) return;
@@ -602,7 +673,7 @@
     });
 
     return () => {
-      window.removeEventListener('keydown', handleGlobalKey);
+      window.removeEventListener('keydown', handleGlobalKey, { capture: true });
       unlistenFocus?.();
       if (gitPollInterval !== null) clearInterval(gitPollInterval);
     };
@@ -791,6 +862,10 @@
 
   async function switchTab(idx: number) {
     if (idx === activeTabIdx) return;
+    if (!tabNavSkip && activeTabIdx !== -1) {
+      tabNavBack = [...tabNavBack, activeTabIdx].slice(-50);
+      tabNavForward = [];
+    }
     captureEditorState();
     await flushSave();
     activeTabIdx = idx;
@@ -798,14 +873,18 @@
     refreshDiff(tabs[idx] ?? null);
   }
 
-  async function closeTab(idx: number, event: MouseEvent) {
-    event.stopPropagation();
+  async function closeTab(idx: number, event: MouseEvent | null) {
+    if (event) event.stopPropagation();
     const tab = tabs[idx];
     if (!tab) return;
 
     if (tab.pending !== tab.content && worktreePath) {
       await writeFile(`${worktreePath}/${tab.path}`, tab.pending);
     }
+
+    closedTabsStack = [...closedTabsStack, { ...tab }].slice(-20);
+    tabNavBack = tabNavBack.map(i => i > idx ? i - 1 : i).filter(i => i !== idx);
+    tabNavForward = tabNavForward.map(i => i > idx ? i - 1 : i).filter(i => i !== idx);
 
     const wasActive = idx === activeTabIdx;
     tabs = tabs.filter((_, i) => i !== idx);
@@ -817,6 +896,45 @@
     } else if (idx < activeTabIdx) {
       activeTabIdx = activeTabIdx - 1;
     }
+  }
+
+  async function reopenClosedTab() {
+    if (closedTabsStack.length === 0 || !worktreePath) return;
+    const tab = closedTabsStack[closedTabsStack.length - 1];
+    closedTabsStack = closedTabsStack.slice(0, -1);
+    if (isBinaryPath(tab.path)) {
+      tabs = [...tabs, { ...tab }];
+    } else {
+      try {
+        const text = await readFile(`${worktreePath}/${tab.path}`) ?? tab.pending;
+        tabs = [...tabs, { ...tab, content: text, pending: text }];
+      } catch {
+        tabs = [...tabs, { ...tab }];
+      }
+    }
+    await switchTab(tabs.length - 1);
+  }
+
+  async function tabHistoryBack() {
+    if (tabNavBack.length === 0) return;
+    const target = tabNavBack[tabNavBack.length - 1];
+    if (target < 0 || target >= tabs.length) { tabNavBack = tabNavBack.slice(0, -1); return; }
+    tabNavBack = tabNavBack.slice(0, -1);
+    if (activeTabIdx !== -1) tabNavForward = [...tabNavForward, activeTabIdx];
+    tabNavSkip = true;
+    await switchTab(target);
+    tabNavSkip = false;
+  }
+
+  async function tabHistoryForward() {
+    if (tabNavForward.length === 0) return;
+    const target = tabNavForward[tabNavForward.length - 1];
+    if (target < 0 || target >= tabs.length) { tabNavForward = tabNavForward.slice(0, -1); return; }
+    tabNavForward = tabNavForward.slice(0, -1);
+    if (activeTabIdx !== -1) tabNavBack = [...tabNavBack, activeTabIdx];
+    tabNavSkip = true;
+    await switchTab(target);
+    tabNavSkip = false;
   }
 
   async function flushSave() {
@@ -992,7 +1110,7 @@
   }
 </script>
 
-<div class="files-layout" class:sidebar-right={sidebarRight}>
+<div class="files-layout" class:sidebar-right={sidebarRight} class:sidebar-hidden={sidebarHidden}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => openContextMenu(e, null)}>
     <div class="files-tree-header">
@@ -1018,6 +1136,7 @@
         <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
           <Icon name="columns" size={12}/>
         </button>
+
       </div>
     </div>
 
@@ -1322,6 +1441,34 @@
   <QuickOpen tree={tree} onOpen={quickOpenFile} onClose={() => { quickOpenVisible = false; }} />
 {/if}
 
+{#if commandPaletteVisible}
+  <CommandPalette
+    shortcuts={$shortcuts}
+    shortcutDefs={SHORTCUT_DEFS}
+    onClose={() => { commandPaletteVisible = false; }}
+    onAction={(id) => {
+      commandPaletteVisible = false;
+      switch (id) {
+        case 'quickOpen': quickOpenVisible = true; break;
+        case 'searchFiles': toggleSearchPanel(); break;
+        case 'splitEditor': toggleSplit(); break;
+        case 'toggleSidebar': sidebarHidden = !sidebarHidden; break;
+        case 'openSettings': onGoSettings?.(); break;
+        case 'closeTab': closeTab(activeTabIdx, null); break;
+        case 'reopenClosedTab': reopenClosedTab(); break;
+        case 'nextTab': if (tabs.length > 1) switchTab((activeTabIdx + 1) % tabs.length); break;
+        case 'prevTab': if (tabs.length > 1) switchTab((activeTabIdx - 1 + tabs.length) % tabs.length); break;
+        case 'tabHistoryBack': tabHistoryBack(); break;
+        case 'tabHistoryForward': tabHistoryForward(); break;
+        case 'saveFile': flushSave(); break;
+        case 'fontSizeUp': settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) }); break;
+        case 'fontSizeDown': settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) }); break;
+        case 'fontSizeReset': settings.save({ editorFontSize: 13 }); break;
+      }
+    }}
+  />
+{/if}
+
 {#if contextMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="ctx-backdrop" on:mousedown={closeContextMenu}></div>
@@ -1428,6 +1575,8 @@
   .files-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
   .files-layout.sidebar-right { flex-direction: row-reverse; }
   .files-layout.sidebar-right .files-tree { border-right: none; border-left: 1px solid var(--stroke-0); }
+  .files-layout.sidebar-hidden .files-tree { display: none; }
+  .files-layout.sidebar-hidden .resize-handle { display: none; }
 
   /* ── File tree ───────────────────────────────────────────────── */
 

@@ -966,6 +966,34 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{MenuBuilder, SubmenuBuilder};
+                let menu = MenuBuilder::new(app)
+                    .item(
+                        &SubmenuBuilder::new(app, "Cairn")
+                            .about(None)
+                            .separator()
+                            .quit()
+                            .build()?
+                    )
+                    .item(
+                        &SubmenuBuilder::new(app, "Edit")
+                            .undo()
+                            .redo()
+                            .separator()
+                            .cut()
+                            .copy()
+                            .paste()
+                            .select_all()
+                            .build()?
+                    )
+                    .build()?;
+                app.set_menu(menu)?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             run_shell_command,
             run_agent_command,

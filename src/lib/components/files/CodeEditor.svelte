@@ -38,7 +38,9 @@
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectLine, indentMore, indentLess,
     selectParentSyntax, cursorMatchingBracket, selectAll,
+    addCursorAbove, addCursorBelow,
   } from '@codemirror/commands';
+  import { gotoLine } from '@codemirror/search';
   import { shortcuts, activeShortcuts, toCmKey, bindingToLabels } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
   import { settings } from '$lib/stores/settings';
@@ -243,6 +245,19 @@
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
 
+  function duplicateLineStay(view: EditorView): boolean {
+    const { state } = view;
+    const changes = state.changeByRange(range => {
+      const line = state.doc.lineAt(range.from);
+      return {
+        changes: { from: line.to, to: line.to, insert: '\n' + line.text },
+        range,
+      };
+    });
+    view.dispatch(state.update(changes, { scrollIntoView: true, userEvent: 'input' }));
+    return true;
+  }
+
   function buildShortcutKeymap(bindings: Record<ShortcutId, ShortcutBinding | null>): Extension {
     const defs: { id: ShortcutId; run: (view: EditorView) => boolean }[] = [
       { id: 'toggleLineComment',  run: toggleComment },
@@ -256,6 +271,10 @@
       { id: 'indentMore',         run: indentMore },
       { id: 'indentLess',         run: indentLess },
       { id: 'expandSelection',    run: selectParentSyntax },
+      { id: 'goToLine',           run: gotoLine },
+      { id: 'addCursorAbove',     run: addCursorAbove },
+      { id: 'addCursorBelow',     run: addCursorBelow },
+      { id: 'duplicateLine',      run: duplicateLineStay },
     ];
     return keymap.of(
       defs
@@ -395,38 +414,96 @@
     // Search panel
     '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.28)', borderRadius: '2px' },
     '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.55)' },
-    '.cm-search': {
-      backgroundColor: 'oklch(0.19 0.008 70)',
-      borderTop: '1px solid oklch(0.30 0.008 70)',
-      padding: '6px 12px',
+    '.cm-panels-top': { borderBottom: '1px solid oklch(0.26 0.008 70)' },
+    '.cm-panel.cm-search': {
+      backgroundColor: 'oklch(0.185 0.008 70)',
+      padding: '7px 12px',
       display: 'flex',
       flexWrap: 'wrap',
-      gap: '6px',
+      gap: '5px',
       alignItems: 'center',
-      fontSize: '12.5px',
       fontFamily: 'var(--font-ui)',
     },
-    '.cm-search input': {
-      backgroundColor: 'oklch(0.22 0.008 70)',
-      border: '1px solid oklch(0.34 0.008 70)',
-      borderRadius: '4px',
-      color: 'oklch(0.88 0.005 80)',
-      padding: '3px 8px',
-      fontSize: '12.5px',
-      outline: 'none',
+    '.cm-panel.cm-dialog': {
+      backgroundColor: 'oklch(0.185 0.008 70)',
+      padding: '7px 36px 7px 12px',
+      display: 'flex',
+      gap: '6px',
+      alignItems: 'center',
+      fontFamily: 'var(--font-ui)',
     },
-    '.cm-search input:focus': { borderColor: 'oklch(0.72 0.14 250 / 0.7)' },
-    '.cm-search button': {
-      backgroundColor: 'oklch(0.26 0.008 70)',
-      border: '1px solid oklch(0.34 0.008 70)',
-      borderRadius: '4px',
+    '.cm-textfield': {
+      backgroundColor: 'oklch(0.22 0.008 70)',
+      border: '1px solid oklch(0.32 0.008 70)',
+      borderRadius: '5px',
+      color: 'oklch(0.90 0.005 80)',
+      padding: '4px 9px',
+      fontSize: '12.5px',
+      fontFamily: 'var(--font-ui)',
+      outline: 'none',
+      minWidth: '150px',
+    },
+    '.cm-textfield:focus': {
+      borderColor: 'oklch(0.55 0.14 250 / 0.85)',
+      backgroundColor: 'oklch(0.235 0.008 70)',
+    },
+    '.cm-panel.cm-dialog input': {
+      backgroundColor: 'oklch(0.22 0.008 70)',
+      border: '1px solid oklch(0.32 0.008 70)',
+      borderRadius: '5px',
+      color: 'oklch(0.90 0.005 80)',
+      padding: '4px 9px',
+      fontSize: '12.5px',
+      fontFamily: 'var(--font-ui)',
+      outline: 'none',
+      width: '100px',
+    },
+    '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.55 0.14 250 / 0.85)' },
+    '.cm-panel.cm-dialog label': { color: 'oklch(0.65 0.006 80)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
+    '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.72 0.14 250)', cursor: 'pointer' },
+    '.cm-button': {
+      backgroundColor: 'oklch(0.255 0.008 70)',
+      border: '1px solid oklch(0.33 0.008 70)',
+      borderRadius: '5px',
       color: 'oklch(0.78 0.005 80)',
-      padding: '3px 10px',
+      padding: '4px 11px',
       cursor: 'pointer',
       fontSize: '12px',
+      fontFamily: 'var(--font-ui)',
+      lineHeight: '1.4',
     },
-    '.cm-search button:hover': { backgroundColor: 'oklch(0.30 0.008 70)' },
-    '.cm-search label': { color: 'oklch(0.60 0.006 80)', fontSize: '12px' },
+    '.cm-button:hover': { backgroundColor: 'oklch(0.305 0.008 70)', color: 'oklch(0.92 0.005 80)' },
+    '.cm-button[name="next"], .cm-button[name="prev"]': {
+      backgroundColor: 'oklch(0.26 0.11 250 / 0.65)',
+      border: '1px solid oklch(0.48 0.14 250 / 0.45)',
+      color: 'oklch(0.82 0.09 250)',
+    },
+    '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': {
+      backgroundColor: 'oklch(0.32 0.14 250 / 0.75)',
+      color: 'oklch(0.94 0.06 250)',
+    },
+    '.cm-button[name="close"]': {
+      backgroundColor: 'transparent',
+      border: 'none',
+      color: 'oklch(0.50 0.006 80)',
+      padding: '2px 5px',
+      fontSize: '14px',
+    },
+    '.cm-button[name="close"]:hover': { color: 'oklch(0.80 0.005 80)', backgroundColor: 'transparent' },
+    '.cm-dialog-close': {
+      color: 'oklch(0.50 0.006 80)',
+      fontSize: '14px',
+      padding: '2px 5px',
+      cursor: 'pointer',
+    },
+    '.cm-search label': {
+      color: 'oklch(0.55 0.006 80)',
+      fontSize: '12px',
+      fontFamily: 'var(--font-ui)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+    },
 
     // Code folding
     '.cm-foldGutter': { minWidth: '16px' },
@@ -563,13 +640,24 @@
       '.cm-selectionMatch': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', outline: '1px solid oklch(0.42 0.14 250 / 0.22)', borderRadius: '2px' },
       '.cm-searchMatch': { backgroundColor: 'oklch(0.60 0.14 60 / 0.28)', borderRadius: '2px' },
       '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.60 0.14 60 / 0.55)' },
-      '.cm-search': { backgroundColor: 'oklch(0.93 0.007 75)', borderTop: '1px solid oklch(0.87 0.007 70)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
-      '.cm-search input': { backgroundColor: 'oklch(0.97 0.006 80)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.18 0.008 70)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
-      '.cm-search input:focus': { borderColor: 'oklch(0.42 0.14 250 / 0.7)' },
-      '.cm-search button': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.30 0.008 70)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
-      '.cm-search button:hover': { backgroundColor: 'oklch(0.87 0.009 65)' },
-      '.cm-search label': { color: 'oklch(0.52 0.008 70)', fontSize: '12px' },
-      '.cm-foldGutter': { minWidth: '16px' },
+      '.cm-panels-top': { borderBottom: '1px solid oklch(0.87 0.007 70)' },
+      '.cm-panel.cm-search': { backgroundColor: 'oklch(0.935 0.007 75)', padding: '7px 12px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
+      '.cm-panel.cm-dialog': { backgroundColor: 'oklch(0.935 0.007 75)', padding: '7px 36px 7px 12px', display: 'flex', gap: '6px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
+      '.cm-textfield': { backgroundColor: 'oklch(0.99 0.004 80)', border: '1px solid oklch(0.82 0.008 70)', borderRadius: '5px', color: 'oklch(0.18 0.008 70)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', minWidth: '150px' },
+      '.cm-textfield:focus': { borderColor: 'oklch(0.45 0.14 250 / 0.7)', backgroundColor: 'oklch(1.0 0.003 80)' },
+      '.cm-panel.cm-dialog input': { backgroundColor: 'oklch(0.99 0.004 80)', border: '1px solid oklch(0.82 0.008 70)', borderRadius: '5px', color: 'oklch(0.18 0.008 70)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', width: '100px' },
+      '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.45 0.14 250 / 0.7)' },
+      '.cm-panel.cm-dialog label': { color: 'oklch(0.45 0.008 70)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
+      '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.48 0.14 250)', cursor: 'pointer' },
+      '.cm-button': { backgroundColor: 'oklch(0.905 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '5px', color: 'oklch(0.28 0.008 70)', padding: '4px 11px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-ui)', lineHeight: '1.4' },
+      '.cm-button:hover': { backgroundColor: 'oklch(0.87 0.009 65)' },
+      '.cm-button[name="next"], .cm-button[name="prev"]': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', border: '1px solid oklch(0.42 0.14 250 / 0.38)', color: 'oklch(0.36 0.14 250)' },
+      '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': { backgroundColor: 'oklch(0.42 0.14 250 / 0.20)' },
+      '.cm-button[name="close"]': { backgroundColor: 'transparent', border: 'none', color: 'oklch(0.60 0.006 80)', padding: '2px 5px', fontSize: '14px' },
+      '.cm-button[name="close"]:hover': { color: 'oklch(0.28 0.008 70)', backgroundColor: 'transparent' },
+      '.cm-dialog-close': { color: 'oklch(0.60 0.006 80)', fontSize: '14px', padding: '2px 5px', cursor: 'pointer' },
+      '.cm-search label': { color: 'oklch(0.48 0.008 70)', fontSize: '12px', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: '4px' },
+        '.cm-foldGutter': { minWidth: '16px' },
       '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
       '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.42 0.14 250)' },
       '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '3px', color: 'oklch(0.52 0.006 80)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
@@ -609,13 +697,24 @@
       '.cm-selectionMatch': { backgroundColor: 'oklch(0.72 0.14 250 / 0.20)', outline: '1px solid oklch(0.72 0.14 250 / 0.45)', borderRadius: '2px' },
       '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.35)', borderRadius: '2px' },
       '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.65)' },
-      '.cm-search': { backgroundColor: 'oklch(0.06 0 0)', borderTop: '1px solid oklch(0.32 0 0)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
-      '.cm-search input': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(1.0 0 0)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
-      '.cm-search input:focus': { borderColor: 'oklch(0.72 0.14 250)' },
-      '.cm-search button': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(0.85 0 0)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
-      '.cm-search button:hover': { backgroundColor: 'oklch(0.20 0 0)' },
-      '.cm-search label': { color: 'oklch(0.70 0 0)', fontSize: '12px' },
-      '.cm-foldGutter': { minWidth: '16px' },
+      '.cm-panels-top': { borderBottom: '1px solid oklch(0.48 0 0)' },
+      '.cm-panel.cm-search': { backgroundColor: 'oklch(0.065 0 0)', padding: '7px 12px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
+      '.cm-panel.cm-dialog': { backgroundColor: 'oklch(0.065 0 0)', padding: '7px 36px 7px 12px', display: 'flex', gap: '6px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
+      '.cm-textfield': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(1.0 0 0)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', minWidth: '150px' },
+      '.cm-textfield:focus': { borderColor: 'oklch(0.72 0.14 250)' },
+      '.cm-panel.cm-dialog input': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(1.0 0 0)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', width: '100px' },
+      '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.72 0.14 250)' },
+      '.cm-panel.cm-dialog label': { color: 'oklch(0.72 0 0)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
+      '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.72 0.14 250)', cursor: 'pointer' },
+      '.cm-button': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(0.85 0 0)', padding: '4px 11px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-ui)', lineHeight: '1.4' },
+      '.cm-button:hover': { backgroundColor: 'oklch(0.22 0 0)' },
+      '.cm-button[name="next"], .cm-button[name="prev"]': { backgroundColor: 'oklch(0.72 0.14 250 / 0.15)', border: '1px solid oklch(0.72 0.14 250 / 0.6)', color: 'oklch(0.85 0.14 250)' },
+      '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': { backgroundColor: 'oklch(0.72 0.14 250 / 0.28)' },
+      '.cm-button[name="close"]': { backgroundColor: 'transparent', border: 'none', color: 'oklch(0.55 0 0)', padding: '2px 5px', fontSize: '14px' },
+      '.cm-button[name="close"]:hover': { color: 'oklch(0.85 0 0)', backgroundColor: 'transparent' },
+      '.cm-dialog-close': { color: 'oklch(0.55 0 0)', fontSize: '14px', padding: '2px 5px', cursor: 'pointer' },
+      '.cm-search label': { color: 'oklch(0.70 0 0)', fontSize: '12px', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: '4px' },
+        '.cm-foldGutter': { minWidth: '16px' },
       '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
       '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.90 0.14 250)' },
       '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '3px', color: 'oklch(0.70 0 0)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
@@ -1009,7 +1108,7 @@
         return el;
       }}),
       codeFolding(),
-      search({ top: false }),
+      search({ top: true }),
       highlightSelectionMatches({ minSelectionLength: 2, wholeWords: false }),
       autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: 12 }),
       ...snippets,

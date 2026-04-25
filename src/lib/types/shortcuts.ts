@@ -15,7 +15,26 @@ export type ShortcutId =
   | 'matchingBracket'
   | 'indentMore'
   | 'indentLess'
-  | 'expandSelection';
+  | 'expandSelection'
+  // Tab management
+  | 'closeTab'
+  | 'reopenClosedTab'
+  | 'nextTab'
+  | 'prevTab'
+  | 'tabHistoryBack'
+  | 'tabHistoryForward'
+  // Find & navigation (editor)
+  | 'goToLine'
+  // Multi-cursor (editor)
+  | 'addCursorAbove'
+  | 'addCursorBelow'
+  // Editing (editor)
+  | 'saveFile'
+  | 'duplicateLine'
+  // View (global)
+  | 'toggleSidebar'
+  | 'commandPalette'
+  | 'openSettings';
 
 export interface ShortcutBinding {
   key: string;
@@ -29,7 +48,7 @@ export interface ShortcutDef {
   id: ShortcutId;
   label: string;
   description: string;
-  group: 'files' | 'editor';
+  group: 'files' | 'editor' | 'tabs' | 'view';
   default: ShortcutBinding;
 }
 

@@ -22,6 +22,18 @@
         .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
     },
     {
+      label: 'Tabs',
+      shortcuts: SHORTCUT_DEFS
+        .filter(d => d.group === 'tabs')
+        .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
+    },
+    {
+      label: 'View',
+      shortcuts: SHORTCUT_DEFS
+        .filter(d => d.group === 'view')
+        .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
+    },
+    {
       label: 'Code Editor',
       shortcuts: [
         ...SHORTCUT_DEFS

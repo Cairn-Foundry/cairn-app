@@ -304,6 +304,11 @@
     <path d="M9.5 9a2.5 2.5 0 015 .5c0 2-2.5 2.5-2.5 4"/>
     <circle cx="12" cy="17" r=".5" fill="currentColor"/>
   </svg>
+{:else if name === 'command'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M4 8l5 4-5 4"/>
+    <path d="M13 16h7"/>
+  </svg>
 {:else}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <circle cx="12" cy="12" r="9"/>

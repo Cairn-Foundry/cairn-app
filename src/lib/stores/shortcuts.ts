@@ -124,6 +124,107 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
     group: 'editor',
     default: { key: 'ArrowRight', mod: false, shift: true, alt: true, ctrl: false },
   },
+  // ── Tabs group ─────────────────────────────────────────────────────────────
+  {
+    id: 'closeTab',
+    label: 'Close tab',
+    description: 'Close the active editor tab',
+    group: 'tabs',
+    default: { key: 'w', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'reopenClosedTab',
+    label: 'Reopen closed tab',
+    description: 'Reopen the last closed tab',
+    group: 'tabs',
+    default: { key: 't', mod: true, shift: true, alt: false, ctrl: false },
+  },
+  {
+    id: 'nextTab',
+    label: 'Next tab',
+    description: 'Cycle to the next open tab',
+    group: 'tabs',
+    default: { key: 'Tab', mod: false, shift: false, alt: false, ctrl: true },
+  },
+  {
+    id: 'prevTab',
+    label: 'Previous tab',
+    description: 'Cycle to the previous open tab',
+    group: 'tabs',
+    default: { key: 'Tab', mod: false, shift: true, alt: false, ctrl: true },
+  },
+  {
+    id: 'tabHistoryBack',
+    label: 'Tab history back',
+    description: 'Navigate to the previously focused tab',
+    group: 'tabs',
+    default: { key: 'ArrowLeft', mod: true, shift: false, alt: true, ctrl: false },
+  },
+  {
+    id: 'tabHistoryForward',
+    label: 'Tab history forward',
+    description: 'Navigate forward in tab history',
+    group: 'tabs',
+    default: { key: 'ArrowRight', mod: true, shift: false, alt: true, ctrl: false },
+  },
+  // ── View group ─────────────────────────────────────────────────────────────
+  {
+    id: 'toggleSidebar',
+    label: 'Toggle sidebar',
+    description: 'Show or hide the file tree sidebar',
+    group: 'view',
+    default: { key: 'b', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'commandPalette',
+    label: 'Command palette',
+    description: 'Open the command palette to search all actions',
+    group: 'view',
+    default: { key: 'p', mod: true, shift: true, alt: false, ctrl: false },
+  },
+  {
+    id: 'openSettings',
+    label: 'Open settings',
+    description: 'Open the settings panel',
+    group: 'view',
+    default: { key: ',', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  // ── Editor (additional) ────────────────────────────────────────────────────
+  {
+    id: 'goToLine',
+    label: 'Go to line',
+    description: 'Jump to a specific line number',
+    group: 'editor',
+    default: { key: 'g', mod: false, shift: false, alt: false, ctrl: true },
+  },
+  {
+    id: 'addCursorAbove',
+    label: 'Add cursor above',
+    description: 'Add an additional cursor on the line above',
+    group: 'editor',
+    default: { key: 'ArrowUp', mod: true, shift: false, alt: true, ctrl: false },
+  },
+  {
+    id: 'addCursorBelow',
+    label: 'Add cursor below',
+    description: 'Add an additional cursor on the line below',
+    group: 'editor',
+    default: { key: 'ArrowDown', mod: true, shift: false, alt: true, ctrl: false },
+  },
+  {
+    id: 'saveFile',
+    label: 'Save file',
+    description: 'Explicitly save the active file',
+    group: 'editor',
+    default: { key: 's', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'duplicateLine',
+    label: 'Duplicate line',
+    description: 'Duplicate the current line, cursor stays on original',
+    group: 'editor',
+    default: { key: 'd', mod: true, shift: true, alt: false, ctrl: false },
+  },
 ];
 
 export const shortcuts = derived(settings, ($s) => {

@@ -25,6 +25,7 @@
   let showInstanceMenu = false;
   let showManageModal = false;
   let showShortcuts = false;
+  let filesView: FilesView;
 
   async function selectInstance(id: string) {
     showInstanceMenu = false;
@@ -179,6 +180,7 @@
     </button>
     <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
     <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
+    <button class="icon-btn" aria-label="Command Palette" on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
     <button class="icon-btn" aria-label="Keyboard shortcuts" on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>
     <button class="icon-btn" aria-label="Settings" on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
   </div>
@@ -265,7 +267,7 @@
     </aside>
 
     <main class="main">
-      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
