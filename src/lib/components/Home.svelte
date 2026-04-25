@@ -10,7 +10,7 @@
   import { settings } from '$lib/stores/settings';
   import type { Project } from '$lib/types/project';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey } from '$lib/stores/shortcuts';
-  import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
+  import type { ShortcutId, ShortcutBinding, ShortcutConfig } from '$lib/types/shortcuts';
   import type { WorkflowTabConfig } from '$lib/services/settings-service';
 
   type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
@@ -152,6 +152,10 @@
 
   const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Shift', 'Alt', 'CapsLock', 'OS']);
 
+  $: shortcutConfigMap = new Map<ShortcutId, ShortcutConfig>(
+    ($settings.shortcuts ?? []).map(c => [c.id, c])
+  );
+
   function startRecording(id: ShortcutId) { recordingId = id; }
 
   function handleRecordKeydown(e: KeyboardEvent) {
@@ -168,24 +172,45 @@
       alt: e.altKey,
       ctrl: e.ctrlKey,
     };
-    settings.save({ shortcuts: { ...$settings.shortcuts, [recordingId]: binding } });
+    const id = recordingId;
+    const existing = shortcutConfigMap.get(id) ?? { id, binding: null, enabled: true };
+    const next = [
+      ...($settings.shortcuts ?? []).filter(c => c.id !== id),
+      { ...existing, binding },
+    ];
+    settings.save({ shortcuts: next });
     recordingId = null;
   }
 
   function resetBinding(id: ShortcutId) {
-    const next = { ...$settings.shortcuts };
-    delete next[id];
+    const existing = shortcutConfigMap.get(id);
+    if (!existing) return;
+    const rest = ($settings.shortcuts ?? []).filter(c => c.id !== id);
+    // Keep entry only if it was also disabled
+    if (!existing.enabled) {
+      settings.save({ shortcuts: [...rest, { ...existing, binding: null }] });
+    } else {
+      settings.save({ shortcuts: rest });
+    }
+  }
+
+  function resetAllBindings() {
+    // Remove custom bindings; preserve disabled entries (with binding cleared)
+    const next = ($settings.shortcuts ?? [])
+      .filter(c => !c.enabled)
+      .map(c => ({ ...c, binding: null }));
     settings.save({ shortcuts: next });
   }
 
-  function resetAllBindings() { settings.save({ shortcuts: {} }); }
-
   function toggleShortcut(id: ShortcutId) {
-    const disabled = $settings.disabledShortcuts ?? [];
-    const next = disabled.includes(id)
-      ? disabled.filter(d => d !== id)
-      : [...disabled, id];
-    settings.save({ disabledShortcuts: next });
+    const existing = shortcutConfigMap.get(id);
+    if (existing) {
+      settings.save({
+        shortcuts: ($settings.shortcuts ?? []).map(c => c.id === id ? { ...c, enabled: !c.enabled } : c),
+      });
+    } else {
+      settings.save({ shortcuts: [...($settings.shortcuts ?? []), { id, binding: null, enabled: false }] });
+    }
   }
 
   $: conflictIds = (() => {
@@ -638,10 +663,11 @@
               <div class="settings-group-title">{label}</div>
               {#each defs as def}
                 {@const binding = $shortcuts[def.id]}
-                {@const isCustom = !!$settings.shortcuts?.[def.id]}
+                {@const scConfig = shortcutConfigMap.get(def.id)}
+                {@const isCustom = !!scConfig?.binding}
+                {@const isDisabled = scConfig ? !scConfig.enabled : false}
                 {@const isConflict = conflictIds.has(def.id)}
                 {@const isRecording = recordingId === def.id}
-                {@const isDisabled = ($settings.disabledShortcuts ?? []).includes(def.id)}
                 <!-- svelte-ignore a11y-no-static-element-interactions -->
                 <!-- svelte-ignore a11y-click-events-have-key-events -->
                 <div

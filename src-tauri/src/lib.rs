@@ -774,6 +774,19 @@ pub struct CairnShortcutBinding {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct ShortcutConfig {
+    pub id: String,
+    pub binding: Option<CairnShortcutBinding>,
+    pub enabled: bool,
+}
+
+fn deserialize_shortcuts<'de, D>(deserializer: D) -> Result<Vec<ShortcutConfig>, D::Error>
+where D: serde::Deserializer<'de> {
+    let v = serde_json::Value::deserialize(deserializer).unwrap_or(serde_json::Value::Null);
+    Ok(serde_json::from_value::<Vec<ShortcutConfig>>(v).unwrap_or_default())
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WorkflowTabConfig {
     pub key: String,
     pub name: String,
@@ -807,10 +820,8 @@ pub struct CairnSettings {
     pub split_mode: bool,
     #[serde(rename = "splitLeftWidth", default = "default_split_left_width")]
     pub split_left_width: u32,
-    #[serde(default)]
-    pub shortcuts: HashMap<String, CairnShortcutBinding>,
-    #[serde(rename = "disabledShortcuts", default)]
-    pub disabled_shortcuts: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_shortcuts")]
+    pub shortcuts: Vec<ShortcutConfig>,
     #[serde(default = "default_theme")]
     pub theme: String,
     #[serde(rename = "accentColor", default = "default_accent_color")]
@@ -837,8 +848,7 @@ impl Default for CairnSettings {
             editor_font_family: default_editor_font_family(),
             split_mode: false,
             split_left_width: 0,
-            shortcuts: HashMap::new(),
-            disabled_shortcuts: Vec::new(),
+            shortcuts: Vec::new(),
             theme: default_theme(),
             accent_color: default_accent_color(),
             workflow_tabs: default_workflow_tabs(),

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
+import type { ShortcutConfig } from '$lib/types/shortcuts';
 import type { WorkflowStep } from '$lib/types/instance';
 
 export interface WorkflowTabConfig {
@@ -17,8 +17,7 @@ export interface CairnSettings {
   fontFamily: string;
   splitMode: boolean;
   splitLeftWidth: number;
-  shortcuts: Partial<Record<ShortcutId, ShortcutBinding>>;
-  disabledShortcuts: ShortcutId[];
+  shortcuts: ShortcutConfig[];
   theme: 'dark' | 'light' | 'high-contrast';
   accentColor: string;
   workflowTabs: WorkflowTabConfig[];

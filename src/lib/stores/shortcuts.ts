@@ -127,20 +127,20 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 ];
 
 export const shortcuts = derived(settings, ($s) => {
-  const overrides = ($s.shortcuts ?? {}) as Partial<Record<ShortcutId, ShortcutBinding>>;
+  const configMap = new Map(($s.shortcuts ?? []).map(c => [c.id, c]));
   const result = {} as Record<ShortcutId, ShortcutBinding>;
   for (const def of SHORTCUT_DEFS) {
-    result[def.id] = overrides[def.id] ?? { ...def.default };
+    result[def.id] = configMap.get(def.id)?.binding ?? { ...def.default };
   }
   return result;
 });
 
 export const activeShortcuts = derived(settings, ($s) => {
-  const overrides = ($s.shortcuts ?? {}) as Partial<Record<ShortcutId, ShortcutBinding>>;
-  const disabled = new Set($s.disabledShortcuts ?? []);
+  const configMap = new Map(($s.shortcuts ?? []).map(c => [c.id, c]));
   const result = {} as Record<ShortcutId, ShortcutBinding | null>;
   for (const def of SHORTCUT_DEFS) {
-    result[def.id] = disabled.has(def.id) ? null : (overrides[def.id] ?? { ...def.default });
+    const config = configMap.get(def.id);
+    result[def.id] = config && !config.enabled ? null : (config?.binding ?? { ...def.default });
   }
   return result;
 });

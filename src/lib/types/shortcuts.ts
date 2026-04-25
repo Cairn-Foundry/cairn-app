@@ -32,3 +32,9 @@ export interface ShortcutDef {
   group: 'files' | 'editor';
   default: ShortcutBinding;
 }
+
+export interface ShortcutConfig {
+  id: ShortcutId;
+  binding: ShortcutBinding | null;
+  enabled: boolean;
+}
