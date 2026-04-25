@@ -51,51 +51,31 @@
   let settingsTab: SettingsTab = 'general';
 
   // ── Accent color helpers ───────────────────────────────────────────────────
-  const ACCENT_PRESETS: { label: string; hue: number }[] = [
-    { label: 'Blue',   hue: 250 },
-    { label: 'Purple', hue: 290 },
-    { label: 'Pink',   hue: 340 },
-    { label: 'Red',    hue: 15  },
-    { label: 'Orange', hue: 50  },
-    { label: 'Yellow', hue: 80  },
-    { label: 'Green',  hue: 150 },
-    { label: 'Teal',   hue: 190 },
-    { label: 'Cyan',   hue: 215 },
+  const ACCENT_PRESETS: { label: string; color: string }[] = [
+    { label: 'Blue',   color: '#6c8eff' },
+    { label: 'Purple', color: '#a855f7' },
+    { label: 'Pink',   color: '#ec4899' },
+    { label: 'Red',    color: '#ef4444' },
+    { label: 'Orange', color: '#f97316' },
+    { label: 'Yellow', color: '#eab308' },
+    { label: 'Green',  color: '#22c55e' },
+    { label: 'Teal',   color: '#14b8a6' },
+    { label: 'Cyan',   color: '#06b6d4' },
   ];
 
-  function hue2rgb(p: number, q: number, t: number): number {
-    if (t < 0) t += 1; if (t > 1) t -= 1;
-    if (t < 1/6) return p + (q - p) * 6 * t;
-    if (t < 1/2) return q;
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-    return p;
-  }
+  const FONT_OPTIONS: { label: string; stack: string; sample: string }[] = [
+    { label: 'JetBrains Mono', stack: "'JetBrains Mono', ui-monospace, monospace", sample: 'Ag01' },
+    { label: 'Fira Code',      stack: "'Fira Code', ui-monospace, monospace",      sample: 'Ag01' },
+    { label: 'System Mono',    stack: 'ui-monospace, monospace',                   sample: 'Ag01' },
+    { label: 'Menlo',          stack: "Menlo, ui-monospace, monospace",            sample: 'Ag01' },
+    { label: 'Monaco',         stack: "Monaco, ui-monospace, monospace",           sample: 'Ag01' },
+    { label: 'Consolas',       stack: "Consolas, ui-monospace, monospace",         sample: 'Ag01' },
+    { label: 'Courier New',    stack: "'Courier New', monospace",                  sample: 'Ag01' },
+  ];
 
-  function hueToHex(hue: number): string {
-    const h = hue / 360, s = 0.55, l = 0.58;
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    const r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
-    const g = Math.round(hue2rgb(p, q, h) * 255);
-    const b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
-    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-  }
+  $: currentFont = $settings.fontFamily ?? FONT_OPTIONS[0].stack;
 
-  function hexToHue(hex: string): number {
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    if (max === min) return 0;
-    const d = max - min;
-    let h = 0;
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-    else if (max === g) h = ((b - r) / d + 2) / 6;
-    else h = ((r - g) / d + 4) / 6;
-    return Math.round(h * 360);
-  }
-
-  $: accentIsPreset = ACCENT_PRESETS.some(p => p.hue === $settings.accentHue);
+  $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === ($settings.accentColor ?? '#6c8eff'));
 
   // ── Shortcut search ───────────────────────────────────────────────────────
   let shortcutSearch = '';
@@ -450,26 +430,45 @@
           <div class="accent-presets">
             {#each ACCENT_PRESETS as preset}
               <button
-                class="accent-preset {$settings.accentHue === preset.hue && accentIsPreset ? 'active' : ''}"
+                class="accent-preset {($settings.accentColor ?? '#6c8eff') === preset.color && accentIsPreset ? 'active' : ''}"
                 title={preset.label}
-                style="background: oklch(0.72 0.14 {preset.hue})"
-                on:click={() => settings.save({ accentHue: preset.hue })}
+                style="background: {preset.color}"
+                on:click={() => settings.save({ accentColor: preset.color })}
               ></button>
             {/each}
             <label
               class="accent-preset accent-preset-custom {!accentIsPreset ? 'active' : ''}"
               title="Custom color"
-              style="background: oklch(0.72 0.14 {$settings.accentHue})"
+              style="background: {$settings.accentColor ?? '#6c8eff'}"
             >
               <input
                 type="color"
-                value={hueToHex($settings.accentHue)}
-                on:input={(e) => settings.save({ accentHue: hexToHue((e.target as HTMLInputElement).value) })}
+                value={$settings.accentColor ?? '#6c8eff'}
+                on:input={(e) => settings.save({ accentColor: (e.target as HTMLInputElement).value })}
               />
               {#if accentIsPreset}
                 <span class="accent-custom-icon">+</span>
               {/if}
             </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Font</div>
+          <div class="font-cards">
+            {#each FONT_OPTIONS as opt}
+              <button
+                class="font-card {currentFont === opt.stack ? 'active' : ''}"
+                title={opt.label}
+                on:click={() => settings.save({ fontFamily: opt.stack })}
+              >
+                <span class="font-card-preview" style="font-family: {opt.stack}">{opt.sample}</span>
+                <span class="font-card-label">{opt.label}</span>
+                {#if currentFont === opt.stack}
+                  <span class="font-card-check"><Icon name="check" size={10}/></span>
+                {/if}
+              </button>
+            {/each}
           </div>
         </div>
 
@@ -1171,25 +1170,76 @@
   .theme-preview-dark                 { background: oklch(0.16 0.008 70); }
   .theme-preview-dark .tp-bar         { background: oklch(0.185 0.008 70); }
   .theme-preview-dark .tp-line        { background: oklch(0.36 0.008 70); }
-  .theme-preview-dark .tp-line-wide   { background: oklch(0.72 0.14 var(--accent-hue) / 0.55); }
+  .theme-preview-dark .tp-line-wide   { background: color-mix(in oklch, var(--accent) 55%, transparent); }
 
   /* light preview */
   .theme-preview-light                { background: oklch(0.97 0.006 80); }
   .theme-preview-light .tp-bar        { background: oklch(0.94 0.007 75); }
   .theme-preview-light .tp-line       { background: oklch(0.80 0.008 70); }
-  .theme-preview-light .tp-line-wide  { background: oklch(0.72 0.14 var(--accent-hue) / 0.7); }
+  .theme-preview-light .tp-line-wide  { background: color-mix(in oklch, var(--accent) 70%, transparent); }
 
   /* high-contrast preview */
   .theme-preview-high-contrast                { background: oklch(0.0 0 0); }
   .theme-preview-high-contrast .tp-bar        { background: oklch(0.08 0 0); }
   .theme-preview-high-contrast .tp-line       { background: oklch(0.40 0 0); }
-  .theme-preview-high-contrast .tp-line-wide  { background: oklch(0.72 0.14 var(--accent-hue) / 0.8); }
+  .theme-preview-high-contrast .tp-line-wide  { background: color-mix(in oklch, var(--accent) 80%, transparent); }
 
   .theme-card-label { font-size: 12px; color: var(--fg-1); }
   .theme-card.active .theme-card-label { color: var(--fg-0); }
   .theme-card-check {
     position: absolute;
     top: 6px; right: 6px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Appearance: font cards ── */
+
+  .font-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .font-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: var(--r-md);
+    border: 2px solid var(--stroke-0);
+    background: var(--bg-1);
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    position: relative;
+    min-width: 88px;
+  }
+  .font-card:hover { border-color: var(--stroke-2); background: var(--bg-2); }
+  .font-card.active { border-color: var(--accent); background: var(--bg-2); }
+
+  .font-card-preview {
+    font-size: 20px;
+    line-height: 1;
+    color: var(--fg-0);
+    letter-spacing: -0.01em;
+  }
+  .font-card.active .font-card-preview { color: var(--accent); }
+
+  .font-card-label {
+    font-size: 10.5px;
+    color: var(--fg-3);
+    font-family: var(--font-ui);
+    white-space: nowrap;
+  }
+  .font-card.active .font-card-label { color: var(--fg-1); }
+
+  .font-card-check {
+    position: absolute;
+    top: 5px;
+    right: 5px;
     color: var(--accent);
     display: flex;
     align-items: center;

@@ -781,6 +781,8 @@ pub struct CairnSettings {
     pub show_minimap: bool,
     #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
     pub editor_font_size: u32,
+    #[serde(rename = "fontFamily", default = "default_editor_font_family")]
+    pub editor_font_family: String,
     #[serde(rename = "splitMode", default = "default_split_mode")]
     pub split_mode: bool,
     #[serde(rename = "splitLeftWidth", default = "default_split_left_width")]
@@ -791,17 +793,18 @@ pub struct CairnSettings {
     pub disabled_shortcuts: Vec<String>,
     #[serde(default = "default_theme")]
     pub theme: String,
-    #[serde(rename = "accentHue", default = "default_accent_hue")]
-    pub accent_hue: f32,
+    #[serde(rename = "accentColor", default = "default_accent_color")]
+    pub accent_color: String,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
+fn default_editor_font_family() -> String { "'JetBrains Mono', ui-monospace, monospace".to_string() }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
 fn default_theme() -> String { "dark".to_string() }
-fn default_accent_hue() -> f32 { 250.0 }
+fn default_accent_color() -> String { "#6c8eff".to_string() }
 
 impl Default for CairnSettings {
     fn default() -> Self {
@@ -809,12 +812,13 @@ impl Default for CairnSettings {
             tree_panel_width: default_tree_panel_width(),
             show_minimap: default_show_minimap(),
             editor_font_size: default_editor_font_size(),
+            editor_font_family: default_editor_font_family(),
             split_mode: false,
             split_left_width: 0,
             shortcuts: HashMap::new(),
             disabled_shortcuts: Vec::new(),
             theme: default_theme(),
-            accent_hue: default_accent_hue(),
+            accent_color: default_accent_color(),
         }
     }
 }

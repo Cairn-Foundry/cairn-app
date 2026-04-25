@@ -355,7 +355,7 @@
       backgroundColor: 'oklch(0.16 0.008 70)',
       color: 'oklch(0.88 0.005 80)',
       height: '100%',
-      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontFamily: 'var(--font-mono)',
     },
     '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
     '.cm-focused': { outline: 'none' },
@@ -404,7 +404,7 @@
       gap: '6px',
       alignItems: 'center',
       fontSize: '12.5px',
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      fontFamily: 'var(--font-ui)',
     },
     '.cm-search input': {
       backgroundColor: 'oklch(0.22 0.008 70)',
@@ -494,7 +494,7 @@
       padding: '8px 12px',
       fontSize: '12.5px',
       lineHeight: '1.6',
-      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontFamily: 'var(--font-mono)',
     },
     '.cairn-hover-type':  { color: 'oklch(0.80 0.11 225)', fontStyle: 'italic' },
     '.cairn-hover-name':  { color: 'oklch(0.84 0.16 55)', fontWeight: '600' },
@@ -503,7 +503,7 @@
       padding: '1px 6px',
       borderRadius: '4px',
       fontSize: '10.5px',
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      fontFamily: 'var(--font-ui)',
       fontStyle: 'normal',
       fontWeight: '500',
       letterSpacing: '0.03em',
@@ -520,7 +520,7 @@
     '.cairn-hover-doc': {
       color: 'oklch(0.64 0.006 80)',
       fontSize: '12px',
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      fontFamily: 'var(--font-ui)',
       fontStyle: 'normal',
       marginTop: '4px',
     },
@@ -547,7 +547,7 @@
 
   function buildLightTheme(): Extension {
     return EditorView.theme({
-      '&': { backgroundColor: 'oklch(0.97 0.006 80)', color: 'oklch(0.18 0.008 70)', height: '100%', fontFamily: "'JetBrains Mono', ui-monospace, monospace" },
+      '&': { backgroundColor: 'oklch(0.97 0.006 80)', color: 'oklch(0.18 0.008 70)', height: '100%', fontFamily: 'var(--font-mono)' },
       '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.42 0.18 250)' },
       '.cm-focused': { outline: 'none' },
       '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
@@ -563,7 +563,7 @@
       '.cm-selectionMatch': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', outline: '1px solid oklch(0.42 0.14 250 / 0.22)', borderRadius: '2px' },
       '.cm-searchMatch': { backgroundColor: 'oklch(0.60 0.14 60 / 0.28)', borderRadius: '2px' },
       '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.60 0.14 60 / 0.55)' },
-      '.cm-search': { backgroundColor: 'oklch(0.93 0.007 75)', borderTop: '1px solid oklch(0.87 0.007 70)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
+      '.cm-search': { backgroundColor: 'oklch(0.93 0.007 75)', borderTop: '1px solid oklch(0.87 0.007 70)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
       '.cm-search input': { backgroundColor: 'oklch(0.97 0.006 80)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.18 0.008 70)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
       '.cm-search input:focus': { borderColor: 'oklch(0.42 0.14 250 / 0.7)' },
       '.cm-search button': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.30 0.008 70)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
@@ -593,7 +593,7 @@
 
   function buildHighContrastTheme(): Extension {
     return EditorView.theme({
-      '&': { backgroundColor: 'oklch(0.0 0 0)', color: 'oklch(1.0 0 0)', height: '100%', fontFamily: "'JetBrains Mono', ui-monospace, monospace" },
+      '&': { backgroundColor: 'oklch(0.0 0 0)', color: 'oklch(1.0 0 0)', height: '100%', fontFamily: 'var(--font-mono)' },
       '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
       '.cm-focused': { outline: 'none' },
       '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
@@ -609,7 +609,7 @@
       '.cm-selectionMatch': { backgroundColor: 'oklch(0.72 0.14 250 / 0.20)', outline: '1px solid oklch(0.72 0.14 250 / 0.45)', borderRadius: '2px' },
       '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.35)', borderRadius: '2px' },
       '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.65)' },
-      '.cm-search': { backgroundColor: 'oklch(0.06 0 0)', borderTop: '1px solid oklch(0.32 0 0)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
+      '.cm-search': { backgroundColor: 'oklch(0.06 0 0)', borderTop: '1px solid oklch(0.32 0 0)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
       '.cm-search input': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(1.0 0 0)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
       '.cm-search input:focus': { borderColor: 'oklch(0.72 0.14 250)' },
       '.cm-search button': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(0.85 0 0)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
@@ -1171,7 +1171,7 @@
     border: 1px solid var(--stroke-1);
     border-radius: 8px;
     box-shadow: 0 8px 32px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.2);
-    font-family: 'Inter', 'SF Pro Text', system-ui, sans-serif;
+    font-family: var(--font-ui);
     font-size: 12.5px;
     color: var(--fg-1);
     outline: none;

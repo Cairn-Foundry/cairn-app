@@ -5,12 +5,13 @@ export interface CairnSettings {
   treePanelWidth: number;
   showMinimap: boolean;
   editorFontSize: number;
+  fontFamily: string;
   splitMode: boolean;
   splitLeftWidth: number;
   shortcuts: Partial<Record<ShortcutId, ShortcutBinding>>;
   disabledShortcuts: ShortcutId[];
   theme: 'dark' | 'light' | 'high-contrast';
-  accentHue: number;
+  accentColor: string;
 }
 
 export function getSettings(): Promise<CairnSettings> {

@@ -1,3 +1,17 @@
+/* ── Fonts ── */
+@import '@fontsource/inter-tight/400.css';
+@import '@fontsource/inter-tight/400-italic.css';
+@import '@fontsource/inter-tight/500.css';
+@import '@fontsource/inter-tight/500-italic.css';
+@import '@fontsource/inter-tight/600.css';
+@import '@fontsource/inter-tight/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/fira-code/400.css';
+@import '@fontsource/fira-code/500.css';
+@import '@fontsource/instrument-serif/400.css';
+
 /* =========================================================
    Cairn — warm dark, cairn-stone neutrals
    ========================================================= */
@@ -29,11 +43,10 @@
   --stone-3: oklch(0.74 0.014 50);
 
   /* Accents */
-  --accent-hue: 250;
-  --accent: oklch(0.72 0.14 var(--accent-hue));
-  --accent-weak: oklch(0.72 0.14 var(--accent-hue) / 0.14);
-  --accent-line: oklch(0.72 0.14 var(--accent-hue) / 0.35);
-  --accent-hover: oklch(0.76 0.14 var(--accent-hue));
+  --accent: #6c8eff;
+  --accent-weak: color-mix(in oklch, var(--accent) 14%, transparent);
+  --accent-line: color-mix(in oklch, var(--accent) 35%, transparent);
+  --accent-hover: color-mix(in oklch, var(--accent) 85%, white);
   --accent-fg: oklch(0.96 0.005 80);
 
   /* Semantic */
@@ -977,7 +990,7 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 1px solid var(--accent-line);
   border-radius: var(--r-sm);
 }
-.ai-suggest:hover { background: oklch(0.72 0.14 var(--accent-hue) / 0.22); }
+.ai-suggest:hover { background: color-mix(in oklch, var(--accent) 22%, transparent); }
 
 /* Branch panel */
 .branch-list { padding: 8px 12px; overflow-y: auto; flex: 1; }
@@ -1361,7 +1374,7 @@ input, textarea { font-family: inherit; color: inherit; }
 /* Checkpoint (user-saved) — accent stone on top */
 .cairn-stack.checkpoint .stone.s1 {
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-weak), inset 0 1px 0 oklch(0.85 0.12 var(--accent-hue) / 0.6);
+  box-shadow: 0 0 0 3px var(--accent-weak), inset 0 1px 0 color-mix(in oklch, var(--accent) 60%, white);
 }
 .cairn-stack.checkpoint::before {
   content: '';
