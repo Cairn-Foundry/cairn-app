@@ -9,6 +9,8 @@
   import { revealInFileManager } from '$lib/services/project-service';
   import { settings } from '$lib/stores/settings';
   import type { Project } from '$lib/types/project';
+  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey } from '$lib/stores/shortcuts';
+  import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
 
   type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
 
@@ -19,11 +21,13 @@
   }>();
 
   export let openSection: HomeSection | null = null;
+  export let openSettingsTab: SettingsTab | null = null;
 
   let activeSection: HomeSection = 'projects';
 
   $: if (openSection !== null) {
     activeSection = openSection;
+    if (openSettingsTab !== null) settingsTab = openSettingsTab;
     dispatch('sectionShown');
   }
 
@@ -41,6 +45,75 @@
   let menuProjectId: string | null = null;
   let editingProject: Project | null = null;
   let deletingProject: Project | null = null;
+
+  // ── Settings tabs ─────────────────────────────────────────────────────────
+  type SettingsTab = 'general' | 'shortcuts';
+  let settingsTab: SettingsTab = 'general';
+
+  // ── Shortcut search ───────────────────────────────────────────────────────
+  let shortcutSearch = '';
+
+  $: filteredShortcutDefs = shortcutSearch.trim()
+    ? SHORTCUT_DEFS.filter(d =>
+        d.label.toLowerCase().includes(shortcutSearch.toLowerCase()) ||
+        d.description.toLowerCase().includes(shortcutSearch.toLowerCase())
+      )
+    : SHORTCUT_DEFS;
+
+  // ── Shortcut recording ────────────────────────────────────────────────────
+  let recordingId: ShortcutId | null = null;
+
+  const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Shift', 'Alt', 'CapsLock', 'OS']);
+
+  function startRecording(id: ShortcutId) { recordingId = id; }
+
+  function handleRecordKeydown(e: KeyboardEvent) {
+    if (!recordingId) return;
+    if (MODIFIER_KEYS.has(e.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Escape') { recordingId = null; return; }
+    const isMac = navigator.platform.startsWith('Mac');
+    const binding: ShortcutBinding = {
+      key: e.key,
+      mod: isMac ? e.metaKey : e.ctrlKey,
+      shift: e.shiftKey,
+      alt: e.altKey,
+      ctrl: e.ctrlKey,
+    };
+    settings.save({ shortcuts: { ...$settings.shortcuts, [recordingId]: binding } });
+    recordingId = null;
+  }
+
+  function resetBinding(id: ShortcutId) {
+    const next = { ...$settings.shortcuts };
+    delete next[id];
+    settings.save({ shortcuts: next });
+  }
+
+  function resetAllBindings() { settings.save({ shortcuts: {} }); }
+
+  function toggleShortcut(id: ShortcutId) {
+    const disabled = $settings.disabledShortcuts ?? [];
+    const next = disabled.includes(id)
+      ? disabled.filter(d => d !== id)
+      : [...disabled, id];
+    settings.save({ disabledShortcuts: next });
+  }
+
+  $: conflictIds = (() => {
+    const seen = new Map<string, ShortcutId[]>();
+    for (const def of SHORTCUT_DEFS) {
+      const k = bindingKey($shortcuts[def.id]);
+      if (!seen.has(k)) seen.set(k, []);
+      seen.get(k)!.push(def.id);
+    }
+    const result = new Set<ShortcutId>();
+    for (const ids of seen.values()) {
+      if (ids.length > 1) ids.forEach(id => result.add(id));
+    }
+    return result;
+  })();
 
   function openMenu(e: MouseEvent, id: string) {
     e.stopPropagation();
@@ -70,6 +143,8 @@
     deletingProject = null;
   }
 </script>
+
+<svelte:window on:keydown={handleRecordKeydown} />
 
 <div class="home">
   <!-- Left sidebar — padding-top clears native macOS traffic lights -->
@@ -268,95 +343,215 @@
         <h1 style="font-size: 22px">Settings</h1>
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">General</div>
-        {#each [
-          { label: 'AI provider',       value: 'Claude Code CLI',    desc: 'Agent Bridge driver' },
-          { label: 'Default branch',    value: 'main',               desc: 'Base for new worktrees' },
-          { label: 'Worktree location', value: '~/.cairn/worktrees', desc: 'Where git worktrees are created' },
-          { label: 'Format on stage',   value: 'Prettier',           desc: 'Auto-format before staging' },
-        ] as s}
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <span class="settings-row-label">{s.label}</span>
-              <span class="settings-row-desc">{s.desc}</span>
-            </div>
-            <span class="settings-row-value">{s.value}</span>
-          </div>
-        {/each}
+      <!-- Inner tab bar -->
+      <div class="settings-tabs">
+        <button
+          class="settings-tab {settingsTab === 'general' ? 'active' : ''}"
+          on:click={() => { settingsTab = 'general'; recordingId = null; }}
+        >General</button>
+        <button
+          class="settings-tab {settingsTab === 'shortcuts' ? 'active' : ''}"
+          on:click={() => { settingsTab = 'shortcuts'; recordingId = null; }}
+        >Shortcuts</button>
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">Customization</div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <span class="settings-row-label">File tree panel width</span>
-            <span class="settings-row-desc">Width of the file explorer sidebar in the Files view.</span>
+      <!-- ── General tab ── -->
+      {#if settingsTab === 'general'}
+        <div class="settings-group">
+          <div class="settings-group-title">General</div>
+          {#each [
+            { label: 'AI provider',       value: 'Claude Code CLI',    desc: 'Agent Bridge driver' },
+            { label: 'Default branch',    value: 'main',               desc: 'Base for new worktrees' },
+            { label: 'Worktree location', value: '~/.cairn/worktrees', desc: 'Where git worktrees are created' },
+            { label: 'Format on stage',   value: 'Prettier',           desc: 'Auto-format before staging' },
+          ] as s}
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-label">{s.label}</span>
+                <span class="settings-row-desc">{s.desc}</span>
+              </div>
+              <span class="settings-row-value">{s.value}</span>
+            </div>
+          {/each}
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Customization</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <span class="settings-row-label">File tree panel width</span>
+              <span class="settings-row-desc">Width of the file explorer sidebar in the Files view.</span>
+            </div>
+            <div class="settings-row-control">
+              <input
+                class="settings-number-input"
+                type="number"
+                min="140"
+                max="480"
+                value={$settings.treePanelWidth}
+                on:change={(e) => {
+                  const v = parseInt((e.target as HTMLInputElement).value, 10);
+                  if (!isNaN(v)) settings.save({ treePanelWidth: Math.max(140, Math.min(480, v)) });
+                }}
+              />
+              <span class="settings-row-unit">px</span>
+              <button
+                class="settings-reset-btn"
+                title="Reset to default (220 px)"
+                on:click={() => settings.save({ treePanelWidth: 220 })}
+              >
+                <Icon name="undo" size={12}/>
+              </button>
+            </div>
           </div>
-          <div class="settings-row-control">
-            <input
-              class="settings-number-input"
-              type="number"
-              min="140"
-              max="480"
-              value={$settings.treePanelWidth}
-              on:change={(e) => {
-                const v = parseInt((e.target as HTMLInputElement).value, 10);
-                if (!isNaN(v)) settings.save({ treePanelWidth: Math.max(140, Math.min(480, v)) });
-              }}
-            />
-            <span class="settings-row-unit">px</span>
-            <button
-              class="settings-reset-btn"
-              title="Reset to default (220 px)"
-              on:click={() => settings.save({ treePanelWidth: 220 })}
-            >
-              <Icon name="undo" size={12}/>
-            </button>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <span class="settings-row-label">Editor font size</span>
+              <span class="settings-row-desc">Base font size for the code editor.</span>
+            </div>
+            <div class="settings-row-control">
+              <input
+                class="settings-number-input"
+                type="number"
+                min="8"
+                max="32"
+                value={$settings.editorFontSize}
+                on:change={(e) => {
+                  const v = parseInt((e.target as HTMLInputElement).value, 10);
+                  if (!isNaN(v)) settings.save({ editorFontSize: Math.max(8, Math.min(32, v)) });
+                }}
+              />
+              <span class="settings-row-unit">px</span>
+              <button
+                class="settings-reset-btn"
+                title="Reset to default (13 px)"
+                on:click={() => settings.save({ editorFontSize: 13 })}
+              >
+                <Icon name="undo" size={12}/>
+              </button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <span class="settings-row-label">Show minimap</span>
+              <span class="settings-row-desc">Scrollbar overview panel on the right side of the code editor.</span>
+            </div>
+            <label class="settings-toggle" aria-label="Toggle minimap">
+              <input
+                type="checkbox"
+                checked={$settings.showMinimap}
+                on:change={(e) => settings.save({ showMinimap: (e.target as HTMLInputElement).checked })}
+              />
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
           </div>
         </div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <span class="settings-row-label">Editor font size</span>
-            <span class="settings-row-desc">Base font size for the code editor. Use Cmd+= / Cmd+- to adjust while editing, Cmd+0 to reset.</span>
-          </div>
-          <div class="settings-row-control">
+
+      <!-- ── Shortcuts tab ── -->
+      {:else}
+        <div class="sc-toolbar">
+          <div class="sc-search-bar">
+            <Icon name="search" size={13}/>
             <input
-              class="settings-number-input"
-              type="number"
-              min="8"
-              max="32"
-              value={$settings.editorFontSize}
-              on:change={(e) => {
-                const v = parseInt((e.target as HTMLInputElement).value, 10);
-                if (!isNaN(v)) settings.save({ editorFontSize: Math.max(8, Math.min(32, v)) });
-              }}
+              class="sc-search-input"
+              bind:value={shortcutSearch}
+              placeholder="Search shortcuts…"
+              aria-label="Search shortcuts"
             />
-            <span class="settings-row-unit">px</span>
-            <button
-              class="settings-reset-btn"
-              title="Reset to default (13 px)"
-              on:click={() => settings.save({ editorFontSize: 13 })}
-            >
-              <Icon name="undo" size={12}/>
-            </button>
+            {#if shortcutSearch}
+              <button class="search-clear" on:click={() => shortcutSearch = ''} aria-label="Clear search">
+                <Icon name="x" size={11}/>
+              </button>
+            {/if}
           </div>
+          {#if conflictIds.size > 0}
+            <span class="sc-conflict-notice">
+              <Icon name="alert" size={13}/> {conflictIds.size} conflicting binding{conflictIds.size > 1 ? 's' : ''}
+            </span>
+          {/if}
+          <button class="btn ghost sc-reset-all" on:click={resetAllBindings}>
+            <Icon name="undo" size={12}/> Reset all
+          </button>
         </div>
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <span class="settings-row-label">Show minimap</span>
-            <span class="settings-row-desc">Scrollbar overview panel on the right side of the code editor.</span>
+
+        {#each ['files', 'editor'] as group}
+          {@const label = group === 'files' ? 'Files' : 'Code Editor'}
+          {@const defs = filteredShortcutDefs.filter(d => d.group === group)}
+          {#if defs.length > 0}
+            <div class="settings-group" style="margin-top: 20px; max-width: 640px;">
+              <div class="settings-group-title">{label}</div>
+              {#each defs as def}
+                {@const binding = $shortcuts[def.id]}
+                {@const isCustom = !!$settings.shortcuts?.[def.id]}
+                {@const isConflict = conflictIds.has(def.id)}
+                {@const isRecording = recordingId === def.id}
+                {@const isDisabled = ($settings.disabledShortcuts ?? []).includes(def.id)}
+                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                <div
+                  class="sc-row"
+                  class:sc-conflict={isConflict && !isDisabled}
+                  class:sc-recording={isRecording}
+                  class:sc-disabled={isDisabled}
+                  on:click={() => { if (!isDisabled) startRecording(def.id); }}
+                >
+                  <!-- svelte-ignore a11y-click-events-have-key-events -->
+                  <!-- svelte-ignore a11y-no-static-element-interactions -->
+                  <div class="sc-toggle" on:click|stopPropagation>
+                    <label class="settings-toggle" aria-label="Enable shortcut">
+                      <input
+                        type="checkbox"
+                        checked={!isDisabled}
+                        on:change={() => toggleShortcut(def.id)}
+                      />
+                      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                    </label>
+                  </div>
+
+                  <div class="settings-row-info">
+                    <span class="settings-row-label">
+                      {def.label}
+                      {#if isCustom && !isDisabled}<span class="sc-custom-dot" title="Customized"></span>{/if}
+                    </span>
+                    <span class="settings-row-desc">{def.description}</span>
+                  </div>
+
+                  <span class="sc-keys">
+                    {#if isRecording}
+                      <span class="sc-recording-hint">Press key combo…</span>
+                    {:else if !isDisabled}
+                      {#each bindingToLabels(binding) as kLabel, i}
+                        {#if i > 0}<span class="sc-plus">+</span>{/if}
+                        <kbd class="sc-kbd">{kLabel}</kbd>
+                      {/each}
+                      {#if isConflict}
+                        <span class="sc-conflict-icon" title="Conflicts with another shortcut">
+                          <Icon name="alert" size={12}/>
+                        </span>
+                      {/if}
+                    {/if}
+                  </span>
+
+                  <button
+                    class="settings-reset-btn"
+                    title="Reset to default"
+                    disabled={!isCustom || isDisabled}
+                    on:click|stopPropagation={() => resetBinding(def.id)}
+                    aria-label="Reset shortcut"
+                  >
+                    <Icon name="undo" size={12}/>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {/each}
+        {#if filteredShortcutDefs.length === 0}
+          <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
+            No shortcuts match "<strong style="color: var(--fg-1)">{shortcutSearch}</strong>".
           </div>
-          <label class="settings-toggle" aria-label="Toggle minimap">
-            <input
-              type="checkbox"
-              checked={$settings.showMinimap}
-              on:change={(e) => settings.save({ showMinimap: (e.target as HTMLInputElement).checked })}
-            />
-            <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
-          </label>
-        </div>
-      </div>
+        {/if}
+      {/if}
     {/if}
 
   </main>
@@ -676,5 +871,162 @@
   .settings-toggle input:checked + .settings-toggle-track .settings-toggle-thumb {
     transform: translateX(14px);
     background: #fff;
+  }
+
+  /* ── Settings inner tabs ──────────────────────────────────────────────── */
+
+  .settings-tabs {
+    display: flex;
+    gap: 2px;
+    margin-top: 20px;
+    padding: 3px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    width: fit-content;
+  }
+
+  .settings-tab {
+    padding: 5px 14px;
+    font-size: 12px;
+    color: var(--fg-2);
+    border-radius: 4px;
+    transition: background .1s, color .1s;
+    font-family: var(--font-ui);
+  }
+  .settings-tab:hover { color: var(--fg-0); }
+  .settings-tab.active { background: var(--bg-3); color: var(--fg-0); }
+
+  /* ── Shortcut editor ──────────────────────────────────────────────────── */
+
+  .sc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    max-width: 640px;
+    flex-wrap: wrap;
+  }
+
+  .sc-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+    transition: border-color 0.15s;
+    flex: 1;
+    min-width: 160px;
+  }
+  .sc-search-bar:focus-within {
+    border-color: var(--accent-line);
+    color: var(--fg-1);
+  }
+  .sc-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    color: var(--fg-0);
+    flex: 1;
+    min-width: 0;
+  }
+  .sc-search-input::placeholder { color: var(--fg-4); }
+
+  .sc-toggle { margin-right: 4px; }
+
+  .sc-disabled { opacity: 0.45; cursor: default; }
+  .sc-disabled:hover { background: var(--bg-2); border-color: var(--stroke-0); }
+
+  .sc-conflict-notice {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--warning);
+    flex: 1;
+  }
+
+  .sc-reset-all { margin-left: auto; font-size: 12px; }
+
+  .sc-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: background .1s, border-color .1s;
+    user-select: none;
+  }
+  .sc-row:hover { background: var(--bg-3); border-color: var(--stroke-1); }
+  .sc-row.sc-recording {
+    background: var(--accent-weak);
+    border-color: var(--accent-line);
+  }
+  .sc-row.sc-conflict { border-color: oklch(0.80 0.14 75 / 0.5); }
+
+  .sc-keys {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .sc-plus {
+    font-size: 10px;
+    color: var(--fg-4);
+    margin: 0 1px;
+  }
+
+  .sc-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-bottom-width: 2px;
+    border-radius: var(--r-xs);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--fg-1);
+    line-height: 1;
+  }
+
+  .sc-recording-hint {
+    font-size: 12px;
+    color: var(--accent);
+    font-style: italic;
+    padding: 2px 8px;
+    background: var(--accent-weak);
+    border: 1px dashed var(--accent-line);
+    border-radius: var(--r-xs);
+  }
+
+  .sc-conflict-icon {
+    color: var(--warning);
+    display: flex;
+    align-items: center;
+    margin-left: 4px;
+  }
+
+  .sc-custom-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-left: 5px;
+    vertical-align: middle;
   }
 </style>

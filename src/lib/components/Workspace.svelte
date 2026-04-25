@@ -15,6 +15,7 @@
   import { instances } from '$lib/stores/instance';
   import { activateInstance } from '$lib/stores/project';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
+  import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
@@ -22,6 +23,7 @@
 
   let showInstanceMenu = false;
   let showManageModal = false;
+  let showShortcuts = false;
 
   async function selectInstance(id: string) {
     showInstanceMenu = false;
@@ -42,6 +44,7 @@
     addProject: void;
     goHome: void;
     goSettings: void;
+    goShortcuts: void;
     createInstance: void;
     reorderTabs: string[];
   }>();
@@ -169,6 +172,7 @@
     </button>
     <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
     <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
+    <button class="icon-btn" aria-label="Keyboard shortcuts" on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>
     <button class="icon-btn" aria-label="Settings" on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
   </div>
 
@@ -269,6 +273,13 @@
     activeInstanceId={activeInstance?.id ?? null}
     on:close={() => showManageModal = false}
     on:newInstance={() => { showManageModal = false; dispatch('createInstance'); }}
+  />
+{/if}
+
+{#if showShortcuts}
+  <ShortcutReference
+    on:close={() => showShortcuts = false}
+    on:goSettings={() => { showShortcuts = false; dispatch('goShortcuts'); }}
   />
 {/if}
 

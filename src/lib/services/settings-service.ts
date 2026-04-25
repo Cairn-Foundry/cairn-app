@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
 
 export interface CairnSettings {
   treePanelWidth: number;
@@ -6,6 +7,8 @@ export interface CairnSettings {
   editorFontSize: number;
   splitMode: boolean;
   splitLeftWidth: number;
+  shortcuts: Partial<Record<ShortcutId, ShortcutBinding>>;
+  disabledShortcuts: ShortcutId[];
 }
 
 export function getSettings(): Promise<CairnSettings> {

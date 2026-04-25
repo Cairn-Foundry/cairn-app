@@ -6,8 +6,10 @@
   import SearchPanel from './SearchPanel.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
+  import { activeScreen } from '$lib/stores/ui';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, type FileNode, type GitStatusMap, type DiffHunk } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
+  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels } from '$lib/stores/shortcuts';
 
   interface Tab {
     path: string;
@@ -548,34 +550,38 @@
 
   let gitPollInterval: ReturnType<typeof setInterval> | null = null;
 
-  onMount(() => {
-    function handleGlobalKey(e: KeyboardEvent) {
-      if (e.key === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-        e.preventDefault();
-        quickOpenVisible = true;
-      }
-      if (e.key === 'f' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-        e.preventDefault();
-        toggleSearchPanel();
-      }
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) });
-      }
-      if (mod && e.key === '-') {
-        e.preventDefault();
-        settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) });
-      }
-      if (mod && e.key === '0') {
-        e.preventDefault();
-        settings.save({ editorFontSize: 13 });
-      }
-      if (mod && e.key === '\\') {
-        e.preventDefault();
-        toggleSplit();
-      }
+  $: tooltipSearch = `Search (${bindingToLabels($shortcuts.searchFiles).join('')})`;
+  $: tooltipSplit  = `Split Editor (${bindingToLabels($shortcuts.splitEditor).join('')})`;
+
+  function handleGlobalKey(e: KeyboardEvent) {
+    if ($activeScreen !== 'workspace') return;
+    if (matchesShortcut(e, $activeShortcuts.quickOpen)) {
+      e.preventDefault();
+      quickOpenVisible = true;
     }
+    if (matchesShortcut(e, $activeShortcuts.searchFiles)) {
+      e.preventDefault();
+      toggleSearchPanel();
+    }
+    if (matchesShortcut(e, $activeShortcuts.fontSizeUp)) {
+      e.preventDefault();
+      settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) });
+    }
+    if (matchesShortcut(e, $activeShortcuts.fontSizeDown)) {
+      e.preventDefault();
+      settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) });
+    }
+    if (matchesShortcut(e, $activeShortcuts.fontSizeReset)) {
+      e.preventDefault();
+      settings.save({ editorFontSize: 13 });
+    }
+    if (matchesShortcut(e, $activeShortcuts.splitEditor)) {
+      e.preventDefault();
+      toggleSplit();
+    }
+  }
+
+  onMount(() => {
     window.addEventListener('keydown', handleGlobalKey);
 
     gitPollInterval = setInterval(async () => {
@@ -1001,13 +1007,13 @@
         <button type="button" class="tree-action-btn" data-tooltip="New Folder" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}>
           <Icon name="folder" size={12}/>
         </button>
-        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" data-tooltip="Search (⌘⇧F)" on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
+        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" data-tooltip={tooltipSearch} on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
           <Icon name="search" size={12}/>
         </button>
         <button type="button" class="tree-action-btn" data-tooltip="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
           <Icon name="refresh" size={12}/>
         </button>
-        <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip="Split Editor (⌘\)" on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
+        <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
           <Icon name="columns" size={12}/>
         </button>
       </div>

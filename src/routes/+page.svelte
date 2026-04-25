@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeStep } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
@@ -13,6 +13,7 @@
 
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;
+  let homeOpenSettingsTab: 'general' | 'shortcuts' | null = null;
   let showCreate = false;
   let mounted = false;
 
@@ -45,6 +46,7 @@
   });
 
   $: if (mounted) try { localStorage.setItem('cairn.screen', screen); } catch {}
+  $: activeScreen.set(screen);
   activeStep.subscribe(step => { if (!mounted) return; try { localStorage.setItem('cairn.step', step); } catch {} });
   openTabOrder.subscribe(order => { if (!mounted) return; try { localStorage.setItem('cairn.openTabOrder', JSON.stringify(order)); } catch {} });
   activeProjectId.subscribe(async (id) => {
@@ -81,9 +83,10 @@
   <div class="screen-wrap" class:screen-hidden={screen !== 'home'}>
     <Home
       openSection={homeOpenSection}
+      openSettingsTab={homeOpenSettingsTab}
       on:openProject={(e) => handleOpenProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
-      on:sectionShown={() => { homeOpenSection = null; }}
+      on:sectionShown={() => { homeOpenSection = null; homeOpenSettingsTab = null; }}
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
@@ -97,6 +100,7 @@
       on:addProject={() => { homeOpenSection = null; screen = 'home'; }}
       on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
+      on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
       on:createInstance={() => showCreate = true}
     />
   </div>

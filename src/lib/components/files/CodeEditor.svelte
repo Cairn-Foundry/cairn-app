@@ -39,6 +39,8 @@
     deleteLine, selectLine, indentMore, indentLess,
     selectParentSyntax, cursorMatchingBracket, selectAll,
   } from '@codemirror/commands';
+  import { shortcuts, activeShortcuts, toCmKey, bindingToLabels } from '$lib/stores/shortcuts';
+  import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { lintKeymap } from '@codemirror/lint';
 
@@ -236,6 +238,28 @@
 
   const minimapCompartment = new Compartment();
   const fontSizeCompartment = new Compartment();
+  const shortcutKeymapCompartment = new Compartment();
+
+  function buildShortcutKeymap(bindings: Record<ShortcutId, ShortcutBinding | null>): Extension {
+    const defs: { id: ShortcutId; run: (view: EditorView) => boolean }[] = [
+      { id: 'toggleLineComment',  run: toggleComment },
+      { id: 'toggleBlockComment', run: toggleBlockComment },
+      { id: 'moveLineUp',         run: moveLineUp },
+      { id: 'moveLineDown',       run: moveLineDown },
+      { id: 'copyLineDown',       run: copyLineDown },
+      { id: 'deleteLine',         run: deleteLine },
+      { id: 'selectLine',         run: selectLine },
+      { id: 'matchingBracket',    run: cursorMatchingBracket },
+      { id: 'indentMore',         run: indentMore },
+      { id: 'indentLess',         run: indentLess },
+      { id: 'expandSelection',    run: selectParentSyntax },
+    ];
+    return keymap.of(
+      defs
+        .filter(d => bindings[d.id] !== null)
+        .map(d => ({ key: toCmKey(bindings[d.id]!), run: d.run }))
+    );
+  }
 
   function buildFontSizeTheme(size: number): Extension {
     return fontSizeCompartment.of(EditorView.theme({
@@ -835,27 +859,16 @@
       : [];
 
     return [
-      // Highest-priority keymap: Tab/Enter accept completion, indentWithTab, comments, line ops
       Prec.highest(keymap.of([
-        { key: 'Tab',            run: (v) => acceptCompletion(v) || insertTab(v) },
-        { key: 'Enter',          run: acceptCompletion },
+        { key: 'Tab',   run: (v) => acceptCompletion(v) || insertTab(v) },
+        { key: 'Enter', run: acceptCompletion },
         ...closeBracketsKeymap,
         ...completionKeymap,
-        { key: 'Mod-/', run: toggleComment },
-        { key: 'Shift-Alt-a', run: toggleBlockComment },
-        { key: 'Alt-ArrowUp',    run: moveLineUp },
-        { key: 'Alt-ArrowDown',  run: moveLineDown },
-        { key: 'Shift-Alt-ArrowDown', run: copyLineDown },
-        { key: 'Mod-Shift-k',    run: deleteLine },
-        { key: 'Mod-l',          run: selectLine },
-        { key: 'Ctrl-m',         run: cursorMatchingBracket },
-        { key: 'Mod-]',          run: indentMore },
-        { key: 'Mod-[',          run: indentLess },
-        { key: 'Alt-Shift-ArrowRight', run: selectParentSyntax },
         ...foldKeymap,
         ...lintKeymap,
         ...searchKeymap,
       ])),
+      shortcutKeymapCompartment.of([]),
 
       lang,
       lineNumbers(),
@@ -943,6 +956,10 @@
     view.dispatch({ effects: diffEffect.of(hunksToLineMap(diffHunks)) });
   }
 
+  $: if (view) {
+    view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
+  }
+
   onDestroy(() => { view?.destroy(); });
 </script>
 
@@ -980,25 +997,25 @@
     <div class="ctx-sep" role="separator"></div>
 
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleComment)}>
-      <span class="icon"></span>Toggle Comment<span class="kbd">⌘/</span>
+      <span class="icon"></span>Toggle Comment<span class="kbd">{bindingToLabels($shortcuts.toggleLineComment).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleBlockComment)}>
-      <span class="icon"></span>Toggle Block Comment<span class="kbd">⇧⌥A</span>
+      <span class="icon"></span>Toggle Block Comment<span class="kbd">{bindingToLabels($shortcuts.toggleBlockComment).join('')}</span>
     </button>
 
     <div class="ctx-sep" role="separator"></div>
 
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineUp)}>
-      <span class="icon">↑</span>Move Line Up<span class="kbd">⌥↑</span>
+      <span class="icon">↑</span>Move Line Up<span class="kbd">{bindingToLabels($shortcuts.moveLineUp).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineDown)}>
-      <span class="icon">↓</span>Move Line Down<span class="kbd">⌥↓</span>
+      <span class="icon">↓</span>Move Line Down<span class="kbd">{bindingToLabels($shortcuts.moveLineDown).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(copyLineDown)}>
-      <span class="icon"></span>Duplicate Line<span class="kbd">⇧⌥↓</span>
+      <span class="icon"></span>Duplicate Line<span class="kbd">{bindingToLabels($shortcuts.copyLineDown).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(deleteLine)}>
-      <span class="icon"></span>Delete Line<span class="kbd">⌘⇧K</span>
+      <span class="icon"></span>Delete Line<span class="kbd">{bindingToLabels($shortcuts.deleteLine).join('')}</span>
     </button>
   </div>
 {/if}

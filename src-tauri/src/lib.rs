@@ -760,6 +760,19 @@ async fn search_in_files(
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct CairnShortcutBinding {
+    pub key: String,
+    #[serde(rename = "mod", default)]
+    pub is_mod: bool,
+    #[serde(default)]
+    pub shift: bool,
+    #[serde(default)]
+    pub alt: bool,
+    #[serde(default)]
+    pub ctrl: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CairnSettings {
     #[serde(rename = "treePanelWidth", default = "default_tree_panel_width")]
@@ -772,6 +785,10 @@ pub struct CairnSettings {
     pub split_mode: bool,
     #[serde(rename = "splitLeftWidth", default = "default_split_left_width")]
     pub split_left_width: u32,
+    #[serde(default)]
+    pub shortcuts: HashMap<String, CairnShortcutBinding>,
+    #[serde(rename = "disabledShortcuts", default)]
+    pub disabled_shortcuts: Vec<String>,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
@@ -781,7 +798,17 @@ fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
 
 impl Default for CairnSettings {
-    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width(), show_minimap: default_show_minimap(), editor_font_size: default_editor_font_size(), split_mode: false, split_left_width: 0 } }
+    fn default() -> Self {
+        CairnSettings {
+            tree_panel_width: default_tree_panel_width(),
+            show_minimap: default_show_minimap(),
+            editor_font_size: default_editor_font_size(),
+            split_mode: false,
+            split_left_width: 0,
+            shortcuts: HashMap::new(),
+            disabled_shortcuts: Vec::new(),
+        }
+    }
 }
 
 fn read_settings() -> Result<CairnSettings, String> {
