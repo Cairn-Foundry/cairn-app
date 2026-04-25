@@ -21,6 +21,7 @@ export interface CairnSettings {
   theme: 'dark' | 'light' | 'high-contrast';
   accentColor: string;
   workflowTabs: WorkflowTabConfig[];
+  sidebarPosition: 'left' | 'right';
 }
 
 export function getSettings(): Promise<CairnSettings> {

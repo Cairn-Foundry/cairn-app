@@ -527,7 +527,8 @@
 
   function onResizeMove(e: PointerEvent) {
     if (!isResizing) return;
-    treeWidth = Math.max(140, Math.min(480, resizeStartWidth + (e.clientX - resizeStartX)));
+    const delta = sidebarRight ? resizeStartX - e.clientX : e.clientX - resizeStartX;
+    treeWidth = Math.max(140, Math.min(480, resizeStartWidth + delta));
   }
 
   function stopResize() {
@@ -623,6 +624,7 @@
   let didDrag2 = false;
 
   $: if (!isResizing) treeWidth = $settings.treePanelWidth;
+  $: sidebarRight = $settings.sidebarPosition === 'right';
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
   $: activeTab = tabs[activeTabIdx] ?? null;
@@ -990,7 +992,7 @@
   }
 </script>
 
-<div class="files-layout">
+<div class="files-layout" class:sidebar-right={sidebarRight}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => openContextMenu(e, null)}>
     <div class="files-tree-header">
@@ -1424,6 +1426,8 @@
 
 <style>
   .files-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+  .files-layout.sidebar-right { flex-direction: row-reverse; }
+  .files-layout.sidebar-right .files-tree { border-right: none; border-left: 1px solid var(--stroke-0); }
 
   /* ── File tree ───────────────────────────────────────────────── */
 

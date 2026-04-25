@@ -828,8 +828,11 @@ pub struct CairnSettings {
     pub accent_color: String,
     #[serde(rename = "workflowTabs", default = "default_workflow_tabs")]
     pub workflow_tabs: Vec<WorkflowTabConfig>,
+    #[serde(rename = "sidebarPosition", default = "default_sidebar_position")]
+    pub sidebar_position: String,
 }
 
+fn default_sidebar_position() -> String { "left".to_string() }
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
@@ -852,6 +855,7 @@ impl Default for CairnSettings {
             theme: default_theme(),
             accent_color: default_accent_color(),
             workflow_tabs: default_workflow_tabs(),
+            sidebar_position: default_sidebar_position(),
         }
     }
 }

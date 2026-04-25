@@ -10,7 +10,7 @@ const DEFAULT_WORKFLOW_TABS: CairnSettings['workflowTabs'] = [
   { key: 'cicd',   name: 'CI/CD',  icon: 'ci',     enabled: true, order: 5 },
 ];
 
-const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true, editorFontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, monospace", splitMode: false, splitLeftWidth: 0, shortcuts: [], theme: 'dark', accentColor: '#6c8eff', workflowTabs: DEFAULT_WORKFLOW_TABS };
+const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true, editorFontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, monospace", splitMode: false, splitLeftWidth: 0, shortcuts: [], theme: 'dark', accentColor: '#6c8eff', workflowTabs: DEFAULT_WORKFLOW_TABS, sidebarPosition: 'left' };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
 

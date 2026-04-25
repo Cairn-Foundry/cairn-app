@@ -564,6 +564,22 @@
           <div class="settings-group-title">Layout</div>
           <div class="settings-row">
             <div class="settings-row-info">
+              <span class="settings-row-label">Sidebar position</span>
+              <span class="settings-row-desc">Move the file explorer to the left or right of the editor.</span>
+            </div>
+            <div class="sidebar-pos-toggle">
+              <button
+                class="sidebar-pos-btn {($settings.sidebarPosition ?? 'left') === 'left' ? 'active' : ''}"
+                on:click={() => settings.save({ sidebarPosition: 'left' })}
+              >Left</button>
+              <button
+                class="sidebar-pos-btn {($settings.sidebarPosition ?? 'left') === 'right' ? 'active' : ''}"
+                on:click={() => settings.save({ sidebarPosition: 'right' })}
+              >Right</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
               <span class="settings-row-label">File tree panel width</span>
               <span class="settings-row-desc">Width of the file explorer sidebar in the Files view.</span>
             </div>
@@ -1466,4 +1482,24 @@
     margin: 2px 0 4px;
     pointer-events: none;
   }
+
+  .sidebar-pos-toggle {
+    display: flex;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .sidebar-pos-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--fg-2);
+    border-radius: 3px;
+    font-family: var(--font-ui);
+    transition: background .1s, color .1s;
+  }
+  .sidebar-pos-btn:hover { color: var(--fg-0); }
+  .sidebar-pos-btn.active { background: var(--bg-3); color: var(--fg-0); }
 </style>
