@@ -774,6 +774,26 @@ pub struct CairnShortcutBinding {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct WorkflowTabConfig {
+    pub key: String,
+    pub name: String,
+    pub icon: String,
+    pub enabled: bool,
+    pub order: u32,
+}
+
+fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
+    vec![
+        WorkflowTabConfig { key: "files".into(),  name: "Files".into(),  icon: "folder".into(), enabled: true, order: 0 },
+        WorkflowTabConfig { key: "agent".into(),  name: "Agent".into(),  icon: "agent".into(),  enabled: true, order: 1 },
+        WorkflowTabConfig { key: "review".into(), name: "Review".into(), icon: "review".into(), enabled: true, order: 2 },
+        WorkflowTabConfig { key: "tests".into(),  name: "Tests".into(),  icon: "tests".into(),  enabled: true, order: 3 },
+        WorkflowTabConfig { key: "git".into(),    name: "Git".into(),    icon: "git".into(),    enabled: true, order: 4 },
+        WorkflowTabConfig { key: "cicd".into(),   name: "CI/CD".into(),  icon: "ci".into(),     enabled: true, order: 5 },
+    ]
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CairnSettings {
     #[serde(rename = "treePanelWidth", default = "default_tree_panel_width")]
     pub tree_panel_width: u32,
@@ -795,6 +815,8 @@ pub struct CairnSettings {
     pub theme: String,
     #[serde(rename = "accentColor", default = "default_accent_color")]
     pub accent_color: String,
+    #[serde(rename = "workflowTabs", default = "default_workflow_tabs")]
+    pub workflow_tabs: Vec<WorkflowTabConfig>,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
@@ -819,6 +841,7 @@ impl Default for CairnSettings {
             disabled_shortcuts: Vec::new(),
             theme: default_theme(),
             accent_color: default_accent_color(),
+            workflow_tabs: default_workflow_tabs(),
         }
     }
 }

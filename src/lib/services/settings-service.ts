@@ -1,5 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
+import type { WorkflowStep } from '$lib/types/instance';
+
+export interface WorkflowTabConfig {
+  key: WorkflowStep;
+  name: string;
+  icon: string;
+  enabled: boolean;
+  order: number;
+}
 
 export interface CairnSettings {
   treePanelWidth: number;
@@ -12,6 +21,7 @@ export interface CairnSettings {
   disabledShortcuts: ShortcutId[];
   theme: 'dark' | 'light' | 'high-contrast';
   accentColor: string;
+  workflowTabs: WorkflowTabConfig[];
 }
 
 export function getSettings(): Promise<CairnSettings> {

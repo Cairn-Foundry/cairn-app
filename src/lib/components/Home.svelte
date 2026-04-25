@@ -11,6 +11,7 @@
   import type { Project } from '$lib/types/project';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
+  import type { WorkflowTabConfig } from '$lib/services/settings-service';
 
   type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
 
@@ -47,8 +48,67 @@
   let deletingProject: Project | null = null;
 
   // ── Settings tabs ─────────────────────────────────────────────────────────
-  type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts';
+  type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts' | 'project';
   let settingsTab: SettingsTab = 'general';
+
+  // ── Workflow tab config (Project settings tab) ────────────────────────────
+  const DEFAULT_WF_TABS: WorkflowTabConfig[] = [
+    { key: 'files',  name: 'Files',  icon: 'folder', enabled: true, order: 0 },
+    { key: 'agent',  name: 'Agent',  icon: 'agent',  enabled: true, order: 1 },
+    { key: 'review', name: 'Review', icon: 'review', enabled: true, order: 2 },
+    { key: 'tests',  name: 'Tests',  icon: 'tests',  enabled: true, order: 3 },
+    { key: 'git',    name: 'Git',    icon: 'git',    enabled: true, order: 4 },
+    { key: 'cicd',   name: 'CI/CD',  icon: 'ci',     enabled: true, order: 5 },
+  ];
+
+  $: wfTabs = ($settings.workflowTabs ?? DEFAULT_WF_TABS).slice().sort((a, b) => a.order - b.order);
+
+  let wfDragSrc: number | null = null;
+  let wfInsert: number | null = null;
+  let wfListEl: HTMLElement | null = null;
+
+  function wfComputeInsert(clientY: number): number {
+    const rows = wfListEl?.querySelectorAll<HTMLElement>('.wf-row');
+    if (!rows || rows.length === 0) return 0;
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return rows.length;
+  }
+
+  function wfPointerDown(e: PointerEvent, i: number) {
+    if ((e.target as Element).closest('label,input,button')) return;
+    e.preventDefault();
+    wfDragSrc = i;
+    wfInsert = i;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function wfPointerMove(e: PointerEvent) {
+    if (wfDragSrc === null) return;
+    wfInsert = wfComputeInsert(e.clientY);
+  }
+
+  function wfPointerUp() {
+    if (wfDragSrc === null || wfInsert === null) { wfDragSrc = null; wfInsert = null; return; }
+    const isNoop = wfInsert === wfDragSrc || wfInsert === wfDragSrc + 1;
+    if (!isNoop) {
+      const reordered = [...wfTabs];
+      const [moved] = reordered.splice(wfDragSrc, 1);
+      const adj = wfInsert > wfDragSrc ? wfInsert - 1 : wfInsert;
+      reordered.splice(adj, 0, moved);
+      settings.save({ workflowTabs: reordered.map((t, i) => ({ ...t, order: i })) });
+    }
+    wfDragSrc = null;
+    wfInsert = null;
+  }
+
+  function wfToggleEnabled(key: WorkflowTabConfig['key']) {
+    settings.save({
+      workflowTabs: wfTabs.map(t => t.key === key ? { ...t, enabled: !t.enabled } : t),
+    });
+  }
 
   // ── Accent color helpers ───────────────────────────────────────────────────
   const ACCENT_PRESETS: { label: string; color: string }[] = [
@@ -374,6 +434,7 @@
       <div class="settings-tabs">
         <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => { settingsTab = 'general';    recordingId = null; }}>General</button>
         <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => { settingsTab = 'appearance'; recordingId = null; }}>Appearance</button>
+        <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => { settingsTab = 'project';    recordingId = null; }}>Project</button>
         <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => { settingsTab = 'editor';     recordingId = null; }}>Editor</button>
         <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => { settingsTab = 'shortcuts';  recordingId = null; }}>Shortcuts</button>
       </div>
@@ -543,7 +604,7 @@
         </div>
 
       <!-- ── Shortcuts tab ── -->
-      {:else}
+      {:else if settingsTab === 'shortcuts'}
         <div class="sc-toolbar">
           <div class="sc-search-bar">
             <Icon name="search" size={13}/>
@@ -646,6 +707,51 @@
             No shortcuts match "<strong style="color: var(--fg-1)">{shortcutSearch}</strong>".
           </div>
         {/if}
+
+      <!-- ── Project tab ── -->
+      {:else if settingsTab === 'project'}
+        <div class="settings-group">
+          <div class="settings-group-title">Workflow tabs</div>
+          <p class="wf-hint">Drag to reorder · toggle to show/hide</p>
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="wf-list" bind:this={wfListEl}>
+            {#each wfTabs as tab, i (tab.key)}
+              {#if wfDragSrc !== null && wfInsert === i && !(wfInsert === wfDragSrc || wfInsert === wfDragSrc + 1)}
+                <div class="wf-drop-indicator"></div>
+              {/if}
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div
+                class="wf-row settings-row {wfDragSrc === i ? 'wf-dragging' : ''} {!tab.enabled ? 'wf-disabled-row' : ''}"
+                on:pointerdown={(e) => wfPointerDown(e, i)}
+                on:pointermove={wfPointerMove}
+                on:pointerup={wfPointerUp}
+              >
+                <span class="wf-drag-handle" aria-hidden="true">⠿</span>
+                <div class="settings-row-info">
+                  <span class="settings-row-label">{tab.name}</span>
+                </div>
+                <label class="settings-toggle" aria-label="Show {tab.name} tab">
+                  <input
+                    type="checkbox"
+                    checked={tab.enabled}
+                    on:change={() => wfToggleEnabled(tab.key)}
+                  />
+                  <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                </label>
+              </div>
+            {/each}
+            {#if wfDragSrc !== null && wfInsert === wfTabs.length && wfInsert !== wfDragSrc + 1}
+              <div class="wf-drop-indicator"></div>
+            {/if}
+          </div>
+          <button
+            class="btn ghost"
+            style="margin-top: 12px; font-size: 12px;"
+            on:click={() => settings.save({ workflowTabs: DEFAULT_WF_TABS })}
+          >
+            <Icon name="undo" size={12}/> Reset to defaults
+          </button>
+        </div>
       {/if}
     {/if}
 
@@ -1292,5 +1398,46 @@
     line-height: 1;
     pointer-events: none;
     user-select: none;
+  }
+
+  /* ── Project tab: workflow reorder ── */
+
+  .wf-hint {
+    font-size: 11px;
+    color: var(--fg-3);
+    margin: 0 0 10px;
+  }
+
+  .wf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    user-select: none;
+  }
+
+  .wf-row {
+    cursor: grab;
+    margin-bottom: 6px;
+  }
+  .wf-row:active { cursor: grabbing; }
+
+  .wf-dragging { opacity: 0.4; cursor: grabbing; }
+
+  .wf-disabled-row { opacity: 0.55; }
+
+  .wf-drag-handle {
+    font-size: 16px;
+    color: var(--fg-4);
+    cursor: grab;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .wf-drop-indicator {
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    margin: 2px 0 4px;
+    pointer-events: none;
   }
 </style>

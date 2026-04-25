@@ -14,6 +14,7 @@
   import type { Instance } from '$lib/types/instance';
   import { instances } from '$lib/stores/instance';
   import { activateInstance } from '$lib/stores/project';
+  import { settings } from '$lib/stores/settings';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
@@ -95,14 +96,20 @@
     insertIndex = null;
   }
 
-  const STEPS = [
-    { id: 'files',  num: '00', label: 'Files',  icon: 'folder' },
-    { id: 'agent',  num: '01', label: 'Agent',  icon: 'agent'  },
-    { id: 'review', num: '02', label: 'Review', icon: 'review' },
-    { id: 'tests',  num: '03', label: 'Tests',  icon: 'tests'  },
-    { id: 'git',    num: '04', label: 'Git',    icon: 'git'    },
-    { id: 'cicd',   num: '05', label: 'CI/CD',  icon: 'ci'     },
+  const FALLBACK_STEPS = [
+    { id: 'files',  label: 'Files',  icon: 'folder' },
+    { id: 'agent',  label: 'Agent',  icon: 'agent'  },
+    { id: 'review', label: 'Review', icon: 'review' },
+    { id: 'tests',  label: 'Tests',  icon: 'tests'  },
+    { id: 'git',    label: 'Git',    icon: 'git'    },
+    { id: 'cicd',   label: 'CI/CD',  icon: 'ci'     },
   ];
+
+  $: STEPS = ($settings.workflowTabs ?? FALLBACK_STEPS.map((s, i) => ({ key: s.id, name: s.label, icon: s.icon, enabled: true, order: i })))
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .filter(t => t.enabled)
+    .map(t => ({ id: t.key, label: t.name, icon: t.icon }));
 
   const doneSteps = new Set<string>();
 
