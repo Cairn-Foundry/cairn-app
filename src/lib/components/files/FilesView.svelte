@@ -52,6 +52,20 @@
     } catch { return null; }
   }
 
+  function loadRecentFiles(instanceId: string) {
+    try {
+      const raw = localStorage.getItem(`cairn:recent-files:${instanceId}`);
+      recentFiles = raw ? (JSON.parse(raw) as string[]) : [];
+    } catch { recentFiles = []; }
+  }
+
+  function pushRecentFile(path: string) {
+    if (!currentInstanceId) return;
+    const updated = [path, ...recentFiles.filter(p => p !== path)].slice(0, 10);
+    recentFiles = updated;
+    try { localStorage.setItem(`cairn:recent-files:${currentInstanceId}`, JSON.stringify(updated)); } catch {}
+  }
+
   async function rehydrateTabList(wtp: string, persistedTabs: PersistedTab[]): Promise<Tab[]> {
     const results = await Promise.all(
       persistedTabs.map(async (p) => {
@@ -128,6 +142,7 @@
   let expanded = new Set<string>();
   let tabs: Tab[] = [];
   let activeTabIdx = -1;
+  let recentFiles: string[] = [];
   let loading = false;
   let loadingPaths = new Set<string>();
   let saving = false;
@@ -626,6 +641,7 @@
     if (id !== currentInstanceId) {
       saveCurrentState();
       currentInstanceId = id;
+      if (id !== null) loadRecentFiles(id); else recentFiles = [];
       currentDiffHunks = [];
       activeDiffHunk = null;
       currentDiffHunks2 = [];
@@ -714,6 +730,7 @@
     if (existingIdx !== -1) {
       captureEditorState();
       activeTabIdx = existingIdx;
+      pushRecentFile(node.path);
       refreshDiff({ path: node.path });
       return;
     }
@@ -726,6 +743,7 @@
     if (isBinaryPath(node.path)) {
       tabs = [...tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       activeTabIdx = tabs.length - 1;
+      pushRecentFile(node.path);
       currentDiffHunks = [];
       return;
     }
@@ -737,6 +755,7 @@
       const text = await readFile(fullPath) ?? '';
       tabs = [...tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0 }];
       activeTabIdx = tabs.length - 1;
+      pushRecentFile(node.path);
       refreshDiff({ path: node.path });
     } catch (e) {
       error = String(e);
@@ -1148,6 +1167,23 @@
         <div class="editor-placeholder">
           <Icon name="file" size={32}/>
           <div>Select a file to edit</div>
+          {#if recentFiles.length > 0}
+            <div class="recent-files">
+              <div class="recent-files-label">Recent</div>
+              {#each recentFiles as path}
+                <button
+                  type="button"
+                  class="recent-file-btn"
+                  on:click={() => openFile({ path, name: path.split('/').pop() ?? path, isDir: false })}
+                  title={path}
+                >
+                  <Icon name="file" size={12}/>
+                  <span class="recent-file-name">{path.split('/').pop()}</span>
+                  <span class="recent-file-dir">{path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
     </div>
@@ -1671,6 +1707,55 @@
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--fg-4);
+  }
+
+  .recent-files {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+    margin-top: 8px;
+    width: 280px;
+    max-width: 100%;
+  }
+  .recent-files-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-4);
+    padding: 0 6px 4px;
+  }
+  .recent-file-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: 12px;
+    text-align: left;
+    min-width: 0;
+  }
+  .recent-file-btn:hover { background: var(--bg-2); color: var(--fg-0); }
+  .recent-file-name {
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    max-width: 140px;
+  }
+  .recent-file-dir {
+    font-size: 10px;
+    color: var(--fg-4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
   }
 
   /* ── Tree header actions ─────────────────────────────────────────── */
