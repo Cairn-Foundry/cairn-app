@@ -51,6 +51,77 @@
   type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts' | 'project';
   let settingsTab: SettingsTab = 'general';
 
+  // ── Settings search ────────────────────────────────────────────────────────
+  let settingsSearch = '';
+
+  interface SettingEntry { label: string; desc: string; tab: SettingsTab; group: string; }
+
+  const STATIC_SETTINGS: SettingEntry[] = [
+    { label: 'AI provider',           desc: 'Agent Bridge driver',                     tab: 'general',    group: 'General' },
+    { label: 'Default branch',        desc: 'Base for new worktrees',                  tab: 'general',    group: 'General' },
+    { label: 'Worktree location',     desc: 'Where git worktrees are created',         tab: 'general',    group: 'General' },
+    { label: 'Format on stage',       desc: 'Auto-format before staging',              tab: 'general',    group: 'General' },
+    { label: 'Theme',                 desc: 'Dark, Light, or High contrast',           tab: 'appearance', group: 'Theme' },
+    { label: 'Accent color',          desc: 'Highlight color across the UI',           tab: 'appearance', group: 'Accent color' },
+    { label: 'Font family',           desc: 'Monospace font for code editor',          tab: 'appearance', group: 'Font' },
+    { label: 'Sidebar position',      desc: 'File explorer left or right of editor',   tab: 'editor',     group: 'Layout' },
+    { label: 'File tree panel width', desc: 'Width of file explorer sidebar in px',    tab: 'editor',     group: 'Layout' },
+    { label: 'Font size',             desc: 'Base font size for the code editor',      tab: 'editor',     group: 'Code editor' },
+    { label: 'Show minimap',          desc: 'Scrollbar overview panel in code editor', tab: 'editor',     group: 'Code editor' },
+    { label: 'Workflow tabs',         desc: 'Reorder and show/hide workspace tabs',    tab: 'project',    group: 'Workflow tabs' },
+  ];
+
+  $: settingsRegistry = [
+    ...STATIC_SETTINGS,
+    ...SHORTCUT_DEFS.map(d => ({
+      label: d.label,
+      desc: d.description,
+      tab: 'shortcuts' as SettingsTab,
+      group: d.group === 'files' ? 'Files' : 'Code Editor',
+    })),
+  ];
+
+  $: settingsResults = settingsSearch.trim()
+    ? settingsRegistry.filter(e =>
+        e.label.toLowerCase().includes(settingsSearch.toLowerCase()) ||
+        e.desc.toLowerCase().includes(settingsSearch.toLowerCase())
+      )
+    : [];
+
+  function goToSettingEntry(entry: SettingEntry) {
+    settingsTab = entry.tab;
+    settingsSearch = '';
+    recordingId = null;
+  }
+
+  // ── Import / Export ────────────────────────────────────────────────────────
+  let importFileInput: HTMLInputElement;
+
+  async function exportSettings() {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+    const path = await save({
+      defaultPath: 'cairn-settings.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (!path) return;
+    await invoke('write_file', { path, content: JSON.stringify($settings, null, 2) });
+  }
+
+  function handleImportFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        settings.save(parsed);
+      } catch {}
+    };
+    reader.readAsText(file);
+    (e.target as HTMLInputElement).value = '';
+  }
+
   // ── Workflow tab config (Project settings tab) ────────────────────────────
   const DEFAULT_WF_TABS: WorkflowTabConfig[] = [
     { key: 'files',  name: 'Files',  icon: 'folder', enabled: true, order: 0 },
@@ -455,6 +526,59 @@
         <h1 style="font-size: 22px">Settings</h1>
       </div>
 
+      <!-- Search + import/export toolbar -->
+      <div class="settings-header-bar">
+        <div class="settings-search-bar">
+          <Icon name="search" size={13}/>
+          <input
+            class="settings-search-input"
+            bind:value={settingsSearch}
+            placeholder="Search settings…"
+            aria-label="Search settings"
+          />
+          {#if settingsSearch}
+            <button class="search-clear" on:click={() => settingsSearch = ''} aria-label="Clear search">
+              <Icon name="x" size={11}/>
+            </button>
+          {/if}
+        </div>
+        <button class="btn ghost settings-io-btn" on:click={exportSettings} title="Export settings to JSON">
+          <Icon name="download" size={13}/> Export
+        </button>
+        <button class="btn ghost settings-io-btn" on:click={() => importFileInput.click()} title="Import settings from JSON">
+          <Icon name="upload" size={13}/> Import
+        </button>
+        <input
+          bind:this={importFileInput}
+          type="file"
+          accept=".json"
+          style="display:none"
+          on:change={handleImportFile}
+        />
+      </div>
+
+      <!-- Search results-->
+      {#if settingsSearch.trim()}
+        {#if settingsResults.length > 0}
+          <div class="settings-search-results">
+            {#each settingsResults as entry}
+              <button class="settings-search-result" on:click={() => goToSettingEntry(entry)}>
+                <div class="settings-row-info">
+                  <span class="settings-row-label">{entry.label}</span>
+                  <span class="settings-row-desc">{entry.desc}</span>
+                </div>
+                <span class="ssr-breadcrumb">{entry.tab.charAt(0).toUpperCase() + entry.tab.slice(1)} › {entry.group}</span>
+              </button>
+            {/each}
+          </div>
+        {:else}
+          <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
+            No settings match "<strong style="color: var(--fg-1)">{settingsSearch}</strong>".
+          </div>
+        {/if}
+
+      {:else}
+
       <!-- Inner tab bar -->
       <div class="settings-tabs">
         <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => { settingsTab = 'general';    recordingId = null; }}>General</button>
@@ -557,6 +681,15 @@
             {/each}
           </div>
         </div>
+        <div class="settings-section-reset">
+          <button
+            class="btn ghost"
+            style="font-size: 12px;"
+            on:click={() => settings.save({ theme: 'dark', accentColor: '#6c8eff', fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
+          >
+            <Icon name="undo" size={12}/> Reset appearance
+          </button>
+        </div>
 
       <!-- ── Editor tab ── -->
       {:else if settingsTab === 'editor'}
@@ -643,6 +776,15 @@
             </label>
           </div>
         </div>
+        <div class="settings-section-reset">
+          <button
+            class="btn ghost"
+            style="font-size: 12px;"
+            on:click={() => settings.save({ treePanelWidth: 220, showMinimap: true, editorFontSize: 13, sidebarPosition: 'left' })}
+          >
+            <Icon name="undo" size={12}/> Reset editor
+          </button>
+        </div>
 
       <!-- ── Shortcuts tab ── -->
       {:else if settingsTab === 'shortcuts'}
@@ -667,7 +809,7 @@
             </span>
           {/if}
           <button class="btn ghost sc-reset-all" on:click={resetAllBindings}>
-            <Icon name="undo" size={12}/> Reset all
+            <Icon name="undo" size={12}/> Reset shortcuts
           </button>
         </div>
 
@@ -786,14 +928,18 @@
               <div class="wf-drop-indicator"></div>
             {/if}
           </div>
-          <button
-            class="btn ghost"
-            style="margin-top: 12px; font-size: 12px;"
-            on:click={() => settings.save({ workflowTabs: DEFAULT_WF_TABS })}
-          >
-            <Icon name="undo" size={12}/> Reset to defaults
-          </button>
+          <div class="settings-section-reset">
+            <button
+              class="btn ghost"
+              style="font-size: 12px;"
+              on:click={() => settings.save({ workflowTabs: DEFAULT_WF_TABS })}
+            >
+              <Icon name="undo" size={12}/> Reset project
+            </button>
+          </div>
         </div>
+      {/if}
+
       {/if}
     {/if}
 
@@ -1502,4 +1648,90 @@
   }
   .sidebar-pos-btn:hover { color: var(--fg-0); }
   .sidebar-pos-btn.active { background: var(--bg-3); color: var(--fg-0); }
+
+  /* ── Settings header bar ── */
+
+  .settings-header-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    max-width: 640px;
+  }
+
+  .settings-search-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+    transition: border-color 0.15s;
+  }
+  .settings-search-bar:focus-within {
+    border-color: var(--accent-line);
+    color: var(--fg-1);
+  }
+
+  .settings-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    color: var(--fg-0);
+    min-width: 0;
+  }
+  .settings-search-input::placeholder { color: var(--fg-4); }
+
+  .settings-io-btn { font-size: 12px; flex-shrink: 0; }
+
+  /* ── Settings search results (flat list) ── */
+
+  .settings-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 16px;
+    max-width: 560px;
+  }
+
+  .settings-search-result {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    text-align: left;
+    transition: background .1s, border-color .1s;
+  }
+  .settings-search-result:hover {
+    background: var(--bg-3);
+    border-color: var(--stroke-1);
+  }
+
+  .ssr-breadcrumb {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Per-section reset strip ── */
+
+  .settings-section-reset {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    max-width: 560px;
+  }
 </style>
