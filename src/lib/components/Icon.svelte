@@ -275,6 +275,11 @@
     <circle cx="12" cy="12" r="1.5"/>
     <circle cx="12" cy="19" r="1.5"/>
   </svg>
+{:else if name === 'columns'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <rect x="3" y="3" width="7" height="18" rx="1"/>
+    <rect x="14" y="3" width="7" height="18" rx="1"/>
+  </svg>
 {:else if name === 'back'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -282,6 +287,16 @@
 {:else if name === 'flame'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
     <path d="M12 3c0 4-4 5-4 9a4 4 0 008 0c0-2-2-3-2-6 3 1 5 4 5 7a7 7 0 11-14 0c0-5 5-7 7-10z"/>
+  </svg>
+{:else if name === 'collapse-all'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M6 5l6 6 6-6"/>
+    <path d="M6 19l6-6 6 6"/>
+  </svg>
+{:else if name === 'expand-all'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>
+    <path d="M6 9l6-6 6 6"/>
+    <path d="M6 15l6 6 6-6"/>
   </svg>
 {:else}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={sw} stroke-linecap="round" stroke-linejoin="round" {...$$restProps}>

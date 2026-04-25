@@ -768,14 +768,20 @@ pub struct CairnSettings {
     pub show_minimap: bool,
     #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
     pub editor_font_size: u32,
+    #[serde(rename = "splitMode", default = "default_split_mode")]
+    pub split_mode: bool,
+    #[serde(rename = "splitLeftWidth", default = "default_split_left_width")]
+    pub split_left_width: u32,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
+fn default_split_mode() -> bool { false }
+fn default_split_left_width() -> u32 { 0 }
 
 impl Default for CairnSettings {
-    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width(), show_minimap: default_show_minimap(), editor_font_size: default_editor_font_size() } }
+    fn default() -> Self { CairnSettings { tree_panel_width: default_tree_panel_width(), show_minimap: default_show_minimap(), editor_font_size: default_editor_font_size(), split_mode: false, split_left_width: 0 } }
 }
 
 fn read_settings() -> Result<CairnSettings, String> {

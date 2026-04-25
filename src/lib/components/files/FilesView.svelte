@@ -17,16 +17,18 @@
     scrollTop: number;
   }
 
-  interface InstanceTabState {
-    tabs: Tab[];
-    activeTabIdx: number;
-    expanded: Set<string>;
-  }
-
   // ── localStorage persistence ──────────────────────────────────────────────────
 
   interface PersistedTab { path: string; cursorPos: number; scrollTop: number; }
-  interface PersistedState { tabs: PersistedTab[]; activeTabIdx: number; expanded: string[]; }
+  interface PersistedState {
+    tabs: PersistedTab[];
+    activeTabIdx: number;
+    expanded: string[];
+    tabs2?: PersistedTab[];
+    activeTabIdx2?: number;
+    splitMode?: boolean;
+    splitLeftWidth?: number;
+  }
 
   function persistState(instanceId: string, state: InstanceTabState) {
     try {
@@ -34,6 +36,10 @@
         tabs: state.tabs.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop })),
         activeTabIdx: state.activeTabIdx,
         expanded: [...state.expanded],
+        tabs2: state.tabs2.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop })),
+        activeTabIdx2: state.activeTabIdx2,
+        splitMode: state.splitMode,
+        splitLeftWidth: state.splitLeftWidth,
       };
       localStorage.setItem(`cairn:file-state:${instanceId}`, JSON.stringify(data));
     } catch {}
@@ -46,26 +52,48 @@
     } catch { return null; }
   }
 
-  async function rehydrateTabs(wtp: string, persisted: PersistedState) {
-    tabs = persisted.tabs.map(p => ({ path: p.path, content: '', pending: '', cursorPos: p.cursorPos, scrollTop: p.scrollTop }));
-    activeTabIdx = persisted.activeTabIdx;
-    expanded = new Set(persisted.expanded);
-
+  async function rehydrateTabList(wtp: string, persistedTabs: PersistedTab[]): Promise<Tab[]> {
     const results = await Promise.all(
-      persisted.tabs.map(async (p) => {
+      persistedTabs.map(async (p) => {
         if (isBinaryPath(p.path)) return { path: p.path, text: '' };
         try { return { path: p.path, text: await readFile(`${wtp}/${p.path}`) ?? '' }; }
         catch { return null; }
       })
     );
-
     const valid = results.filter(Boolean) as { path: string; text: string }[];
-    tabs = valid.map(r => {
-      const saved = persisted.tabs.find(p => p.path === r.path)!;
+    return valid.map(r => {
+      const saved = persistedTabs.find(p => p.path === r.path)!;
       return { path: r.path, content: r.text, pending: r.text, cursorPos: saved.cursorPos, scrollTop: saved.scrollTop };
     });
-    if (tabs.length === 0) { activeTabIdx = -1; return; }
-    if (activeTabIdx >= tabs.length) activeTabIdx = tabs.length - 1;
+  }
+
+  async function rehydrateTabs(wtp: string, persisted: PersistedState) {
+    tabs = persisted.tabs.map(p => ({ path: p.path, content: '', pending: '', cursorPos: p.cursorPos, scrollTop: p.scrollTop }));
+    activeTabIdx = persisted.activeTabIdx;
+    expanded = new Set(persisted.expanded);
+    splitMode = persisted.splitMode ?? false;
+    splitLeftWidth = persisted.splitLeftWidth ?? 0;
+
+    const [rehydrated, rehydrated2] = await Promise.all([
+      rehydrateTabList(wtp, persisted.tabs),
+      persisted.tabs2 ? rehydrateTabList(wtp, persisted.tabs2) : Promise.resolve([]),
+    ]);
+
+    tabs = rehydrated;
+    if (tabs.length === 0) { activeTabIdx = -1; } else if (activeTabIdx >= tabs.length) activeTabIdx = tabs.length - 1;
+
+    tabs2 = rehydrated2;
+    activeTabIdx2 = rehydrated2.length === 0 ? -1 : Math.min(persisted.activeTabIdx2 ?? 0, rehydrated2.length - 1);
+  }
+
+  interface InstanceTabState {
+    tabs: Tab[];
+    activeTabIdx: number;
+    expanded: Set<string>;
+    tabs2: Tab[];
+    activeTabIdx2: number;
+    splitMode: boolean;
+    splitLeftWidth: number;
   }
 
   const savedState = new Map<string, InstanceTabState>();
@@ -108,6 +136,153 @@
 
   let currentDiffHunks: DiffHunk[] = [];
   let activeDiffHunk: DiffHunk | null = null;
+
+  // ── Split pane ────────────────────────────────────────────────────────────────
+  let splitMode = false;
+  let focusedPane: 0 | 1 = 0;
+  let tabs2: Tab[] = [];
+  let activeTabIdx2 = -1;
+  let editorRef2: CodeEditor | undefined;
+  let cursorLine2 = 1;
+  let cursorCol2 = 1;
+  let currentDiffHunks2: DiffHunk[] = [];
+  let activeDiffHunk2: DiffHunk | null = null;
+  let tabsBarEl2: HTMLElement | null = null;
+  let isSplitResizing = false;
+  let splitResizeStartX = 0;
+  let splitResizeStartWidth = 0;
+  let splitLeftWidth = 0;
+  let leftPaneEl: HTMLElement | null = null;
+
+  $: activeTab2 = tabs2[activeTabIdx2] ?? null;
+  $: activeLang2 = (activeTab2 ? langFromPath(activeTab2.path) : 'text') as any;
+  $: activeLineEndings2 = activeTab2 ? detectLineEndings(activeTab2.pending) : 'LF';
+  $: isDirty2 = activeTab2 ? activeTab2.pending !== activeTab2.content : false;
+
+  function toggleSplit() {
+    splitMode = !splitMode;
+    if (!splitMode) {
+      tabs2 = [];
+      activeTabIdx2 = -1;
+      focusedPane = 0;
+    }
+    if (currentInstanceId) persistState(currentInstanceId, { tabs, activeTabIdx, expanded, tabs2, activeTabIdx2, splitMode, splitLeftWidth });
+  }
+
+  function startSplitResize(e: PointerEvent) {
+    isSplitResizing = true;
+    splitResizeStartX = e.clientX;
+    splitResizeStartWidth = leftPaneEl?.getBoundingClientRect().width ?? splitLeftWidth;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onSplitResizeMove(e: PointerEvent) {
+    if (!isSplitResizing) return;
+    const totalW = leftPaneEl?.parentElement?.getBoundingClientRect().width ?? 800;
+    const minW = 120;
+    const maxW = totalW - 120 - 3;
+    splitLeftWidth = Math.max(minW, Math.min(maxW, splitResizeStartWidth + (e.clientX - splitResizeStartX)));
+  }
+
+  function stopSplitResize() {
+    if (!isSplitResizing) return;
+    isSplitResizing = false;
+    if (currentInstanceId) persistState(currentInstanceId, { tabs, activeTabIdx, expanded, tabs2, activeTabIdx2, splitMode, splitLeftWidth });
+  }
+
+  function captureEditorState2() {
+    if (activeTabIdx2 === -1 || !editorRef2) return;
+    const state = editorRef2.getState();
+    tabs2[activeTabIdx2].cursorPos = state.cursorPos;
+    tabs2[activeTabIdx2].scrollTop = state.scrollTop;
+    tabs2 = tabs2;
+  }
+
+  async function refreshDiff2(tab: { path: string } | null): Promise<void> {
+    activeDiffHunk2 = null;
+    if (!tab || !worktreePath) { currentDiffHunks2 = []; return; }
+    try {
+      const status = gitStatusMap[tab.path];
+      if (!status || status === 'deleted') { currentDiffHunks2 = []; return; }
+      if (status === 'untracked') {
+        const content = tabs2.find(t => t.path === tab.path)?.pending ?? '';
+        const lines = content.split('\n');
+        currentDiffHunks2 = [{ newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        return;
+      }
+      const result = await gitFileDiff(worktreePath, tab.path);
+      currentDiffHunks2 = result.hunks;
+    } catch { currentDiffHunks2 = []; }
+  }
+
+  async function switchTab2(idx: number) {
+    if (idx === activeTabIdx2) return;
+    captureEditorState2();
+    activeTabIdx2 = idx;
+    refreshDiff2(tabs2[idx] ?? null);
+  }
+
+  async function closeTab2(idx: number, event: MouseEvent) {
+    event.stopPropagation();
+    const tab = tabs2[idx];
+    if (!tab) return;
+    if (tab.pending !== tab.content && worktreePath) {
+      await writeFile(`${worktreePath}/${tab.path}`, tab.pending);
+    }
+    const wasActive = idx === activeTabIdx2;
+    tabs2 = tabs2.filter((_, i) => i !== idx);
+    if (tabs2.length === 0) activeTabIdx2 = -1;
+    else if (wasActive) activeTabIdx2 = Math.min(idx, tabs2.length - 1);
+    else if (idx < activeTabIdx2) activeTabIdx2 = activeTabIdx2 - 1;
+  }
+
+  function handleChange2(value: string) {
+    if (activeTabIdx2 === -1) return;
+    tabs2[activeTabIdx2].pending = value;
+    tabs2 = tabs2;
+  }
+
+  async function flushSave2() {
+    if (!activeTab2 || activeTab2.pending === activeTab2.content || !worktreePath) return;
+    const wasDeleted = gitStatusMap[activeTab2.path] === 'deleted';
+    try {
+      await writeFile(`${worktreePath}/${activeTab2.path}`, activeTab2.pending);
+      tabs2[activeTabIdx2].content = activeTab2.pending;
+      tabs2 = tabs2;
+      if (wasDeleted) await loadTree(worktreePath);
+      refreshDiff2(activeTab2);
+    } catch (e) { error = String(e); }
+  }
+
+  async function openFileInPane2(node: FileNode) {
+    if (gitStatusMap[node.path] === 'deleted') return;
+    if (node.isDir) {
+      if (expanded.has(node.path)) expanded.delete(node.path);
+      else expanded.add(node.path);
+      expanded = expanded;
+      return;
+    }
+    const existingIdx = tabs2.findIndex(t => t.path === node.path);
+    if (existingIdx !== -1) {
+      captureEditorState2();
+      activeTabIdx2 = existingIdx;
+      refreshDiff2({ path: node.path });
+      return;
+    }
+    if (isBinaryPath(node.path)) {
+      tabs2 = [...tabs2, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
+      activeTabIdx2 = tabs2.length - 1;
+      currentDiffHunks2 = [];
+      return;
+    }
+    captureEditorState2();
+    try {
+      const text = await readFile(`${worktreePath}/${node.path}`) ?? '';
+      tabs2 = [...tabs2, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0 }];
+      activeTabIdx2 = tabs2.length - 1;
+      refreshDiff2({ path: node.path });
+    } catch (e) { error = String(e); }
+  }
 
   function handleDiffClick(hunk: DiffHunk) {
     activeDiffHunk = activeDiffHunk === hunk ? null : hunk;
@@ -381,6 +556,10 @@
         e.preventDefault();
         settings.save({ editorFontSize: 13 });
       }
+      if (mod && e.key === '\\') {
+        e.preventDefault();
+        toggleSplit();
+      }
     }
     window.addEventListener('keydown', handleGlobalKey);
 
@@ -408,13 +587,19 @@
   });
 
   function quickOpenFile(path: string) {
-    openFile({ path, name: path.split('/').pop() ?? path, isDir: false });
+    const node = { path, name: path.split('/').pop() ?? path, isDir: false };
+    if (splitMode && focusedPane === 1) openFileInPane2(node);
+    else openFile(node);
   }
 
   let tabsBarEl: HTMLElement | null = null;
   let dragSrcIndex: number | null = null;
   let insertIndex: number | null = null;
   let didDrag = false;
+
+  let dragSrcIndex2: number | null = null;
+  let insertIndex2: number | null = null;
+  let didDrag2 = false;
 
   $: if (!isResizing) treeWidth = $settings.treePanelWidth;
 
@@ -428,7 +613,8 @@
   function saveCurrentState() {
     if (currentInstanceId === null) return;
     captureEditorState();
-    const state = { tabs, activeTabIdx, expanded };
+    captureEditorState2();
+    const state = { tabs, activeTabIdx, expanded, tabs2, activeTabIdx2, splitMode, splitLeftWidth };
     savedState.set(currentInstanceId, state);
     persistState(currentInstanceId, state);
   }
@@ -442,6 +628,8 @@
       currentInstanceId = id;
       currentDiffHunks = [];
       activeDiffHunk = null;
+      currentDiffHunks2 = [];
+      activeDiffHunk2 = null;
       editState = null;
       contextMenu = null;
       if (id !== null && savedState.has(id)) {
@@ -449,23 +637,40 @@
         tabs = s.tabs;
         activeTabIdx = s.activeTabIdx;
         expanded = s.expanded;
+        tabs2 = s.tabs2;
+        activeTabIdx2 = s.activeTabIdx2;
+        splitMode = s.splitMode;
+        splitLeftWidth = s.splitLeftWidth;
         syncActiveTabToTree();
         refreshDiff(tabs[activeTabIdx] ?? null);
+        refreshDiff2(tabs2[activeTabIdx2] ?? null);
       } else if (id !== null && wtp !== null) {
         selectedDir = '';
         const persisted = readPersistedState(id);
         if (persisted) {
-          rehydrateTabs(wtp, persisted).then(() => { syncActiveTabToTree(); refreshDiff(tabs[activeTabIdx] ?? null); });
+          rehydrateTabs(wtp, persisted).then(() => {
+            syncActiveTabToTree();
+            refreshDiff(tabs[activeTabIdx] ?? null);
+            refreshDiff2(tabs2[activeTabIdx2] ?? null);
+          });
         } else {
           tabs = [];
           activeTabIdx = -1;
           expanded = new Set();
+          tabs2 = [];
+          activeTabIdx2 = -1;
+          splitMode = false;
+          splitLeftWidth = 0;
         }
       } else {
         selectedDir = '';
         tabs = [];
         activeTabIdx = -1;
         expanded = new Set();
+        tabs2 = [];
+        activeTabIdx2 = -1;
+        splitMode = false;
+        splitLeftWidth = 0;
       }
     }
   }
@@ -494,6 +699,7 @@
   }
 
   async function openFile(node: FileNode) {
+    if (splitMode && focusedPane === 1) { await openFileInPane2(node); return; }
     if (gitStatusMap[node.path] === 'deleted') return;
     if (node.isDir) {
       if (expanded.has(node.path)) expanded.delete(node.path);
@@ -643,13 +849,54 @@
       const [moved] = newTabs.splice(dragSrcIndex, 1);
       const adjustedInsert = insertIndex > dragSrcIndex ? insertIndex - 1 : insertIndex;
       newTabs.splice(adjustedInsert, 0, moved);
-      // Find where the active tab ended up
       const activePath = tabs[activeTabIdx]?.path;
       activeTabIdx = activePath ? newTabs.findIndex(t => t.path === activePath) : -1;
       tabs = newTabs;
     }
     dragSrcIndex = null;
     insertIndex = null;
+  }
+
+  function computeInsertIndex2(clientX: number): number {
+    const tabEls = tabsBarEl2?.querySelectorAll<HTMLElement>('.file-tab');
+    if (!tabEls || tabEls.length === 0) return 0;
+    for (let i = 0; i < tabEls.length; i++) {
+      const rect = tabEls[i].getBoundingClientRect();
+      if (clientX < rect.left + rect.width / 2) return i;
+    }
+    return tabEls.length;
+  }
+
+  function tabPointerDown2(e: PointerEvent, idx: number) {
+    if ((e.target as Element).closest('button')) return;
+    e.preventDefault();
+    dragSrcIndex2 = idx;
+    insertIndex2 = idx;
+    didDrag2 = false;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function tabPointerMove2(e: PointerEvent) {
+    if (dragSrcIndex2 === null) return;
+    const next = computeInsertIndex2(e.clientX);
+    if (next !== insertIndex2) didDrag2 = true;
+    insertIndex2 = next;
+  }
+
+  function tabPointerUp2(e: PointerEvent) {
+    if (dragSrcIndex2 === null || insertIndex2 === null) return;
+    const isNoop = insertIndex2 === dragSrcIndex2 || insertIndex2 === dragSrcIndex2 + 1;
+    if (!isNoop) {
+      const newTabs = [...tabs2];
+      const [moved] = newTabs.splice(dragSrcIndex2, 1);
+      const adjustedInsert = insertIndex2 > dragSrcIndex2 ? insertIndex2 - 1 : insertIndex2;
+      newTabs.splice(adjustedInsert, 0, moved);
+      const activePath = tabs2[activeTabIdx2]?.path;
+      activeTabIdx2 = activePath ? newTabs.findIndex(t => t.path === activePath) : -1;
+      tabs2 = newTabs;
+    }
+    dragSrcIndex2 = null;
+    insertIndex2 = null;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -669,15 +916,43 @@
     return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
   }
 
+  let pendingJump2: { line: number; col: number } | null = null;
+
   async function openFileAtLine(path: string, line: number, col: number) {
-    pendingJump = { line, col };
-    await openFile({ path, name: path.split('/').pop() ?? path, isDir: false });
+    const node = { path, name: path.split('/').pop() ?? path, isDir: false };
+    if (splitMode && focusedPane === 1) {
+      pendingJump2 = { line, col };
+      await openFileInPane2(node);
+    } else {
+      pendingJump = { line, col };
+      await openFile(node);
+    }
   }
 
   $: if (activeTab && pendingJump) {
     const jump = pendingJump;
     pendingJump = null;
     setTimeout(() => editorRef?.jumpTo(jump.line, jump.col), 60);
+  }
+
+  $: if (activeTab2 && pendingJump2) {
+    const jump = pendingJump2;
+    pendingJump2 = null;
+    setTimeout(() => editorRef2?.jumpTo(jump.line, jump.col), 60);
+  }
+
+  function collectDirPaths(nodes: FileNode[], acc: Set<string>) {
+    for (const n of nodes) {
+      if (n.isDir) { acc.add(n.path); if (n.children) collectDirPaths(n.children, acc); }
+    }
+  }
+
+  function collapseAll() { expanded = new Set(); }
+
+  function expandAll() {
+    const all = new Set<string>();
+    collectDirPaths(tree, all);
+    expanded = all;
   }
 
   function fileIcon(node: FileNode): string {
@@ -694,20 +969,27 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => openContextMenu(e, null)}>
     <div class="files-tree-header">
-      <Icon name="folder" size={12}/>
-      <span class="tree-header-title">{$activeInstance ? $activeInstance.ticket.id : 'No instance'}</span>
       <div class="tree-header-actions">
-        <button type="button" class="tree-action-btn" title="New File" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}>
+        <button type="button" class="tree-action-btn" data-tooltip="Collapse All" on:click={(e) => { e.stopPropagation(); collapseAll(); }}>
+          <Icon name="collapse-all" size={12}/>
+        </button>
+        <button type="button" class="tree-action-btn" data-tooltip="Expand All" on:click={(e) => { e.stopPropagation(); expandAll(); }}>
+          <Icon name="expand-all" size={12}/>
+        </button>
+        <button type="button" class="tree-action-btn" data-tooltip="New File" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}>
           <Icon name="file" size={12}/>
         </button>
-        <button type="button" class="tree-action-btn" title="New Folder" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}>
+        <button type="button" class="tree-action-btn" data-tooltip="New Folder" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}>
           <Icon name="folder" size={12}/>
         </button>
-        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" title="Search (⌘⇧F)" on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
+        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" data-tooltip="Search (⌘⇧F)" on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
           <Icon name="search" size={12}/>
         </button>
-        <button type="button" class="tree-action-btn" title="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
+        <button type="button" class="tree-action-btn" data-tooltip="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
           <Icon name="refresh" size={12}/>
+        </button>
+        <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip="Split Editor (⌘\)" on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
+          <Icon name="columns" size={12}/>
         </button>
       </div>
     </div>
@@ -760,112 +1042,233 @@
   ></div>
 
   <div class="files-editor-wrap">
-    {#if tabs.length > 0}
-      <div class="tabs-bar" role="tablist" bind:this={tabsBarEl}>
-        {#each tabs as tab, i}
-          {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
+    <!-- ── Pane 1 ─────────────────────────────────────────────────────────── -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="editor-pane {splitMode && focusedPane === 0 ? 'pane-focused' : ''}"
+      style={splitMode && splitLeftWidth > 0 ? `width: ${splitLeftWidth}px; flex: none` : 'flex: 1'}
+      bind:this={leftPaneEl}
+      on:pointerdown={() => { focusedPane = 0; }}
+    >
+      {#if tabs.length > 0}
+        <div class="tabs-bar" role="tablist" bind:this={tabsBarEl}>
+          {#each tabs as tab, i}
+            {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
+              <div class="drop-indicator"></div>
+            {/if}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
+              role="tab"
+              aria-selected={i === activeTabIdx}
+              tabindex="0"
+              on:pointerdown={(e) => tabPointerDown(e, i)}
+              on:pointermove={tabPointerMove}
+              on:pointerup={tabPointerUp}
+              on:click={() => { if (!didDrag) switchTab(i); didDrag = false; }}
+              on:keydown={(e) => e.key === 'Enter' && switchTab(i)}
+            >
+              <span class="tab-name">{tab.path.split('/').pop()}</span>
+              {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
+              <button type="button" class="tab-close" on:click={(e) => closeTab(i, e)} aria-label="Close tab">
+                <Icon name="x" size={11}/>
+              </button>
+            </div>
+          {/each}
+          {#if dragSrcIndex !== null && insertIndex === tabs.length && insertIndex !== dragSrcIndex + 1}
             <div class="drop-indicator"></div>
           {/if}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
-            role="tab"
-            aria-selected={i === activeTabIdx}
-            tabindex="0"
-            on:pointerdown={(e) => tabPointerDown(e, i)}
-            on:pointermove={tabPointerMove}
-            on:pointerup={tabPointerUp}
-            on:click={() => { if (!didDrag) switchTab(i); didDrag = false; }}
-            on:keydown={(e) => e.key === 'Enter' && switchTab(i)}
-          >
-            <span class="tab-name">{tab.path.split('/').pop()}</span>
-            {#if tab.pending !== tab.content}
-              <span class="tab-dot">●</span>
-            {/if}
-            <button type="button" class="tab-close" on:click={(e) => closeTab(i, e)} aria-label="Close tab">
-              <Icon name="x" size={11}/>
-            </button>
-          </div>
-        {/each}
-        {#if dragSrcIndex !== null && insertIndex === tabs.length && insertIndex !== dragSrcIndex + 1}
-          <div class="drop-indicator"></div>
-        {/if}
-      </div>
-    {/if}
-
-    {#if activeTab}
-      <div class="editor-topbar">
-        <Icon name="file" size={13}/>
-        <span class="editor-path">
-          <span class="editor-dir">{activeTab.path.split('/').slice(0, -1).join('/')}{activeTab.path.includes('/') ? '/' : ''}</span><strong>{activeTab.path.split('/').pop()}</strong>
-        </span>
-      </div>
-      <div class="editor-body">
-        {#if loadingPaths.has(activeTab.path)}
-          <div class="editor-placeholder">Loading…</div>
-        {:else if isBinaryPath(activeTab.path)}
-          <div class="editor-placeholder">
-            <Icon name="file" size={32}/>
-            <div>Binary file — preview not available</div>
-            <div class="editor-placeholder-path">{activeTab.path}</div>
-          </div>
-        {:else}
-          {#key activeTab.path}
-            <CodeEditor
-              bind:this={editorRef}
-              content={activeTab.content}
-              language={activeLang}
-              readonly={false}
-              minimapEnabled={$settings.showMinimap ?? true}
-              fontSize={$settings.editorFontSize ?? 13}
-              initialCursorPos={activeTab.cursorPos}
-              initialScrollTop={activeTab.scrollTop}
-              diffHunks={currentDiffHunks}
-              onDiffClick={handleDiffClick}
-              onChange={handleChange}
-              onBlur={flushSave}
-              onCursorChange={handleCursorChange}
-            />
-          {/key}
-        {/if}
-      </div>
-      {#if activeDiffHunk}
-        <div class="diff-peek">
-          <div class="diff-peek-header">
-            <span class="diff-peek-title">Changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
-            <button class="diff-peek-close" on:click={() => activeDiffHunk = null} aria-label="Close diff">✕</button>
-          </div>
-          <div class="diff-peek-body">
-            {#each activeDiffHunk.lines as line}
-              <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
-                <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
-                <span class="diff-peek-content">{line.content}</span>
-              </div>
-            {/each}
-          </div>
         </div>
       {/if}
-      <div class="editor-statusbar">
-        <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
-        <span class="statusbar-sep">|</span>
-        <span class="statusbar-item">{activeLang.toUpperCase()}</span>
-        <span class="statusbar-sep">|</span>
-        <span class="statusbar-item">{activeLineEndings}</span>
-        <span class="statusbar-sep">|</span>
-        <span class="statusbar-item">UTF-8</span>
-        {#if isDirty}
-          <span class="statusbar-sep">|</span>
-          <span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>
+
+      {#if activeTab}
+        <div class="editor-topbar">
+          <Icon name="file" size={13}/>
+          <span class="editor-path">
+            <span class="editor-dir">{activeTab.path.split('/').slice(0, -1).join('/')}{activeTab.path.includes('/') ? '/' : ''}</span><strong>{activeTab.path.split('/').pop()}</strong>
+          </span>
+        </div>
+        <div class="editor-body">
+          {#if loadingPaths.has(activeTab.path)}
+            <div class="editor-placeholder">Loading…</div>
+          {:else if isBinaryPath(activeTab.path)}
+            <div class="editor-placeholder">
+              <Icon name="file" size={32}/>
+              <div>Binary file — preview not available</div>
+              <div class="editor-placeholder-path">{activeTab.path}</div>
+            </div>
+          {:else}
+            {#key activeTab.path}
+              <CodeEditor
+                bind:this={editorRef}
+                content={activeTab.content}
+                language={activeLang}
+                readonly={false}
+                minimapEnabled={$settings.showMinimap ?? true}
+                fontSize={$settings.editorFontSize ?? 13}
+                initialCursorPos={activeTab.cursorPos}
+                initialScrollTop={activeTab.scrollTop}
+                diffHunks={currentDiffHunks}
+                onDiffClick={handleDiffClick}
+                onChange={handleChange}
+                onBlur={flushSave}
+                onCursorChange={handleCursorChange}
+              />
+            {/key}
+          {/if}
+        </div>
+        {#if activeDiffHunk}
+          <div class="diff-peek">
+            <div class="diff-peek-header">
+              <span class="diff-peek-title">Changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
+              <button class="diff-peek-close" on:click={() => activeDiffHunk = null} aria-label="Close diff">✕</button>
+            </div>
+            <div class="diff-peek-body">
+              {#each activeDiffHunk.lines as line}
+                <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
+                  <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
+                  <span class="diff-peek-content">{line.content}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
         {/if}
-        {#if saving}
+        <div class="editor-statusbar">
+          <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
           <span class="statusbar-sep">|</span>
-          <span class="statusbar-item statusbar-saving">saving…</span>
+          <span class="statusbar-item">{activeLang.toUpperCase()}</span>
+          <span class="statusbar-sep">|</span>
+          <span class="statusbar-item">{activeLineEndings}</span>
+          <span class="statusbar-sep">|</span>
+          <span class="statusbar-item">UTF-8</span>
+          {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
+          {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">saving…</span>{/if}
+        </div>
+      {:else}
+        <div class="editor-placeholder">
+          <Icon name="file" size={32}/>
+          <div>Select a file to edit</div>
+        </div>
+      {/if}
+    </div>
+
+    {#if splitMode}
+      <!-- ── Split resize handle ──────────────────────────────────────────── -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="split-resize-handle"
+        on:pointerdown={startSplitResize}
+        on:pointermove={onSplitResizeMove}
+        on:pointerup={stopSplitResize}
+        on:pointercancel={stopSplitResize}
+        role="separator"
+        aria-orientation="vertical"
+      ></div>
+
+      <!-- ── Pane 2 ────────────────────────────────────────────────────────── -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="editor-pane {focusedPane === 1 ? 'pane-focused' : ''}"
+        style="flex: 1"
+        on:pointerdown={() => { focusedPane = 1; }}
+      >
+        {#if tabs2.length > 0}
+          <div class="tabs-bar" role="tablist" bind:this={tabsBarEl2}>
+            {#each tabs2 as tab, i}
+              {#if dragSrcIndex2 !== null && insertIndex2 === i && !(insertIndex2 === dragSrcIndex2 || insertIndex2 === dragSrcIndex2 + 1)}
+                <div class="drop-indicator"></div>
+              {/if}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div
+                class="file-tab {i === activeTabIdx2 ? 'tab-active' : ''} {dragSrcIndex2 === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
+                role="tab"
+                aria-selected={i === activeTabIdx2}
+                tabindex="0"
+                on:pointerdown={(e) => tabPointerDown2(e, i)}
+                on:pointermove={tabPointerMove2}
+                on:pointerup={tabPointerUp2}
+                on:click={() => { if (!didDrag2) switchTab2(i); didDrag2 = false; }}
+                on:keydown={(e) => e.key === 'Enter' && switchTab2(i)}
+              >
+                <span class="tab-name">{tab.path.split('/').pop()}</span>
+                {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
+                <button type="button" class="tab-close" on:click={(e) => closeTab2(i, e)} aria-label="Close tab">
+                  <Icon name="x" size={11}/>
+                </button>
+              </div>
+            {/each}
+            {#if dragSrcIndex2 !== null && insertIndex2 === tabs2.length && insertIndex2 !== dragSrcIndex2 + 1}
+              <div class="drop-indicator"></div>
+            {/if}
+          </div>
         {/if}
-      </div>
-    {:else}
-      <div class="editor-placeholder">
-        <Icon name="file" size={32}/>
-        <div>Select a file to edit</div>
+
+        {#if activeTab2}
+          <div class="editor-topbar">
+            <Icon name="file" size={13}/>
+            <span class="editor-path">
+              <span class="editor-dir">{activeTab2.path.split('/').slice(0, -1).join('/')}{activeTab2.path.includes('/') ? '/' : ''}</span><strong>{activeTab2.path.split('/').pop()}</strong>
+            </span>
+          </div>
+          <div class="editor-body">
+            {#if isBinaryPath(activeTab2.path)}
+              <div class="editor-placeholder">
+                <Icon name="file" size={32}/>
+                <div>Binary file — preview not available</div>
+                <div class="editor-placeholder-path">{activeTab2.path}</div>
+              </div>
+            {:else}
+              {#key activeTab2.path}
+                <CodeEditor
+                  bind:this={editorRef2}
+                  content={activeTab2.content}
+                  language={activeLang2}
+                  readonly={false}
+                  minimapEnabled={$settings.showMinimap ?? true}
+                  fontSize={$settings.editorFontSize ?? 13}
+                  initialCursorPos={activeTab2.cursorPos}
+                  initialScrollTop={activeTab2.scrollTop}
+                  diffHunks={currentDiffHunks2}
+                  onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
+                  onChange={handleChange2}
+                  onBlur={flushSave2}
+                  onCursorChange={(l, c) => { cursorLine2 = l; cursorCol2 = c; }}
+                />
+              {/key}
+            {/if}
+          </div>
+          {#if activeDiffHunk2}
+            <div class="diff-peek">
+              <div class="diff-peek-header">
+                <span class="diff-peek-title">Changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</span>
+                <button class="diff-peek-close" on:click={() => activeDiffHunk2 = null} aria-label="Close diff">✕</button>
+              </div>
+              <div class="diff-peek-body">
+                {#each activeDiffHunk2.lines as line}
+                  <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
+                    <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
+                    <span class="diff-peek-content">{line.content}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+          <div class="editor-statusbar">
+            <span class="statusbar-item">{cursorLine2}:{cursorCol2}</span>
+            <span class="statusbar-sep">|</span>
+            <span class="statusbar-item">{activeLang2.toUpperCase()}</span>
+            <span class="statusbar-sep">|</span>
+            <span class="statusbar-item">{activeLineEndings2}</span>
+            <span class="statusbar-sep">|</span>
+            <span class="statusbar-item">UTF-8</span>
+            {#if isDirty2}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
+          </div>
+        {:else}
+          <div class="editor-placeholder">
+            <Icon name="file" size={32}/>
+            <div>Open a file in this pane</div>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -985,7 +1388,7 @@
   .files-tree {
     flex-shrink: 0;
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 0 0 8px;
     background: var(--bg-1);
     border-right: 1px solid var(--stroke-0);
   }
@@ -1005,13 +1408,8 @@
   .files-tree-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px 10px;
-    font-size: 10px;
-    font-family: var(--font-mono);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--fg-3);
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--stroke-0);
   }
 
   .tree-state {
@@ -1055,7 +1453,20 @@
 
   /* ── Editor wrap ─────────────────────────────────────────────── */
 
-  .files-editor-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .files-editor-wrap { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
+
+  .editor-pane { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .editor-pane.pane-focused { box-shadow: inset 0 0 0 1px oklch(0.72 0.14 250 / 0.25); }
+
+  .split-resize-handle {
+    width: 3px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background: var(--stroke-0);
+    transition: background 0.15s;
+  }
+  .split-resize-handle:hover,
+  .split-resize-handle:active { background: var(--accent); }
 
   /* ── Tab bar ─────────────────────────────────────────────────── */
 
@@ -1066,9 +1477,12 @@
     overflow-x: auto;
     border-bottom: 1px solid var(--stroke-0);
     background: var(--bg-1);
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.32 0.008 70) transparent;
   }
-  .tabs-bar::-webkit-scrollbar { display: none; }
+  .tabs-bar::-webkit-scrollbar { height: 4px; }
+  .tabs-bar::-webkit-scrollbar-track { background: transparent; }
+  .tabs-bar::-webkit-scrollbar-thumb { background: oklch(0.32 0.008 70); border-radius: 2px; }
 
   .file-tab {
     display: flex;
@@ -1261,13 +1675,12 @@
 
   /* ── Tree header actions ─────────────────────────────────────────── */
 
-  .files-tree-header { position: relative; }
-  .tree-header-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .tree-root-row { box-shadow: 0 1px 0 var(--stroke-0); margin-bottom: 2px; }
   .tree-header-actions {
     display: flex;
     gap: 2px;
-    margin-left: auto;
+    flex: 1;
+    justify-content: center;
   }
   .tree-action-btn {
     display: flex;
@@ -1281,9 +1694,33 @@
     cursor: pointer;
     color: var(--fg-3);
     padding: 0;
+    position: relative;
   }
   .tree-action-btn:hover { background: var(--bg-4); color: var(--fg-0); }
   .tree-action-btn.active { color: var(--accent); }
+
+  .tree-action-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-1);
+    color: var(--fg-1);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    white-space: nowrap;
+    padding: 3px 7px;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 200;
+  }
+  .tree-action-btn[data-tooltip]:hover::after {
+    opacity: 1;
+  }
 
   /* ── Inline edit ─────────────────────────────────────────────────── */
 

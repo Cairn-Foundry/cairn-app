@@ -4,6 +4,8 @@ export interface CairnSettings {
   treePanelWidth: number;
   showMinimap: boolean;
   editorFontSize: number;
+  splitMode: boolean;
+  splitLeftWidth: number;
 }
 
 export function getSettings(): Promise<CairnSettings> {
