@@ -1459,7 +1459,7 @@
     font-size: 12px;
     color: var(--fg-3);
   }
-  .tree-state.error { color: oklch(0.70 0.18 15); }
+  .tree-state.error { color: var(--danger); }
 
   .file-tree-item {
     display: flex;
@@ -1484,11 +1484,11 @@
   .file-tree-item.selected-dir { background: var(--bg-3); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
   .file-tree-item.loading { opacity: 0.6; }
 
-  .file-tree-item.git-modified .file-tree-name { color: oklch(81.824% 0.15379 73.092); }
-  .file-tree-item.git-untracked .file-tree-name { color: oklch(88.84% 0.22143 145.482); }
-  .file-tree-item.git-deleted .file-tree-name { color: oklch(0.70 0.18 15); text-decoration: line-through; opacity: 0.7; }
+  .file-tree-item.git-modified .file-tree-name { color: var(--warning); }
+  .file-tree-item.git-untracked .file-tree-name { color: var(--success); }
+  .file-tree-item.git-deleted .file-tree-name { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
   .file-tree-item.git-deleted { cursor: default; }
-  .file-tree-item.git-staged .file-tree-name { color: oklch(75.595% 0.13163 248.231); }
+  .file-tree-item.git-staged .file-tree-name { color: var(--accent); }
 
   .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-loading-dot { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
@@ -1498,7 +1498,7 @@
   .files-editor-wrap { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
 
   .editor-pane { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-  .editor-pane.pane-focused { box-shadow: inset 0 0 0 1px oklch(0.72 0.14 250 / 0.25); }
+  .editor-pane.pane-focused { box-shadow: inset 0 0 0 1px var(--accent-line); }
 
   .split-resize-handle {
     width: 3px;
@@ -1520,11 +1520,11 @@
     border-bottom: 1px solid var(--stroke-0);
     background: var(--bg-1);
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.32 0.008 70) transparent;
+    scrollbar-color: var(--stroke-1) transparent;
   }
   .tabs-bar::-webkit-scrollbar { height: 4px; }
   .tabs-bar::-webkit-scrollbar-track { background: transparent; }
-  .tabs-bar::-webkit-scrollbar-thumb { background: oklch(0.32 0.008 70); border-radius: 2px; }
+  .tabs-bar::-webkit-scrollbar-thumb { background: var(--stroke-1); border-radius: 2px; }
 
   .file-tab {
     display: flex;
@@ -1546,12 +1546,12 @@
   .file-tab:hover { background: var(--bg-4); color: var(--fg-1); }
   .file-tab:active { cursor: grabbing; }
   .file-tab.tab-active {
-    background: oklch(0.16 0.008 70);
+    background: var(--bg-0);
     color: var(--fg-0);
     border-bottom: 2px solid var(--accent);
   }
   .file-tab.tab-dragging { opacity: 0.4; cursor: grabbing; }
-  .file-tab.tab-deleted .tab-name { text-decoration: line-through; color: oklch(0.70 0.18 15); opacity: 0.7; }
+  .file-tab.tab-deleted .tab-name { text-decoration: line-through; color: var(--danger); opacity: 0.7; }
 
   .tab-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
   .tab-dot { color: var(--accent); font-size: 10px; line-height: 1; }
@@ -1610,7 +1610,7 @@
     flex-direction: column;
     max-height: 220px;
     border-top: 1px solid var(--stroke-1);
-    background: oklch(0.145 0.008 70);
+    background: var(--bg-0);
   }
 
   .diff-peek-header {
@@ -1648,7 +1648,7 @@
     overflow-y: auto;
     overflow-x: auto;
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.32 0.008 70) transparent;
+    scrollbar-color: var(--stroke-1) transparent;
     padding: 4px 0;
   }
 
@@ -1661,8 +1661,8 @@
     font-family: var(--font-mono);
     font-size: 12px;
   }
-  .diff-peek-add { background: oklch(0.78 0.14 135 / 0.10); }
-  .diff-peek-del { background: oklch(0.70 0.18 15 / 0.10); }
+  .diff-peek-add { background: var(--success-weak); }
+  .diff-peek-del { background: var(--danger-weak); }
 
   .diff-peek-sign {
     width: 14px;
@@ -1670,13 +1670,13 @@
     user-select: none;
     font-weight: 600;
   }
-  .diff-peek-add .diff-peek-sign { color: oklch(0.78 0.14 135); }
-  .diff-peek-del .diff-peek-sign { color: oklch(0.70 0.18 15 / 0.9); }
+  .diff-peek-add .diff-peek-sign { color: var(--success); }
+  .diff-peek-del .diff-peek-sign { color: var(--danger); }
   .diff-peek-ctx .diff-peek-sign { color: transparent; }
 
   .diff-peek-content { color: var(--fg-1); }
-  .diff-peek-add .diff-peek-content { color: oklch(0.90 0.04 135); }
-  .diff-peek-del .diff-peek-content { color: oklch(0.80 0.06 15); }
+  .diff-peek-add .diff-peek-content { color: var(--fg-0); }
+  .diff-peek-del .diff-peek-content { color: var(--fg-0); }
 
   /* ── Status bar ──────────────────────────────────────────────── */
 

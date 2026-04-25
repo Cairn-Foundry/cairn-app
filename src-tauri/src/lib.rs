@@ -789,6 +789,10 @@ pub struct CairnSettings {
     pub shortcuts: HashMap<String, CairnShortcutBinding>,
     #[serde(rename = "disabledShortcuts", default)]
     pub disabled_shortcuts: Vec<String>,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(rename = "accentHue", default = "default_accent_hue")]
+    pub accent_hue: f32,
 }
 
 fn default_tree_panel_width() -> u32 { 220 }
@@ -796,6 +800,8 @@ fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
+fn default_theme() -> String { "dark".to_string() }
+fn default_accent_hue() -> f32 { 250.0 }
 
 impl Default for CairnSettings {
     fn default() -> Self {
@@ -807,6 +813,8 @@ impl Default for CairnSettings {
             split_left_width: 0,
             shortcuts: HashMap::new(),
             disabled_shortcuts: Vec::new(),
+            theme: default_theme(),
+            accent_hue: default_accent_hue(),
         }
     }
 }

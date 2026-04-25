@@ -29,9 +29,11 @@
   --stone-3: oklch(0.74 0.014 50);
 
   /* Accents */
-  --accent: oklch(0.72 0.14 250);
-  --accent-weak: oklch(0.72 0.14 250 / 0.14);
-  --accent-line: oklch(0.72 0.14 250 / 0.35);
+  --accent-hue: 250;
+  --accent: oklch(0.72 0.14 var(--accent-hue));
+  --accent-weak: oklch(0.72 0.14 var(--accent-hue) / 0.14);
+  --accent-line: oklch(0.72 0.14 var(--accent-hue) / 0.35);
+  --accent-hover: oklch(0.76 0.14 var(--accent-hue));
   --accent-fg: oklch(0.96 0.005 80);
 
   /* Semantic */
@@ -296,7 +298,7 @@ input, textarea { font-family: inherit; color: inherit; }
   color: white;
   border-color: transparent;
 }
-.btn.primary:hover { background: oklch(0.76 0.14 250); }
+.btn.primary:hover { background: var(--accent-hover); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--fg-2); }
 .btn.ghost:hover { background: var(--bg-2); color: var(--fg-0); }
 .btn.danger { color: var(--danger); }
@@ -975,7 +977,7 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 1px solid var(--accent-line);
   border-radius: var(--r-sm);
 }
-.ai-suggest:hover { background: oklch(0.72 0.14 250 / 0.22); }
+.ai-suggest:hover { background: oklch(0.72 0.14 var(--accent-hue) / 0.22); }
 
 /* Branch panel */
 .branch-list { padding: 8px 12px; overflow-y: auto; flex: 1; }
@@ -1111,7 +1113,7 @@ input, textarea { font-family: inherit; color: inherit; }
   border-radius: var(--r-sm);
   font-weight: 500;
 }
-.fix-with-agent:hover { background: oklch(0.76 0.14 250); }
+.fix-with-agent:hover { background: var(--accent-hover); }
 
 /* ==============================
    CI/CD view
@@ -1359,7 +1361,7 @@ input, textarea { font-family: inherit; color: inherit; }
 /* Checkpoint (user-saved) — accent stone on top */
 .cairn-stack.checkpoint .stone.s1 {
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-weak), inset 0 1px 0 oklch(0.85 0.12 250 / 0.6);
+  box-shadow: 0 0 0 3px var(--accent-weak), inset 0 1px 0 oklch(0.85 0.12 var(--accent-hue) / 0.6);
 }
 .cairn-stack.checkpoint::before {
   content: '';
@@ -1890,3 +1892,64 @@ input, textarea { font-family: inherit; color: inherit; }
 .mono { font-family: var(--font-mono); }
 .serif { font-family: var(--font-serif); }
 .dim { color: var(--fg-3); }
+
+/* ==============================
+   Theme: light
+   ============================== */
+html[data-theme="light"] .diff-line.add { background: oklch(0.85 0.14 150 / 0.45); }
+html[data-theme="light"] .diff-line.add .ln { color: oklch(0.42 0.18 150); }
+html[data-theme="light"] .diff-line.del { background: oklch(0.85 0.14 25 / 0.40); }
+html[data-theme="light"] .diff-line.del .ln { color: oklch(0.46 0.20 25); }
+
+html[data-theme="light"] {
+  --success-weak: oklch(0.74 0.14 150 / 0.28);
+  --warning-weak: oklch(0.80 0.14 75  / 0.28);
+  --danger-weak:  oklch(0.70 0.18 25  / 0.25);
+
+  --bg-0: oklch(0.97 0.006 80);
+  --bg-1: oklch(0.94 0.007 75);
+  --bg-2: oklch(0.91 0.008 70);
+  --bg-3: oklch(0.87 0.009 65);
+  --bg-4: oklch(0.83 0.009 65);
+  --bg-5: oklch(0.79 0.010 60);
+
+  --fg-0: oklch(0.15 0.010 60);
+  --fg-1: oklch(0.28 0.009 65);
+  --fg-2: oklch(0.44 0.009 70);
+  --fg-3: oklch(0.58 0.008 70);
+  --fg-4: oklch(0.72 0.007 70);
+
+  --stroke-0: oklch(0.87 0.007 70);
+  --stroke-1: oklch(0.80 0.008 70);
+  --stroke-2: oklch(0.70 0.010 65);
+
+  --stone-0: oklch(0.62 0.012 55);
+  --stone-1: oklch(0.68 0.012 50);
+  --stone-2: oklch(0.74 0.014 45);
+  --stone-3: oklch(0.82 0.014 50);
+}
+html[data-theme="light"],
+html[data-theme="light"] body { background: var(--bg-0); }
+html[data-theme="light"] .os-window { background: var(--bg-0); }
+
+/* ==============================
+   Theme: high-contrast
+   ============================== */
+html[data-theme="high-contrast"] {
+  --bg-0: oklch(0.0 0 0);
+  --bg-1: oklch(0.08 0 0);
+  --bg-2: oklch(0.12 0 0);
+  --bg-3: oklch(0.18 0 0);
+  --bg-4: oklch(0.24 0 0);
+  --bg-5: oklch(0.30 0 0);
+
+  --fg-0: oklch(1.0 0 0);
+  --fg-1: oklch(0.92 0 0);
+  --fg-2: oklch(0.80 0 0);
+  --fg-3: oklch(0.65 0 0);
+  --fg-4: oklch(0.45 0 0);
+
+  --stroke-0: oklch(0.32 0 0);
+  --stroke-1: oklch(0.48 0 0);
+  --stroke-2: oklch(0.65 0 0);
+}

@@ -9,6 +9,8 @@ export interface CairnSettings {
   splitLeftWidth: number;
   shortcuts: Partial<Record<ShortcutId, ShortcutBinding>>;
   disabledShortcuts: ShortcutId[];
+  theme: 'dark' | 'light' | 'high-contrast';
+  accentHue: number;
 }
 
 export function getSettings(): Promise<CairnSettings> {

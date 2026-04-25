@@ -41,6 +41,7 @@
   } from '@codemirror/commands';
   import { shortcuts, activeShortcuts, toCmKey, bindingToLabels } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding } from '$lib/types/shortcuts';
+  import { settings } from '$lib/stores/settings';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { lintKeymap } from '@codemirror/lint';
 
@@ -239,6 +240,8 @@
   const minimapCompartment = new Compartment();
   const fontSizeCompartment = new Compartment();
   const shortcutKeymapCompartment = new Compartment();
+  const themeCompartment = new Compartment();
+  const highlightCompartment = new Compartment();
 
   function buildShortcutKeymap(bindings: Record<ShortcutId, ShortcutBinding | null>): Extension {
     const defs: { id: ShortcutId; run: (view: EditorView) => boolean }[] = [
@@ -278,51 +281,76 @@
 
   // ── Highlight style ────────────────────────────────────────────────────────
 
-  const cairnHighlight = HighlightStyle.define([
-    { tag: t.keyword,                              color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.controlKeyword,                       color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.definitionKeyword,                    color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.moduleKeyword,                        color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.operatorKeyword,                      color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.function(t.variableName),             color: 'oklch(0.84 0.16 55)'  },
-    { tag: t.function(t.definition(t.variableName)), color: 'oklch(0.84 0.16 55)' },
-    { tag: t.definition(t.variableName),           color: 'oklch(0.88 0.005 80)' },
-    { tag: t.variableName,                         color: 'oklch(0.88 0.005 80)' },
-    { tag: t.typeName,                             color: 'oklch(0.78 0.13 200)' },
-    { tag: t.className,                            color: 'oklch(0.78 0.13 200)' },
-    { tag: t.definition(t.typeName),               color: 'oklch(0.78 0.13 200)' },
-    { tag: t.propertyName,                         color: 'oklch(0.80 0.11 225)' },
-    { tag: t.definition(t.propertyName),           color: 'oklch(0.80 0.11 225)' },
-    { tag: t.string,                               color: 'oklch(0.78 0.14 135)' },
-    { tag: t.special(t.string),                    color: 'oklch(0.78 0.14 135)' },
-    { tag: t.regexp,                               color: 'oklch(0.76 0.14 50)'  },
-    { tag: t.number,                               color: 'oklch(0.82 0.14 60)'  },
-    { tag: t.bool,                                 color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.null,                                 color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.atom,                                 color: 'oklch(0.72 0.19 295)' },
-    { tag: t.comment,                              color: 'oklch(0.50 0.010 80)', fontStyle: 'italic' },
-    { tag: t.lineComment,                          color: 'oklch(0.50 0.010 80)', fontStyle: 'italic' },
-    { tag: t.blockComment,                         color: 'oklch(0.50 0.010 80)', fontStyle: 'italic' },
-    { tag: t.operator,                             color: 'oklch(0.80 0.06 250)' },
-    { tag: t.punctuation,                          color: 'oklch(0.65 0.006 80)' },
-    { tag: t.bracket,                              color: 'oklch(0.72 0.08 80)'  },
-    { tag: t.tagName,                              color: 'oklch(0.72 0.18 15)'  },
-    { tag: t.attributeName,                        color: 'oklch(0.78 0.13 200)' },
-    { tag: t.attributeValue,                       color: 'oklch(0.78 0.14 135)' },
-    { tag: t.namespace,                            color: 'oklch(0.78 0.13 200)' },
-    { tag: t.meta,                                 color: 'oklch(0.56 0.010 80)' },
-    { tag: t.modifier,                             color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.self,                                 color: 'oklch(0.72 0.19 295)', fontStyle: 'italic' },
-    { tag: t.special(t.variableName),              color: 'oklch(0.84 0.16 55)'  },
-    { tag: t.inserted,                             color: 'oklch(0.78 0.14 135)' },
-    { tag: t.deleted,                              color: 'oklch(0.70 0.18 15)'  },
-    { tag: t.changed,                              color: 'oklch(0.82 0.14 60)'  },
-    { tag: t.invalid,                              color: 'oklch(0.70 0.18 15)', textDecoration: 'underline wavy' },
-  ]);
+  function buildHighlight(theme: string): HighlightStyle {
+    const dark = theme !== 'light';
+    const kw   = dark ? 'oklch(0.72 0.19 295)' : 'oklch(0.42 0.18 295)';
+    const fn_  = dark ? 'oklch(0.84 0.16 55)'  : 'oklch(0.50 0.16 55)';
+    const def  = dark ? 'oklch(0.88 0.005 80)'  : 'oklch(0.18 0.005 70)';
+    const ty   = dark ? 'oklch(0.78 0.13 200)'  : 'oklch(0.38 0.13 200)';
+    const prop = dark ? 'oklch(0.80 0.11 225)'  : 'oklch(0.38 0.11 225)';
+    const str  = dark ? 'oklch(0.78 0.14 135)'  : 'oklch(0.38 0.14 135)';
+    const re   = dark ? 'oklch(0.76 0.14 50)'   : 'oklch(0.44 0.14 50)';
+    const num  = dark ? 'oklch(0.82 0.14 60)'   : 'oklch(0.44 0.14 60)';
+    const cmt  = dark ? 'oklch(0.50 0.010 80)'  : 'oklch(0.62 0.010 80)';
+    const op   = dark ? 'oklch(0.80 0.06 250)'  : 'oklch(0.42 0.08 250)';
+    const punc = dark ? 'oklch(0.65 0.006 80)'  : 'oklch(0.46 0.006 70)';
+    const br   = dark ? 'oklch(0.72 0.08 80)'   : 'oklch(0.42 0.06 70)';
+    const tag  = dark ? 'oklch(0.72 0.18 15)'   : 'oklch(0.44 0.18 15)';
+    const meta = dark ? 'oklch(0.56 0.010 80)'  : 'oklch(0.52 0.010 80)';
+    const err  = dark ? 'oklch(0.70 0.18 15)'   : 'oklch(0.48 0.18 15)';
+    return HighlightStyle.define([
+      { tag: t.keyword,                              color: kw,   fontStyle: 'italic' },
+      { tag: t.controlKeyword,                       color: kw,   fontStyle: 'italic' },
+      { tag: t.definitionKeyword,                    color: kw,   fontStyle: 'italic' },
+      { tag: t.moduleKeyword,                        color: kw,   fontStyle: 'italic' },
+      { tag: t.operatorKeyword,                      color: kw,   fontStyle: 'italic' },
+      { tag: t.function(t.variableName),             color: fn_  },
+      { tag: t.function(t.definition(t.variableName)), color: fn_ },
+      { tag: t.definition(t.variableName),           color: def  },
+      { tag: t.variableName,                         color: def  },
+      { tag: t.typeName,                             color: ty   },
+      { tag: t.className,                            color: ty   },
+      { tag: t.definition(t.typeName),               color: ty   },
+      { tag: t.propertyName,                         color: prop },
+      { tag: t.definition(t.propertyName),           color: prop },
+      { tag: t.string,                               color: str  },
+      { tag: t.special(t.string),                    color: str  },
+      { tag: t.regexp,                               color: re   },
+      { tag: t.number,                               color: num  },
+      { tag: t.bool,                                 color: kw,   fontStyle: 'italic' },
+      { tag: t.null,                                 color: kw,   fontStyle: 'italic' },
+      { tag: t.atom,                                 color: kw   },
+      { tag: t.comment,                              color: cmt,  fontStyle: 'italic' },
+      { tag: t.lineComment,                          color: cmt,  fontStyle: 'italic' },
+      { tag: t.blockComment,                         color: cmt,  fontStyle: 'italic' },
+      { tag: t.operator,                             color: op   },
+      { tag: t.punctuation,                          color: punc },
+      { tag: t.bracket,                              color: br   },
+      { tag: t.tagName,                              color: tag  },
+      { tag: t.attributeName,                        color: ty   },
+      { tag: t.attributeValue,                       color: str  },
+      { tag: t.namespace,                            color: ty   },
+      { tag: t.meta,                                 color: meta },
+      { tag: t.modifier,                             color: kw,   fontStyle: 'italic' },
+      { tag: t.self,                                 color: kw,   fontStyle: 'italic' },
+      { tag: t.special(t.variableName),              color: fn_  },
+      { tag: t.inserted,                             color: str  },
+      { tag: t.deleted,                              color: err  },
+      { tag: t.changed,                              color: num  },
+      { tag: t.invalid,                              color: err, textDecoration: 'underline wavy' },
+    ]);
+  }
 
   // ── Theme ──────────────────────────────────────────────────────────────────
 
-  const cairnTheme = EditorView.theme({
+  function buildEditorTheme(theme: string): Extension {
+    if (theme === 'light') return buildLightTheme();
+    if (theme === 'high-contrast') return buildHighContrastTheme();
+    return buildDarkTheme();
+  }
+
+  function buildDarkTheme(): Extension {
+    return EditorView.theme({
     '&': {
       backgroundColor: 'oklch(0.16 0.008 70)',
       color: 'oklch(0.88 0.005 80)',
@@ -515,6 +543,99 @@
       border: '1px solid oklch(0.72 0.14 250 / 0.22)',
     },
   }, { dark: true });
+  }
+
+  function buildLightTheme(): Extension {
+    return EditorView.theme({
+      '&': { backgroundColor: 'oklch(0.97 0.006 80)', color: 'oklch(0.18 0.008 70)', height: '100%', fontFamily: "'JetBrains Mono', ui-monospace, monospace" },
+      '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.42 0.18 250)' },
+      '.cm-focused': { outline: 'none' },
+      '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
+      '.cm-gutters': { backgroundColor: 'oklch(0.94 0.007 75)', borderRight: '1px solid oklch(0.87 0.007 70)', color: 'oklch(0.58 0.008 70)' },
+      '.cm-gutter': { minWidth: '44px' },
+      '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 8px', fontSize: '11.5px' },
+      '.cm-activeLineGutter': { backgroundColor: 'oklch(0.91 0.008 70)' },
+      '.cm-activeLine': { backgroundColor: 'oklch(0.91 0.008 70)' },
+      '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'oklch(0.42 0.14 250 / 0.20) !important' },
+      '.cm-cursor': { borderLeftColor: 'oklch(0.42 0.18 250)' },
+      '.cm-matchingBracket': { backgroundColor: 'oklch(0.42 0.14 250 / 0.15)', outline: '1px solid oklch(0.42 0.14 250 / 0.35)', borderRadius: '2px' },
+      '.cm-nonmatchingBracket': { backgroundColor: 'oklch(0.48 0.18 15 / 0.2)', outline: '1px solid oklch(0.48 0.18 15 / 0.4)' },
+      '.cm-selectionMatch': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', outline: '1px solid oklch(0.42 0.14 250 / 0.22)', borderRadius: '2px' },
+      '.cm-searchMatch': { backgroundColor: 'oklch(0.60 0.14 60 / 0.28)', borderRadius: '2px' },
+      '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.60 0.14 60 / 0.55)' },
+      '.cm-search': { backgroundColor: 'oklch(0.93 0.007 75)', borderTop: '1px solid oklch(0.87 0.007 70)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
+      '.cm-search input': { backgroundColor: 'oklch(0.97 0.006 80)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.18 0.008 70)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
+      '.cm-search input:focus': { borderColor: 'oklch(0.42 0.14 250 / 0.7)' },
+      '.cm-search button': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '4px', color: 'oklch(0.30 0.008 70)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
+      '.cm-search button:hover': { backgroundColor: 'oklch(0.87 0.009 65)' },
+      '.cm-search label': { color: 'oklch(0.52 0.008 70)', fontSize: '12px' },
+      '.cm-foldGutter': { minWidth: '16px' },
+      '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
+      '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.42 0.14 250)' },
+      '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '3px', color: 'oklch(0.52 0.006 80)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
+      '.cm-tooltip': { backgroundColor: 'oklch(0.97 0.006 80)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '6px', color: 'oklch(0.18 0.008 70)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.15)', fontSize: '12.5px' },
+      '.cm-tooltip-autocomplete': { borderRadius: '6px' },
+      '.cm-tooltip-autocomplete ul': { maxHeight: '260px' },
+      '.cm-tooltip-autocomplete ul li': { padding: '4px 12px', lineHeight: '1.5' },
+      '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'oklch(0.42 0.14 250 / 0.18)', color: 'oklch(0.10 0.005 70)' },
+      '.cm-completionIcon': { paddingRight: '6px', opacity: '0.7' },
+      '.cm-completionLabel': { flex: '1' },
+      '.cm-completionDetail': { color: 'oklch(0.54 0.006 80)', fontSize: '11.5px', fontStyle: 'italic', marginLeft: '8px' },
+      '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
+      '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
+      '.cm-diff-marker': { width: '3px', height: '100%' },
+      '.cm-diff-added': { backgroundColor: 'oklch(0.55 0.18 135)' },
+      '.cm-diff-modified': { backgroundColor: 'oklch(0.60 0.18 60)' },
+      '.cm-minimap-gutter': { backgroundColor: 'oklch(0.93 0.007 75)', borderLeft: '1px solid oklch(0.87 0.007 70)' },
+      '.cm-minimap-overlay': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', border: '1px solid oklch(0.42 0.14 250 / 0.22)' },
+    }, { dark: false });
+  }
+
+  function buildHighContrastTheme(): Extension {
+    return EditorView.theme({
+      '&': { backgroundColor: 'oklch(0.0 0 0)', color: 'oklch(1.0 0 0)', height: '100%', fontFamily: "'JetBrains Mono', ui-monospace, monospace" },
+      '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
+      '.cm-focused': { outline: 'none' },
+      '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
+      '.cm-gutters': { backgroundColor: 'oklch(0.08 0 0)', borderRight: '1px solid oklch(0.32 0 0)', color: 'oklch(0.55 0 0)' },
+      '.cm-gutter': { minWidth: '44px' },
+      '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 8px', fontSize: '11.5px' },
+      '.cm-activeLineGutter': { backgroundColor: 'oklch(0.12 0 0)' },
+      '.cm-activeLine': { backgroundColor: 'oklch(0.12 0 0)' },
+      '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'oklch(0.72 0.14 250 / 0.35) !important' },
+      '.cm-cursor': { borderLeftColor: 'oklch(0.72 0.14 250)', borderLeftWidth: '2px' },
+      '.cm-matchingBracket': { backgroundColor: 'oklch(0.72 0.14 250 / 0.25)', outline: '1px solid oklch(0.72 0.14 250 / 0.6)', borderRadius: '2px' },
+      '.cm-nonmatchingBracket': { backgroundColor: 'oklch(0.70 0.18 15 / 0.3)', outline: '1px solid oklch(0.70 0.18 15 / 0.7)' },
+      '.cm-selectionMatch': { backgroundColor: 'oklch(0.72 0.14 250 / 0.20)', outline: '1px solid oklch(0.72 0.14 250 / 0.45)', borderRadius: '2px' },
+      '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.35)', borderRadius: '2px' },
+      '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.65)' },
+      '.cm-search': { backgroundColor: 'oklch(0.06 0 0)', borderTop: '1px solid oklch(0.32 0 0)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '12.5px', fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
+      '.cm-search input': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(1.0 0 0)', padding: '3px 8px', fontSize: '12.5px', outline: 'none' },
+      '.cm-search input:focus': { borderColor: 'oklch(0.72 0.14 250)' },
+      '.cm-search button': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '4px', color: 'oklch(0.85 0 0)', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' },
+      '.cm-search button:hover': { backgroundColor: 'oklch(0.20 0 0)' },
+      '.cm-search label': { color: 'oklch(0.70 0 0)', fontSize: '12px' },
+      '.cm-foldGutter': { minWidth: '16px' },
+      '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
+      '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.90 0.14 250)' },
+      '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '3px', color: 'oklch(0.70 0 0)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
+      '.cm-tooltip': { backgroundColor: 'oklch(0.08 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '6px', color: 'oklch(1.0 0 0)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.8)', fontSize: '12.5px' },
+      '.cm-tooltip-autocomplete': { borderRadius: '6px' },
+      '.cm-tooltip-autocomplete ul': { maxHeight: '260px' },
+      '.cm-tooltip-autocomplete ul li': { padding: '4px 12px', lineHeight: '1.5' },
+      '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'oklch(0.72 0.14 250 / 0.30)', color: 'oklch(1.0 0 0)' },
+      '.cm-completionIcon': { paddingRight: '6px', opacity: '0.7' },
+      '.cm-completionLabel': { flex: '1' },
+      '.cm-completionDetail': { color: 'oklch(0.60 0 0)', fontSize: '11.5px', fontStyle: 'italic', marginLeft: '8px' },
+      '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
+      '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
+      '.cm-diff-marker': { width: '3px', height: '100%' },
+      '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
+      '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
+      '.cm-minimap-gutter': { backgroundColor: 'oklch(0.05 0 0)', borderLeft: '1px solid oklch(0.25 0 0)' },
+      '.cm-minimap-overlay': { backgroundColor: 'oklch(0.72 0.14 250 / 0.15)', border: '1px solid oklch(0.72 0.14 250 / 0.35)' },
+    }, { dark: true });
+  }
 
   // ── Snippets ───────────────────────────────────────────────────────────────
 
@@ -879,7 +1000,7 @@
       indentOnInput(),
       rectangularSelection(),
       crosshairCursor(),
-      syntaxHighlighting(cairnHighlight),
+      highlightCompartment.of(syntaxHighlighting(buildHighlight('dark'))),
       foldGutter({ markerDOM: (open) => {
         const el = document.createElement('span');
         el.textContent = open ? '▾' : '▸';
@@ -896,7 +1017,7 @@
       buildHoverTooltip(),
       buildDiffGutter(),
       buildMinimapExtension(minimapEnabled),
-      cairnTheme,
+      themeCompartment.of(buildEditorTheme('dark')),
       buildFontSizeTheme(fontSize),
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
@@ -958,6 +1079,14 @@
 
   $: if (view) {
     view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
+  }
+
+  $: if (view) {
+    const theme = $settings.theme ?? 'dark';
+    view.dispatch({ effects: [
+      themeCompartment.reconfigure(buildEditorTheme(theme)),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
+    ]});
   }
 
   onDestroy(() => { view?.destroy(); });
@@ -1030,7 +1159,7 @@
   .editor-mount :global(.cm-scroller) {
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.32 0.008 70) transparent;
+    scrollbar-color: var(--stroke-1) transparent;
   }
 
   .ctx-menu {
@@ -1038,13 +1167,13 @@
     z-index: 9999;
     min-width: 220px;
     padding: 4px 0;
-    background: oklch(0.20 0.010 70);
-    border: 1px solid oklch(0.30 0.008 70);
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-1);
     border-radius: 8px;
-    box-shadow: 0 8px 32px oklch(0.05 0 0 / 0.7), 0 2px 8px oklch(0.05 0 0 / 0.4);
+    box-shadow: 0 8px 32px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.2);
     font-family: 'Inter', 'SF Pro Text', system-ui, sans-serif;
     font-size: 12.5px;
-    color: oklch(0.85 0.005 80);
+    color: var(--fg-1);
     outline: none;
   }
 
@@ -1065,16 +1194,16 @@
   }
 
   .ctx-menu button:hover:not(:disabled) {
-    background: oklch(0.28 0.012 70);
-    color: oklch(0.96 0.005 80);
+    background: var(--bg-4);
+    color: var(--fg-0);
   }
 
   .ctx-menu button:active:not(:disabled) {
-    background: oklch(0.33 0.015 70);
+    background: var(--bg-5);
   }
 
   .ctx-menu button:disabled {
-    color: oklch(0.45 0.005 80);
+    color: var(--fg-4);
     cursor: default;
   }
 
@@ -1092,18 +1221,18 @@
     margin-left: auto;
     padding-left: 16px;
     font-size: 11px;
-    color: oklch(0.50 0.005 80);
+    color: var(--fg-3);
     letter-spacing: 0.02em;
     flex-shrink: 0;
   }
 
   .ctx-menu button:disabled .kbd {
-    color: oklch(0.38 0.005 80);
+    color: var(--fg-4);
   }
 
   .ctx-sep {
     height: 1px;
     margin: 4px 8px;
-    background: oklch(0.28 0.008 70);
+    background: var(--stroke-0);
   }
 </style>

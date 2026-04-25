@@ -47,8 +47,55 @@
   let deletingProject: Project | null = null;
 
   // ── Settings tabs ─────────────────────────────────────────────────────────
-  type SettingsTab = 'general' | 'shortcuts';
+  type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts';
   let settingsTab: SettingsTab = 'general';
+
+  // ── Accent color helpers ───────────────────────────────────────────────────
+  const ACCENT_PRESETS: { label: string; hue: number }[] = [
+    { label: 'Blue',   hue: 250 },
+    { label: 'Purple', hue: 290 },
+    { label: 'Pink',   hue: 340 },
+    { label: 'Red',    hue: 15  },
+    { label: 'Orange', hue: 50  },
+    { label: 'Yellow', hue: 80  },
+    { label: 'Green',  hue: 150 },
+    { label: 'Teal',   hue: 190 },
+    { label: 'Cyan',   hue: 215 },
+  ];
+
+  function hue2rgb(p: number, q: number, t: number): number {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  }
+
+  function hueToHex(hue: number): string {
+    const h = hue / 360, s = 0.55, l = 0.58;
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+    const g = Math.round(hue2rgb(p, q, h) * 255);
+    const b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+
+  function hexToHue(hex: string): number {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max === min) return 0;
+    const d = max - min;
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return Math.round(h * 360);
+  }
+
+  $: accentIsPreset = ACCENT_PRESETS.some(p => p.hue === $settings.accentHue);
 
   // ── Shortcut search ───────────────────────────────────────────────────────
   let shortcutSearch = '';
@@ -345,14 +392,10 @@
 
       <!-- Inner tab bar -->
       <div class="settings-tabs">
-        <button
-          class="settings-tab {settingsTab === 'general' ? 'active' : ''}"
-          on:click={() => { settingsTab = 'general'; recordingId = null; }}
-        >General</button>
-        <button
-          class="settings-tab {settingsTab === 'shortcuts' ? 'active' : ''}"
-          on:click={() => { settingsTab = 'shortcuts'; recordingId = null; }}
-        >Shortcuts</button>
+        <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => { settingsTab = 'general';    recordingId = null; }}>General</button>
+        <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => { settingsTab = 'appearance'; recordingId = null; }}>Appearance</button>
+        <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => { settingsTab = 'editor';     recordingId = null; }}>Editor</button>
+        <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => { settingsTab = 'shortcuts';  recordingId = null; }}>Shortcuts</button>
       </div>
 
       <!-- ── General tab ── -->
@@ -375,8 +418,65 @@
           {/each}
         </div>
 
+      <!-- ── Appearance tab ── -->
+      {:else if settingsTab === 'appearance'}
         <div class="settings-group">
-          <div class="settings-group-title">Customization</div>
+          <div class="settings-group-title">Theme</div>
+          <div class="theme-cards">
+            {#each [['dark', 'Dark'], ['light', 'Light'], ['high-contrast', 'High contrast']] as [val, label]}
+              <button
+                class="theme-card {$settings.theme === val ? 'active' : ''}"
+                on:click={() => settings.save({ theme: val as 'dark' | 'light' | 'high-contrast' })}
+              >
+                <div class="theme-preview theme-preview-{val}">
+                  <div class="tp-bar"></div>
+                  <div class="tp-content">
+                    <div class="tp-line tp-line-wide"></div>
+                    <div class="tp-line tp-line-med"></div>
+                    <div class="tp-line tp-line-short"></div>
+                  </div>
+                </div>
+                <span class="theme-card-label">{label}</span>
+                {#if $settings.theme === val}
+                  <span class="theme-card-check"><Icon name="check" size={11}/></span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Accent color</div>
+          <div class="accent-presets">
+            {#each ACCENT_PRESETS as preset}
+              <button
+                class="accent-preset {$settings.accentHue === preset.hue && accentIsPreset ? 'active' : ''}"
+                title={preset.label}
+                style="background: oklch(0.72 0.14 {preset.hue})"
+                on:click={() => settings.save({ accentHue: preset.hue })}
+              ></button>
+            {/each}
+            <label
+              class="accent-preset accent-preset-custom {!accentIsPreset ? 'active' : ''}"
+              title="Custom color"
+              style="background: oklch(0.72 0.14 {$settings.accentHue})"
+            >
+              <input
+                type="color"
+                value={hueToHex($settings.accentHue)}
+                on:input={(e) => settings.save({ accentHue: hexToHue((e.target as HTMLInputElement).value) })}
+              />
+              {#if accentIsPreset}
+                <span class="accent-custom-icon">+</span>
+              {/if}
+            </label>
+          </div>
+        </div>
+
+      <!-- ── Editor tab ── -->
+      {:else if settingsTab === 'editor'}
+        <div class="settings-group">
+          <div class="settings-group-title">Layout</div>
           <div class="settings-row">
             <div class="settings-row-info">
               <span class="settings-row-label">File tree panel width</span>
@@ -395,18 +495,18 @@
                 }}
               />
               <span class="settings-row-unit">px</span>
-              <button
-                class="settings-reset-btn"
-                title="Reset to default (220 px)"
-                on:click={() => settings.save({ treePanelWidth: 220 })}
-              >
+              <button class="settings-reset-btn" title="Reset to default (220 px)" on:click={() => settings.save({ treePanelWidth: 220 })}>
                 <Icon name="undo" size={12}/>
               </button>
             </div>
           </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Code editor</div>
           <div class="settings-row">
             <div class="settings-row-info">
-              <span class="settings-row-label">Editor font size</span>
+              <span class="settings-row-label">Font size</span>
               <span class="settings-row-desc">Base font size for the code editor.</span>
             </div>
             <div class="settings-row-control">
@@ -422,11 +522,7 @@
                 }}
               />
               <span class="settings-row-unit">px</span>
-              <button
-                class="settings-reset-btn"
-                title="Reset to default (13 px)"
-                on:click={() => settings.save({ editorFontSize: 13 })}
-              >
+              <button class="settings-reset-btn" title="Reset to default (13 px)" on:click={() => settings.save({ editorFontSize: 13 })}>
                 <Icon name="undo" size={12}/>
               </button>
             </div>
@@ -1028,5 +1124,123 @@
     background: var(--accent);
     margin-left: 5px;
     vertical-align: middle;
+  }
+
+  /* ── Appearance: theme cards ── */
+
+  .theme-cards {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .theme-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: var(--r-md);
+    border: 2px solid var(--stroke-0);
+    background: var(--bg-1);
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+    position: relative;
+    width: 110px;
+  }
+  .theme-card:hover { border-color: var(--stroke-2); background: var(--bg-2); }
+  .theme-card.active { border-color: var(--accent); background: var(--bg-2); }
+
+  .theme-preview {
+    width: 88px;
+    height: 58px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid oklch(0 0 0 / 0.15);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .tp-bar { height: 12px; }
+  .tp-content { flex: 1; padding: 6px 7px; display: flex; flex-direction: column; gap: 4px; }
+  .tp-line { height: 4px; border-radius: 2px; }
+  .tp-line-wide  { width: 80%; }
+  .tp-line-med   { width: 55%; }
+  .tp-line-short { width: 35%; }
+
+  /* dark preview */
+  .theme-preview-dark                 { background: oklch(0.16 0.008 70); }
+  .theme-preview-dark .tp-bar         { background: oklch(0.185 0.008 70); }
+  .theme-preview-dark .tp-line        { background: oklch(0.36 0.008 70); }
+  .theme-preview-dark .tp-line-wide   { background: oklch(0.72 0.14 var(--accent-hue) / 0.55); }
+
+  /* light preview */
+  .theme-preview-light                { background: oklch(0.97 0.006 80); }
+  .theme-preview-light .tp-bar        { background: oklch(0.94 0.007 75); }
+  .theme-preview-light .tp-line       { background: oklch(0.80 0.008 70); }
+  .theme-preview-light .tp-line-wide  { background: oklch(0.72 0.14 var(--accent-hue) / 0.7); }
+
+  /* high-contrast preview */
+  .theme-preview-high-contrast                { background: oklch(0.0 0 0); }
+  .theme-preview-high-contrast .tp-bar        { background: oklch(0.08 0 0); }
+  .theme-preview-high-contrast .tp-line       { background: oklch(0.40 0 0); }
+  .theme-preview-high-contrast .tp-line-wide  { background: oklch(0.72 0.14 var(--accent-hue) / 0.8); }
+
+  .theme-card-label { font-size: 12px; color: var(--fg-1); }
+  .theme-card.active .theme-card-label { color: var(--fg-0); }
+  .theme-card-check {
+    position: absolute;
+    top: 6px; right: 6px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Appearance: accent presets ── */
+
+  .accent-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .accent-preset {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .1s, border-color .1s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .accent-preset:hover { transform: scale(1.15); }
+  .accent-preset.active {
+    border-color: var(--fg-0);
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--bg-2);
+  }
+
+  .accent-preset-custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .accent-preset-custom input[type="color"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    border: none;
+    padding: 0;
+  }
+  .accent-custom-icon {
+    font-size: 16px;
+    color: oklch(1 0 0 / 0.7);
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
   }
 </style>

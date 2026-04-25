@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { getSettings, updateSettings, type CairnSettings } from '$lib/services/settings-service';
 
-const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true, editorFontSize: 13, splitMode: false, splitLeftWidth: 0, shortcuts: {}, disabledShortcuts: [] };
+const DEFAULTS: CairnSettings = { treePanelWidth: 220, showMinimap: true, editorFontSize: 13, splitMode: false, splitLeftWidth: 0, shortcuts: {}, disabledShortcuts: [], theme: 'dark', accentHue: 250 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
 
