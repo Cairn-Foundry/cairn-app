@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { EditorView, keymap, hoverTooltip, GutterMarker, gutter } from '@codemirror/view';
   import { EditorState, EditorSelection, Compartment, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { showMinimap } from '@replit/codemirror-minimap';
@@ -36,7 +37,7 @@
     insertTab, toggleComment, toggleBlockComment,
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectLine, indentMore, indentLess,
-    selectParentSyntax, cursorMatchingBracket,
+    selectParentSyntax, cursorMatchingBracket, selectAll,
   } from '@codemirror/commands';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { lintKeymap } from '@codemirror/lint';
@@ -101,6 +102,76 @@
 
   let container: HTMLDivElement;
   let view: EditorView;
+
+  // ── Context menu ────────────────────────────────────────────────────────────
+
+  type ContextMenuState = { x: number; y: number; hasSelection: boolean };
+  let ctxMenu: ContextMenuState | null = null;
+  let ctxMenuEl: HTMLElement | null = null;
+
+  function openContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    if (!view) return;
+
+    const sel = view.state.selection.main;
+    const hasSelection = !sel.empty;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const menuW = 220;
+    const menuH = 320; // approximate
+
+    let x = event.clientX;
+    let y = event.clientY;
+    if (x + menuW > vw - 8) x = Math.max(8, x - menuW);
+    if (y + menuH > vh - 8) y = Math.max(8, y - menuH);
+
+    ctxMenu = { x, y, hasSelection };
+  }
+
+  function closeContextMenu() {
+    ctxMenu = null;
+  }
+
+  function runCmd(cmd: (view: EditorView) => boolean) {
+    closeContextMenu();
+    if (!view) return;
+    cmd(view);
+    view.focus();
+  }
+
+  async function cmdCopy() {
+    closeContextMenu();
+    if (!view) return;
+    const { from, to } = view.state.selection.main;
+    const text = view.state.sliceDoc(from, to);
+    await navigator.clipboard.writeText(text);
+    view.focus();
+  }
+
+  async function cmdCut() {
+    closeContextMenu();
+    if (!view || readonly) return;
+    const { from, to } = view.state.selection.main;
+    const text = view.state.sliceDoc(from, to);
+    await navigator.clipboard.writeText(text);
+    view.dispatch({ changes: { from, to } });
+    view.focus();
+  }
+
+  async function cmdPaste() {
+    closeContextMenu();
+    if (!view || readonly) return;
+    const text = await readText();
+    if (text == null) return;
+    const { from, to } = view.state.selection.main;
+    view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } });
+    view.focus();
+  }
+
+  function handleCtxKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') closeContextMenu();
+  }
 
   // ── Git diff gutter ────────────────────────────────────────────────────────
 
@@ -826,6 +897,7 @@
       }),
       EditorView.domEventHandlers({
         blur: () => { onBlur?.(); return false; },
+        contextmenu: (e) => { openContextMenu(e); return true; },
       }),
     ];
   }
@@ -874,7 +946,62 @@
   onDestroy(() => { view?.destroy(); });
 </script>
 
+<svelte:window
+  on:keydown={(e) => { if (ctxMenu) handleCtxKeydown(e); }}
+  on:mousedown={() => { if (ctxMenu) closeContextMenu(); }}
+/>
+
 <div bind:this={container} class="editor-mount"></div>
+
+{#if ctxMenu}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+  <div
+    bind:this={ctxMenuEl}
+    class="ctx-menu"
+    style="left:{ctxMenu.x}px;top:{ctxMenu.y}px"
+    role="menu"
+    tabindex="-1"
+    on:mousedown|stopPropagation={() => {}}
+  >
+    <button role="menuitem" disabled={!ctxMenu.hasSelection} on:click={cmdCopy}>
+      <span class="icon">⎘</span>Copy<span class="kbd">⌘C</span>
+    </button>
+    <button role="menuitem" disabled={!ctxMenu.hasSelection || readonly} on:click={cmdCut}>
+      <span class="icon">✂</span>Cut<span class="kbd">⌘X</span>
+    </button>
+    <button role="menuitem" disabled={readonly} on:click={cmdPaste}>
+      <span class="icon">⎗</span>Paste<span class="kbd">⌘V</span>
+    </button>
+    <button role="menuitem" on:click={() => runCmd(selectAll)}>
+      <span class="icon"></span>Select All<span class="kbd">⌘A</span>
+    </button>
+
+    <div class="ctx-sep" role="separator"></div>
+
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleComment)}>
+      <span class="icon"></span>Toggle Comment<span class="kbd">⌘/</span>
+    </button>
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleBlockComment)}>
+      <span class="icon"></span>Toggle Block Comment<span class="kbd">⇧⌥A</span>
+    </button>
+
+    <div class="ctx-sep" role="separator"></div>
+
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineUp)}>
+      <span class="icon">↑</span>Move Line Up<span class="kbd">⌥↑</span>
+    </button>
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineDown)}>
+      <span class="icon">↓</span>Move Line Down<span class="kbd">⌥↓</span>
+    </button>
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(copyLineDown)}>
+      <span class="icon"></span>Duplicate Line<span class="kbd">⇧⌥↓</span>
+    </button>
+    <button role="menuitem" disabled={readonly} on:click={() => runCmd(deleteLine)}>
+      <span class="icon"></span>Delete Line<span class="kbd">⌘⇧K</span>
+    </button>
+  </div>
+{/if}
 
 <style>
   .editor-mount {
@@ -887,5 +1014,79 @@
     overflow: auto;
     scrollbar-width: thin;
     scrollbar-color: oklch(0.32 0.008 70) transparent;
+  }
+
+  .ctx-menu {
+    position: fixed;
+    z-index: 9999;
+    min-width: 220px;
+    padding: 4px 0;
+    background: oklch(0.20 0.010 70);
+    border: 1px solid oklch(0.30 0.008 70);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px oklch(0.05 0 0 / 0.7), 0 2px 8px oklch(0.05 0 0 / 0.4);
+    font-family: 'Inter', 'SF Pro Text', system-ui, sans-serif;
+    font-size: 12.5px;
+    color: oklch(0.85 0.005 80);
+    outline: none;
+  }
+
+  .ctx-menu button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 12px 5px 10px;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 80ms;
+  }
+
+  .ctx-menu button:hover:not(:disabled) {
+    background: oklch(0.28 0.012 70);
+    color: oklch(0.96 0.005 80);
+  }
+
+  .ctx-menu button:active:not(:disabled) {
+    background: oklch(0.33 0.015 70);
+  }
+
+  .ctx-menu button:disabled {
+    color: oklch(0.45 0.005 80);
+    cursor: default;
+  }
+
+  .ctx-menu .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    font-size: 11px;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .ctx-menu .kbd {
+    margin-left: auto;
+    padding-left: 16px;
+    font-size: 11px;
+    color: oklch(0.50 0.005 80);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
+  .ctx-menu button:disabled .kbd {
+    color: oklch(0.38 0.005 80);
+  }
+
+  .ctx-sep {
+    height: 1px;
+    margin: 4px 8px;
+    background: oklch(0.28 0.008 70);
   }
 </style>
