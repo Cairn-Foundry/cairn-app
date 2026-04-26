@@ -516,7 +516,7 @@ pub struct FileNode {
     pub children: Option<Vec<FileNode>>,
 }
 
-fn read_dir_recursive(dir: &PathBuf, root: &PathBuf) -> Vec<FileNode> {
+fn read_dir_recursive(dir: &PathBuf, root: &PathBuf, show_hidden: bool) -> Vec<FileNode> {
     let mut entries: Vec<FileNode> = match fs::read_dir(dir) {
         Ok(rd) => rd.filter_map(|e| e.ok()).collect::<Vec<_>>(),
         Err(_) => return vec![],
@@ -525,11 +525,10 @@ fn read_dir_recursive(dir: &PathBuf, root: &PathBuf) -> Vec<FileNode> {
     .filter_map(|entry| {
         let path = entry.path();
         let name = path.file_name()?.to_string_lossy().to_string();
-        // Skip hidden files and directories
-        if name.starts_with('.') { return None; }
+        if !show_hidden && name.starts_with('.') { return None; }
         let rel = path.strip_prefix(root).ok()?.to_string_lossy().to_string();
         let is_dir = path.is_dir();
-        let children = if is_dir { Some(read_dir_recursive(&path, root)) } else { None };
+        let children = if is_dir { Some(read_dir_recursive(&path, root, show_hidden)) } else { None };
         Some(FileNode { name, path: rel, is_dir, children })
     })
     .collect();
@@ -543,11 +542,11 @@ fn read_dir_recursive(dir: &PathBuf, root: &PathBuf) -> Vec<FileNode> {
 }
 
 #[tauri::command]
-fn read_dir_tree(path: String) -> Result<Vec<FileNode>, String> {
+fn read_dir_tree(path: String, show_hidden: bool) -> Result<Vec<FileNode>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);
     if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-    Ok(read_dir_recursive(&root, &root))
+    Ok(read_dir_recursive(&root, &root, show_hidden))
 }
 
 #[tauri::command]

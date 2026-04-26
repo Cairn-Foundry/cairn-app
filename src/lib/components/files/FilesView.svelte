@@ -126,29 +126,21 @@ import { get } from 'svelte/store';
   let rawTree: FileNode[] = [];
   let tree: FileNode[] = [];
   let gitStatusMap: GitStatusMap = {};
+  let showHidden = false;
+  let multiSelected = new Set<string>();
 
-  function withPhantomDeleted(nodes: FileNode[], map: GitStatusMap, prefix = ''): FileNode[] {
-    const existingPaths = new Set(nodes.map(n => n.path));
-    const levelPrefix = prefix ? prefix + '/' : '';
-    const phantoms: FileNode[] = [];
+  // ── Pointer-event drag state ──────────────────────────────────────────────────
+  let dragSrcNode: FileNode | null = null;
+  let dragOverDir: string | null = null;
+  let dragActive = false;
+  let dragGhostEl: HTMLDivElement | null = null;
+  let dragPointerStartX = 0;
+  let dragPointerStartY = 0;
+  let dragCaptureEl: HTMLElement | null = null;
+  let dragJustEnded = false;
 
-    for (const [filePath, status] of Object.entries(map)) {
-      if (status !== 'deleted') continue;
-      if (!filePath.startsWith(levelPrefix)) continue;
-      const rel = filePath.slice(levelPrefix.length);
-      if (rel.includes('/')) continue;
-      if (!existingPaths.has(filePath)) {
-        phantoms.push({ name: rel, path: filePath, isDir: false });
-      }
-    }
-
-    const updated = nodes.map(node =>
-      node.isDir && node.children
-        ? { ...node, children: withPhantomDeleted(node.children, map, node.path) }
-        : node
-    );
-
-    return phantoms.length ? [...updated, ...phantoms] : updated;
+  function buildTree(raw: FileNode[], _map: GitStatusMap): FileNode[] {
+    return raw;
   }
   let expanded = new Set<string>();
   let tabs: Tab[] = [];
@@ -398,7 +390,7 @@ import { get } from 'svelte/store';
   interface ContextMenu { x: number; y: number; node: FileNode | null }
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 
-  interface FileClipboard { node: FileNode; srcWorktreePath: string; op: 'copy' | 'cut' }
+  interface FileClipboard { nodes: FileNode[]; srcWorktreePath: string; op: 'copy' | 'cut' }
 
   let contextMenu: ContextMenu | null = null;
   let editState: EditState | null = null;
@@ -443,39 +435,101 @@ import { get } from 'svelte/store';
     return candidate;
   }
 
-  async function handleContextAction(action: ContextAction) {
-    const node = contextMenu?.node ?? null;
-    closeContextMenu();
+  function flattenToNodes(paths: Set<string>): FileNode[] {
+    const result: FileNode[] = [];
+    function search(nodes: FileNode[]) {
+      for (const n of nodes) {
+        if (paths.has(n.path)) result.push(n);
+        if (n.isDir && n.children) search(n.children);
+      }
+    }
+    search(tree);
+    return result;
+  }
 
-    if (action === 'cut' && node) {
-      fileClipboard = { node, srcWorktreePath: worktreePath ?? '', op: 'cut' };
-      return;
+  function collectFilePaths(nodes: FileNode[]): Set<string> {
+    const result = new Set<string>();
+    function walk(ns: FileNode[]) {
+      for (const n of ns) {
+        if (!n.isDir) result.add(n.path);
+        if (n.isDir && n.children) walk(n.children);
+      }
     }
-    if (action === 'copy' && node) {
-      fileClipboard = { node, srcWorktreePath: worktreePath ?? '', op: 'copy' };
-      return;
+    walk(nodes);
+    return result;
+  }
+
+  function flattenVisible(nodes: FileNode[]): FileNode[] {
+    const result: FileNode[] = [];
+    for (const n of nodes) {
+      result.push(n);
+      if (n.isDir && n.children && expanded.has(n.path)) result.push(...flattenVisible(n.children));
     }
-    if (action === 'paste' && fileClipboard && worktreePath) {
-      const { node: src, srcWorktreePath, op } = fileClipboard;
-      const targetDir = node?.isDir ? node.path : (node?.path.includes('/') ? node.path.split('/').slice(0, -1).join('/') : '');
-      const siblings = new Set(
-        (targetDir ? tree.find(n => n.path === targetDir)?.children : tree)?.map(n => n.name) ?? []
-      );
-      const destName = pasteDestName(src.name, siblings);
-      const destRelPath = targetDir ? `${targetDir}/${destName}` : destName;
-      const fromAbs = `${srcWorktreePath}/${src.path}`;
-      const toAbs = `${worktreePath}/${destRelPath}`;
-      try {
+    return result;
+  }
+
+  function isEditorFocused(): boolean {
+    const el = document.activeElement;
+    if (!el) return false;
+    return (
+      el.closest('.cm-editor') !== null ||
+      el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA'
+    );
+  }
+
+  async function pasteClipboard(clipboard: FileClipboard, targetNode: FileNode | null, wtp: string) {
+    const { nodes: srcs, srcWorktreePath, op } = clipboard;
+    const targetDir = targetNode?.isDir
+      ? targetNode.path
+      : targetNode?.path.includes('/')
+        ? targetNode.path.split('/').slice(0, -1).join('/')
+        : '';
+    try {
+      for (const src of srcs) {
+        const siblings = new Set(
+          (targetDir
+            ? flattenVisible(tree).find(n => n.path === targetDir)?.children
+            : tree
+          )?.map(n => n.name) ?? []
+        );
+        const destName = pasteDestName(src.name, siblings);
+        const destRelPath = targetDir ? `${targetDir}/${destName}` : destName;
+        const fromAbs = `${srcWorktreePath}/${src.path}`;
+        const toAbs = `${wtp}/${destRelPath}`;
         if (op === 'copy') {
           await copyPath(fromAbs, toAbs);
         } else {
           await renamePath(fromAbs, toAbs);
           tabs = tabs.map(t => t.path === src.path ? { ...t, path: destRelPath } : t);
-          fileClipboard = null;
         }
-        if (targetDir) { expanded.add(targetDir); expanded = expanded; }
-        await loadTree(worktreePath);
-      } catch (e) { error = String(e); }
+      }
+      if (op === 'cut') fileClipboard = null;
+      if (targetDir) { expanded.add(targetDir); expanded = expanded; }
+      await loadTree(wtp);
+    } catch (e) { error = String(e); }
+  }
+
+  async function handleContextAction(action: ContextAction) {
+    const node = contextMenu?.node ?? null;
+    closeContextMenu();
+
+    if (action === 'cut' && node) {
+      const srcs = multiSelected.size > 1 && multiSelected.has(node.path)
+        ? flattenToNodes(multiSelected)
+        : [node];
+      fileClipboard = { nodes: srcs, srcWorktreePath: worktreePath ?? '', op: 'cut' };
+      return;
+    }
+    if (action === 'copy' && node) {
+      const srcs = multiSelected.size > 1 && multiSelected.has(node.path)
+        ? flattenToNodes(multiSelected)
+        : [node];
+      fileClipboard = { nodes: srcs, srcWorktreePath: worktreePath ?? '', op: 'copy' };
+      return;
+    }
+    if (action === 'paste' && fileClipboard && worktreePath) {
+      await pasteClipboard(fileClipboard, node, worktreePath);
       return;
     }
     if (action === 'reveal') {
@@ -602,7 +656,7 @@ import { get } from 'svelte/store';
   $: tooltipSearch = `Search (${bindingToLabels($shortcuts.searchFiles).join('')})`;
   $: tooltipSplit  = `Split Editor (${bindingToLabels($shortcuts.splitEditor).join('')})`;
 
-  function handleGlobalKey(e: KeyboardEvent) {
+  async function handleGlobalKey(e: KeyboardEvent) {
     if ($activeScreen !== 'workspace') return;
     if (matchesShortcut(e, $activeShortcuts.quickOpen)) {
       e.preventDefault();
@@ -681,6 +735,68 @@ import { get } from 'svelte/store';
       e.preventDefault();
       onGoSettings?.();
     }
+    // ── File tree shortcuts (inactive when editor/input has focus) ───────────
+    if (!isEditorFocused()) {
+      if (matchesShortcut(e, $activeShortcuts.treeSelectAll)) {
+        e.preventDefault();
+        multiSelected = new Set(flattenVisible(tree).map(n => n.path));
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeCopy) && multiSelected.size > 0 && worktreePath) {
+        e.preventDefault();
+        fileClipboard = { nodes: flattenToNodes(multiSelected), srcWorktreePath: worktreePath, op: 'copy' };
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeCut) && multiSelected.size > 0 && worktreePath) {
+        e.preventDefault();
+        fileClipboard = { nodes: flattenToNodes(multiSelected), srcWorktreePath: worktreePath, op: 'cut' };
+      }
+      if (matchesShortcut(e, $activeShortcuts.treePaste) && fileClipboard && worktreePath) {
+        e.preventDefault();
+        const targetPath = [...multiSelected][0] ?? null;
+        const targetNode = targetPath ? flattenVisible(tree).find(n => n.path === targetPath) ?? null : null;
+        await pasteClipboard(fileClipboard, targetNode, worktreePath);
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeDelete) && multiSelected.size > 0 && worktreePath) {
+        e.preventDefault();
+        const paths = [...multiSelected];
+        const label = paths.length === 1
+          ? `"${paths[0].split('/').pop()}"`
+          : `${paths.length} items`;
+        if (!confirm(`Delete ${label}?`)) return;
+        try {
+          for (const p of paths) {
+            await deletePath(`${worktreePath}/${p}`);
+            tabs = tabs.filter(t => !t.path.startsWith(p));
+          }
+          if (activeTabIdx >= tabs.length) activeTabIdx = tabs.length - 1;
+          multiSelected = new Set();
+          await loadTree(worktreePath);
+        } catch (e2) { error = String(e2); }
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeRename) && multiSelected.size === 1) {
+        e.preventDefault();
+        const path = [...multiSelected][0];
+        const node = flattenVisible(tree).find(n => n.path === path);
+        if (node) startEdit({ type: 'rename', node, parentPath: node.path.includes('/') ? node.path.split('/').slice(0, -1).join('/') : '', value: node.name });
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeNewFile)) {
+        e.preventDefault();
+        const parentPath = [...multiSelected].find(p => {
+          const n = flattenVisible(tree).find(x => x.path === p);
+          return n?.isDir;
+        }) ?? selectedDir;
+        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
+        startEdit({ type: 'new-file', node: null, parentPath, value: '' });
+      }
+      if (matchesShortcut(e, $activeShortcuts.treeNewFolder)) {
+        e.preventDefault();
+        const parentPath = [...multiSelected].find(p => {
+          const n = flattenVisible(tree).find(x => x.path === p);
+          return n?.isDir;
+        }) ?? selectedDir;
+        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
+        startEdit({ type: 'new-dir', node: null, parentPath, value: '' });
+      }
+    }
   }
 
   onMount(() => {
@@ -691,7 +807,7 @@ import { get } from 'svelte/store';
       const updated = await gitStatus(worktreePath).catch(() => null);
       if (updated !== null) {
         gitStatusMap = updated;
-        tree = withPhantomDeleted(rawTree, updated);
+        tree = buildTree(rawTree, updated);
       }
     }, 3000);
 
@@ -964,10 +1080,10 @@ import { get } from 'svelte/store';
     error = '';
     try {
       [rawTree, gitStatusMap] = await Promise.all([
-        readDirTree(root),
+        readDirTree(root, showHidden),
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
-      tree = withPhantomDeleted(rawTree, gitStatusMap);
+      tree = buildTree(rawTree, gitStatusMap);
       loadDiffHunks(tabs[activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
@@ -975,6 +1091,10 @@ import { get } from 'svelte/store';
       loading = false;
     }
   }
+
+  $: tree = buildTree(rawTree, gitStatusMap);
+  $: treeFilePaths = collectFilePaths(rawTree);
+  $: cutPaths = fileClipboard?.op === 'cut' ? new Set(fileClipboard.nodes.map(n => n.path)) : new Set<string>();
 
   async function openFile(node: FileNode) {
     if (splitMode && focusedPane === 1) { await openFileInPane2(node); return; }
@@ -1252,7 +1372,7 @@ import { get } from 'svelte/store';
     const prefix = node.path + '/';
     let best: number = GIT_STATUS_PRIORITY.length;
     for (const [path, status] of Object.entries(gitStatusMap)) {
-      if (path.startsWith(prefix)) {
+      if (path.startsWith(prefix) && status !== 'deleted') {
         const idx = GIT_STATUS_PRIORITY.indexOf(status as typeof GIT_STATUS_PRIORITY[number]);
         if (idx !== -1 && idx < best) best = idx;
       }
@@ -1283,6 +1403,183 @@ import { get } from 'svelte/store';
     const jump = pendingJump2;
     pendingJump2 = null;
     setTimeout(() => editorRef2?.jumpTo(jump.line, jump.col), 60);
+  }
+
+  // ── Multi-select ──────────────────────────────────────────────────────────────
+
+  function handleTreeNodeClick(e: MouseEvent, node: FileNode) {
+    if (dragJustEnded) { dragJustEnded = false; return; }
+    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+      const next = new Set(multiSelected);
+      if (e.metaKey || e.ctrlKey) {
+        if (next.has(node.path)) next.delete(node.path);
+        else next.add(node.path);
+      } else {
+        // ⇧+click: always add
+        next.add(node.path);
+      }
+      multiSelected = next;
+      return;
+    }
+    multiSelected = new Set([node.path]);
+    openFile(node);
+  }
+
+  // ── Drag-and-drop (pointer-event based, works in WKWebView) ──────────────────
+
+  function getSiblingNamesInDir(dirPath: string): Set<string> {
+    if (!dirPath) return new Set(rawTree.map(n => n.name));
+    function find(nodes: FileNode[], p: string): FileNode | null {
+      for (const n of nodes) {
+        if (n.path === p) return n;
+        if (n.isDir && n.children) { const f = find(n.children, p); if (f) return f; }
+      }
+      return null;
+    }
+    return new Set(find(rawTree, dirPath)?.children?.map(n => n.name) ?? []);
+  }
+
+  function resolveDestName(srcPath: string, targetDir: string): string {
+    const name = srcPath.split('/').pop()!;
+    const srcDir = srcPath.includes('/') ? srcPath.split('/').slice(0, -1).join('/') : '';
+    const siblings = getSiblingNamesInDir(targetDir);
+    if (srcDir === targetDir) siblings.delete(name);
+    return pasteDestName(name, siblings);
+  }
+
+  function createDragGhost(label: string) {
+    removeDragGhost();
+    const el = document.createElement('div');
+    el.className = 'drag-ghost';
+    el.textContent = label;
+    el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;background:var(--bg-4);color:var(--fg-0);border:1px solid var(--accent);border-radius:4px;padding:3px 8px;font-size:12px;white-space:nowrap;opacity:0.9;';
+    document.body.appendChild(el);
+    dragGhostEl = el;
+  }
+
+  function moveGhost(x: number, y: number) {
+    if (!dragGhostEl) return;
+    dragGhostEl.style.left = `${x + 12}px`;
+    dragGhostEl.style.top = `${y + 12}px`;
+  }
+
+  function removeDragGhost() {
+    dragGhostEl?.remove();
+    dragGhostEl = null;
+  }
+
+  function findDropTargetDir(x: number, y: number): string | null {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const btn = (el as HTMLElement).closest('[data-tree-dir]') as HTMLElement | null;
+    if (!btn) return null;
+    return btn.getAttribute('data-tree-dir') ?? null;
+  }
+
+  function onNodePointerDown(e: PointerEvent, node: FileNode) {
+    if (gitStatusMap[node.path] === 'deleted') return;
+    if (e.button !== 0) return;
+    dragSrcNode = node;
+    dragActive = false;
+    dragPointerStartX = e.clientX;
+    dragPointerStartY = e.clientY;
+    dragCaptureEl = e.currentTarget as HTMLElement;
+    dragCaptureEl.setPointerCapture(e.pointerId);
+  }
+
+  function onNodePointerMove(e: PointerEvent) {
+    if (!dragSrcNode || !dragCaptureEl) return;
+    const dx = e.clientX - dragPointerStartX;
+    const dy = e.clientY - dragPointerStartY;
+    if (!dragActive && Math.sqrt(dx * dx + dy * dy) < 6) return;
+
+    if (!dragActive) {
+      dragActive = true;
+      const sources = multiSelected.size > 1 && multiSelected.has(dragSrcNode.path)
+        ? `${multiSelected.size} items`
+        : dragSrcNode.name;
+      createDragGhost(sources);
+    }
+
+    moveGhost(e.clientX, e.clientY);
+
+    const targetDirAttr = findDropTargetDir(e.clientX, e.clientY);
+    if (targetDirAttr === null) {
+      dragOverDir = null;
+      return;
+    }
+    const targetDir = targetDirAttr; // '' = root
+    const sources = multiSelected.size > 1 && multiSelected.has(dragSrcNode.path)
+      ? [...multiSelected]
+      : [dragSrcNode.path];
+      
+    const invalid = sources.some(s => s === targetDir || targetDir.startsWith(s + '/'));
+    dragOverDir = invalid ? null : targetDir;
+  }
+
+  async function onNodePointerUp(e: PointerEvent) {
+    const src = dragSrcNode;
+    const wasActive = dragActive;
+    const target = dragOverDir;
+
+    dragSrcNode = null;
+    dragActive = false;
+    dragOverDir = null;
+    dragCaptureEl = null;
+    removeDragGhost();
+
+    if (wasActive) dragJustEnded = true;
+    if (!wasActive || target === null || !src || !worktreePath) return;
+
+    const sources = multiSelected.size > 1 && multiSelected.has(src.path)
+      ? [...multiSelected]
+      : [src.path];
+
+    for (const srcPath of sources) {
+      const destName = resolveDestName(srcPath, target);
+      const destRel = target ? `${target}/${destName}` : destName;
+      if (destRel === srcPath) continue;
+      try {
+        await renamePath(`${worktreePath}/${srcPath}`, `${worktreePath}/${destRel}`);
+        tabs = tabs.map(t => t.path === srcPath ? { ...t, path: destRel } : t);
+        tabs2 = tabs2.map(t => t.path === srcPath ? { ...t, path: destRel } : t);
+      } catch (err) { error = String(err); }
+    }
+    multiSelected = new Set();
+    await loadTree(worktreePath);
+  }
+
+  // ── Bulk delete ───────────────────────────────────────────────────────────────
+
+  function isPathDeleted(tabPath: string): boolean {
+    for (const p of multiSelected) {
+      if (tabPath === p || tabPath.startsWith(p + '/')) return true;
+    }
+    return false;
+  }
+
+  async function bulkDelete() {
+    closeContextMenu();
+    if (!worktreePath || multiSelected.size === 0) return;
+    for (const p of multiSelected) {
+      try { await deletePath(`${worktreePath}/${p}`); } catch {}
+    }
+    const activeWasDeleted = activeTabIdx >= 0 && isPathDeleted(tabs[activeTabIdx]?.path ?? '');
+    const activeWasDeleted2 = activeTabIdx2 >= 0 && isPathDeleted(tabs2[activeTabIdx2]?.path ?? '');
+    tabs = tabs.filter(t => !isPathDeleted(t.path));
+    tabs2 = tabs2.filter(t => !isPathDeleted(t.path));
+    if (activeWasDeleted) {
+      activeTabIdx = tabs.length > 0 ? 0 : -1;
+    } else if (activeTabIdx >= tabs.length) {
+      activeTabIdx = tabs.length - 1;
+    }
+    if (activeWasDeleted2) {
+      activeTabIdx2 = tabs2.length > 0 ? 0 : -1;
+    } else if (activeTabIdx2 >= tabs2.length) {
+      activeTabIdx2 = tabs2.length - 1;
+    }
+    multiSelected = new Set();
+    await loadTree(worktreePath);
   }
 
   function collectDirPaths(nodes: FileNode[], acc: Set<string>) {
@@ -1335,6 +1632,9 @@ import { get } from 'svelte/store';
         <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
           <Icon name="columns" size={12}/>
         </button>
+        <button type="button" class="tree-action-btn {showHidden ? 'active' : ''}" data-tooltip="Toggle Hidden Files" on:click={(e) => { e.stopPropagation(); showHidden = !showHidden; if (worktreePath) loadTree(worktreePath); }}>
+          <Icon name="eye" size={12}/>
+        </button>
 
       </div>
     </div>
@@ -1348,9 +1648,10 @@ import { get } from 'svelte/store';
     {:else}
       <button
         type="button"
-        class="file-tree-item tree-root-row {selectedDir === '' ? 'selected-dir' : ''}"
+        class="file-tree-item tree-root-row {selectedDir === '' ? 'selected-dir' : ''} {dragOverDir === '' ? 'drag-over' : ''}"
         style="padding-left: 12px"
-        on:click={() => { selectedDir = ''; }}
+        data-tree-dir=""
+        on:click={() => { selectedDir = ''; multiSelected = new Set(); }}
         on:contextmenu={(e) => openContextMenu(e, null)}
       >
         <Icon name={selectedDir === '' ? 'folder-open' : 'folder'} size={13}/>
@@ -1520,10 +1821,10 @@ import { get } from 'svelte/store';
         <div class="editor-placeholder">
           <Icon name="file" size={32}/>
           <div>Select a file to edit</div>
-          {#if recentFiles.length > 0}
+          {#if recentFiles.filter(p => treeFilePaths.has(p)).length > 0}
             <div class="recent-files">
               <div class="recent-files-label">Recent</div>
-              {#each recentFiles as path}
+              {#each recentFiles.filter(p => treeFilePaths.has(p)) as path}
                 <button
                   type="button"
                   class="recent-file-btn"
@@ -1761,6 +2062,12 @@ import { get } from 'svelte/store';
     <button type="button" class="ctx-item" disabled={!fileClipboard} on:click={() => handleContextAction('paste')}>
       <Icon name="clipboard" size={13}/> Paste
     </button>
+    {#if multiSelected.size > 1}
+      <div class="ctx-sep"></div>
+      <button type="button" class="ctx-item ctx-item-danger" on:click={bulkDelete}>
+        <Icon name="trash" size={13}/> Delete {multiSelected.size} items
+      </button>
+    {/if}
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-path')}>
       <Icon name="copy" size={13}/> Copy Path
@@ -1803,20 +2110,21 @@ import { get } from 'svelte/store';
   {:else}
     <button
       type="button"
-      class="file-tree-item {tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTab?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''} {nodeGitStatus(node) ? 'git-' + nodeGitStatus(node) : ''}"
+      class="file-tree-item {tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTab?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''} {nodeGitStatus(node) ? 'git-' + nodeGitStatus(node) : ''} {multiSelected.has(node.path) ? 'multi-selected' : ''} {node.isDir && dragOverDir === node.path ? 'drag-over' : ''} {cutPaths.has(node.path) ? 'file-cut' : ''}"
       style="padding-left: {12 + depth * 14}px"
-      on:click={(e) => {
-        if (!node.isDir && (e.metaKey || e.ctrlKey)) {
-          if (!splitMode) toggleSplit();
-          tick().then(() => openFileInPane2(node));
-        } else {
-          openFile(node);
-        }
-      }}
+      data-tree-dir={node.isDir ? node.path : undefined}
+      on:click={(e) => handleTreeNodeClick(e, node)}
       on:contextmenu={(e) => openContextMenu(e, node)}
+      on:pointerdown={(e) => onNodePointerDown(e, node)}
+      on:pointermove={onNodePointerMove}
+      on:pointerup={onNodePointerUp}
+      on:pointercancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); }}
     >
       <Icon name={fileIcon(node)} size={13}/>
       <span class="file-tree-name">{node.name}</span>
+      {#if tabs.some(t => t.path === node.path && t.pending !== t.content) || tabs2.some(t => t.path === node.path && t.pending !== t.content)}
+        <span class="tab-dot">●</span>
+      {/if}
       {#if loadingPaths.has(node.path)}
         <span class="tree-loading-dot">…</span>
       {/if}
@@ -1918,7 +2226,12 @@ import { get } from 'svelte/store';
   .file-tree-item.git-deleted .file-tree-name { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
   .file-tree-item.git-deleted { cursor: default; }
   .file-tree-item.git-staged .file-tree-name { color: var(--accent); }
+  .file-tree-item.multi-selected { background: var(--accent-weak); color: var(--fg-0); }
+  .file-tree-item.file-cut { opacity: 0.45; }
+  .file-tree-item.file-cut .file-tree-name { text-decoration: underline dashed; text-underline-offset: 3px; }
+  .file-tree-item.drag-over { background: var(--accent-weak); box-shadow: inset 0 0 0 1px var(--accent); }
 
+  button.file-tree-item :global(*) { pointer-events: none; }
   .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-loading-dot { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
 

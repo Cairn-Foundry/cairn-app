@@ -225,6 +225,63 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
     group: 'editor',
     default: { key: 'd', mod: true, shift: true, alt: false, ctrl: false },
   },
+  // ── File tree group ────────────────────────────────────────────────────────
+  {
+    id: 'treeSelectAll',
+    label: 'Select all in tree',
+    description: 'Select every visible file and folder in the file tree',
+    group: 'tree',
+    default: { key: 'a', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeCopy',
+    label: 'Copy file(s)',
+    description: 'Copy the selected file(s) to the clipboard',
+    group: 'tree',
+    default: { key: 'c', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeCut',
+    label: 'Cut file(s)',
+    description: 'Cut the selected file(s) to the clipboard',
+    group: 'tree',
+    default: { key: 'x', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treePaste',
+    label: 'Paste file(s)',
+    description: 'Paste clipboard file(s) into the selected or active directory',
+    group: 'tree',
+    default: { key: 'v', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeDelete',
+    label: 'Delete file(s)',
+    description: 'Delete the selected file(s) and folder(s)',
+    group: 'tree',
+    default: { key: 'Backspace', mod: false, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeRename',
+    label: 'Rename file',
+    description: 'Rename the selected file or folder',
+    group: 'tree',
+    default: { key: 'Enter', mod: false, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeNewFile',
+    label: 'New file',
+    description: 'Create a new file in the active directory',
+    group: 'tree',
+    default: { key: 'n', mod: true, shift: false, alt: false, ctrl: false },
+  },
+  {
+    id: 'treeNewFolder',
+    label: 'New folder',
+    description: 'Create a new folder in the active directory',
+    group: 'tree',
+    default: { key: 'n', mod: true, shift: true, alt: false, ctrl: false },
+  },
 ];
 
 export const shortcuts = derived(settings, ($s) => {

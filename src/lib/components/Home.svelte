@@ -77,7 +77,7 @@
       label: d.label,
       desc: d.description,
       tab: 'shortcuts' as SettingsTab,
-      group: ({ files: 'Files', editor: 'Code Editor', tabs: 'Tabs', view: 'View' } as Record<string, string>)[d.group] ?? 'Other',
+      group: ({ files: 'Files', editor: 'Code Editor', tabs: 'Tabs', view: 'View', tree: 'File Tree' } as Record<string, string>)[d.group] ?? 'Other',
     })),
   ];
 
@@ -868,8 +868,8 @@
           </button>
         </div>
 
-        {#each ['files', 'tabs', 'view', 'editor'] as group}
-          {@const label = ({ files: 'Files', tabs: 'Tabs', view: 'View', editor: 'Code Editor' } as Record<string, string>)[group] ?? group}
+        {#each ['files', 'tree', 'tabs', 'view', 'editor'] as group}
+          {@const label = ({ files: 'Files', tabs: 'Tabs', view: 'View', editor: 'Code Editor', tree: 'File Tree' } as Record<string, string>)[group] ?? group}
           {@const defs = filteredShortcutDefs.filter(d => d.group === group)}
           {#if defs.length > 0}
             <div class="settings-group" style="margin-top: 20px; max-width: 640px;">

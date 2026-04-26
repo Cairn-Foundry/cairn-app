@@ -34,7 +34,16 @@ export type ShortcutId =
   // View (global)
   | 'toggleSidebar'
   | 'commandPalette'
-  | 'openSettings';
+  | 'openSettings'
+  // File tree
+  | 'treeSelectAll'
+  | 'treeCopy'
+  | 'treeCut'
+  | 'treePaste'
+  | 'treeDelete'
+  | 'treeRename'
+  | 'treeNewFile'
+  | 'treeNewFolder';
 
 export interface ShortcutBinding {
   key: string;
@@ -48,7 +57,7 @@ export interface ShortcutDef {
   id: ShortcutId;
   label: string;
   description: string;
-  group: 'files' | 'editor' | 'tabs' | 'view';
+  group: 'files' | 'editor' | 'tabs' | 'view' | 'tree';
   default: ShortcutBinding;
 }
 

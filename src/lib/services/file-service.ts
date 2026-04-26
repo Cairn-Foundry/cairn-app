@@ -7,8 +7,8 @@ export interface FileNode {
   children?: FileNode[];
 }
 
-export async function readDirTree(path: string): Promise<FileNode[]> {
-  return invoke<FileNode[]>('read_dir_tree', { path });
+export async function readDirTree(path: string, showHidden = false): Promise<FileNode[]> {
+  return invoke<FileNode[]>('read_dir_tree', { path, showHidden });
 }
 
 export async function readFile(path: string): Promise<string | null> {
