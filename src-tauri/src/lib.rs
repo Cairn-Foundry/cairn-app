@@ -830,9 +830,15 @@ pub struct CairnSettings {
     pub workflow_tabs: Vec<WorkflowTabConfig>,
     #[serde(rename = "sidebarPosition", default = "default_sidebar_position")]
     pub sidebar_position: String,
+    #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
+    pub show_whitespace: bool,
+    #[serde(rename = "saveOn", default = "default_save_on")]
+    pub save_on: String,
 }
 
 fn default_sidebar_position() -> String { "left".to_string() }
+fn default_show_whitespace() -> bool { false }
+fn default_save_on() -> String { "blur".to_string() }
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
@@ -856,6 +862,8 @@ impl Default for CairnSettings {
             accent_color: default_accent_color(),
             workflow_tabs: default_workflow_tabs(),
             sidebar_position: default_sidebar_position(),
+            show_whitespace: default_show_whitespace(),
+            save_on: default_save_on(),
         }
     }
 }

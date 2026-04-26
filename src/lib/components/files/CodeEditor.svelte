@@ -20,7 +20,7 @@
   import { vue } from '@codemirror/lang-vue';
   import { svelte } from 'codemirror-lang-svelte';
   import { languages } from '@codemirror/language-data';
-  import { lineNumbers, rectangularSelection, crosshairCursor } from '@codemirror/view';
+  import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
   import {
     autocompletion, completionKeymap, acceptCompletion,
     closeBrackets, closeBracketsKeymap,
@@ -104,6 +104,7 @@
 
   export let diffHunks: DiffHunk[] = [];
   export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
+  export let showWhitespace: boolean = false;
 
   let container: HTMLDivElement;
   let view: EditorView;
@@ -244,6 +245,15 @@
   const shortcutKeymapCompartment = new Compartment();
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
+  const whitespaceCompartment = new Compartment();
+
+  export function setContent(text: string): void {
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current !== text) {
+      view.dispatch({ changes: { from: 0, to: current.length, insert: text }, userEvent: 'input' });
+    }
+  }
 
   function duplicateLineStay(view: EditorView): boolean {
     const { state } = view;
@@ -619,6 +629,9 @@
       backgroundColor: 'oklch(0.72 0.14 250 / 0.10)',
       border: '1px solid oklch(0.72 0.14 250 / 0.22)',
     },
+
+    // Whitespace rendering
+    '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.36 0.006 80)' },
   }, { dark: true });
   }
 
@@ -676,6 +689,7 @@
       '.cm-diff-modified': { backgroundColor: 'oklch(0.60 0.18 60)' },
       '.cm-minimap-gutter': { backgroundColor: 'oklch(0.93 0.007 75)', borderLeft: '1px solid oklch(0.87 0.007 70)' },
       '.cm-minimap-overlay': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', border: '1px solid oklch(0.42 0.14 250 / 0.22)' },
+      '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.68 0.008 70)' },
     }, { dark: false });
   }
 
@@ -733,6 +747,7 @@
       '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
       '.cm-minimap-gutter': { backgroundColor: 'oklch(0.05 0 0)', borderLeft: '1px solid oklch(0.25 0 0)' },
       '.cm-minimap-overlay': { backgroundColor: 'oklch(0.72 0.14 250 / 0.15)', border: '1px solid oklch(0.72 0.14 250 / 0.35)' },
+      '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.42 0 0)' },
     }, { dark: true });
   }
 
@@ -1099,6 +1114,9 @@
       indentOnInput(),
       rectangularSelection(),
       crosshairCursor(),
+      drawSelection(),
+      EditorView.clickAddsSelectionRange.of((e: MouseEvent) => e.altKey),
+      whitespaceCompartment.of(showWhitespace ? highlightWhitespace() : []),
       highlightCompartment.of(syntaxHighlighting(buildHighlight('dark'))),
       foldGutter({ markerDOM: (open) => {
         const el = document.createElement('span');
@@ -1186,6 +1204,10 @@
       themeCompartment.reconfigure(buildEditorTheme(theme)),
       highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
     ]});
+  }
+
+  $: if (view) {
+    view.dispatch({ effects: whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []) });
   }
 
   onDestroy(() => { view?.destroy(); });

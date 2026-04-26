@@ -22,6 +22,8 @@ export interface CairnSettings {
   accentColor: string;
   workflowTabs: WorkflowTabConfig[];
   sidebarPosition: 'left' | 'right';
+  showWhitespace: boolean;
+  saveOn: 'blur' | 'windowChange' | 'projectChange' | 'instanceChange' | 'manual';
 }
 
 export function getSettings(): Promise<CairnSettings> {

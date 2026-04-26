@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
+import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
@@ -20,11 +21,13 @@
     pending: string;
     cursorPos: number;
     scrollTop: number;
+    pinned?: boolean;
+    lineEndings?: 'LF' | 'CRLF';
   }
 
   // ── localStorage persistence ──────────────────────────────────────────────────
 
-  interface PersistedTab { path: string; cursorPos: number; scrollTop: number; }
+  interface PersistedTab { path: string; cursorPos: number; scrollTop: number; pinned?: boolean; }
   interface PersistedState {
     tabs: PersistedTab[];
     activeTabIdx: number;
@@ -38,10 +41,10 @@
   function persistState(instanceId: string, state: InstanceTabState) {
     try {
       const data: PersistedState = {
-        tabs: state.tabs.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop })),
+        tabs: state.tabs.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop, pinned: t.pinned })),
         activeTabIdx: state.activeTabIdx,
         expanded: [...state.expanded],
-        tabs2: state.tabs2.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop })),
+        tabs2: state.tabs2.map(t => ({ path: t.path, cursorPos: t.cursorPos, scrollTop: t.scrollTop, pinned: t.pinned })),
         activeTabIdx2: state.activeTabIdx2,
         splitMode: state.splitMode,
         splitLeftWidth: state.splitLeftWidth,
@@ -82,7 +85,9 @@
     const valid = results.filter(Boolean) as { path: string; text: string }[];
     return valid.map(r => {
       const saved = persistedTabs.find(p => p.path === r.path)!;
-      return { path: r.path, content: r.text, pending: r.text, cursorPos: saved.cursorPos, scrollTop: saved.scrollTop };
+      const le = detectLineEndings(r.text);
+      const normalized = le === 'CRLF' ? r.text.replace(/\r\n/g, '\n') : r.text;
+      return { path: r.path, content: normalized, pending: normalized, cursorPos: saved.cursorPos, scrollTop: saved.scrollTop, pinned: saved.pinned, lineEndings: le };
     });
   }
 
@@ -176,8 +181,12 @@
 
   $: activeTab2 = tabs2[activeTabIdx2] ?? null;
   $: activeLang2 = (activeTab2 ? langFromPath(activeTab2.path) : 'text') as any;
-  $: activeLineEndings2 = activeTab2 ? detectLineEndings(activeTab2.pending) : 'LF';
+  $: activeLineEndings2 = activeTab2?.lineEndings ?? 'LF';
   $: isDirty2 = activeTab2 ? activeTab2.pending !== activeTab2.content : false;
+  $: activeIndentStyle = activeTab ? detectIndentStyle(activeTab.pending) : null;
+  $: activeSpaceSize = (activeTab && activeIndentStyle === 'spaces') ? detectSpaceSize(activeTab.pending) : 2;
+  $: activeIndentStyle2 = activeTab2 ? detectIndentStyle(activeTab2.pending) : null;
+  $: activeSpaceSize2 = (activeTab2 && activeIndentStyle2 === 'spaces') ? detectSpaceSize(activeTab2.pending) : 2;
 
   function toggleSplit() {
     splitMode = !splitMode;
@@ -245,9 +254,10 @@
   async function closeTab2(idx: number, event: MouseEvent | null) {
     if (event) event.stopPropagation();
     const tab = tabs2[idx];
-    if (!tab) return;
+    if (!tab || tab.pinned) return;
     if (tab.pending !== tab.content && worktreePath) {
-      await writeFile(`${worktreePath}/${tab.path}`, tab.pending);
+      const wc2 = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      await writeFile(`${worktreePath}/${tab.path}`, wc2);
     }
     const wasActive = idx === activeTabIdx2;
     tabs2 = tabs2.filter((_, i) => i !== idx);
@@ -263,15 +273,27 @@
   }
 
   async function flushSave2() {
-    if (!activeTab2 || activeTab2.pending === activeTab2.content || !worktreePath) return;
+    if (!activeTab2 || !worktreePath) return;
+    if (activeTab2.pending === activeTab2.content) return;
     const wasDeleted = gitStatusMap[activeTab2.path] === 'deleted';
     try {
-      await writeFile(`${worktreePath}/${activeTab2.path}`, activeTab2.pending);
+      const writeContent2 = activeTab2.lineEndings === 'CRLF' ? activeTab2.pending.replace(/\n/g, '\r\n') : activeTab2.pending;
+      await writeFile(`${worktreePath}/${activeTab2.path}`, writeContent2);
       tabs2[activeTabIdx2].content = activeTab2.pending;
       tabs2 = tabs2;
       if (wasDeleted) await loadTree(worktreePath);
       refreshDiff2(activeTab2);
     } catch (e) { error = String(e); }
+  }
+
+  function saveSnapshotToDisk(tabsSnap: Tab[], tabs2Snap: Tab[], wtp: string): void {
+    for (const tab of [...tabsSnap, ...tabs2Snap]) {
+      if (tab.pending === tab.content) continue;
+      const path = tab.path;
+      const wc = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      tab.content = tab.pending; // shared ref — mutates original tabs[i] so saveCurrentState captures clean state
+      writeFile(`${wtp}/${path}`, wc).catch(() => {});
+    }
   }
 
   async function openFileInPane2(node: FileNode) {
@@ -297,8 +319,10 @@
     }
     captureEditorState2();
     try {
-      const text = await readFile(`${worktreePath}/${node.path}`) ?? '';
-      tabs2 = [...tabs2, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0 }];
+      const raw2 = await readFile(`${worktreePath}/${node.path}`) ?? '';
+      const le2 = detectLineEndings(raw2);
+      const text2 = le2 === 'CRLF' ? raw2.replace(/\r\n/g, '\n') : raw2;
+      tabs2 = [...tabs2, { path: node.path, content: text2, pending: text2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
       activeTabIdx2 = tabs2.length - 1;
       refreshDiff2({ path: node.path });
     } catch (e) { error = String(e); }
@@ -669,13 +693,43 @@
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
         if (focused && worktreePath) loadTree(worktreePath);
+        if (!focused && ($settings.saveOn ?? 'blur') === 'windowChange') {
+          flushSave();
+          flushSave2();
+        }
       }).then(unlisten => { unlistenFocus = unlisten; });
+    });
+
+    let prevInstId: string | null = null;
+    let prevInstWtp: string | null = null;
+    const unsubInst = activeInstance.subscribe(inst => {
+      const newId = inst?.id ?? null;
+      if (prevInstId !== null && prevInstId !== newId && prevInstWtp) {
+        if ((get(settings).saveOn ?? 'blur') === 'instanceChange') {
+          saveSnapshotToDisk([...tabs], [...tabs2], prevInstWtp);
+        }
+      }
+      prevInstId = newId;
+      if (inst?.worktreePath) prevInstWtp = inst.worktreePath;
+    });
+
+    let prevProjId: string | null = null;
+    const unsubProj = activeProjectId.subscribe(pid => {
+      const newPid = pid ?? null;
+      if (prevProjId !== null && prevProjId !== newPid && prevInstWtp) {
+        if ((get(settings).saveOn ?? 'blur') === 'projectChange') {
+          saveSnapshotToDisk([...tabs], [...tabs2], prevInstWtp);
+        }
+      }
+      prevProjId = newPid;
     });
 
     return () => {
       window.removeEventListener('keydown', handleGlobalKey, { capture: true });
       unlistenFocus?.();
       if (gitPollInterval !== null) clearInterval(gitPollInterval);
+      unsubInst();
+      unsubProj();
     };
   });
 
@@ -694,13 +748,136 @@
   let insertIndex2: number | null = null;
   let didDrag2 = false;
 
+  // ── Tab context menu (pin/close-others) ──────────────────────────────────────
+  let tabCtxMenu: { x: number; y: number; idx: number; pane: 0 | 1 } | null = null;
+
+  function openTabCtxMenu(e: MouseEvent, idx: number, pane: 0 | 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    tabCtxMenu = { x: e.clientX, y: e.clientY, idx, pane };
+  }
+
+  function closeTabCtxMenu() { tabCtxMenu = null; }
+
+  function sortedByPin(arr: Tab[]): Tab[] {
+    return [...arr.filter(t => t.pinned), ...arr.filter(t => !t.pinned)];
+  }
+
+  function togglePinTab(idx: number, pane: 0 | 1) {
+    if (pane === 0) {
+      tabs[idx].pinned = !tabs[idx].pinned;
+      const activePath = tabs[activeTabIdx]?.path;
+      tabs = sortedByPin(tabs);
+      activeTabIdx = activePath ? tabs.findIndex(t => t.path === activePath) : -1;
+    } else {
+      tabs2[idx].pinned = !tabs2[idx].pinned;
+      const activePath = tabs2[activeTabIdx2]?.path;
+      tabs2 = sortedByPin(tabs2);
+      activeTabIdx2 = activePath ? tabs2.findIndex(t => t.path === activePath) : -1;
+    }
+    if (currentInstanceId) persistState(currentInstanceId, { tabs, activeTabIdx, expanded, tabs2, activeTabIdx2, splitMode, splitLeftWidth });
+    closeTabCtxMenu();
+  }
+
+  function closeAllTabs(pane: 0 | 1) {
+    if (pane === 0) {
+      const kept = tabs.filter(t => t.pinned);
+      activeTabIdx = kept.length > 0 ? 0 : -1;
+      tabs = kept;
+    } else {
+      const kept = tabs2.filter(t => t.pinned);
+      activeTabIdx2 = kept.length > 0 ? 0 : -1;
+      tabs2 = kept;
+    }
+    closeTabCtxMenu();
+  }
+
+  // ── Breadcrumb navigation ─────────────────────────────────────────────────────
+  function breadcrumbSegments(path: string): { name: string; path: string }[] {
+    const parts = path.split('/');
+    return parts.map((name, i) => ({ name, path: parts.slice(0, i + 1).join('/') }));
+  }
+
+  function breadcrumbClickDir(dirPath: string) {
+    selectedDir = dirPath;
+    expanded.add(dirPath);
+    expanded = expanded;
+  }
+
+  // ── Indent style detection & conversion ──────────────────────────────────────
+  function detectIndentStyle(text: string): 'tabs' | 'spaces' | null {
+    let tabs = 0, spaces = 0;
+    const lines = text.split('\n');
+    const limit = Math.min(lines.length, 100);
+    for (let i = 0; i < limit; i++) {
+      const line = lines[i];
+      if (line.startsWith('\t')) tabs++;
+      else if (/^  +\S/.test(line)) spaces++;
+    }
+    if (tabs === 0 && spaces === 0) return null;
+    return tabs >= spaces ? 'tabs' : 'spaces';
+  }
+
+  function detectSpaceSize(text: string): number {
+    const counts: Record<number, number> = {};
+    for (const line of text.split('\n')) {
+      const m = line.match(/^( +)\S/);
+      if (m) { const n = m[1].length; counts[n] = (counts[n] ?? 0) + 1; }
+    }
+    const sorted = Object.keys(counts).map(Number).sort((a, b) => a - b);
+    if (!sorted.length) return 2;
+    // pick smallest indent unit ≤ 4
+    return sorted.find(n => n <= 4) ?? sorted[0];
+  }
+
+  function convertToSpaces(text: string, size: number): string {
+    return text.split('\n').map(line => {
+      let i = 0;
+      while (line[i] === '\t') i++;
+      return ' '.repeat(i * size) + line.slice(i);
+    }).join('\n');
+  }
+
+  function convertToTabs(text: string, size: number): string {
+    const sp = ' '.repeat(size);
+    return text.split('\n').map(line => {
+      let i = 0;
+      while (line.slice(i, i + size) === sp) i += size;
+      return '\t'.repeat(i / size) + line.slice(i);
+    }).join('\n');
+  }
+
+  function convertLineEndings(pane: 0 | 1) {
+    if (pane === 0) {
+      if (activeTabIdx === -1) return;
+      tabs[activeTabIdx].lineEndings = tabs[activeTabIdx].lineEndings === 'CRLF' ? 'LF' : 'CRLF';
+      tabs = tabs;
+    } else {
+      if (activeTabIdx2 === -1) return;
+      tabs2[activeTabIdx2].lineEndings = tabs2[activeTabIdx2].lineEndings === 'CRLF' ? 'LF' : 'CRLF';
+      tabs2 = tabs2;
+    }
+  }
+
+  function convertIndent(pane: 0 | 1) {
+    const tab = pane === 0 ? tabs[activeTabIdx] : tabs2[activeTabIdx2];
+    if (!tab) return;
+    const style = detectIndentStyle(tab.pending);
+    const size = detectSpaceSize(tab.pending);
+    const converted = style === 'tabs'
+      ? convertToSpaces(tab.pending, Math.max(size, 2))
+      : convertToTabs(tab.pending, Math.max(size, 2));
+    if (pane === 0) editorRef?.setContent(converted);
+    else editorRef2?.setContent(converted);
+  }
+
   $: if (!isResizing) treeWidth = $settings.treePanelWidth;
   $: sidebarRight = $settings.sidebarPosition === 'right';
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
   $: activeTab = tabs[activeTabIdx] ?? null;
   $: activeLang = (activeTab ? langFromPath(activeTab.path) : 'text') as any;
-  $: activeLineEndings = activeTab ? detectLineEndings(activeTab.pending) : 'LF';
+  $: activeLineEndings = activeTab?.lineEndings ?? 'LF';
   $: isDirty = activeTab ? activeTab.pending !== activeTab.content : false;
   $: { if (activeTab) { cursorLine = 1; cursorCol = 1; } }
 
@@ -817,7 +994,7 @@
     if (loadingPaths.has(node.path)) return;
 
     captureEditorState();
-    await flushSave();
+    if (($settings.saveOn ?? 'blur') === 'blur') await flushSave();
 
     if (isBinaryPath(node.path)) {
       tabs = [...tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
@@ -831,8 +1008,10 @@
     loadingPaths = loadingPaths;
     try {
       const fullPath = `${worktreePath}/${node.path}`;
-      const text = await readFile(fullPath) ?? '';
-      tabs = [...tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0 }];
+      const raw = await readFile(fullPath) ?? '';
+      const le = detectLineEndings(raw);
+      const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
+      tabs = [...tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0, lineEndings: le }];
       activeTabIdx = tabs.length - 1;
       pushRecentFile(node.path);
       refreshDiff({ path: node.path });
@@ -867,7 +1046,7 @@
       tabNavForward = [];
     }
     captureEditorState();
-    await flushSave();
+    if (($settings.saveOn ?? 'blur') === 'blur') await flushSave();
     activeTabIdx = idx;
     syncActiveTabToTree();
     refreshDiff(tabs[idx] ?? null);
@@ -876,10 +1055,11 @@
   async function closeTab(idx: number, event: MouseEvent | null) {
     if (event) event.stopPropagation();
     const tab = tabs[idx];
-    if (!tab) return;
+    if (!tab || tab.pinned) return;
 
     if (tab.pending !== tab.content && worktreePath) {
-      await writeFile(`${worktreePath}/${tab.path}`, tab.pending);
+      const wc = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      await writeFile(`${worktreePath}/${tab.path}`, wc);
     }
 
     closedTabsStack = [...closedTabsStack, { ...tab }].slice(-20);
@@ -938,11 +1118,13 @@
   }
 
   async function flushSave() {
-    if (!activeTab || activeTab.pending === activeTab.content || saving || !worktreePath) return;
+    if (!activeTab || saving || !worktreePath) return;
+    if (activeTab.pending === activeTab.content) return;
     saving = true;
     const wasDeleted = gitStatusMap[activeTab.path] === 'deleted';
     try {
-      await writeFile(`${worktreePath}/${activeTab.path}`, activeTab.pending);
+      const writeContent = activeTab.lineEndings === 'CRLF' ? activeTab.pending.replace(/\n/g, '\r\n') : activeTab.pending;
+      await writeFile(`${worktreePath}/${activeTab.path}`, writeContent);
       tabs[activeTabIdx].content = activeTab.pending;
       tabs = tabs;
       if (wasDeleted) await loadTree(worktreePath);
@@ -994,9 +1176,13 @@
       const [moved] = newTabs.splice(dragSrcIndex, 1);
       const adjustedInsert = insertIndex > dragSrcIndex ? insertIndex - 1 : insertIndex;
       newTabs.splice(adjustedInsert, 0, moved);
+      const otherPinnedCount = newTabs.filter((_, i) => i !== adjustedInsert && newTabs[i].pinned).length;
+      if (adjustedInsert < otherPinnedCount) moved.pinned = true;
+      else moved.pinned = false;
       const activePath = tabs[activeTabIdx]?.path;
-      activeTabIdx = activePath ? newTabs.findIndex(t => t.path === activePath) : -1;
-      tabs = newTabs;
+      const sorted = sortedByPin(newTabs);
+      activeTabIdx = activePath ? sorted.findIndex(t => t.path === activePath) : -1;
+      tabs = sorted;
     }
     dragSrcIndex = null;
     insertIndex = null;
@@ -1036,9 +1222,13 @@
       const [moved] = newTabs.splice(dragSrcIndex2, 1);
       const adjustedInsert = insertIndex2 > dragSrcIndex2 ? insertIndex2 - 1 : insertIndex2;
       newTabs.splice(adjustedInsert, 0, moved);
+      const otherPinnedCount = newTabs.filter((_, i) => i !== adjustedInsert && newTabs[i].pinned).length;
+      if (adjustedInsert < otherPinnedCount) moved.pinned = true;
+      else moved.pinned = false;
       const activePath = tabs2[activeTabIdx2]?.path;
-      activeTabIdx2 = activePath ? newTabs.findIndex(t => t.path === activePath) : -1;
-      tabs2 = newTabs;
+      const sorted = sortedByPin(newTabs);
+      activeTabIdx2 = activePath ? sorted.findIndex(t => t.path === activePath) : -1;
+      tabs2 = sorted;
     }
     dragSrcIndex2 = null;
     insertIndex2 = null;
@@ -1202,9 +1392,12 @@
             {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
               <div class="drop-indicator"></div>
             {/if}
+            {#if i > 0 && tab.pinned === false && tabs[i - 1]?.pinned === true}
+              <div class="tab-pin-separator"></div>
+            {/if}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
-              class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
+              class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''}"
               role="tab"
               aria-selected={i === activeTabIdx}
               tabindex="0"
@@ -1213,12 +1406,20 @@
               on:pointerup={tabPointerUp}
               on:click={() => { if (!didDrag) switchTab(i); didDrag = false; }}
               on:keydown={(e) => e.key === 'Enter' && switchTab(i)}
+              on:contextmenu={(e) => openTabCtxMenu(e, i, 0)}
             >
+              {#if tab.pinned}<span class="tab-pin"><Icon name="pin" size={9}/></span>{/if}
               <span class="tab-name">{tab.path.split('/').pop()}</span>
               {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
-              <button type="button" class="tab-close" on:click={(e) => closeTab(i, e)} aria-label="Close tab">
-                <Icon name="x" size={11}/>
-              </button>
+              {#if tab.pinned}
+                <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); togglePinTab(i, 0); }} aria-label="Unpin tab" title="Unpin tab">
+                  <Icon name="x" size={11}/>
+                </button>
+              {:else}
+                <button type="button" class="tab-close" on:click={(e) => closeTab(i, e)} aria-label="Close tab">
+                  <Icon name="x" size={11}/>
+                </button>
+              {/if}
             </div>
           {/each}
           {#if dragSrcIndex !== null && insertIndex === tabs.length && insertIndex !== dragSrcIndex + 1}
@@ -1228,11 +1429,19 @@
       {/if}
 
       {#if activeTab}
+        {@const segs1 = breadcrumbSegments(activeTab.path)}
         <div class="editor-topbar">
           <Icon name="file" size={13}/>
-          <span class="editor-path">
-            <span class="editor-dir">{activeTab.path.split('/').slice(0, -1).join('/')}{activeTab.path.includes('/') ? '/' : ''}</span><strong>{activeTab.path.split('/').pop()}</strong>
-          </span>
+          <nav class="editor-breadcrumb" aria-label="File path">
+            {#each segs1 as seg, i (i)}
+              {#if i > 0}<span class="breadcrumb-sep">/</span>{/if}
+              {#if i < segs1.length - 1}
+                <button type="button" class="breadcrumb-seg" on:click={() => breadcrumbClickDir(seg.path)}>{seg.name}</button>
+              {:else}
+                <span class="breadcrumb-seg breadcrumb-file">{seg.name}</span>
+              {/if}
+            {/each}
+          </nav>
         </div>
         <div class="editor-body">
           {#if loadingPaths.has(activeTab.path)}
@@ -1247,17 +1456,18 @@
             {#key activeTab.path}
               <CodeEditor
                 bind:this={editorRef}
-                content={activeTab.content}
+                content={activeTab.pending}
                 language={activeLang}
                 readonly={false}
                 minimapEnabled={$settings.showMinimap ?? true}
                 fontSize={$settings.editorFontSize ?? 13}
+                showWhitespace={$settings.showWhitespace ?? false}
                 initialCursorPos={activeTab.cursorPos}
                 initialScrollTop={activeTab.scrollTop}
                 diffHunks={currentDiffHunks}
                 onDiffClick={handleDiffClick}
                 onChange={handleChange}
-                onBlur={flushSave}
+                onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave : undefined}
                 onCursorChange={handleCursorChange}
               />
             {/key}
@@ -1284,9 +1494,15 @@
           <span class="statusbar-sep">|</span>
           <span class="statusbar-item">{activeLang.toUpperCase()}</span>
           <span class="statusbar-sep">|</span>
-          <span class="statusbar-item">{activeLineEndings}</span>
+          <button class="statusbar-item statusbar-btn" on:click={() => convertLineEndings(0)} title="Convert line endings">{activeLineEndings}</button>
           <span class="statusbar-sep">|</span>
+          {#if activeIndentStyle !== null}
+            <button class="statusbar-item statusbar-btn" on:click={() => convertIndent(0)} title="Convert indent style">{activeIndentStyle === 'tabs' ? 'Tabs' : `Spaces: ${activeSpaceSize}`}</button>
+            <span class="statusbar-sep">|</span>
+          {/if}
           <span class="statusbar-item">UTF-8</span>
+          <span class="statusbar-sep">|</span>
+          <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={() => settings.save({ showWhitespace: !($settings.showWhitespace ?? false) })} title="Toggle whitespace rendering">¶</button>
           {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
           {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">saving…</span>{/if}
         </div>
@@ -1341,9 +1557,12 @@
               {#if dragSrcIndex2 !== null && insertIndex2 === i && !(insertIndex2 === dragSrcIndex2 || insertIndex2 === dragSrcIndex2 + 1)}
                 <div class="drop-indicator"></div>
               {/if}
+              {#if i > 0 && tab.pinned === false && tabs2[i - 1]?.pinned === true}
+                <div class="tab-pin-separator"></div>
+              {/if}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="file-tab {i === activeTabIdx2 ? 'tab-active' : ''} {dragSrcIndex2 === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''}"
+                class="file-tab {i === activeTabIdx2 ? 'tab-active' : ''} {dragSrcIndex2 === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''}"
                 role="tab"
                 aria-selected={i === activeTabIdx2}
                 tabindex="0"
@@ -1352,12 +1571,20 @@
                 on:pointerup={tabPointerUp2}
                 on:click={() => { if (!didDrag2) switchTab2(i); didDrag2 = false; }}
                 on:keydown={(e) => e.key === 'Enter' && switchTab2(i)}
+                on:contextmenu={(e) => openTabCtxMenu(e, i, 1)}
               >
+                {#if tab.pinned}<span class="tab-pin"><Icon name="pin" size={9}/></span>{/if}
                 <span class="tab-name">{tab.path.split('/').pop()}</span>
                 {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
-                <button type="button" class="tab-close" on:click={(e) => closeTab2(i, e)} aria-label="Close tab">
-                  <Icon name="x" size={11}/>
-                </button>
+                {#if tab.pinned}
+                  <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); togglePinTab(i, 1); }} aria-label="Unpin tab" title="Unpin tab">
+                    <Icon name="x" size={11}/>
+                  </button>
+                {:else}
+                  <button type="button" class="tab-close" on:click={(e) => closeTab2(i, e)} aria-label="Close tab">
+                    <Icon name="x" size={11}/>
+                  </button>
+                {/if}
               </div>
             {/each}
             {#if dragSrcIndex2 !== null && insertIndex2 === tabs2.length && insertIndex2 !== dragSrcIndex2 + 1}
@@ -1367,11 +1594,19 @@
         {/if}
 
         {#if activeTab2}
+          {@const segs2 = breadcrumbSegments(activeTab2.path)}
           <div class="editor-topbar">
             <Icon name="file" size={13}/>
-            <span class="editor-path">
-              <span class="editor-dir">{activeTab2.path.split('/').slice(0, -1).join('/')}{activeTab2.path.includes('/') ? '/' : ''}</span><strong>{activeTab2.path.split('/').pop()}</strong>
-            </span>
+            <nav class="editor-breadcrumb" aria-label="File path">
+              {#each segs2 as seg, i (i)}
+                {#if i > 0}<span class="breadcrumb-sep">/</span>{/if}
+                {#if i < segs2.length - 1}
+                  <button type="button" class="breadcrumb-seg" on:click={() => breadcrumbClickDir(seg.path)}>{seg.name}</button>
+                {:else}
+                  <span class="breadcrumb-seg breadcrumb-file">{seg.name}</span>
+                {/if}
+              {/each}
+            </nav>
           </div>
           <div class="editor-body">
             {#if isBinaryPath(activeTab2.path)}
@@ -1384,17 +1619,18 @@
               {#key activeTab2.path}
                 <CodeEditor
                   bind:this={editorRef2}
-                  content={activeTab2.content}
+                  content={activeTab2.pending}
                   language={activeLang2}
                   readonly={false}
                   minimapEnabled={$settings.showMinimap ?? true}
                   fontSize={$settings.editorFontSize ?? 13}
+                  showWhitespace={$settings.showWhitespace ?? false}
                   initialCursorPos={activeTab2.cursorPos}
                   initialScrollTop={activeTab2.scrollTop}
                   diffHunks={currentDiffHunks2}
                   onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
                   onChange={handleChange2}
-                  onBlur={flushSave2}
+                  onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave2 : undefined}
                   onCursorChange={(l, c) => { cursorLine2 = l; cursorCol2 = c; }}
                 />
               {/key}
@@ -1421,8 +1657,12 @@
             <span class="statusbar-sep">|</span>
             <span class="statusbar-item">{activeLang2.toUpperCase()}</span>
             <span class="statusbar-sep">|</span>
-            <span class="statusbar-item">{activeLineEndings2}</span>
+            <button class="statusbar-item statusbar-btn" on:click={() => convertLineEndings(1)} title="Convert line endings">{activeLineEndings2}</button>
             <span class="statusbar-sep">|</span>
+            {#if activeIndentStyle2 !== null}
+              <button class="statusbar-item statusbar-btn" on:click={() => convertIndent(1)} title="Convert indent style">{activeIndentStyle2 === 'tabs' ? 'Tabs' : `Spaces: ${activeSpaceSize2}`}</button>
+              <span class="statusbar-sep">|</span>
+            {/if}
             <span class="statusbar-item">UTF-8</span>
             {#if isDirty2}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
           </div>
@@ -1467,6 +1707,23 @@
       }
     }}
   />
+{/if}
+
+{#if tabCtxMenu}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="ctx-backdrop" on:mousedown={closeTabCtxMenu}></div>
+  <div class="ctx-menu" style="left: {tabCtxMenu.x}px; top: {tabCtxMenu.y}px">
+    <button type="button" class="ctx-item" on:click={() => togglePinTab(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
+      <Icon name="pin" size={13}/> {(tabCtxMenu.pane === 0 ? tabs : tabs2)[tabCtxMenu.idx]?.pinned ? 'Unpin Tab' : 'Pin Tab'}
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" on:click={() => { const m = tabCtxMenu!; closeTabCtxMenu(); if (m.pane === 0) closeTab(m.idx, null); else closeTab2(m.idx, null); }}>
+      Close Tab
+    </button>
+    <button type="button" class="ctx-item" on:click={() => closeAllTabs(tabCtxMenu!.pane)}>
+      Close All Tabs
+    </button>
+  </div>
 {/if}
 
 {#if contextMenu}
@@ -1537,7 +1794,14 @@
       type="button"
       class="file-tree-item {tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTab?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''} {nodeGitStatus(node) ? 'git-' + nodeGitStatus(node) : ''}"
       style="padding-left: {12 + depth * 14}px"
-      on:click={() => openFile(node)}
+      on:click={(e) => {
+        if (!node.isDir && (e.metaKey || e.ctrlKey)) {
+          if (!splitMode) toggleSplit();
+          tick().then(() => openFileInPane2(node));
+        } else {
+          openFile(node);
+        }
+      }}
       on:contextmenu={(e) => openContextMenu(e, node)}
     >
       <Icon name={fileIcon(node)} size={13}/>
@@ -1583,6 +1847,7 @@
   .files-tree {
     flex-shrink: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 0 0 8px;
     background: var(--bg-1);
     border-right: 1px solid var(--stroke-0);
@@ -1705,8 +1970,16 @@
   }
   .file-tab.tab-dragging { opacity: 0.4; cursor: grabbing; }
   .file-tab.tab-deleted .tab-name { text-decoration: line-through; color: var(--danger); opacity: 0.7; }
+  .file-tab.tab-pinned { border-left: 2px solid var(--accent); }
 
   .tab-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+
+  .tab-pin {
+    font-size: 9px;
+    opacity: 0.6;
+    flex-shrink: 0;
+    line-height: 1;
+  }
   .tab-dot { color: var(--accent); font-size: 10px; line-height: 1; }
 
   .tab-close {
@@ -1738,7 +2011,16 @@
     flex-shrink: 0;
   }
 
-  /* ── Editor topbar ───────────────────────────────────────────── */
+  .tab-pin-separator {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border, rgba(255,255,255,0.12));
+    margin: 4px 2px;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  /* ── Editor topbar & breadcrumb ─────────────────────────────── */
 
   .editor-topbar {
     display: flex;
@@ -1750,9 +2032,52 @@
     background: var(--bg-2);
     flex-shrink: 0;
     font-size: 12px;
+    overflow: hidden;
   }
-  .editor-path { display: flex; align-items: baseline; overflow: hidden; flex: 1; }
-  .editor-dir { color: var(--fg-3); white-space: nowrap; font-size: 11.5px; }
+
+  .editor-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    overflow: hidden;
+    flex: 1;
+    font-family: var(--font-ui);
+    font-size: 12px;
+  }
+
+  .breadcrumb-sep {
+    color: var(--fg-4);
+    padding: 0 1px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .breadcrumb-seg {
+    background: none;
+    border: none;
+    color: var(--fg-3);
+    font: inherit;
+    cursor: pointer;
+    padding: 1px 3px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    flex-shrink: 1;
+  }
+  .breadcrumb-seg:hover { background: var(--bg-4); color: var(--fg-1); }
+
+  .breadcrumb-file {
+    color: var(--fg-0);
+    font-weight: 600;
+    padding: 1px 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    flex-shrink: 0;
+  }
   .editor-body { flex: 1; overflow: hidden; position: relative; }
 
   /* ── Diff peek panel ────────────────────────────────────────── */
@@ -1851,6 +2176,19 @@
   .statusbar-sep { color: var(--fg-4); }
   .statusbar-dirty { color: var(--accent); }
   .statusbar-saving { color: var(--fg-3); font-style: italic; }
+
+  .statusbar-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .statusbar-btn:hover { background: var(--bg-4); color: var(--fg-1); }
+  .statusbar-active { color: var(--accent); }
 
   .editor-placeholder {
     display: flex;
@@ -1993,11 +2331,11 @@
   .ctx-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 99;
+    z-index: 9998;
   }
   .ctx-menu {
     position: fixed;
-    z-index: 100;
+    z-index: 9999;
     background: var(--bg-2);
     border: 1px solid var(--stroke-1);
     border-radius: 6px;
