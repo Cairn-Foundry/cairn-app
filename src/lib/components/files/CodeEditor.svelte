@@ -62,6 +62,10 @@
     };
   }
 
+  export function getEditorState(): EditorState | null {
+    return view?.state ?? null;
+  }
+
   export function jumpTo(line: number, col: number) {
     if (!view) return;
     const doc = view.state.doc;
@@ -105,6 +109,7 @@
   export let diffHunks: DiffHunk[] = [];
   export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
   export let showWhitespace: boolean = false;
+  export let savedState: EditorState | null = null;
 
   let container: HTMLDivElement;
   let view: EditorView;
@@ -1154,10 +1159,8 @@
   }
 
   onMount(() => {
-    view = new EditorView({
-      state: EditorState.create({ doc: content, extensions: buildExtensions() }),
-      parent: container,
-    });
+    const initState = savedState ?? EditorState.create({ doc: content, extensions: buildExtensions() });
+    view = new EditorView({ state: initState, parent: container });
 
     if (initialCursorPos > 0) {
       const maxPos = view.state.doc.length;

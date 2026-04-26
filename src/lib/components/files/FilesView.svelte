@@ -12,6 +12,7 @@ import { get } from 'svelte/store';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, type FileNode, type GitStatusMap, type DiffHunk } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+  import type { EditorState } from '@codemirror/state';
 
   export let onGoSettings: (() => void) | undefined = undefined;
 
@@ -158,6 +159,7 @@ import { get } from 'svelte/store';
   let saving = false;
   let error = '';
   let editorRef: CodeEditor | undefined;
+  let editorStateCache = new Map<string, EditorState>();
 
   let currentDiffHunks: DiffHunk[] = [];
   let activeDiffHunk: DiffHunk | null = null;
@@ -168,6 +170,7 @@ import { get } from 'svelte/store';
   let tabs2: Tab[] = [];
   let activeTabIdx2 = -1;
   let editorRef2: CodeEditor | undefined;
+  let editorStateCache2 = new Map<string, EditorState>();
   let cursorLine2 = 1;
   let cursorCol2 = 1;
   let currentDiffHunks2: DiffHunk[] = [];
@@ -225,6 +228,8 @@ import { get } from 'svelte/store';
     tabs2[activeTabIdx2].cursorPos = state.cursorPos;
     tabs2[activeTabIdx2].scrollTop = state.scrollTop;
     tabs2 = tabs2;
+    const es = editorRef2.getEditorState();
+    if (es) editorStateCache2.set(tabs2[activeTabIdx2].path, es);
   }
 
   async function refreshDiff2(tab: { path: string } | null): Promise<void> {
@@ -259,6 +264,7 @@ import { get } from 'svelte/store';
       const wc2 = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
       await writeFile(`${worktreePath}/${tab.path}`, wc2);
     }
+    editorStateCache2.delete(tab.path);
     const wasActive = idx === activeTabIdx2;
     tabs2 = tabs2.filter((_, i) => i !== idx);
     if (tabs2.length === 0) activeTabIdx2 = -1;
@@ -1029,6 +1035,8 @@ import { get } from 'svelte/store';
     tabs[activeTabIdx].cursorPos = state.cursorPos;
     tabs[activeTabIdx].scrollTop = state.scrollTop;
     tabs = tabs;
+    const es = editorRef.getEditorState();
+    if (es) editorStateCache.set(tabs[activeTabIdx].path, es);
   }
 
   function syncActiveTabToTree() {
@@ -1062,6 +1070,7 @@ import { get } from 'svelte/store';
       await writeFile(`${worktreePath}/${tab.path}`, wc);
     }
 
+    editorStateCache.delete(tab.path);
     closedTabsStack = [...closedTabsStack, { ...tab }].slice(-20);
     tabNavBack = tabNavBack.map(i => i > idx ? i - 1 : i).filter(i => i !== idx);
     tabNavForward = tabNavForward.map(i => i > idx ? i - 1 : i).filter(i => i !== idx);
@@ -1464,6 +1473,7 @@ import { get } from 'svelte/store';
                 showWhitespace={$settings.showWhitespace ?? false}
                 initialCursorPos={activeTab.cursorPos}
                 initialScrollTop={activeTab.scrollTop}
+                savedState={editorStateCache.get(activeTab.path) ?? null}
                 diffHunks={currentDiffHunks}
                 onDiffClick={handleDiffClick}
                 onChange={handleChange}
@@ -1627,6 +1637,7 @@ import { get } from 'svelte/store';
                   showWhitespace={$settings.showWhitespace ?? false}
                   initialCursorPos={activeTab2.cursorPos}
                   initialScrollTop={activeTab2.scrollTop}
+                  savedState={editorStateCache2.get(activeTab2.path) ?? null}
                   diffHunks={currentDiffHunks2}
                   onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
                   onChange={handleChange2}
