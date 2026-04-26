@@ -914,6 +914,39 @@ import { get } from 'svelte/store';
     closeTabCtxMenu();
   }
 
+  function closeOtherTabs(idx: number, pane: 0 | 1) {
+    if (pane === 0) {
+      const current = tabs[idx];
+      const kept = tabs.filter((t, i) => i === idx || t.pinned);
+      tabs = kept;
+      activeTabIdx = kept.indexOf(current);
+    } else {
+      const current = tabs2[idx];
+      const kept = tabs2.filter((t, i) => i === idx || t.pinned);
+      tabs2 = kept;
+      activeTabIdx2 = kept.indexOf(current);
+    }
+    if (currentInstanceId) persistState(currentInstanceId, { tabs, activeTabIdx, expanded, tabs2, activeTabIdx2, splitMode, splitLeftWidth });
+    closeTabCtxMenu();
+  }
+
+  function revealTabInTree(idx: number, pane: 0 | 1) {
+    const path = (pane === 0 ? tabs : tabs2)[idx]?.path ?? '';
+    if (!path) { closeTabCtxMenu(); return; }
+    const parts = path.split('/');
+    selectedDir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+    for (let i = 1; i < parts.length; i++) expanded.add(parts.slice(0, i).join('/'));
+    expanded = expanded;
+    closeTabCtxMenu();
+  }
+
+  async function copyTabPath(idx: number, pane: 0 | 1, absolute: boolean) {
+    const path = (pane === 0 ? tabs : tabs2)[idx]?.path ?? '';
+    const text = absolute && worktreePath ? `${worktreePath}/${path}` : path;
+    await navigator.clipboard.writeText(text);
+    closeTabCtxMenu();
+  }
+
   // ── Breadcrumb navigation ─────────────────────────────────────────────────────
   function breadcrumbSegments(path: string): { name: string; path: string }[] {
     const parts = path.split('/');
@@ -2030,10 +2063,24 @@ import { get } from 'svelte/store';
     </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => { const m = tabCtxMenu!; closeTabCtxMenu(); if (m.pane === 0) closeTab(m.idx, null); else closeTab2(m.idx, null); }}>
-      Close Tab
+      <Icon name="x" size={13}/> Close Tab
+    </button>
+    <button type="button" class="ctx-item" on:click={() => closeOtherTabs(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
+      <Icon name="x" size={13}/> Close Others
     </button>
     <button type="button" class="ctx-item" on:click={() => closeAllTabs(tabCtxMenu!.pane)}>
-      Close All Tabs
+      <Icon name="x" size={13}/> Close All Tabs
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" on:click={() => revealTabInTree(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
+      <Icon name="folder" size={13}/> Reveal in Tree
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" on:click={() => copyTabPath(tabCtxMenu!.idx, tabCtxMenu!.pane, false)}>
+      <Icon name="copy" size={13}/> Copy Relative Path
+    </button>
+    <button type="button" class="ctx-item" on:click={() => copyTabPath(tabCtxMenu!.idx, tabCtxMenu!.pane, true)}>
+      <Icon name="copy" size={13}/> Copy Absolute Path
     </button>
   </div>
 {/if}
