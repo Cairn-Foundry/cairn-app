@@ -3,13 +3,14 @@
 import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import DiffEditor from '$lib/components/review/DiffEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
   import SearchPanel from './SearchPanel.svelte';
   import CommandPalette from './CommandPalette.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen } from '$lib/stores/ui';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, type FileNode, type GitStatusMap, type DiffHunk } from '$lib/services/file-service';
+  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, gitStagedFileDiff, gitBlame, gitCommitFileDiff, gitFileAtCommit, applyHunkPatch, hunkToPatch, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
@@ -154,6 +155,8 @@ import { get } from 'svelte/store';
   let editorStateCache = new Map<string, EditorState>();
 
   let currentDiffHunks: DiffHunk[] = [];
+  let currentStagedHunks: DiffHunk[] = [];
+  let currentBlame: Map<number, BlameEntry> = new Map();
   let activeDiffHunk: DiffHunk | null = null;
 
   // ── Split pane ────────────────────────────────────────────────────────────────
@@ -166,6 +169,8 @@ import { get } from 'svelte/store';
   let cursorLine2 = 1;
   let cursorCol2 = 1;
   let currentDiffHunks2: DiffHunk[] = [];
+  let currentStagedHunks2: DiffHunk[] = [];
+  let currentBlame2: Map<number, BlameEntry> = new Map();
   let activeDiffHunk2: DiffHunk | null = null;
   let tabsBarEl2: HTMLElement | null = null;
   let isSplitResizing = false;
@@ -226,19 +231,39 @@ import { get } from 'svelte/store';
 
   async function refreshDiff2(tab: { path: string } | null): Promise<void> {
     activeDiffHunk2 = null;
-    if (!tab || !worktreePath) { currentDiffHunks2 = []; return; }
+    if (!tab || !worktreePath) { currentDiffHunks2 = []; currentStagedHunks2 = []; currentBlame2 = new Map(); return; }
     try {
       const status = gitStatusMap[tab.path];
-      if (!status || status === 'deleted') { currentDiffHunks2 = []; return; }
+      if (status === 'deleted') { currentDiffHunks2 = []; currentStagedHunks2 = []; currentBlame2 = new Map(); return; }
       if (status === 'untracked') {
         const content = tabs2.find(t => t.path === tab.path)?.pending ?? '';
         const lines = content.split('\n');
-        currentDiffHunks2 = [{ newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        currentDiffHunks2 = [{ oldStart: 0, newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        currentStagedHunks2 = [];
+        currentBlame2 = new Map();
         return;
       }
-      const result = await gitFileDiff(worktreePath, tab.path);
-      currentDiffHunks2 = result.hunks;
-    } catch { currentDiffHunks2 = []; }
+
+      const blamePromise2 = gitBlame(worktreePath, tab.path).catch((err) => {
+        console.warn('gitBlame failed:', err);
+        return new Map<number, BlameEntry>();
+      });
+
+      if (status) {
+        const [unstaged, staged, blame] = await Promise.all([
+          gitFileDiff(worktreePath, tab.path),
+          gitStagedFileDiff(worktreePath, tab.path),
+          blamePromise2,
+        ]);
+        currentDiffHunks2 = unstaged.hunks;
+        currentStagedHunks2 = staged.hunks;
+        currentBlame2 = blame;
+      } else {
+        currentDiffHunks2 = [];
+        currentStagedHunks2 = [];
+        currentBlame2 = await blamePromise2;
+      }
+    } catch { currentDiffHunks2 = []; currentStagedHunks2 = []; currentBlame2 = new Map(); }
   }
 
   async function switchTab2(idx: number) {
@@ -312,7 +337,7 @@ import { get } from 'svelte/store';
     if (isBinaryPath(node.path)) {
       tabs2 = [...tabs2, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       activeTabIdx2 = tabs2.length - 1;
-      currentDiffHunks2 = [];
+      currentDiffHunks2 = []; currentStagedHunks2 = []; currentBlame2 = new Map();
       return;
     }
     captureEditorState2();
@@ -330,23 +355,110 @@ import { get } from 'svelte/store';
     activeDiffHunk = activeDiffHunk === hunk ? null : hunk;
   }
 
+  function hunkToSplit(hunk: DiffHunk): { old: string; new: string } {
+    const oldLines = hunk.lines.filter(l => l.type === '-' || l.type === ' ').map(l => l.content);
+    const newLines = hunk.lines.filter(l => l.type === '+' || l.type === ' ').map(l => l.content);
+    return { old: oldLines.join('\n'), new: newLines.join('\n') };
+  }
+
+  async function handleStageHunk(hunk: DiffHunk) {
+    if (!activeTab || !worktreePath) return;
+    const patch = hunkToPatch(activeTab.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { cached: true });
+    if (!result.success) { error = result.stderr || 'Stage failed'; return; }
+    await loadDiffHunks(activeTab);
+  }
+
+  async function handleUnstageHunk(hunk: DiffHunk) {
+    if (!activeTab || !worktreePath) return;
+    const patch = hunkToPatch(activeTab.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { cached: true, reverse: true });
+    if (!result.success) { error = result.stderr || 'Unstage failed'; return; }
+    await loadDiffHunks(activeTab);
+  }
+
+  async function handleRevertHunk(hunk: DiffHunk) {
+    if (!activeTab || !worktreePath) return;
+    const patch = hunkToPatch(activeTab.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { reverse: true });
+    if (!result.success) { error = result.stderr || 'Revert failed'; return; }
+    const raw = await readFile(`${worktreePath}/${activeTab.path}`) ?? '';
+    const le = activeTab.lineEndings ?? 'LF';
+    const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
+    const idx = tabs.findIndex(t => t.path === activeTab!.path);
+    if (idx !== -1) { tabs[idx].content = text; tabs[idx].pending = text; tabs = tabs; }
+    await loadDiffHunks(activeTab);
+  }
+
+  async function handleStageHunk2(hunk: DiffHunk) {
+    if (!activeTab2 || !worktreePath) return;
+    const patch = hunkToPatch(activeTab2.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { cached: true });
+    if (!result.success) { error = result.stderr || 'Stage failed'; return; }
+    await refreshDiff2(activeTab2);
+  }
+
+  async function handleUnstageHunk2(hunk: DiffHunk) {
+    if (!activeTab2 || !worktreePath) return;
+    const patch = hunkToPatch(activeTab2.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { cached: true, reverse: true });
+    if (!result.success) { error = result.stderr || 'Unstage failed'; return; }
+    await refreshDiff2(activeTab2);
+  }
+
+  async function handleRevertHunk2(hunk: DiffHunk) {
+    if (!activeTab2 || !worktreePath) return;
+    const patch = hunkToPatch(activeTab2.path, hunk);
+    const result = await applyHunkPatch(worktreePath, patch, { reverse: true });
+    if (!result.success) { error = result.stderr || 'Revert failed'; return; }
+    const raw = await readFile(`${worktreePath}/${activeTab2.path}`) ?? '';
+    const le = activeTab2.lineEndings ?? 'LF';
+    const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
+    const idx2 = tabs2.findIndex(t => t.path === activeTab2!.path);
+    if (idx2 !== -1) { tabs2[idx2].content = text; tabs2[idx2].pending = text; tabs2 = tabs2; }
+    await refreshDiff2(activeTab2);
+  }
+
   async function loadDiffHunks(tab: { path: string } | null): Promise<void> {
-    if (!tab || !worktreePath) { currentDiffHunks = []; return; }
+    if (!tab || !worktreePath) { currentDiffHunks = []; currentStagedHunks = []; currentBlame = new Map(); return; }
     try {
       const status = gitStatusMap[tab.path];
-      if (!status || status === 'deleted') { currentDiffHunks = []; return; }
+
+      if (status === 'deleted') { currentDiffHunks = []; currentStagedHunks = []; currentBlame = new Map(); return; }
 
       if (status === 'untracked') {
         const content = tabs.find(t => t.path === tab.path)?.pending ?? '';
         const lines = content.split('\n');
-        currentDiffHunks = [{ newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        currentDiffHunks = [{ oldStart: 0, newStart: 1, newEnd: lines.length, lines: lines.map(l => ({ type: '+' as const, content: l })) }];
+        currentStagedHunks = [];
+        currentBlame = new Map();
         return;
       }
 
-      const result = await gitFileDiff(worktreePath, tab.path);
-      currentDiffHunks = result.hunks;
+      // status is undefined (clean) or modified/staged — always fetch blame
+      const blamePromise = gitBlame(worktreePath, tab.path).catch((err) => {
+        console.warn('gitBlame failed:', err);
+        return new Map<number, BlameEntry>();
+      });
+
+      if (status) {
+        const [unstaged, staged, blame] = await Promise.all([
+          gitFileDiff(worktreePath, tab.path),
+          gitStagedFileDiff(worktreePath, tab.path),
+          blamePromise,
+        ]);
+        currentDiffHunks = unstaged.hunks;
+        currentStagedHunks = staged.hunks;
+        currentBlame = blame;
+      } else {
+        currentDiffHunks = [];
+        currentStagedHunks = [];
+        currentBlame = await blamePromise;
+      }
     } catch {
       currentDiffHunks = [];
+      currentStagedHunks = [];
+      currentBlame = new Map();
     }
   }
 
@@ -645,6 +757,42 @@ import { get } from 'svelte/store';
   function handleCursorChange(line: number, col: number) {
     cursorLine = line;
     cursorCol = col;
+  }
+
+  $: currentLineBlame = currentBlame.get(cursorLine) ?? null;
+  $: currentLineBlame2 = currentBlame2.get(cursorLine2) ?? null;
+
+  interface BlamePopup {
+    entry: BlameEntry;
+    filePath: string;
+    oldContent: string | null;
+    newContent: string | null;
+    loadingDiff: boolean;
+    error: string | null;
+  }
+  let blamePopup: BlamePopup | null = null;
+  let blamePopup2: BlamePopup | null = null;
+
+  async function openBlamePopup(entry: BlameEntry, filePath: string, pane: 1 | 2) {
+    const popup: BlamePopup = { entry, filePath, oldContent: null, newContent: null, loadingDiff: true, error: null };
+    if (pane === 1) blamePopup = popup;
+    else blamePopup2 = popup;
+    try {
+      const [newContent, oldContent] = await Promise.all([
+        worktreePath ? gitFileAtCommit(worktreePath, entry.hash, filePath) : Promise.resolve(''),
+        worktreePath ? gitFileAtCommit(worktreePath, `${entry.hash}^`, filePath).catch(() => '') : Promise.resolve(''),
+      ]);
+      popup.newContent = newContent;
+      popup.oldContent = oldContent;
+      popup.loadingDiff = false;
+      if (pane === 1) blamePopup = { ...popup };
+      else blamePopup2 = { ...popup };
+    } catch (e) {
+      popup.loadingDiff = false;
+      popup.error = e instanceof Error ? e.message : 'Failed to load diff';
+      if (pane === 1) blamePopup = { ...popup };
+      else blamePopup2 = { ...popup };
+    }
   }
 
   function detectLineEndings(text: string): 'CRLF' | 'LF' {
@@ -1034,7 +1182,8 @@ import { get } from 'svelte/store';
   $: activeLang = (activeTab ? langFromPath(activeTab.path) : 'text') as any;
   $: activeLineEndings = activeTab?.lineEndings ?? 'LF';
   $: isDirty = activeTab ? activeTab.pending !== activeTab.content : false;
-  $: { if (activeTab) { cursorLine = 1; cursorCol = 1; } }
+  $: { if (activeTab) { cursorLine = 1; cursorCol = 1; blamePopup = null; } }
+  $: { if (activeTab2) { blamePopup2 = null; } }
 
   function saveCurrentState() {
     if (currentInstanceId === null) return;
@@ -1053,9 +1202,9 @@ import { get } from 'svelte/store';
       saveCurrentState();
       currentInstanceId = id;
       if (id !== null) loadRecentFiles(id); else recentFiles = [];
-      currentDiffHunks = [];
+      currentDiffHunks = []; currentStagedHunks = []; currentBlame = new Map();
       activeDiffHunk = null;
-      currentDiffHunks2 = [];
+      currentDiffHunks2 = []; currentStagedHunks2 = []; currentBlame2 = new Map();
       activeDiffHunk2 = null;
       editState = null;
       contextMenu = null;
@@ -1159,7 +1308,7 @@ import { get } from 'svelte/store';
       tabs = [...tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       activeTabIdx = tabs.length - 1;
       pushRecentFile(node.path);
-      currentDiffHunks = [];
+      currentDiffHunks = []; currentStagedHunks = []; currentBlame = new Map();
       return;
     }
 
@@ -1809,7 +1958,11 @@ import { get } from 'svelte/store';
                 initialScrollTop={activeTab.scrollTop}
                 savedState={editorStateCache.get(activeTab.path) ?? null}
                 diffHunks={currentDiffHunks}
+                stagedHunks={currentStagedHunks}
                 onDiffClick={handleDiffClick}
+                onStageHunk={handleStageHunk}
+                onUnstageHunk={handleUnstageHunk}
+                onRevertHunk={handleRevertHunk}
                 onChange={handleChange}
                 onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave : undefined}
                 onCursorChange={handleCursorChange}
@@ -1817,19 +1970,60 @@ import { get } from 'svelte/store';
             {/key}
           {/if}
         </div>
-        {#if activeDiffHunk}
-          <div class="diff-peek">
+        {#if blamePopup}
+          <div class="diff-peek diff-peek-split {activeDiffHunk ? 'diff-peek-combined' : ''}">
+            <div class="diff-peek-header">
+              <span class="diff-peek-title blame-peek-title">
+                <span class="blame-peek-hash">{blamePopup.entry.hash}</span>
+                <span class="blame-peek-author">{blamePopup.entry.author}</span>
+                <span class="blame-peek-date">{blamePopup.entry.date}</span>
+                <span class="blame-peek-summary">{blamePopup.entry.summary}</span>
+              </span>
+              <button class="diff-peek-close" on:click={() => { blamePopup = null; activeDiffHunk = null; }} aria-label="Close blame">✕</button>
+            </div>
+            {#if activeDiffHunk}
+              <div class="diff-peek-section-label">Current changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</div>
+              <div class="diff-peek-section">
+                {#key activeDiffHunk}
+                  <DiffEditor
+                    oldContent={hunkToSplit(activeDiffHunk).old}
+                    newContent={hunkToSplit(activeDiffHunk).new}
+                    language={activeLang}
+                  />
+                {/key}
+              </div>
+              <div class="diff-peek-section-label">Introduced in {blamePopup.entry.hash}</div>
+            {/if}
+            <div class="{activeDiffHunk ? 'diff-peek-section' : 'diff-peek-body diff-peek-body-split'}">
+              {#if blamePopup.loadingDiff}
+                <div class="blame-peek-loading">Loading…</div>
+              {:else if blamePopup.error}
+                <div class="blame-peek-loading">{blamePopup.error}</div>
+              {:else}
+                {#key blamePopup}
+                  <DiffEditor
+                    oldContent={blamePopup.oldContent ?? ''}
+                    newContent={blamePopup.newContent ?? ''}
+                    language={activeLang}
+                  />
+                {/key}
+              {/if}
+            </div>
+          </div>
+        {:else if activeDiffHunk}
+          <div class="diff-peek diff-peek-split">
             <div class="diff-peek-header">
               <span class="diff-peek-title">Changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
               <button class="diff-peek-close" on:click={() => activeDiffHunk = null} aria-label="Close diff">✕</button>
             </div>
-            <div class="diff-peek-body">
-              {#each activeDiffHunk.lines as line}
-                <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
-                  <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
-                  <span class="diff-peek-content">{line.content}</span>
-                </div>
-              {/each}
+            <div class="diff-peek-body diff-peek-body-split">
+              {#key activeDiffHunk}
+                <DiffEditor
+                  oldContent={hunkToSplit(activeDiffHunk).old}
+                  newContent={hunkToSplit(activeDiffHunk).new}
+                  language={activeLang}
+                />
+              {/key}
             </div>
           </div>
         {/if}
@@ -1849,6 +2043,18 @@ import { get } from 'svelte/store';
           <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={() => settings.save({ showWhitespace: !($settings.showWhitespace ?? false) })} title="Toggle whitespace rendering">¶</button>
           {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
           {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">saving…</span>{/if}
+          {#if currentLineBlame && activeTab}
+            <span class="statusbar-blame-spacer"></span>
+            {#if currentLineBlame.hash === '0000000'}
+              <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">Not committed yet</span>
+            {:else}
+              <button
+                class="statusbar-item statusbar-btn statusbar-blame"
+                on:click={() => openBlamePopup(currentLineBlame!, activeTab!.path, 1)}
+                title="Show commit diff"
+              >{currentLineBlame.hash} ({currentLineBlame.author})</button>
+            {/if}
+          {/if}
         </div>
       {:else}
         <div class="editor-placeholder">
@@ -1973,7 +2179,11 @@ import { get } from 'svelte/store';
                   initialScrollTop={activeTab2.scrollTop}
                   savedState={editorStateCache2.get(activeTab2.path) ?? null}
                   diffHunks={currentDiffHunks2}
+                  stagedHunks={currentStagedHunks2}
                   onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
+                  onStageHunk={handleStageHunk2}
+                  onUnstageHunk={handleUnstageHunk2}
+                  onRevertHunk={handleRevertHunk2}
                   onChange={handleChange2}
                   onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave2 : undefined}
                   onCursorChange={(l, c) => { cursorLine2 = l; cursorCol2 = c; }}
@@ -1981,19 +2191,60 @@ import { get } from 'svelte/store';
               {/key}
             {/if}
           </div>
-          {#if activeDiffHunk2}
-            <div class="diff-peek">
+          {#if blamePopup2}
+            <div class="diff-peek diff-peek-split {activeDiffHunk2 ? 'diff-peek-combined' : ''}">
+              <div class="diff-peek-header">
+                <span class="diff-peek-title blame-peek-title">
+                  <span class="blame-peek-hash">{blamePopup2.entry.hash}</span>
+                  <span class="blame-peek-author">{blamePopup2.entry.author}</span>
+                  <span class="blame-peek-date">{blamePopup2.entry.date}</span>
+                  <span class="blame-peek-summary">{blamePopup2.entry.summary}</span>
+                </span>
+                <button class="diff-peek-close" on:click={() => { blamePopup2 = null; activeDiffHunk2 = null; }} aria-label="Close blame">✕</button>
+              </div>
+              {#if activeDiffHunk2}
+                <div class="diff-peek-section-label">Current changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</div>
+                <div class="diff-peek-section">
+                  {#key activeDiffHunk2}
+                    <DiffEditor
+                      oldContent={hunkToSplit(activeDiffHunk2).old}
+                      newContent={hunkToSplit(activeDiffHunk2).new}
+                      language={activeLang2}
+                    />
+                  {/key}
+                </div>
+                <div class="diff-peek-section-label">Introduced in {blamePopup2.entry.hash}</div>
+              {/if}
+              <div class="{activeDiffHunk2 ? 'diff-peek-section' : 'diff-peek-body diff-peek-body-split'}">
+                {#if blamePopup2.loadingDiff}
+                  <div class="blame-peek-loading">Loading…</div>
+                {:else if blamePopup2.error}
+                  <div class="blame-peek-loading">{blamePopup2.error}</div>
+                {:else}
+                  {#key blamePopup2}
+                    <DiffEditor
+                      oldContent={blamePopup2.oldContent ?? ''}
+                      newContent={blamePopup2.newContent ?? ''}
+                      language={activeLang2}
+                    />
+                  {/key}
+                {/if}
+              </div>
+            </div>
+          {:else if activeDiffHunk2}
+            <div class="diff-peek diff-peek-split">
               <div class="diff-peek-header">
                 <span class="diff-peek-title">Changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</span>
                 <button class="diff-peek-close" on:click={() => activeDiffHunk2 = null} aria-label="Close diff">✕</button>
               </div>
-              <div class="diff-peek-body">
-                {#each activeDiffHunk2.lines as line}
-                  <div class="diff-peek-line {line.type === '+' ? 'diff-peek-add' : line.type === '-' ? 'diff-peek-del' : 'diff-peek-ctx'}">
-                    <span class="diff-peek-sign">{line.type === ' ' ? '' : line.type}</span>
-                    <span class="diff-peek-content">{line.content}</span>
-                  </div>
-                {/each}
+              <div class="diff-peek-body diff-peek-body-split">
+                {#key activeDiffHunk2}
+                  <DiffEditor
+                    oldContent={hunkToSplit(activeDiffHunk2).old}
+                    newContent={hunkToSplit(activeDiffHunk2).new}
+                    language={activeLang2}
+                  />
+                {/key}
               </div>
             </div>
           {/if}
@@ -2010,6 +2261,18 @@ import { get } from 'svelte/store';
             {/if}
             <span class="statusbar-item">UTF-8</span>
             {#if isDirty2}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
+            {#if currentLineBlame2 && activeTab2}
+              <span class="statusbar-blame-spacer"></span>
+              {#if currentLineBlame2.hash === '0000000'}
+                <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">Not committed yet</span>
+              {:else}
+                <button
+                  class="statusbar-item statusbar-btn statusbar-blame"
+                  on:click={() => openBlamePopup(currentLineBlame2!, activeTab2!.path, 2)}
+                  title="Show commit diff"
+                >{currentLineBlame2.hash} ({currentLineBlame2.author})</button>
+              {/if}
+            {/if}
           </div>
         {:else}
           <div class="editor-placeholder">
@@ -2462,6 +2725,41 @@ import { get } from 'svelte/store';
     background: var(--bg-0);
   }
 
+  .diff-peek-split {
+    height: 320px;
+    max-height: 320px;
+  }
+
+  .diff-peek-combined {
+    height: 600px;
+    max-height: 600px;
+  }
+
+  .diff-peek-section-label {
+    flex-shrink: 0;
+    padding: 3px 14px;
+    font-size: 10px;
+    font-family: var(--font-ui);
+    color: var(--fg-3);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--bg-1);
+    border-top: 1px solid var(--stroke-0);
+  }
+
+  .diff-peek-section {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .diff-peek-body-split {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
   .diff-peek-header {
     display: flex;
     align-items: center;
@@ -2560,6 +2858,73 @@ import { get } from 'svelte/store';
   }
   .statusbar-btn:hover { background: var(--bg-4); color: var(--fg-1); }
   .statusbar-active { color: var(--accent); }
+
+  .statusbar-blame-spacer { flex: 1; }
+
+  .statusbar-blame {
+    color: var(--fg-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: 0.85;
+  }
+  .statusbar-blame:hover { opacity: 1; color: var(--fg-1); }
+
+  .statusbar-blame-uncommitted {
+    cursor: default;
+  }
+
+  .blame-peek-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .blame-peek-hash {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: oklch(0.72 0.14 250);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .blame-peek-author {
+    font-size: 11px;
+    color: var(--fg-2);
+    flex-shrink: 0;
+  }
+
+  .blame-peek-date {
+    font-size: 11px;
+    color: var(--fg-4);
+    flex-shrink: 0;
+  }
+
+  .blame-peek-summary {
+    font-size: 11px;
+    color: var(--fg-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .blame-peek-loading {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--fg-3);
+    font-family: var(--font-ui);
+  }
+
+  .diff-peek-hunk-header {
+    padding: 2px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-4);
+    background: var(--bg-2);
+    border-top: 1px solid var(--stroke-0);
+    border-bottom: 1px solid var(--stroke-0);
+    margin: 2px 0;
+  }
 
   .editor-placeholder {
     display: flex;

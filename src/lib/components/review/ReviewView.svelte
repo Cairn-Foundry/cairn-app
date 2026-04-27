@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
-  import { tok } from '$lib/utils/syntax.js';
+  import DiffEditor from './DiffEditor.svelte';
 
   const REVIEW_FILES = [
     { path: 'src/auth/totp.ts', kind: 'add', plus: 48, minus: 0 },
@@ -10,32 +10,46 @@
     { path: 'package.json', kind: 'mod', plus: 1, minus: 0 },
   ];
 
-  const DIFF_LINES: [string, number, string, string][] = [
-    ['add', 1, '+', `import { authenticator } from 'otplib';`],
-    ['add', 2, '+', `import crypto from 'node:crypto';`],
-    ['add', 3, '+', ``],
-    ['add', 4, '+', `const SERVER_SECRET = process.env.TOTP_SERVER_SECRET!;`],
-    ['add', 5, '+', ``],
-    ['add', 6, '+', `export function generateSecret(userId: string): string {`],
-    ['add', 7, '+', `  return crypto`],
-    ['add', 8, '+', `    .createHmac('sha256', SERVER_SECRET)`],
-    ['add', 9, '+', `    .update(userId)`],
-    ['add', 10, '+', `    .digest('base64')`],
-    ['add', 11, '+', `    .slice(0, 32);`],
-    ['add', 12, '+', `}`],
-    ['add', 13, '+', ``],
-    ['add', 14, '+', `export function verifyTotp(user: User, token?: string): boolean {`],
-    ['add', 15, '+', `  if (!token || !user.totpSecret) return false;`],
-    ['add', 16, '+', `  authenticator.options = { window: 0 };`],
-    ['add', 17, '+', `  return authenticator.check(token, user.totpSecret);`],
-    ['add', 18, '+', `}`],
-    ['add', 19, '+', ``],
-    ['add', 20, '+', `export function otpauthUri(email: string, secret: string): string {`],
-    ['add', 21, '+', `  return authenticator.keyuri(email, 'Acme', secret);`],
-    ['add', 22, '+', `}`],
+  type DiffLine = { type: '+' | '-' | ' '; content: string };
+
+  const RAW_DIFF: DiffLine[] = [
+    { type: '+', content: `import { authenticator } from 'otplib';` },
+    { type: '+', content: `import crypto from 'node:crypto';` },
+    { type: '+', content: `` },
+    { type: '+', content: `const SERVER_SECRET = process.env.TOTP_SERVER_SECRET!;` },
+    { type: '+', content: `` },
+    { type: '+', content: `export function generateSecret(userId: string): string {` },
+    { type: '+', content: `  return crypto` },
+    { type: '+', content: `    .createHmac('sha256', SERVER_SECRET)` },
+    { type: '+', content: `    .update(userId)` },
+    { type: '+', content: `    .digest('base64')` },
+    { type: '+', content: `    .slice(0, 32);` },
+    { type: '+', content: `}` },
+    { type: '+', content: `` },
+    { type: '+', content: `export function verifyTotp(user: User, token?: string): boolean {` },
+    { type: '+', content: `  if (!token || !user.totpSecret) return false;` },
+    { type: '+', content: `  authenticator.options = { window: 0 };` },
+    { type: '+', content: `  return authenticator.check(token, user.totpSecret);` },
+    { type: '+', content: `}` },
+    { type: '+', content: `` },
+    { type: '+', content: `export function otpauthUri(email: string, secret: string): string {` },
+    { type: '+', content: `  return authenticator.keyuri(email, 'Acme', secret);` },
+    { type: '+', content: `}` },
   ];
 
+  function diffToSplit(lines: DiffLine[]): { old: string; new: string } {
+    const oldLines = lines.filter(l => l.type === '-' || l.type === ' ').map(l => l.content);
+    const newLines = lines.filter(l => l.type === '+' || l.type === ' ').map(l => l.content);
+    return { old: oldLines.join('\n'), new: newLines.join('\n') };
+  }
+
+  const ACTIVE_FILES: Record<number, { old: string; new: string }> = {
+    0: diffToSplit(RAW_DIFF),
+  };
+
   let active = 0;
+
+  $: currentDiff = ACTIVE_FILES[active] ?? { old: '', new: '' };
 
   function badgeLabel(kind: string): string {
     if (kind === 'add') return 'A';
@@ -75,39 +89,120 @@
     <div class="diff-filebar">
       <Icon name="file" size={14} style="color: var(--fg-2)"/>
       <div class="fp">
-        <span class="dir">src/auth/</span><b>totp.ts</b>
+        <span class="dir">{REVIEW_FILES[active].path.split('/').slice(0, -1).join('/')}/</span><b>{REVIEW_FILES[active].path.split('/').at(-1)}</b>
       </div>
       <div class="stat">
-        <span class="plus">+48</span> <span class="minus">−0</span>
+        <span class="plus">+{REVIEW_FILES[active].plus}</span>
+        {#if REVIEW_FILES[active].minus > 0}
+          <span class="minus"> −{REVIEW_FILES[active].minus}</span>
+        {/if}
       </div>
       <button class="btn ghost" style="margin-left: 8px; padding: 4px 8px;"><Icon name="external" size={12}/> Open</button>
     </div>
 
-    <div class="ai-annotation">
-      <div class="ai-icon"><Icon name="sparkles" size={16}/></div>
-      <div>
-        <div class="head"><span class="ai-label">AI explanation</span> · why this file exists</div>
-        Brand new module. Defines <code style="font-family: var(--font-mono)">generateSecret</code>, <code style="font-family: var(--font-mono)">verifyTotp</code> and <code style="font-family: var(--font-mono)">otpauthUri</code>. Secrets are derived from the user id using an HMAC with the server-level secret — so losing the server secret invalidates every TOTP at once, which is the desired rotation property. <code style="font-family: var(--font-mono)">verifyTotp</code> uses <code style="font-family: var(--font-mono)">otplib</code> under the hood with a strict window of 0.
-      </div>
-    </div>
-
-    <div class="diff-hunk">
-      <div class="diff-hunk-head">@@ -0,0 +1,48 @@ <span class="ctx">new file</span></div>
-      {#each DIFF_LINES as [kind, ln, marker, code]}
-        <div class="diff-line {kind}">
-          <span class="ln">{ln}</span>
-          <span class="marker">{marker}</span>
-          <span class="code">{@html tok(code)}</span>
-        </div>
-      {/each}
-    </div>
-
-    <div class="ai-annotation">
-      <div class="ai-icon"><Icon name="alert" size={16}/></div>
-      <div>
-        <div class="head" style="color: var(--warning)"><span class="ai-label" style="color: var(--warning)">Heads up</span> · review recommended</div>
-        Using <code style="font-family: var(--font-mono)">window: 0</code> is strict — correct clients will pass, but a user whose clock drifts by 30s will fail verification. If support tickets come in, consider <code style="font-family: var(--font-mono)">window: 1</code>.
-      </div>
+    <div class="diff-editor-wrap">
+      <DiffEditor
+        oldContent={currentDiff.old}
+        newContent={currentDiff.new}
+        language="ts"
+      />
     </div>
   </div>
 </div>
+
+<style>
+  .review-layout {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .files-list {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--stroke-0);
+    overflow-y: auto;
+    padding-top: 8px;
+  }
+
+  .files-section-title {
+    padding: 4px 16px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--fg-1);
+    border-radius: 4px;
+    margin: 0 4px;
+  }
+
+  .file-item:hover { background: var(--bg-3); }
+  .file-item.active { background: var(--bg-4); color: var(--fg-0); }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .badge.add { background: oklch(0.78 0.14 135 / 0.18); color: oklch(0.78 0.14 135); }
+  .badge.mod { background: oklch(0.82 0.14 60 / 0.18); color: oklch(0.82 0.14 60); }
+  .badge.del { background: oklch(0.70 0.18 15 / 0.18); color: oklch(0.70 0.18 15); }
+
+  .fname {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+
+  .diff-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .diff-filebar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 36px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--stroke-0);
+    font-size: 12.5px;
+    color: var(--fg-2);
+  }
+
+  .fp { flex: 1; font-family: var(--font-mono); font-size: 12px; }
+  .dir { color: var(--fg-3); }
+  .stat { display: flex; gap: 4px; font-size: 11.5px; font-family: var(--font-mono); }
+  .plus { color: var(--success); }
+  .minus { color: var(--danger); }
+
+  .diff-editor-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+</style>

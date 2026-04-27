@@ -5,21 +5,7 @@
   import { EditorState, EditorSelection, Compartment, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { showMinimap } from '@replit/codemirror-minimap';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
-  import { html } from '@codemirror/lang-html';
-  import { css } from '@codemirror/lang-css';
-  import { markdown } from '@codemirror/lang-markdown';
-  import { xml } from '@codemirror/lang-xml';
-  import { yaml } from '@codemirror/lang-yaml';
-  import { python } from '@codemirror/lang-python';
-  import { rust } from '@codemirror/lang-rust';
-  import { java } from '@codemirror/lang-java';
-  import { cpp } from '@codemirror/lang-cpp';
-  import { php } from '@codemirror/lang-php';
-  import { sql } from '@codemirror/lang-sql';
-  import { json } from '@codemirror/lang-json';
-  import { vue } from '@codemirror/lang-vue';
-  import { svelte } from 'codemirror-lang-svelte';
-  import { languages } from '@codemirror/language-data';
+  import { buildEditorTheme, buildHighlight, resolveLanguageExtension, type EditorLanguage } from '$lib/utils/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
   import {
     autocompletion, completionKeymap, acceptCompletion,
@@ -27,11 +13,10 @@
     snippetCompletion, completeFromList,
   } from '@codemirror/autocomplete';
   import {
-    HighlightStyle, syntaxHighlighting, syntaxTree,
+    syntaxHighlighting, syntaxTree,
     bracketMatching, foldGutter, foldKeymap, indentOnInput,
     codeFolding,
   } from '@codemirror/language';
-  import { tags as t } from '@lezer/highlight';
   import {
     history, historyKeymap, defaultKeymap,
     insertTab, toggleComment, toggleBlockComment,
@@ -78,36 +63,19 @@
     view.focus();
   }
 
-  type EditorLanguage =
-    | 'ts'
-    | 'tsx'
-    | 'js'
-    | 'jsx'
-    | 'vue'
-    | 'svelte'
-    | 'sql'
-    | 'json'
-    | 'html'
-    | 'css'
-    | 'markdown'
-    | 'xml'
-    | 'yaml'
-    | 'python'
-    | 'rust'
-    | 'java'
-    | 'cpp'
-    | 'php'
-    | 'text';
-
   export let language: EditorLanguage = 'ts';
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
   export let fontSize: number = 13;
   type DiffHunkLine = { type: '+' | '-' | ' '; content: string };
-  type DiffHunk = { newStart: number; newEnd: number; lines: DiffHunkLine[] };
+  type DiffHunk = { oldStart: number; newStart: number; newEnd: number; lines: DiffHunkLine[] };
 
   export let diffHunks: DiffHunk[] = [];
+  export let stagedHunks: DiffHunk[] = [];
   export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
+  export let onStageHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
+  export let onUnstageHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
+  export let onRevertHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
   export let showWhitespace: boolean = false;
   export let savedState: EditorState | null = null;
 
@@ -184,6 +152,21 @@
     if (e.key === 'Escape') closeContextMenu();
   }
 
+  // ── Hunk action popup ────────────────────────────────────────────────────────
+
+  type HunkPopup = { x: number; y: number; hunk: DiffHunk; staged: boolean };
+  let hunkPopup: HunkPopup | null = null;
+  let hunkPopupEl: HTMLDivElement | null = null;
+  let hunkHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleHideHunkPopup() {
+    hunkHideTimer = setTimeout(() => { hunkPopup = null; }, 150);
+  }
+
+  function cancelHideHunkPopup() {
+    if (hunkHideTimer) { clearTimeout(hunkHideTimer); hunkHideTimer = null; }
+  }
+
   // ── Git diff gutter ────────────────────────────────────────────────────────
 
   const diffEffect = StateEffect.define<Map<number, 'added' | 'modified'>>();
@@ -211,32 +194,67 @@
 
   class DiffMarker extends GutterMarker {
     kind: 'added' | 'modified';
-    constructor(kind: 'added' | 'modified') { super(); this.kind = kind; }
+    lineNum: number;
+    staged: boolean;
+    constructor(kind: 'added' | 'modified', lineNum: number, staged = false) {
+      super();
+      this.kind = kind;
+      this.lineNum = lineNum;
+      this.staged = staged;
+    }
     toDOM() {
       const el = document.createElement('div');
-      el.className = `cm-diff-marker cm-diff-${this.kind}`;
+      el.className = `cm-diff-marker cm-diff-${this.kind}${this.staged ? ' cm-diff-staged' : ''}`;
+      el.addEventListener('mouseenter', (e) => {
+        cancelHideHunkPopup();
+        const allHunks = [...diffHunks, ...stagedHunks];
+        const hunk = allHunks.find(h => this.lineNum >= h.newStart && this.lineNum <= h.newEnd);
+        if (!hunk) return;
+        const rect = (e.target as HTMLElement).getBoundingClientRect();
+        hunkPopup = { x: rect.right + 4, y: rect.top, hunk, staged: this.staged };
+      });
+      el.addEventListener('mouseleave', scheduleHideHunkPopup);
       return el;
     }
+  }
+
+  const stagedDiffField = StateEffect.define<Map<number, 'added' | 'modified'>>();
+  const stagedField = StateField.define<Map<number, 'added' | 'modified'>>({
+    create: () => new Map(),
+    update: (value, tr) => {
+      for (const e of tr.effects) if (e.is(stagedDiffField)) return e.value;
+      return value;
+    },
+  });
+
+  $: if (view) {
+    view.dispatch({ effects: stagedDiffField.of(hunksToLineMap(stagedHunks)) });
   }
 
   function buildDiffGutter(): Extension {
     return [
       diffField,
+      stagedField,
       gutter({
         class: 'cm-diff-gutter',
         lineMarker(v, line) {
           const num = v.state.doc.lineAt(line.from).number;
           const kind = v.state.field(diffField).get(num);
-          return kind ? new DiffMarker(kind) : null;
+          const stagedKind = v.state.field(stagedField).get(num);
+          if (stagedKind) return new DiffMarker(stagedKind, num, true);
+          if (kind) return new DiffMarker(kind, num, false);
+          return null;
         },
         lineMarkerChange: (update) =>
-          update.startState.field(diffField) !== update.state.field(diffField),
-        initialSpacer: () => new DiffMarker('added'),
+          update.startState.field(diffField) !== update.state.field(diffField) ||
+          update.startState.field(stagedField) !== update.state.field(stagedField),
+        initialSpacer: () => new DiffMarker('added', 0),
         domEventHandlers: {
           mousedown(v, line) {
             const lineNum = v.state.doc.lineAt(line.from).number;
-            if (!v.state.field(diffField).has(lineNum)) return false;
-            const hunk = diffHunks.find(h => lineNum >= h.newStart && lineNum <= h.newEnd);
+            if (!v.state.field(diffField).has(lineNum) && !v.state.field(stagedField).has(lineNum)) return false;
+            const allHunks = [...diffHunks, ...stagedHunks];
+            const hunk = allHunks.find(h => lineNum >= h.newStart && lineNum <= h.newEnd);
             if (hunk) onDiffClick?.(hunk);
             return true;
           },
@@ -311,449 +329,6 @@
         ? showMinimap.of({ create: () => { const dom = document.createElement('div'); return { dom }; }, displayText: 'blocks', showOverlay: 'always' })
         : []
     );
-  }
-
-  // ── Highlight style ────────────────────────────────────────────────────────
-
-  function buildHighlight(theme: string): HighlightStyle {
-    const dark = theme !== 'light';
-    const kw   = dark ? 'oklch(0.72 0.19 295)' : 'oklch(0.42 0.18 295)';
-    const fn_  = dark ? 'oklch(0.84 0.16 55)'  : 'oklch(0.50 0.16 55)';
-    const def  = dark ? 'oklch(0.88 0.005 80)'  : 'oklch(0.18 0.005 70)';
-    const ty   = dark ? 'oklch(0.78 0.13 200)'  : 'oklch(0.38 0.13 200)';
-    const prop = dark ? 'oklch(0.80 0.11 225)'  : 'oklch(0.38 0.11 225)';
-    const str  = dark ? 'oklch(0.78 0.14 135)'  : 'oklch(0.38 0.14 135)';
-    const re   = dark ? 'oklch(0.76 0.14 50)'   : 'oklch(0.44 0.14 50)';
-    const num  = dark ? 'oklch(0.82 0.14 60)'   : 'oklch(0.44 0.14 60)';
-    const cmt  = dark ? 'oklch(0.50 0.010 80)'  : 'oklch(0.62 0.010 80)';
-    const op   = dark ? 'oklch(0.80 0.06 250)'  : 'oklch(0.42 0.08 250)';
-    const punc = dark ? 'oklch(0.65 0.006 80)'  : 'oklch(0.46 0.006 70)';
-    const br   = dark ? 'oklch(0.72 0.08 80)'   : 'oklch(0.42 0.06 70)';
-    const tag  = dark ? 'oklch(0.72 0.18 15)'   : 'oklch(0.44 0.18 15)';
-    const meta = dark ? 'oklch(0.56 0.010 80)'  : 'oklch(0.52 0.010 80)';
-    const err  = dark ? 'oklch(0.70 0.18 15)'   : 'oklch(0.48 0.18 15)';
-    return HighlightStyle.define([
-      { tag: t.keyword,                              color: kw,   fontStyle: 'italic' },
-      { tag: t.controlKeyword,                       color: kw,   fontStyle: 'italic' },
-      { tag: t.definitionKeyword,                    color: kw,   fontStyle: 'italic' },
-      { tag: t.moduleKeyword,                        color: kw,   fontStyle: 'italic' },
-      { tag: t.operatorKeyword,                      color: kw,   fontStyle: 'italic' },
-      { tag: t.function(t.variableName),             color: fn_  },
-      { tag: t.function(t.definition(t.variableName)), color: fn_ },
-      { tag: t.definition(t.variableName),           color: def  },
-      { tag: t.variableName,                         color: def  },
-      { tag: t.typeName,                             color: ty   },
-      { tag: t.className,                            color: ty   },
-      { tag: t.definition(t.typeName),               color: ty   },
-      { tag: t.propertyName,                         color: prop },
-      { tag: t.definition(t.propertyName),           color: prop },
-      { tag: t.string,                               color: str  },
-      { tag: t.special(t.string),                    color: str  },
-      { tag: t.regexp,                               color: re   },
-      { tag: t.number,                               color: num  },
-      { tag: t.bool,                                 color: kw,   fontStyle: 'italic' },
-      { tag: t.null,                                 color: kw,   fontStyle: 'italic' },
-      { tag: t.atom,                                 color: kw   },
-      { tag: t.comment,                              color: cmt,  fontStyle: 'italic' },
-      { tag: t.lineComment,                          color: cmt,  fontStyle: 'italic' },
-      { tag: t.blockComment,                         color: cmt,  fontStyle: 'italic' },
-      { tag: t.operator,                             color: op   },
-      { tag: t.punctuation,                          color: punc },
-      { tag: t.bracket,                              color: br   },
-      { tag: t.tagName,                              color: tag  },
-      { tag: t.attributeName,                        color: ty   },
-      { tag: t.attributeValue,                       color: str  },
-      { tag: t.namespace,                            color: ty   },
-      { tag: t.meta,                                 color: meta },
-      { tag: t.modifier,                             color: kw,   fontStyle: 'italic' },
-      { tag: t.self,                                 color: kw,   fontStyle: 'italic' },
-      { tag: t.special(t.variableName),              color: fn_  },
-      { tag: t.inserted,                             color: str  },
-      { tag: t.deleted,                              color: err  },
-      { tag: t.changed,                              color: num  },
-      { tag: t.invalid,                              color: err, textDecoration: 'underline wavy' },
-    ]);
-  }
-
-  // ── Theme ──────────────────────────────────────────────────────────────────
-
-  function buildEditorTheme(theme: string): Extension {
-    if (theme === 'light') return buildLightTheme();
-    if (theme === 'high-contrast') return buildHighContrastTheme();
-    return buildDarkTheme();
-  }
-
-  function buildDarkTheme(): Extension {
-    return EditorView.theme({
-    '&': {
-      backgroundColor: 'oklch(0.16 0.008 70)',
-      color: 'oklch(0.88 0.005 80)',
-      height: '100%',
-      fontFamily: 'var(--font-mono)',
-    },
-    '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
-    '.cm-focused': { outline: 'none' },
-    '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
-    '.cm-gutters': {
-      backgroundColor: 'oklch(0.16 0.008 70)',
-      borderRight: '1px solid oklch(0.26 0.008 70)',
-      color: 'oklch(0.42 0.006 80)',
-    },
-    '.cm-gutter': { minWidth: '44px' },
-    '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 8px', fontSize: '11.5px' },
-    '.cm-activeLineGutter': { backgroundColor: 'oklch(0.215 0.008 70)' },
-    '.cm-activeLine': { backgroundColor: 'oklch(0.215 0.008 70)' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-      backgroundColor: 'oklch(0.72 0.14 250 / 0.22) !important',
-    },
-    '.cm-cursor': { borderLeftColor: 'oklch(0.72 0.14 250)' },
-
-    // Matching brackets
-    '.cm-matchingBracket': {
-      backgroundColor: 'oklch(0.72 0.14 250 / 0.18)',
-      outline: '1px solid oklch(0.72 0.14 250 / 0.4)',
-      borderRadius: '2px',
-    },
-    '.cm-nonmatchingBracket': {
-      backgroundColor: 'oklch(0.70 0.18 15 / 0.25)',
-      outline: '1px solid oklch(0.70 0.18 15 / 0.5)',
-    },
-
-    // Selection highlight
-    '.cm-selectionMatch': {
-      backgroundColor: 'oklch(0.72 0.14 250 / 0.12)',
-      outline: '1px solid oklch(0.72 0.14 250 / 0.25)',
-      borderRadius: '2px',
-    },
-
-    // Search panel
-    '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.28)', borderRadius: '2px' },
-    '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.55)' },
-    '.cm-panels-top': { borderBottom: '1px solid oklch(0.26 0.008 70)' },
-    '.cm-panel.cm-search': {
-      backgroundColor: 'oklch(0.185 0.008 70)',
-      padding: '7px 12px',
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '5px',
-      alignItems: 'center',
-      fontFamily: 'var(--font-ui)',
-    },
-    '.cm-panel.cm-dialog': {
-      backgroundColor: 'oklch(0.185 0.008 70)',
-      padding: '7px 36px 7px 12px',
-      display: 'flex',
-      gap: '6px',
-      alignItems: 'center',
-      fontFamily: 'var(--font-ui)',
-    },
-    '.cm-textfield': {
-      backgroundColor: 'oklch(0.22 0.008 70)',
-      border: '1px solid oklch(0.32 0.008 70)',
-      borderRadius: '5px',
-      color: 'oklch(0.90 0.005 80)',
-      padding: '4px 9px',
-      fontSize: '12.5px',
-      fontFamily: 'var(--font-ui)',
-      outline: 'none',
-      minWidth: '150px',
-    },
-    '.cm-textfield:focus': {
-      borderColor: 'oklch(0.55 0.14 250 / 0.85)',
-      backgroundColor: 'oklch(0.235 0.008 70)',
-    },
-    '.cm-panel.cm-dialog input': {
-      backgroundColor: 'oklch(0.22 0.008 70)',
-      border: '1px solid oklch(0.32 0.008 70)',
-      borderRadius: '5px',
-      color: 'oklch(0.90 0.005 80)',
-      padding: '4px 9px',
-      fontSize: '12.5px',
-      fontFamily: 'var(--font-ui)',
-      outline: 'none',
-      width: '100px',
-    },
-    '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.55 0.14 250 / 0.85)' },
-    '.cm-panel.cm-dialog label': { color: 'oklch(0.65 0.006 80)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
-    '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.72 0.14 250)', cursor: 'pointer' },
-    '.cm-button': {
-      backgroundColor: 'oklch(0.255 0.008 70)',
-      border: '1px solid oklch(0.33 0.008 70)',
-      borderRadius: '5px',
-      color: 'oklch(0.78 0.005 80)',
-      padding: '4px 11px',
-      cursor: 'pointer',
-      fontSize: '12px',
-      fontFamily: 'var(--font-ui)',
-      lineHeight: '1.4',
-    },
-    '.cm-button:hover': { backgroundColor: 'oklch(0.305 0.008 70)', color: 'oklch(0.92 0.005 80)' },
-    '.cm-button[name="next"], .cm-button[name="prev"]': {
-      backgroundColor: 'oklch(0.26 0.11 250 / 0.65)',
-      border: '1px solid oklch(0.48 0.14 250 / 0.45)',
-      color: 'oklch(0.82 0.09 250)',
-    },
-    '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': {
-      backgroundColor: 'oklch(0.32 0.14 250 / 0.75)',
-      color: 'oklch(0.94 0.06 250)',
-    },
-    '.cm-button[name="close"]': {
-      backgroundColor: 'transparent',
-      border: 'none',
-      color: 'oklch(0.50 0.006 80)',
-      padding: '2px 5px',
-      fontSize: '14px',
-    },
-    '.cm-button[name="close"]:hover': { color: 'oklch(0.80 0.005 80)', backgroundColor: 'transparent' },
-    '.cm-dialog-close': {
-      color: 'oklch(0.50 0.006 80)',
-      fontSize: '14px',
-      padding: '2px 5px',
-      cursor: 'pointer',
-    },
-    '.cm-search label': {
-      color: 'oklch(0.55 0.006 80)',
-      fontSize: '12px',
-      fontFamily: 'var(--font-ui)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px',
-    },
-
-    // Code folding
-    '.cm-foldGutter': { minWidth: '16px' },
-    '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
-    '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.78 0.14 250)' },
-    '.cm-foldPlaceholder': {
-      backgroundColor: 'oklch(0.26 0.008 70)',
-      border: '1px solid oklch(0.34 0.008 70)',
-      borderRadius: '3px',
-      color: 'oklch(0.60 0.006 80)',
-      padding: '0 6px',
-      margin: '0 4px',
-      fontSize: '11px',
-      cursor: 'pointer',
-    },
-
-    // Lint gutter & diagnostics
-    '.cm-lintRange-error':   { textDecoration: 'underline wavy oklch(0.70 0.18 15)' },
-    '.cm-lintRange-warning': { textDecoration: 'underline wavy oklch(0.82 0.14 60)' },
-    '.cm-lintRange-info':    { textDecoration: 'underline wavy oklch(0.72 0.14 250)' },
-    '.cm-lintGutter': { minWidth: '16px' },
-    '.cm-lintPoint-error::after':   { color: 'oklch(0.70 0.18 15)' },
-    '.cm-lintPoint-warning::after': { color: 'oklch(0.82 0.14 60)' },
-    '.cm-lint-marker': { fontSize: '11px' },
-    '.cm-lint-marker-error':   { content: '"●"', color: 'oklch(0.70 0.18 15)' },
-    '.cm-lint-marker-warning': { content: '"●"', color: 'oklch(0.82 0.14 60)' },
-    '.cm-tooltip.cm-tooltip-lint': {
-      backgroundColor: 'oklch(0.20 0.008 70)',
-      border: '1px solid oklch(0.32 0.008 70)',
-      borderRadius: '6px',
-      padding: '6px 10px',
-      fontSize: '12.5px',
-      color: 'oklch(0.88 0.005 80)',
-      maxWidth: '400px',
-    },
-
-    // Autocomplete tooltip
-    '.cm-tooltip': {
-      backgroundColor: 'oklch(0.20 0.008 70)',
-      border: '1px solid oklch(0.32 0.008 70)',
-      borderRadius: '6px',
-      color: 'oklch(0.88 0.005 80)',
-      boxShadow: '0 4px 20px oklch(0 0 0 / 0.55)',
-      fontSize: '12.5px',
-    },
-    '.cm-tooltip-autocomplete': { borderRadius: '6px' },
-    '.cm-tooltip-autocomplete ul': { maxHeight: '260px' },
-    '.cm-tooltip-autocomplete ul li': { padding: '4px 12px', lineHeight: '1.5' },
-    '.cm-tooltip-autocomplete ul li[aria-selected]': {
-      backgroundColor: 'oklch(0.72 0.14 250 / 0.22)',
-      color: 'oklch(0.96 0.005 80)',
-    },
-    '.cm-completionIcon': { paddingRight: '6px', opacity: '0.7' },
-    '.cm-completionLabel': { flex: '1' },
-    '.cm-completionDetail': {
-      color: 'oklch(0.54 0.006 80)',
-      fontSize: '11.5px',
-      fontStyle: 'italic',
-      marginLeft: '8px',
-    },
-
-    // Hover tooltip
-    '.cm-tooltip.cairn-hover': { padding: '0', maxWidth: '500px', borderRadius: '8px', overflow: 'hidden' },
-    '.cairn-hover-body': {
-      padding: '8px 12px',
-      fontSize: '12.5px',
-      lineHeight: '1.6',
-      fontFamily: 'var(--font-mono)',
-    },
-    '.cairn-hover-type':  { color: 'oklch(0.80 0.11 225)', fontStyle: 'italic' },
-    '.cairn-hover-name':  { color: 'oklch(0.84 0.16 55)', fontWeight: '600' },
-    '.cairn-hover-kind': {
-      display: 'inline-block',
-      padding: '1px 6px',
-      borderRadius: '4px',
-      fontSize: '10.5px',
-      fontFamily: 'var(--font-ui)',
-      fontStyle: 'normal',
-      fontWeight: '500',
-      letterSpacing: '0.03em',
-      textTransform: 'uppercase',
-      marginRight: '6px',
-    },
-    '.cairn-hover-kind-function': { backgroundColor: 'oklch(0.84 0.16 55 / 0.15)',  color: 'oklch(0.84 0.16 55)'  },
-    '.cairn-hover-kind-variable': { backgroundColor: 'oklch(0.80 0.11 225 / 0.15)', color: 'oklch(0.80 0.11 225)' },
-    '.cairn-hover-kind-type':     { backgroundColor: 'oklch(0.78 0.13 200 / 0.15)', color: 'oklch(0.78 0.13 200)' },
-    '.cairn-hover-kind-keyword':  { backgroundColor: 'oklch(0.72 0.19 295 / 0.15)', color: 'oklch(0.72 0.19 295)' },
-    '.cairn-hover-kind-string':   { backgroundColor: 'oklch(0.78 0.14 135 / 0.15)', color: 'oklch(0.78 0.14 135)' },
-    '.cairn-hover-kind-number':   { backgroundColor: 'oklch(0.82 0.14 60  / 0.15)', color: 'oklch(0.82 0.14 60)'  },
-    '.cairn-hover-divider': { height: '1px', backgroundColor: 'oklch(0.28 0.008 70)', margin: '6px 0' },
-    '.cairn-hover-doc': {
-      color: 'oklch(0.64 0.006 80)',
-      fontSize: '12px',
-      fontFamily: 'var(--font-ui)',
-      fontStyle: 'normal',
-      marginTop: '4px',
-    },
-
-    // Diff gutter markers
-    '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
-    '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
-    '.cm-diff-marker': { width: '3px', height: '100%' },
-    '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
-    '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
-
-    // Minimap
-    '.cm-minimap-gutter': {
-      backgroundColor: 'oklch(0.14 0.008 70)',
-      borderLeft: '1px solid oklch(0.22 0.008 70)',
-    },
-    '.cm-minimap-overlay-container': { cursor: 'pointer' },
-    '.cm-minimap-overlay': {
-      backgroundColor: 'oklch(0.72 0.14 250 / 0.10)',
-      border: '1px solid oklch(0.72 0.14 250 / 0.22)',
-    },
-
-    // Whitespace rendering
-    '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.36 0.006 80)' },
-  }, { dark: true });
-  }
-
-  function buildLightTheme(): Extension {
-    return EditorView.theme({
-      '&': { backgroundColor: 'oklch(0.97 0.006 80)', color: 'oklch(0.18 0.008 70)', height: '100%', fontFamily: 'var(--font-mono)' },
-      '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.42 0.18 250)' },
-      '.cm-focused': { outline: 'none' },
-      '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
-      '.cm-gutters': { backgroundColor: 'oklch(0.94 0.007 75)', borderRight: '1px solid oklch(0.87 0.007 70)', color: 'oklch(0.58 0.008 70)' },
-      '.cm-gutter': { minWidth: '44px' },
-      '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 8px', fontSize: '11.5px' },
-      '.cm-activeLineGutter': { backgroundColor: 'oklch(0.91 0.008 70)' },
-      '.cm-activeLine': { backgroundColor: 'oklch(0.91 0.008 70)' },
-      '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'oklch(0.42 0.14 250 / 0.20) !important' },
-      '.cm-cursor': { borderLeftColor: 'oklch(0.42 0.18 250)' },
-      '.cm-matchingBracket': { backgroundColor: 'oklch(0.42 0.14 250 / 0.15)', outline: '1px solid oklch(0.42 0.14 250 / 0.35)', borderRadius: '2px' },
-      '.cm-nonmatchingBracket': { backgroundColor: 'oklch(0.48 0.18 15 / 0.2)', outline: '1px solid oklch(0.48 0.18 15 / 0.4)' },
-      '.cm-selectionMatch': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', outline: '1px solid oklch(0.42 0.14 250 / 0.22)', borderRadius: '2px' },
-      '.cm-searchMatch': { backgroundColor: 'oklch(0.60 0.14 60 / 0.28)', borderRadius: '2px' },
-      '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.60 0.14 60 / 0.55)' },
-      '.cm-panels-top': { borderBottom: '1px solid oklch(0.87 0.007 70)' },
-      '.cm-panel.cm-search': { backgroundColor: 'oklch(0.935 0.007 75)', padding: '7px 12px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
-      '.cm-panel.cm-dialog': { backgroundColor: 'oklch(0.935 0.007 75)', padding: '7px 36px 7px 12px', display: 'flex', gap: '6px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
-      '.cm-textfield': { backgroundColor: 'oklch(0.99 0.004 80)', border: '1px solid oklch(0.82 0.008 70)', borderRadius: '5px', color: 'oklch(0.18 0.008 70)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', minWidth: '150px' },
-      '.cm-textfield:focus': { borderColor: 'oklch(0.45 0.14 250 / 0.7)', backgroundColor: 'oklch(1.0 0.003 80)' },
-      '.cm-panel.cm-dialog input': { backgroundColor: 'oklch(0.99 0.004 80)', border: '1px solid oklch(0.82 0.008 70)', borderRadius: '5px', color: 'oklch(0.18 0.008 70)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', width: '100px' },
-      '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.45 0.14 250 / 0.7)' },
-      '.cm-panel.cm-dialog label': { color: 'oklch(0.45 0.008 70)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
-      '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.48 0.14 250)', cursor: 'pointer' },
-      '.cm-button': { backgroundColor: 'oklch(0.905 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '5px', color: 'oklch(0.28 0.008 70)', padding: '4px 11px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-ui)', lineHeight: '1.4' },
-      '.cm-button:hover': { backgroundColor: 'oklch(0.87 0.009 65)' },
-      '.cm-button[name="next"], .cm-button[name="prev"]': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', border: '1px solid oklch(0.42 0.14 250 / 0.38)', color: 'oklch(0.36 0.14 250)' },
-      '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': { backgroundColor: 'oklch(0.42 0.14 250 / 0.20)' },
-      '.cm-button[name="close"]': { backgroundColor: 'transparent', border: 'none', color: 'oklch(0.60 0.006 80)', padding: '2px 5px', fontSize: '14px' },
-      '.cm-button[name="close"]:hover': { color: 'oklch(0.28 0.008 70)', backgroundColor: 'transparent' },
-      '.cm-dialog-close': { color: 'oklch(0.60 0.006 80)', fontSize: '14px', padding: '2px 5px', cursor: 'pointer' },
-      '.cm-search label': { color: 'oklch(0.48 0.008 70)', fontSize: '12px', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: '4px' },
-        '.cm-foldGutter': { minWidth: '16px' },
-      '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
-      '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.42 0.14 250)' },
-      '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.91 0.008 70)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '3px', color: 'oklch(0.52 0.006 80)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
-      '.cm-tooltip': { backgroundColor: 'oklch(0.97 0.006 80)', border: '1px solid oklch(0.80 0.008 70)', borderRadius: '6px', color: 'oklch(0.18 0.008 70)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.15)', fontSize: '12.5px' },
-      '.cm-tooltip-autocomplete': { borderRadius: '6px' },
-      '.cm-tooltip-autocomplete ul': { maxHeight: '260px' },
-      '.cm-tooltip-autocomplete ul li': { padding: '4px 12px', lineHeight: '1.5' },
-      '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'oklch(0.42 0.14 250 / 0.18)', color: 'oklch(0.10 0.005 70)' },
-      '.cm-completionIcon': { paddingRight: '6px', opacity: '0.7' },
-      '.cm-completionLabel': { flex: '1' },
-      '.cm-completionDetail': { color: 'oklch(0.54 0.006 80)', fontSize: '11.5px', fontStyle: 'italic', marginLeft: '8px' },
-      '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
-      '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
-      '.cm-diff-marker': { width: '3px', height: '100%' },
-      '.cm-diff-added': { backgroundColor: 'oklch(0.55 0.18 135)' },
-      '.cm-diff-modified': { backgroundColor: 'oklch(0.60 0.18 60)' },
-      '.cm-minimap-gutter': { backgroundColor: 'oklch(0.93 0.007 75)', borderLeft: '1px solid oklch(0.87 0.007 70)' },
-      '.cm-minimap-overlay': { backgroundColor: 'oklch(0.42 0.14 250 / 0.10)', border: '1px solid oklch(0.42 0.14 250 / 0.22)' },
-      '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.68 0.008 70)' },
-    }, { dark: false });
-  }
-
-  function buildHighContrastTheme(): Extension {
-    return EditorView.theme({
-      '&': { backgroundColor: 'oklch(0.0 0 0)', color: 'oklch(1.0 0 0)', height: '100%', fontFamily: 'var(--font-mono)' },
-      '.cm-content': { padding: '12px 0', caretColor: 'oklch(0.72 0.14 250)' },
-      '.cm-focused': { outline: 'none' },
-      '.cm-line': { padding: '0 16px 0 0', lineHeight: '1.65' },
-      '.cm-gutters': { backgroundColor: 'oklch(0.08 0 0)', borderRight: '1px solid oklch(0.32 0 0)', color: 'oklch(0.55 0 0)' },
-      '.cm-gutter': { minWidth: '44px' },
-      '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 8px', fontSize: '11.5px' },
-      '.cm-activeLineGutter': { backgroundColor: 'oklch(0.12 0 0)' },
-      '.cm-activeLine': { backgroundColor: 'oklch(0.12 0 0)' },
-      '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'oklch(0.72 0.14 250 / 0.35) !important' },
-      '.cm-cursor': { borderLeftColor: 'oklch(0.72 0.14 250)', borderLeftWidth: '2px' },
-      '.cm-matchingBracket': { backgroundColor: 'oklch(0.72 0.14 250 / 0.25)', outline: '1px solid oklch(0.72 0.14 250 / 0.6)', borderRadius: '2px' },
-      '.cm-nonmatchingBracket': { backgroundColor: 'oklch(0.70 0.18 15 / 0.3)', outline: '1px solid oklch(0.70 0.18 15 / 0.7)' },
-      '.cm-selectionMatch': { backgroundColor: 'oklch(0.72 0.14 250 / 0.20)', outline: '1px solid oklch(0.72 0.14 250 / 0.45)', borderRadius: '2px' },
-      '.cm-searchMatch': { backgroundColor: 'oklch(0.82 0.14 60 / 0.35)', borderRadius: '2px' },
-      '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'oklch(0.82 0.14 60 / 0.65)' },
-      '.cm-panels-top': { borderBottom: '1px solid oklch(0.48 0 0)' },
-      '.cm-panel.cm-search': { backgroundColor: 'oklch(0.065 0 0)', padding: '7px 12px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
-      '.cm-panel.cm-dialog': { backgroundColor: 'oklch(0.065 0 0)', padding: '7px 36px 7px 12px', display: 'flex', gap: '6px', alignItems: 'center', fontFamily: 'var(--font-ui)' },
-      '.cm-textfield': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(1.0 0 0)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', minWidth: '150px' },
-      '.cm-textfield:focus': { borderColor: 'oklch(0.72 0.14 250)' },
-      '.cm-panel.cm-dialog input': { backgroundColor: 'oklch(0.10 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(1.0 0 0)', padding: '4px 9px', fontSize: '12.5px', fontFamily: 'var(--font-ui)', outline: 'none', width: '100px' },
-      '.cm-panel.cm-dialog input:focus': { borderColor: 'oklch(0.72 0.14 250)' },
-      '.cm-panel.cm-dialog label': { color: 'oklch(0.72 0 0)', fontSize: '12.5px', fontFamily: 'var(--font-ui)' },
-      '.cm-search input[type="checkbox"]': { accentColor: 'oklch(0.72 0.14 250)', cursor: 'pointer' },
-      '.cm-button': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.55 0 0)', borderRadius: '5px', color: 'oklch(0.85 0 0)', padding: '4px 11px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-ui)', lineHeight: '1.4' },
-      '.cm-button:hover': { backgroundColor: 'oklch(0.22 0 0)' },
-      '.cm-button[name="next"], .cm-button[name="prev"]': { backgroundColor: 'oklch(0.72 0.14 250 / 0.15)', border: '1px solid oklch(0.72 0.14 250 / 0.6)', color: 'oklch(0.85 0.14 250)' },
-      '.cm-button[name="next"]:hover, .cm-button[name="prev"]:hover': { backgroundColor: 'oklch(0.72 0.14 250 / 0.28)' },
-      '.cm-button[name="close"]': { backgroundColor: 'transparent', border: 'none', color: 'oklch(0.55 0 0)', padding: '2px 5px', fontSize: '14px' },
-      '.cm-button[name="close"]:hover': { color: 'oklch(0.85 0 0)', backgroundColor: 'transparent' },
-      '.cm-dialog-close': { color: 'oklch(0.55 0 0)', fontSize: '14px', padding: '2px 5px', cursor: 'pointer' },
-      '.cm-search label': { color: 'oklch(0.70 0 0)', fontSize: '12px', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: '4px' },
-        '.cm-foldGutter': { minWidth: '16px' },
-      '.cm-foldGutter .cm-gutterElement': { padding: '0 2px', cursor: 'pointer', userSelect: 'none' },
-      '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.90 0.14 250)' },
-      '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.14 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '3px', color: 'oklch(0.70 0 0)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
-      '.cm-tooltip': { backgroundColor: 'oklch(0.08 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '6px', color: 'oklch(1.0 0 0)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.8)', fontSize: '12.5px' },
-      '.cm-tooltip-autocomplete': { borderRadius: '6px' },
-      '.cm-tooltip-autocomplete ul': { maxHeight: '260px' },
-      '.cm-tooltip-autocomplete ul li': { padding: '4px 12px', lineHeight: '1.5' },
-      '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'oklch(0.72 0.14 250 / 0.30)', color: 'oklch(1.0 0 0)' },
-      '.cm-completionIcon': { paddingRight: '6px', opacity: '0.7' },
-      '.cm-completionLabel': { flex: '1' },
-      '.cm-completionDetail': { color: 'oklch(0.60 0 0)', fontSize: '11.5px', fontStyle: 'italic', marginLeft: '8px' },
-      '.cm-diff-gutter': { width: '3px', minWidth: '3px', cursor: 'pointer' },
-      '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
-      '.cm-diff-marker': { width: '3px', height: '100%' },
-      '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
-      '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
-      '.cm-minimap-gutter': { backgroundColor: 'oklch(0.05 0 0)', borderLeft: '1px solid oklch(0.25 0 0)' },
-      '.cm-minimap-overlay': { backgroundColor: 'oklch(0.72 0.14 250 / 0.15)', border: '1px solid oklch(0.72 0.14 250 / 0.35)' },
-      '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.42 0 0)' },
-    }, { dark: true });
   }
 
   // ── Snippets ───────────────────────────────────────────────────────────────
@@ -1057,28 +632,6 @@
     false: 'Boolean false.',
   };
 
-  function resolveLanguageExtension(lang: EditorLanguage): Extension {
-    switch (lang) {
-      case 'tsx': return javascript({ typescript: true, jsx: true });
-      case 'jsx': return javascript({ typescript: false, jsx: true });
-      case 'vue': return vue();
-      case 'svelte': return svelte();
-      case 'sql': return sql();
-      case 'json': return json();
-      case 'html': return html();
-      case 'css': return css();
-      case 'markdown': return markdown({ codeLanguages: languages });
-      case 'xml': return xml();
-      case 'yaml': return yaml();
-      case 'python': return python();
-      case 'rust': return rust();
-      case 'java': return java();
-      case 'cpp': return cpp();
-      case 'php': return php();
-      case 'text': return [];
-      default: return javascript({ typescript: lang === 'ts', jsx: false });
-    }
-  }
 
   // ── Extensions ─────────────────────────────────────────────────────────────
 
@@ -1218,7 +771,7 @@
 
 <svelte:window
   on:keydown={(e) => { if (ctxMenu) handleCtxKeydown(e); }}
-  on:mousedown={() => { if (ctxMenu) closeContextMenu(); }}
+  on:mousedown={() => { if (ctxMenu) closeContextMenu(); if (hunkPopup) hunkPopup = null; }}
 />
 
 <div bind:this={container} class="editor-mount"></div>
@@ -1270,6 +823,30 @@
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(deleteLine)}>
       <span class="icon"></span>Delete Line<span class="kbd">{bindingToLabels($shortcuts.deleteLine).join('')}</span>
     </button>
+  </div>
+{/if}
+
+{#if hunkPopup}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    bind:this={hunkPopupEl}
+    class="hunk-popup"
+    style="left:{hunkPopup.x}px;top:{hunkPopup.y}px"
+    on:mouseenter={cancelHideHunkPopup}
+    on:mouseleave={scheduleHideHunkPopup}
+    on:mousedown|stopPropagation={() => {}}
+    role="toolbar"
+    tabindex="-1"
+  >
+    {#if !hunkPopup.staged && onStageHunk}
+      <button class="hunk-btn hunk-btn-stage" on:click={() => { onStageHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Stage</button>
+    {/if}
+    {#if hunkPopup.staged && onUnstageHunk}
+      <button class="hunk-btn hunk-btn-unstage" on:click={() => { onUnstageHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Unstage</button>
+    {/if}
+    {#if !hunkPopup.staged && onRevertHunk}
+      <button class="hunk-btn hunk-btn-revert" on:click={() => { onRevertHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Revert</button>
+    {/if}
   </div>
 {/if}
 
@@ -1359,4 +936,37 @@
     margin: 4px 8px;
     background: var(--stroke-0);
   }
+
+  .hunk-popup {
+    position: fixed;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px;
+    background: var(--bg-1);
+    border: 1px solid var(--stroke-0);
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+
+  .hunk-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    color: var(--fg-1);
+    background: transparent;
+  }
+
+  .hunk-btn:hover {
+    background: var(--bg-2);
+  }
+
+  .hunk-btn-stage { color: oklch(0.78 0.14 135); }
+  .hunk-btn-unstage { color: oklch(0.72 0.14 250); }
+  .hunk-btn-revert { color: oklch(0.72 0.14 20); }
+
 </style>

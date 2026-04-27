@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use git2::{Repository, BranchType};
 use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
@@ -962,6 +963,32 @@ fn run_shell_command(program: &str, args: Vec<String>, cwd: Option<String>) -> C
 }
 
 #[tauri::command]
+fn run_shell_command_with_stdin(program: &str, args: Vec<String>, cwd: Option<String>, stdin: String) -> CommandOutput {
+    let mut cmd = Command::new(program);
+    cmd.args(&args);
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    match cmd.spawn() {
+        Err(e) => CommandOutput { stdout: String::new(), stderr: e.to_string(), success: false },
+        Ok(mut child) => {
+            if let Some(mut sh) = child.stdin.take() {
+                let _ = sh.write_all(stdin.as_bytes());
+            }
+            match child.wait_with_output() {
+                Ok(out) => CommandOutput {
+                    stdout: String::from_utf8_lossy(&out.stdout).into_owned(),
+                    stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
+                    success: out.status.success(),
+                },
+                Err(e) => CommandOutput { stdout: String::new(), stderr: e.to_string(), success: false },
+            }
+        }
+    }
+}
+
+#[tauri::command]
 fn run_agent_command(instruction: &str, cwd: &str) -> String {
     format!("agent stub: received '{}' in '{}'", instruction, cwd)
 }
@@ -1003,6 +1030,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             run_shell_command,
+            run_shell_command_with_stdin,
             run_agent_command,
             list_projects,
             add_project,

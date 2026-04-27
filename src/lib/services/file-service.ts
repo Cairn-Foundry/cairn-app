@@ -85,6 +85,7 @@ export interface DiffHunkLine {
 }
 
 export interface DiffHunk {
+  oldStart: number;
   newStart: number;
   newEnd: number;
   lines: DiffHunkLine[];
@@ -114,13 +115,15 @@ function parseUnifiedDiff(diff: string): DiffResult {
   for (const line of diff.split('\n')) {
     if (line.startsWith('@@')) {
       if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
-      const m = line.match(/\+(\d+)/);
-      newLine = m ? parseInt(m[1], 10) : 1;
+      const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
+      if (!m) continue;
+      const oldStart = parseInt(m[1], 10);
+      newLine = parseInt(m[2], 10);
       pendingDelete = false;
-      currentHunk = { newStart: newLine, newEnd: newLine, lines: [] };
+      currentHunk = { oldStart, newStart: newLine, newEnd: newLine, lines: [] };
       continue;
     }
-    if (line.startsWith('---') || line.startsWith('+++')) continue;
+    if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('\\')) continue;
     if (!currentHunk) continue;
 
     if (line.startsWith('-')) {
@@ -145,6 +148,109 @@ function parseUnifiedDiff(diff: string): DiffResult {
   if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
 
   return { lineMap, hunks };
+}
+
+export async function gitCommitFileDiff(worktreePath: string, hash: string, relPath: string): Promise<DiffHunk[]> {
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command',
+    { program: 'git', args: ['show', `${hash}`, '--', relPath], cwd: worktreePath }
+  );
+  return parseUnifiedDiff(result.stdout).hunks;
+}
+
+export async function gitFileAtCommit(worktreePath: string, hash: string, relPath: string): Promise<string> {
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command',
+    { program: 'git', args: ['show', `${hash}:${relPath}`], cwd: worktreePath }
+  );
+  if (!result.success) throw new Error(result.stderr || 'git show failed');
+  return result.stdout;
+}
+
+export async function gitStagedFileDiff(worktreePath: string, relPath: string): Promise<DiffResult> {
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command',
+    { program: 'git', args: ['diff', '--cached', 'HEAD', '--', relPath], cwd: worktreePath }
+  );
+  return parseUnifiedDiff(result.stdout);
+}
+
+export interface BlameEntry {
+  hash: string;
+  author: string;
+  date: string;
+  summary: string;
+}
+
+export async function gitBlame(worktreePath: string, relPath: string): Promise<Map<number, BlameEntry>> {
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command',
+    { program: 'git', args: ['blame', '--line-porcelain', relPath], cwd: worktreePath }
+  );
+  if (!result.success) throw new Error(result.stderr || 'git blame failed');
+  if (result.stderr.includes('binary file')) return new Map();
+  return parseBlame(result.stdout);
+}
+
+function parseBlame(output: string): Map<number, BlameEntry> {
+  const map = new Map<number, BlameEntry>();
+  const lines = output.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const header = lines[i];
+    if (!header || header.length < 40 || !/^[0-9a-f]{40} /.test(header)) { i++; continue; }
+    const parts = header.split(' ');
+    if (parts.length < 3) { i++; continue; }
+    const finalLine = parseInt(parts[2], 10);
+    if (isNaN(finalLine)) { i++; continue; }
+    let author = '';
+    let date = '';
+    let summary = '';
+    i++;
+    while (i < lines.length && !lines[i].startsWith('\t')) {
+      if (lines[i].startsWith('author ') && !lines[i].startsWith('author-')) author = lines[i].slice(7);
+      else if (lines[i].startsWith('author-time ')) {
+        const ts = parseInt(lines[i].slice(12), 10);
+        date = isNaN(ts) ? 'unknown' : new Date(ts * 1000).toLocaleDateString();
+      }
+      else if (lines[i].startsWith('summary ')) summary = lines[i].slice(8);
+      i++;
+    }
+    i++; // skip content line
+    map.set(finalLine, {
+      hash: parts[0].slice(0, 7),
+      author: author || '(unknown author)',
+      date: date || 'unknown',
+      summary: summary || '(no summary)',
+    });
+  }
+  return map;
+}
+
+export function hunkToPatch(relPath: string, hunk: DiffHunk): string {
+  const addCount = hunk.lines.filter(l => l.type === '+').length;
+  const delCount = hunk.lines.filter(l => l.type === '-').length;
+  const ctxCount = hunk.lines.filter(l => l.type === ' ').length;
+  const oldCount = delCount + ctxCount;
+  const newCount = addCount + ctxCount;
+  const body = hunk.lines.map(l => l.type + l.content).join('\n') + '\n';
+  return `--- a/${relPath}\n+++ b/${relPath}\n@@ -${hunk.oldStart},${oldCount} +${hunk.newStart},${newCount} @@\n${body}`;
+}
+
+export async function applyHunkPatch(
+  worktreePath: string,
+  patch: string,
+  opts: { cached?: boolean; reverse?: boolean } = {}
+): Promise<{ success: boolean; stderr: string }> {
+  const args = ['apply', '--whitespace=nowarn', '--unidiff-zero'];
+  if (opts.cached) args.push('--cached');
+  if (opts.reverse) args.push('--reverse');
+  args.push('-');
+  const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
+    'run_shell_command_with_stdin',
+    { program: 'git', args, cwd: worktreePath, stdin: patch }
+  );
+  return { success: result.success, stderr: result.stderr };
 }
 
 const EXT_LANG: Record<string, string> = {
