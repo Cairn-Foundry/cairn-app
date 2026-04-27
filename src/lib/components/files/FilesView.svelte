@@ -10,7 +10,7 @@ import { get } from 'svelte/store';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen } from '$lib/stores/ui';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, gitStagedFileDiff, gitBlame, gitCommitFileDiff, gitFileAtCommit, applyHunkPatch, hunkToPatch, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileDiff, gitStagedFileDiff, gitBlame, gitCommitFileDiff, gitFileAtCommit, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
@@ -361,63 +361,6 @@ import { get } from 'svelte/store';
     return { old: oldLines.join('\n'), new: newLines.join('\n') };
   }
 
-  async function handleStageHunk(hunk: DiffHunk) {
-    if (!activeTab || !worktreePath) return;
-    const patch = hunkToPatch(activeTab.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { cached: true });
-    if (!result.success) { error = result.stderr || 'Stage failed'; return; }
-    await loadDiffHunks(activeTab);
-  }
-
-  async function handleUnstageHunk(hunk: DiffHunk) {
-    if (!activeTab || !worktreePath) return;
-    const patch = hunkToPatch(activeTab.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { cached: true, reverse: true });
-    if (!result.success) { error = result.stderr || 'Unstage failed'; return; }
-    await loadDiffHunks(activeTab);
-  }
-
-  async function handleRevertHunk(hunk: DiffHunk) {
-    if (!activeTab || !worktreePath) return;
-    const patch = hunkToPatch(activeTab.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { reverse: true });
-    if (!result.success) { error = result.stderr || 'Revert failed'; return; }
-    const raw = await readFile(`${worktreePath}/${activeTab.path}`) ?? '';
-    const le = activeTab.lineEndings ?? 'LF';
-    const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
-    const idx = tabs.findIndex(t => t.path === activeTab!.path);
-    if (idx !== -1) { tabs[idx].content = text; tabs[idx].pending = text; tabs = tabs; }
-    await loadDiffHunks(activeTab);
-  }
-
-  async function handleStageHunk2(hunk: DiffHunk) {
-    if (!activeTab2 || !worktreePath) return;
-    const patch = hunkToPatch(activeTab2.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { cached: true });
-    if (!result.success) { error = result.stderr || 'Stage failed'; return; }
-    await refreshDiff2(activeTab2);
-  }
-
-  async function handleUnstageHunk2(hunk: DiffHunk) {
-    if (!activeTab2 || !worktreePath) return;
-    const patch = hunkToPatch(activeTab2.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { cached: true, reverse: true });
-    if (!result.success) { error = result.stderr || 'Unstage failed'; return; }
-    await refreshDiff2(activeTab2);
-  }
-
-  async function handleRevertHunk2(hunk: DiffHunk) {
-    if (!activeTab2 || !worktreePath) return;
-    const patch = hunkToPatch(activeTab2.path, hunk);
-    const result = await applyHunkPatch(worktreePath, patch, { reverse: true });
-    if (!result.success) { error = result.stderr || 'Revert failed'; return; }
-    const raw = await readFile(`${worktreePath}/${activeTab2.path}`) ?? '';
-    const le = activeTab2.lineEndings ?? 'LF';
-    const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
-    const idx2 = tabs2.findIndex(t => t.path === activeTab2!.path);
-    if (idx2 !== -1) { tabs2[idx2].content = text; tabs2[idx2].pending = text; tabs2 = tabs2; }
-    await refreshDiff2(activeTab2);
-  }
 
   async function loadDiffHunks(tab: { path: string } | null): Promise<void> {
     if (!tab || !worktreePath) { currentDiffHunks = []; currentStagedHunks = []; currentBlame = new Map(); return; }
@@ -1960,9 +1903,6 @@ import { get } from 'svelte/store';
                 diffHunks={currentDiffHunks}
                 stagedHunks={currentStagedHunks}
                 onDiffClick={handleDiffClick}
-                onStageHunk={handleStageHunk}
-                onUnstageHunk={handleUnstageHunk}
-                onRevertHunk={handleRevertHunk}
                 onChange={handleChange}
                 onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave : undefined}
                 onCursorChange={handleCursorChange}
@@ -2181,9 +2121,6 @@ import { get } from 'svelte/store';
                   diffHunks={currentDiffHunks2}
                   stagedHunks={currentStagedHunks2}
                   onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
-                  onStageHunk={handleStageHunk2}
-                  onUnstageHunk={handleUnstageHunk2}
-                  onRevertHunk={handleRevertHunk2}
                   onChange={handleChange2}
                   onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave2 : undefined}
                   onCursorChange={(l, c) => { cursorLine2 = l; cursorCol2 = c; }}

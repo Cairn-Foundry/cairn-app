@@ -5,7 +5,7 @@
   import { EditorState, EditorSelection, Compartment, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { showMinimap } from '@replit/codemirror-minimap';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
-  import { buildEditorTheme, buildHighlight, resolveLanguageExtension, type EditorLanguage } from '$lib/utils/editor-theme';
+  import { buildEditorTheme, buildHighlight, buildDiffGutterTheme, resolveLanguageExtension, type EditorLanguage } from '$lib/utils/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
   import {
     autocompletion, completionKeymap, acceptCompletion,
@@ -73,9 +73,6 @@
   export let diffHunks: DiffHunk[] = [];
   export let stagedHunks: DiffHunk[] = [];
   export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
-  export let onStageHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
-  export let onUnstageHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
-  export let onRevertHunk: ((hunk: DiffHunk) => void) | undefined = undefined;
   export let showWhitespace: boolean = false;
   export let savedState: EditorState | null = null;
 
@@ -152,21 +149,6 @@
     if (e.key === 'Escape') closeContextMenu();
   }
 
-  // ── Hunk action popup ────────────────────────────────────────────────────────
-
-  type HunkPopup = { x: number; y: number; hunk: DiffHunk; staged: boolean };
-  let hunkPopup: HunkPopup | null = null;
-  let hunkPopupEl: HTMLDivElement | null = null;
-  let hunkHideTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function scheduleHideHunkPopup() {
-    hunkHideTimer = setTimeout(() => { hunkPopup = null; }, 150);
-  }
-
-  function cancelHideHunkPopup() {
-    if (hunkHideTimer) { clearTimeout(hunkHideTimer); hunkHideTimer = null; }
-  }
-
   // ── Git diff gutter ────────────────────────────────────────────────────────
 
   const diffEffect = StateEffect.define<Map<number, 'added' | 'modified'>>();
@@ -205,15 +187,6 @@
     toDOM() {
       const el = document.createElement('div');
       el.className = `cm-diff-marker cm-diff-${this.kind}${this.staged ? ' cm-diff-staged' : ''}`;
-      el.addEventListener('mouseenter', (e) => {
-        cancelHideHunkPopup();
-        const allHunks = [...diffHunks, ...stagedHunks];
-        const hunk = allHunks.find(h => this.lineNum >= h.newStart && this.lineNum <= h.newEnd);
-        if (!hunk) return;
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
-        hunkPopup = { x: rect.right + 4, y: rect.top, hunk, staged: this.staged };
-      });
-      el.addEventListener('mouseleave', scheduleHideHunkPopup);
       return el;
     }
   }
@@ -691,6 +664,7 @@
       ...scopeCompletion,
       buildHoverTooltip(),
       buildDiffGutter(),
+      buildDiffGutterTheme(),
       buildMinimapExtension(minimapEnabled),
       themeCompartment.of(buildEditorTheme('dark')),
       buildFontSizeTheme(fontSize),
@@ -771,7 +745,7 @@
 
 <svelte:window
   on:keydown={(e) => { if (ctxMenu) handleCtxKeydown(e); }}
-  on:mousedown={() => { if (ctxMenu) closeContextMenu(); if (hunkPopup) hunkPopup = null; }}
+  on:mousedown={() => { if (ctxMenu) closeContextMenu(); }}
 />
 
 <div bind:this={container} class="editor-mount"></div>
@@ -826,29 +800,6 @@
   </div>
 {/if}
 
-{#if hunkPopup}
-  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div
-    bind:this={hunkPopupEl}
-    class="hunk-popup"
-    style="left:{hunkPopup.x}px;top:{hunkPopup.y}px"
-    on:mouseenter={cancelHideHunkPopup}
-    on:mouseleave={scheduleHideHunkPopup}
-    on:mousedown|stopPropagation={() => {}}
-    role="toolbar"
-    tabindex="-1"
-  >
-    {#if !hunkPopup.staged && onStageHunk}
-      <button class="hunk-btn hunk-btn-stage" on:click={() => { onStageHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Stage</button>
-    {/if}
-    {#if hunkPopup.staged && onUnstageHunk}
-      <button class="hunk-btn hunk-btn-unstage" on:click={() => { onUnstageHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Unstage</button>
-    {/if}
-    {#if !hunkPopup.staged && onRevertHunk}
-      <button class="hunk-btn hunk-btn-revert" on:click={() => { onRevertHunk?.(hunkPopup!.hunk); hunkPopup = null; }}>Revert</button>
-    {/if}
-  </div>
-{/if}
 
 <style>
   .editor-mount {
@@ -937,36 +888,5 @@
     background: var(--stroke-0);
   }
 
-  .hunk-popup {
-    position: fixed;
-    z-index: 200;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 3px;
-    background: var(--bg-1);
-    border: 1px solid var(--stroke-0);
-    border-radius: 5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  }
-
-  .hunk-btn {
-    padding: 2px 8px;
-    font-size: 11px;
-    border-radius: 3px;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-sans);
-    color: var(--fg-1);
-    background: transparent;
-  }
-
-  .hunk-btn:hover {
-    background: var(--bg-2);
-  }
-
-  .hunk-btn-stage { color: oklch(0.78 0.14 135); }
-  .hunk-btn-unstage { color: oklch(0.72 0.14 250); }
-  .hunk-btn-revert { color: oklch(0.72 0.14 20); }
 
 </style>

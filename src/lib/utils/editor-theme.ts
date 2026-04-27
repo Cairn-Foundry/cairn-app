@@ -117,6 +117,14 @@ export function buildSyntaxHighlighting(theme: string): Extension {
   return syntaxHighlighting(buildHighlight(theme));
 }
 
+export function buildDiffGutterTheme(): Extension {
+  return EditorView.theme({
+    '.cm-diff-gutter': { width: '8px', minWidth: '8px' },
+    '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '8px', cursor: 'pointer' },
+    '.cm-diff-marker': { width: '8px', height: '100%', cursor: 'pointer' },
+  });
+}
+
 function buildDarkTheme(): Extension {
   return EditorView.theme({
     '&': { backgroundColor: 'oklch(0.16 0.008 70)', color: 'oklch(0.88 0.005 80)', height: '100%', fontFamily: 'var(--font-mono)' },
@@ -141,9 +149,6 @@ function buildDarkTheme(): Extension {
     '.cm-foldGutter .cm-gutterElement:hover': { color: 'oklch(0.78 0.14 250)' },
     '.cm-foldPlaceholder': { backgroundColor: 'oklch(0.26 0.008 70)', border: '1px solid oklch(0.34 0.008 70)', borderRadius: '3px', color: 'oklch(0.60 0.006 80)', padding: '0 6px', margin: '0 4px', fontSize: '11px', cursor: 'pointer' },
     '.cm-tooltip': { backgroundColor: 'oklch(0.20 0.008 70)', border: '1px solid oklch(0.32 0.008 70)', borderRadius: '6px', color: 'oklch(0.88 0.005 80)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.55)', fontSize: '12.5px' },
-    '.cm-diff-gutter': { width: '3px', minWidth: '3px' },
-    '.cm-diff-gutter .cm-gutterElement': { padding: '0', width: '3px' },
-    '.cm-diff-marker': { width: '3px', height: '100%' },
     '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
     '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
     '.cm-diff-staged': { backgroundColor: 'oklch(0.72 0.14 250)' },
