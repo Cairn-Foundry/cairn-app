@@ -158,6 +158,8 @@ import { get } from 'svelte/store';
   let currentStagedHunks: DiffHunk[] = [];
   let currentBlame: Map<number, BlameEntry> = new Map();
   let activeDiffHunk: DiffHunk | null = null;
+  let revertPending = false;
+  let reverting = false;
 
   // ── Split pane ────────────────────────────────────────────────────────────────
   let splitMode = false;
@@ -172,6 +174,8 @@ import { get } from 'svelte/store';
   let currentStagedHunks2: DiffHunk[] = [];
   let currentBlame2: Map<number, BlameEntry> = new Map();
   let activeDiffHunk2: DiffHunk | null = null;
+  let revertPending2 = false;
+  let reverting2 = false;
   let tabsBarEl2: HTMLElement | null = null;
   let isSplitResizing = false;
   let splitResizeStartX = 0;
@@ -353,6 +357,50 @@ import { get } from 'svelte/store';
 
   function handleDiffClick(hunk: DiffHunk) {
     activeDiffHunk = activeDiffHunk === hunk ? null : hunk;
+    revertPending = false;
+  }
+
+  async function revertHunk(hunk: DiffHunk, pane: 0 | 1 = 0): Promise<void> {
+    const tab = pane === 0 ? activeTab : activeTab2;
+    if (!worktreePath || !tab) return;
+    if (pane === 0) reverting = true; else reverting2 = true;
+    try {
+      const lines = tab.pending.split('\n');
+      const originalLines = hunk.lines
+        .filter(l => l.type === '-' || l.type === ' ')
+        .map(l => l.content);
+      const isDeleteOnly = !hunk.lines.some(l => l.type === '+');
+      // For deletion-only hunks newEnd === newStart (no new-file lines in the hunk),
+      // so afterIdx must equal newStart-1 (not newEnd) to avoid skipping a line.
+      const afterIdx = isDeleteOnly ? Math.max(0, hunk.newStart - 1) : hunk.newEnd;
+      const newContent = [
+        ...lines.slice(0, hunk.newStart - 1),
+        ...originalLines,
+        ...lines.slice(afterIdx),
+      ].join('\n');
+
+      const writeContent = tab.lineEndings === 'CRLF' ? newContent.replace(/\n/g, '\r\n') : newContent;
+      await writeFile(`${worktreePath}/${tab.path}`, writeContent);
+
+      if (pane === 0) {
+        tabs[activeTabIdx].content = newContent;
+        tabs[activeTabIdx].pending = newContent;
+        tabs = tabs;
+        activeDiffHunk = null;
+        revertPending = false;
+      } else {
+        tabs2[activeTabIdx2].content = newContent;
+        tabs2[activeTabIdx2].pending = newContent;
+        tabs2 = tabs2;
+        activeDiffHunk2 = null;
+        revertPending2 = false;
+      }
+      const updated = await gitStatus(worktreePath).catch(() => null);
+      if (updated !== null) { gitStatusMap = updated; tree = buildTree(rawTree, updated); }
+      if (pane === 0) await loadDiffHunks(tab); else await refreshDiff2(tab);
+    } finally {
+      if (pane === 0) reverting = false; else reverting2 = false;
+    }
   }
 
   function hunkToSplit(hunk: DiffHunk): { old: string; new: string } {
@@ -1919,10 +1967,20 @@ import { get } from 'svelte/store';
                 <span class="blame-peek-date">{blamePopup.entry.date}</span>
                 <span class="blame-peek-summary">{blamePopup.entry.summary}</span>
               </span>
-              <button class="diff-peek-close" on:click={() => { blamePopup = null; activeDiffHunk = null; }} aria-label="Close blame">✕</button>
+              <button class="diff-peek-close" on:click={() => { blamePopup = null; activeDiffHunk = null; revertPending = false; }} aria-label="Close blame">✕</button>
             </div>
             {#if activeDiffHunk}
-              <div class="diff-peek-section-label">Current changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</div>
+              <div class="diff-peek-section-label">
+                <span>Current changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
+                <div class="diff-peek-actions">
+                  {#if revertPending}
+                    <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => revertHunk(activeDiffHunk!, 0)}>{reverting ? 'Reverting…' : 'Confirm revert'}</button>
+                    <button class="diff-peek-action" disabled={reverting} on:click={() => revertPending = false}>Cancel</button>
+                  {:else}
+                    <button class="diff-peek-action" on:click={() => revertPending = true} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+                  {/if}
+                </div>
+              </div>
               <div class="diff-peek-section">
                 {#key activeDiffHunk}
                   <DiffEditor
@@ -1954,7 +2012,15 @@ import { get } from 'svelte/store';
           <div class="diff-peek diff-peek-split">
             <div class="diff-peek-header">
               <span class="diff-peek-title">Changes — lines {activeDiffHunk.newStart}–{activeDiffHunk.newEnd}</span>
-              <button class="diff-peek-close" on:click={() => activeDiffHunk = null} aria-label="Close diff">✕</button>
+              <div class="diff-peek-actions">
+                {#if revertPending}
+                  <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => revertHunk(activeDiffHunk!, 0)}>{reverting ? 'Reverting…' : 'Confirm revert'}</button>
+                  <button class="diff-peek-action" disabled={reverting} on:click={() => revertPending = false}>Cancel</button>
+                {:else}
+                  <button class="diff-peek-action" on:click={() => revertPending = true} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+                {/if}
+              </div>
+              <button class="diff-peek-close" on:click={() => { activeDiffHunk = null; revertPending = false; }} aria-label="Close diff">✕</button>
             </div>
             <div class="diff-peek-body diff-peek-body-split">
               {#key activeDiffHunk}
@@ -2120,7 +2186,7 @@ import { get } from 'svelte/store';
                   savedState={editorStateCache2.get(activeTab2.path) ?? null}
                   diffHunks={currentDiffHunks2}
                   stagedHunks={currentStagedHunks2}
-                  onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; }}
+                  onDiffClick={(hunk) => { activeDiffHunk2 = activeDiffHunk2 === hunk ? null : hunk; revertPending2 = false; }}
                   onChange={handleChange2}
                   onBlur={($settings.saveOn ?? 'blur') === 'blur' ? flushSave2 : undefined}
                   onCursorChange={(l, c) => { cursorLine2 = l; cursorCol2 = c; }}
@@ -2137,10 +2203,20 @@ import { get } from 'svelte/store';
                   <span class="blame-peek-date">{blamePopup2.entry.date}</span>
                   <span class="blame-peek-summary">{blamePopup2.entry.summary}</span>
                 </span>
-                <button class="diff-peek-close" on:click={() => { blamePopup2 = null; activeDiffHunk2 = null; }} aria-label="Close blame">✕</button>
+                <button class="diff-peek-close" on:click={() => { blamePopup2 = null; activeDiffHunk2 = null; revertPending2 = false; }} aria-label="Close blame">✕</button>
               </div>
               {#if activeDiffHunk2}
-                <div class="diff-peek-section-label">Current changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</div>
+                <div class="diff-peek-section-label">
+                  <span>Current changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</span>
+                  <div class="diff-peek-actions">
+                    {#if revertPending2}
+                      <button class="diff-peek-action diff-peek-action-danger" disabled={reverting2} on:click={() => revertHunk(activeDiffHunk2!, 1)}>{reverting2 ? 'Reverting…' : 'Confirm revert'}</button>
+                      <button class="diff-peek-action" disabled={reverting2} on:click={() => revertPending2 = false}>Cancel</button>
+                    {:else}
+                      <button class="diff-peek-action" on:click={() => revertPending2 = true} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+                    {/if}
+                  </div>
+                </div>
                 <div class="diff-peek-section">
                   {#key activeDiffHunk2}
                     <DiffEditor
@@ -2172,7 +2248,15 @@ import { get } from 'svelte/store';
             <div class="diff-peek diff-peek-split">
               <div class="diff-peek-header">
                 <span class="diff-peek-title">Changes — lines {activeDiffHunk2.newStart}–{activeDiffHunk2.newEnd}</span>
-                <button class="diff-peek-close" on:click={() => activeDiffHunk2 = null} aria-label="Close diff">✕</button>
+                <div class="diff-peek-actions">
+                  {#if revertPending2}
+                    <button class="diff-peek-action diff-peek-action-danger" disabled={reverting2} on:click={() => revertHunk(activeDiffHunk2!, 1)}>{reverting2 ? 'Reverting…' : 'Confirm revert'}</button>
+                    <button class="diff-peek-action" disabled={reverting2} on:click={() => revertPending2 = false}>Cancel</button>
+                  {:else}
+                    <button class="diff-peek-action" on:click={() => revertPending2 = true} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+                  {/if}
+                </div>
+                <button class="diff-peek-close" on:click={() => { activeDiffHunk2 = null; revertPending2 = false; }} aria-label="Close diff">✕</button>
               </div>
               <div class="diff-peek-body diff-peek-body-split">
                 {#key activeDiffHunk2}
@@ -2727,6 +2811,58 @@ import { get } from 'svelte/store';
     padding: 0;
   }
   .diff-peek-close:hover { background: var(--bg-4); color: var(--fg-0); }
+
+  .diff-peek-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 8px;
+  }
+
+  .diff-peek-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .diff-peek-section-label > span { flex: 1; }
+  .diff-peek-section-label .diff-peek-actions {
+    margin-left: 8px;
+    margin-right: 0;
+  }
+
+  .diff-peek-action {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border: 1px solid var(--stroke-1);
+    border-radius: 4px;
+    background: none;
+    color: var(--fg-2);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 80ms, color 80ms, border-color 80ms;
+    white-space: nowrap;
+  }
+  .diff-peek-action:hover:not(:disabled) {
+    background: var(--bg-4);
+    color: var(--fg-0);
+    border-color: var(--stroke-2);
+  }
+  .diff-peek-action:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .diff-peek-action-danger {
+    color: oklch(0.72 0.18 25);
+    border-color: oklch(0.72 0.18 25 / 0.45);
+  }
+  .diff-peek-action-danger:hover:not(:disabled) {
+    background: oklch(0.72 0.18 25 / 0.15);
+    color: oklch(0.82 0.18 25);
+    border-color: oklch(0.72 0.18 25 / 0.7);
+  }
 
   .diff-peek-body {
     overflow-y: auto;

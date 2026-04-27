@@ -76,7 +76,7 @@ export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
   return invoke<GitStatusMap>('git_status', { worktreePath });
 }
 
-export type DiffLineKind = 'added' | 'modified';
+export type DiffLineKind = 'added' | 'modified' | 'deleted';
 export type DiffLineMap = Map<number, DiffLineKind>;
 
 export interface DiffHunkLine {
@@ -110,16 +110,31 @@ function parseUnifiedDiff(diff: string): DiffResult {
 
   let currentHunk: DiffHunk | null = null;
   let newLine = 0;
-  let pendingDelete = false;
+  // prevWasDelete: was the immediately preceding line a '-'? (used for modified vs added)
+  let prevWasDelete = false;
+  // deletion block tracking: consecutive '-' lines not yet followed by '+'
+  let inDeletionBlock = false;
+  let deletionPoint = 0;
+  let deletionHadPlus = false;
+
+  function flushDeletion() {
+    if (inDeletionBlock && !deletionHadPlus) {
+      const marker = Math.max(1, deletionPoint);
+      if (!lineMap.has(marker)) lineMap.set(marker, 'deleted');
+    }
+    inDeletionBlock = false;
+    deletionHadPlus = false;
+    prevWasDelete = false;
+  }
 
   for (const line of diff.split('\n')) {
     if (line.startsWith('@@')) {
+      flushDeletion();
       if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
       const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
       if (!m) continue;
       const oldStart = parseInt(m[1], 10);
       newLine = parseInt(m[2], 10);
-      pendingDelete = false;
       currentHunk = { oldStart, newStart: newLine, newEnd: newLine, lines: [] };
       continue;
     }
@@ -127,24 +142,31 @@ function parseUnifiedDiff(diff: string): DiffResult {
     if (!currentHunk) continue;
 
     if (line.startsWith('-')) {
-      pendingDelete = true;
+      if (!inDeletionBlock) { deletionPoint = newLine; deletionHadPlus = false; }
+      inDeletionBlock = true;
+      prevWasDelete = true;
       currentHunk.lines.push({ type: '-', content: line.slice(1) });
       continue;
     }
     if (line.startsWith('+')) {
-      lineMap.set(newLine, pendingDelete ? 'modified' : 'added');
+      lineMap.set(newLine, prevWasDelete ? 'modified' : 'added');
+      // '+' consumes the current deletion block (it's a replacement, not a pure deletion)
+      prevWasDelete = false;
+      inDeletionBlock = false;
+      deletionHadPlus = false;
       currentHunk.lines.push({ type: '+', content: line.slice(1) });
       currentHunk.newEnd = newLine;
       newLine++;
       continue;
     }
-    // context line
-    pendingDelete = false;
+    // context line: flush any pending pure-deletion block
+    flushDeletion();
     currentHunk.lines.push({ type: ' ', content: line.slice(1) });
     currentHunk.newEnd = newLine;
     newLine++;
   }
 
+  flushDeletion();
   if (currentHunk && currentHunk.lines.length > 0) hunks.push(currentHunk);
 
   return { lineMap, hunks };
@@ -185,7 +207,7 @@ export interface BlameEntry {
 export async function gitBlame(worktreePath: string, relPath: string): Promise<Map<number, BlameEntry>> {
   const result = await invoke<{ stdout: string; stderr: string; success: boolean }>(
     'run_shell_command',
-    { program: 'git', args: ['blame', '--line-porcelain', relPath], cwd: worktreePath }
+    { program: 'git', args: ['blame', '--line-porcelain', '--', relPath], cwd: worktreePath }
   );
   if (!result.success) throw new Error(result.stderr || 'git blame failed');
   if (result.stderr.includes('binary file')) return new Map();

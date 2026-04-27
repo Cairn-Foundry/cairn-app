@@ -151,8 +151,10 @@
 
   // ── Git diff gutter ────────────────────────────────────────────────────────
 
-  const diffEffect = StateEffect.define<Map<number, 'added' | 'modified'>>();
-  const diffField = StateField.define<Map<number, 'added' | 'modified'>>({
+  type DiffKind = 'added' | 'modified' | 'deleted';
+
+  const diffEffect = StateEffect.define<Map<number, DiffKind>>();
+  const diffField = StateField.define<Map<number, DiffKind>>({
     create: () => new Map(),
     update: (value, tr) => {
       for (const e of tr.effects) if (e.is(diffEffect)) return e.value;
@@ -160,25 +162,51 @@
     },
   });
 
-  function hunksToLineMap(hunks: DiffHunk[]): Map<number, 'added' | 'modified'> {
-    const map = new Map<number, 'added' | 'modified'>();
+  function hunksToLineMap(hunks: DiffHunk[]): Map<number, DiffKind> {
+    const map = new Map<number, DiffKind>();
     for (const hunk of hunks) {
       let newLine = hunk.newStart;
-      let pendingDelete = false;
-      for (const l of hunk.lines) {
-        if (l.type === '-') { pendingDelete = true; }
-        else if (l.type === '+') { map.set(newLine, pendingDelete ? 'modified' : 'added'); newLine++; }
-        else { pendingDelete = false; newLine++; }
+      let prevWasDelete = false;
+      let inDeletionBlock = false;
+      let deletionPoint = 0;
+      let deletionHadPlus = false;
+
+      function flushDeletion() {
+        if (inDeletionBlock && !deletionHadPlus) {
+          const marker = Math.max(1, deletionPoint);
+          if (!map.has(marker)) map.set(marker, 'deleted');
+        }
+        inDeletionBlock = false;
+        deletionHadPlus = false;
+        prevWasDelete = false;
       }
+
+      for (const l of hunk.lines) {
+        if (l.type === '-') {
+          if (!inDeletionBlock) { deletionPoint = newLine; deletionHadPlus = false; }
+          inDeletionBlock = true;
+          prevWasDelete = true;
+        } else if (l.type === '+') {
+          map.set(newLine, prevWasDelete ? 'modified' : 'added');
+          prevWasDelete = false;
+          inDeletionBlock = false;
+          deletionHadPlus = false;
+          newLine++;
+        } else {
+          flushDeletion();
+          newLine++;
+        }
+      }
+      flushDeletion();
     }
     return map;
   }
 
   class DiffMarker extends GutterMarker {
-    kind: 'added' | 'modified';
+    kind: DiffKind;
     lineNum: number;
     staged: boolean;
-    constructor(kind: 'added' | 'modified', lineNum: number, staged = false) {
+    constructor(kind: DiffKind, lineNum: number, staged = false) {
       super();
       this.kind = kind;
       this.lineNum = lineNum;
@@ -191,8 +219,8 @@
     }
   }
 
-  const stagedDiffField = StateEffect.define<Map<number, 'added' | 'modified'>>();
-  const stagedField = StateField.define<Map<number, 'added' | 'modified'>>({
+  const stagedDiffField = StateEffect.define<Map<number, DiffKind>>();
+  const stagedField = StateField.define<Map<number, DiffKind>>({
     create: () => new Map(),
     update: (value, tr) => {
       for (const e of tr.effects) if (e.is(stagedDiffField)) return e.value;

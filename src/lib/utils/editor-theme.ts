@@ -152,6 +152,7 @@ function buildDarkTheme(): Extension {
     '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
     '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
     '.cm-diff-staged': { backgroundColor: 'oklch(0.72 0.14 250)' },
+    '.cm-diff-deleted': { backgroundColor: 'oklch(0.72 0.20 25)', height: '3px', alignSelf: 'flex-end' },
     '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.36 0.006 80)' },
   }, { dark: true });
 }
@@ -182,6 +183,7 @@ function buildLightTheme(): Extension {
     '.cm-diff-added': { backgroundColor: 'oklch(0.55 0.18 135)' },
     '.cm-diff-modified': { backgroundColor: 'oklch(0.60 0.18 60)' },
     '.cm-diff-staged': { backgroundColor: 'oklch(0.50 0.18 250)' },
+    '.cm-diff-deleted': { backgroundColor: 'oklch(0.55 0.22 25)', height: '3px', alignSelf: 'flex-end' },
     '.cm-highlightSpace, .cm-highlightTab': { color: 'oklch(0.68 0.008 70)' },
   }, { dark: false });
 }
@@ -203,5 +205,6 @@ function buildHighContrastTheme(): Extension {
     '.cm-tooltip': { backgroundColor: 'oklch(0.08 0 0)', border: '1px solid oklch(0.48 0 0)', borderRadius: '6px', color: 'oklch(1.0 0 0)', boxShadow: '0 4px 20px oklch(0 0 0 / 0.8)', fontSize: '12.5px' },
     '.cm-diff-added': { backgroundColor: 'oklch(0.78 0.14 135)' },
     '.cm-diff-modified': { backgroundColor: 'oklch(0.82 0.14 60)' },
+    '.cm-diff-deleted': { backgroundColor: 'oklch(0.72 0.20 25)', height: '3px', alignSelf: 'flex-end' },
   }, { dark: true });
 }
