@@ -259,7 +259,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
     label: 'Delete file(s)',
     description: 'Delete the selected file(s) and folder(s)',
     group: 'tree',
-    default: { key: 'Backspace', mod: false, shift: false, alt: false, ctrl: false },
+    default: { key: 'Backspace', mod: true, shift: false, alt: false, ctrl: false },
   },
   {
     id: 'treeRename',
