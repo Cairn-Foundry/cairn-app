@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { MergeView } from '@codemirror/merge';
-  import { EditorState, type Extension } from '@codemirror/state';
+  import { EditorState, Compartment, type Extension } from '@codemirror/state';
   import { EditorView, lineNumbers } from '@codemirror/view';
   import { syntaxHighlighting, bracketMatching } from '@codemirror/language';
   import { settings } from '$lib/stores/settings';
@@ -10,7 +10,7 @@
     buildHighlight,
     resolveLanguageExtension,
     type EditorLanguage,
-  } from '$lib/utils/editor-theme';
+  } from '$lib/utils/editor/editor-theme';
 
   export let oldContent: string = '';
   export let newContent: string = '';
@@ -18,6 +18,9 @@
 
   let container: HTMLDivElement;
   let mergeView: MergeView;
+
+  const themeCompartment = new Compartment();
+  const highlightCompartment = new Compartment();
 
   function buildExtensions(): Extension[] {
     const theme = $settings.theme ?? 'dark';
@@ -27,13 +30,23 @@
       bracketMatching(),
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),
-      buildEditorTheme(theme),
-      syntaxHighlighting(buildHighlight(theme)),
+      themeCompartment.of(buildEditorTheme(theme)),
+      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme))),
       EditorView.theme({
         '.cm-activeLine': { backgroundColor: 'transparent !important' },
         '.cm-activeLineGutter': { backgroundColor: 'transparent !important' },
       }),
     ];
+  }
+
+  $: if (mergeView) {
+    const theme = $settings.theme ?? 'dark';
+    const effects = [
+      themeCompartment.reconfigure(buildEditorTheme(theme)),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
+    ];
+    mergeView.a.dispatch({ effects });
+    mergeView.b.dispatch({ effects });
   }
 
   let cleanupScroll: (() => void) | undefined;
