@@ -4,7 +4,6 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
-  import { draggableRegion } from '$lib/utils/window-drag.js';
   import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
   import ReviewView from '$lib/components/review/ReviewView.svelte';
@@ -115,7 +114,6 @@
 
   onDestroy(() => unlistenFullscreen?.());
 
-  // padding-left: 76px clears macOS traffic lights; 0 when fullscreen or non-mac
   $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
 </script>
 
@@ -154,7 +152,7 @@
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
-    <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
+    <div class="spacer" data-tauri-drag-region></div>
     <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string}><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaKeyboardShortcuts') as string} on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>

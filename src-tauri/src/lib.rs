@@ -196,7 +196,18 @@ fn reveal_in_file_manager(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     Command::new("explorer").arg(format!("/select,{}", expanded)).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
-    Command::new("xdg-open").arg(std::path::Path::new(&expanded).parent().unwrap_or(std::path::Path::new(&expanded))).spawn().map_err(|e| e.to_string())?;
+    {
+        let p = std::path::Path::new(&expanded);
+        let parent = p.parent().unwrap_or(p);
+        let launched =
+            Command::new("nautilus").args(["--select", &expanded]).spawn().is_ok() ||
+            Command::new("dolphin").args(["--select", &expanded]).spawn().is_ok() ||
+            Command::new("nemo").arg(&expanded).spawn().is_ok() ||
+            Command::new("thunar").arg(&expanded).spawn().is_ok();
+        if !launched {
+            Command::new("xdg-open").arg(parent).spawn().map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -227,7 +238,17 @@ fn open_in_terminal(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     Command::new("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
-    Command::new("x-terminal-emulator").current_dir(&dir).spawn().map_err(|e| e.to_string())?;
+    {
+        let launched =
+            Command::new("x-terminal-emulator").current_dir(&dir).spawn().is_ok() ||
+            Command::new("gnome-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
+            Command::new("xfce4-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
+            Command::new("konsole").args(["--workdir", &dir]).spawn().is_ok() ||
+            Command::new("xterm").current_dir(&dir).spawn().is_ok();
+        if !launched {
+            return Err("No supported terminal emulator found. Install gnome-terminal, xfce4-terminal, konsole, or x-terminal-emulator.".to_string());
+        }
+    }
     Ok(())
 }
 
