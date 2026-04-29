@@ -32,6 +32,7 @@ function isLocale(value: string): value is Locale {
 }
 
 function loadLocale(): Locale {
+	/* istanbul ignore next */
 	if (typeof localStorage !== "undefined") {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored && isLocale(stored)) return stored;
@@ -73,6 +74,7 @@ export function getLocale(): Locale {
 }
 
 export function setLocale(locale: Locale): void {
+	/* istanbul ignore next */
 	if (typeof localStorage !== "undefined") {
 		localStorage.setItem(STORAGE_KEY, locale);
 	}

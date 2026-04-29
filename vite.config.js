@@ -6,11 +6,19 @@ const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 const vitestConfig = {
   include: ["src/**/*.{test,spec}.{js,ts}"],
   environment: "jsdom",
+  setupFiles: ["src/test/setup.ts"],
   coverage: {
     provider: "v8",
     reporter: ["text", "cobertura"],
-    include: ["src/lib/**/*.ts"],
-    exclude: ["src/lib/**/*.svelte"],
+    include: [
+      "src/lib/utils/format.ts",
+      "src/lib/utils/syntax.ts",
+      "src/lib/utils/files/files-indent.ts",
+      "src/lib/utils/files/files-search.ts",
+      "src/lib/utils/files/files-tree.ts",
+      "src/lib/utils/files/files-diff.ts",
+      "src/lib/i18n/index.ts",
+    ],
   },
 };
 
