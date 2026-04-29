@@ -1,110 +1,149 @@
-import type { FileNode, GitStatusMap } from '$lib/services/file-service';
+import type { FileNode, GitStatusMap } from "$lib/services/file-service";
 
-export const GIT_STATUS_PRIORITY = ['staged', 'modified', 'deleted', 'untracked'] as const;
-export type GitStatus = typeof GIT_STATUS_PRIORITY[number];
+export const GIT_STATUS_PRIORITY = [
+	"staged",
+	"modified",
+	"deleted",
+	"untracked",
+] as const;
+export type GitStatus = (typeof GIT_STATUS_PRIORITY)[number];
 
-export function flattenVisible(nodes: FileNode[], expanded: Set<string>): FileNode[] {
-  const result: FileNode[] = [];
-  for (const n of nodes) {
-    result.push(n);
-    if (n.isDir && n.children && expanded.has(n.path)) result.push(...flattenVisible(n.children, expanded));
-  }
-  return result;
+export function flattenVisible(
+	nodes: FileNode[],
+	expanded: Set<string>,
+): FileNode[] {
+	const result: FileNode[] = [];
+	for (const n of nodes) {
+		result.push(n);
+		if (n.isDir && n.children && expanded.has(n.path))
+			result.push(...flattenVisible(n.children, expanded));
+	}
+	return result;
 }
 
-export function flattenToNodes(tree: FileNode[], paths: Set<string>): FileNode[] {
-  const result: FileNode[] = [];
-  function search(nodes: FileNode[]) {
-    for (const n of nodes) {
-      if (paths.has(n.path)) result.push(n);
-      if (n.isDir && n.children) search(n.children);
-    }
-  }
-  search(tree);
-  return result;
+export function flattenToNodes(
+	tree: FileNode[],
+	paths: Set<string>,
+): FileNode[] {
+	const result: FileNode[] = [];
+	function search(nodes: FileNode[]) {
+		for (const n of nodes) {
+			if (paths.has(n.path)) result.push(n);
+			if (n.isDir && n.children) search(n.children);
+		}
+	}
+	search(tree);
+	return result;
 }
 
 export function collectFilePaths(nodes: FileNode[]): Set<string> {
-  const result = new Set<string>();
-  function walk(ns: FileNode[]) {
-    for (const n of ns) {
-      if (!n.isDir) result.add(n.path);
-      if (n.isDir && n.children) walk(n.children);
-    }
-  }
-  walk(nodes);
-  return result;
+	const result = new Set<string>();
+	function walk(ns: FileNode[]) {
+		for (const n of ns) {
+			if (!n.isDir) result.add(n.path);
+			if (n.isDir && n.children) walk(n.children);
+		}
+	}
+	walk(nodes);
+	return result;
 }
 
 export function collectDirPaths(nodes: FileNode[], acc: Set<string>): void {
-  for (const n of nodes) {
-    if (n.isDir) { acc.add(n.path); if (n.children) collectDirPaths(n.children, acc); }
-  }
+	for (const n of nodes) {
+		if (n.isDir) {
+			acc.add(n.path);
+			if (n.children) collectDirPaths(n.children, acc);
+		}
+	}
 }
 
 function findNode(nodes: FileNode[], path: string): FileNode | null {
-  for (const n of nodes) {
-    if (n.path === path) return n;
-    if (n.isDir && n.children) { const f = findNode(n.children, path); if (f) return f; }
-  }
-  return null;
+	for (const n of nodes) {
+		if (n.path === path) return n;
+		if (n.isDir && n.children) {
+			const f = findNode(n.children, path);
+			if (f) return f;
+		}
+	}
+	return null;
 }
 
-export function getSiblingNames(tree: FileNode[], parentPath: string): Set<string> {
-  if (!parentPath) return new Set(tree.map(n => n.name));
-  return new Set(findNode(tree, parentPath)?.children?.map(n => n.name) ?? []);
+export function getSiblingNames(
+	tree: FileNode[],
+	parentPath: string,
+): Set<string> {
+	if (!parentPath) return new Set(tree.map((n) => n.name));
+	return new Set(
+		findNode(tree, parentPath)?.children?.map((n) => n.name) ?? [],
+	);
 }
 
-export function nodeGitStatus(node: FileNode, gitStatusMap: GitStatusMap): string | null {
-  if (!node.isDir) return gitStatusMap[node.path] ?? null;
-  const prefix = node.path + '/';
-  let best: number = GIT_STATUS_PRIORITY.length;
-  for (const [path, status] of Object.entries(gitStatusMap)) {
-    if (path.startsWith(prefix) && status !== 'deleted') {
-      const idx = GIT_STATUS_PRIORITY.indexOf(status as GitStatus);
-      if (idx !== -1 && idx < best) best = idx;
-    }
-  }
-  return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
+export function nodeGitStatus(
+	node: FileNode,
+	gitStatusMap: GitStatusMap,
+): string | null {
+	if (!node.isDir) return gitStatusMap[node.path] ?? null;
+	const prefix = `${node.path}/`;
+	let best: number = GIT_STATUS_PRIORITY.length;
+	for (const [path, status] of Object.entries(gitStatusMap)) {
+		if (path.startsWith(prefix) && status !== "deleted") {
+			const idx = GIT_STATUS_PRIORITY.indexOf(status as GitStatus);
+			if (idx !== -1 && idx < best) best = idx;
+		}
+	}
+	return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
 }
 
-export function breadcrumbSegments(path: string): { name: string; path: string }[] {
-  const parts = path.split('/');
-  return parts.map((name, i) => ({ name, path: parts.slice(0, i + 1).join('/') }));
+export function breadcrumbSegments(
+	path: string,
+): { name: string; path: string }[] {
+	const parts = path.split("/");
+	return parts.map((name, i) => ({
+		name,
+		path: parts.slice(0, i + 1).join("/"),
+	}));
 }
 
 export function fileIcon(node: FileNode, expanded: Set<string>): string {
-  if (node.isDir) return expanded.has(node.path) ? 'folder-open' : 'folder';
-  const ext = node.name.split('.').pop()?.toLowerCase() ?? '';
-  if (['ts','tsx','js','jsx'].includes(ext)) return 'file-code';
-  if (['json','yaml','yml','toml'].includes(ext)) return 'file-code';
-  return 'file';
+	if (node.isDir) return expanded.has(node.path) ? "folder-open" : "folder";
+	const ext = node.name.split(".").pop()?.toLowerCase() ?? "";
+	if (["ts", "tsx", "js", "jsx"].includes(ext)) return "file-code";
+	if (["json", "yaml", "yml", "toml"].includes(ext)) return "file-code";
+	return "file";
 }
 
-export function pasteDestName(srcName: string, existingNames: Set<string>): string {
-  if (!existingNames.has(srcName)) return srcName;
-  const dot = srcName.lastIndexOf('.');
-  const [base, ext] = dot > 0 ? [srcName.slice(0, dot), srcName.slice(dot)] : [srcName, ''];
-  let candidate = `${base} copy${ext}`;
-  let i = 2;
-  while (existingNames.has(candidate)) candidate = `${base} copy ${i++}${ext}`;
-  return candidate;
+export function pasteDestName(
+	srcName: string,
+	existingNames: Set<string>,
+): string {
+	if (!existingNames.has(srcName)) return srcName;
+	const dot = srcName.lastIndexOf(".");
+	const [base, ext] =
+		dot > 0 ? [srcName.slice(0, dot), srcName.slice(dot)] : [srcName, ""];
+	let candidate = `${base} copy${ext}`;
+	let i = 2;
+	while (existingNames.has(candidate)) candidate = `${base} copy ${i++}${ext}`;
+	return candidate;
 }
 
-export function resolveDestName(rawTree: FileNode[], srcPath: string, targetDir: string): string {
-  const name = basename(srcPath);
-  const srcDir = parentPathOf(srcPath);
-  const siblings = targetDir
-    ? new Set(findNode(rawTree, targetDir)?.children?.map(n => n.name) ?? [])
-    : new Set(rawTree.map(n => n.name));
-  if (srcDir === targetDir) siblings.delete(name);
-  return pasteDestName(name, siblings);
+export function resolveDestName(
+	rawTree: FileNode[],
+	srcPath: string,
+	targetDir: string,
+): string {
+	const name = basename(srcPath);
+	const srcDir = parentPathOf(srcPath);
+	const siblings = targetDir
+		? new Set(findNode(rawTree, targetDir)?.children?.map((n) => n.name) ?? [])
+		: new Set(rawTree.map((n) => n.name));
+	if (srcDir === targetDir) siblings.delete(name);
+	return pasteDestName(name, siblings);
 }
 
 export function parentPathOf(path: string): string {
-  return path.includes('/') ? path.split('/').slice(0, -1).join('/') : '';
+	return path.includes("/") ? path.split("/").slice(0, -1).join("/") : "";
 }
 
 export function basename(path: string): string {
-  return path.split('/').pop() ?? path;
+	return path.split("/").pop() ?? path;
 }

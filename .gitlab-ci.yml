@@ -1,0 +1,51 @@
+stages:
+  - test
+  - quality
+
+default:
+  image: oven/bun:1
+  cache:
+    key:
+      files:
+        - bun.lock
+    paths:
+      - node_modules/
+    policy: pull-push
+
+# ─── Test ─────────────────────────────────────────────────────────────────────
+
+typecheck:
+  stage: test
+  script:
+    - bun install --frozen-lockfile
+    - bun run check
+
+unit:
+  stage: test
+  script:
+    - bun install --frozen-lockfile
+    - bun run test:coverage
+  coverage: '/^All files\s*\|\s*[\d.]+/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    expire_in: 1 day
+
+# ─── Quality ──────────────────────────────────────────────────────────────────
+
+lint:
+  stage: quality
+  needs: []
+  script:
+    - bun install --frozen-lockfile
+    - bun run lint:ci
+
+audit:
+  stage: quality
+  needs: []
+  script:
+    - bun install --frozen-lockfile
+    - bun audit
+  allow_failure: true
