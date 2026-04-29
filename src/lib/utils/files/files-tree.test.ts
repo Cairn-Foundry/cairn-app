@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { FileNode, GitStatusMap } from "../../../lib/services/file-service";
+import type {
+	FileNode,
+	GitStatusMap,
+} from "../../../lib/services/file-service";
 import {
 	basename,
 	breadcrumbSegments,
@@ -109,9 +112,7 @@ describe("getSiblingNames", () => {
 	});
 
 	it("returns children names of a specific dir", () => {
-		expect(getSiblingNames(tree, "src")).toEqual(
-			new Set(["lib", "index.ts"]),
-		);
+		expect(getSiblingNames(tree, "src")).toEqual(new Set(["lib", "index.ts"]));
 	});
 
 	it("returns empty set for unknown path", () => {
@@ -205,9 +206,9 @@ describe("pasteDestName", () => {
 	});
 
 	it("appends incrementing number on repeated conflict", () => {
-		expect(
-			pasteDestName("foo.ts", new Set(["foo.ts", "foo copy.ts"])),
-		).toBe("foo copy 2.ts");
+		expect(pasteDestName("foo.ts", new Set(["foo.ts", "foo copy.ts"]))).toBe(
+			"foo copy 2.ts",
+		);
 	});
 
 	it("handles files without extension", () => {

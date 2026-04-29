@@ -8,7 +8,7 @@ const vitestConfig = {
   environment: "jsdom",
   setupFiles: ["src/test/setup.ts"],
   coverage: {
-    provider: "v8",
+    provider: "istanbul",
     reporter: ["text", "cobertura"],
     include: [
       "src/lib/utils/format.ts",

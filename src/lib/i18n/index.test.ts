@@ -26,7 +26,10 @@ describe("t", () => {
 	});
 
 	it("function-valued keys produce the expected string", () => {
-		const stepOf = t("common.stepOf") as (step: number, total: number) => string;
+		const stepOf = t("common.stepOf") as (
+			step: number,
+			total: number,
+		) => string;
 		expect(stepOf(1, 3)).toBe("Step 1 of 3");
 	});
 });

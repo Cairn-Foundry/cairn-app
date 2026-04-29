@@ -24,6 +24,7 @@ unit:
   stage: test
   script:
     - bun install --frozen-lockfile
+    - bunx svelte-kit sync
     - bun run test:coverage
   coverage: '/^All files\s*\|\s*[\d.]+/'
   artifacts:

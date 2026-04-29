@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import * as fileService from "../../../lib/services/file-service";
 import type { DiffHunk } from "../../../lib/services/file-service";
+import * as fileService from "../../../lib/services/file-service";
 import {
 	buildRevertedContent,
 	emptyDiffState,
@@ -12,7 +12,9 @@ import {
 vi.mock("$lib/services/file-service", () => ({
 	gitBlame: vi.fn().mockResolvedValue(new Map()),
 	gitFileDiff: vi.fn().mockResolvedValue({ hunks: [], lineMap: new Map() }),
-	gitStagedFileDiff: vi.fn().mockResolvedValue({ hunks: [], lineMap: new Map() }),
+	gitStagedFileDiff: vi
+		.fn()
+		.mockResolvedValue({ hunks: [], lineMap: new Map() }),
 }));
 
 const makeHunk = (
@@ -83,18 +85,12 @@ describe("buildRevertedContent", () => {
 			2,
 			2,
 		);
-		expect(buildRevertedContent(pending, hunk)).toBe(
-			"line1\nold line\nline3",
-		);
+		expect(buildRevertedContent(pending, hunk)).toBe("line1\nold line\nline3");
 	});
 
 	it("reverts an addition-only hunk (removes added lines)", () => {
 		const pending = "line1\nnew\nline2";
-		const hunk = makeHunk(
-			[{ type: "+", content: "new" }],
-			2,
-			2,
-		);
+		const hunk = makeHunk([{ type: "+", content: "new" }], 2, 2);
 		expect(buildRevertedContent(pending, hunk)).toBe("line1\nline2");
 	});
 
@@ -102,11 +98,7 @@ describe("buildRevertedContent", () => {
 		// pending is the file after line2 was deleted: line1, line3
 		// hunk records that line2 (a "-" line) was at position 2 in the new file
 		const pending = "line1\nline3";
-		const hunk = makeHunk(
-			[{ type: "-", content: "line2" }],
-			2,
-			1,
-		);
+		const hunk = makeHunk([{ type: "-", content: "line2" }], 2, 1);
 		expect(buildRevertedContent(pending, hunk)).toBe("line1\nline2\nline3");
 	});
 });
@@ -118,17 +110,30 @@ describe("loadPaneDiff", () => {
 	});
 
 	it("returns untracked hunk for untracked files without calling git", async () => {
-		const state = await loadPaneDiff("/wt", "file.ts", "untracked", "hello\nworld");
+		const state = await loadPaneDiff(
+			"/wt",
+			"file.ts",
+			"untracked",
+			"hello\nworld",
+		);
 		expect(state.currentDiffHunks).toHaveLength(1);
-		expect(state.currentDiffHunks[0].lines.every((l) => l.type === "+")).toBe(true);
+		expect(state.currentDiffHunks[0].lines.every((l) => l.type === "+")).toBe(
+			true,
+		);
 		expect(state.currentStagedHunks).toEqual([]);
 		expect(fileService.gitFileDiff).not.toHaveBeenCalled();
 	});
 
 	it("loads unstaged and staged diff for modified files", async () => {
 		const mockHunk = makeHunk([{ type: "+", content: "x" }]);
-		vi.mocked(fileService.gitFileDiff).mockResolvedValueOnce({ hunks: [mockHunk], lineMap: new Map() });
-		vi.mocked(fileService.gitStagedFileDiff).mockResolvedValueOnce({ hunks: [mockHunk], lineMap: new Map() });
+		vi.mocked(fileService.gitFileDiff).mockResolvedValueOnce({
+			hunks: [mockHunk],
+			lineMap: new Map(),
+		});
+		vi.mocked(fileService.gitStagedFileDiff).mockResolvedValueOnce({
+			hunks: [mockHunk],
+			lineMap: new Map(),
+		});
 
 		const state = await loadPaneDiff("/wt", "file.ts", "modified", "x");
 		expect(state.currentDiffHunks).toHaveLength(1);
@@ -143,7 +148,9 @@ describe("loadPaneDiff", () => {
 	});
 
 	it("handles gitBlame failure gracefully", async () => {
-		vi.mocked(fileService.gitBlame).mockRejectedValueOnce(new Error("blame failed"));
+		vi.mocked(fileService.gitBlame).mockRejectedValueOnce(
+			new Error("blame failed"),
+		);
 		const state = await loadPaneDiff("/wt", "file.ts", undefined, "");
 		expect(state.currentBlame).toEqual(new Map());
 	});

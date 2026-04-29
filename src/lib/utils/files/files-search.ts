@@ -13,7 +13,6 @@ export function scorePathMatch(path: string, q: string): number {
 	if (!q) return 1;
 	const lPath = path.toLowerCase();
 	const lQ = q.toLowerCase();
-	/* istanbul ignore next */
 	const filename = lPath.split("/").pop() ?? lPath;
 
 	if (filename.startsWith(lQ)) return 100;
