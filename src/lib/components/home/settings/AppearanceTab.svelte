@@ -1,10 +1,10 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import { settings } from '$lib/stores/settings';
-  import { ACCENT_PRESETS, FONT_OPTIONS } from '$lib/utils/home/appearance';
+  import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '$lib/utils/home/appearance';
 
-  $: currentFont = $settings.fontFamily ?? FONT_OPTIONS[0].stack;
-  $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === ($settings.accentColor ?? '#6c8eff'));
+  $: currentFont = $settings.fontFamily;
+  $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === $settings.accentColor);
 </script>
 
 <div class="settings-group">
@@ -37,7 +37,7 @@
   <div class="accent-presets">
     {#each ACCENT_PRESETS as preset}
       <button
-        class="accent-preset {($settings.accentColor ?? '#6c8eff') === preset.color && accentIsPreset ? 'active' : ''}"
+        class="accent-preset {($settings.accentColor) === preset.color && accentIsPreset ? 'active' : ''}"
         title={preset.label}
         style="background: {preset.color}"
         on:click={() => settings.save({ accentColor: preset.color })}
@@ -46,11 +46,11 @@
     <label
       class="accent-preset accent-preset-custom {!accentIsPreset ? 'active' : ''}"
       title="Custom color"
-      style="background: {$settings.accentColor ?? '#6c8eff'}"
+      style="background: {$settings.accentColor}"
     >
       <input
         type="color"
-        value={$settings.accentColor ?? '#6c8eff'}
+        value={$settings.accentColor}
         on:input={(e) => settings.save({ accentColor: (e.target as HTMLInputElement).value })}
       />
       {#if accentIsPreset}
@@ -82,7 +82,7 @@
   <button
     class="btn ghost"
     style="font-size: 12px;"
-    on:click={() => settings.save({ theme: 'dark', accentColor: '#6c8eff', fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
+    on:click={() => settings.save({ theme: 'dark', accentColor: DEFAULT_ACCENT, fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
   >
     <Icon name="undo" size={12}/> Reset appearance
   </button>

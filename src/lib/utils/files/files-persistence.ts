@@ -1,5 +1,5 @@
 import { readFile, isBinaryPath, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
-import { detectLineEndings } from './files-indent';
+import { detectLineEndings, normalizeLineEndings } from './files-indent';
 
 export interface Tab {
   path: string;
@@ -105,7 +105,7 @@ async function rehydrateTabList(wtp: string, persistedTabs: PersistedTab[]): Pro
   return valid.map(r => {
     const saved = persistedTabs.find(p => p.path === r.path)!;
     const le = detectLineEndings(r.text);
-    const normalized = le === 'CRLF' ? r.text.replace(/\r\n/g, '\n') : r.text;
+    const normalized = normalizeLineEndings(r.text, le);
     return { path: r.path, content: normalized, pending: normalized, cursorPos: saved.cursorPos, scrollTop: saved.scrollTop, pinned: saved.pinned, lineEndings: le };
   });
 }

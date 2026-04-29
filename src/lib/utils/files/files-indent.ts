@@ -1,3 +1,11 @@
+export function normalizeLineEndings(text: string, le: 'CRLF' | 'LF'): string {
+  return le === 'CRLF' ? text.replace(/\r\n/g, '\n') : text;
+}
+
+export function denormalizeLineEndings(text: string, le: 'CRLF' | 'LF'): string {
+  return le === 'CRLF' ? text.replace(/\n/g, '\r\n') : text;
+}
+
 export function detectLineEndings(text: string): 'CRLF' | 'LF' {
   return text.includes('\r\n') ? 'CRLF' : 'LF';
 }

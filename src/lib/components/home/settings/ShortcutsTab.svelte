@@ -4,19 +4,17 @@
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding, ShortcutConfig } from '$lib/types/shortcuts';
   import { MODIFIER_KEYS } from '$lib/utils/home/appearance';
+  import { matchesSearch } from '$lib/utils/files/files-search';
 
   let shortcutSearch = '';
   let recordingId: ShortcutId | null = null;
 
   $: filteredShortcutDefs = shortcutSearch.trim()
-    ? SHORTCUT_DEFS.filter(d =>
-        d.label.toLowerCase().includes(shortcutSearch.toLowerCase()) ||
-        d.description.toLowerCase().includes(shortcutSearch.toLowerCase())
-      )
+    ? SHORTCUT_DEFS.filter(d => matchesSearch(d.label, shortcutSearch) || matchesSearch(d.description, shortcutSearch))
     : SHORTCUT_DEFS;
 
   $: shortcutConfigMap = new Map<ShortcutId, ShortcutConfig>(
-    ($settings.shortcuts ?? []).map(c => [c.id, c])
+    ($settings.shortcuts).map(c => [c.id, c])
   );
 
   $: conflictIds = (() => {
@@ -52,7 +50,7 @@
     const id = recordingId;
     const existing = shortcutConfigMap.get(id) ?? { id, binding: null, enabled: true };
     const next = [
-      ...($settings.shortcuts ?? []).filter(c => c.id !== id),
+      ...($settings.shortcuts).filter(c => c.id !== id),
       { ...existing, binding },
     ];
     settings.save({ shortcuts: next });
@@ -62,7 +60,7 @@
   function resetBinding(id: ShortcutId) {
     const existing = shortcutConfigMap.get(id);
     if (!existing) return;
-    const rest = ($settings.shortcuts ?? []).filter(c => c.id !== id);
+    const rest = ($settings.shortcuts).filter(c => c.id !== id);
     if (!existing.enabled) {
       settings.save({ shortcuts: [...rest, { ...existing, binding: null }] });
     } else {
@@ -71,7 +69,7 @@
   }
 
   function resetAllBindings() {
-    const next = ($settings.shortcuts ?? [])
+    const next = ($settings.shortcuts)
       .filter(c => !c.enabled)
       .map(c => ({ ...c, binding: null }));
     settings.save({ shortcuts: next });
@@ -81,10 +79,10 @@
     const existing = shortcutConfigMap.get(id);
     if (existing) {
       settings.save({
-        shortcuts: ($settings.shortcuts ?? []).map(c => c.id === id ? { ...c, enabled: !c.enabled } : c),
+        shortcuts: ($settings.shortcuts).map(c => c.id === id ? { ...c, enabled: !c.enabled } : c),
       });
     } else {
-      settings.save({ shortcuts: [...($settings.shortcuts ?? []), { id, binding: null, enabled: false }] });
+      settings.save({ shortcuts: [...($settings.shortcuts), { id, binding: null, enabled: false }] });
     }
   }
 

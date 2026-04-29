@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { getSettings, updateSettings, type CairnSettings } from '$lib/services/settings-service';
 import { DEFAULT_WF_TABS } from '$lib/utils/home/workflow-tabs';
+import { DEFAULT_ACCENT } from '$lib/utils/home/appearance';
 
 const DEFAULTS: CairnSettings = {
   treePanelWidth: 220,
@@ -11,7 +12,7 @@ const DEFAULTS: CairnSettings = {
   splitLeftWidth: 0,
   shortcuts: [],
   theme: 'dark',
-  accentColor: '#6c8eff',
+  accentColor: DEFAULT_ACCENT,
   workflowTabs: DEFAULT_WF_TABS,
   sidebarPosition: 'left',
   showWhitespace: false,

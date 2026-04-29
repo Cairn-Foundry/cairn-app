@@ -1,9 +1,9 @@
 import { GutterMarker, gutter } from '@codemirror/view';
 import { StateEffect, StateField, type Extension } from '@codemirror/state';
+import type { DiffHunk, DiffHunkLine } from '$lib/services/file-service';
 
+export type { DiffHunk, DiffHunkLine };
 export type DiffKind = 'added' | 'modified' | 'deleted';
-export type DiffHunkLine = { type: '+' | '-' | ' '; content: string };
-export type DiffHunk = { oldStart: number; newStart: number; newEnd: number; lines: DiffHunkLine[] };
 
 export const setUnstagedDiff = StateEffect.define<Map<number, DiffKind>>();
 export const setStagedDiff = StateEffect.define<Map<number, DiffKind>>();

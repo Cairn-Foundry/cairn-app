@@ -5,6 +5,8 @@
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
+  import { matchesSearch } from '$lib/utils/files/files-search';
+  import { CLIPBOARD_CLEAR_DELAY } from '$lib/utils/timing';
 
   export let activeInstanceId: string | null;
 
@@ -16,8 +18,7 @@
   let copiedId: string | null = null;
 
   $: filtered = $instances.filter(i =>
-    i.ticket.id.toLowerCase().includes(search.toLowerCase()) ||
-    i.ticket.title.toLowerCase().includes(search.toLowerCase())
+    matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
   );
 
   async function handleSetActive(inst: Instance) {
@@ -33,7 +34,7 @@
   async function handleCopyPath(inst: Instance) {
     await navigator.clipboard.writeText(inst.worktreePath);
     copiedId = inst.id;
-    setTimeout(() => { copiedId = null; }, 1500);
+    setTimeout(() => { copiedId = null; }, CLIPBOARD_CLEAR_DELAY);
   }
 
   async function handleDelete(inst: Instance) {

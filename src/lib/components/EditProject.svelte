@@ -3,6 +3,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { editProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
+  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
 
   export let project: Project;
 
@@ -13,10 +14,7 @@
   let loading = false;
   let error = '';
 
-  const presetColors = [
-    '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-    '#f97316', '#eab308', '#22c55e', '#06b6d4',
-  ];
+  const presetColors = PROJECT_COLORS;
 
   $: canSave = name.trim().length > 0 && (name.trim() !== project.name || color !== project.color);
 

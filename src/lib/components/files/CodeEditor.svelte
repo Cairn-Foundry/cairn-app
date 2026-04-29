@@ -176,7 +176,7 @@
   }
 
   function buildExtensions(): Extension[] {
-    const theme = $settings.theme ?? 'dark';
+    const theme = $settings.theme;
 
     return [
       Prec.highest(keymap.of([
@@ -275,7 +275,7 @@
   $: if (view) view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
 
   $: if (view) {
-    const theme = $settings.theme ?? 'dark';
+    const theme = $settings.theme;
     view.dispatch({ effects: [
       themeCompartment.reconfigure(buildEditorTheme(theme)),
       highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),

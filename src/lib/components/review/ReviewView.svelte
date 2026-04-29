@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import DiffEditor from './DiffEditor.svelte';
+  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
 
   const REVIEW_FILES = [
     { path: 'src/auth/totp.ts', kind: 'add', plus: 48, minus: 0 },
@@ -89,7 +90,7 @@
     <div class="diff-filebar">
       <Icon name="file" size={14} style="color: var(--fg-2)"/>
       <div class="fp">
-        <span class="dir">{REVIEW_FILES[active].path.split('/').slice(0, -1).join('/')}/</span><b>{REVIEW_FILES[active].path.split('/').at(-1)}</b>
+        <span class="dir">{parentPathOf(REVIEW_FILES[active].path)}/</span><b>{basename(REVIEW_FILES[active].path)}</b>
       </div>
       <div class="stat">
         <span class="plus">+{REVIEW_FILES[active].plus}</span>

@@ -1,5 +1,7 @@
+export const DEFAULT_ACCENT = '#6c8eff';
+
 export const ACCENT_PRESETS: { label: string; color: string }[] = [
-  { label: 'Blue',   color: '#6c8eff' },
+  { label: 'Blue',   color: DEFAULT_ACCENT },
   { label: 'Purple', color: '#a855f7' },
   { label: 'Pink',   color: '#ec4899' },
   { label: 'Red',    color: '#ef4444' },
@@ -29,3 +31,8 @@ export const SAVE_ON_OPTIONS: { value: string; label: string; desc: string }[] =
 ];
 
 export const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Shift', 'Alt', 'CapsLock', 'OS']);
+
+export const PROJECT_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#f97316', '#eab308', '#22c55e', '#06b6d4',
+];

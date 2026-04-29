@@ -6,7 +6,7 @@
 
   let saveOnOpen = false;
 
-  $: saveOnLabel = SAVE_ON_OPTIONS.find(o => o.value === ($settings.saveOn ?? 'blur'))?.label ?? 'Focus change';
+  $: saveOnLabel = SAVE_ON_OPTIONS.find(o => o.value === ($settings.saveOn))?.label ?? 'Focus change';
 </script>
 
 <svelte:window on:keydown={(e) => { if (e.key === 'Escape' && saveOnOpen) saveOnOpen = false; }} />
@@ -20,11 +20,11 @@
     </div>
     <div class="sidebar-pos-toggle">
       <button
-        class="sidebar-pos-btn {($settings.sidebarPosition ?? 'left') === 'left' ? 'active' : ''}"
+        class="sidebar-pos-btn {($settings.sidebarPosition) === 'left' ? 'active' : ''}"
         on:click={() => settings.save({ sidebarPosition: 'left' })}
       >Left</button>
       <button
-        class="sidebar-pos-btn {($settings.sidebarPosition ?? 'left') === 'right' ? 'active' : ''}"
+        class="sidebar-pos-btn {($settings.sidebarPosition) === 'right' ? 'active' : ''}"
         on:click={() => settings.save({ sidebarPosition: 'right' })}
       >Right</button>
     </div>
@@ -116,7 +116,7 @@
         <div class="so-backdrop" on:click={() => saveOnOpen = false} on:keydown={() => {}}></div>
         <div class="so-menu" role="listbox">
           {#each SAVE_ON_OPTIONS as opt}
-            {@const active = ($settings.saveOn ?? 'blur') === opt.value}
+            {@const active = ($settings.saveOn) === opt.value}
             <button
               type="button"
               role="option"

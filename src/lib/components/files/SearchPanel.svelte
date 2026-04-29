@@ -2,6 +2,8 @@
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { searchInFiles, type SearchMatch } from '$lib/services/file-service';
+  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
+  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
 
   export let worktreePath: string | null;
   export let hidden = false;
@@ -67,7 +69,7 @@
     }
     return Array.from(map.entries()).map(([path, ms]) => ({
       path,
-      filename: path.split('/').pop() ?? path,
+      filename: basename(path),
       matches: ms,
       collapsed: false,
     }));
@@ -100,7 +102,7 @@
 
   function scheduleSearch() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(runSearch, 280);
+    debounceTimer = setTimeout(runSearch, SEARCH_DEBOUNCE_MS);
   }
 
   $: if (worktreePath !== lastWorktreePath) {
@@ -238,7 +240,7 @@
           <Icon name={group.collapsed ? 'chev-r' : 'chev-d'} size={12} />
           <Icon name="file-code" size={13} />
           <span class="result-filename">{group.filename}</span>
-          <span class="result-dir">{group.path.includes('/') ? group.path.split('/').slice(0, -1).join('/') : ''}</span>
+          <span class="result-dir">{parentPathOf(group.path)}</span>
           <span class="result-count">{group.matches.length}</span>
         </button>
 

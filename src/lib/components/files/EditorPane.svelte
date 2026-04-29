@@ -4,7 +4,7 @@
   import DiffEditor from '$lib/components/review/DiffEditor.svelte';
   import { settings } from '$lib/stores/settings';
   import { isBinaryPath, type GitStatusMap, type DiffHunk, type BlameEntry, type FileNode } from '$lib/services/file-service';
-  import { breadcrumbSegments } from '$lib/utils/files/files-tree';
+  import { breadcrumbSegments, basename, parentPathOf } from '$lib/utils/files/files-tree';
   import { hunkToSplit } from '$lib/utils/files/files-diff';
   import type { Tab } from '$lib/utils/files/files-persistence';
 
@@ -105,7 +105,7 @@
           on:contextmenu={(e) => onTabContextMenu(e, i)}
         >
           {#if tab.pinned}<span class="tab-pin"><Icon name="pin" size={9}/></span>{/if}
-          <span class="tab-name">{tab.path.split('/').pop()}</span>
+          <span class="tab-name">{basename(tab.path)}</span>
           {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
           {#if tab.pinned}
             <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); onTabUnpin(i); }} aria-label="Unpin tab" title="Unpin tab">
@@ -155,9 +155,9 @@
             content={activeTab.pending}
             language={activeLang}
             readonly={false}
-            minimapEnabled={$settings.showMinimap ?? true}
-            fontSize={$settings.editorFontSize ?? 13}
-            showWhitespace={$settings.showWhitespace ?? false}
+            minimapEnabled={$settings.showMinimap}
+            fontSize={$settings.editorFontSize}
+            showWhitespace={$settings.showWhitespace}
             initialCursorPos={activeTab.cursorPos}
             initialScrollTop={activeTab.scrollTop}
             savedState={editorState}
@@ -286,12 +286,12 @@
             <button
               type="button"
               class="recent-file-btn"
-              on:click={() => onOpenRecent({ path, name: path.split('/').pop() ?? path, isDir: false })}
+              on:click={() => onOpenRecent({ path, name: basename(path), isDir: false })}
               title={path}
             >
               <Icon name="file" size={12}/>
-              <span class="recent-file-name">{path.split('/').pop()}</span>
-              <span class="recent-file-dir">{path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''}</span>
+              <span class="recent-file-name">{basename(path)}</span>
+              <span class="recent-file-dir">{parentPathOf(path)}</span>
             </button>
           {/each}
         </div>

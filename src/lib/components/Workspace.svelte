@@ -97,16 +97,7 @@
     insertIndex = null;
   }
 
-  const FALLBACK_STEPS = [
-    { id: 'files',  label: 'Files',  icon: 'folder' },
-    { id: 'agent',  label: 'Agent',  icon: 'agent'  },
-    { id: 'review', label: 'Review', icon: 'review' },
-    { id: 'tests',  label: 'Tests',  icon: 'tests'  },
-    { id: 'git',    label: 'Git',    icon: 'git'    },
-    { id: 'cicd',   label: 'CI/CD',  icon: 'ci'     },
-  ];
-
-  $: STEPS = ($settings.workflowTabs ?? FALLBACK_STEPS.map((s, i) => ({ key: s.id, name: s.label, icon: s.icon, enabled: true, order: i })))
+  $: STEPS = $settings.workflowTabs
     .slice()
     .sort((a, b) => a.order - b.order)
     .filter(t => t.enabled)

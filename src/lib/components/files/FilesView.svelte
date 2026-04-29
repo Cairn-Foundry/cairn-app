@@ -27,6 +27,8 @@ import { get } from 'svelte/store';
   } from '$lib/utils/files/files-persistence';
   import {
     detectLineEndings,
+    normalizeLineEndings,
+    denormalizeLineEndings,
     detectIndentStyle,
     detectSpaceSize,
     convertToSpaces,
@@ -43,6 +45,7 @@ import { get } from 'svelte/store';
     pasteDestName,
     resolveDestName,
     parentPathOf,
+    basename,
   } from '$lib/utils/files/files-tree';
   import {
     loadPaneDiff,
@@ -60,6 +63,7 @@ import { get } from 'svelte/store';
     removeDragGhost,
     findDropTargetDir,
   } from '$lib/utils/files/files-drag-ghost';
+  import { EDITOR_JUMP_DELAY_MS } from '$lib/utils/timing';
 
   export let onGoSettings: (() => void) | undefined = undefined;
 
@@ -281,7 +285,7 @@ import { get } from 'svelte/store';
       tabNavForward = [];
     }
     captureEditorState(i);
-    if (i === 0 && ($settings.saveOn ?? 'blur') === 'blur') await flushSave(0);
+    if (i === 0 && ($settings.saveOn) === 'blur') await flushSave(0);
     panes[i].activeTabIdx = idx;
     panes = panes;
     if (i === 0) syncActiveTabToTree();
@@ -295,7 +299,7 @@ import { get } from 'svelte/store';
     if (!tab || tab.pinned) return;
 
     if (tab.pending !== tab.content && worktreePath) {
-      const wc = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
       await writeFile(`${worktreePath}/${tab.path}`, wc);
     }
 
@@ -342,7 +346,7 @@ import { get } from 'svelte/store';
     panes = panes;
     const wasDeleted = gitStatusMap[tab.path] === 'deleted';
     try {
-      const writeContent = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      const writeContent = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
       await writeFile(`${worktreePath}/${tab.path}`, writeContent);
       pane.tabs[pane.activeTabIdx].content = tab.pending;
       panes = panes;
@@ -360,7 +364,7 @@ import { get } from 'svelte/store';
     for (const tab of snapshots.flat()) {
       if (tab.pending === tab.content) continue;
       const path = tab.path;
-      const wc = tab.lineEndings === 'CRLF' ? tab.pending.replace(/\n/g, '\r\n') : tab.pending;
+      const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
       tab.content = tab.pending; // shared ref — mutates original tabs[i] so saveCurrentState captures clean state
       writeFile(`${wtp}/${path}`, wc).catch(() => {});
     }
@@ -397,7 +401,7 @@ import { get } from 'svelte/store';
     try {
       const raw2 = await readFile(`${worktreePath}/${node.path}`) ?? '';
       const le2 = detectLineEndings(raw2);
-      const text2 = le2 === 'CRLF' ? raw2.replace(/\r\n/g, '\n') : raw2;
+      const text2 = normalizeLineEndings(raw2, le2);
       pane.tabs = [...pane.tabs, { path: node.path, content: text2, pending: text2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
@@ -420,7 +424,7 @@ import { get } from 'svelte/store';
     panes = panes;
     try {
       const newContent = buildRevertedContent(tab.pending, hunk);
-      const writeContent = tab.lineEndings === 'CRLF' ? newContent.replace(/\n/g, '\r\n') : newContent;
+      const writeContent = denormalizeLineEndings(newContent, tab.lineEndings ?? 'LF');
       await writeFile(`${worktreePath}/${tab.path}`, writeContent);
 
       pane.tabs[pane.activeTabIdx].content = newContent;
@@ -522,7 +526,7 @@ import { get } from 'svelte/store';
     const targetDir = targetNode?.isDir
       ? targetNode.path
       : targetNode?.path.includes('/')
-        ? targetNode.path.split('/').slice(0, -1).join('/')
+        ? parentPathOf(targetNode.path)
         : '';
     try {
       for (const src of srcs) {
@@ -714,11 +718,11 @@ import { get } from 'svelte/store';
     }
     if (matchesShortcut(e, $activeShortcuts.fontSizeUp)) {
       e.preventDefault();
-      settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) });
+      settings.save({ editorFontSize: Math.min(($settings.editorFontSize) + 1, 32) });
     }
     if (matchesShortcut(e, $activeShortcuts.fontSizeDown)) {
       e.preventDefault();
-      settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) });
+      settings.save({ editorFontSize: Math.max(($settings.editorFontSize) - 1, 8) });
     }
     if (matchesShortcut(e, $activeShortcuts.fontSizeReset)) {
       e.preventDefault();
@@ -805,7 +809,7 @@ import { get } from 'svelte/store';
         e.preventDefault();
         const paths = [...multiSelected];
         const label = paths.length === 1
-          ? `"${paths[0].split('/').pop()}"`
+          ? `"${basename(paths[0])}"`
           : `${paths.length} items`;
         if (!confirm(`Delete ${label}?`)) return;
         try {
@@ -862,7 +866,7 @@ import { get } from 'svelte/store';
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
         if (focused && worktreePath) loadTree(worktreePath);
-        if (!focused && ($settings.saveOn ?? 'blur') === 'windowChange') {
+        if (!focused && ($settings.saveOn) === 'windowChange') {
           for (let i = 0; i < panes.length; i++) flushSave(i);
         }
       }).then(unlisten => { unlistenFocus = unlisten; });
@@ -873,7 +877,7 @@ import { get } from 'svelte/store';
     const unsubInst = activeInstance.subscribe(inst => {
       const newId = inst?.id ?? null;
       if (prevInstId !== null && prevInstId !== newId && prevInstWtp) {
-        if ((get(settings).saveOn ?? 'blur') === 'instanceChange') {
+        if ((get(settings).saveOn) === 'instanceChange') {
           saveSnapshotToDisk(panes.map(p => [...p.tabs]), prevInstWtp);
         }
       }
@@ -885,7 +889,7 @@ import { get } from 'svelte/store';
     const unsubProj = activeProjectId.subscribe(pid => {
       const newPid = pid ?? null;
       if (prevProjId !== null && prevProjId !== newPid && prevInstWtp) {
-        if ((get(settings).saveOn ?? 'blur') === 'projectChange') {
+        if ((get(settings).saveOn) === 'projectChange') {
           saveSnapshotToDisk(panes.map(p => [...p.tabs]), prevInstWtp);
         }
       }
@@ -902,7 +906,7 @@ import { get } from 'svelte/store';
   });
 
   function quickOpenFile(path: string) {
-    const node = { path, name: path.split('/').pop() ?? path, isDir: false };
+    const node = { path, name: basename(path), isDir: false };
     if (splitMode && focusedPane === 1) openFileInPane(1, node);
     else openFile(node);
   }
@@ -1095,7 +1099,7 @@ import { get } from 'svelte/store';
       selectedDir = node.path;
       return;
     }
-    selectedDir = node.path.includes('/') ? node.path.split('/').slice(0, -1).join('/') : '';
+    selectedDir = parentPathOf(node.path);
 
     const pane = panes[0];
     const existingIdx = pane.tabs.findIndex(t => t.path === node.path);
@@ -1111,7 +1115,7 @@ import { get } from 'svelte/store';
     if (loadingPaths.has(node.path)) return;
 
     captureEditorState(0);
-    if (($settings.saveOn ?? 'blur') === 'blur') await flushSave(0);
+    if (($settings.saveOn) === 'blur') await flushSave(0);
 
     if (isBinaryPath(node.path)) {
       pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
@@ -1128,7 +1132,7 @@ import { get } from 'svelte/store';
       const fullPath = `${worktreePath}/${node.path}`;
       const raw = await readFile(fullPath) ?? '';
       const le = detectLineEndings(raw);
-      const text = le === 'CRLF' ? raw.replace(/\r\n/g, '\n') : raw;
+      const text = normalizeLineEndings(raw, le);
       pane.tabs = [...pane.tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0, lineEndings: le }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
@@ -1222,7 +1226,7 @@ import { get } from 'svelte/store';
   }
 
   async function openFileAtLine(path: string, line: number, col: number) {
-    const node = { path, name: path.split('/').pop() ?? path, isDir: false };
+    const node = { path, name: basename(path), isDir: false };
     const targetPane = splitMode && focusedPane === 1 ? 1 : 0;
     pendingJumps[targetPane] = { line, col };
     if (targetPane === 1) await openFileInPane(1, node);
@@ -1234,7 +1238,7 @@ import { get } from 'svelte/store';
       const idx = i;
       const jump = pendingJumps[i]!;
       pendingJumps[i] = null;
-      setTimeout(() => panes[idx].editorRef?.jumpTo(jump.line, jump.col), 60);
+      setTimeout(() => panes[idx].editorRef?.jumpTo(jump.line, jump.col), EDITOR_JUMP_DELAY_MS);
     }
   }
 
@@ -1515,12 +1519,12 @@ import { get } from 'svelte/store';
           onTabUnpin={(idx) => togglePinTab(idx, i as 0 | 1)}
           onBreadcrumbClick={breadcrumbClickDir}
           onChange={(value) => handleChange(i, value)}
-          onBlur={($settings.saveOn ?? 'blur') === 'blur' ? () => flushSave(i) : undefined}
+          onBlur={($settings.saveOn) === 'blur' ? () => flushSave(i) : undefined}
           onCursorChange={(l, c) => handleCursorChange(i, l, c)}
           onDiffClick={(hunk) => handleDiffClick(i, hunk)}
           onConvertLineEndings={() => convertLineEndings(i as 0 | 1)}
           onConvertIndent={() => convertIndent(i as 0 | 1)}
-          onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace ?? false) })}
+          onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace) })}
           onRevertConfirm={(hunk) => revertHunk(hunk, i)}
           onRevertRequest={() => { panes[i].revertPending = true; panes = panes; }}
           onRevertCancel={() => { panes[i].revertPending = false; panes = panes; }}
@@ -1558,8 +1562,8 @@ import { get } from 'svelte/store';
         case 'tabHistoryBack': tabHistoryBack(); break;
         case 'tabHistoryForward': tabHistoryForward(); break;
         case 'saveFile': flushSave(0); break;
-        case 'fontSizeUp': settings.save({ editorFontSize: Math.min(($settings.editorFontSize ?? 13) + 1, 32) }); break;
-        case 'fontSizeDown': settings.save({ editorFontSize: Math.max(($settings.editorFontSize ?? 13) - 1, 8) }); break;
+        case 'fontSizeUp': settings.save({ editorFontSize: Math.min(($settings.editorFontSize) + 1, 32) }); break;
+        case 'fontSizeDown': settings.save({ editorFontSize: Math.max(($settings.editorFontSize) - 1, 8) }); break;
         case 'fontSizeReset': settings.save({ editorFontSize: 13 }); break;
       }
     }}

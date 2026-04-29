@@ -4,6 +4,7 @@
   import { validateDirectory, cloneRepository } from '$lib/services/project-service';
   import { projects, registerProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
+  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
 
   export let mode: 'new' | 'open' | 'clone';
 
@@ -49,10 +50,7 @@
   let cloneUrl = '';
   let cloneMethod: 'https' | 'ssh' = 'https';
 
-  const presetColors = [
-    '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-    '#f97316', '#eab308', '#22c55e', '#06b6d4',
-  ];
+  const presetColors = PROJECT_COLORS;
 
   // ── Directory picker ───────────────────────────────────────────────────────
   async function pickDirectory() {

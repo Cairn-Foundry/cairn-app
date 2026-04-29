@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import type { FileNode } from '$lib/services/file-service';
+  import { flattenTreeFilePaths, scorePathMatch } from '$lib/utils/files/files-search';
+  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
 
   interface Props {
     tree: FileNode[];
@@ -15,45 +17,11 @@
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
 
-  function flattenTree(nodes: FileNode[]): string[] {
-    const paths: string[] = [];
-    for (const n of nodes) {
-      if (!n.isDir) paths.push(n.path);
-      if (n.children) paths.push(...flattenTree(n.children));
-    }
-    return paths;
-  }
-
-  const allFiles = $derived(flattenTree(tree));
-
-  function score(path: string, q: string): number {
-    if (!q) return 1;
-    const lPath = path.toLowerCase();
-    const lQ = q.toLowerCase();
-    const filename = lPath.split('/').pop() ?? lPath;
-
-    // exact filename prefix
-    if (filename.startsWith(lQ)) return 100;
-
-    // filename contains query
-    if (filename.includes(lQ)) return 80;
-
-    // path contains query as substring
-    if (lPath.includes(lQ)) return 60;
-
-    // fuzzy: all chars appear in order
-    let pi = 0;
-    for (const ch of lQ) {
-      pi = lPath.indexOf(ch, pi);
-      if (pi === -1) return -1;
-      pi++;
-    }
-    return 30;
-  }
+  const allFiles = $derived(flattenTreeFilePaths(tree));
 
   const results = $derived(
     allFiles
-      .map(path => ({ path, s: score(path, query) }))
+      .map(path => ({ path, s: scorePathMatch(path, query) }))
       .filter(x => x.s >= 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, 50)
@@ -78,36 +46,6 @@
 
   onMount(() => inputEl?.focus());
 
-  function highlightMatch(path: string, q: string): string {
-    if (!q) return esc(path);
-    const lPath = path.toLowerCase();
-    const lQ = q.toLowerCase();
-
-    // simple substring highlight
-    const idx = lPath.indexOf(lQ);
-    if (idx !== -1) {
-      return esc(path.slice(0, idx)) +
-        `<mark>${esc(path.slice(idx, idx + q.length))}</mark>` +
-        esc(path.slice(idx + q.length));
-    }
-    
-    // fuzzy highlight
-    let result = '';
-    let pi = 0;
-    for (let i = 0; i < path.length; i++) {
-      if (pi < lQ.length && path[i].toLowerCase() === lQ[pi]) {
-        result += `<mark>${esc(path[i])}</mark>`;
-        pi++;
-      } else {
-        result += esc(path[i]);
-      }
-    }
-    return result;
-  }
-
-  function esc(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -140,8 +78,8 @@
             onkeydown={(e) => e.key === 'Enter' && commit(path)}
           >
             <Icon name="file" size={12}/>
-            <span class="result-name">{path.split('/').pop()}</span>
-            <span class="result-dir">{path.split('/').slice(0, -1).join('/')}</span>
+            <span class="result-name">{basename(path)}</span>
+            <span class="result-dir">{parentPathOf(path)}</span>
           </li>
         {/each}
       </ul>

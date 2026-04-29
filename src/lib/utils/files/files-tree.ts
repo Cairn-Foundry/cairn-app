@@ -92,8 +92,8 @@ export function pasteDestName(srcName: string, existingNames: Set<string>): stri
 }
 
 export function resolveDestName(rawTree: FileNode[], srcPath: string, targetDir: string): string {
-  const name = srcPath.split('/').pop()!;
-  const srcDir = srcPath.includes('/') ? srcPath.split('/').slice(0, -1).join('/') : '';
+  const name = basename(srcPath);
+  const srcDir = parentPathOf(srcPath);
   const siblings = targetDir
     ? new Set(findNode(rawTree, targetDir)?.children?.map(n => n.name) ?? [])
     : new Set(rawTree.map(n => n.name));
@@ -103,4 +103,8 @@ export function resolveDestName(rawTree: FileNode[], srcPath: string, targetDir:
 
 export function parentPathOf(path: string): string {
   return path.includes('/') ? path.split('/').slice(0, -1).join('/') : '';
+}
+
+export function basename(path: string): string {
+  return path.split('/').pop() ?? path;
 }

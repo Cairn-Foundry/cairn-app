@@ -23,7 +23,7 @@
   const highlightCompartment = new Compartment();
 
   function buildExtensions(): Extension[] {
-    const theme = $settings.theme ?? 'dark';
+    const theme = $settings.theme;
     return [
       resolveLanguageExtension(language),
       lineNumbers(),
@@ -40,7 +40,7 @@
   }
 
   $: if (mergeView) {
-    const theme = $settings.theme ?? 'dark';
+    const theme = $settings.theme;
     const effects = [
       themeCompartment.reconfigure(buildEditorTheme(theme)),
       highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),

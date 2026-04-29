@@ -5,6 +5,7 @@
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Project } from '$lib/types/project';
   import DeleteProjectModal from './DeleteProjectModal.svelte';
+  import { matchesSearch } from '$lib/utils/files/files-search';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
@@ -17,10 +18,7 @@
   let deletingProject: Project | null = null;
 
   $: filteredProjects = search.trim()
-    ? $projects.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.path.toLowerCase().includes(search.toLowerCase())
-      )
+    ? $projects.filter(p => matchesSearch(p.name, search) || matchesSearch(p.path, search))
     : $projects;
 
   function openMenu(e: MouseEvent, id: string) {
