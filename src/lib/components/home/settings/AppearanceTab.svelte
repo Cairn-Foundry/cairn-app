@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '$lib/utils/home/appearance';
 
@@ -8,7 +9,7 @@
 </script>
 
 <div class="settings-group">
-  <div class="settings-group-title">Theme</div>
+  <div class="settings-group-title">{t('settings.appearance.themeGroup')}</div>
   <div class="theme-cards">
     {#each [['dark', 'Dark'], ['light', 'Light'], ['high-contrast', 'High contrast']] as [val, label]}
       <button
@@ -33,7 +34,7 @@
 </div>
 
 <div class="settings-group">
-  <div class="settings-group-title">Accent color</div>
+  <div class="settings-group-title">{t('settings.appearance.accentGroup')}</div>
   <div class="accent-presets">
     {#each ACCENT_PRESETS as preset}
       <button
@@ -45,7 +46,7 @@
     {/each}
     <label
       class="accent-preset accent-preset-custom {!accentIsPreset ? 'active' : ''}"
-      title="Custom color"
+      title={t('settings.appearance.customColor') as string}
       style="background: {$settings.accentColor}"
     >
       <input
@@ -61,7 +62,7 @@
 </div>
 
 <div class="settings-group">
-  <div class="settings-group-title">Font</div>
+  <div class="settings-group-title">{t('settings.appearance.fontGroup')}</div>
   <div class="font-cards">
     {#each FONT_OPTIONS as opt}
       <button
@@ -84,7 +85,7 @@
     style="font-size: 12px;"
     on:click={() => settings.save({ theme: 'dark', accentColor: DEFAULT_ACCENT, fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
   >
-    <Icon name="undo" size={12}/> Reset appearance
+    <Icon name="undo" size={12}/> {t('settings.appearance.resetAppearance')}
   </button>
 </div>
 

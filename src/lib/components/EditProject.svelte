@@ -3,6 +3,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
+  import { t } from '$lib/i18n';
   import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
   import { editProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
@@ -52,10 +53,10 @@
 
     <div class="modal-head">
       <div>
-        <div class="step-count">Edit project</div>
-        <h3>Rename &amp; recolor</h3>
+        <div class="step-count">{t('editProject.heading')}</div>
+        <h3>{t('editProject.subheading')}</h3>
       </div>
-      <button class="icon-btn close" on:click={() => dispatch('close')} disabled={loading} aria-label="Close">
+      <button class="icon-btn close" on:click={() => dispatch('close')} disabled={loading} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
@@ -63,7 +64,7 @@
     <div class="modal-body">
       <div class="form-section">
         <label class="ep-label" for="edit-name">
-          Project name <span class="req">*</span>
+          {t('editProject.projectName')} <span class="req">*</span>
         </label>
         <input
           id="edit-name"
@@ -75,7 +76,7 @@
       </div>
 
       <div class="form-section">
-        <div class="ep-label">Color</div>
+        <div class="ep-label">{t('editProject.color')}</div>
         <ProjectColorPicker bind:color idSuffix="edit" />
       </div>
 
@@ -90,12 +91,12 @@
 
     <div class="modal-foot">
       <div class="spacer"></div>
-      <button class="btn ghost" on:click={() => dispatch('close')} disabled={loading}>Cancel</button>
+      <button class="btn ghost" on:click={() => dispatch('close')} disabled={loading}>{t('common.cancel')}</button>
       <button class="btn primary" disabled={!canSave || loading} on:click={save}>
         {#if loading}
-          <Spinner /> Saving…
+          <Spinner /> {t('common.saving')}
         {:else}
-          <Icon name="check" size={14}/> Save changes
+          <Icon name="check" size={14}/> {t('editProject.saveChanges')}
         {/if}
       </button>
     </div>

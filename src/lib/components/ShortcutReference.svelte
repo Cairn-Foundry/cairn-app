@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
   const dispatch = createEventDispatcher<{ close: void; goSettings: void }>();
@@ -10,8 +11,8 @@
   }
 
   const STATIC_EDITOR_TAIL = [
-    { keys: ['Tab'],   description: 'Accept completion / insert tab' },
-    { keys: ['Enter'], description: 'Accept completion' },
+    { keys: ['Tab'],   description: t('shortcuts.staticEditorTail.acceptOrTab') as string },
+    { keys: ['Enter'], description: t('shortcuts.staticEditorTail.acceptCompletion') as string },
   ];
 
   $: groups = (['files', 'tabs', 'view', 'editor'] as const).map(group => ({
@@ -32,17 +33,17 @@
 <div class="backdrop" on:click={() => dispatch('close')}>
   <div class="panel" on:click|stopPropagation={() => {}}>
     <div class="header">
-      <span class="title">Keyboard Shortcuts</span>
+      <span class="title">{t('shortcuts.title')}</span>
       <div class="header-actions">
         <button
           class="customize-btn"
           on:click={() => { dispatch('goSettings'); dispatch('close'); }}
-          title="Customize shortcuts in Settings"
+          title={t('shortcuts.customizeTitle') as string}
         >
           <Icon name="settings" size={13} />
-          Customize
+          {t('shortcuts.customize')}
         </button>
-        <button class="close-btn" on:click={() => dispatch('close')} aria-label="Close">
+        <button class="close-btn" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
           <Icon name="x" size={13} />
         </button>
       </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import DiffEditor from './DiffEditor.svelte';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
 
@@ -61,7 +62,7 @@
 
 <div class="review-layout">
   <aside class="files-list">
-    <div class="files-section-title">Changed files · 5</div>
+    <div class="files-section-title">{(t('review.changedFiles') as (n: number) => string)(REVIEW_FILES.length)}</div>
     {#each REVIEW_FILES as f, i}
       <div
         class="file-item {i === active ? 'active' : ''}"
@@ -80,7 +81,7 @@
         </span>
       </div>
     {/each}
-    <div class="files-section-title" style="margin-top: 14px;">Agent notes</div>
+    <div class="files-section-title" style="margin-top: 14px;">{t('review.agentNotes')}</div>
     <div style="padding: 8px 16px; font-size: 11.5px; color: var(--fg-2); line-height: 1.5;">
       All changes relate to FEAT-42. No edits outside <span class="mono" style="color: var(--fg-0)">src/auth/</span>, routes, migrations, and package.json.
     </div>
@@ -98,7 +99,7 @@
           <span class="minus"> −{REVIEW_FILES[active].minus}</span>
         {/if}
       </div>
-      <button class="btn ghost" style="margin-left: 8px; padding: 4px 8px;"><Icon name="external" size={12}/> Open</button>
+      <button class="btn ghost" style="margin-left: 8px; padding: 4px 8px;"><Icon name="external" size={12}/> {t('review.openFile')}</button>
     </div>
 
     <div class="diff-editor-wrap">

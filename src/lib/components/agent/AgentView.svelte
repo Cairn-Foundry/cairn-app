@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
 
   let draft = '';
   let scrollEl: HTMLElement;
@@ -79,12 +80,12 @@
     <div class="pane-header">
       <div class="pane-title">
         <span class="num">01</span>
-        Agent
-        <span class="sub">· supervising — Claude Code</span>
+        {t('agent.title')}
+        <span class="sub">· {t('agent.subtitle')}</span>
       </div>
       <div class="pane-actions">
-        <button class="btn ghost"><Icon name="pause" size={13}/> Interrupt</button>
-        <button class="btn ghost"><Icon name="refresh" size={13}/> Restart</button>
+        <button class="btn ghost"><Icon name="pause" size={13}/> {t('agent.interrupt')}</button>
+        <button class="btn ghost"><Icon name="refresh" size={13}/> {t('agent.restart')}</button>
         <button class="icon-btn"><Icon name="more" size={14}/></button>
       </div>
     </div>
@@ -101,7 +102,7 @@
             <div class="meta">
               <span class="role">
                 {#if m.role === 'user'}
-                  You
+                  {t('agent.you')}
                 {:else}
                   <Icon name="sparkles" size={12} style="vertical-align: -1px; margin-right: 4px;"/>Agent
                 {/if}
@@ -110,7 +111,7 @@
               <span>{m.time}</span>
               {#if m.streaming}
                 <span>·</span>
-                <span style="color: var(--accent)">streaming</span>
+                <span style="color: var(--accent)">{t('agent.streaming')}</span>
               {/if}
             </div>
             <div class="bubble">
@@ -145,15 +146,15 @@
     <div class="chat-input-wrap">
       <div class="chat-input">
         <textarea
-          placeholder="Redirect the agent, ask a question, or add context…"
+          placeholder={t('agent.inputPlaceholder') as string}
           bind:value={draft}
         ></textarea>
         <div class="chat-input-row">
           <span class="profile-picker"><span class="dot"></span> feature</span>
           <span class="chip"><Icon name="attach" size={11}/> FEAT-42 context</span>
-          <span class="chip"><Icon name="at" size={11}/> mention file</span>
+          <span class="chip"><Icon name="at" size={11}/> {t('agent.mentionFile')}</span>
           <div class="spacer"></div>
-          <button class="btn"><Icon name="send" size={12}/> Send<span class="kbd">⌘↵</span></button>
+          <button class="btn"><Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">⌘↵</span></button>
         </div>
       </div>
     </div>
@@ -162,9 +163,9 @@
   <div class="activity">
     <div class="activity-head">
       <span class="live-dot"></span>
-      Live activity
-      <span class="dim mono" style="font-size: 10px; margin-left: 4px;">— what the agent is doing, right now</span>
-      <span class="pause"><Icon name="pause" size={11}/> auto-scroll</span>
+      {t('agent.liveActivity')}
+      <span class="dim mono" style="font-size: 10px; margin-left: 4px;">{t('agent.liveActivitySub')}</span>
+      <span class="pause"><Icon name="pause" size={11}/> {t('agent.autoScroll')}</span>
     </div>
     <div class="activity-list">
       <div class="act-group">Context</div>

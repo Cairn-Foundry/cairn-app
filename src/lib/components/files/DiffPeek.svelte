@@ -1,5 +1,6 @@
 <script lang="ts">
   import DiffEditor from '$lib/components/review/DiffEditor.svelte';
+  import { t } from '$lib/i18n';
   import { hunkToSplit } from '$lib/utils/files/files-diff';
   import type { DiffHunk, BlameEntry } from '$lib/services/file-service';
 
@@ -31,17 +32,17 @@
         <span class="blame-peek-date">{blame.entry.date}</span>
         <span class="blame-peek-summary">{blame.entry.summary}</span>
       </span>
-      <button class="diff-peek-close" on:click={onDismiss} aria-label="Close blame">✕</button>
+      <button class="diff-peek-close" on:click={onDismiss} aria-label={t('diffPeek.closeBlame') as string}>✕</button>
     </div>
     {#if hunk}
       <div class="diff-peek-section-label">
-        <span>Current changes — lines {hunk.newStart}–{hunk.newEnd}</span>
+        <span>{(t('diffPeek.currentChangesLines') as (s: number, e: number) => string)(hunk.newStart, hunk.newEnd)}</span>
         <div class="diff-peek-actions">
           {#if revertPending}
-            <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => onRevertConfirm(hunk)}>{reverting ? 'Reverting…' : 'Confirm revert'}</button>
-            <button class="diff-peek-action" disabled={reverting} on:click={onRevertCancel}>Cancel</button>
+            <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => onRevertConfirm(hunk)}>{reverting ? t('common.reverting') : t('diffPeek.confirmRevert')}</button>
+            <button class="diff-peek-action" disabled={reverting} on:click={onRevertCancel}>{t('common.cancel')}</button>
           {:else}
-            <button class="diff-peek-action" on:click={onRevertRequest} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+            <button class="diff-peek-action" on:click={onRevertRequest} title={t('diffPeek.revertHunkTitle') as string}>{t('diffPeek.revertHunk')}</button>
           {/if}
         </div>
       </div>
@@ -54,11 +55,11 @@
           />
         {/key}
       </div>
-      <div class="diff-peek-section-label">Introduced in {blame.entry.hash}</div>
+      <div class="diff-peek-section-label">{(t('diffPeek.introducedIn') as (hash: string) => string)(blame.entry.hash)}</div>
     {/if}
     <div class="{hunk ? 'diff-peek-section' : 'diff-peek-body diff-peek-body-split'}">
       {#if blame.loadingDiff}
-        <div class="blame-peek-loading">Loading…</div>
+        <div class="blame-peek-loading">{t('diffPeek.blameLoading')}</div>
       {:else if blame.error}
         <div class="blame-peek-loading">{blame.error}</div>
       {:else}
@@ -75,16 +76,16 @@
 {:else if hunk}
   <div class="diff-peek diff-peek-split">
     <div class="diff-peek-header">
-      <span class="diff-peek-title">Changes — lines {hunk.newStart}–{hunk.newEnd}</span>
+      <span class="diff-peek-title">{(t('diffPeek.changesLines') as (s: number, e: number) => string)(hunk.newStart, hunk.newEnd)}</span>
       <div class="diff-peek-actions">
         {#if revertPending}
-          <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => onRevertConfirm(hunk)}>{reverting ? 'Reverting…' : 'Confirm revert'}</button>
-          <button class="diff-peek-action" disabled={reverting} on:click={onRevertCancel}>Cancel</button>
+          <button class="diff-peek-action diff-peek-action-danger" disabled={reverting} on:click={() => onRevertConfirm(hunk)}>{reverting ? t('common.reverting') : t('diffPeek.confirmRevert')}</button>
+          <button class="diff-peek-action" disabled={reverting} on:click={onRevertCancel}>{t('common.cancel')}</button>
         {:else}
-          <button class="diff-peek-action" on:click={onRevertRequest} title="Discard this hunk and restore to HEAD">Revert hunk</button>
+          <button class="diff-peek-action" on:click={onRevertRequest} title={t('diffPeek.revertHunkTitle') as string}>{t('diffPeek.revertHunk')}</button>
         {/if}
       </div>
-      <button class="diff-peek-close" on:click={onDismiss} aria-label="Close diff">✕</button>
+      <button class="diff-peek-close" on:click={onDismiss} aria-label={t('diffPeek.closeDiff') as string}>✕</button>
     </div>
     <div class="diff-peek-body diff-peek-body-split">
       {#key hunk}

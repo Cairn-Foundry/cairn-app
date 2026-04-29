@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import type { WorkflowTabConfig } from '$lib/services/settings-service';
   import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
@@ -46,8 +47,8 @@
 </script>
 
 <div class="settings-group">
-  <div class="settings-group-title">Workflow tabs</div>
-  <p class="wf-hint">Drag to reorder · toggle to show/hide</p>
+  <div class="settings-group-title">{t('settings.project.workflowTabsGroup')}</div>
+  <p class="wf-hint">{t('settings.project.workflowTabsHint')}</p>
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="wf-list" bind:this={wfListEl}>
     {#each wfTabs as tab, i (tab.key)}
@@ -65,7 +66,7 @@
         <div class="settings-row-info">
           <span class="settings-row-label">{tab.name}</span>
         </div>
-        <label class="settings-toggle" aria-label="Show {tab.name} tab">
+        <label class="settings-toggle" aria-label={(t('settings.project.showTab') as (name: string) => string)(tab.name)}>
           <input
             type="checkbox"
             checked={tab.enabled}
@@ -85,7 +86,7 @@
       style="font-size: 12px;"
       on:click={() => settings.save({ workflowTabs: DEFAULT_WF_TABS })}
     >
-      <Icon name="undo" size={12}/> Reset project
+      <Icon name="undo" size={12}/> {t('settings.project.resetProject')}
     </button>
   </div>
 </div>

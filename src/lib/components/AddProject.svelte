@@ -7,6 +7,7 @@
   import { validateDirectory, cloneRepository } from '$lib/services/project-service';
   import { projects, registerProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
+  import { t } from '$lib/i18n';
 
   export let mode: 'new' | 'open' | 'clone';
 
@@ -21,21 +22,21 @@
   //   clone: [source]   → [identity] → [dest] (3 steps)
 
   const stepLabels: Record<typeof mode, string[]> = {
-    new:   ['Identity',  'Location'],
-    open:  ['Location',  'Identity'],
-    clone: ['Source',    'Identity', 'Destination'],
+    new:   [t('addProject.stepLabels.identity') as string,  t('addProject.stepLabels.location') as string],
+    open:  [t('addProject.stepLabels.location') as string,  t('addProject.stepLabels.identity') as string],
+    clone: [t('addProject.stepLabels.source') as string,    t('addProject.stepLabels.identity') as string, t('addProject.stepLabels.destination') as string],
   };
 
   const modalTitles: Record<typeof mode, string[]> = {
-    new:   ['Name your project',    'Choose a folder'],
-    open:  ['Choose a folder',      'Name your project'],
-    clone: ['Repository source',    'Name your project', 'Choose destination'],
+    new:   [t('addProject.modalTitles.nameYourProject') as string,    t('addProject.modalTitles.chooseFolder') as string],
+    open:  [t('addProject.modalTitles.chooseFolder') as string,       t('addProject.modalTitles.nameYourProject') as string],
+    clone: [t('addProject.modalTitles.repositorySource') as string,   t('addProject.modalTitles.nameYourProject') as string, t('addProject.modalTitles.chooseDestination') as string],
   };
 
   const modeLabel: Record<typeof mode, string> = {
-    new:   'New project',
-    open:  'Open project',
-    clone: 'Clone from remote',
+    new:   t('addProject.modeLabels.new') as string,
+    open:  t('addProject.modeLabels.open') as string,
+    clone: t('addProject.modeLabels.clone') as string,
   };
 
   let step = 0;
@@ -111,7 +112,7 @@
       // Duplicate-path guard — surface a friendly message rather than a silent skip
       const duplicate = $projects.find(p => p.path === resolvedPath);
       if (duplicate) {
-        error = `"${duplicate.name}" already uses this folder. Open it from the projects list.`;
+        error = (t('addProject.duplicateError') as (name: string) => string)(duplicate.name);
         return;
       }
 
@@ -147,11 +148,11 @@
     <div class="modal-head">
       <div>
         <div class="step-count">
-          {modeLabel[mode]} · Step {step + 1} of {totalSteps} — {stepLabels[mode][step]}
+          {modeLabel[mode]} · {(t('common.stepOf') as (s: number, t: number) => string)(step + 1, totalSteps)} — {stepLabels[mode][step]}
         </div>
         <h3>{modalTitles[mode][step]}</h3>
       </div>
-      <button class="icon-btn close" on:click={close} aria-label="Close">
+      <button class="icon-btn close" on:click={close} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
@@ -164,37 +165,37 @@
 
         <div class="form-section">
           <label class="ap-label" for="new-name">
-            Project name <span class="req">*</span>
+            {t('addProject.projectName')} <span class="req">*</span>
           </label>
           <input
             id="new-name"
             class="ap-input"
             bind:value={name}
-            placeholder="My awesome project"
+            placeholder={t('addProject.projectNamePlaceholder') as string}
             autocomplete="off"
           />
         </div>
 
         <div class="form-section">
-          <div class="ap-label">Color</div>
+          <div class="ap-label">{t('addProject.color')}</div>
           <ProjectColorPicker bind:color idSuffix="new" />
         </div>
 
-        <ProjectPreviewPill name={name || 'Project name'} {color} />
+        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
       <!-- ══ NEW — step 1: location ══ -->
       {:else if mode === 'new' && step === 1}
 
-        <p class="ap-hint">Pick the folder where this project lives. Any directory works — git is not required.</p>
+        <p class="ap-hint">{t('addProject.hintNew')}</p>
         <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
           <Icon name="folder" size={18}/>
           <span class="dir-label">
             {#if path}
-              <span class="dir-main">Folder selected</span>
+              <span class="dir-main">{t('addProject.folderSelectedMain')}</span>
               <span class="dir-sub">{path}</span>
             {:else}
-              <span class="dir-main">Browse…</span>
-              <span class="dir-sub">Click to open the folder picker</span>
+              <span class="dir-main">{t('addProject.browsMain')}</span>
+              <span class="dir-sub">{t('addProject.browseSub')}</span>
             {/if}
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
@@ -203,16 +204,16 @@
       <!-- ══ OPEN — step 0: location ══ -->
       {:else if mode === 'open' && step === 0}
 
-        <p class="ap-hint">Select any local folder to open as a Cairn project.</p>
+        <p class="ap-hint">{t('addProject.hintOpen')}</p>
         <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
           <Icon name="folder" size={18}/>
           <span class="dir-label">
             {#if path}
-              <span class="dir-main">Folder selected</span>
+              <span class="dir-main">{t('addProject.folderSelectedMain')}</span>
               <span class="dir-sub">{path}</span>
             {:else}
-              <span class="dir-main">Browse…</span>
-              <span class="dir-sub">Click to open the folder picker</span>
+              <span class="dir-main">{t('addProject.browsMain')}</span>
+              <span class="dir-sub">{t('addProject.browseSub')}</span>
             {/if}
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
@@ -223,43 +224,43 @@
 
         <div class="form-section">
           <label class="ap-label" for="open-name">
-            Project name <span class="req">*</span>
+            {t('addProject.projectName')} <span class="req">*</span>
           </label>
           <input
             id="open-name"
             class="ap-input"
             bind:value={name}
-            placeholder="My awesome project"
+            placeholder={t('addProject.projectNamePlaceholder') as string}
             autocomplete="off"
           />
         </div>
 
         <div class="form-section">
-          <div class="ap-label">Color</div>
+          <div class="ap-label">{t('addProject.color')}</div>
           <ProjectColorPicker bind:color idSuffix="open" />
         </div>
 
-        <ProjectPreviewPill name={name || 'Project name'} {color} />
+        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
       <!-- ══ CLONE — step 0: source ══ -->
       {:else if mode === 'clone' && step === 0}
 
         <div class="form-section">
           <label class="ap-label" for="clone-url">
-            Repository URL <span class="req">*</span>
+            {t('addProject.repoUrl')} <span class="req">*</span>
           </label>
           <input
             id="clone-url"
             class="ap-input mono"
             bind:value={cloneUrl}
             on:blur={inferNameFromUrl}
-            placeholder="https://github.com/user/repo.git"
+            placeholder={t('addProject.repoUrlPlaceholder') as string}
             autocomplete="off"
           />
         </div>
 
         <div class="form-section">
-          <div class="ap-label">Protocol</div>
+          <div class="ap-label">{t('addProject.protocol')}</div>
           <div class="method-row">
             <button
               class="method-btn {cloneMethod === 'https' ? 'active' : ''}"
@@ -276,9 +277,9 @@
           </div>
           <p class="method-hint">
             {#if cloneMethod === 'https'}
-              Clones over HTTPS. You may be prompted for credentials.
+              {t('addProject.httpsHint')}
             {:else}
-              Clones over SSH. Requires an SSH key configured for the remote host.
+              {t('addProject.sshHint')}
             {/if}
           </p>
         </div>
@@ -288,37 +289,37 @@
 
         <div class="form-section">
           <label class="ap-label" for="clone-name">
-            Project name <span class="req">*</span>
+            {t('addProject.projectName')} <span class="req">*</span>
           </label>
           <input
             id="clone-name"
             class="ap-input"
             bind:value={name}
-            placeholder="repo-name"
+            placeholder={t('addProject.repoNamePlaceholder') as string}
             autocomplete="off"
           />
         </div>
 
         <div class="form-section">
-          <div class="ap-label">Color</div>
+          <div class="ap-label">{t('addProject.color')}</div>
           <ProjectColorPicker bind:color idSuffix="clone" />
         </div>
 
-        <ProjectPreviewPill name={name || 'Project name'} {color} />
+        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
       <!-- ══ CLONE — step 2: destination ══ -->
       {:else if mode === 'clone' && step === 2}
 
-        <p class="ap-hint">Choose the parent folder where the repository will be cloned.</p>
+        <p class="ap-hint">{t('addProject.hintClone')}</p>
         <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
           <Icon name="folder" size={18}/>
           <span class="dir-label">
             {#if path}
-              <span class="dir-main">Destination selected</span>
+              <span class="dir-main">{t('addProject.destinationSelectedMain')}</span>
               <span class="dir-sub">{path}/{name}</span>
             {:else}
-              <span class="dir-main">Browse…</span>
-              <span class="dir-sub">Click to open the folder picker</span>
+              <span class="dir-main">{t('addProject.browsMain')}</span>
+              <span class="dir-sub">{t('addProject.browseSub')}</span>
             {/if}
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
@@ -343,21 +344,21 @@
       </div>
       <div class="spacer"></div>
       {#if step > 0}
-        <button class="btn ghost" on:click={back} disabled={loading}>Back</button>
+        <button class="btn ghost" on:click={back} disabled={loading}>{t('common.back')}</button>
       {/if}
       {#if !isLastStep}
         <button class="btn primary" disabled={!canNext || loading} on:click={next}>
-          Continue <Icon name="chev-r" size={14}/>
+          {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
       {:else}
         <button class="btn primary" disabled={!canNext || loading} on:click={submit}>
           {#if loading}
-            <Spinner /> 
-            {#if mode === 'clone'}Cloning…{:else}Creating…{/if}
+            <Spinner />
+            {#if mode === 'clone'}{t('common.cloning')}{:else}{t('common.creating')}{/if}
           {:else if mode === 'clone'}
-            <Icon name="download" size={14}/> Clone &amp; open
+            <Icon name="download" size={14}/> {t('addProject.cloneAndOpen')}
           {:else}
-            <Icon name="sparkles" size={14}/> Add project
+            <Icon name="sparkles" size={14}/> {t('addProject.addProject')}
           {/if}
         </button>
       {/if}

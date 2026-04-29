@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import type { FileNode, GitStatusMap } from '$lib/services/file-service';
   import { fileIcon as fileIconFor, nodeGitStatus } from '$lib/utils/files/files-tree';
 
@@ -69,39 +70,39 @@
 <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => onContextMenu(e, null)}>
   <div class="files-tree-header">
     <div class="tree-header-actions">
-      <button type="button" class="tree-action-btn" data-tooltip="Collapse All" on:click={(e) => { e.stopPropagation(); onCollapseAll(); }}>
+      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.collapseAll') as string} on:click={(e) => { e.stopPropagation(); onCollapseAll(); }}>
         <Icon name="collapse-all" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn" data-tooltip="Expand All" on:click={(e) => { e.stopPropagation(); onExpandAll(); }}>
+      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.expandAll') as string} on:click={(e) => { e.stopPropagation(); onExpandAll(); }}>
         <Icon name="expand-all" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn" data-tooltip="New File" on:click={(e) => { e.stopPropagation(); onNewFileTopLevel(); }}>
+      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.newFile') as string} on:click={(e) => { e.stopPropagation(); onNewFileTopLevel(); }}>
         <Icon name="file" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn" data-tooltip="New Folder" on:click={(e) => { e.stopPropagation(); onNewFolderTopLevel(); }}>
+      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.newFolder') as string} on:click={(e) => { e.stopPropagation(); onNewFolderTopLevel(); }}>
         <Icon name="folder" size={12}/>
       </button>
       <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" data-tooltip={tooltipSearch} on:click={(e) => { e.stopPropagation(); onToggleSearchPanel(); }}>
         <Icon name="search" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn" data-tooltip="Refresh" on:click={(e) => { e.stopPropagation(); onRefresh(); }}>
+      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.refresh') as string} on:click={(e) => { e.stopPropagation(); onRefresh(); }}>
         <Icon name="refresh" size={12}/>
       </button>
       <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); onToggleSplit(); }}>
         <Icon name="columns" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn {showHidden ? 'active' : ''}" data-tooltip="Toggle Hidden Files" on:click={(e) => { e.stopPropagation(); onToggleHidden(); }}>
+      <button type="button" class="tree-action-btn {showHidden ? 'active' : ''}" data-tooltip={t('files.treeTooltips.toggleHidden') as string} on:click={(e) => { e.stopPropagation(); onToggleHidden(); }}>
         <Icon name="eye" size={12}/>
       </button>
     </div>
   </div>
 
   {#if loading}
-    <div class="tree-state">Loading…</div>
+    <div class="tree-state">{t('files.treeLoading')}</div>
   {:else if error}
     <div class="tree-state error">{error}</div>
   {:else if !worktreePath}
-    <div class="tree-state">No active instance</div>
+    <div class="tree-state">{t('files.treeNoInstance')}</div>
   {:else}
     <button
       type="button"
@@ -118,7 +119,7 @@
       {@render inlineInput(0)}
     {/if}
     {#if tree.length === 0 && !editState}
-      <div class="tree-state">Empty worktree</div>
+      <div class="tree-state">{t('files.treeEmpty')}</div>
     {/if}
     {#each tree as node}
       {@render treeNode(node, 0)}
@@ -180,7 +181,7 @@
       use:focusOnMount
       value={editValue}
       on:input={(e) => onEditValueChange((e.currentTarget as HTMLInputElement).value)}
-      placeholder={editState?.type === 'new-dir' ? 'folder name' : 'file name'}
+      placeholder={editState?.type === 'new-dir' ? t('files.folderNamePlaceholder') as string : t('files.fileNamePlaceholder') as string}
       class="tree-edit-input {editConflict ? 'input-conflict' : ''}"
       on:keydown={handleEditKey}
       on:blur={onCancelEdit}

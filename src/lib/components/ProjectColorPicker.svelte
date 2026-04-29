@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
   import { PROJECT_COLORS } from '$lib/utils/home/appearance';
 
   export let color: string;
@@ -17,7 +18,7 @@
       aria-label="Color {c}"
     ></button>
   {/each}
-  <label for="color-{idSuffix}" class="color-custom-wrap" title="Custom color">
+  <label for="color-{idSuffix}" class="color-custom-wrap" title={t('settings.appearance.customColor') as string}>
     <input id="color-{idSuffix}" type="color" bind:value={color} class="color-custom-input"/>
     <span class="color-custom-preview" style="background:{color}"></span>
   </label>

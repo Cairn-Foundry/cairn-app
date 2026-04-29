@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { t } from '$lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { EditorView, keymap } from '@codemirror/view';
   import { EditorState, EditorSelection, Compartment, Prec, type Extension } from '@codemirror/state';
@@ -306,40 +307,40 @@
     on:mousedown|stopPropagation={() => {}}
   >
     <button role="menuitem" disabled={!ctxMenu.hasSelection} on:click={cmdCopy}>
-      <span class="icon">⎘</span>Copy<span class="kbd">⌘C</span>
+      <span class="icon">⎘</span>{t('editor.contextMenu.copy')}<span class="kbd">⌘C</span>
     </button>
     <button role="menuitem" disabled={!ctxMenu.hasSelection || readonly} on:click={cmdCut}>
-      <span class="icon">✂</span>Cut<span class="kbd">⌘X</span>
+      <span class="icon">✂</span>{t('editor.contextMenu.cut')}<span class="kbd">⌘X</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={cmdPaste}>
-      <span class="icon">⎗</span>Paste<span class="kbd">⌘V</span>
+      <span class="icon">⎗</span>{t('editor.contextMenu.paste')}<span class="kbd">⌘V</span>
     </button>
     <button role="menuitem" on:click={() => runCmd(selectAll)}>
-      <span class="icon"></span>Select All<span class="kbd">⌘A</span>
+      <span class="icon"></span>{t('editor.contextMenu.selectAll')}<span class="kbd">⌘A</span>
     </button>
 
     <div class="ctx-sep" role="separator"></div>
 
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleComment)}>
-      <span class="icon"></span>Toggle Comment<span class="kbd">{bindingToLabels($shortcuts.toggleLineComment).join('')}</span>
+      <span class="icon"></span>{t('editor.contextMenu.toggleComment')}<span class="kbd">{bindingToLabels($shortcuts.toggleLineComment).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(toggleBlockComment)}>
-      <span class="icon"></span>Toggle Block Comment<span class="kbd">{bindingToLabels($shortcuts.toggleBlockComment).join('')}</span>
+      <span class="icon"></span>{t('editor.contextMenu.toggleBlockComment')}<span class="kbd">{bindingToLabels($shortcuts.toggleBlockComment).join('')}</span>
     </button>
 
     <div class="ctx-sep" role="separator"></div>
 
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineUp)}>
-      <span class="icon">↑</span>Move Line Up<span class="kbd">{bindingToLabels($shortcuts.moveLineUp).join('')}</span>
+      <span class="icon">↑</span>{t('editor.contextMenu.moveLineUp')}<span class="kbd">{bindingToLabels($shortcuts.moveLineUp).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(moveLineDown)}>
-      <span class="icon">↓</span>Move Line Down<span class="kbd">{bindingToLabels($shortcuts.moveLineDown).join('')}</span>
+      <span class="icon">↓</span>{t('editor.contextMenu.moveLineDown')}<span class="kbd">{bindingToLabels($shortcuts.moveLineDown).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(copyLineDown)}>
-      <span class="icon"></span>Duplicate Line<span class="kbd">{bindingToLabels($shortcuts.copyLineDown).join('')}</span>
+      <span class="icon"></span>{t('editor.contextMenu.duplicateLine')}<span class="kbd">{bindingToLabels($shortcuts.copyLineDown).join('')}</span>
     </button>
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(deleteLine)}>
-      <span class="icon"></span>Delete Line<span class="kbd">{bindingToLabels($shortcuts.deleteLine).join('')}</span>
+      <span class="icon"></span>{t('editor.contextMenu.deleteLine')}<span class="kbd">{bindingToLabels($shortcuts.deleteLine).join('')}</span>
     </button>
   </div>
 {/if}

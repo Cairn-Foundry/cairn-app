@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import DiffPeek from './DiffPeek.svelte';
   import { settings } from '$lib/stores/settings';
@@ -107,11 +108,11 @@
           <span class="tab-name">{basename(tab.path)}</span>
           {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
           {#if tab.pinned}
-            <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); onTabUnpin(i); }} aria-label="Unpin tab" title="Unpin tab">
+            <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); onTabUnpin(i); }} aria-label={t('files.unpinTab') as string} title={t('files.unpinTabTitle') as string}>
               <Icon name="x" size={11}/>
             </button>
           {:else}
-            <button type="button" class="tab-close" on:click={(e) => onTabClose(i, e)} aria-label="Close tab">
+            <button type="button" class="tab-close" on:click={(e) => onTabClose(i, e)} aria-label={t('files.closeTab') as string}>
               <Icon name="x" size={11}/>
             </button>
           {/if}
@@ -127,7 +128,7 @@
     {@const segs = breadcrumbSegments(activeTab.path)}
     <div class="editor-topbar">
       <Icon name="file" size={13}/>
-      <nav class="editor-breadcrumb" aria-label="File path">
+      <nav class="editor-breadcrumb" aria-label={t('files.filePath') as string}>
         {#each segs as seg, i (i)}
           {#if i > 0}<span class="breadcrumb-sep">/</span>{/if}
           {#if i < segs.length - 1}
@@ -140,11 +141,11 @@
     </div>
     <div class="editor-body">
       {#if loadingPaths.has(activeTab.path)}
-        <div class="editor-placeholder">Loading…</div>
+        <div class="editor-placeholder">{t('files.loading')}</div>
       {:else if isBinaryPath(activeTab.path)}
         <div class="editor-placeholder">
           <Icon name="file" size={32}/>
-          <div>Binary file — preview not available</div>
+          <div>{t('files.binaryFilePreview')}</div>
           <div class="editor-placeholder-path">{activeTab.path}</div>
         </div>
       {:else}
@@ -186,26 +187,26 @@
       <span class="statusbar-sep">|</span>
       <span class="statusbar-item">{activeLang.toUpperCase()}</span>
       <span class="statusbar-sep">|</span>
-      <button class="statusbar-item statusbar-btn" on:click={onConvertLineEndings} title="Convert line endings">{activeLineEndings}</button>
+      <button class="statusbar-item statusbar-btn" on:click={onConvertLineEndings} title={t('files.convertLineEndings') as string}>{activeLineEndings}</button>
       <span class="statusbar-sep">|</span>
       {#if activeIndentStyle !== null}
-        <button class="statusbar-item statusbar-btn" on:click={onConvertIndent} title="Convert indent style">{activeIndentStyle === 'tabs' ? 'Tabs' : `Spaces: ${activeSpaceSize}`}</button>
+        <button class="statusbar-item statusbar-btn" on:click={onConvertIndent} title={t('files.convertIndentStyle') as string}>{activeIndentStyle === 'tabs' ? 'Tabs' : `Spaces: ${activeSpaceSize}`}</button>
         <span class="statusbar-sep">|</span>
       {/if}
       <span class="statusbar-item">UTF-8</span>
       <span class="statusbar-sep">|</span>
-      <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={onToggleWhitespace} title="Toggle whitespace rendering">¶</button>
-      {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">●&nbsp;unsaved</span>{/if}
-      {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">saving…</span>{/if}
+      <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={onToggleWhitespace} title={t('files.toggleWhitespace') as string}>¶</button>
+      {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">{t('files.unsaved')}</span>{/if}
+      {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">{t('files.savingStatus')}</span>{/if}
       {#if currentLineBlame && activeTab}
         <span class="statusbar-blame-spacer"></span>
         {#if currentLineBlame.hash === '0000000'}
-          <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">Not committed yet</span>
+          <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">{t('files.notCommittedYet')}</span>
         {:else}
           <button
             class="statusbar-item statusbar-btn statusbar-blame"
             on:click={() => onOpenBlamePopup(currentLineBlame!, activeTab!.path)}
-            title="Show commit diff"
+            title={t('files.showCommitDiff') as string}
           >{currentLineBlame.hash} ({currentLineBlame.author})</button>
         {/if}
       {/if}
@@ -216,7 +217,7 @@
       <div>{placeholderText}</div>
       {#if showRecentFiles && recentFiles.filter(p => treeFilePaths.has(p)).length > 0}
         <div class="recent-files">
-          <div class="recent-files-label">Recent</div>
+          <div class="recent-files-label">{t('files.recentLabel')}</div>
           {#each recentFiles.filter(p => treeFilePaths.has(p)) as path}
             <button
               type="button"

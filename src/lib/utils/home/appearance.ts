@@ -1,17 +1,20 @@
+import { t } from '$lib/i18n';
+
 export const DEFAULT_ACCENT = '#6c8eff';
 
 export const ACCENT_PRESETS: { label: string; color: string }[] = [
-  { label: 'Blue',   color: DEFAULT_ACCENT },
-  { label: 'Purple', color: '#a855f7' },
-  { label: 'Pink',   color: '#ec4899' },
-  { label: 'Red',    color: '#ef4444' },
-  { label: 'Orange', color: '#f97316' },
-  { label: 'Yellow', color: '#eab308' },
-  { label: 'Green',  color: '#22c55e' },
-  { label: 'Teal',   color: '#14b8a6' },
-  { label: 'Cyan',   color: '#06b6d4' },
+  { label: t('settings.appearance.accentColors.blue')   as string, color: DEFAULT_ACCENT },
+  { label: t('settings.appearance.accentColors.purple') as string, color: '#a855f7' },
+  { label: t('settings.appearance.accentColors.pink')   as string, color: '#ec4899' },
+  { label: t('settings.appearance.accentColors.red')    as string, color: '#ef4444' },
+  { label: t('settings.appearance.accentColors.orange') as string, color: '#f97316' },
+  { label: t('settings.appearance.accentColors.yellow') as string, color: '#eab308' },
+  { label: t('settings.appearance.accentColors.green')  as string, color: '#22c55e' },
+  { label: t('settings.appearance.accentColors.teal')   as string, color: '#14b8a6' },
+  { label: t('settings.appearance.accentColors.cyan')   as string, color: '#06b6d4' },
 ];
 
+// Font names are proper typeface names — not translated.
 export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] = [
   { label: 'JetBrains Mono', stack: "'JetBrains Mono', ui-monospace, monospace", sample: 'Ag01' },
   { label: 'Fira Code',      stack: "'Fira Code', ui-monospace, monospace",      sample: 'Ag01' },
@@ -22,13 +25,15 @@ export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] = 
   { label: 'Courier New',    stack: "'Courier New', monospace",                  sample: 'Ag01' },
 ];
 
-export const SAVE_ON_OPTIONS: { value: string; label: string; desc: string }[] = [
-  { value: 'blur',           label: 'Focus change',    desc: 'Save when editor loses focus' },
-  { value: 'windowChange',   label: 'Window blur',     desc: 'Save when app window loses focus' },
-  { value: 'projectChange',  label: 'Project change',  desc: 'Save when switching projects' },
-  { value: 'instanceChange', label: 'Instance change', desc: 'Save when switching instances' },
-  { value: 'manual',         label: 'Manual',          desc: 'Save only on ⌘S' },
-];
+type SaveOnValue = 'blur' | 'windowChange' | 'projectChange' | 'instanceChange' | 'manual';
+
+export const SAVE_ON_OPTIONS: { value: SaveOnValue; label: string; desc: string }[] = (
+  ['blur', 'windowChange', 'projectChange', 'instanceChange', 'manual'] as SaveOnValue[]
+).map((value) => ({
+  value,
+  label: t(`settings.editor.saveOnOptions.${value}.label`) as string,
+  desc:  t(`settings.editor.saveOnOptions.${value}.desc`)  as string,
+}));
 
 export const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Shift', 'Alt', 'CapsLock', 'OS']);
 

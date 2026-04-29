@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { t } from '$lib/i18n';
   import type { ShortcutId, ShortcutBinding, ShortcutDef } from '$lib/types/shortcuts';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
@@ -62,12 +63,12 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="cp-backdrop" on:mousedown={handleBackdropClick}>
-  <div class="cp-modal" role="dialog" aria-label="Command Palette">
+  <div class="cp-modal" role="dialog" aria-label={t('commandPalette.ariaLabel') as string}>
     <input
       bind:this={inputEl}
       bind:value={query}
       class="cp-input"
-      placeholder="Type a command…"
+      placeholder={t('commandPalette.placeholder') as string}
       on:keydown={handleKey}
       autocomplete="off"
       spellcheck={false}
@@ -98,7 +99,7 @@
         </li>
       {/each}
       {#if filtered.length === 0}
-        <li class="cp-empty">No commands match "{query}"</li>
+        <li class="cp-empty">{(t('commandPalette.noResults') as (q: string) => string)(query)}</li>
       {/if}
     </ul>
   </div>

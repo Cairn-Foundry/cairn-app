@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { activeStep } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import FilesView from '$lib/components/files/FilesView.svelte';
@@ -121,7 +122,7 @@
 <div class="workspace">
   <!-- Project tabs — padding-left clears native macOS traffic lights -->
   <div class="tabs-row" style="padding-left: {tabsPadding};" bind:this={tabsRowEl}>
-    <button class="brand-chip" on:click={() => dispatch('goHome')} title="Home">
+    <button class="brand-chip" on:click={() => dispatch('goHome')} title={t('workspace.homeTitle') as string}>
       <CairnLogo size={18}/>
       <span>Cairn</span>
     </button>
@@ -151,13 +152,13 @@
       <div class="drop-indicator"></div>
     {/if}
     <button class="tab-add" on:click={() => dispatch('addProject')}>
-      <Icon name="plus" size={12}/> Project
+      <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
     <div class="spacer" data-tauri-drag-region use:draggableRegion></div>
-    <button class="icon-btn" aria-label="Search"><Icon name="search" size={14}/></button>
-    <button class="icon-btn" aria-label="Command Palette" on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
-    <button class="icon-btn" aria-label="Keyboard shortcuts" on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>
-    <button class="icon-btn" aria-label="Settings" on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
+    <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string}><Icon name="search" size={14}/></button>
+    <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
+    <button class="icon-btn" aria-label={t('workspace.ariaKeyboardShortcuts') as string} on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>
+    <button class="icon-btn" aria-label={t('workspace.ariaSettings') as string} on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
   </div>
 
   <!-- Instance header -->
@@ -183,12 +184,12 @@
             <div class="instance-menu-divider"></div>
             <button class="instance-menu-item instance-menu-new" on:click={() => { showInstanceMenu = false; dispatch('createInstance'); }}>
               <Icon name="plus" size={11}/>
-              <span>New instance</span>
+              <span>{t('workspace.newInstance')}</span>
             </button>
             <div class="instance-menu-divider"></div>
             <button class="instance-menu-item instance-menu-manage" on:click={() => { showInstanceMenu = false; showManageModal = true; }}>
               <Icon name="settings" size={11}/>
-              <span>Manage instances</span>
+              <span>{t('workspace.manageInstances')}</span>
             </button>
           </div>
         {/if}
@@ -207,13 +208,13 @@
       {/if}
 
       <div class="instance-actions">
-        <button class="btn"><Icon name="pause" size={13}/> Pause agent</button>
-        <button class="btn primary"><Icon name="check" size={13}/> Finalize instance</button>
+        <button class="btn"><Icon name="pause" size={13}/> {t('workspace.pauseAgent')}</button>
+        <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
       </div>
     {:else}
       <button class="create-instance-btn" on:click={() => dispatch('createInstance')}>
         <Icon name="plus" size={13}/>
-        Create an instance
+        {t('workspace.createInstance')}
       </button>
     {/if}
   </div>
@@ -235,9 +236,9 @@
       {/each}
       <div class="divider"></div>
       <div class="spacer"></div>
-      <button class="step" aria-label="Terminal">
+      <button class="step" aria-label={t('workspace.ariaTerminal') as string}>
         <span class="icon"><Icon name="terminal" size={18}/></span>
-        <span class="label">Term</span>
+        <span class="label">{t('workspace.termLabel')}</span>
       </button>
     </aside>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import Spinner from '$lib/components/Spinner.svelte';
 
   const TESTS = [
@@ -65,23 +66,23 @@
     <div class="test-summary">
       <div class="kpi pass">
         <div class="k-num">{passed}</div>
-        <div class="k-label">Passing</div>
+        <div class="k-label">{t('tests.passing')}</div>
       </div>
       <div class="kpi fail">
         <div class="k-num">{failed}</div>
-        <div class="k-label">Failing</div>
+        <div class="k-label">{t('tests.failing')}</div>
       </div>
       <div class="kpi">
         <div class="k-num">{skipped}</div>
-        <div class="k-label">Skipped</div>
+        <div class="k-label">{t('tests.skipped')}</div>
       </div>
       <div class="kpi">
         <div class="k-num">{running}</div>
-        <div class="k-label">Running</div>
+        <div class="k-label">{t('tests.running')}</div>
       </div>
       <div class="spacer"></div>
-      <button class="btn"><Icon name="refresh" size={13}/> Run all</button>
-      <button class="btn primary"><Icon name="play" size={12}/> Watch mode</button>
+      <button class="btn"><Icon name="refresh" size={13}/> {t('tests.runAll')}</button>
+      <button class="btn primary"><Icon name="play" size={12}/> {t('tests.watchMode')}</button>
     </div>
 
     <div class="test-output">
@@ -103,15 +104,15 @@
 <span class="dim">      52 | </span>{"}"});</div>
 
       <div style="display: flex; gap: 10px; align-items: center;">
-        <button class="fix-with-agent"><Icon name="sparkles" size={14}/> Fix this test with the agent</button>
-        <button class="btn"><Icon name="refresh" size={13}/> Re-run test</button>
-        <button class="btn ghost"><Icon name="file" size={13}/> Open source</button>
+        <button class="fix-with-agent"><Icon name="sparkles" size={14}/> {t('tests.fixWithAgent')}</button>
+        <button class="btn"><Icon name="refresh" size={13}/> {t('tests.reRunTest')}</button>
+        <button class="btn ghost"><Icon name="file" size={13}/> {t('tests.openSource')}</button>
       </div>
 
       <div class="ai-annotation" style="margin: 20px 0 0;">
         <div class="ai-icon"><Icon name="sparkles" size={16}/></div>
         <div>
-          <div class="head"><span class="ai-label">Likely cause</span></div>
+          <div class="head"><span class="ai-label">{t('tests.likelyCause')}</span></div>
           <code style="font-family: var(--font-mono)">authenticator.options</code> is set once inside <code style="font-family: var(--font-mono)">verifyTotp</code>, but <code style="font-family: var(--font-mono)">otplib</code>'s options are static across calls — the test's previous <code style="font-family: var(--font-mono)">generate</code> call leaked a window value. Switching to <code style="font-family: var(--font-mono)">authenticator.create({"{ window: 0 }"}).check(...)</code> will isolate it per call.
         </div>
       </div>

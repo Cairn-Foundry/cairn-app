@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
   import AddProject from '$lib/components/AddProject.svelte';
   import EditProject from '$lib/components/EditProject.svelte';
   import HomeSidebar, { type HomeSection } from '$lib/components/home/HomeSidebar.svelte';
@@ -46,25 +47,25 @@
 
     {:else if activeSection === 'checkpoints'}
       <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">Saved checkpoints</h1>
-        <div class="sub">Rewind any instance to a saved state.</div>
+        <h1 style="font-size: 22px">{t('home.sections.checkpoints')}</h1>
+        <div class="sub">{t('home.sections.checkpointsDesc')}</div>
       </div>
       <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-        No checkpoints yet — they will appear here as instances run.
+        {t('home.sections.checkpointsEmpty')}
       </div>
 
     {:else if activeSection === 'activity'}
       <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">Activity</h1>
-        <div class="sub">Recent events across all instances.</div>
+        <h1 style="font-size: 22px">{t('home.sections.activity')}</h1>
+        <div class="sub">{t('home.sections.activityDesc')}</div>
       </div>
       <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-        No activity yet — events will appear here as instances run.
+        {t('home.sections.activityEmpty')}
       </div>
 
     {:else if activeSection === 'account'}
       <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">Account</h1>
+        <h1 style="font-size: 22px">{t('home.sections.account')}</h1>
       </div>
       <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 16px; max-width: 480px;">
         <div style="display: flex; align-items: center; gap: 16px; padding: 20px; background: var(--bg-2); border-radius: var(--r-lg); border: 1px solid var(--stroke-0);">
@@ -75,7 +76,7 @@
           </div>
         </div>
         <div style="padding: 14px 16px; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--stroke-0); font-size: 12px; color: var(--fg-3);">
-          AI provider · <span style="color: var(--fg-1)">Claude Code CLI</span>
+          {t('home.sections.aiProvider')} · <span style="color: var(--fg-1)">{t('home.sections.aiProviderValue')}</span>
         </div>
       </div>
 

@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
 import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import QuickOpen from './QuickOpen.svelte';
   import SearchPanel from './SearchPanel.svelte';
@@ -1414,7 +1415,7 @@ import { get } from 'svelte/store';
           blamePopup={blamePopups[i]}
           recentFiles={recentFiles}
           treeFilePaths={treeFilePaths}
-          placeholderText="Select a file to edit"
+          placeholderText={t('files.selectFileToEdit') as string}
           showRecentFiles={true}
           onPaneFocus={() => { focusedPane = i as 0 | 1; }}
           onTabPointerDown={(e, idx) => tabPointerDown(e, i, idx)}

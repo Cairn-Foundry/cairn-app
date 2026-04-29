@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import { t } from '$lib/i18n';
   import { instances, removeInstance } from '$lib/stores/instance';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
@@ -59,7 +60,10 @@
   }
 
   const STATUS_LABEL: Record<string, string> = {
-    idle: 'Idle', running: 'Running', paused: 'Paused', done: 'Done',
+    idle: t('manageInstances.statusLabels.idle') as string,
+    running: t('manageInstances.statusLabels.running') as string,
+    paused: t('manageInstances.statusLabels.paused') as string,
+    done: t('manageInstances.statusLabels.done') as string,
   };
 
 </script>
@@ -69,10 +73,10 @@
 
     <div class="modal-head">
       <div>
-        <div class="step-count">Project instances</div>
-        <h3>Manage instances</h3>
+        <div class="step-count">{t('manageInstances.heading')}</div>
+        <h3>{t('manageInstances.subheading')}</h3>
       </div>
-      <button class="icon-btn close" on:click={() => dispatch('close')} aria-label="Close">
+      <button class="icon-btn close" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
@@ -83,11 +87,11 @@
         class="mi-search-input"
         type="text"
         bind:value={search}
-        placeholder="Search by ticket ID or title…"
+        placeholder={t('manageInstances.searchPlaceholder') as string}
         autocomplete="off"
       />
       {#if search}
-        <button class="mi-search-clear" on:click={() => search = ''} aria-label="Clear">
+        <button class="mi-search-clear" on:click={() => search = ''} aria-label={t('common.clearSearch') as string}>
           <Icon name="x" size={11}/>
         </button>
       {/if}
@@ -95,9 +99,9 @@
 
     <div class="modal-body mi-body">
       {#if $instances.length === 0}
-        <div class="mi-empty">No instances yet for this project.</div>
+        <div class="mi-empty">{t('manageInstances.emptyAll')}</div>
       {:else if filtered.length === 0}
-        <div class="mi-empty">No instances match "<strong>{search}</strong>".</div>
+        <div class="mi-empty">{(t('manageInstances.emptyFiltered') as (q: string) => string)(search)}</div>
       {:else}
         <ul class="mi-list">
           {#each filtered as inst (inst.id)}
@@ -113,7 +117,7 @@
                   <div class="mi-badges">
                     <span class="mi-badge mode">{inst.useGit ? 'git' : 'local'}</span>
                     <span class="mi-badge status-badge">{STATUS_LABEL[inst.status] ?? inst.status}</span>
-                    {#if isActive}<span class="mi-badge active-badge">Active</span>{/if}
+                    {#if isActive}<span class="mi-badge active-badge">{t('manageInstances.activeBadge')}</span>{/if}
                   </div>
                 </div>
                 {#if inst.branch}
@@ -121,7 +125,7 @@
                     <Icon name="branch" size={11}/>
                     <span class="mi-branch">{inst.branch}</span>
                     {#if inst.baseBranch}
-                      <span class="mi-base-branch">from <code>{inst.baseBranch}</code></span>
+                      <span class="mi-base-branch">{t('manageInstances.fromBranch')} <code>{inst.baseBranch}</code></span>
                     {/if}
                   </div>
                 {/if}
@@ -131,28 +135,28 @@
 
               {#if isConfirming}
                 <div class="mi-confirm">
-                  <span class="mi-confirm-label">Delete this instance?</span>
+                  <span class="mi-confirm-label">{t('manageInstances.deleteConfirm')}</span>
                   <button class="mi-action danger" on:click={() => handleDelete(inst)} disabled={isDeleting}>
-                    {#if isDeleting}<Spinner size={11} />{:else}Confirm{/if}
+                    {#if isDeleting}<Spinner size={11} />{:else}{t('common.confirm')}{/if}
                   </button>
-                  <button class="mi-action ghost" on:click={cancelDelete}>Cancel</button>
+                  <button class="mi-action ghost" on:click={cancelDelete}>{t('common.cancel')}</button>
                 </div>
               {:else}
                 <div class="mi-actions">
                   {#if !isActive}
                     <button class="mi-action primary" on:click={() => handleSetActive(inst)}>
-                      <Icon name="chev-r" size={13}/> Select
+                      <Icon name="chev-r" size={13}/> {t('manageInstances.actions.select')}
                     </button>
                   {/if}
-                  <button class="mi-action" title="Open worktree in Finder" on:click={() => handleReveal(inst)}>
-                    <Icon name="folder" size={13}/> Reveal
+                  <button class="mi-action" title={t('manageInstances.actions.revealInFinder') as string} on:click={() => handleReveal(inst)}>
+                    <Icon name="folder" size={13}/> {t('manageInstances.actions.reveal')}
                   </button>
-                  <button class="mi-action" title="Copy worktree path" on:click={() => handleCopyPath(inst)}>
+                  <button class="mi-action" title={t('manageInstances.actions.copyPath') as string} on:click={() => handleCopyPath(inst)}>
                     <Icon name={copiedId === inst.id ? 'check' : 'copy'} size={13}/>
-                    {copiedId === inst.id ? 'Copied' : 'Copy path'}
+                    {copiedId === inst.id ? t('manageInstances.actions.copyPathDone') : t('manageInstances.actions.copyPathLabel')}
                   </button>
-                  <button class="mi-action danger" title="Delete instance" on:click={() => handleDelete(inst)}>
-                    <Icon name="x" size={13}/> Delete
+                  <button class="mi-action danger" title={t('common.delete') as string} on:click={() => handleDelete(inst)}>
+                    <Icon name="x" size={13}/> {t('common.delete')}
                   </button>
                 </div>
               {/if}
@@ -165,10 +169,10 @@
 
     <div class="modal-foot">
       <button class="btn primary" on:click={() => { dispatch('newInstance'); dispatch('close'); }}>
-        <Icon name="plus" size={13}/> New instance
+        <Icon name="plus" size={13}/> {t('manageInstances.newInstance')}
       </button>
       <div class="spacer"></div>
-      <button class="btn ghost" on:click={() => dispatch('close')}>Close</button>
+      <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.close')}</button>
     </div>
 
   </div>

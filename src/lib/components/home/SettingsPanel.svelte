@@ -1,11 +1,13 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import GeneralTab from './settings/GeneralTab.svelte';
   import AppearanceTab from './settings/AppearanceTab.svelte';
   import EditorTab from './settings/EditorTab.svelte';
   import ShortcutsTab from './settings/ShortcutsTab.svelte';
   import ProjectTab from './settings/ProjectTab.svelte';
+  import LanguagesTab from './settings/LanguagesTab.svelte';
   import { searchSettings, type SettingsTab, type SettingEntry } from '$lib/utils/home/settings-registry';
 
   export let settingsTab: SettingsTab = 'general';
@@ -47,7 +49,7 @@
 </script>
 
 <div class="home-hero" style="padding-bottom: 0">
-  <h1 style="font-size: 22px">Settings</h1>
+  <h1 style="font-size: 22px">{t('settings.title')}</h1>
 </div>
 
 <div class="settings-header-bar">
@@ -56,20 +58,20 @@
     <input
       class="settings-search-input"
       bind:value={settingsSearch}
-      placeholder="Search settings…"
-      aria-label="Search settings"
+      placeholder={t('settings.searchPlaceholder') as string}
+      aria-label={t('settings.searchAriaLabel') as string}
     />
     {#if settingsSearch}
-      <button class="search-clear" on:click={() => settingsSearch = ''} aria-label="Clear search">
+      <button class="search-clear" on:click={() => settingsSearch = ''} aria-label={t('settings.clearSearch') as string}>
         <Icon name="x" size={11}/>
       </button>
     {/if}
   </div>
-  <button class="btn ghost settings-io-btn" on:click={exportSettings} title="Export settings to JSON">
-    <Icon name="download" size={13}/> Export
+  <button class="btn ghost settings-io-btn" on:click={exportSettings} title={t('settings.exportTitle') as string}>
+    <Icon name="download" size={13}/> {t('settings.export')}
   </button>
-  <button class="btn ghost settings-io-btn" on:click={() => importFileInput.click()} title="Import settings from JSON">
-    <Icon name="upload" size={13}/> Import
+  <button class="btn ghost settings-io-btn" on:click={() => importFileInput.click()} title={t('settings.importTitle') as string}>
+    <Icon name="upload" size={13}/> {t('settings.import')}
   </button>
   <input
     bind:this={importFileInput}
@@ -95,16 +97,17 @@
     </div>
   {:else}
     <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-      No settings match "<strong style="color: var(--fg-1)">{settingsSearch}</strong>".
+      {(t('settings.noResults') as (q: string) => string)(settingsSearch)}
     </div>
   {/if}
 {:else}
   <div class="settings-tabs">
-    <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>General</button>
-    <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>Appearance</button>
-    <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>Project</button>
-    <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>Editor</button>
-    <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>Shortcuts</button>
+    <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>{t('settings.tabs.general')}</button>
+    <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>{t('settings.tabs.appearance')}</button>
+    <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>{t('settings.tabs.project')}</button>
+    <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
+    <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
+    <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
   </div>
 
   {#if settingsTab === 'general'}
@@ -117,6 +120,8 @@
     <ShortcutsTab/>
   {:else if settingsTab === 'project'}
     <ProjectTab/>
+  {:else if settingsTab === 'languages'}
+    <LanguagesTab/>
   {/if}
 {/if}
 

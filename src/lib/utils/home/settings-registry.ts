@@ -1,6 +1,7 @@
 import { SHORTCUT_DEFS, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
+import { t } from '$lib/i18n';
 
-export type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts' | 'project';
+export type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts' | 'project' | 'languages';
 
 export interface SettingEntry {
   label: string;
@@ -9,19 +10,22 @@ export interface SettingEntry {
   group: string;
 }
 
+const s = t as (k: string) => string;
+
 const STATIC_SETTINGS: SettingEntry[] = [
-  { label: 'AI provider',           desc: 'Agent Bridge driver',                     tab: 'general',    group: 'General' },
-  { label: 'Default branch',        desc: 'Base for new worktrees',                  tab: 'general',    group: 'General' },
-  { label: 'Worktree location',     desc: 'Where git worktrees are created',         tab: 'general',    group: 'General' },
-  { label: 'Format on stage',       desc: 'Auto-format before staging',              tab: 'general',    group: 'General' },
-  { label: 'Theme',                 desc: 'Dark, Light, or High contrast',           tab: 'appearance', group: 'Theme' },
-  { label: 'Accent color',          desc: 'Highlight color across the UI',           tab: 'appearance', group: 'Accent color' },
-  { label: 'Font family',           desc: 'Monospace font for code editor',          tab: 'appearance', group: 'Font' },
-  { label: 'Sidebar position',      desc: 'File explorer left or right of editor',   tab: 'editor',     group: 'Layout' },
-  { label: 'File tree panel width', desc: 'Width of file explorer sidebar in px',    tab: 'editor',     group: 'Layout' },
-  { label: 'Font size',             desc: 'Base font size for the code editor',      tab: 'editor',     group: 'Code editor' },
-  { label: 'Show minimap',          desc: 'Scrollbar overview panel in code editor', tab: 'editor',     group: 'Code editor' },
-  { label: 'Workflow tabs',         desc: 'Reorder and show/hide workspace tabs',    tab: 'project',    group: 'Workflow tabs' },
+  { label: s('settings.general.rows.aiProvider.label'),       desc: s('settings.general.rows.aiProvider.desc'),       tab: 'general',    group: s('settings.general.groupTitle') },
+  { label: s('settings.general.rows.defaultBranch.label'),    desc: s('settings.general.rows.defaultBranch.desc'),    tab: 'general',    group: s('settings.general.groupTitle') },
+  { label: s('settings.general.rows.worktreeLocation.label'), desc: s('settings.general.rows.worktreeLocation.desc'), tab: 'general',    group: s('settings.general.groupTitle') },
+  { label: s('settings.general.rows.formatOnStage.label'),    desc: s('settings.general.rows.formatOnStage.desc'),    tab: 'general',    group: s('settings.general.groupTitle') },
+  { label: s('settings.appearance.themeGroup'),               desc: s('settings.appearance.themeDesc'),               tab: 'appearance', group: s('settings.appearance.themeGroup') },
+  { label: s('settings.appearance.accentGroup'),              desc: s('settings.appearance.accentDesc'),              tab: 'appearance', group: s('settings.appearance.accentGroup') },
+  { label: s('settings.appearance.fontGroup'),                desc: s('settings.appearance.fontDesc'),                tab: 'appearance', group: s('settings.appearance.fontGroup') },
+  { label: s('settings.editor.sidebarPosition'),              desc: s('settings.editor.sidebarPositionDesc'),         tab: 'editor',     group: s('settings.editor.layoutGroup') },
+  { label: s('settings.editor.treePanelWidth'),               desc: s('settings.editor.treePanelWidthDesc'),          tab: 'editor',     group: s('settings.editor.layoutGroup') },
+  { label: s('settings.editor.fontSize'),                     desc: s('settings.editor.fontSizeDesc'),                tab: 'editor',     group: s('settings.editor.codeEditorGroup') },
+  { label: s('settings.editor.showMinimap'),                  desc: s('settings.editor.showMinimapDesc'),             tab: 'editor',     group: s('settings.editor.codeEditorGroup') },
+  { label: s('settings.project.workflowTabsGroup'),           desc: s('settings.project.workflowTabsHint'),           tab: 'project',    group: s('settings.project.workflowTabsGroup') },
+  { label: s('settings.languages.groupTitle'),                desc: s('settings.languages.desc'),                     tab: 'languages',  group: s('settings.languages.groupTitle') },
 ];
 
 export const SETTINGS_REGISTRY: SettingEntry[] = [
@@ -30,7 +34,7 @@ export const SETTINGS_REGISTRY: SettingEntry[] = [
     label: d.label,
     desc: d.description,
     tab: 'shortcuts' as SettingsTab,
-    group: SHORTCUT_GROUP_LABELS[d.group] ?? 'Other',
+    group: SHORTCUT_GROUP_LABELS[d.group] ?? s('settings.shortcuts.groupFallback'),
   })),
 ];
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import type { FileNode } from '$lib/services/file-service';
   import { flattenTreeFilePaths, scorePathMatch } from '$lib/utils/files/files-search';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
@@ -57,7 +58,7 @@
       <input
         bind:this={inputEl}
         bind:value={query}
-        placeholder="Go to file…"
+        placeholder={t('quickOpen.placeholder') as string}
         class="search-input"
         onkeydown={handleKey}
         autocomplete="off"
@@ -84,7 +85,7 @@
         {/each}
       </ul>
     {:else if query}
-      <div class="no-results">No files match "{query}"</div>
+      <div class="no-results">{(t('quickOpen.noResults') as (q: string) => string)(query)}</div>
     {/if}
   </div>
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { projects, unregisterProject, duplicateProjectInStore } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Project } from '$lib/types/project';
@@ -51,7 +52,7 @@
 </script>
 
 <div class="home-hero">
-  <h1>Good morning, Benjamin.<br/><em>Which cairn are you following today?</em></h1>
+  <h1>{t('home.greeting')}<br/><em>{t('home.greetingTagline')}</em></h1>
 </div>
 
 <div class="home-actions">
@@ -59,38 +60,38 @@
        on:click={() => dispatch('addProject', 'new')}
        on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'new')}>
     <div class="aci"><Icon name="plus" size={22}/></div>
-    <div class="at">New project</div>
-    <div class="ad">Create a project from any local directory.</div>
+    <div class="at">{t('home.projects.newProject')}</div>
+    <div class="ad">{t('home.projects.newProjectDesc')}</div>
   </div>
   <div class="home-action" role="button" tabindex="0"
        on:click={() => dispatch('addProject', 'open')}
        on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'open')}>
     <div class="aci"><Icon name="folder" size={22}/></div>
-    <div class="at">Open project</div>
-    <div class="ad">Import an existing local folder as a project.</div>
+    <div class="at">{t('home.projects.openProject')}</div>
+    <div class="ad">{t('home.projects.openProjectDesc')}</div>
   </div>
   <div class="home-action" role="button" tabindex="0"
        on:click={() => dispatch('addProject', 'clone')}
        on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'clone')}>
     <div class="aci"><Icon name="download" size={22}/></div>
-    <div class="at">Clone from remote</div>
-    <div class="ad">GitHub, GitLab, or any Git URL.</div>
+    <div class="at">{t('home.projects.cloneFromRemote')}</div>
+    <div class="ad">{t('home.projects.cloneFromRemoteDesc')}</div>
   </div>
 </div>
 
 <div class="home-section-title">
-  <span class="section-label"><Icon name="folder" size={13}/> Projects <span class="count">— {$projects.length}</span></span>
+  <span class="section-label"><Icon name="folder" size={13}/> {(t('home.projects.projectsCount') as (n: number) => string)($projects.length)}</span>
   {#if $projects.length > 0}
     <div class="search-bar">
       <Icon name="search" size={13}/>
       <input
         class="search-input"
         bind:value={search}
-        placeholder="Filter projects…"
-        aria-label="Filter projects"
+        placeholder={t('home.projects.filterPlaceholder') as string}
+        aria-label={t('home.projects.filterAriaLabel') as string}
       />
       {#if search}
-        <button class="search-clear" on:click={() => search = ''} aria-label="Clear search">
+        <button class="search-clear" on:click={() => search = ''} aria-label={t('home.projects.clearSearch') as string}>
           <Icon name="x" size={11}/>
         </button>
       {/if}
@@ -99,11 +100,11 @@
 </div>
 {#if $projects.length === 0}
   <div style="padding: 32px 0; color: var(--fg-3); font-size: 13px;">
-    No projects yet — open a local folder or clone one to get started.
+    {t('home.projects.emptyProjects')}
   </div>
 {:else if filteredProjects.length === 0}
   <div style="padding: 32px 0; color: var(--fg-3); font-size: 13px;">
-    No projects match "<strong style="color: var(--fg-1)">{search}</strong>".
+    {(t('home.projects.emptyFiltered') as (q: string) => string)(search)}
   </div>
 {:else}
   {#if menuProjectId}
@@ -125,7 +126,7 @@
 
         <button
           class="card-more"
-          aria-label="Project options"
+          aria-label={t('home.projects.projectOptions') as string}
           on:click={(e) => openMenu(e, p.id)}
         >
           <Icon name="more" size={15}/>
@@ -135,24 +136,24 @@
           <div class="card-menu" role="menu">
             <button class="card-menu-item" role="menuitem"
               on:click={(e) => { e.stopPropagation(); closeMenu(); dispatch('editProject', p); }}>
-              <Icon name="edit" size={13}/> Edit
+              <Icon name="edit" size={13}/> {t('home.projects.menu.edit')}
             </button>
             <button class="card-menu-item" role="menuitem"
               on:click={(e) => { e.stopPropagation(); handleDuplicate(p.id); }}>
-              <Icon name="copy" size={13}/> Duplicate
+              <Icon name="copy" size={13}/> {t('home.projects.menu.duplicate')}
             </button>
             <button class="card-menu-item" role="menuitem"
               on:click={(e) => { e.stopPropagation(); handleCopyPath(p.path); }}>
-              <Icon name="clipboard" size={13}/> Copy path
+              <Icon name="clipboard" size={13}/> {t('home.projects.menu.copyPath')}
             </button>
             <button class="card-menu-item" role="menuitem"
               on:click={(e) => { e.stopPropagation(); handleReveal(p.path); }}>
-              <Icon name="folder" size={13}/> Reveal in Finder
+              <Icon name="folder" size={13}/> {t('home.projects.menu.revealInFinder')}
             </button>
             <div class="card-menu-sep"></div>
             <button class="card-menu-item danger" role="menuitem"
               on:click={(e) => { e.stopPropagation(); closeMenu(); deletingProject = p; }}>
-              <Icon name="trash" size={13}/> Delete
+              <Icon name="trash" size={13}/> {t('home.projects.menu.delete')}
             </button>
           </div>
         {/if}

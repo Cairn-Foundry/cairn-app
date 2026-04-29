@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding, ShortcutConfig } from '$lib/types/shortcuts';
@@ -98,22 +99,22 @@
     <input
       class="sc-search-input"
       bind:value={shortcutSearch}
-      placeholder="Search shortcuts…"
-      aria-label="Search shortcuts"
+      placeholder={t('settings.shortcuts.searchPlaceholder') as string}
+      aria-label={t('settings.shortcuts.searchAriaLabel') as string}
     />
     {#if shortcutSearch}
-      <button class="search-clear" on:click={() => shortcutSearch = ''} aria-label="Clear search">
+      <button class="search-clear" on:click={() => shortcutSearch = ''} aria-label={t('settings.shortcuts.clearSearch') as string}>
         <Icon name="x" size={11}/>
       </button>
     {/if}
   </div>
   {#if conflictIds.size > 0}
     <span class="sc-conflict-notice">
-      <Icon name="alert" size={13}/> {conflictIds.size} conflicting binding{conflictIds.size > 1 ? 's' : ''}
+      <Icon name="alert" size={13}/> {(t('settings.shortcuts.conflicts') as (n: number) => string)(conflictIds.size)}
     </span>
   {/if}
   <button class="btn ghost sc-reset-all" on:click={resetAllBindings}>
-    <Icon name="undo" size={12}/> Reset shortcuts
+    <Icon name="undo" size={12}/> {t('settings.shortcuts.resetAll')}
   </button>
 </div>
 
@@ -141,7 +142,7 @@
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div class="sc-toggle" on:click|stopPropagation>
-            <label class="settings-toggle" aria-label="Enable shortcut">
+            <label class="settings-toggle" aria-label={t('settings.shortcuts.enableShortcut') as string}>
               <input
                 type="checkbox"
                 checked={!isDisabled}
@@ -154,21 +155,21 @@
           <div class="settings-row-info">
             <span class="settings-row-label">
               {def.label}
-              {#if isCustom && !isDisabled}<span class="sc-custom-dot" title="Customized"></span>{/if}
+              {#if isCustom && !isDisabled}<span class="sc-custom-dot" title={t('settings.shortcuts.customized') as string}></span>{/if}
             </span>
             <span class="settings-row-desc">{def.description}</span>
           </div>
 
           <span class="sc-keys">
             {#if isRecording}
-              <span class="sc-recording-hint">Press key combo…</span>
+              <span class="sc-recording-hint">{t('settings.shortcuts.pressKeyCombo')}</span>
             {:else if !isDisabled}
               {#each bindingToLabels(binding) as kLabel, i}
                 {#if i > 0}<span class="sc-plus">+</span>{/if}
                 <kbd class="sc-kbd">{kLabel}</kbd>
               {/each}
               {#if isConflict}
-                <span class="sc-conflict-icon" title="Conflicts with another shortcut">
+                <span class="sc-conflict-icon" title={t('settings.shortcuts.conflictsWithAnother') as string}>
                   <Icon name="alert" size={12}/>
                 </span>
               {/if}
@@ -177,10 +178,10 @@
 
           <button
             class="settings-reset-btn"
-            title="Reset to default"
+            title={t('settings.shortcuts.resetToDefault') as string}
             disabled={!isCustom || isDisabled}
             on:click|stopPropagation={() => resetBinding(def.id)}
-            aria-label="Reset shortcut"
+            aria-label={t('settings.shortcuts.resetShortcut') as string}
           >
             <Icon name="undo" size={12}/>
           </button>
@@ -191,7 +192,7 @@
 {/each}
 {#if filteredShortcutDefs.length === 0}
   <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-    No shortcuts match "<strong style="color: var(--fg-1)">{shortcutSearch}</strong>".
+    {(t('settings.shortcuts.noResults') as (q: string) => string)(shortcutSearch)}
   </div>
 {/if}
 

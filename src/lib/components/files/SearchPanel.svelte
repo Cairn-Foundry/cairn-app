@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { searchInFiles, type SearchMatch } from '$lib/services/file-service';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
@@ -140,26 +141,26 @@
 <div class="search-panel" class:search-panel-hidden={hidden}>
   <div class="search-header">
     <Icon name="search" size={12} />
-    <span class="search-title">Search</span>
+    <span class="search-title">{t('search.title')}</span>
     <div class="search-header-actions">
       <button
         type="button"
         class="search-icon-btn {showFilters ? 'active' : ''}"
-        title="Toggle filters"
+        title={t('search.toggleFilters') as string}
         on:click={() => { showFilters = !showFilters; }}
-        aria-label="Toggle filters"
+        aria-label={t('search.toggleFilters') as string}
       >
         <Icon name="settings" size={13} />
       </button>
       {#if groups.length > 0}
-        <button type="button" class="search-icon-btn" title="Expand all" on:click={expandAll} aria-label="Expand all">
+        <button type="button" class="search-icon-btn" title={t('search.expandAll') as string} on:click={expandAll} aria-label={t('search.expandAll') as string}>
           <Icon name="chev-d" size={13} />
         </button>
-        <button type="button" class="search-icon-btn" title="Collapse all" on:click={collapseAll} aria-label="Collapse all">
+        <button type="button" class="search-icon-btn" title={t('search.collapseAll') as string} on:click={collapseAll} aria-label={t('search.collapseAll') as string}>
           <Icon name="chev-r" size={13} />
         </button>
       {/if}
-      <button type="button" class="search-icon-btn" on:click={onClose} aria-label="Close search">
+      <button type="button" class="search-icon-btn" on:click={onClose} aria-label={t('search.closeSearch') as string}>
         <Icon name="x" size={13} />
       </button>
     </div>
@@ -171,24 +172,24 @@
         bind:this={queryInputEl}
         bind:value={query}
         class="search-input"
-        placeholder="Search…"
+        placeholder={t('search.placeholder') as string}
         spellcheck="false"
         on:keydown={(e) => { if (e.key === 'Escape') { query = ''; onClose(); } }}
       />
       <button
         type="button"
         class="toggle-btn {caseSensitive ? 'on' : ''}"
-        title="Case sensitive"
+        title={t('search.caseSensitive') as string}
         on:click={() => { caseSensitive = !caseSensitive; }}
-        aria-label="Case sensitive"
+        aria-label={t('search.caseSensitive') as string}
         aria-pressed={caseSensitive}
       >Aa</button>
       <button
         type="button"
         class="toggle-btn {isRegex ? 'on' : ''}"
-        title="Use regular expression"
+        title={t('search.regularExpression') as string}
         on:click={() => { isRegex = !isRegex; }}
-        aria-label="Regular expression"
+        aria-label={t('search.regularExpression') as string}
         aria-pressed={isRegex}
       >.*</button>
     </div>
@@ -198,7 +199,7 @@
         <input
           bind:value={includeGlob}
           class="search-input search-input-sm"
-          placeholder="Include: e.g. *.ts, *.svelte"
+          placeholder={t('search.includePlaceholder') as string}
           spellcheck="false"
         />
       </div>
@@ -206,7 +207,7 @@
         <input
           bind:value={excludeGlob}
           class="search-input search-input-sm"
-          placeholder="Exclude: e.g. node_modules, dist"
+          placeholder={t('search.excludePlaceholder') as string}
           spellcheck="false"
         />
       </div>
@@ -215,15 +216,15 @@
 
   <div class="search-summary">
     {#if searching}
-      <span class="summary-text dimmed">Searching…</span>
+      <span class="summary-text dimmed">{t('search.searching')}</span>
     {:else if error}
       <span class="summary-text error">{error}</span>
     {:else if query.trim() && resultCount === 0}
-      <span class="summary-text dimmed">No results</span>
+      <span class="summary-text dimmed">{t('search.noResults')}</span>
     {:else if resultCount > 0}
       <span class="summary-text">
-        {capped ? '2000+' : resultCount} result{resultCount !== 1 ? 's' : ''} in {fileCount} file{fileCount !== 1 ? 's' : ''}
-        {#if capped}<span class="summary-capped"> — capped</span>{/if}
+        {(t('search.resultsSummary') as (count: number, files: number) => string)(capped ? 2000 : resultCount, fileCount)}{capped ? '+' : ''}
+        {#if capped}<span class="summary-capped">{t('search.capped')}</span>{/if}
       </span>
     {/if}
   </div>

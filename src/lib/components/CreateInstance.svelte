@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
   import { listBranches } from '$lib/services/instance-service';
@@ -57,10 +58,10 @@
   $: displayStep = (!useGit && step === 3) ? 3 : step + 1;
 
   const stepMeta: Record<number, { label: string; title: string }> = {
-    0: { label: 'Ticket',    title: 'Describe the work'   },
-    1: { label: 'Mode',      title: 'Choose a setup mode' },
-    2: { label: 'Branch',    title: 'Shape the worktree'  },
-    3: { label: 'Agent',     title: 'Brief the agent'     },
+    0: { label: t('createInstance.stepLabels.ticket') as string, title: t('createInstance.stepTitles.ticket') as string },
+    1: { label: t('createInstance.stepLabels.mode') as string,   title: t('createInstance.stepTitles.mode') as string },
+    2: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
+    3: { label: t('createInstance.stepLabels.agent') as string,  title: t('createInstance.stepTitles.agent') as string },
   };
 
   $: duplicateBranch = useGit && branchName.trim().length > 0
@@ -112,7 +113,7 @@
   <div class="modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">Step {displayStep} of {totalSteps} — {stepMeta[step].label}</div>
+        <div class="step-count">{(t('common.stepOf') as (s: number, t: number) => string)(displayStep, totalSteps)} — {stepMeta[step].label}</div>
         <h3>{stepMeta[step].title}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')}><Icon name="x" size={16}/></button>
@@ -122,18 +123,18 @@
       {#if creating}
         <div class="creating-overlay">
           <Spinner size={28} stroke={3} trackColor="var(--stroke-1)" color="var(--accent)" />
-          <span class="creating-label">Setting up instance…</span>
+          <span class="creating-label">{t('createInstance.settingUp')}</span>
         </div>
       {/if}
 
       {#if step === 0}
         <div class="form-row">
-          <label for="ticket-id">Ticket ID</label>
-          <input id="ticket-id" type="text" bind:value={ticketId} placeholder="FEAT-42, BUG-118, …" />
+          <label for="ticket-id">{t('createInstance.ticketId')}</label>
+          <input id="ticket-id" type="text" bind:value={ticketId} placeholder={t('createInstance.ticketIdPlaceholder') as string} />
         </div>
         <div class="form-row">
-          <label for="ticket-title">Title</label>
-          <input id="ticket-title" type="text" bind:value={ticketTitle} placeholder="Short description of the work" />
+          <label for="ticket-title">{t('createInstance.title')}</label>
+          <input id="ticket-title" type="text" bind:value={ticketTitle} placeholder={t('createInstance.titlePlaceholder') as string} />
         </div>
       {/if}
 
@@ -145,12 +146,12 @@
             on:click={() => { if (isGitRepo) useGit = true; }}
           >
             <span class="mode-icon"><Icon name="branch" size={22}/></span>
-            <span class="mode-label">Git worktree</span>
+            <span class="mode-label">{t('createInstance.gitWorktree')}</span>
             <span class="mode-desc">
               {#if isGitRepo}
-                Isolated branch + worktree. Recommended for collaborative or tracked work.
+                {t('createInstance.gitWorktreeDesc')}
               {:else}
-                Not available — this project is not a git repository.
+                {t('createInstance.gitWorktreeUnavailable')}
               {/if}
             </span>
           </button>
@@ -159,15 +160,15 @@
             on:click={() => useGit = false}
           >
             <span class="mode-icon"><Icon name="folder" size={22}/></span>
-            <span class="mode-label">Local only</span>
-            <span class="mode-desc">Work directly in the project directory. No branch or worktree is created.</span>
+            <span class="mode-label">{t('createInstance.localOnly')}</span>
+            <span class="mode-desc">{t('createInstance.localOnlyDesc')}</span>
           </button>
         </div>
       {/if}
 
       {#if step === 2}
         <div class="form-row">
-          <div class="field-label">Base branch</div>
+          <div class="field-label">{t('createInstance.baseBranch')}</div>
           {#if availableBranches.length > 0}
             <div class="branch-list-wrap">
               <div class="branch-search-row">
@@ -176,7 +177,7 @@
                   class="branch-search"
                   type="text"
                   bind:value={branchSearch}
-                  placeholder="Filter branches…"
+                  placeholder={t('createInstance.filterBranches') as string}
                   autocomplete="off"
                 />
               </div>
@@ -191,16 +192,16 @@
                     {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
                   </button>
                 {:else}
-                  <div class="branch-empty">No branches match "{branchSearch}"</div>
+                  <div class="branch-empty">{(t('createInstance.noBranchesMatch') as (q: string) => string)(branchSearch)}</div>
                 {/each}
               </div>
             </div>
           {:else}
-            <input id="base-branch" type="text" bind:value={baseBranch} placeholder="main" />
+            <input id="base-branch" type="text" bind:value={baseBranch} placeholder={t('createInstance.baseBranchPlaceholder') as string} />
           {/if}
         </div>
         <div class="form-row">
-          <label for="branch-name">New branch name</label>
+          <label for="branch-name">{t('createInstance.newBranchName')}</label>
           <input
             id="branch-name"
             type="text"
@@ -210,23 +211,23 @@
           {#if duplicateBranch}
             <div class="field-error">
               <Icon name="info" size={12}/>
-              A branch named <strong>{branchName.trim()}</strong> already exists in this project.
+              {(t('createInstance.duplicateBranch') as (name: string) => string)(branchName.trim())}
             </div>
           {/if}
         </div>
         <div class="info-box">
           <div class="info-icon"><Icon name="info" size={14}/></div>
           <div>
-            <strong style="color: var(--fg-0)">git worktree</strong> will create an isolated checkout at
+            <strong style="color: var(--fg-0)">git worktree</strong> {t('createInstance.worktreeInfoPrefix')}
             <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
-            Your main working tree stays untouched.
+            {t('createInstance.worktreeInfoSuffix')}
           </div>
         </div>
       {/if}
 
       {#if step === 3}
         <div class="form-row">
-          <label for="profile-btn-feature">Agent profile</label>
+          <label for="profile-btn-feature">{t('createInstance.agentProfile')}</label>
           <div class="source-tabs" style="margin: 0;">
             {#each [['feature','Feature'],['refactor','Refactor'],['debug','Debug'],['docs','Documentation'],['review','Review']] as [k, l]}
               <button id={k === 'feature' ? 'profile-btn-feature' : undefined} class={profile === k ? 'active' : ''} on:click={() => profile = k}>{l}</button>
@@ -235,22 +236,22 @@
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
           <div class="summary-card">
-            <div class="sum-row"><span class="label">Ticket</span><span class="val">{ticketId}</span></div>
-            <div class="sum-row"><span class="label">Mode</span><span class="val">{useGit ? 'Git worktree' : 'Local'}</span></div>
+            <div class="sum-row"><span class="label">{t('createInstance.summaryTicket')}</span><span class="val">{ticketId}</span></div>
+            <div class="sum-row"><span class="label">{t('createInstance.summaryMode')}</span><span class="val">{useGit ? t('createInstance.summaryModeGit') : t('createInstance.summaryModeLocal')}</span></div>
             {#if useGit}
-              <div class="sum-row"><span class="label">Branch</span><span class="val">{branchName}</span></div>
-              <div class="sum-row"><span class="label">Base</span><span class="val">{baseBranch}</span></div>
+              <div class="sum-row"><span class="label">{t('createInstance.summaryBranch')}</span><span class="val">{branchName}</span></div>
+              <div class="sum-row"><span class="label">{t('createInstance.summaryBase')}</span><span class="val">{baseBranch}</span></div>
             {/if}
-            <div class="sum-row"><span class="label">Worktree</span><span class="val mono-small">{worktreePath}</span></div>
-            <div class="sum-row"><span class="label">Profile</span><span class="val">{profile}</span></div>
+            <div class="sum-row"><span class="label">{t('createInstance.summaryWorktree')}</span><span class="val mono-small">{worktreePath}</span></div>
+            <div class="sum-row"><span class="label">{t('createInstance.summaryProfile')}</span><span class="val">{profile}</span></div>
           </div>
           <div class="summary-card">
             <div class="sum-row" style="color: var(--fg-2); font-size: 11px;">
               <Icon name="sparkles" size={13} style="color: var(--accent)"/>
               {#if useGit}
-                <span>Cairn will create the branch, check out a worktree, and start the agent with ticket context.</span>
+                <span>{t('createInstance.summaryNoteGit')}</span>
               {:else}
-                <span>Cairn will start the agent in the project directory with ticket context. No git operations will be performed.</span>
+                <span>{t('createInstance.summaryNoteLocal')}</span>
               {/if}
             </div>
           </div>
@@ -270,7 +271,7 @@
       </div>
       <div class="spacer"></div>
       {#if step > 0}
-        <button class="btn ghost" on:click={back} disabled={creating}>Back</button>
+        <button class="btn ghost" on:click={back} disabled={creating}>{t('common.back')}</button>
       {/if}
       {#if step < 3}
         <button
@@ -279,14 +280,14 @@
           on:click={next}
           style={!canNext ? 'opacity: 0.4; cursor: not-allowed;' : ''}
         >
-          Continue <Icon name="chev-r" size={14}/>
+          {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
       {:else}
         <button class="btn primary" on:click={handleCreate} disabled={creating}>
           {#if creating}
-            <Spinner /> Creating…
+            <Spinner /> {t('common.creating')}
           {:else}
-            <Icon name="sparkles" size={14}/> Create instance
+            <Icon name="sparkles" size={14}/> {t('createInstance.createInstance')}
           {/if}
         </button>
       {/if}

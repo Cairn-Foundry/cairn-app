@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { SAVE_ON_OPTIONS } from '$lib/utils/home/appearance';
   import type { CairnSettings } from '$lib/services/settings-service';
@@ -12,27 +13,27 @@
 <svelte:window on:keydown={(e) => { if (e.key === 'Escape' && saveOnOpen) saveOnOpen = false; }} />
 
 <div class="settings-group">
-  <div class="settings-group-title">Layout</div>
+  <div class="settings-group-title">{t('settings.editor.layoutGroup')}</div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">Sidebar position</span>
-      <span class="settings-row-desc">Move the file explorer to the left or right of the editor.</span>
+      <span class="settings-row-label">{t('settings.editor.sidebarPosition')}</span>
+      <span class="settings-row-desc">{t('settings.editor.sidebarPositionDesc')}</span>
     </div>
     <div class="sidebar-pos-toggle">
       <button
         class="sidebar-pos-btn {($settings.sidebarPosition) === 'left' ? 'active' : ''}"
         on:click={() => settings.save({ sidebarPosition: 'left' })}
-      >Left</button>
+      >{t('settings.editor.sidebarLeft')}</button>
       <button
         class="sidebar-pos-btn {($settings.sidebarPosition) === 'right' ? 'active' : ''}"
         on:click={() => settings.save({ sidebarPosition: 'right' })}
-      >Right</button>
+      >{t('settings.editor.sidebarRight')}</button>
     </div>
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">File tree panel width</span>
-      <span class="settings-row-desc">Width of the file explorer sidebar in the Files view.</span>
+      <span class="settings-row-label">{t('settings.editor.treePanelWidth')}</span>
+      <span class="settings-row-desc">{t('settings.editor.treePanelWidthDesc')}</span>
     </div>
     <div class="settings-row-control">
       <input
@@ -46,8 +47,8 @@
           if (!isNaN(v)) settings.save({ treePanelWidth: Math.max(140, Math.min(480, v)) });
         }}
       />
-      <span class="settings-row-unit">px</span>
-      <button class="settings-reset-btn" title="Reset to default (220 px)" on:click={() => settings.save({ treePanelWidth: 220 })}>
+      <span class="settings-row-unit">{t('settings.editor.treePanelWidthUnit')}</span>
+      <button class="settings-reset-btn" title={t('settings.editor.treePanelWidthResetTitle') as string} on:click={() => settings.save({ treePanelWidth: 220 })}>
         <Icon name="undo" size={12}/>
       </button>
     </div>
@@ -55,11 +56,11 @@
 </div>
 
 <div class="settings-group">
-  <div class="settings-group-title">Code editor</div>
+  <div class="settings-group-title">{t('settings.editor.codeEditorGroup')}</div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">Font size</span>
-      <span class="settings-row-desc">Base font size for the code editor.</span>
+      <span class="settings-row-label">{t('settings.editor.fontSize')}</span>
+      <span class="settings-row-desc">{t('settings.editor.fontSizeDesc')}</span>
     </div>
     <div class="settings-row-control">
       <input
@@ -73,18 +74,18 @@
           if (!isNaN(v)) settings.save({ editorFontSize: Math.max(8, Math.min(32, v)) });
         }}
       />
-      <span class="settings-row-unit">px</span>
-      <button class="settings-reset-btn" title="Reset to default (13 px)" on:click={() => settings.save({ editorFontSize: 13 })}>
+      <span class="settings-row-unit">{t('settings.editor.fontSizeUnit')}</span>
+      <button class="settings-reset-btn" title={t('settings.editor.fontSizeResetTitle') as string} on:click={() => settings.save({ editorFontSize: 13 })}>
         <Icon name="undo" size={12}/>
       </button>
     </div>
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">Show minimap</span>
-      <span class="settings-row-desc">Scrollbar overview panel on the right side of the code editor.</span>
+      <span class="settings-row-label">{t('settings.editor.showMinimap')}</span>
+      <span class="settings-row-desc">{t('settings.editor.showMinimapDesc')}</span>
     </div>
-    <label class="settings-toggle" aria-label="Toggle minimap">
+    <label class="settings-toggle" aria-label={t('settings.editor.toggleMinimap') as string}>
       <input
         type="checkbox"
         checked={$settings.showMinimap}
@@ -95,8 +96,8 @@
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">Save on</span>
-      <span class="settings-row-desc">When the editor automatically saves open files to disk.</span>
+      <span class="settings-row-label">{t('settings.editor.saveOn')}</span>
+      <span class="settings-row-desc">{t('settings.editor.saveOnDesc')}</span>
     </div>
     <div class="so-dropdown" class:so-open={saveOnOpen}>
       <button
@@ -143,7 +144,7 @@
     style="font-size: 12px;"
     on:click={() => settings.save({ treePanelWidth: 220, showMinimap: true, editorFontSize: 13, sidebarPosition: 'left' })}
   >
-    <Icon name="undo" size={12}/> Reset editor
+    <Icon name="undo" size={12}/> {t('settings.editor.resetEditor')}
   </button>
 </div>
 

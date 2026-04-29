@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import type { Project } from '$lib/types/project';
 
   export let project: Project;
@@ -20,24 +21,24 @@
   <div class="modal del-modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">Confirm deletion</div>
-        <h3>Remove "{project.name}"?</h3>
+        <div class="step-count">{t('deleteProject.heading')}</div>
+        <h3>{(t('deleteProject.title') as (name: string) => string)(project.name)}</h3>
       </div>
-      <button class="icon-btn close" on:click={() => dispatch('close')} aria-label="Close">
+      <button class="icon-btn close" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
     <div class="modal-body">
       <p class="del-desc">
-        This removes the project from Cairn and deletes all its instances and worktrees.
-        <strong>Your files at <code>{project.path}</code> will not be touched.</strong>
+        {t('deleteProject.description')}
+        <strong>{t('deleteProject.filesNotTouched')} <code>{project.path}</code> {t('deleteProject.filesNotTouchedSuffix')}</strong>
       </p>
     </div>
     <div class="modal-foot">
       <div class="spacer"></div>
-      <button class="btn ghost" on:click={() => dispatch('close')}>Cancel</button>
+      <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.cancel')}</button>
       <button class="btn danger" on:click={() => dispatch('confirm')}>
-        <Icon name="trash" size={14}/> Delete project
+        <Icon name="trash" size={14}/> {t('deleteProject.deleteProject')}
       </button>
     </div>
   </div>

@@ -5,6 +5,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
 
@@ -19,23 +20,23 @@
     <span class="name">Cairn</span>
   </div>
 
-  <div class="section">Workspace</div>
+  <div class="section">{t('home.sidebar.workspace')}</div>
   <button class="home-nav-item {activeSection === 'projects'    ? 'active' : ''}" on:click={() => dispatch('select', 'projects')}>
-    <Icon name="folder" size={15}/> Projects
+    <Icon name="folder" size={15}/> {t('home.sidebar.projects')}
   </button>
   <button class="home-nav-item {activeSection === 'checkpoints' ? 'active' : ''}" on:click={() => dispatch('select', 'checkpoints')}>
-    <Icon name="bookmark" size={15}/> Saved checkpoints
+    <Icon name="bookmark" size={15}/> {t('home.sidebar.savedCheckpoints')}
   </button>
   <button class="home-nav-item {activeSection === 'activity'    ? 'active' : ''}" on:click={() => dispatch('select', 'activity')}>
-    <Icon name="clock" size={15}/> Activity
+    <Icon name="clock" size={15}/> {t('home.sidebar.activity')}
   </button>
 
-  <div class="section">Account</div>
+  <div class="section">{t('home.sections.account')}</div>
   <button class="home-nav-item {activeSection === 'account'     ? 'active' : ''}" on:click={() => dispatch('select', 'account')}>
     <Icon name="user" size={15}/> Benjamin
   </button>
   <button class="home-nav-item {activeSection === 'settings'    ? 'active' : ''}" on:click={() => dispatch('select', 'settings')}>
-    <Icon name="settings" size={15}/> Settings
+    <Icon name="settings" size={15}/> {t('home.sidebar.settings')}
   </button>
 
   <div style="flex: 1"></div>

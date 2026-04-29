@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
   import { tok } from '$lib/utils/syntax.js';
 
   interface Hunk {
@@ -34,13 +35,13 @@
   <div class="git-col">
     <div class="git-col-head">
       <Icon name="circle" size={12}/>
-      Unstaged changes
-      <span class="count">{unstaged.length} hunks</span>
+      {t('git.unstagedChanges')}
+      <span class="count">{(t('git.hunks') as (n: number) => string)(unstaged.length)}</span>
     </div>
     <div class="hunks-list">
       {#if unstaged.length === 0}
         <div style="padding: 20px; font-size: 12px; color: var(--fg-3); text-align: center;">
-          Clean — all changes are staged.
+          {t('git.cleanAllStaged')}
         </div>
       {/if}
       {#each unstaged as h}
@@ -50,7 +51,7 @@
             <Icon name="file" size={12}/>
             <span style="color: var(--fg-0)">{h.file}</span>
             <span style="color: var(--fg-3)">{h.hunk}</span>
-            <button class="stage" on:click={() => toggle(idx)}>+ Stage hunk</button>
+            <button class="stage" on:click={() => toggle(idx)}>{t('git.stageHunk')}</button>
           </div>
           <pre style="margin: 0; padding: 10px 12px; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1); line-height: 1.55; white-space: pre; overflow-x: auto;">{@html tok(h.lines)}</pre>
         </div>
@@ -61,13 +62,13 @@
   <div class="git-col">
     <div class="git-col-head">
       <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
-      Staged for commit
-      <span class="count">{staged.length} hunks</span>
+      {t('git.stagedForCommit')}
+      <span class="count">{(t('git.hunks') as (n: number) => string)(staged.length)}</span>
     </div>
     <div class="hunks-list">
       {#if staged.length === 0}
         <div style="padding: 20px; font-size: 12px; color: var(--fg-3); text-align: center;">
-          No staged changes — stage hunks to commit.
+          {t('git.noStagedChanges')}
         </div>
       {/if}
       {#each staged as h}
@@ -77,7 +78,7 @@
             <Icon name="file" size={12}/>
             <span style="color: var(--fg-0)">{h.file}</span>
             <span style="color: var(--fg-3)">{h.hunk}</span>
-            <button class="stage" on:click={() => toggle(idx)}>− Unstage</button>
+            <button class="stage" on:click={() => toggle(idx)}>{t('git.unstageHunk')}</button>
           </div>
           <pre style="margin: 0; padding: 10px 12px; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1); line-height: 1.55; white-space: pre; overflow-x: auto;">{@html tok(h.lines)}</pre>
         </div>
@@ -86,9 +87,9 @@
 
     <div class="commit-composer">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-        <span style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase;">Commit message</span>
+        <span style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase;">{t('git.commitMessage')}</span>
         <div style="flex: 1"></div>
-        <button class="ai-suggest"><Icon name="sparkles" size={11}/> Regenerate with AI</button>
+        <button class="ai-suggest"><Icon name="sparkles" size={11}/> {t('git.regenerateWithAi')}</button>
       </div>
       <textarea class="commit-msg" bind:value={commitMsg}></textarea>
       <div class="commit-row">
@@ -96,8 +97,8 @@
           on <span style="color: var(--fg-1)">feat/totp-auth</span> · 3 ahead of origin
         </span>
         <div style="flex: 1"></div>
-        <button class="btn ghost"><Icon name="save" size={13}/> Commit</button>
-        <button class="btn primary"><Icon name="upload" size={13}/> Commit &amp; push</button>
+        <button class="btn ghost"><Icon name="save" size={13}/> {t('git.commit')}</button>
+        <button class="btn primary"><Icon name="upload" size={13}/> {t('git.commitAndPush')}</button>
       </div>
     </div>
   </div>

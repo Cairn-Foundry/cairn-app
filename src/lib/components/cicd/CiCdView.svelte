@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
 
   const PIPELINE = {
     id: '#8241', commit: '7f3a2b1', status: 'running',
@@ -30,11 +31,11 @@
 
 <div class="ci-wrap">
   <div class="ci-header">
-    <h2>Pipelines</h2>
+    <h2>{t('cicd.title')}</h2>
     <span class="dim mono" style="font-size: 11px;">on feat/totp-auth · last 5</span>
     <div class="spacer"></div>
-    <button class="btn"><Icon name="refresh" size={13}/> Refresh</button>
-    <button class="btn"><Icon name="external" size={13}/> Open in GitLab</button>
+    <button class="btn"><Icon name="refresh" size={13}/> {t('cicd.refresh')}</button>
+    <button class="btn"><Icon name="external" size={13}/> {t('cicd.openInGitLab')}</button>
   </div>
 
   <div class="pipeline">
@@ -73,7 +74,7 @@
         <b style="color: var(--danger)">unit</b> failed at <span class="fname">src/auth/totp.test.ts:51</span> — "rejects tokens from the previous window"
       </div>
       <button class="fix-with-agent" style="padding: 6px 10px; font-size: 12px;">
-        <Icon name="sparkles" size={12}/> Fix with agent
+        <Icon name="sparkles" size={12}/> {t('cicd.fixWithAgent')}
       </button>
     </div>
   </div>
