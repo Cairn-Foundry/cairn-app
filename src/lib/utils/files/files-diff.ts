@@ -1,11 +1,10 @@
 import { gitFileDiff, gitStagedFileDiff, gitBlame, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
-import type { PaneDiffState } from './files-persistence';
 
-export const EMPTY_DIFF_STATE: PaneDiffState = Object.freeze({
-  currentDiffHunks: [] as DiffHunk[],
-  currentStagedHunks: [] as DiffHunk[],
-  currentBlame: new Map<number, BlameEntry>(),
-});
+export interface PaneDiffState {
+  currentDiffHunks: DiffHunk[];
+  currentStagedHunks: DiffHunk[];
+  currentBlame: Map<number, BlameEntry>;
+}
 
 export function emptyDiffState(): PaneDiffState {
   return { currentDiffHunks: [], currentStagedHunks: [], currentBlame: new Map() };

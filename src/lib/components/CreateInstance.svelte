@@ -1,9 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
   import { listBranches } from '$lib/services/instance-service';
+  import { matchesSearch } from '$lib/utils/files/files-search';
+  import { slugify } from '$lib/utils/format';
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
@@ -39,7 +42,7 @@
   });
 
   $: if (ticketId) {
-    const slug = ticketId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slug = slugify(ticketId);
     const generated = `feat/${slug}`;
     if (!branchName || branchName === prevSlug) branchName = generated;
     prevSlug = generated;
@@ -47,7 +50,7 @@
 
   $: worktreePath = useGit
     ? `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`
-    : `~/.cairn/worktrees/${ticketId.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    : `~/.cairn/worktrees/${slugify(ticketId)}`;
 
   $: totalSteps = useGit ? 4 : 3;
 
@@ -118,7 +121,7 @@
     <div class="modal-body" class:loading={creating}>
       {#if creating}
         <div class="creating-overlay">
-          <span class="ci-spinner large"></span>
+          <Spinner size={28} stroke={3} trackColor="var(--stroke-1)" color="var(--accent)" />
           <span class="creating-label">Setting up instance…</span>
         </div>
       {/if}
@@ -178,7 +181,7 @@
                 />
               </div>
               <div class="branch-list">
-                {#each availableBranches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())) as b}
+                {#each availableBranches.filter(b => matchesSearch(b, branchSearch)) as b}
                   <button
                     class="branch-item {baseBranch === b ? 'active' : ''}"
                     on:click={() => baseBranch = b}
@@ -281,7 +284,7 @@
       {:else}
         <button class="btn primary" on:click={handleCreate} disabled={creating}>
           {#if creating}
-            <span class="ci-spinner"></span> Creating…
+            <Spinner /> Creating…
           {:else}
             <Icon name="sparkles" size={14}/> Create instance
           {/if}
@@ -482,24 +485,4 @@
     color: var(--fg-2);
   }
 
-  /* Spinner */
-  .ci-spinner {
-    display: inline-block;
-    width: 13px;
-    height: 13px;
-    border: 2px solid oklch(1 0 0 / 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: ci-spin 0.6s linear infinite;
-    flex-shrink: 0;
-    vertical-align: middle;
-  }
-  .ci-spinner.large {
-    width: 28px;
-    height: 28px;
-    border-width: 3px;
-    border-color: var(--stroke-1);
-    border-top-color: var(--accent);
-  }
-  @keyframes ci-spin { to { transform: rotate(360deg); } }
 </style>

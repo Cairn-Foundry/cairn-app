@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { shortcuts, SHORTCUT_DEFS, bindingToLabels } from '$lib/stores/shortcuts';
+  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
   const dispatch = createEventDispatcher<{ close: void; goSettings: void }>();
 
@@ -14,35 +14,15 @@
     { keys: ['Enter'], description: 'Accept completion' },
   ];
 
-  $: groups = [
-    {
-      label: 'Files',
-      shortcuts: SHORTCUT_DEFS
-        .filter(d => d.group === 'files')
+  $: groups = (['files', 'tabs', 'view', 'editor'] as const).map(group => ({
+    label: SHORTCUT_GROUP_LABELS[group] ?? group,
+    shortcuts: [
+      ...SHORTCUT_DEFS
+        .filter(d => d.group === group)
         .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
-    },
-    {
-      label: 'Tabs',
-      shortcuts: SHORTCUT_DEFS
-        .filter(d => d.group === 'tabs')
-        .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
-    },
-    {
-      label: 'View',
-      shortcuts: SHORTCUT_DEFS
-        .filter(d => d.group === 'view')
-        .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
-    },
-    {
-      label: 'Code Editor',
-      shortcuts: [
-        ...SHORTCUT_DEFS
-          .filter(d => d.group === 'editor')
-          .map(d => ({ keys: bindingToLabels($shortcuts[d.id]), description: d.label })),
-        ...STATIC_EDITOR_TAIL,
-      ],
-    },
-  ];
+      ...(group === 'editor' ? STATIC_EDITOR_TAIL : []),
+    ],
+  }));
 </script>
 
 <svelte:window on:keydown={handleKeydown} />

@@ -346,3 +346,11 @@ export function bindingToLabels(b: ShortcutBinding, mac = IS_MAC): string[] {
 export function bindingKey(b: ShortcutBinding): string {
   return `${b.mod ? 1 : 0}${b.shift ? 1 : 0}${b.alt ? 1 : 0}${b.ctrl ? 1 : 0}:${b.key.toLowerCase()}`;
 }
+
+export const SHORTCUT_GROUP_LABELS: Record<string, string> = {
+  files: 'Files',
+  editor: 'Code Editor',
+  tabs: 'Tabs',
+  view: 'View',
+  tree: 'File Tree',
+};

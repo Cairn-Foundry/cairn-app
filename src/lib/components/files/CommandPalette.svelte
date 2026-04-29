@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { ShortcutId, ShortcutBinding, ShortcutDef } from '$lib/types/shortcuts';
-  import { bindingToLabels } from '$lib/stores/shortcuts';
+  import { matchesSearch } from '$lib/utils/files/files-search';
+  import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
   export let shortcuts: Record<ShortcutId, ShortcutBinding>;
   export let shortcutDefs: ShortcutDef[];
@@ -14,10 +15,7 @@
   let listEl: HTMLUListElement;
 
   $: filtered = query.trim()
-    ? shortcutDefs.filter(d =>
-        d.label.toLowerCase().includes(query.toLowerCase()) ||
-        d.description.toLowerCase().includes(query.toLowerCase())
-      )
+    ? shortcutDefs.filter(d => matchesSearch(d.label, query) || matchesSearch(d.description, query))
     : shortcutDefs;
 
   $: { query; selectedIdx = 0; }
@@ -60,12 +58,6 @@
   window.addEventListener('keydown', globalKeydown, true);
   onDestroy(() => window.removeEventListener('keydown', globalKeydown, true));
 
-  const GROUP_LABELS: Record<string, string> = {
-    files: 'Files',
-    editor: 'Editor',
-    tabs: 'Tabs',
-    view: 'View',
-  };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -91,7 +83,7 @@
         >
           <div class="cp-item-main">
             <span class="cp-item-label">{def.label}</span>
-            <span class="cp-item-group">{GROUP_LABELS[def.group] ?? def.group}</span>
+            <span class="cp-item-group">{SHORTCUT_GROUP_LABELS[def.group] ?? def.group}</span>
           </div>
           <div class="cp-item-meta">
             <span class="cp-item-desc">{def.description}</span>

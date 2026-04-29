@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import { settings } from '$lib/stores/settings';
-  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey } from '$lib/stores/shortcuts';
+  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
   import type { ShortcutId, ShortcutBinding, ShortcutConfig } from '$lib/types/shortcuts';
   import { MODIFIER_KEYS } from '$lib/utils/home/appearance';
   import { matchesSearch } from '$lib/utils/files/files-search';
@@ -86,13 +86,8 @@
     }
   }
 
-  const GROUPS: { key: string; label: string }[] = [
-    { key: 'files',  label: 'Files' },
-    { key: 'tree',   label: 'File Tree' },
-    { key: 'tabs',   label: 'Tabs' },
-    { key: 'view',   label: 'View' },
-    { key: 'editor', label: 'Code Editor' },
-  ];
+  const GROUPS: { key: string; label: string }[] = (['files','tree','tabs','view','editor'] as const)
+    .map(key => ({ key, label: SHORTCUT_GROUP_LABELS[key] ?? key }));
 </script>
 
 <svelte:window on:keydown={handleRecordKeydown} />

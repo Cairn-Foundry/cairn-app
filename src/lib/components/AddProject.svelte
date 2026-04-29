@@ -1,10 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
+  import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
   import { validateDirectory, cloneRepository } from '$lib/services/project-service';
   import { projects, registerProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
-  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
 
   export let mode: 'new' | 'open' | 'clone';
 
@@ -50,7 +52,6 @@
   let cloneUrl = '';
   let cloneMethod: 'https' | 'ssh' = 'https';
 
-  const presetColors = PROJECT_COLORS;
 
   // ── Directory picker ───────────────────────────────────────────────────────
   async function pickDirectory() {
@@ -176,26 +177,10 @@
 
         <div class="form-section">
           <div class="ap-label">Color</div>
-          <div class="color-row">
-            {#each presetColors as c}
-              <button
-                class="color-swatch {color === c ? 'selected' : ''}"
-                style="background:{c}"
-                on:click={() => color = c}
-                aria-label="Color {c}"
-              ></button>
-            {/each}
-            <label for="color-new" class="color-custom-wrap" title="Custom color">
-              <input id="color-new" type="color" bind:value={color} class="color-custom-input"/>
-              <span class="color-custom-preview" style="background:{color}"></span>
-            </label>
-          </div>
+          <ProjectColorPicker bind:color idSuffix="new" />
         </div>
 
-        <div class="preview-pill" style="border-color:{color}33;background:{color}14;">
-          <span class="preview-dot" style="background:{color}"></span>
-          <span class="preview-label" style="color:{color}">{name || 'Project name'}</span>
-        </div>
+        <ProjectPreviewPill name={name || 'Project name'} {color} />
 
       <!-- ══ NEW — step 1: location ══ -->
       {:else if mode === 'new' && step === 1}
@@ -251,26 +236,10 @@
 
         <div class="form-section">
           <div class="ap-label">Color</div>
-          <div class="color-row">
-            {#each presetColors as c}
-              <button
-                class="color-swatch {color === c ? 'selected' : ''}"
-                style="background:{c}"
-                on:click={() => color = c}
-                aria-label="Color {c}"
-              ></button>
-            {/each}
-            <label for="color-open" class="color-custom-wrap" title="Custom color">
-              <input id="color-open" type="color" bind:value={color} class="color-custom-input"/>
-              <span class="color-custom-preview" style="background:{color}"></span>
-            </label>
-          </div>
+          <ProjectColorPicker bind:color idSuffix="open" />
         </div>
 
-        <div class="preview-pill" style="border-color:{color}33;background:{color}14;">
-          <span class="preview-dot" style="background:{color}"></span>
-          <span class="preview-label" style="color:{color}">{name || 'Project name'}</span>
-        </div>
+        <ProjectPreviewPill name={name || 'Project name'} {color} />
 
       <!-- ══ CLONE — step 0: source ══ -->
       {:else if mode === 'clone' && step === 0}
@@ -332,26 +301,10 @@
 
         <div class="form-section">
           <div class="ap-label">Color</div>
-          <div class="color-row">
-            {#each presetColors as c}
-              <button
-                class="color-swatch {color === c ? 'selected' : ''}"
-                style="background:{c}"
-                on:click={() => color = c}
-                aria-label="Color {c}"
-              ></button>
-            {/each}
-            <label for="color-clone" class="color-custom-wrap" title="Custom color">
-              <input id="color-clone" type="color" bind:value={color} class="color-custom-input"/>
-              <span class="color-custom-preview" style="background:{color}"></span>
-            </label>
-          </div>
+          <ProjectColorPicker bind:color idSuffix="clone" />
         </div>
 
-        <div class="preview-pill" style="border-color:{color}33;background:{color}14;">
-          <span class="preview-dot" style="background:{color}"></span>
-          <span class="preview-label" style="color:{color}">{name || 'Project name'}</span>
-        </div>
+        <ProjectPreviewPill name={name || 'Project name'} {color} />
 
       <!-- ══ CLONE — step 2: destination ══ -->
       {:else if mode === 'clone' && step === 2}
@@ -399,7 +352,7 @@
       {:else}
         <button class="btn primary" disabled={!canNext || loading} on:click={submit}>
           {#if loading}
-            <span class="ap-spinner"></span>
+            <Spinner /> 
             {#if mode === 'clone'}Cloning…{:else}Creating…{/if}
           {:else if mode === 'clone'}
             <Icon name="download" size={14}/> Clone &amp; open
@@ -515,45 +468,6 @@
   .method-btn.active { background: var(--accent-weak); border-color: var(--accent-line); color: var(--accent); }
   .method-hint { font-size: 12px; color: var(--fg-3); margin: 0; line-height: 1.5; }
 
-  /* ── Color picker ── */
-  .color-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-  .color-swatch {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform 0.1s, border-color 0.1s;
-    flex-shrink: 0;
-  }
-  .color-swatch:hover { transform: scale(1.18); }
-  .color-swatch.selected {
-    border-color: var(--fg-0);
-    box-shadow: 0 0 0 2px var(--bg-1);
-  }
-
-  .color-custom-wrap {
-    position: relative;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    overflow: hidden;
-    cursor: pointer;
-    flex-shrink: 0;
-    border: 2px dashed var(--stroke-1);
-  }
-  .color-custom-input {
-    position: absolute;
-    inset: -4px;
-    width: calc(100% + 8px);
-    height: calc(100% + 8px);
-    opacity: 0;
-    cursor: pointer;
-  }
-  .color-custom-preview {
-    display: block;
-    width: 100%; height: 100%;
-    border-radius: 50%;
-  }
 
   /* ── Error banner ── */
   .ap-error {
@@ -570,30 +484,5 @@
     line-height: 1.5;
   }
 
-  /* ── Loading spinner ── */
-  .ap-spinner {
-    display: inline-block;
-    width: 13px;
-    height: 13px;
-    border: 2px solid oklch(1 0 0 / 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: ap-spin 0.6s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes ap-spin { to { transform: rotate(360deg); } }
 
-  /* ── Preview pill ── */
-  .preview-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px 6px 8px;
-    border-radius: 999px;
-    border: 1px solid;
-    margin-top: 4px;
-    transition: background 0.2s, border-color 0.2s;
-  }
-  .preview-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .preview-label { font-size: 13px; font-weight: 500; }
 </style>

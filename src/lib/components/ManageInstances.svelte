@@ -1,12 +1,14 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { instances, removeInstance } from '$lib/stores/instance';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { CLIPBOARD_CLEAR_DELAY } from '$lib/utils/timing';
+  import { formatDate } from '$lib/utils/format';
 
   export let activeInstanceId: string | null;
 
@@ -60,9 +62,6 @@
     idle: 'Idle', running: 'Running', paused: 'Paused', done: 'Done',
   };
 
-  function formatDate(ts: number): string {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ts));
-  }
 </script>
 
 <div class="modal-backdrop" on:click={() => dispatch('close')} role="button" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && dispatch('close')}>
@@ -134,7 +133,7 @@
                 <div class="mi-confirm">
                   <span class="mi-confirm-label">Delete this instance?</span>
                   <button class="mi-action danger" on:click={() => handleDelete(inst)} disabled={isDeleting}>
-                    {#if isDeleting}<span class="mi-spinner"></span>{:else}Confirm{/if}
+                    {#if isDeleting}<Spinner size={11} />{:else}Confirm{/if}
                   </button>
                   <button class="mi-action ghost" on:click={cancelDelete}>Cancel</button>
                 </div>
@@ -361,13 +360,4 @@
   .mi-action.danger { color: oklch(0.75 0.18 15); border-color: transparent; }
   .mi-action.danger:hover { background: oklch(0.28 0.06 15); border-color: oklch(0.62 0.18 15); }
 
-  .mi-spinner {
-    display: inline-block;
-    width: 11px; height: 11px;
-    border: 2px solid oklch(1 0 0 / 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: mi-spin 0.6s linear infinite;
-  }
-  @keyframes mi-spin { to { transform: rotate(360deg); } }
 </style>

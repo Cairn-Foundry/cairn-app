@@ -298,7 +298,7 @@ const EXT_LANG: Record<string, string> = {
 };
 
 const BINARY_EXT = new Set([
-  'png','jpg','jpeg','gif','webp','ico','bmp','tiff','svg',
+  'png','jpg','jpeg','gif','webp','ico','bmp','tiff',
   'pdf','doc','docx','xls','xlsx','ppt','pptx',
   'zip','tar','gz','bz2','xz','7z','rar',
   'mp3','mp4','wav','ogg','flac','avi','mov','mkv',

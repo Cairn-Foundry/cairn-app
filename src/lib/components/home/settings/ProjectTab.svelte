@@ -2,7 +2,8 @@
   import Icon from '$lib/components/Icon.svelte';
   import { settings } from '$lib/stores/settings';
   import type { WorkflowTabConfig } from '$lib/services/settings-service';
-  import { DEFAULT_WF_TABS, wfComputeInsert } from '$lib/utils/home/workflow-tabs';
+  import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
+  import { computeTabInsertIndex } from "$lib/utils/files/files-tab-drag";
 
   $: wfTabs = ($settings.workflowTabs ?? DEFAULT_WF_TABS).slice().sort((a, b) => a.order - b.order);
 
@@ -20,7 +21,7 @@
 
   function wfPointerMove(e: PointerEvent) {
     if (wfDragSrc === null) return;
-    wfInsert = wfComputeInsert(wfListEl, e.clientY);
+    wfInsert = computeTabInsertIndex(wfListEl, e.clientY, { selector: '.wf-row', axis: 'y' });
   }
 
   function wfPointerUp() {

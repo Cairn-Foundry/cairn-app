@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
 
   const TESTS = [
     { group: 'auth/totp.test.ts', items: [
@@ -32,15 +33,6 @@
 </script>
 
 <style>
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner {
-    width: 10px; height: 10px;
-    border: 1.5px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-  }
 </style>
 
 <div class="tests-layout">
@@ -59,7 +51,7 @@
             {#if t.status === 'pass'}<Icon name="check" size={12}/>
             {:else if t.status === 'fail'}<Icon name="x" size={12}/>
             {:else if t.status === 'skip'}<Icon name="circle" size={10}/>
-            {:else if t.status === 'run'}<span class="spinner"></span>
+            {:else if t.status === 'run'}<Spinner size={10} stroke={1.5} trackColor="currentColor" color="transparent" />
             {/if}
           </span>
           <span class="name">{t.name}</span>

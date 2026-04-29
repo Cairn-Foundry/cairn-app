@@ -8,4 +8,7 @@ export const EDITOR_DEFAULTS = {
   viewportPadding: 8,
 } as const;
 
+export const FONT_SIZE_MIN = 8;
+export const FONT_SIZE_MAX = 32;
+
 export const FOLD_MARKERS = { open: '▾', closed: '▸' } as const;

@@ -1,4 +1,4 @@
-import { readFile, isBinaryPath, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
+import { readFile, isBinaryPath } from '$lib/services/file-service';
 import { detectLineEndings, normalizeLineEndings } from './files-indent';
 
 export interface Tab {
@@ -35,12 +35,6 @@ export interface InstanceTabState {
   expanded: Set<string>;
   splitMode: boolean;
   splitLeftWidth: number;
-}
-
-export interface PaneDiffState {
-  currentDiffHunks: DiffHunk[];
-  currentStagedHunks: DiffHunk[];
-  currentBlame: Map<number, BlameEntry>;
 }
 
 const FILE_STATE_KEY = (id: string) => `cairn:file-state:${id}`;

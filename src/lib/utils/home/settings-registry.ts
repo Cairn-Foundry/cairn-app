@@ -1,4 +1,4 @@
-import { SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+import { SHORTCUT_DEFS, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
 export type SettingsTab = 'general' | 'appearance' | 'editor' | 'shortcuts' | 'project';
 
@@ -23,14 +23,6 @@ const STATIC_SETTINGS: SettingEntry[] = [
   { label: 'Show minimap',          desc: 'Scrollbar overview panel in code editor', tab: 'editor',     group: 'Code editor' },
   { label: 'Workflow tabs',         desc: 'Reorder and show/hide workspace tabs',    tab: 'project',    group: 'Workflow tabs' },
 ];
-
-const SHORTCUT_GROUP_LABELS: Record<string, string> = {
-  files: 'Files',
-  editor: 'Code Editor',
-  tabs: 'Tabs',
-  view: 'View',
-  tree: 'File Tree',
-};
 
 export const SETTINGS_REGISTRY: SettingEntry[] = [
   ...STATIC_SETTINGS,

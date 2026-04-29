@@ -7,6 +7,7 @@ import { get } from 'svelte/store';
   import SearchPanel from './SearchPanel.svelte';
   import CommandPalette from './CommandPalette.svelte';
   import EditorPane from './EditorPane.svelte';
+  import FileTreeView from './FileTreeView.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen } from '$lib/stores/ui';
@@ -40,8 +41,6 @@ import { get } from 'svelte/store';
     collectFilePaths,
     collectDirPaths,
     getSiblingNames,
-    nodeGitStatus,
-    fileIcon as fileIconFor,
     pasteDestName,
     resolveDestName,
     parentPathOf,
@@ -63,7 +62,9 @@ import { get } from 'svelte/store';
     removeDragGhost,
     findDropTargetDir,
   } from '$lib/utils/files/files-drag-ghost';
-  import { EDITOR_JUMP_DELAY_MS } from '$lib/utils/timing';
+  import { EDITOR_JUMP_DELAY_MS, GIT_POLL_INTERVAL_MS } from '$lib/utils/timing';
+  import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '$lib/utils/editor/editor-config';
+  import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
 
   export let onGoSettings: (() => void) | undefined = undefined;
 
@@ -178,9 +179,6 @@ import { get } from 'svelte/store';
   let dragCaptureEl: HTMLElement | null = null;
   let dragJustEnded = false;
 
-  function buildTree(raw: FileNode[], _map: GitStatusMap): FileNode[] {
-    return raw;
-  }
   let expanded = new Set<string>();
   let recentFiles: string[] = [];
   let loading = false;
@@ -434,7 +432,7 @@ import { get } from 'svelte/store';
       panes = panes;
 
       const updated = await gitStatus(worktreePath).catch(() => null);
-      if (updated !== null) { gitStatusMap = updated; tree = buildTree(rawTree, updated); }
+      if (updated !== null) { gitStatusMap = updated; tree = rawTree; }
       await refreshDiff(i, tab);
     } finally {
       panes[i].reverting = false;
@@ -443,7 +441,7 @@ import { get } from 'svelte/store';
   }
 
   let quickOpenVisible = false;
-  let searchPanelByProject: Record<string, boolean> = {};
+  let searchPanelByProject = new Map<string, boolean>();
 
   // ── Closed-tab history (for ⌘⇧T reopen) ────────────────────────────────────
   let closedTabsStack: Tab[] = [];
@@ -460,15 +458,21 @@ import { get } from 'svelte/store';
   let commandPaletteVisible = false;
   export function openCommandPalette() { commandPaletteVisible = true; }
 
-  $: searchPanelOpen = searchPanelByProject[$activeProjectId ?? ''] ?? false;
+  $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
 
   function toggleSearchPanel() {
-    const id = $activeProjectId ?? '';
-    searchPanelByProject = { ...searchPanelByProject, [id]: !searchPanelOpen };
+    const id = $activeProjectId;
+    if (!id) return;
+    const next = new Map(searchPanelByProject);
+    next.set(id, !searchPanelOpen);
+    searchPanelByProject = next;
   }
   function closeSearchPanel() {
-    const id = $activeProjectId ?? '';
-    searchPanelByProject = { ...searchPanelByProject, [id]: false };
+    const id = $activeProjectId;
+    if (!id) return;
+    const next = new Map(searchPanelByProject);
+    next.set(id, false);
+    searchPanelByProject = next;
   }
 
   // ── Context menu & inline editing ────────────────────────────────────────────
@@ -483,10 +487,6 @@ import { get } from 'svelte/store';
   let editValue = '';
   let selectedDir: string = '';
   let fileClipboard: FileClipboard | null = null;
-
-  function focusOnMount(el: HTMLInputElement) {
-    tick().then(() => { el.focus(); el.select(); });
-  }
 
   function startEdit(state: EditState) {
     editValue = state.value;
@@ -558,61 +558,47 @@ import { get } from 'svelte/store';
     const node = contextMenu?.node ?? null;
     closeContextMenu();
 
-    if (action === 'cut' && node) {
-      const srcs = multiSelected.size > 1 && multiSelected.has(node.path)
+    const collectSrcs = (n: FileNode) =>
+      multiSelected.size > 1 && multiSelected.has(n.path)
         ? flattenToNodes(tree, multiSelected)
-        : [node];
-      fileClipboard = { nodes: srcs, srcWorktreePath: worktreePath ?? '', op: 'cut' };
-      return;
-    }
-    if (action === 'copy' && node) {
-      const srcs = multiSelected.size > 1 && multiSelected.has(node.path)
-        ? flattenToNodes(tree, multiSelected)
-        : [node];
-      fileClipboard = { nodes: srcs, srcWorktreePath: worktreePath ?? '', op: 'copy' };
-      return;
-    }
-    if (action === 'paste' && fileClipboard && worktreePath) {
-      await pasteClipboard(fileClipboard, node, worktreePath);
-      return;
-    }
-    if (action === 'reveal') {
-      const absPath = node ? `${worktreePath}/${node.path}` : (worktreePath ?? '');
-      await revealInFileManager(absPath);
-      return;
-    }
-    if (action === 'copy-path') {
-      const absPath = node ? `${worktreePath}/${node.path}` : (worktreePath ?? '');
-      await navigator.clipboard.writeText(absPath);
-      return;
-    }
-    if (action === 'copy-rel-path') {
-      await navigator.clipboard.writeText(node?.path ?? '');
-      return;
-    }
-    if (action === 'open-terminal') {
-      const absPath = node ? `${worktreePath}/${node.path}` : (worktreePath ?? '');
-      await openInTerminal(absPath);
-      return;
-    }
-    if (action === 'delete' && node) {
-      if (!confirm(`Delete "${node.name}"?`)) return;
-      try {
-        await deletePath(`${worktreePath}/${node.path}`);
-        panes[0].tabs = panes[0].tabs.filter(t => !t.path.startsWith(node.path));
-        if (panes[0].activeTabIdx >= panes[0].tabs.length) panes[0].activeTabIdx = panes[0].tabs.length - 1;
-        panes = panes;
-        if (worktreePath) await loadTree(worktreePath);
-      } catch (e) { error = String(e); }
-      return;
-    }
-    if (action === 'rename' && node) {
-      startEdit({ type: 'rename', node, parentPath: parentPathOf(node.path), value: node.name });
-      return;
-    }
-    const parentPath = node?.isDir ? node.path : parentPathOf(node?.path ?? '');
-    if (node?.isDir) { expanded.add(node.path); expanded = expanded; }
-    startEdit({ type: action as EditState['type'], node: null, parentPath, value: '' });
+        : [n];
+    const absOf = (n: FileNode | null) => n ? `${worktreePath}/${n.path}` : (worktreePath ?? '');
+
+    const dispatch: Record<ContextAction, () => void | Promise<void>> = {
+      'cut': () => { if (node) fileClipboard = { nodes: collectSrcs(node), srcWorktreePath: worktreePath ?? '', op: 'cut' }; },
+      'copy': () => { if (node) fileClipboard = { nodes: collectSrcs(node), srcWorktreePath: worktreePath ?? '', op: 'copy' }; },
+      'paste': async () => { if (fileClipboard && worktreePath) await pasteClipboard(fileClipboard, node, worktreePath); },
+      'reveal': async () => { await revealInFileManager(absOf(node)); },
+      'copy-path': async () => { await navigator.clipboard.writeText(absOf(node)); },
+      'copy-rel-path': async () => { await navigator.clipboard.writeText(node?.path ?? ''); },
+      'open-terminal': async () => { await openInTerminal(absOf(node)); },
+      'delete': async () => {
+        if (!node) return;
+        if (!confirm(`Delete "${node.name}"?`)) return;
+        try {
+          await deletePath(`${worktreePath}/${node.path}`);
+          panes[0].tabs = panes[0].tabs.filter(t => !t.path.startsWith(node.path));
+          if (panes[0].activeTabIdx >= panes[0].tabs.length) panes[0].activeTabIdx = panes[0].tabs.length - 1;
+          panes = panes;
+          if (worktreePath) await loadTree(worktreePath);
+        } catch (e) { error = String(e); }
+      },
+      'rename': () => {
+        if (!node) return;
+        startEdit({ type: 'rename', node, parentPath: parentPathOf(node.path), value: node.name });
+      },
+      'new-file': () => {
+        const parentPath = node?.isDir ? node.path : parentPathOf(node?.path ?? '');
+        if (node?.isDir) { expanded.add(node.path); expanded = expanded; }
+        startEdit({ type: 'new-file', node: null, parentPath, value: '' });
+      },
+      'new-dir': () => {
+        const parentPath = node?.isDir ? node.path : parentPathOf(node?.path ?? '');
+        if (node?.isDir) { expanded.add(node.path); expanded = expanded; }
+        startEdit({ type: 'new-dir', node: null, parentPath, value: '' });
+      },
+    };
+    await dispatch[action]();
   }
 
   async function commitEdit() {
@@ -706,149 +692,81 @@ import { get } from 'svelte/store';
   $: tooltipSearch = `Search (${bindingToLabels($shortcuts.searchFiles).join('')})`;
   $: tooltipSplit  = `Split Editor (${bindingToLabels($shortcuts.splitEditor).join('')})`;
 
-  async function handleGlobalKey(e: KeyboardEvent) {
-    if ($activeScreen !== 'workspace') return;
-    if (matchesShortcut(e, $activeShortcuts.quickOpen)) {
-      e.preventDefault();
-      quickOpenVisible = true;
-    }
-    if (matchesShortcut(e, $activeShortcuts.searchFiles)) {
-      e.preventDefault();
-      toggleSearchPanel();
-    }
-    if (matchesShortcut(e, $activeShortcuts.fontSizeUp)) {
-      e.preventDefault();
-      settings.save({ editorFontSize: Math.min(($settings.editorFontSize) + 1, 32) });
-    }
-    if (matchesShortcut(e, $activeShortcuts.fontSizeDown)) {
-      e.preventDefault();
-      settings.save({ editorFontSize: Math.max(($settings.editorFontSize) - 1, 8) });
-    }
-    if (matchesShortcut(e, $activeShortcuts.fontSizeReset)) {
-      e.preventDefault();
-      settings.save({ editorFontSize: 13 });
-    }
-    if (matchesShortcut(e, $activeShortcuts.splitEditor)) {
-      e.preventDefault();
-      toggleSplit();
-    }
-    // ── Tab management ─────────────────────────────────────────────────────
-    if (matchesShortcut(e, $activeShortcuts.closeTab)) {
-      e.preventDefault();
-      e.stopPropagation();
-      const activePane = focusedPane === 1 && splitMode ? 1 : 0;
-      closeTab(activePane, panes[activePane].activeTabIdx, null);
-    }
-    if (matchesShortcut(e, $activeShortcuts.reopenClosedTab)) {
-      e.preventDefault();
-      reopenClosedTab();
-    }
-    if (matchesShortcut(e, $activeShortcuts.nextTab)) {
-      e.preventDefault();
-      const tabs0 = panes[0].tabs;
-      if (tabs0.length > 1) switchTab(0, (panes[0].activeTabIdx + 1) % tabs0.length);
-    }
-    if (matchesShortcut(e, $activeShortcuts.prevTab)) {
-      e.preventDefault();
-      const tabs0 = panes[0].tabs;
-      if (tabs0.length > 1) switchTab(0, (panes[0].activeTabIdx - 1 + tabs0.length) % tabs0.length);
-    }
-    if (matchesShortcut(e, $activeShortcuts.tabHistoryBack)) {
-      e.preventDefault();
-      tabHistoryBack();
-    }
-    if (matchesShortcut(e, $activeShortcuts.tabHistoryForward)) {
-      e.preventDefault();
-      tabHistoryForward();
-    }
-    // ── Jump to tab by number (⌘1–⌘9, always active, not configurable) ────
-    const IS_MAC_FV = typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac');
-    if ((IS_MAC_FV ? e.metaKey : e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
-      const idx = parseInt(e.key) - 1;
-      if (idx < panes[0].tabs.length) { e.preventDefault(); switchTab(0, idx); }
-    }
-    // ── Editing ─────────────────────────────────────────────────────────────
-    if (matchesShortcut(e, $activeShortcuts.saveFile)) {
-      e.preventDefault();
-      flushSave(focusedPane === 1 && splitMode ? 1 : 0);
-    }
-    // ── View ────────────────────────────────────────────────────────────────
-    if (matchesShortcut(e, $activeShortcuts.toggleSidebar)) {
-      e.preventDefault();
-      sidebarHidden = !sidebarHidden;
-    }
-    if (matchesShortcut(e, $activeShortcuts.commandPalette)) {
-      e.preventDefault();
-      commandPaletteVisible = true;
-    }
-    if (matchesShortcut(e, $activeShortcuts.openSettings)) {
-      e.preventDefault();
-      onGoSettings?.();
-    }
-    // ── File tree shortcuts (inactive when editor/input has focus) ───────────
-    if (!isEditorFocused()) {
-      if (matchesShortcut(e, $activeShortcuts.treeSelectAll)) {
-        e.preventDefault();
-        multiSelected = new Set(flattenVisible(tree, expanded).map(n => n.path));
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeCopy) && multiSelected.size > 0 && worktreePath) {
-        e.preventDefault();
-        fileClipboard = { nodes: flattenToNodes(tree, multiSelected), srcWorktreePath: worktreePath, op: 'copy' };
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeCut) && multiSelected.size > 0 && worktreePath) {
-        e.preventDefault();
-        fileClipboard = { nodes: flattenToNodes(tree, multiSelected), srcWorktreePath: worktreePath, op: 'cut' };
-      }
-      if (matchesShortcut(e, $activeShortcuts.treePaste) && fileClipboard && worktreePath) {
-        e.preventDefault();
-        const targetPath = [...multiSelected][0] ?? null;
-        const targetNode = targetPath ? flattenVisible(tree, expanded).find(n => n.path === targetPath) ?? null : null;
-        await pasteClipboard(fileClipboard, targetNode, worktreePath);
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeDelete) && multiSelected.size > 0 && worktreePath) {
-        e.preventDefault();
-        const paths = [...multiSelected];
-        const label = paths.length === 1
-          ? `"${basename(paths[0])}"`
-          : `${paths.length} items`;
-        if (!confirm(`Delete ${label}?`)) return;
-        try {
-          for (const p of paths) {
-            await deletePath(`${worktreePath}/${p}`);
-            panes[0].tabs = panes[0].tabs.filter(t => !t.path.startsWith(p));
-          }
-          if (panes[0].activeTabIdx >= panes[0].tabs.length) panes[0].activeTabIdx = panes[0].tabs.length - 1;
-          panes = panes;
-          multiSelected = new Set();
-          await loadTree(worktreePath);
-        } catch (e2) { error = String(e2); }
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeRename) && multiSelected.size === 1) {
-        e.preventDefault();
-        const path = [...multiSelected][0];
-        const node = flattenVisible(tree, expanded).find(n => n.path === path);
-        if (node) startEdit({ type: 'rename', node, parentPath: parentPathOf(node.path), value: node.name });
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeNewFile)) {
-        e.preventDefault();
-        const parentPath = [...multiSelected].find(p => {
-          const n = flattenVisible(tree, expanded).find(x => x.path === p);
-          return n?.isDir;
-        }) ?? selectedDir;
-        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
-        startEdit({ type: 'new-file', node: null, parentPath, value: '' });
-      }
-      if (matchesShortcut(e, $activeShortcuts.treeNewFolder)) {
-        e.preventDefault();
-        const parentPath = [...multiSelected].find(p => {
-          const n = flattenVisible(tree, expanded).find(x => x.path === p);
-          return n?.isDir;
-        }) ?? selectedDir;
-        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
-        startEdit({ type: 'new-dir', node: null, parentPath, value: '' });
-      }
+  function bumpFontSize(delta: number) {
+    const next = $settings.editorFontSize + delta;
+    settings.save({ editorFontSize: Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, next)) });
+  }
+  function resetFontSize() {
+    settings.save({ editorFontSize: EDITOR_DEFAULTS.fontSize });
+  }
+
+  async function executeAction(id: string) {
+    switch (id) {
+      case 'quickOpen':         quickOpenVisible = true; break;
+      case 'searchFiles':       toggleSearchPanel(); break;
+      case 'splitEditor':       toggleSplit(); break;
+      case 'toggleSidebar':     sidebarHidden = !sidebarHidden; break;
+      case 'openSettings':      onGoSettings?.(); break;
+      case 'closeTab':          closeTab(0, panes[0].activeTabIdx, null); break;
+      case 'reopenClosedTab':   await reopenClosedTab(); break;
+      case 'nextTab':           if (panes[0].tabs.length > 1) await switchTab(0, (panes[0].activeTabIdx + 1) % panes[0].tabs.length); break;
+      case 'prevTab':           if (panes[0].tabs.length > 1) await switchTab(0, (panes[0].activeTabIdx - 1 + panes[0].tabs.length) % panes[0].tabs.length); break;
+      case 'tabHistoryBack':    await tabHistoryBack(); break;
+      case 'tabHistoryForward': await tabHistoryForward(); break;
+      case 'saveFile':          await flushSave(0); break;
+      case 'fontSizeUp':        bumpFontSize(+1); break;
+      case 'fontSizeDown':      bumpFontSize(-1); break;
+      case 'fontSizeReset':     resetFontSize(); break;
     }
   }
+
+  const handleGlobalKey = makeFilesKeyHandler({
+    getActiveShortcuts: () => $activeShortcuts,
+    isWorkspaceActive: () => $activeScreen === 'workspace',
+    isEditorFocused,
+    getFocusedPane: () => focusedPane,
+    getSplitMode: () => splitMode,
+    getActiveTabIdxFor: (i) => panes[i].activeTabIdx,
+    getTabsLengthFor: (i) => panes[i].tabs.length,
+    getTree: () => tree,
+    getExpanded: () => expanded,
+    getMultiSelected: () => multiSelected,
+    setMultiSelected: (next) => { multiSelected = next; },
+    getSelectedDir: () => selectedDir,
+    getWorktreePath: () => worktreePath,
+    getFileClipboard: () => fileClipboard,
+    setFileClipboard: (cb) => { fileClipboard = cb; },
+    toggleSearchPanel,
+    toggleSplit,
+    toggleSidebar: () => { sidebarHidden = !sidebarHidden; },
+    bumpFontSize,
+    resetFontSize,
+    openCommandPalette: () => { commandPaletteVisible = true; },
+    openQuickOpen: () => { quickOpenVisible = true; },
+    openSettings: () => onGoSettings?.(),
+    saveActivePane: (i) => { flushSave(i); },
+    closeActiveTab: (i) => closeTab(i, panes[i].activeTabIdx, null),
+    reopenClosedTab,
+    switchTab,
+    tabHistoryBack,
+    tabHistoryForward,
+    pasteClipboard,
+    deleteAtPaths: async (paths: string[]) => {
+      if (!worktreePath) return;
+      try {
+        for (const pPath of paths) {
+          await deletePath(`${worktreePath}/${pPath}`);
+          panes[0].tabs = panes[0].tabs.filter(t => !t.path.startsWith(pPath));
+        }
+        if (panes[0].activeTabIdx >= panes[0].tabs.length) panes[0].activeTabIdx = panes[0].tabs.length - 1;
+        panes = panes;
+        multiSelected = new Set();
+        await loadTree(worktreePath);
+      } catch (e2) { error = String(e2); }
+    },
+    startEdit,
+    expandDir: (path: string) => { expanded.add(path); expanded = expanded; },
+  });
 
   onMount(() => {
     window.addEventListener('keydown', handleGlobalKey, { capture: true });
@@ -858,9 +776,9 @@ import { get } from 'svelte/store';
       const updated = await gitStatus(worktreePath).catch(() => null);
       if (updated !== null) {
         gitStatusMap = updated;
-        tree = buildTree(rawTree, updated);
+        tree = rawTree;
       }
-    }, 3000);
+    }, GIT_POLL_INTERVAL_MS);
 
     let unlistenFocus: (() => void) | null = null;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
@@ -1076,7 +994,7 @@ import { get } from 'svelte/store';
         readDirTree(root, showHidden),
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
-      tree = buildTree(rawTree, gitStatusMap);
+      tree = rawTree;
       loadDiffHunks(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
@@ -1085,9 +1003,15 @@ import { get } from 'svelte/store';
     }
   }
 
-  $: tree = buildTree(rawTree, gitStatusMap);
+  $: tree = rawTree;
   $: treeFilePaths = collectFilePaths(rawTree);
   $: cutPaths = fileClipboard?.op === 'cut' ? new Set(fileClipboard.nodes.map(n => n.path)) : new Set<string>();
+
+  $: openTabPaths = new Set(panes[0].tabs.map(t => t.path));
+  $: activeTabPath = activeTabs[0]?.path ?? null;
+  $: dirtyTabPaths = new Set(panes.flatMap(pn => pn.tabs.filter(t => t.pending !== t.content).map(t => t.path)));
+  $: contextMenuTargetPath = contextMenu?.node?.path ?? null;
+
 
   async function openFile(node: FileNode) {
     if (splitMode && focusedPane === 1) { await openFileInPane(1, node); return; }
@@ -1379,67 +1303,50 @@ import { get } from 'svelte/store';
 </script>
 
 <div class="files-layout" class:sidebar-right={sidebarRight} class:sidebar-hidden={sidebarHidden}>
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => openContextMenu(e, null)}>
-    <div class="files-tree-header">
-      <div class="tree-header-actions">
-        <button type="button" class="tree-action-btn" data-tooltip="Collapse All" on:click={(e) => { e.stopPropagation(); collapseAll(); }}>
-          <Icon name="collapse-all" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn" data-tooltip="Expand All" on:click={(e) => { e.stopPropagation(); expandAll(); }}>
-          <Icon name="expand-all" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn" data-tooltip="New File" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}>
-          <Icon name="file" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn" data-tooltip="New Folder" on:click={(e) => { e.stopPropagation(); if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}>
-          <Icon name="folder" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn {searchPanelOpen ? 'active' : ''}" data-tooltip={tooltipSearch} on:click={(e) => { e.stopPropagation(); toggleSearchPanel(); }}>
-          <Icon name="search" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn" data-tooltip="Refresh" on:click={(e) => { e.stopPropagation(); if (worktreePath) loadTree(worktreePath); }}>
-          <Icon name="refresh" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); toggleSplit(); }}>
-          <Icon name="columns" size={12}/>
-        </button>
-        <button type="button" class="tree-action-btn {showHidden ? 'active' : ''}" data-tooltip="Toggle Hidden Files" on:click={(e) => { e.stopPropagation(); showHidden = !showHidden; if (worktreePath) loadTree(worktreePath); }}>
-          <Icon name="eye" size={12}/>
-        </button>
-
-      </div>
-    </div>
-
-    {#if loading}
-      <div class="tree-state">Loading…</div>
-    {:else if error}
-      <div class="tree-state error">{error}</div>
-    {:else if !worktreePath}
-      <div class="tree-state">No active instance</div>
-    {:else}
-      <button
-        type="button"
-        class="file-tree-item tree-root-row {selectedDir === '' ? 'selected-dir' : ''} {dragOverDir === '' ? 'drag-over' : ''}"
-        style="padding-left: 12px"
-        data-tree-dir=""
-        on:click={() => { selectedDir = ''; multiSelected = new Set(); }}
-        on:contextmenu={(e) => openContextMenu(e, null)}
-      >
-        <Icon name={selectedDir === '' ? 'folder-open' : 'folder'} size={13}/>
-        <span class="file-tree-name">/</span>
-      </button>
-      {#if editState && editState.parentPath === '' && editState.type !== 'rename'}
-        {@render inlineInput(0)}
-      {/if}
-      {#if tree.length === 0 && !editState}
-        <div class="tree-state">Empty worktree</div>
-      {/if}
-      {#each tree as node}
-        {@render treeNode(node, 0)}
-      {/each}
-    {/if}
-  </aside>
+  <FileTreeView
+    {treeWidth}
+    {searchPanelOpen}
+    {splitMode}
+    {showHidden}
+    {tooltipSearch}
+    {tooltipSplit}
+    onCollapseAll={collapseAll}
+    onExpandAll={expandAll}
+    onNewFileTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}
+    onNewFolderTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}
+    onToggleSearchPanel={toggleSearchPanel}
+    onRefresh={() => { if (worktreePath) loadTree(worktreePath); }}
+    onToggleSplit={toggleSplit}
+    onToggleHidden={() => { showHidden = !showHidden; if (worktreePath) loadTree(worktreePath); }}
+    {loading}
+    {error}
+    {worktreePath}
+    {tree}
+    {expanded}
+    {selectedDir}
+    {multiSelected}
+    {dragOverDir}
+    {cutPaths}
+    {gitStatusMap}
+    {loadingPaths}
+    {editState}
+    {editValue}
+    {editConflict}
+    {contextMenuTargetPath}
+    {openTabPaths}
+    {activeTabPath}
+    {dirtyTabPaths}
+    onRootClick={() => { selectedDir = ''; multiSelected = new Set(); }}
+    onNodeClick={handleTreeNodeClick}
+    onContextMenu={openContextMenu}
+    onNodePointerDown={onNodePointerDown}
+    onNodePointerMove={onNodePointerMove}
+    onNodePointerUp={onNodePointerUp}
+    onNodePointerCancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); }}
+    onCommitEdit={commitEdit}
+    onCancelEdit={cancelEdit}
+    onEditValueChange={(v) => { editValue = v; }}
+  />
 
   <SearchPanel
     {worktreePath}
@@ -1547,26 +1454,7 @@ import { get } from 'svelte/store';
     shortcuts={$shortcuts}
     shortcutDefs={SHORTCUT_DEFS}
     onClose={() => { commandPaletteVisible = false; }}
-    onAction={(id) => {
-      commandPaletteVisible = false;
-      switch (id) {
-        case 'quickOpen': quickOpenVisible = true; break;
-        case 'searchFiles': toggleSearchPanel(); break;
-        case 'splitEditor': toggleSplit(); break;
-        case 'toggleSidebar': sidebarHidden = !sidebarHidden; break;
-        case 'openSettings': onGoSettings?.(); break;
-        case 'closeTab': closeTab(0, panes[0].activeTabIdx, null); break;
-        case 'reopenClosedTab': reopenClosedTab(); break;
-        case 'nextTab': if (panes[0].tabs.length > 1) switchTab(0, (panes[0].activeTabIdx + 1) % panes[0].tabs.length); break;
-        case 'prevTab': if (panes[0].tabs.length > 1) switchTab(0, (panes[0].activeTabIdx - 1 + panes[0].tabs.length) % panes[0].tabs.length); break;
-        case 'tabHistoryBack': tabHistoryBack(); break;
-        case 'tabHistoryForward': tabHistoryForward(); break;
-        case 'saveFile': flushSave(0); break;
-        case 'fontSizeUp': settings.save({ editorFontSize: Math.min(($settings.editorFontSize) + 1, 32) }); break;
-        case 'fontSizeDown': settings.save({ editorFontSize: Math.max(($settings.editorFontSize) - 1, 8) }); break;
-        case 'fontSizeReset': settings.save({ editorFontSize: 13 }); break;
-      }
-    }}
+    onAction={(id) => { commandPaletteVisible = false; executeAction(id); }}
   />
 {/if}
 
@@ -1657,83 +1545,13 @@ import { get } from 'svelte/store';
   </div>
 {/if}
 
-<!-- Recursive tree node -->
-{#snippet treeNode(node: FileNode, depth: number)}
-  {#if editState?.type === 'rename' && editState.node?.path === node.path}
-    <div class="file-tree-item file-tree-edit" style="padding-left: {12 + depth * 14}px">
-      <Icon name={fileIconFor(node, expanded)} size={13}/>
-      <input
-        use:focusOnMount
-        bind:value={editValue}
-        class="tree-edit-input {editConflict ? 'input-conflict' : ''}"
-        on:keydown={(e) => { if (e.key === 'Enter') commitEdit(); else if (e.key === 'Escape') cancelEdit(); }}
-        on:blur={cancelEdit}
-      />
-    </div>
-  {:else}
-    <button
-      type="button"
-      class="file-tree-item {panes[0].tabs.some(t => t.path === node.path) ? 'open' : ''} {activeTabs[0]?.path === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenu?.node?.path === node.path ? 'ctx-target' : ''} {nodeGitStatus(node, gitStatusMap) ? 'git-' + nodeGitStatus(node, gitStatusMap) : ''} {multiSelected.has(node.path) ? 'multi-selected' : ''} {node.isDir && dragOverDir === node.path ? 'drag-over' : ''} {cutPaths.has(node.path) ? 'file-cut' : ''}"
-      style="padding-left: {12 + depth * 14}px"
-      data-tree-dir={node.isDir ? node.path : undefined}
-      on:click={(e) => handleTreeNodeClick(e, node)}
-      on:contextmenu={(e) => openContextMenu(e, node)}
-      on:pointerdown={(e) => onNodePointerDown(e, node)}
-      on:pointermove={onNodePointerMove}
-      on:pointerup={onNodePointerUp}
-      on:pointercancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); }}
-    >
-      <Icon name={fileIconFor(node, expanded)} size={13}/>
-      <span class="file-tree-name">{node.name}</span>
-      {#if panes.some(p => p.tabs.some(t => t.path === node.path && t.pending !== t.content))}
-        <span class="tab-dot">●</span>
-      {/if}
-      {#if loadingPaths.has(node.path)}
-        <span class="tree-loading-dot">…</span>
-      {/if}
-    </button>
-  {/if}
-  {#if node.isDir && expanded.has(node.path) && node.children}
-    {#if editState && editState.parentPath === node.path && editState.type !== 'rename'}
-      {@render inlineInput(depth + 1)}
-    {/if}
-    {#each node.children as child}
-      {@render treeNode(child, depth + 1)}
-    {/each}
-  {/if}
-{/snippet}
-
-{#snippet inlineInput(depth: number)}
-  <div class="file-tree-item file-tree-edit" style="padding-left: {12 + depth * 14}px">
-    <Icon name={editState?.type === 'new-dir' ? 'folder' : 'file'} size={13} />
-    <input
-      use:focusOnMount
-      bind:value={editValue}
-      placeholder={editState?.type === 'new-dir' ? 'folder name' : 'file name'}
-      class="tree-edit-input {editConflict ? 'input-conflict' : ''}"
-      on:keydown={(e) => { if (e.key === 'Enter') commitEdit(); else if (e.key === 'Escape') cancelEdit(); }}
-      on:blur={cancelEdit}
-    />
-  </div>
-{/snippet}
 
 <style>
   .files-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
   .files-layout.sidebar-right { flex-direction: row-reverse; }
-  .files-layout.sidebar-right .files-tree { border-right: none; border-left: 1px solid var(--stroke-0); }
-  .files-layout.sidebar-hidden .files-tree { display: none; }
+  .files-layout.sidebar-hidden :global(.files-tree) { display: none; }
   .files-layout.sidebar-hidden .resize-handle { display: none; }
-
-  /* ── File tree ───────────────────────────────────────────────── */
-
-  .files-tree {
-    flex-shrink: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0 0 8px;
-    background: var(--bg-1);
-    border-right: 1px solid var(--stroke-0);
-  }
+  .files-layout.sidebar-right :global(.files-tree) { border-right: none; border-left: 1px solid var(--stroke-0); }
 
   .resize-handle {
     width: 3px;
@@ -1747,61 +1565,9 @@ import { get } from 'svelte/store';
   .resize-handle:hover,
   .resize-handle:active { background: var(--accent); }
 
-  .files-tree-header {
-    display: flex;
-    align-items: center;
-    padding: 4px 6px;
-    border-bottom: 1px solid var(--stroke-0);
-  }
-
-  .tree-state {
-    padding: 12px 14px;
-    font-size: 12px;
-    color: var(--fg-3);
-  }
-  .tree-state.error { color: var(--danger); }
-
-  .file-tree-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    width: 100%;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-right: 12px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-    color: var(--fg-2);
-    font-size: 12.5px;
-    font-family: var(--font-ui);
-  }
-  .file-tree-item:hover,
-  .file-tree-item.ctx-target { background: var(--bg-4); color: var(--fg-0); }
-  .file-tree-item.open { color: var(--fg-1); }
-  .file-tree-item.active { background: var(--accent-weak); color: var(--fg-0); }
-  .file-tree-item.selected-dir { background: var(--bg-3); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
-  .file-tree-item.loading { opacity: 0.6; }
-
-  .file-tree-item.git-modified .file-tree-name { color: var(--warning); }
-  .file-tree-item.git-untracked .file-tree-name { color: var(--success); }
-  .file-tree-item.git-deleted .file-tree-name { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
-  .file-tree-item.git-deleted { cursor: default; }
-  .file-tree-item.git-staged .file-tree-name { color: var(--accent); }
-  .file-tree-item.multi-selected { background: var(--accent-weak); color: var(--fg-0); }
-  .file-tree-item.file-cut { opacity: 0.45; }
-  .file-tree-item.file-cut .file-tree-name { text-decoration: underline dashed; text-underline-offset: 3px; }
-  .file-tree-item.drag-over { background: var(--accent-weak); box-shadow: inset 0 0 0 1px var(--accent); }
-
-  button.file-tree-item :global(*) { pointer-events: none; }
-  .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-loading-dot { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
-
   /* ── Editor wrap ─────────────────────────────────────────────── */
 
   .files-editor-wrap { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
-
 
   .split-resize-handle {
     width: 3px;
@@ -1812,79 +1578,6 @@ import { get } from 'svelte/store';
   }
   .split-resize-handle:hover,
   .split-resize-handle:active { background: var(--accent); }
-
-  .tab-dot { color: var(--accent); font-size: 10px; line-height: 1; }
-
-  /* ── Tree header actions ─────────────────────────────────────────── */
-
-  .tree-root-row { box-shadow: 0 1px 0 var(--stroke-0); margin-bottom: 2px; }
-  .tree-header-actions {
-    display: flex;
-    gap: 2px;
-    flex: 1;
-    justify-content: center;
-  }
-  .tree-action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: none;
-    background: none;
-    border-radius: 3px;
-    cursor: pointer;
-    color: var(--fg-3);
-    padding: 0;
-    position: relative;
-  }
-  .tree-action-btn:hover { background: var(--bg-4); color: var(--fg-0); }
-  .tree-action-btn.active { color: var(--accent); }
-
-  .tree-action-btn[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg-3);
-    border: 1px solid var(--stroke-1);
-    color: var(--fg-1);
-    font-family: var(--font-ui);
-    font-size: 11px;
-    white-space: nowrap;
-    padding: 3px 7px;
-    border-radius: 4px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.1s;
-    z-index: 200;
-  }
-  .tree-action-btn[data-tooltip]:hover::after {
-    opacity: 1;
-  }
-
-  /* ── Inline edit ─────────────────────────────────────────────────── */
-
-  .file-tree-edit { cursor: default; pointer-events: none; }
-  .tree-edit-input {
-    flex: 1;
-    background: var(--bg-3);
-    border: 1px solid var(--accent);
-    border-radius: 3px;
-    color: var(--fg-0);
-    font-size: 12.5px;
-    font-family: var(--font-ui);
-    padding: 1px 4px;
-    outline: none;
-    min-width: 0;
-    pointer-events: all;
-  }
-  .tree-edit-input.input-conflict {
-    border-color: oklch(0.70 0.18 15);
-    background: oklch(0.18 0.06 15);
-    color: oklch(0.88 0.14 15);
-  }
 
   /* ── Context menu ────────────────────────────────────────────────── */
 

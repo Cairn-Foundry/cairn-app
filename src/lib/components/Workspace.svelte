@@ -10,6 +10,8 @@
   import TestsView from '$lib/components/tests/TestsView.svelte';
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
+  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
+  import { clickOutside } from '$lib/utils/click-outside';
 
   import type { Instance } from '$lib/types/instance';
   import { instances } from '$lib/stores/instance';
@@ -32,14 +34,6 @@
     await activateInstance(activeProjectId, id);
   }
 
-  function clickOutside(node: HTMLElement, callback: () => void) {
-    const handler = (e: PointerEvent) => {
-      if (!node.contains(e.target as Node)) callback();
-    };
-    document.addEventListener('pointerdown', handler, true);
-    return { destroy: () => document.removeEventListener('pointerdown', handler, true) };
-  }
-
   const dispatch = createEventDispatcher<{
     projectChange: string;
     closeProject: string;
@@ -56,16 +50,6 @@
   let didDrag = false;
   let tabsRowEl: HTMLElement | null = null;
 
-  function computeInsertIndex(clientX: number): number {
-    const tabs = tabsRowEl?.querySelectorAll<HTMLElement>('.project-tab');
-    if (!tabs || tabs.length === 0) return 0;
-    for (let i = 0; i < tabs.length; i++) {
-      const rect = tabs[i].getBoundingClientRect();
-      if (clientX < rect.left + rect.width / 2) return i;
-    }
-    return tabs.length;
-  }
-
   function tabPointerDown(e: PointerEvent, index: number) {
     if ((e.target as Element).closest('button')) return;
     e.preventDefault();
@@ -77,7 +61,7 @@
 
   function tabPointerMove(e: PointerEvent) {
     if (dragSrcIndex === null) return;
-    const next = computeInsertIndex(e.clientX);
+    const next = computeTabInsertIndex(tabsRowEl, e.clientX, { selector: '.project-tab' });
     if (next !== insertIndex) didDrag = true;
     insertIndex = next;
   }

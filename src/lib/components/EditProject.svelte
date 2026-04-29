@@ -1,9 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
+  import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
   import { editProject } from '$lib/stores/project';
   import type { Project } from '$lib/types/project';
-  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
 
   export let project: Project;
 
@@ -14,7 +16,6 @@
   let loading = false;
   let error = '';
 
-  const presetColors = PROJECT_COLORS;
 
   $: canSave = name.trim().length > 0 && (name.trim() !== project.name || color !== project.color);
 
@@ -75,26 +76,10 @@
 
       <div class="form-section">
         <div class="ep-label">Color</div>
-        <div class="color-row">
-          {#each presetColors as c}
-            <button
-              class="color-swatch {color === c ? 'selected' : ''}"
-              style="background:{c}"
-              on:click={() => color = c}
-              aria-label="Color {c}"
-            ></button>
-          {/each}
-          <label for="color-edit" class="color-custom-wrap" title="Custom color">
-            <input id="color-edit" type="color" bind:value={color} class="color-custom-input"/>
-            <span class="color-custom-preview" style="background:{color}"></span>
-          </label>
-        </div>
+        <ProjectColorPicker bind:color idSuffix="edit" />
       </div>
 
-      <div class="preview-pill" style="border-color:{color}33;background:{color}14;">
-        <span class="preview-dot" style="background:{color}"></span>
-        <span class="preview-label" style="color:{color}">{name || project.name}</span>
-      </div>
+      <ProjectPreviewPill name={name || project.name} {color} />
 
       {#if error}
         <div class="ep-error" role="alert">
@@ -108,7 +93,7 @@
       <button class="btn ghost" on:click={() => dispatch('close')} disabled={loading}>Cancel</button>
       <button class="btn primary" disabled={!canSave || loading} on:click={save}>
         {#if loading}
-          <span class="ep-spinner"></span> Saving…
+          <Spinner /> Saving…
         {:else}
           <Icon name="check" size={14}/> Save changes
         {/if}
@@ -152,49 +137,8 @@
   }
   .ep-input::placeholder { color: var(--fg-4); opacity: 1; }
 
-  .color-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .color-swatch {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform 0.1s, border-color 0.1s;
-    flex-shrink: 0;
-  }
-  .color-swatch:hover { transform: scale(1.18); }
-  .color-swatch.selected { border-color: var(--fg-0); box-shadow: 0 0 0 2px var(--bg-1); }
 
-  .color-custom-wrap {
-    position: relative;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    overflow: hidden;
-    cursor: pointer;
-    flex-shrink: 0;
-    border: 2px dashed var(--stroke-1);
-  }
-  .color-custom-input {
-    position: absolute;
-    inset: -4px;
-    width: calc(100% + 8px);
-    height: calc(100% + 8px);
-    opacity: 0;
-    cursor: pointer;
-  }
-  .color-custom-preview { display: block; width: 100%; height: 100%; border-radius: 50%; }
 
-  .preview-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px 6px 8px;
-    border-radius: 999px;
-    border: 1px solid;
-    margin-top: 4px;
-    transition: background 0.2s, border-color 0.2s;
-  }
-  .preview-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .preview-label { font-size: 13px; font-weight: 500; }
 
   .ep-error {
     display: flex;
@@ -210,14 +154,4 @@
     line-height: 1.5;
   }
 
-  .ep-spinner {
-    display: inline-block;
-    width: 13px; height: 13px;
-    border: 2px solid oklch(1 0 0 / 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: ep-spin 0.6s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes ep-spin { to { transform: rotate(360deg); } }
 </style>

@@ -1,11 +1,24 @@
-export function computeTabInsertIndex(barEl: HTMLElement | null, clientX: number): number {
-  const tabEls = barEl?.querySelectorAll<HTMLElement>('.file-tab');
-  if (!tabEls || tabEls.length === 0) return 0;
-  for (let i = 0; i < tabEls.length; i++) {
-    const rect = tabEls[i].getBoundingClientRect();
-    if (clientX < rect.left + rect.width / 2) return i;
+export interface InsertIndexOptions {
+  selector?: string;
+  axis?: 'x' | 'y';
+}
+
+export function computeTabInsertIndex(
+  barEl: HTMLElement | null,
+  pointerCoord: number,
+  opts: InsertIndexOptions = {},
+): number {
+  const selector = opts.selector ?? '.file-tab';
+  const axis = opts.axis ?? 'x';
+  const itemEls = barEl?.querySelectorAll<HTMLElement>(selector);
+  if (!itemEls || itemEls.length === 0) return 0;
+  for (let i = 0; i < itemEls.length; i++) {
+    const rect = itemEls[i].getBoundingClientRect();
+    const start = axis === 'x' ? rect.left : rect.top;
+    const size = axis === 'x' ? rect.width : rect.height;
+    if (pointerCoord < start + size / 2) return i;
   }
-  return tabEls.length;
+  return itemEls.length;
 }
 
 export function sortedByPin<T extends { pinned?: boolean }>(arr: T[]): T[] {
