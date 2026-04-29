@@ -148,7 +148,7 @@
             </button>
             <button class="card-menu-item" role="menuitem"
               on:click={(e) => { e.stopPropagation(); handleReveal(p.path); }}>
-              <Icon name="folder" size={13}/> {t('home.projects.menu.revealInFinder')}
+              <Icon name="folder" size={13}/> {t('common.reveal')}
             </button>
             <div class="card-menu-sep"></div>
             <button class="card-menu-item danger" role="menuitem"

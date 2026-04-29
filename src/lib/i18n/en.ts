@@ -140,7 +140,6 @@ export const en = {
 		fromBranch: "from",
 		actions: {
 			select: "Select",
-			revealInFinder: "Open worktree in Finder",
 			copyPath: "Copy worktree path",
 			copyPathDone: "Copied",
 			deleteInstance: "Delete instance",
@@ -401,6 +400,29 @@ export const en = {
 		},
 		fileNamePlaceholder: "file name",
 		folderNamePlaceholder: "folder name",
+		contextMenu: {
+			newFile: "New File",
+			newFolder: "New Folder",
+			cut: "Cut",
+			paste: "Paste",
+			copyPath: "Copy Path",
+			copyRelativePath: "Copy Relative Path",
+			copyAbsolutePath: "Copy Absolute Path",
+			rename: "Rename",
+			openInTerminal: "Open in Terminal",
+			deleteItems: (n: number) => `Delete ${n} items`,
+			deleteConfirm: (name: string) => `Delete "${name}"?`,
+		},
+		tabContextMenu: {
+			pinTab: "Pin Tab",
+			unpinTab: "Unpin Tab",
+			closeTab: "Close Tab",
+			closeOthers: "Close Others",
+			closeAll: "Close All Tabs",
+			revealInTree: "Reveal in Tree",
+			copyRelativePath: "Copy Relative Path",
+			copyAbsolutePath: "Copy Absolute Path",
+		},
 	},
 
 	quickOpen: {
@@ -444,6 +466,7 @@ export const en = {
 		closeBlame: "Close blame",
 		closeDiff: "Close diff",
 		blameLoading: "Loading…",
+		failedToLoadDiff: "Failed to load diff",
 	},
 
 	git: {
@@ -522,7 +545,6 @@ export const en = {
 				edit: "Edit",
 				duplicate: "Duplicate",
 				copyPath: "Copy path",
-				revealInFinder: "Reveal in Finder",
 				delete: "Delete",
 			},
 		},

@@ -141,7 +141,6 @@ export const fr = {
 		fromBranch: "depuis",
 		actions: {
 			select: "Sélectionner",
-			revealInFinder: "Ouvrir le worktree dans le Finder",
 			copyPath: "Copier le chemin du worktree",
 			copyPathDone: "Copié",
 			deleteInstance: "Supprimer l'instance",
@@ -413,6 +412,29 @@ export const fr = {
 		},
 		fileNamePlaceholder: "nom du fichier",
 		folderNamePlaceholder: "nom du dossier",
+		contextMenu: {
+			newFile: "Nouveau fichier",
+			newFolder: "Nouveau dossier",
+			cut: "Couper",
+			paste: "Coller",
+			copyPath: "Copier le chemin",
+			copyRelativePath: "Copier le chemin relatif",
+			copyAbsolutePath: "Copier le chemin absolu",
+			rename: "Renommer",
+			openInTerminal: "Ouvrir dans le terminal",
+			deleteItems: (n: number) => `Supprimer ${n} éléments`,
+			deleteConfirm: (name: string) => `Supprimer "${name}" ?`,
+		},
+		tabContextMenu: {
+			pinTab: "Épingler l'onglet",
+			unpinTab: "Désépingler l'onglet",
+			closeTab: "Fermer l'onglet",
+			closeOthers: "Fermer les autres",
+			closeAll: "Fermer tous les onglets",
+			revealInTree: "Révéler dans l'arborescence",
+			copyRelativePath: "Copier le chemin relatif",
+			copyAbsolutePath: "Copier le chemin absolu",
+		},
 	},
 
 	quickOpen: {
@@ -456,6 +478,7 @@ export const fr = {
 		closeBlame: "Fermer le blame",
 		closeDiff: "Fermer le diff",
 		blameLoading: "Chargement…",
+		failedToLoadDiff: "Impossible de charger le diff",
 	},
 
 	git: {
@@ -536,7 +559,6 @@ export const fr = {
 				edit: "Modifier",
 				duplicate: "Dupliquer",
 				copyPath: "Copier le chemin",
-				revealInFinder: "Afficher dans le Finder",
 				delete: "Supprimer",
 			},
 		},

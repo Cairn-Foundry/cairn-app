@@ -575,7 +575,7 @@ import { get } from 'svelte/store';
       'open-terminal': async () => { await openInTerminal(absOf(node)); },
       'delete': async () => {
         if (!node) return;
-        if (!confirm(`Delete "${node.name}"?`)) return;
+        if (!confirm((t('files.contextMenu.deleteConfirm') as (name: string) => string)(node.name))) return;
         try {
           await deletePath(`${worktreePath}/${node.path}`);
           panes[0].tabs = panes[0].tabs.filter(t => !t.path.startsWith(node.path));
@@ -682,7 +682,7 @@ import { get } from 'svelte/store';
       panes = panes;
     } catch (e) {
       popup.loadingDiff = false;
-      popup.error = e instanceof Error ? e.message : 'Failed to load diff';
+      popup.error = e instanceof Error ? e.message : t('diffPeek.failedToLoadDiff') as string;
       blamePopups[paneIdx] = { ...popup };
       panes = panes;
     }
@@ -1464,28 +1464,28 @@ import { get } from 'svelte/store';
   <div class="ctx-backdrop" on:mousedown={closeTabCtxMenu}></div>
   <div class="ctx-menu" style="left: {tabCtxMenu.x}px; top: {tabCtxMenu.y}px">
     <button type="button" class="ctx-item" on:click={() => togglePinTab(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
-      <Icon name="pin" size={13}/> {panes[tabCtxMenu.pane].tabs[tabCtxMenu.idx]?.pinned ? 'Unpin Tab' : 'Pin Tab'}
+      <Icon name="pin" size={13}/> {panes[tabCtxMenu.pane].tabs[tabCtxMenu.idx]?.pinned ? t('files.tabContextMenu.unpinTab') : t('files.tabContextMenu.pinTab')}
     </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => { const m = tabCtxMenu!; closeTabCtxMenu(); closeTab(m.pane, m.idx, null); }}>
-      <Icon name="x" size={13}/> Close Tab
+      <Icon name="x" size={13}/> {t('files.tabContextMenu.closeTab')}
     </button>
     <button type="button" class="ctx-item" on:click={() => closeOtherTabs(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
-      <Icon name="x" size={13}/> Close Others
+      <Icon name="x" size={13}/> {t('files.tabContextMenu.closeOthers')}
     </button>
     <button type="button" class="ctx-item" on:click={() => closeAllTabs(tabCtxMenu!.pane)}>
-      <Icon name="x" size={13}/> Close All Tabs
+      <Icon name="x" size={13}/> {t('files.tabContextMenu.closeAll')}
     </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => revealTabInTree(tabCtxMenu!.idx, tabCtxMenu!.pane)}>
-      <Icon name="folder" size={13}/> Reveal in Tree
+      <Icon name="folder" size={13}/> {t('files.tabContextMenu.revealInTree')}
     </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => copyTabPath(tabCtxMenu!.idx, tabCtxMenu!.pane, false)}>
-      <Icon name="copy" size={13}/> Copy Relative Path
+      <Icon name="copy" size={13}/> {t('files.tabContextMenu.copyRelativePath')}
     </button>
     <button type="button" class="ctx-item" on:click={() => copyTabPath(tabCtxMenu!.idx, tabCtxMenu!.pane, true)}>
-      <Icon name="copy" size={13}/> Copy Absolute Path
+      <Icon name="copy" size={13}/> {t('files.tabContextMenu.copyAbsolutePath')}
     </button>
   </div>
 {/if}
@@ -1496,52 +1496,52 @@ import { get } from 'svelte/store';
   <div class="ctx-menu" bind:this={ctxMenuEl} style="left: {contextMenu.x}px; top: {contextMenu.y}px">
     {#if contextMenu.node === null || contextMenu.node.isDir}
       <button type="button" class="ctx-item" on:click={() => handleContextAction('new-file')}>
-        <Icon name="file" size={13}/> New File
+        <Icon name="file" size={13}/> {t('files.contextMenu.newFile')}
       </button>
       <button type="button" class="ctx-item" on:click={() => handleContextAction('new-dir')}>
-        <Icon name="folder" size={13}/> New Folder
+        <Icon name="folder" size={13}/> {t('files.contextMenu.newFolder')}
       </button>
       <div class="ctx-sep"></div>
     {/if}
     {#if contextMenu.node !== null}
       <button type="button" class="ctx-item" on:click={() => handleContextAction('cut')}>
-        <Icon name="scissors" size={13}/> Cut
+        <Icon name="scissors" size={13}/> {t('files.contextMenu.cut')}
       </button>
       <button type="button" class="ctx-item" on:click={() => handleContextAction('copy')}>
-        <Icon name="copy" size={13}/> Copy
+        <Icon name="copy" size={13}/> {t('common.copy')}
       </button>
     {/if}
     <button type="button" class="ctx-item" disabled={!fileClipboard} on:click={() => handleContextAction('paste')}>
-      <Icon name="clipboard" size={13}/> Paste
+      <Icon name="clipboard" size={13}/> {t('files.contextMenu.paste')}
     </button>
     {#if multiSelected.size > 1}
       <div class="ctx-sep"></div>
       <button type="button" class="ctx-item ctx-item-danger" on:click={bulkDelete}>
-        <Icon name="trash" size={13}/> Delete {multiSelected.size} items
+        <Icon name="trash" size={13}/> {(t('files.contextMenu.deleteItems') as (n: number) => string)(multiSelected.size)}
       </button>
     {/if}
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-path')}>
-      <Icon name="copy" size={13}/> Copy Path
+      <Icon name="copy" size={13}/> {t('files.contextMenu.copyPath')}
     </button>
     {#if contextMenu.node !== null}
       <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-rel-path')}>
-        <Icon name="copy" size={13}/> Copy Relative Path
+        <Icon name="copy" size={13}/> {t('files.contextMenu.copyRelativePath')}
       </button>
       <div class="ctx-sep"></div>
       <button type="button" class="ctx-item" on:click={() => handleContextAction('rename')}>
-        <Icon name="edit" size={13}/> Rename
+        <Icon name="edit" size={13}/> {t('files.contextMenu.rename')}
       </button>
       <button type="button" class="ctx-item ctx-item-danger" on:click={() => handleContextAction('delete')}>
-        <Icon name="trash" size={13}/> Delete
+        <Icon name="trash" size={13}/> {t('common.delete')}
       </button>
     {/if}
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('reveal')}>
-      <Icon name="folder" size={13}/> Reveal in Finder
+      <Icon name="folder" size={13}/> {t('common.reveal')}
     </button>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('open-terminal')}>
-      <Icon name="terminal" size={13}/> Open in Terminal
+      <Icon name="terminal" size={13}/> {t('files.contextMenu.openInTerminal')}
     </button>
   </div>
 {/if}
