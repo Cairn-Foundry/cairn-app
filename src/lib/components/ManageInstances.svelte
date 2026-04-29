@@ -9,7 +9,6 @@
   import type { Instance } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { CLIPBOARD_CLEAR_DELAY } from '$lib/utils/timing';
-  import { formatDate } from '$lib/utils/format';
 
   export let activeInstanceId: string | null;
 
@@ -18,7 +17,16 @@
   let search = '';
   let deletingId: string | null = null;
   let confirmDeleteId: string | null = null;
+  let moreOpenId: string | null = null;
   let copiedId: string | null = null;
+  let moreMenuPos = { top: 0, right: 0 };
+
+  function openMore(inst: Instance, btn: HTMLElement) {
+    if (moreOpenId === inst.id) { moreOpenId = null; return; }
+    const r = btn.getBoundingClientRect();
+    moreMenuPos = { top: r.bottom + 4, right: window.innerWidth - r.right };
+    moreOpenId = inst.id;
+  }
 
   $: filtered = $instances.filter(i =>
     matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
@@ -31,10 +39,12 @@
   }
 
   async function handleReveal(inst: Instance) {
+    moreOpenId = null;
     await revealInFileManager(inst.worktreePath);
   }
 
   async function handleCopyPath(inst: Instance) {
+    moreOpenId = null;
     await navigator.clipboard.writeText(inst.worktreePath);
     copiedId = inst.id;
     setTimeout(() => { copiedId = null; }, CLIPBOARD_CLEAR_DELAY);
@@ -42,6 +52,7 @@
 
   async function handleDelete(inst: Instance) {
     if (!$activeProject) return;
+    moreOpenId = null;
     if (confirmDeleteId !== inst.id) {
       confirmDeleteId = inst.id;
       return;
@@ -59,13 +70,14 @@
     confirmDeleteId = null;
   }
 
-  const STATUS_LABEL: Record<string, string> = {
-    idle: t('manageInstances.statusLabels.idle') as string,
-    running: t('manageInstances.statusLabels.running') as string,
-    paused: t('manageInstances.statusLabels.paused') as string,
-    done: t('manageInstances.statusLabels.done') as string,
-  };
+  $: moreInst = moreOpenId ? ($instances.find(i => i.id === moreOpenId) ?? null) : null;
 
+  const STATUS_DOT: Record<string, string> = {
+    running: 'var(--accent)',
+    done:    'oklch(0.65 0.14 145)',
+    paused:  'oklch(0.68 0.12 60)',
+    idle:    'var(--fg-4)',
+  };
 </script>
 
 <div class="modal-backdrop" on:click={() => dispatch('close')} role="button" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && dispatch('close')}>
@@ -108,64 +120,71 @@
             {@const isActive = inst.id === activeInstanceId}
             {@const isDeleting = deletingId === inst.id}
             {@const isConfirming = confirmDeleteId === inst.id}
-            <li class="mi-row {isActive ? 'current' : ''} {isDeleting ? 'deleting' : ''}">
-              <div class="mi-row-main">
-                <div class="mi-row-top">
-                  <span class="mi-status-dot status-{inst.status}"></span>
-                  <span class="mi-ticket-id">{inst.ticket.id}</span>
-                  <span class="mi-ticket-title">{inst.ticket.title}</span>
-                  <div class="mi-badges">
-                    <span class="mi-badge mode">{inst.useGit ? 'git' : 'local'}</span>
-                    <span class="mi-badge status-badge">{STATUS_LABEL[inst.status] ?? inst.status}</span>
-                    {#if isActive}<span class="mi-badge active-badge">{t('manageInstances.activeBadge')}</span>{/if}
-                  </div>
-                </div>
+            {@const isMoreOpen = moreOpenId === inst.id}
+            <li class="mi-row" class:active={isActive} class:deleting={isDeleting} class:confirming={isConfirming}>
+
+              <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
+
+              <div class="mi-body-inner">
+                <span class="mi-title">{inst.ticket.title}</span>
                 {#if inst.branch}
-                  <div class="mi-row-branch">
-                    <Icon name="branch" size={11}/>
-                    <span class="mi-branch">{inst.branch}</span>
-                    {#if inst.baseBranch}
-                      <span class="mi-base-branch">{t('manageInstances.fromBranch')} <code>{inst.baseBranch}</code></span>
-                    {/if}
-                  </div>
+                  <span class="mi-branch">
+                    <Icon name="branch" size={10}/>
+                    {inst.branch}
+                  </span>
                 {/if}
               </div>
 
-              <span class="mi-date"><Icon name="clock" size={11}/> {formatDate(inst.createdAt)}</span>
-
-              {#if isConfirming}
-                <div class="mi-confirm">
+              <div class="mi-actions">
+                {#if isConfirming}
                   <span class="mi-confirm-label">{t('manageInstances.deleteConfirm')}</span>
-                  <button class="mi-action danger" on:click={() => handleDelete(inst)} disabled={isDeleting}>
-                    {#if isDeleting}<Spinner size={11} />{:else}{t('common.confirm')}{/if}
+                  <button class="row-btn danger" on:click={() => handleDelete(inst)} disabled={isDeleting}>
+                    {#if isDeleting}<Spinner size={10}/>{:else}{t('common.confirm')}{/if}
                   </button>
-                  <button class="mi-action ghost" on:click={cancelDelete}>{t('common.cancel')}</button>
-                </div>
-              {:else}
-                <div class="mi-actions">
+                  <button class="row-btn" on:click={cancelDelete}>{t('common.cancel')}</button>
+                {:else}
                   {#if !isActive}
-                    <button class="mi-action primary" on:click={() => handleSetActive(inst)}>
-                      <Icon name="chev-r" size={13}/> {t('manageInstances.actions.select')}
+                    <button class="row-btn" on:click={() => handleSetActive(inst)}>
+                      {t('manageInstances.actions.select')}
                     </button>
                   {/if}
-                  <button class="mi-action" title={t('manageInstances.actions.revealInFinder') as string} on:click={() => handleReveal(inst)}>
-                    <Icon name="folder" size={13}/> {t('manageInstances.actions.reveal')}
+
+                  <button
+                    class="row-btn icon-only"
+                    class:open={isMoreOpen}
+                    aria-label="More actions"
+                    on:click={(e) => openMore(inst, e.currentTarget)}
+                  >
+                    <Icon name="more" size={13}/>
                   </button>
-                  <button class="mi-action" title={t('manageInstances.actions.copyPath') as string} on:click={() => handleCopyPath(inst)}>
-                    <Icon name={copiedId === inst.id ? 'check' : 'copy'} size={13}/>
-                    {copiedId === inst.id ? t('manageInstances.actions.copyPathDone') : t('manageInstances.actions.copyPathLabel')}
-                  </button>
-                  <button class="mi-action danger" title={t('common.delete') as string} on:click={() => handleDelete(inst)}>
-                    <Icon name="x" size={13}/> {t('common.delete')}
-                  </button>
-                </div>
-              {/if}
+                {/if}
+              </div>
+
             </li>
           {/each}
         </ul>
       {/if}
     </div>
 
+    {#if moreInst}
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div class="more-overlay" on:click={() => moreOpenId = null} role="presentation"></div>
+      <div class="more-menu" style="top:{moreMenuPos.top}px; right:{moreMenuPos.right}px;">
+        <button class="more-item" on:click={() => handleReveal(moreInst)}>
+          <Icon name="folder" size={13}/>
+          {t('manageInstances.actions.reveal')}
+        </button>
+        <button class="more-item" on:click={() => handleCopyPath(moreInst)}>
+          <Icon name={copiedId === moreInst.id ? 'check' : 'copy'} size={13}/>
+          {copiedId === moreInst.id ? t('manageInstances.actions.copyPathDone') : t('manageInstances.actions.copyPathLabel')}
+        </button>
+        <div class="more-sep"></div>
+        <button class="more-item danger" on:click={() => handleDelete(moreInst)}>
+          <Icon name="trash" size={13}/>
+          {t('common.delete')}
+        </button>
+      </div>
+    {/if}
 
     <div class="modal-foot">
       <button class="btn primary" on:click={() => { dispatch('newInstance'); dispatch('close'); }}>
@@ -179,21 +198,19 @@
 </div>
 
 <style>
-  .mi-modal { width: min(640px, 94vw); }
+  .mi-modal { width: min(580px, 94vw); }
 
-  /* Search bar */
   .mi-search-bar {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 0 16px;
-    height: 40px;
+    height: 38px;
     border-bottom: 1px solid var(--stroke-0);
-    background: var(--bg-1);
     color: var(--fg-3);
     flex-shrink: 0;
+    background: var(--bg-0);
   }
-
   .mi-search-input {
     flex: 1;
     background: none;
@@ -204,24 +221,22 @@
     font-family: var(--font-ui);
   }
   .mi-search-input::placeholder { color: var(--fg-4); }
-
   .mi-search-clear {
     display: flex;
     align-items: center;
-    justify-content: center;
     background: none;
     border: none;
     color: var(--fg-3);
     cursor: pointer;
-    padding: 2px;
-    border-radius: 3px;
+    padding: 2px 4px;
+    border-radius: var(--r-xs);
   }
   .mi-search-clear:hover { color: var(--fg-0); background: var(--bg-3); }
 
   .mi-body { padding: 0 !important; }
 
   .mi-empty {
-    padding: 32px 24px;
+    padding: 40px 20px;
     font-size: 13px;
     color: var(--fg-3);
     text-align: center;
@@ -230,138 +245,139 @@
   .mi-list {
     list-style: none;
     margin: 0;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: 440px;
+    padding: 0;
+    max-height: 400px;
     overflow-y: auto;
   }
 
   .mi-row {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 14px;
-    border-radius: var(--r-md);
-    border: 1px solid var(--stroke-0);
-    background: var(--bg-0);
-    transition: border-color 0.15s;
-  }
-  .mi-row.current { border-color: var(--accent); background: var(--accent-weak); }
-  .mi-row.deleting { opacity: 0.5; pointer-events: none; }
-
-  .mi-row-top {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--stroke-0);
+    transition: background 0.1s;
+    min-height: 52px;
   }
+  .mi-row:last-child { border-bottom: none; }
+  .mi-row:hover { background: var(--bg-2); }
+  .mi-row.active { background: var(--accent-weak); }
+  .mi-row.deleting { opacity: 0.4; pointer-events: none; }
+  .mi-row.confirming { background: oklch(0.20 0.03 15 / 0.5); }
 
-  .mi-status-dot {
-    width: 7px; height: 7px;
+  .mi-dot {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
-    background: var(--fg-4);
-  }
-  .mi-status-dot.status-running { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-  .mi-status-dot.status-done    { background: oklch(0.7 0.15 145); }
-  .mi-status-dot.status-paused  { background: oklch(0.7 0.12 60); }
-
-  .mi-ticket-id {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--fg-3);
-    flex-shrink: 0;
   }
 
-  .mi-ticket-title {
+  .mi-body-inner {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mi-title {
     font-size: 13px;
     font-weight: 500;
     color: var(--fg-0);
-    flex: 1;
-    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .mi-badges { display: flex; gap: 4px; flex-shrink: 0; }
-
-  .mi-date {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    color: var(--fg-4);
-  }
-
-  .mi-badge {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--bg-3);
-    color: var(--fg-3);
-  }
-  .mi-badge.active-badge { background: var(--accent-weak); color: var(--accent); }
-
-  .mi-row-branch {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--fg-3);
   }
 
   .mi-branch {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 11px;
-    font-family: var(--font-mono);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .mi-base-branch {
-    font-size: 11px;
-    color: var(--fg-4);
-  }
-  .mi-base-branch code {
     font-family: var(--font-mono);
     color: var(--fg-3);
   }
 
-  /* Actions row */
-  .mi-actions, .mi-confirm {
+  .mi-actions {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex-wrap: wrap;
+    flex-shrink: 0;
   }
 
-  .mi-confirm { gap: 8px; }
-  .mi-confirm-label { font-size: 12px; color: var(--fg-2); margin-right: 4px; }
-
-  .mi-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: var(--r-sm);
-    border: 1px solid var(--stroke-0);
-    background: var(--bg-2);
+  .mi-confirm-label {
+    font-size: 11px;
     color: var(--fg-2);
-    font-size: 12px;
+    margin-right: 4px;
+  }
+
+  .row-btn {
+    padding: 3px 9px;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--fg-2);
+    background: none;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-xs);
     cursor: pointer;
     transition: background 0.1s, color 0.1s, border-color 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
   }
-  .mi-action:hover { background: var(--bg-4); color: var(--fg-0); }
-  .mi-action.ghost { background: none; border-color: transparent; }
-  .mi-action.ghost:hover { background: var(--bg-3); }
-  .mi-action.primary { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
-  .mi-action.primary:hover { background: var(--accent); color: #fff; }
-  .mi-action.danger { color: oklch(0.75 0.18 15); border-color: transparent; }
-  .mi-action.danger:hover { background: oklch(0.28 0.06 15); border-color: oklch(0.62 0.18 15); }
+  .row-btn:hover { color: var(--fg-0); background: var(--bg-3); }
+  .row-btn.icon-only { padding: 4px 5px; color: var(--fg-3); border-color: transparent; }
+  .row-btn.icon-only:hover,
+  .row-btn.icon-only.open { color: var(--fg-1); background: var(--bg-3); border-color: var(--stroke-1); }
+  .row-btn.danger { color: var(--fg-3); border-color: transparent; }
+  .row-btn.danger:hover { color: oklch(0.75 0.16 15); border-color: oklch(0.45 0.10 15 / 0.5); background: oklch(0.20 0.04 15); }
 
+  /* More dropdown — fixed to escape overflow:hidden scroll containers */
+  .more-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 299;
+  }
+
+  .more-menu {
+    position: fixed;
+    z-index: 300;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    padding: 4px;
+    min-width: 160px;
+    box-shadow: 0 6px 20px oklch(0 0 0 / 0.35);
+    animation: pop-menu .1s cubic-bezier(.2,1,.4,1);
+  }
+  @keyframes pop-menu {
+    from { opacity: 0; transform: translateY(-4px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .more-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    background: none;
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    color: var(--fg-1);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+  }
+  .more-item:hover { background: var(--bg-4); color: var(--fg-0); }
+  .more-item.danger { color: var(--fg-2); }
+  .more-item.danger:hover { background: oklch(0.22 0.04 15); color: oklch(0.75 0.16 15); }
+
+  .more-sep {
+    height: 1px;
+    background: var(--stroke-0);
+    margin: 4px 0;
+  }
 </style>

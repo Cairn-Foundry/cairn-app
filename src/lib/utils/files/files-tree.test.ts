@@ -19,12 +19,12 @@ import {
 } from "./files-tree";
 
 const file = (path: string): FileNode => ({
-	name: path.split("/").pop()!,
+	name: path.split("/").at(-1) ?? "",
 	path,
 	isDir: false,
 });
 const dir = (path: string, children: FileNode[] = []): FileNode => ({
-	name: path.split("/").pop()!,
+	name: path.split("/").at(-1) ?? "",
 	path,
 	isDir: true,
 	children,
