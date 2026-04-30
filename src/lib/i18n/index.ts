@@ -40,9 +40,10 @@ function loadLocale(): Locale {
 }
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-	return path
-		.split(".")
-		.reduce((acc: unknown, key) => (acc as Record<string, unknown>)[key], obj);
+	return path.split(".").reduce((acc: unknown, key) => {
+		if (acc === undefined || acc === null) return undefined;
+		return (acc as Record<string, unknown>)[key];
+	}, obj);
 }
 
 const currentDict = dictionaries[loadLocale()] as unknown as Record<
@@ -63,9 +64,12 @@ export const LOCALE_META: Record<
 export function t(
 	key: TranslationKey,
 ): string | ((...args: never[]) => string) {
-	return getNestedValue(currentDict, key) as
-		| string
-		| ((...args: never[]) => string);
+	const value = getNestedValue(currentDict, key);
+	if (value === undefined) {
+		console.error(`[i18n] Missing translation key: "${key}"`);
+		return key as string;
+	}
+	return value as string | ((...args: never[]) => string);
 }
 
 export function getLocale(): Locale {
