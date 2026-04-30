@@ -582,7 +582,8 @@ export const fr = {
 			customAgents: {
 				newAgent: "Nouvel agent",
 				emptyTitle: "Aucun agent pour l'instant",
-				emptyDesc: "Créez un profil d'agent personnalisé pour définir un comportement, un persona ou un focus de tâche spécifique.",
+				emptyDesc:
+					"Créez un profil d'agent personnalisé pour définir un comportement, un persona ou un focus de tâche spécifique.",
 				createFirst: "Créer votre premier agent",
 				deleteConfirm: "Supprimer cet agent ?",
 				fields: {
@@ -594,14 +595,18 @@ export const fr = {
 					providerPlaceholder: "Sélectionner un fournisseur",
 					model: "Modèle",
 					systemPrompt: "Prompt système",
-					systemPromptPlaceholder: "Tu es un …\n\nDécris le rôle, le ton, les contraintes et les instructions spécifiques de l'agent.",
-					systemPromptHint: "Injecté avant chaque conversation. Reste concis et ciblé.",
+					systemPromptPlaceholder:
+						"Tu es un …\n\nDécris le rôle, le ton, les contraintes et les instructions spécifiques de l'agent.",
+					systemPromptHint:
+						"Injecté avant chaque conversation. Reste concis et ciblé.",
 					overrideParams: "Remplacer les paramètres du fournisseur",
-					overrideParamsHint: "Désactivé : hérite de la température et du max tokens du fournisseur.",
+					overrideParamsHint:
+						"Désactivé : hérite de la température et du max tokens du fournisseur.",
 					temperature: "Température",
 					maxTokens: "Max tokens",
 				},
-				noProviderWarning: "Activez au moins un fournisseur dans l'onglet Fournisseurs pour l'assigner à un agent.",
+				noProviderWarning:
+					"Activez au moins un fournisseur dans l'onglet Fournisseurs pour l'assigner à un agent.",
 				untitled: "Agent sans nom",
 			},
 		},

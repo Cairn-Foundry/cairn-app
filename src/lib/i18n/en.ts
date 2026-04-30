@@ -566,7 +566,8 @@ export const en = {
 			customAgents: {
 				newAgent: "New agent",
 				emptyTitle: "No agents yet",
-				emptyDesc: "Create a custom agent profile to define a specific behavior, persona, or task focus.",
+				emptyDesc:
+					"Create a custom agent profile to define a specific behavior, persona, or task focus.",
 				createFirst: "Create your first agent",
 				deleteConfirm: "Delete this agent?",
 				fields: {
@@ -578,14 +579,18 @@ export const en = {
 					providerPlaceholder: "Select a provider",
 					model: "Model",
 					systemPrompt: "System prompt",
-					systemPromptPlaceholder: "You are a …\n\nDescribe the agent's role, tone, constraints, and any specific instructions.",
-					systemPromptHint: "Injected before every conversation. Keep it focused.",
+					systemPromptPlaceholder:
+						"You are a …\n\nDescribe the agent's role, tone, constraints, and any specific instructions.",
+					systemPromptHint:
+						"Injected before every conversation. Keep it focused.",
 					overrideParams: "Override provider defaults",
-					overrideParamsHint: "Leave off to inherit temperature and max tokens from the provider config.",
+					overrideParamsHint:
+						"Leave off to inherit temperature and max tokens from the provider config.",
 					temperature: "Temperature",
 					maxTokens: "Max tokens",
 				},
-				noProviderWarning: "Enable at least one provider in the Providers tab to assign it to an agent.",
+				noProviderWarning:
+					"Enable at least one provider in the Providers tab to assign it to an agent.",
 				untitled: "Untitled agent",
 			},
 		},
