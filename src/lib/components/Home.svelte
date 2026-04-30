@@ -7,6 +7,7 @@
   import ProjectsSection from '$lib/components/home/ProjectsSection.svelte';
   import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
   import type { Project } from '$lib/types/project';
+  import AgentsSection from '$lib/components/home/AgentsSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
   const dispatch = createEventDispatcher<{
@@ -61,6 +62,15 @@
       </div>
       <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
         {t('home.sections.activityEmpty')}
+      </div>
+
+    {:else if activeSection === 'agents'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.agents.title')}</h1>
+        <div class="sub">{t('home.agents.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <AgentsSection />
       </div>
 
     {:else if activeSection === 'account'}
