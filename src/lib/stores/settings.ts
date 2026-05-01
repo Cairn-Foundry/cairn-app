@@ -34,6 +34,13 @@ function mergeWithDefaults(
 		const v = override[key];
 		if (v !== undefined && v !== null) Object.assign(result, { [key]: v });
 	}
+
+	const savedTabs = override.workflowTabs ?? [];
+	const savedKeys = new Set(savedTabs.map((t) => t.key));
+	const missingDefaults = DEFAULT_WF_TABS.filter((t) => !savedKeys.has(t.key));
+	if (missingDefaults.length > 0) {
+		result.workflowTabs = [...savedTabs, ...missingDefaults];
+	}
 	return result;
 }
 

@@ -3,9 +3,11 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use git2::{Repository, BranchType};
 use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
+use tauri::{Emitter, Manager};
 
 #[derive(Serialize, Deserialize)]
 pub struct CommandOutput {
@@ -824,6 +826,7 @@ fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
         WorkflowTabConfig { key: "tests".into(),  name: "Tests".into(),  icon: "tests".into(),  enabled: true, order: 3 },
         WorkflowTabConfig { key: "git".into(),    name: "Git".into(),    icon: "git".into(),    enabled: true, order: 4 },
         WorkflowTabConfig { key: "cicd".into(),   name: "CI/CD".into(),  icon: "ci".into(),     enabled: true, order: 5 },
+        WorkflowTabConfig { key: "claude-test".into(), name: "Claude Test".into(), icon: "terminal".into(), enabled: true, order: 6 },
     ]
 }
 
@@ -1014,6 +1017,145 @@ fn run_agent_command(instruction: &str, cwd: &str) -> String {
     format!("agent stub: received '{}' in '{}'", instruction, cwd)
 }
 
+// ── Claude CLI session via -p / stream-json ───────────────────────────────────
+//
+// Each user message spawns `claude -p "<msg>" --output-format stream-json`.
+// On subsequent turns `--resume <session_id>` preserves conversation context.
+// The process runs headless (no TTY needed) so output is clean structured JSON.
+
+#[derive(Clone, Serialize)]
+struct ClaudeOutputEvent {
+    line:   String,
+    source: String, // "stdout" | "stdin" | "system"
+}
+
+#[derive(Default)]
+pub struct ClaudeSession {
+    working_dir: Option<String>,
+    session_id:  Option<String>,
+    child:       Option<std::process::Child>, // Some = request in flight
+}
+
+pub struct ClaudeState(pub Arc<Mutex<ClaudeSession>>);
+
+fn emit_claude(app: &tauri::AppHandle, line: String, source: &str) {
+    let _ = app.emit("claude-output", ClaudeOutputEvent { line, source: source.to_string() });
+}
+
+/// Start a new session: store the working directory, clear any previous session_id.
+#[tauri::command]
+async fn start_claude_session(app: tauri::AppHandle, working_dir: String) -> Result<(), String> {
+    let state = app.state::<ClaudeState>();
+    let mut session = state.0.lock().map_err(|e| e.to_string())?;
+    if session.child.is_some() {
+        return Err("A request is already in flight".to_string());
+    }
+    session.working_dir = Some(working_dir);
+    session.session_id  = None;
+    drop(session);
+    emit_claude(&app, "[session started]".into(), "system");
+    Ok(())
+}
+
+/// Send a message. Spawns `claude -p` with stream-json output and emits each
+/// text chunk as it arrives. Stores the session_id for context continuity.
+#[tauri::command]
+async fn send_claude_message(app: tauri::AppHandle, message: String) -> Result<(), String> {
+
+    let state = app.state::<ClaudeState>();
+
+    let (working_dir, session_id) = {
+        let session = state.0.lock().map_err(|e| e.to_string())?;
+        if session.child.is_some() {
+            return Err("A request is already in flight".to_string());
+        }
+        if session.working_dir.is_none() {
+            return Err("No active session — press Start first".to_string());
+        }
+        (session.working_dir.clone().unwrap(), session.session_id.clone())
+    };
+
+    // Build args: claude -p "<message>" --output-format json [--resume <id>]
+    let mut args: Vec<String> = vec![
+        "-p".into(),
+        message.clone(),
+        "--output-format".into(),
+        "json".into(),
+    ];
+    if let Some(ref id) = session_id {
+        args.push("--resume".into());
+        args.push(id.clone());
+    }
+
+    let mut child = Command::new("claude")
+        .args(&args)
+        .current_dir(&working_dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn claude: {e}"))?;
+
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+
+    {
+        let mut session = state.0.lock().map_err(|e| e.to_string())?;
+        session.child = Some(child);
+    }
+
+    emit_claude(&app, message, "stdin");
+
+    let app_out   = app.clone();
+    let state_out = state.0.clone();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut raw = String::new();
+        { let mut r = stdout; let _ = r.read_to_string(&mut raw); }
+
+        let mut new_session_id: Option<String> = None;
+
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+            // Store session_id for the next turn
+            new_session_id = val.get("session_id")
+                .and_then(|s| s.as_str())
+                .map(str::to_string);
+
+            // result field holds the plain-text response
+            if let Some(text) = val.get("result").and_then(|r| r.as_str()) {
+                if !text.is_empty() {
+                    emit_claude(&app_out, text.to_string(), "stdout");
+                }
+            }
+        }
+
+        if let Ok(mut s) = state_out.lock() {
+            let _ = s.child.take().map(|mut c| c.wait());
+            if let Some(id) = new_session_id {
+                s.session_id = Some(id);
+            }
+        }
+        emit_claude(&app_out, "[done]".into(), "system");
+    });
+
+    Ok(())
+}
+
+/// Stop the session: kill any in-flight process and clear the session_id.
+#[tauri::command]
+async fn stop_claude_session(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<ClaudeState>();
+    let mut session = state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(mut child) = session.child.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    session.session_id  = None;
+    session.working_dir = None;
+    drop(session);
+    emit_claude(&app, "[session stopped]".into(), "system");
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1021,6 +1163,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .manage(ClaudeState(Arc::new(Mutex::new(ClaudeSession::default()))))
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -1079,6 +1222,9 @@ pub fn run() {
             update_settings,
             git_status,
             search_in_files,
+            start_claude_session,
+            send_claude_message,
+            stop_claude_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

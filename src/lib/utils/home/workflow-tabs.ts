@@ -44,4 +44,11 @@ export const DEFAULT_WF_TABS: WorkflowTabConfig[] = [
 		enabled: true,
 		order: 5,
 	},
+	{
+		key: "claude-test",
+		name: "Claude Test",
+		icon: "terminal",
+		enabled: true,
+		order: 6,
+	},
 ];

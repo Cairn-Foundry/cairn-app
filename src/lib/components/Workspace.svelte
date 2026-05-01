@@ -10,6 +10,7 @@
   import TestsView from '$lib/components/tests/TestsView.svelte';
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
+  import ClaudeTestView from '$lib/components/claude-test/ClaudeTestView.svelte';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
 
@@ -247,6 +248,7 @@
       <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'claude-test'}><ClaudeTestView/></div>
     </main>
   </div>
 </div>
