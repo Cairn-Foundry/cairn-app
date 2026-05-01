@@ -350,8 +350,8 @@ export const en = {
 	agent: {
 		title: "Agent",
 		subtitle: "supervising - Claude Code",
-		interrupt: "Interrupt",
-		restart: "Restart",
+		interrupt: "Stop",
+		restart: "New session",
 		you: "You",
 		streaming: "streaming",
 		inputPlaceholder: "Redirect the agent, ask a question, or add context…",

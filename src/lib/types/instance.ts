@@ -6,8 +6,7 @@ export type WorkflowStep =
 	| "review"
 	| "tests"
 	| "git"
-	| "cicd"
-	| "claude-test";
+	| "cicd";
 
 export interface InstanceTicket {
 	id: string;

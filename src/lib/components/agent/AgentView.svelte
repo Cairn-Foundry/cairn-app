@@ -1,97 +1,201 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
+  import { activeInstance } from '$lib/stores/instance';
+  import { PROVIDERS } from '$lib/components/home/agents/providers-data';
 
-  let draft = '';
-  let scrollEl: HTMLElement;
-
-  interface ToolCall {
-    name: string;
-    args: string;
-    status: 'done' | 'live' | string;
-    body: string;
-  }
+  const selectableProviders = PROVIDERS.filter((p) => p.status !== 'coming-soon');
 
   interface Message {
     role: 'system' | 'user' | 'agent';
     content: string;
     time: string;
     streaming?: boolean;
-    toolCalls?: ToolCall[];
   }
 
-  const messages: Message[] = [
-    { role: 'system', content: 'Instance started · ticket context loaded from FEAT-42', time: '09:13' },
-    {
-      role: 'user',
-      content: 'Add TOTP as a second factor. Use otplib, store the secret encrypted, expose /auth/totp/enable and /auth/totp/verify. Follow existing auth conventions in src/auth/.',
-      time: '09:13',
-    },
-    {
-      role: 'agent',
-      time: '09:14',
-      content: `I'll work through this in four parts:\n1. Add the <code>otplib</code> dependency · 2. Create <code>src/auth/totp.ts</code> with <code>generateSecret</code>, <code>verifyTotp</code> · 3. Wire the verification into <code>login()</code> · 4. Add the <code>/auth/totp/enable</code> and <code>/auth/totp/verify</code> routes and tests.\n\nBefore I touch anything, let me read the existing auth code to match conventions.`,
-      toolCalls: [
-        { name: 'read', args: 'src/auth/index.ts', status: 'done', body: '142 lines · exports login, logout, requireSession' },
-        { name: 'read', args: 'src/routes/auth.ts', status: 'done', body: '68 lines · uses router.post, wraps handlers with asyncHandler()' },
-        { name: 'grep', args: '"crypto" src/', status: 'done', body: '6 matches — project uses node:crypto directly, no wrapper' },
-      ],
-    },
-    {
-      role: 'agent',
-      time: '09:22',
-      content: "Convention is clear. I'll stage a checkpoint before generating code so you can roll back if needed, then write the TOTP module and wire it in.",
-      toolCalls: [
-        { name: 'checkpoint', args: '"Before generating code"', status: 'done', body: 'state saved · ck-2' },
-        { name: 'write', args: 'src/auth/totp.ts', status: 'done', body: '<span class="added">+ export function generateSecret(userId)</span>\n<span class="added">+ export function verifyTotp(user, token)</span>\n<span class="added">+ export function otpauthUri(email, secret)</span>' },
-        { name: 'edit', args: 'src/auth/index.ts', status: 'done', body: '<span class="added">+ if (user.totpEnabled && !verifyTotp(user, totp)) return null;</span>' },
-        { name: 'edit', args: 'src/routes/auth.ts', status: 'done', body: '<span class="added">+ router.post(\'/auth/totp/enable\', ...)</span>\n<span class="added">+ router.post(\'/auth/totp/verify\', ...)</span>' },
-        { name: 'write', args: 'src/db/migrations/023_totp.sql', status: 'done', body: '<span class="added">+ ALTER TABLE users ADD COLUMN totp_secret TEXT</span>\n<span class="added">+ ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN</span>' },
-        { name: 'bash', args: 'npm test', status: 'done', body: '<span class="added">8 passing</span>, <span class="removed">1 failing</span>\n✗ rejects tokens from the previous window' },
-      ],
-    },
-    {
-      role: 'agent',
-      time: '09:45',
-      streaming: true,
-      content: 'One test is failing — <code>rejects tokens from the previous window</code>. Looking at the assertion, my <code>verifyTotp</code> accepts the previous 30-second window by default. I\'ll tighten the window to <code>0</code> in the verification path and keep a <code>±1</code> margin available for clock skew as an explicit option.\n\n<span class="typing-dots"><span></span><span></span><span></span></span> editing <code>src/auth/totp.ts</code>',
-      toolCalls: [
-        { name: 'edit', args: 'src/auth/totp.ts', status: 'live', body: 'streaming patch…' },
-      ],
-    },
-  ];
+  interface ActivityEntry {
+    time: string;
+    icon: string;
+    label: string;
+    source: 'stdin' | 'stdout' | 'system';
+  }
 
-  function getToolIcon(name: string): string {
-    if (name === 'checkpoint') return 'bookmark';
-    if (name === 'bash') return 'terminal';
-    if (name === 'write' || name === 'edit') return 'edit';
-    return 'file';
+  let providerId = $state(selectableProviders[0].id);
+  let providerOpen = $state(false);
+  let messages = $state<Message[]>([]);
+  let activity = $state<ActivityEntry[]>([]);
+  let draft = $state('');
+  let busy = $state(false);
+  let error = $state('');
+  let scrollEl: HTMLElement;
+  let activityEl: HTMLElement;
+  let providerBtnEl: HTMLElement;
+  let unlisten: UnlistenFn | undefined;
+
+  let currentProvider = $derived(selectableProviders.find((p) => p.id === providerId) ?? selectableProviders[0]);
+
+  function now(): string {
+    return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  async function autoscroll() {
+    await tick();
+    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    if (activityEl) activityEl.scrollTop = activityEl.scrollHeight;
+  }
+
+  function onWindowClick(e: MouseEvent) {
+    if (providerOpen && providerBtnEl && !providerBtnEl.contains(e.target as Node)) {
+      providerOpen = false;
+    }
   }
 
   onMount(async () => {
-    await tick();
-    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    messages = [
+      { role: 'system', content: $activeInstance ? `Instance démarrée · ${$activeInstance.ticket.title}` : 'Aucune instance active', time: now() },
+    ];
+
+    unlisten = await listen<{ line: string; source: string }>('claude-output', (e) => {
+      const { source, line } = e.payload;
+
+      if (source === 'system') {
+        if (line === '[done]' || line === '[session reset]' || line === '[session stopped]') {
+          busy = false;
+          const last = messages.findLast((m) => m.role === 'agent');
+          if (last?.streaming) last.streaming = false;
+        } else if (line.startsWith('[error:')) {
+          error = line.slice(8, -1);
+          busy = false;
+          const last = messages.findLast((m) => m.role === 'agent');
+          if (last?.streaming) last.streaming = false;
+        }
+        activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
+      } else if (source === 'stdout') {
+        const last = messages.findLast((m) => m.role === 'agent' && m.streaming);
+        if (last) {
+          last.content = line;
+        } else {
+          messages.push({ role: 'agent', content: line, time: now() });
+        }
+        activity.push({ time: now(), icon: 'sparkles', label: "Réponse de l'agent reçue", source: 'stdout' });
+      }
+
+      autoscroll();
+    });
+
+    await autoscroll();
   });
+
+  onDestroy(() => {
+    unlisten?.();
+  });
+
+  async function send() {
+    if (!draft.trim() || busy || !$activeInstance) return;
+
+    const message = draft.trim();
+    draft = '';
+    error = '';
+    busy = true;
+
+    const t_now = now();
+    messages.push({ role: 'user', content: message, time: t_now });
+    messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
+    activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '…' : ''), source: 'stdin' });
+
+    await autoscroll();
+
+    try {
+      await invoke('send_message', {
+        message,
+        workingDir: $activeInstance.worktreePath,
+        providerId,
+      });
+    } catch (e) {
+      error = String(e);
+      busy = false;
+      const last = messages.findLast((m) => m.role === 'agent' && m.streaming);
+      if (last) last.streaming = false;
+    }
+  }
+
+  async function interrupt() {
+    try {
+      await invoke('stop_agent', { providerId });
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function newSession() {
+    error = '';
+    try {
+      await invoke('reset_agent_session', { providerId });
+      messages = [
+        { role: 'system', content: $activeInstance ? `Session réinitialisée · ${$activeInstance.ticket.title}` : 'Session réinitialisée', time: now() },
+      ];
+      activity = [];
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      send();
+    }
+  }
 </script>
+
+<svelte:window onclick={onWindowClick}/>
 
 <div class="agent-split">
   <div class="agent-chat">
     <div class="pane-header">
       <div class="pane-title">
-        <span class="num">01</span>
         {t('agent.title')}
-        <span class="sub">· {t('agent.subtitle')}</span>
+        <div class="provider-select-wrap" bind:this={providerBtnEl}>
+          <button
+            class="provider-select"
+            onclick={(e) => { e.stopPropagation(); providerOpen = !providerOpen; }}
+          >
+            {currentProvider.name}
+            <Icon name={providerOpen ? 'chev-u' : 'chev-d'} size={10}/>
+          </button>
+          {#if providerOpen}
+            <div class="provider-dropdown">
+              {#each selectableProviders as p}
+                <button
+                  class="provider-option"
+                  class:active={p.id === providerId}
+                  onclick={() => { providerId = p.id; providerOpen = false; }}
+                >
+                  {p.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </div>
       <div class="pane-actions">
-        <button class="btn ghost"><Icon name="pause" size={13}/> {t('agent.interrupt')}</button>
-        <button class="btn ghost"><Icon name="refresh" size={13}/> {t('agent.restart')}</button>
-        <button class="icon-btn"><Icon name="more" size={14}/></button>
+        <button class="btn ghost" onclick={newSession} disabled={busy}>
+          <Icon name="plus" size={13}/> {t('agent.restart')}
+        </button>
       </div>
     </div>
 
+    {#if error}
+      <div style="padding: 6px 14px; background: rgba(255,80,80,.08); border-bottom: 1px solid rgba(255,80,80,.25); color: #ff8080; font-family: var(--font-mono); font-size: 11px;">
+        {error}
+      </div>
+    {/if}
+
     <div class="chat-scroll" bind:this={scrollEl}>
-      {#each messages as m, i}
+      {#each messages as m}
         {#if m.role === 'system'}
           <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
             <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
@@ -115,27 +219,10 @@
               {/if}
             </div>
             <div class="bubble">
-              <p>{@html m.content}</p>
-              {#if m.toolCalls}
-                {#each m.toolCalls as tc}
-                  <div class="toolcall">
-                    <div class="toolcall-head">
-                      <Icon name={getToolIcon(tc.name)} size={12}/>
-                      <span class="tname">{tc.name}</span>
-                      <span class="targ">{tc.args}</span>
-                      <span class="spin">
-                        {#if tc.status === 'live'}
-                          <span class="typing-dots"><span></span><span></span><span></span></span>
-                        {:else if tc.status === 'done'}
-                          <span style="color: var(--success)"><Icon name="check" size={11}/></span>
-                        {:else}
-                          {tc.status}
-                        {/if}
-                      </span>
-                    </div>
-                    <div class="toolcall-body">{@html tc.body}</div>
-                  </div>
-                {/each}
+              {#if m.streaming && !m.content}
+                <p><span class="typing-dots"><span></span><span></span><span></span></span></p>
+              {:else}
+                <p>{@html m.content}</p>
               {/if}
             </div>
           </div>
@@ -146,15 +233,31 @@
     <div class="chat-input-wrap">
       <div class="chat-input">
         <textarea
-          placeholder={t('agent.inputPlaceholder') as string}
+          placeholder={!$activeInstance ? 'Aucune instance active' : busy ? 'En attente de réponse…' : (t('agent.inputPlaceholder') as string)}
           bind:value={draft}
+          onkeydown={onKeydown}
+          disabled={busy || !$activeInstance}
         ></textarea>
         <div class="chat-input-row">
           <span class="profile-picker"><span class="dot"></span> feature</span>
-          <span class="chip"><Icon name="attach" size={11}/> FEAT-42 context</span>
+          {#if $activeInstance}
+            <span class="chip"><Icon name="attach" size={11}/> {$activeInstance.ticket.id} · {$activeInstance.ticket.title}</span>
+          {/if}
           <span class="chip"><Icon name="at" size={11}/> {t('agent.mentionFile')}</span>
           <div class="spacer"></div>
-          <button class="btn"><Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">⌘↵</span></button>
+          {#if busy}
+            <button class="btn btn-stop" onclick={interrupt}>
+              <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">⌘.</span>
+            </button>
+          {:else}
+            <button
+              class="btn"
+              onclick={send}
+              disabled={!$activeInstance || !draft.trim()}
+            >
+              <Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">⌘↵</span>
+            </button>
+          {/if}
         </div>
       </div>
     </div>
@@ -164,104 +267,105 @@
     <div class="activity-head">
       <span class="live-dot"></span>
       {t('agent.liveActivity')}
-      <span class="dim mono" style="font-size: 10px; margin-left: 4px;">{t('agent.liveActivitySub')}</span>
       <span class="pause"><Icon name="pause" size={11}/> {t('agent.autoScroll')}</span>
     </div>
-    <div class="activity-list">
-      <div class="act-group">Context</div>
-      <div class="act-row">
-        <span class="act-time">09:13</span>
-        <span class="act-icon"><Icon name="flag" size={13}/></span>
-        <div class="act-body"><span class="act-label">Instance started from <b>FEAT-42</b></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:13</span>
-        <span class="act-icon"><Icon name="branch" size={13}/></span>
-        <div class="act-body"><span class="act-label">worktree created on <span class="act-file">feat/totp-auth</span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:14</span>
-        <span class="act-icon"><Icon name="eye" size={13}/></span>
-        <div class="act-body"><span class="act-label">Ticket context loaded into agent session</span></div>
-      </div>
-
-      <div class="act-group">Reading</div>
-      <div class="act-row">
-        <span class="act-time">09:16</span>
-        <span class="act-icon"><Icon name="file" size={13}/></span>
-        <div class="act-body"><span class="act-label">Read <span class="act-file">src/auth/index.ts</span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:17</span>
-        <span class="act-icon"><Icon name="file" size={13}/></span>
-        <div class="act-body"><span class="act-label">Read <span class="act-file">src/routes/auth.ts</span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:18</span>
-        <span class="act-icon"><Icon name="search" size={13}/></span>
-        <div class="act-body"><span class="act-label">Grep <code style="font-family: var(--font-mono); font-size: 11px;">"crypto"</code> across project — 6 matches</span></div>
-      </div>
-
-      <div class="act-group">Writing</div>
-      <div class="act-row">
-        <span class="act-time">09:22</span>
-        <span class="act-icon ok"><Icon name="bookmark" size={13}/></span>
-        <div class="act-body"><span class="act-label">Checkpoint saved — "Before generating code"</span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:24</span>
-        <span class="act-icon"><Icon name="download" size={13}/></span>
-        <div class="act-body"><span class="act-label">Installed <span class="act-file">otplib@12.0.1</span> <span class="act-diff">(+48kb)</span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:26</span>
-        <span class="act-icon write"><Icon name="plus" size={13}/></span>
-        <div class="act-body"><span class="act-label">Created <span class="act-file">src/auth/totp.ts</span> <span class="act-diff"><span class="plus">+48</span></span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:29</span>
-        <span class="act-icon write"><Icon name="edit" size={13}/></span>
-        <div class="act-body"><span class="act-label">Edited <span class="act-file">src/auth/index.ts</span> <span class="act-diff"><span class="plus">+6</span> <span class="minus">−2</span></span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:31</span>
-        <span class="act-icon write"><Icon name="edit" size={13}/></span>
-        <div class="act-body"><span class="act-label">Edited <span class="act-file">src/routes/auth.ts</span> <span class="act-diff"><span class="plus">+14</span> <span class="minus">−1</span></span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:34</span>
-        <span class="act-icon write"><Icon name="plus" size={13}/></span>
-        <div class="act-body"><span class="act-label">Wrote <span class="act-file">src/auth/totp.test.ts</span> <span class="act-diff"><span class="plus">+72</span> · 8 tests</span></span></div>
-      </div>
-
-      <div class="act-group">Database</div>
-      <div class="act-row">
-        <span class="act-time">09:37</span>
-        <span class="act-icon ok"><Icon name="bookmark" size={13}/></span>
-        <div class="act-body"><span class="act-label">Checkpoint saved — "Before db migration"</span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:40</span>
-        <span class="act-icon write"><Icon name="plus" size={13}/></span>
-        <div class="act-body"><span class="act-label">Created <span class="act-file">023_totp.sql</span> <span class="act-diff"><span class="plus">+12</span></span></span></div>
-      </div>
-
-      <div class="act-group">Testing</div>
-      <div class="act-row">
-        <span class="act-time">09:43</span>
-        <span class="act-icon test"><Icon name="terminal" size={13}/></span>
-        <div class="act-body"><span class="act-label">Ran <code style="font-family: var(--font-mono); font-size: 11px;">npm test</code> — <span style="color: var(--success)">8 pass</span>, <span style="color: var(--danger)">1 fail</span></span></div>
-      </div>
-      <div class="act-row">
-        <span class="act-time">09:44</span>
-        <span class="act-icon error"><Icon name="alert" size={13}/></span>
-        <div class="act-body"><span class="act-label">Failure in <span class="act-file">totp.test.ts</span> — "rejects tokens from the previous window"</span></div>
-      </div>
-      <div class="act-row live">
-        <span class="act-time">09:45</span>
-        <span class="act-icon write"><Icon name="sparkles" size={13}/></span>
-        <div class="act-body"><span class="act-label">Agent is analyzing and will patch the verification window</span></div>
-      </div>
+    <div class="activity-list" bind:this={activityEl}>
+      {#if activity.length === 0}
+        <div style="padding: 16px 12px; color: var(--fg-3); font-size: 12px; font-style: italic;">
+          {$activeInstance ? "En attente de l'agent…" : 'Aucune instance active'}
+        </div>
+      {:else}
+        {#each activity as entry}
+          <div class="act-row" class:live={entry.source === 'stdin' && busy}>
+            <span class="act-time">{entry.time}</span>
+            <span class="act-icon" class:write={entry.source === 'stdout'} class:ok={entry.source === 'system' && entry.label.includes('reset')}>
+              <Icon name={entry.icon} size={13}/>
+            </span>
+            <div class="act-body">
+              <span class="act-label">{entry.label}</span>
+            </div>
+          </div>
+        {/each}
+      {/if}
     </div>
   </div>
 </div>
+
+<style>
+  .provider-select-wrap {
+    position: relative;
+  }
+
+  .provider-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    font-size: 11px;
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: border-color 0.1s, color 0.1s;
+  }
+
+  .provider-select:hover {
+    border-color: var(--accent-line, var(--stroke-1));
+    color: var(--fg-0);
+  }
+
+.provider-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 100;
+    min-width: 200px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .provider-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: var(--fg-1);
+    background: transparent;
+    border: none;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .provider-option:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .provider-option.active {
+    color: var(--accent);
+    background: var(--accent-weak, var(--bg-3));
+  }
+
+.btn-stop {
+    background: var(--danger-weak, rgba(255, 80, 80, 0.08));
+    border-color: var(--danger-line, rgba(255, 80, 80, 0.3));
+    color: #ff8080;
+  }
+
+  .btn-stop:hover {
+    background: rgba(255, 80, 80, 0.15);
+    border-color: rgba(255, 80, 80, 0.5);
+    color: #ffaaaa;
+  }
+</style>

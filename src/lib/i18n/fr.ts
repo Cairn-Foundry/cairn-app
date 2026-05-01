@@ -361,8 +361,8 @@ export const fr = {
 	agent: {
 		title: "Agent",
 		subtitle: "supervision - Claude Code",
-		interrupt: "Interrompre",
-		restart: "Redémarrer",
+		interrupt: "Arrêter",
+		restart: "Nouvelle session",
 		you: "Vous",
 		streaming: "en cours",
 		inputPlaceholder:
