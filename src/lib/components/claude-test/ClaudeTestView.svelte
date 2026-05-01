@@ -12,7 +12,6 @@
 
   let lines: OutputLine[] = [];
   let draft = '';
-  let running = false;
   let busy = false;
   let error = '';
   let scrollEl: HTMLElement;
@@ -28,9 +27,7 @@
       const { source, line } = e.payload;
 
       if (source === 'system') {
-        if (line === '[session started]') running = true;
-        if (line === '[session stopped]') { running = false; busy = false; }
-        if (line === '[done]') busy = false;
+        if (line === '[session reset]' || line === '[session stopped]' || line === '[done]') busy = false;
       } else {
         lines = [...lines, e.payload];
       }
@@ -42,11 +39,13 @@
     unlisten?.();
   });
 
-  async function start() {
-    if (running || !$activeInstance) return;
+  const PROVIDER_ID = 'claude-code-cli';
+
+  async function reset() {
     error = '';
     try {
-      await invoke('start_claude_session', { workingDir: $activeInstance.worktreePath });
+      await invoke('reset_agent_session', { providerId: PROVIDER_ID });
+      lines = [];
     } catch (e) {
       error = String(e);
     }
@@ -54,20 +53,24 @@
 
   async function stop() {
     try {
-      await invoke('stop_claude_session');
+      await invoke('stop_agent', { providerId: PROVIDER_ID });
     } catch (e) {
       error = String(e);
     }
   }
 
   async function send() {
-    if (!draft.trim() || !running || busy) return;
+    if (!draft.trim() || busy || !$activeInstance) return;
     const message = draft;
     draft = '';
     error = '';
     busy = true;
     try {
-      await invoke('send_claude_message', { message });
+      await invoke('send_message', {
+        message,
+        workingDir: $activeInstance.worktreePath,
+        providerId: PROVIDER_ID,
+      });
     } catch (e) {
       error = String(e);
       busy = false;
@@ -79,10 +82,6 @@
       e.preventDefault();
       send();
     }
-  }
-
-  function clearLog() {
-    lines = [];
   }
 
   function sourceLabel(source: string): string {
@@ -105,18 +104,15 @@
       {/if}
     </div>
     <div class="status">
-      <span class="dot" class:on={running} class:busy></span>
-      <span class="status-text">{busy ? 'thinking…' : running ? 'ready' : 'idle'}</span>
+      <span class="dot" class:on={!!$activeInstance && !busy} class:busy></span>
+      <span class="status-text">{busy ? 'thinking…' : $activeInstance ? 'ready' : 'idle'}</span>
     </div>
     <div class="actions">
-      <button class="btn" on:click={start} disabled={running || !$activeInstance}>
-        <Icon name="play" size={12}/> Start
-      </button>
-      <button class="btn ghost" on:click={stop} disabled={!running}>
+      <button class="btn ghost" on:click={stop} disabled={!busy}>
         <Icon name="x" size={12}/> Stop
       </button>
-      <button class="btn ghost" on:click={clearLog}>
-        <Icon name="refresh" size={12}/> Clear
+      <button class="btn ghost" on:click={reset} disabled={busy}>
+        <Icon name="plus" size={12}/> New session
       </button>
     </div>
   </div>
@@ -133,19 +129,19 @@
       </div>
     {/each}
     {#if lines.length === 0}
-      <div class="empty">No output yet. Press Start to open a session.</div>
+      <div class="empty">No output yet. Send a message to start.</div>
     {/if}
   </div>
 
   <div class="input-row">
     <input
       type="text"
-      placeholder={!running ? 'Start a session first' : busy ? 'Waiting for response…' : 'Type a message and press Enter…'}
+      placeholder={!$activeInstance ? 'No active instance' : busy ? 'Waiting for response…' : 'Type a message and press Enter…'}
       bind:value={draft}
       on:keydown={onInputKeydown}
-      disabled={!running || busy}
+      disabled={busy || !$activeInstance}
     />
-    <button class="btn" on:click={send} disabled={!running || busy || !draft.trim()}>
+    <button class="btn" on:click={send} disabled={busy || !$activeInstance || !draft.trim()}>
       <Icon name="send" size={12}/> Send
     </button>
   </div>
