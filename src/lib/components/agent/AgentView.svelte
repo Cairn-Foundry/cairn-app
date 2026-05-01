@@ -6,6 +6,13 @@
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
+  import { marked } from 'marked';
+
+  marked.use({ async: false, gfm: true });
+
+  function renderMarkdown(content: string): string {
+    return marked.parse(content, { async: false }) as string;
+  }
 
   const selectableProviders = PROVIDERS.filter((p) => p.status !== 'coming-soon');
 
@@ -33,7 +40,14 @@
   let scrollEl: HTMLElement;
   let activityEl: HTMLElement;
   let providerBtnEl: HTMLElement;
+  let textareaEl: HTMLTextAreaElement;
   let unlisten: UnlistenFn | undefined;
+
+  function resizeTextarea() {
+    if (!textareaEl) return;
+    textareaEl.style.height = 'auto';
+    textareaEl.style.height = textareaEl.scrollHeight + 'px';
+  }
 
   let currentProvider = $derived(selectableProviders.find((p) => p.id === providerId) ?? selectableProviders[0]);
 
@@ -58,8 +72,8 @@
       { role: 'system', content: $activeInstance ? `Instance démarrée · ${$activeInstance.ticket.title}` : 'Aucune instance active', time: now() },
     ];
 
-    unlisten = await listen<{ line: string; source: string }>('claude-output', (e) => {
-      const { source, line } = e.payload;
+    unlisten = await listen<{ line: string; source: string; summary?: string }>('claude-output', (e) => {
+      const { source, line, summary } = e.payload;
 
       if (source === 'system') {
         if (line === '[done]' || line === '[session reset]' || line === '[session stopped]') {
@@ -80,7 +94,7 @@
         } else {
           messages.push({ role: 'agent', content: line, time: now() });
         }
-        activity.push({ time: now(), icon: 'sparkles', label: "Réponse de l'agent reçue", source: 'stdout' });
+        activity.push({ time: now(), icon: 'sparkles', label: summary || "Réponse de l'agent reçue", source: 'stdout' });
       }
 
       autoscroll();
@@ -98,6 +112,8 @@
 
     const message = draft.trim();
     draft = '';
+    await tick();
+    resizeTextarea();
     error = '';
     busy = true;
 
@@ -222,7 +238,11 @@
               {#if m.streaming && !m.content}
                 <p><span class="typing-dots"><span></span><span></span><span></span></span></p>
               {:else}
-                <p>{@html m.content}</p>
+                {#if m.role === 'agent'}
+                  {@html renderMarkdown(m.content)}
+                {:else}
+                  <p>{m.content}</p>
+                {/if}
               {/if}
             </div>
           </div>
@@ -233,8 +253,10 @@
     <div class="chat-input-wrap">
       <div class="chat-input">
         <textarea
+          bind:this={textareaEl}
           placeholder={!$activeInstance ? 'Aucune instance active' : busy ? 'En attente de réponse…' : (t('agent.inputPlaceholder') as string)}
           bind:value={draft}
+          oninput={resizeTextarea}
           onkeydown={onKeydown}
           disabled={busy || !$activeInstance}
         ></textarea>

@@ -1,5 +1,19 @@
 use std::process::{Command, Stdio};
-use super::super::AgentProvider;
+use serde::Deserialize;
+use super::super::{AgentProvider, AgentResponse};
+
+#[derive(Deserialize)]
+struct StructuredReply {
+    content: String,
+    summary: String,
+}
+
+const FORMAT_INSTRUCTION: &str = "\
+Respond with a JSON object only — no markdown code block, no text outside the JSON. \
+The object must have exactly two fields:\n\
+- \"content\": your full response in markdown\n\
+- \"summary\": one sentence (max 12 words) summarising what you did or answered\n\n\
+User message:\n";
 
 pub struct ClaudeCliProvider;
 
@@ -9,10 +23,12 @@ impl AgentProvider for ClaudeCliProvider {
         message: &str,
         working_dir: &str,
         session_id: Option<&str>,
-    ) -> Result<(String, Option<String>), String> {
+    ) -> Result<AgentResponse, String> {
+        let prompt = format!("{FORMAT_INSTRUCTION}{message}");
+
         let mut args: Vec<String> = vec![
             "-p".into(),
-            message.to_string(),
+            prompt,
             "--output-format".into(),
             "json".into(),
         ];
@@ -32,17 +48,21 @@ impl AgentProvider for ClaudeCliProvider {
 
         let raw = String::from_utf8_lossy(&output.stdout).to_string();
 
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
-            let new_session_id = val.get("session_id")
-                .and_then(|s| s.as_str())
-                .map(str::to_string);
-            let text = val.get("result")
-                .and_then(|r| r.as_str())
-                .unwrap_or("")
-                .to_string();
-            Ok((text, new_session_id))
-        } else {
-            Ok((String::new(), None))
-        }
+        let cli_json = serde_json::from_str::<serde_json::Value>(&raw)
+            .map_err(|e| format!("Invalid CLI JSON: {e}"))?;
+
+        let session_id = cli_json.get("session_id")
+            .and_then(|s| s.as_str())
+            .map(str::to_string);
+
+        let result = cli_json.get("result")
+            .and_then(|r| r.as_str())
+            .unwrap_or("");
+
+        let (content, summary) = serde_json::from_str::<StructuredReply>(result)
+            .map(|r| (r.content, r.summary))
+            .unwrap_or_else(|_| (result.to_owned(), String::new()));
+
+        Ok(AgentResponse { content, summary, session_id })
     }
 }

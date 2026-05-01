@@ -6,13 +6,19 @@ use tauri::{Emitter, Manager};
 pub mod providers;
 pub use providers::{ClaudeCliProvider, ProviderRegistry};
 
+pub struct AgentResponse {
+    pub content: String,
+    pub summary: String,
+    pub session_id: Option<String>,
+}
+
 pub trait AgentProvider: Send + Sync {
     fn send(
         &self,
         message: &str,
         working_dir: &str,
         session_id: Option<&str>,
-    ) -> Result<(String, Option<String>), String>;
+    ) -> Result<AgentResponse, String>;
 }
 
 #[derive(Default)]
@@ -53,12 +59,25 @@ impl AgentState {
 
 #[derive(Clone, Serialize)]
 struct AgentOutputEvent {
-    line:   String,
-    source: String, // "stdout" | "stdin" | "system"
+    line:    String,
+    source:  String,
+    summary: Option<String>,
 }
 
 pub fn emit_agent(app: &tauri::AppHandle, line: String, source: &str) {
-    let _ = app.emit("claude-output", AgentOutputEvent { line, source: source.to_string() });
+    let _ = app.emit("claude-output", AgentOutputEvent {
+        line,
+        source: source.to_string(),
+        summary: None,
+    });
+}
+
+fn emit_agent_response(app: &tauri::AppHandle, content: String, summary: String) {
+    let _ = app.emit("claude-output", AgentOutputEvent {
+        line:    content,
+        source:  "stdout".to_string(),
+        summary: Some(summary),
+    });
 }
 
 #[tauri::command]
@@ -84,11 +103,11 @@ pub async fn send_message(
     let app_out = app.clone();
     std::thread::spawn(move || {
         match provider.send(&message, &working_dir, session_id.as_deref()) {
-            Ok((text, new_session_id)) => {
-                if !text.is_empty() {
-                    emit_agent(&app_out, text, "stdout");
+            Ok(response) => {
+                if !response.content.is_empty() {
+                    emit_agent_response(&app_out, response.content, response.summary);
                 }
-                if let Some(id) = new_session_id {
+                if let Some(id) = response.session_id {
                     if let Ok(mut s) = app_out.state::<AgentState>().session.lock() {
                         s.set_id(&provider_id, id);
                     }

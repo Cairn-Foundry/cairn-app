@@ -532,6 +532,76 @@ input, textarea { font-family: inherit; color: inherit; }
   color: var(--fg-0);
 }
 
+/* Markdown rendering inside agent bubbles */
+.msg.agent .bubble pre {
+  margin: 8px 0;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--stroke-0);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+}
+.msg.agent .bubble pre code {
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--fg-0);
+  border-radius: 0;
+}
+.msg.agent .bubble ul,
+.msg.agent .bubble ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.msg.agent .bubble li { margin-bottom: 3px; }
+.msg.agent .bubble li:last-child { margin-bottom: 0; }
+.msg.agent .bubble h1,
+.msg.agent .bubble h2,
+.msg.agent .bubble h3,
+.msg.agent .bubble h4 {
+  margin: 14px 0 6px;
+  color: var(--fg-0);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.msg.agent .bubble h1 { font-size: 16px; }
+.msg.agent .bubble h2 { font-size: 14px; }
+.msg.agent .bubble h3,
+.msg.agent .bubble h4 { font-size: 13px; }
+.msg.agent .bubble blockquote {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent-line, var(--stroke-1));
+  color: var(--fg-2);
+}
+.msg.agent .bubble a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.msg.agent .bubble a:hover { text-decoration: underline; }
+.msg.agent .bubble hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--stroke-0);
+}
+.msg.agent .bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+.msg.agent .bubble th,
+.msg.agent .bubble td {
+  padding: 5px 10px;
+  border: 1px solid var(--stroke-0);
+  text-align: left;
+}
+.msg.agent .bubble th {
+  background: var(--bg-2);
+  font-weight: 600;
+  color: var(--fg-0);
+}
+
 /* Tool-call blocks in chat */
 .toolcall {
   margin: 8px 0 0;
@@ -600,6 +670,9 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 0; outline: 0; resize: none;
   font-size: 13.5px; color: var(--fg-0);
   min-height: 40px;
+  max-height: 180px;
+  overflow-y: auto;
+  line-height: 1.5;
 }
 .chat-input textarea::placeholder { color: var(--fg-3); }
 .chat-input-row {
@@ -671,12 +744,12 @@ input, textarea { font-family: inherit; color: inherit; }
 
 .act-row {
   display: grid;
-  grid-template-columns: 72px 22px 1fr;
-  align-items: flex-start;
+  grid-template-columns: 30px 22px 1fr;
+  align-items: center;
   padding: 6px 16px;
   font-size: 12px;
   position: relative;
-  gap: 0;
+  gap: 8px;
 }
 .act-row:hover { background: var(--bg-2); }
 .act-time {
