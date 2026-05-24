@@ -219,10 +219,11 @@
 
   <!-- Content -->
   <div class="content-row">
-    <aside class="sidebar">
+    <aside class="sidebar" class:sidebar-empty={!activeInstance}>
       {#each STEPS as s}
         <button
           class="step {$activeStep === s.id ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
+          disabled={!activeInstance}
           on:click={() => activeStep.set(s.id as any)}
         >
           <span class="icon"><Icon name={s.icon} size={20}/></span>
@@ -241,12 +242,28 @@
     </aside>
 
     <main class="main">
-      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
+      {#if !activeInstance}
+        <div class="no-instance">
+          <div class="no-instance-inner">
+            <div class="no-instance-icon">
+              <Icon name="cairn" size={48}/>
+            </div>
+            <h2 class="no-instance-headline">{t('workspace.noInstanceHeadline')}</h2>
+            <p class="no-instance-sub">{t('workspace.noInstanceSub')}</p>
+            <button class="btn primary no-instance-cta" on:click={() => dispatch('createInstance')}>
+              <Icon name="plus" size={14}/>
+              {t('workspace.noInstanceCta')}
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
+        <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
+        <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
+        <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
+        <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView/></div>
+        <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
+      {/if}
     </main>
   </div>
 </div>
@@ -338,6 +355,59 @@
     background: var(--accent-weak);
     border-color: var(--accent);
     color: var(--fg-0);
+  }
+
+  .no-instance {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-0);
+    padding: 40px 24px;
+  }
+
+  .no-instance-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 420px;
+    gap: 0;
+  }
+
+  .no-instance-icon {
+    color: var(--fg-4);
+    margin-bottom: 24px;
+    opacity: 0.6;
+  }
+
+  .no-instance-headline {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 28px;
+    color: var(--fg-0);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .no-instance-sub {
+    font-size: 13px;
+    color: var(--fg-3);
+    line-height: 1.6;
+    margin: 0 0 28px;
+    max-width: 340px;
+  }
+
+  .no-instance-cta {
+    padding: 10px 22px;
+    font-size: 13px;
+  }
+
+
+  .sidebar-empty .step {
+    opacity: 0.3;
+    pointer-events: none;
   }
 
   :global(.project-tab) { cursor: grab; }

@@ -164,6 +164,10 @@ export const fr = {
 		ariaKeyboardShortcuts: "Raccourcis clavier",
 		ariaSettings: "Paramètres",
 		ariaTerminal: "Terminal",
+		noInstanceHeadline: "Choisissez une tâche, créez une instance",
+		noInstanceSub:
+			"Une instance est un environnement isolé couplé à une session agent. Chaque tâche dispose de son propre espace.",
+		noInstanceCta: "Nouvelle instance",
 	},
 
 	shortcuts: {

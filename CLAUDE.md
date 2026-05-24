@@ -176,24 +176,24 @@ Chaque onglet correspond à un projet ouvert (ex : `Frontend`, `Backend`, `Infra
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  [Cairn]  Frontend ▾  |  Backend ▾  |  + Projet            [⚙] │  ← Onglets projets
+│  [Cairn]  Frontend ▾  |  Backend ▾  |  + Projet            [⚙]  │  ← Onglets projets
 ├──────────┬──────────────────────────────────────────────────────┤
 │          │  ● FEAT-42 · Ajouter l'auth TOTP          [▶ Lancer] │  ← Header instance
-│  1       │  main → feat/totp  ·  3 fichiers modifiés  [⏸] [✓]  │
+│  1       │  main → feat/totp  ·  3 fichiers modifiés  [⏸] [✓]   │
 │  Agent   ├──────────────────────────────────────────────────────┤
-│  ──────  │                                                       │
-│  2       │                                                       │
+│  ──────  │                                                      │
+│  2       │                                                      │
 │  Review  │         Vue principale (change selon étape)          │
-│  ──────  │                                                       │
-│  3       │                                                       │
-│  Git     │                                                       │
-│  ──────  │                                                       │
-│  4       │                                                       │
-│  Tests   │                                                       │
-│  ──────  │                                                       │
-│  5       │                                                       │
-│  CI/CD   ├──────────────────────────────────────────────────────┤
-│          │  Timeline  ───●────────●────────●──────▶  [+ Save]   │  ← Timeline persistante
+│  ──────  │                                                      │
+│  3       │                                                      │
+│  Git     │                                                      │
+│  ──────  │                                                      │
+│  4       │                                                      │
+│  Tests   │                                                      │
+│  ──────  │                                                      │
+│  5       │                                                      │
+│  CI/CD   │                                                      │
+│          │                                                      │
 └──────────┴──────────────────────────────────────────────────────┘
 ```
 

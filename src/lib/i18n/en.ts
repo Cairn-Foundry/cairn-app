@@ -163,6 +163,10 @@ export const en = {
 		ariaKeyboardShortcuts: "Keyboard shortcuts",
 		ariaSettings: "Settings",
 		ariaTerminal: "Terminal",
+		noInstanceHeadline: "Pick a task, create an instance",
+		noInstanceSub:
+			"An instance is an isolated environment paired with an agent session. Each task gets its own space.",
+		noInstanceCta: "New instance",
 	},
 
 	shortcuts: {

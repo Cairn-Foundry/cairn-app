@@ -97,34 +97,36 @@
     </div>
   </div>
 
-  {#if loading}
-    <div class="tree-state">{t('files.treeLoading')}</div>
-  {:else if error}
-    <div class="tree-state error">{error}</div>
-  {:else if !worktreePath}
-    <div class="tree-state">{t('files.treeNoInstance')}</div>
-  {:else}
-    <button
-      type="button"
-      class="file-tree-item tree-root-row {selectedDir === '' ? 'selected-dir' : ''} {dragOverDir === '' ? 'drag-over' : ''}"
-      style="padding-left: 12px"
-      data-tree-dir=""
-      on:click={onRootClick}
-      on:contextmenu={(e) => onContextMenu(e, null)}
-    >
-      <Icon name={selectedDir === '' ? 'folder-open' : 'folder'} size={13}/>
-      <span class="file-tree-name">/</span>
-    </button>
-    {#if editState && editState.parentPath === '' && editState.type !== 'rename'}
-      {@render inlineInput(0)}
+  <div class="files-tree-scroll">
+    {#if loading}
+      <div class="tree-state">{t('files.treeLoading')}</div>
+    {:else if error}
+      <div class="tree-state error">{error}</div>
+    {:else if !worktreePath}
+      <div class="tree-state">{t('files.treeNoInstance')}</div>
+    {:else}
+      <button
+        type="button"
+        class="file-tree-item tree-root-row {selectedDir === '' ? 'selected-dir' : ''} {dragOverDir === '' ? 'drag-over' : ''}"
+        style="padding-left: 12px"
+        data-tree-dir=""
+        on:click={onRootClick}
+        on:contextmenu={(e) => onContextMenu(e, null)}
+      >
+        <Icon name={selectedDir === '' ? 'folder-open' : 'folder'} size={13}/>
+        <span class="file-tree-name">/</span>
+      </button>
+      {#if editState && editState.parentPath === '' && editState.type !== 'rename'}
+        {@render inlineInput(0)}
+      {/if}
+      {#if tree.length === 0 && !editState}
+        <div class="tree-state">{t('files.treeEmpty')}</div>
+      {/if}
+      {#each tree as node}
+        {@render treeNode(node, 0)}
+      {/each}
     {/if}
-    {#if tree.length === 0 && !editState}
-      <div class="tree-state">{t('files.treeEmpty')}</div>
-    {/if}
-    {#each tree as node}
-      {@render treeNode(node, 0)}
-    {/each}
-  {/if}
+  </div>
 </aside>
 
 {#snippet treeNode(node: FileNode, depth: number)}
@@ -192,9 +194,8 @@
 <style>
   .files-tree {
     flex-shrink: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0 0 8px;
+    display: flex;
+    flex-direction: column;
     background: var(--bg-1);
     border-right: 1px solid var(--stroke-0);
   }
@@ -204,6 +205,17 @@
     align-items: center;
     padding: 4px 6px;
     border-bottom: 1px solid var(--stroke-0);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 50;
+    overflow: visible;
+  }
+
+  .files-tree-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 0 8px;
   }
 
   .tree-state {
@@ -278,8 +290,8 @@
     content: attr(data-tooltip);
     position: absolute;
     top: calc(100% + 5px);
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    transform: none;
     background: var(--bg-3);
     border: 1px solid var(--stroke-1);
     color: var(--fg-1);
@@ -293,6 +305,7 @@
     transition: opacity 0.1s;
     z-index: 200;
   }
+  .tree-action-btn[data-tooltip]:hover::after { opacity: 1; }
   .tree-action-btn[data-tooltip]:hover::after { opacity: 1; }
 
   .file-tree-edit { cursor: default; pointer-events: none; }
