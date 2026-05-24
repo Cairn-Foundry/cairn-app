@@ -3,3 +3,4 @@ import type { WorkflowStep } from "$lib/types/instance.ts";
 
 export const activeStep = writable<WorkflowStep>("files");
 export const activeScreen = writable<"home" | "workspace">("home");
+export const quickOpenVisible = writable(false);

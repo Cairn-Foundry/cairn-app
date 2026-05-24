@@ -4,14 +4,13 @@ import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
-  import QuickOpen from './QuickOpen.svelte';
   import SearchPanel from './SearchPanel.svelte';
   import CommandPalette from './CommandPalette.svelte';
   import EditorPane from './EditorPane.svelte';
   import FileTreeView from './FileTreeView.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
-  import { activeScreen } from '$lib/stores/ui';
+  import { activeScreen, quickOpenVisible } from '$lib/stores/ui';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileAtCommit, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -441,7 +440,6 @@ import { get } from 'svelte/store';
     }
   }
 
-  let quickOpenVisible = false;
   let searchPanelByProject = new Map<string, boolean>();
 
   // ── Closed-tab history (for ⌘⇧T reopen) ────────────────────────────────────
@@ -458,6 +456,9 @@ import { get } from 'svelte/store';
   // ── Command palette ──────────────────────────────────────────────────────────
   let commandPaletteVisible = false;
   export function openCommandPalette() { commandPaletteVisible = true; }
+  export function openQuickOpen() { $quickOpenVisible = true; }
+  export function getTree(): FileNode[] { return tree; }
+  export function openFileByPath(path: string) { quickOpenFile(path); }
 
   $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
 
@@ -703,7 +704,7 @@ import { get } from 'svelte/store';
 
   async function executeAction(id: string) {
     switch (id) {
-      case 'quickOpen':         quickOpenVisible = true; break;
+      case 'quickOpen':         $quickOpenVisible = true; break;
       case 'searchFiles':       toggleSearchPanel(); break;
       case 'splitEditor':       toggleSplit(); break;
       case 'toggleSidebar':     sidebarHidden = !sidebarHidden; break;
@@ -743,7 +744,7 @@ import { get } from 'svelte/store';
     bumpFontSize,
     resetFontSize,
     openCommandPalette: () => { commandPaletteVisible = true; },
-    openQuickOpen: () => { quickOpenVisible = true; },
+    openQuickOpen: () => { $quickOpenVisible = true; },
     openSettings: () => onGoSettings?.(),
     saveActivePane: (i) => { flushSave(i); },
     closeActiveTab: (i) => closeTab(i, panes[i].activeTabIdx, null),
@@ -1347,6 +1348,7 @@ import { get } from 'svelte/store';
     onCommitEdit={commitEdit}
     onCancelEdit={cancelEdit}
     onEditValueChange={(v) => { editValue = v; }}
+    onEmptyAreaClick={() => { selectedDir = ''; multiSelected = new Set(); }}
   />
 
   <SearchPanel
@@ -1445,10 +1447,6 @@ import { get } from 'svelte/store';
     {/each}
   </div>
 </div>
-
-{#if quickOpenVisible}
-  <QuickOpen tree={tree} onOpen={quickOpenFile} onClose={() => { quickOpenVisible = false; }} />
-{/if}
 
 {#if commandPaletteVisible}
   <CommandPalette

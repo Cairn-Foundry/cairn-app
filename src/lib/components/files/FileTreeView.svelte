@@ -55,6 +55,7 @@
   export let onCommitEdit: () => void;
   export let onCancelEdit: () => void;
   export let onEditValueChange: (value: string) => void;
+  export let onEmptyAreaClick: () => void;
 
   function focusOnMount(el: HTMLInputElement) {
     tick().then(() => { el.focus(); el.select(); });
@@ -97,7 +98,8 @@
     </div>
   </div>
 
-  <div class="files-tree-scroll">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="files-tree-scroll" on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
     {#if loading}
       <div class="tree-state">{t('files.treeLoading')}</div>
     {:else if error}

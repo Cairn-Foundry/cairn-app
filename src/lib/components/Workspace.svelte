@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { activeStep } from '$lib/stores/ui.js';
+  import { activeStep, quickOpenVisible } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -10,8 +10,10 @@
   import TestsView from '$lib/components/tests/TestsView.svelte';
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
+  import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
+  import type { FileNode } from '$lib/services/file-service';
 
   import type { Instance } from '$lib/types/instance';
   import { instances } from '$lib/stores/instance';
@@ -28,6 +30,15 @@
   let showManageModal = false;
   let showShortcuts = false;
   let filesView: FilesView;
+
+  let quickOpenTree: FileNode[] = [];
+  $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
+
+  function handleQuickOpenFile(path: string) {
+    filesView?.openFileByPath(path);
+    activeStep.set('files');
+    quickOpenVisible.set(false);
+  }
 
   async function selectInstance(id: string) {
     showInstanceMenu = false;
@@ -153,7 +164,7 @@
       <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
     <div class="spacer" data-tauri-drag-region></div>
-    <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string}><Icon name="search" size={14}/></button>
+    <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string} on:click={() => quickOpenVisible.set(true)}><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaKeyboardShortcuts') as string} on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaSettings') as string} on:click={() => dispatch('goSettings')}><Icon name="settings" size={14}/></button>
@@ -267,6 +278,14 @@
     </main>
   </div>
 </div>
+
+{#if $quickOpenVisible}
+  <QuickOpen
+    tree={quickOpenTree}
+    onOpen={handleQuickOpenFile}
+    onClose={() => quickOpenVisible.set(false)}
+  />
+{/if}
 
 {#if showManageModal}
   <ManageInstances
