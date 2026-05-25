@@ -184,7 +184,7 @@ input, textarea { font-family: inherit; color: inherit; }
   cursor: pointer;
   min-width: 0;
 }
-.project-tab:hover { color: var(--fg-1); background: var(--bg-1); }
+.project-tab:hover { color: var(--fg-1); background: var(--bg-1); border-left-color: var(--stroke-0); border-right-color: var(--stroke-0); }
 .project-tab.active {
   color: var(--fg-0);
   background: var(--bg-1);
@@ -2020,6 +2020,11 @@ html[data-theme="light"] .os-window { background: var(--bg-0); }
 /* ==============================
    Theme: high-contrast
    ============================== */
+body.dragging,
+body.dragging * {
+  cursor: grabbing !important;
+}
+
 html[data-theme="high-contrast"] {
   --bg-0: oklch(0.0 0 0);
   --bg-1: oklch(0.08 0 0);

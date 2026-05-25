@@ -59,7 +59,12 @@
   let dragSrcIndex: number | null = null;
   let insertIndex: number | null = null;
   let didDrag = false;
+  let dragActive = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
   let tabsRowEl: HTMLElement | null = null;
+
+  const DRAG_THRESHOLD = 6;
 
   function tabPointerDown(e: PointerEvent, index: number) {
     if ((e.target as Element).closest('button')) return;
@@ -67,29 +72,42 @@
     dragSrcIndex = index;
     insertIndex = index;
     didDrag = false;
+    dragActive = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function tabPointerMove(e: PointerEvent) {
     if (dragSrcIndex === null) return;
+    if (!dragActive) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+      dragActive = true;
+      document.body.classList.add('dragging');
+    }
     const next = computeTabInsertIndex(tabsRowEl, e.clientX, { selector: '.project-tab' });
-    if (next !== insertIndex) didDrag = true;
     insertIndex = next;
+    didDrag = true;
   }
 
   function tabPointerUp() {
     if (dragSrcIndex === null || insertIndex === null) return;
-    const isNoop = insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1;
-    if (!isNoop) {
-      const reordered = openProjects.map((p) => p.id);
-      const [moved] = reordered.splice(dragSrcIndex, 1);
-      // After removal, positions after dragSrcIndex shift down by 1
-      const adjustedInsert = insertIndex > dragSrcIndex ? insertIndex - 1 : insertIndex;
-      reordered.splice(adjustedInsert, 0, moved);
-      dispatch('reorderTabs', reordered);
+    if (dragActive) {
+      const isNoop = insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1;
+      if (!isNoop) {
+        const reordered = openProjects.map((p) => p.id);
+        const [moved] = reordered.splice(dragSrcIndex, 1);
+        const adjustedInsert = insertIndex > dragSrcIndex ? insertIndex - 1 : insertIndex;
+        reordered.splice(adjustedInsert, 0, moved);
+        dispatch('reorderTabs', reordered);
+      }
     }
     dragSrcIndex = null;
     insertIndex = null;
+    dragActive = false;
+    document.body.classList.remove('dragging');
   }
 
   $: STEPS = $settings.workflowTabs
@@ -137,11 +155,11 @@
     </button>
     <div class="tab-divider"></div>
     {#each openProjects as p, i}
-      {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
+      {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
         <div class="drop-indicator"></div>
       {/if}
       <div
-        class="project-tab {p.id === activeProjectId ? 'active' : ''} {dragSrcIndex === i ? 'dragging' : ''}"
+        class="project-tab {p.id === activeProjectId ? 'active' : ''} {dragActive && dragSrcIndex === i ? 'dragging' : ''}"
         role="tab"
         tabindex="0"
         on:pointerdown={(e) => tabPointerDown(e, i)}
@@ -157,7 +175,7 @@
         </button>
       </div>
     {/each}
-    {#if dragSrcIndex !== null && insertIndex === openProjects.length && insertIndex !== dragSrcIndex + 1}
+    {#if dragActive && dragSrcIndex !== null && insertIndex === openProjects.length && insertIndex !== dragSrcIndex + 1}
       <div class="drop-indicator"></div>
     {/if}
     <button class="tab-add" on:click={() => dispatch('addProject')}>
@@ -429,8 +447,7 @@
     pointer-events: none;
   }
 
-  :global(.project-tab) { cursor: grab; }
-  :global(.project-tab:active) { cursor: grabbing; }
+  :global(.project-tab) { cursor: pointer; }
   :global(.project-tab.dragging) { opacity: 0.4; cursor: grabbing; }
   :global(.drop-indicator) {
     width: 2px;

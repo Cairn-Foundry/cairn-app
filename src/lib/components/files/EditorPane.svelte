@@ -27,6 +27,7 @@
   export let dragSrcIndex: number | null;
   export let insertIndex: number | null;
   export let didDrag: boolean;
+  export let dragActive: boolean = false;
   export let editorRef: CodeEditor | undefined = undefined;
   export let tabsBarEl: HTMLElement | null = null;
   export let editorState: import('@codemirror/state').EditorState | null = null;
@@ -85,7 +86,7 @@
   {#if tabs.length > 0}
     <div class="tabs-bar" role="tablist" bind:this={tabsBarEl}>
       {#each tabs as tab, i}
-        {#if dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
+        {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
           <div class="drop-indicator"></div>
         {/if}
         {#if i > 0 && tab.pinned === false && tabs[i - 1]?.pinned === true}
@@ -93,7 +94,7 @@
         {/if}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''}"
+          class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragActive && dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''}"
           role="tab"
           aria-selected={i === activeTabIdx}
           tabindex="0"
@@ -118,7 +119,7 @@
           {/if}
         </div>
       {/each}
-      {#if dragSrcIndex !== null && insertIndex === tabs.length && insertIndex !== dragSrcIndex + 1}
+      {#if dragActive && dragSrcIndex !== null && insertIndex === tabs.length && insertIndex !== dragSrcIndex + 1}
         <div class="drop-indicator"></div>
       {/if}
     </div>
@@ -266,13 +267,12 @@
     color: var(--fg-3);
     font-size: 12px;
     font-family: var(--font-ui);
-    cursor: grab;
+    cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
     user-select: none;
   }
   .file-tab:hover { background: var(--bg-4); color: var(--fg-1); }
-  .file-tab:active { cursor: grabbing; }
   .file-tab.tab-active {
     background: var(--bg-0);
     color: var(--fg-0);

@@ -95,12 +95,16 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0,0,0,0.45);
+    background: oklch(0 0 0 / 0.5);
+    backdrop-filter: blur(3px);
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding-top: 80px;
+    animation: fade .15s ease-out;
   }
+
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
   .panel {
     width: 540px;
@@ -109,8 +113,11 @@
     border: 1px solid var(--stroke-1, var(--stroke-0));
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    box-shadow: 0 24px 64px oklch(0 0 0 / 0.6);
+    animation: pop .2s cubic-bezier(.3,1.2,.4,1);
   }
+
+  @keyframes pop { from { transform: translateY(10px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 
   .search-row {
     display: flex;

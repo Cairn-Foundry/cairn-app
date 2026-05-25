@@ -57,9 +57,14 @@
   let projDragCtx: ProjDragCtx | null = null;
   let projDragBarEl: HTMLElement | null = null;
   let projDragDidDrag = false;
+  let projDragActive = false;
+  let projDragStartX = 0;
+  let projDragStartY = 0;
   let projDragJustEnded = false;
   let dragOverFolderId: string | null = null;
   let dragOverUngrouped = false;
+
+  const PROJ_DRAG_THRESHOLD = 6;
 
   function computeGridInsertIndex(
     containerEl: HTMLElement | null,
@@ -189,6 +194,9 @@
     projInsertIndex    = idx;
     projDragCtx        = ctx;
     projDragDidDrag    = false;
+    projDragActive     = false;
+    projDragStartX     = e.clientX;
+    projDragStartY     = e.clientY;
     dragOverFolderId   = null;
     dragOverUngrouped  = false;
     projDragBarEl      = (e.currentTarget as HTMLElement).parentElement;
@@ -197,6 +205,15 @@
 
   function onProjCardPointerMove(e: PointerEvent) {
     if (projDragSrcIndex === null || !projDragBarEl) return;
+
+    if (!projDragActive) {
+      const dx = e.clientX - projDragStartX;
+      const dy = e.clientY - projDragStartY;
+      if (dx * dx + dy * dy < PROJ_DRAG_THRESHOLD * PROJ_DRAG_THRESHOLD) return;
+      projDragActive = true;
+      document.body.classList.add('dragging');
+    }
+
     projDragDidDrag = true;
 
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -225,6 +242,7 @@
     const insertAt   = projInsertIndex;
     const ctx        = projDragCtx;
     const didDrag    = projDragDidDrag;
+    const wasActive  = projDragActive;
     const projectId  = projDragProjectId;
     const overFolder    = dragOverFolderId;
     const overUngrouped = dragOverUngrouped;
@@ -235,10 +253,12 @@
     projDragCtx       = null;
     projDragBarEl     = null;
     projDragDidDrag   = false;
+    projDragActive    = false;
     dragOverFolderId  = null;
     dragOverUngrouped = false;
+    document.body.classList.remove('dragging');
 
-    if (didDrag) projDragJustEnded = true;
+    if (wasActive) projDragJustEnded = true;
 
     if (overUngrouped && projectId && ctx?.type === 'folder') {
       projectFolders.removeProjectFromFolder(projectId);
@@ -251,7 +271,7 @@
       return;
     }
 
-    if (!didDrag || src === null || insertAt === null || !ctx) return;
+    if (!wasActive || !didDrag || src === null || insertAt === null || !ctx) return;
     if (insertAt === src || insertAt === src + 1) return;
 
     const adjustedInsert = insertAt > src ? insertAt - 1 : insertAt;
@@ -277,8 +297,10 @@
     projDragCtx       = null;
     projDragBarEl     = null;
     projDragDidDrag   = false;
+    projDragActive    = false;
     dragOverFolderId  = null;
     dragOverUngrouped = false;
+    document.body.classList.remove('dragging');
   }
 
   function handleCardClick(e: MouseEvent, action: () => void) {
@@ -304,6 +326,7 @@
 
   function onFolderPointerMove(e: PointerEvent) {
     if (folderDragSrcIndex === null) return;
+    document.body.classList.add('dragging');
     const next = computeTabInsertIndex(foldersDragBarEl, e.clientY, { axis: 'y', selector: '.folder-block' });
     if (next !== folderInsertIndex) folderDragDidDrag = true;
     folderInsertIndex = next;
@@ -329,6 +352,7 @@
     folderDragSrcIndex = null;
     folderInsertIndex  = null;
     folderDragDidDrag  = false;
+    document.body.classList.remove('dragging');
 
     if (!didDrag || src === null || insertAt === null) return;
     if (insertAt === src || insertAt === src + 1) return;
@@ -348,6 +372,7 @@
     folderDragSrcIndex = null;
     folderInsertIndex  = null;
     folderDragDidDrag  = false;
+    document.body.classList.remove('dragging');
   }
 
 </script>
@@ -539,9 +564,9 @@
                   {#each fProjects as p, projIdx (p.id)}
                     <div
                       class="project-card"
-                      class:proj-drag-src={projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projDragSrcIndex === projIdx}
-                      class:proj-drop-before={!dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
-                      class:proj-drop-after={!dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projIdx === fProjects.length - 1 && projInsertIndex === fProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
+                      class:proj-drag-src={projDragActive && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projDragSrcIndex === projIdx}
+                      class:proj-drop-before={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
+                      class:proj-drop-after={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projIdx === fProjects.length - 1 && projInsertIndex === fProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
                       role="button"
                       tabindex="0"
                       on:pointerdown={(e) => onProjCardPointerDown(e, projIdx, { type: 'folder', folderId: folder.id }, p.id)}
@@ -602,9 +627,9 @@
           {#each ungroupedProjects as p, projIdx (p.id)}
             <div
               class="project-card"
-              class:proj-drag-src={projDragCtx?.type === 'ungrouped' && projDragSrcIndex === projIdx}
-              class:proj-drop-before={!dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
-              class:proj-drop-after={!dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projIdx === ungroupedProjects.length - 1 && projInsertIndex === ungroupedProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
+              class:proj-drag-src={projDragActive && projDragCtx?.type === 'ungrouped' && projDragSrcIndex === projIdx}
+              class:proj-drop-before={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
+              class:proj-drop-after={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projIdx === ungroupedProjects.length - 1 && projInsertIndex === ungroupedProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
               role="button"
               tabindex="0"
               on:pointerdown={(e) => onProjCardPointerDown(e, projIdx, { type: 'ungrouped' }, p.id)}

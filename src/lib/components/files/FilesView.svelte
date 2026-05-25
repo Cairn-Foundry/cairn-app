@@ -88,6 +88,9 @@ import { get } from 'svelte/store';
     dragSrcIndex: number | null;
     insertIndex: number | null;
     didDrag: boolean;
+    dragActive: boolean;
+    dragStartX: number;
+    dragStartY: number;
     rootEl: HTMLElement | null;
     tabsBarEl: HTMLElement | null;
     editorRef: CodeEditor | undefined;
@@ -108,6 +111,9 @@ import { get } from 'svelte/store';
       dragSrcIndex: null,
       insertIndex: null,
       didDrag: false,
+      dragActive: false,
+      dragStartX: 0,
+      dragStartY: 0,
       rootEl: null,
       tabsBarEl: null,
       editorRef: undefined,
@@ -1122,12 +1128,17 @@ import { get } from 'svelte/store';
     tabNavSkip = false;
   }
 
+  const TAB_DRAG_THRESHOLD = 6;
+
   function tabPointerDown(e: PointerEvent, i: number, idx: number) {
     if ((e.target as Element).closest('button')) return;
     e.preventDefault();
     panes[i].dragSrcIndex = idx;
     panes[i].insertIndex = idx;
     panes[i].didDrag = false;
+    panes[i].dragActive = false;
+    panes[i].dragStartX = e.clientX;
+    panes[i].dragStartY = e.clientY;
     panes = panes;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -1135,20 +1146,30 @@ import { get } from 'svelte/store';
   function tabPointerMove(e: PointerEvent, i: number) {
     const pane = panes[i];
     if (pane.dragSrcIndex === null) return;
-    const next = computeTabInsertIndex(pane.tabsBarEl, e.clientX);
-    if (next !== pane.insertIndex) pane.didDrag = true;
-    pane.insertIndex = next;
+    if (!pane.dragActive) {
+      const dx = e.clientX - pane.dragStartX;
+      const dy = e.clientY - pane.dragStartY;
+      if (dx * dx + dy * dy < TAB_DRAG_THRESHOLD * TAB_DRAG_THRESHOLD) return;
+      pane.dragActive = true;
+      document.body.classList.add('dragging');
+    }
+    pane.insertIndex = computeTabInsertIndex(pane.tabsBarEl, e.clientX);
+    pane.didDrag = true;
     panes = panes;
   }
 
   function tabPointerUp(_e: PointerEvent, i: number) {
     const pane = panes[i];
     if (pane.dragSrcIndex === null || pane.insertIndex === null) return;
-    const result = applyTabReorder(pane.tabs, pane.activeTabIdx, pane.dragSrcIndex, pane.insertIndex);
-    pane.tabs = result.tabs;
-    pane.activeTabIdx = result.activeIdx;
+    if (pane.dragActive) {
+      const result = applyTabReorder(pane.tabs, pane.activeTabIdx, pane.dragSrcIndex, pane.insertIndex);
+      pane.tabs = result.tabs;
+      pane.activeTabIdx = result.activeIdx;
+    }
     pane.dragSrcIndex = null;
     pane.insertIndex = null;
+    pane.dragActive = false;
+    document.body.classList.remove('dragging');
     panes = panes;
   }
 
@@ -1210,6 +1231,7 @@ import { get } from 'svelte/store';
 
     if (!dragActive) {
       dragActive = true;
+      document.body.classList.add('dragging');
       const sources = multiSelected.size > 1 && multiSelected.has(dragSrcNode.path)
         ? `${multiSelected.size} items`
         : dragSrcNode.name;
@@ -1242,6 +1264,7 @@ import { get } from 'svelte/store';
     dragOverDir = null;
     dragCaptureEl = null;
     removeDragGhost();
+    document.body.classList.remove('dragging');
 
     if (wasActive) dragJustEnded = true;
     if (!wasActive || target === null || !src || !worktreePath) return;
@@ -1345,7 +1368,7 @@ import { get } from 'svelte/store';
     onNodePointerDown={onNodePointerDown}
     onNodePointerMove={onNodePointerMove}
     onNodePointerUp={onNodePointerUp}
-    onNodePointerCancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); }}
+    onNodePointerCancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); document.body.classList.remove('dragging'); }}
     onCommitEdit={commitEdit}
     onCancelEdit={cancelEdit}
     onEditValueChange={(v) => { editValue = v; }}
@@ -1400,6 +1423,7 @@ import { get } from 'svelte/store';
           dragSrcIndex={pane.dragSrcIndex}
           insertIndex={pane.insertIndex}
           didDrag={pane.didDrag}
+          dragActive={pane.dragActive}
           editorState={activeTabs[i] ? (pane.editorStateCache.get(activeTabs[i]!.path) ?? null) : null}
           activeLang={activeLangs[i]}
           activeLineEndings={activeLineEndingsArr[i]}
