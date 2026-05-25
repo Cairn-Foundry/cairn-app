@@ -642,6 +642,14 @@ export const en = {
 		},
 	},
 
+	deleteFolder: {
+		heading: "Confirm deletion",
+		title: (name: string) => `Remove folder "${name}"?`,
+		description:
+			"The folder will be removed. Projects inside will not be deleted.",
+		deleteFolder: "Delete folder",
+	},
+
 	deleteProject: {
 		heading: "Confirm deletion",
 		title: (name: string) => `Remove "${name}"?`,

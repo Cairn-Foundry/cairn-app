@@ -658,6 +658,14 @@ export const fr = {
 		},
 	},
 
+	deleteFolder: {
+		heading: "Confirmer la suppression",
+		title: (name: string) => `Supprimer le dossier "${name}" ?`,
+		description:
+			"Le dossier sera supprimé. Les projets qu'il contient ne seront pas effacés.",
+		deleteFolder: "Supprimer le dossier",
+	},
+
 	deleteProject: {
 		heading: "Confirmer la suppression",
 		title: (name: string) => `Supprimer "${name}" ?`,

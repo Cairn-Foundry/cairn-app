@@ -5,8 +5,9 @@
   import { projects, unregisterProject, duplicateProjectInStore } from '$lib/stores/project';
   import { projectFolders } from '$lib/stores/project-folders';
   import { revealInFileManager } from '$lib/services/project-service';
-  import type { Project } from '$lib/types/project';
+  import type { Project, ProjectFolder } from '$lib/types/project';
   import DeleteProjectModal from './DeleteProjectModal.svelte';
+  import DeleteFolderModal from './DeleteFolderModal.svelte';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import ProjectMenu from './ProjectMenu.svelte';
   import CreateFolderModal from './CreateFolderModal.svelte';
@@ -32,6 +33,7 @@
   let menuProjectId: string | null = null;
   let menuFolderId: string | null = null;
   let deletingProject: Project | null = null;
+  let deletingFolder: ProjectFolder | null = null;
 
   let editingFolderNameId: string | null = null;
   let editingFolderNameValue = '';
@@ -166,9 +168,15 @@
     else if (e.key === 'Escape') cancelRenameFolder();
   }
 
-  function deleteFolder(id: string) {
+  function deleteFolder(folder: ProjectFolder) {
     menuFolderId = null;
-    projectFolders.deleteFolder(id);
+    deletingFolder = folder;
+  }
+
+  function confirmDeleteFolder() {
+    if (!deletingFolder) return;
+    projectFolders.deleteFolder(deletingFolder.id);
+    deletingFolder = null;
   }
 
   // ── project card reorder handlers ────────────────────────────────────────
@@ -515,7 +523,7 @@
                     <Icon name="edit" size={13}/> {t('home.projects.folders.rename')}
                   </button>
                   <div class="card-menu-sep"></div>
-                  <button class="card-menu-item danger" role="menuitem" on:click={() => deleteFolder(folder.id)}>
+                  <button class="card-menu-item danger" role="menuitem" on:click={() => deleteFolder(folder)}>
                     <Icon name="trash" size={13}/> {t('home.projects.folders.delete')}
                   </button>
                 </div>
@@ -634,6 +642,14 @@
     project={deletingProject}
     on:close={() => deletingProject = null}
     on:confirm={handleDelete}
+  />
+{/if}
+
+{#if deletingFolder}
+  <DeleteFolderModal
+    folder={deletingFolder}
+    on:close={() => deletingFolder = null}
+    on:confirm={confirmDeleteFolder}
   />
 {/if}
 
