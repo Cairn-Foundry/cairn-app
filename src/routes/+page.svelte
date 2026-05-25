@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeStep, activeScreen } from '$lib/stores/ui.js';
-  import { activeProjectId, loadProjects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import Home from '$lib/components/Home.svelte';
@@ -28,6 +28,7 @@
     } catch {}
 
     await loadProjects();
+    await loadListing();
 
     try {
       const savedOrder = localStorage.getItem('cairn.openTabOrder');

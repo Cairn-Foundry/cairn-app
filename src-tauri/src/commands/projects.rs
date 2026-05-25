@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use crate::storage::{projects_file, worktrees_dir, cairn_dir};
+use crate::storage::{projects_file, listing_file, worktrees_dir, cairn_dir};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
@@ -105,4 +105,56 @@ pub fn set_active_instance(project_id: String, instance_id: Option<String>) -> R
         .ok_or_else(|| format!("Project '{}' not found", project_id))?;
     project.active_instance_id = instance_id;
     write_projects(&projects)
+}
+
+// ── listing.json ─────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ProjectFolder {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "projectIds")]
+    pub project_ids: Vec<String>,
+    pub collapsed: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ListingConfig {
+    #[serde(default)]
+    pub folders: Vec<ProjectFolder>,
+    #[serde(rename = "projectOrder", default)]
+    pub project_order: Vec<String>,
+}
+
+fn read_listing() -> Result<ListingConfig, String> {
+    let path = listing_file()?;
+    if !path.exists() { return Ok(ListingConfig::default()); }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+fn write_listing(listing: &ListingConfig) -> Result<(), String> {
+    let path = listing_file()?;
+    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::write(&path, serde_json::to_string_pretty(listing).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_listing() -> Result<ListingConfig, String> {
+    read_listing()
+}
+
+#[tauri::command]
+pub fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
+    let mut listing = read_listing()?;
+    listing.folders = folders;
+    write_listing(&listing)
+}
+
+#[tauri::command]
+pub fn save_project_order(ids: Vec<String>) -> Result<(), String> {
+    let mut listing = read_listing()?;
+    listing.project_order = ids;
+    write_listing(&listing)
 }

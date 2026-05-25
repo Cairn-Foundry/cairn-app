@@ -8,6 +8,13 @@ export interface Project {
 	activeInstanceId: string | null;
 }
 
+export interface ProjectFolder {
+	id: string;
+	name: string;
+	projectIds: string[];
+	collapsed: boolean;
+}
+
 export interface Ticket {
 	id: string;
 	source: TicketSource;

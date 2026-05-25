@@ -22,6 +22,10 @@ pub fn projects_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("projects.json"))
 }
 
+pub fn listing_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join("listing.json"))
+}
+
 pub fn instances_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("instances.json"))
 }

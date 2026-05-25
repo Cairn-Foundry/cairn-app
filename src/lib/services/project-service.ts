@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Project } from "$lib/types/project.ts";
+import type { Project, ProjectFolder } from "$lib/types/project.ts";
+
+export type ListingConfig = {
+	folders: ProjectFolder[];
+	projectOrder: string[];
+};
 
 export async function listProjects(): Promise<Project[]> {
 	return invoke<Project[]>("list_projects");
@@ -53,4 +58,16 @@ export async function cloneRepository(
 
 export async function validateGitRepo(path: string): Promise<string> {
 	return invoke<string>("validate_git_repo", { path });
+}
+
+export async function getListing(): Promise<ListingConfig> {
+	return invoke<ListingConfig>("get_listing");
+}
+
+export async function saveFolders(folders: ProjectFolder[]): Promise<void> {
+	return invoke<void>("save_folders", { folders });
+}
+
+export async function saveProjectOrder(ids: string[]): Promise<void> {
+	return invoke<void>("save_project_order", { ids });
 }
