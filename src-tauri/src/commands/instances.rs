@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use git2::{Repository, BranchType};
 use serde::{Deserialize, Serialize};
 use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive};
+use super::file_state::delete_file_state_dir;
 use super::projects::read_projects;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -216,5 +217,6 @@ pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
 
     instances.retain(|i| i.id != id);
     write_instances(&project_id, &instances)?;
+    let _ = delete_file_state_dir(&project_id, &id);
     Ok(())
 }

@@ -19,10 +19,8 @@ import { get } from 'svelte/store';
     type Tab,
     type PersistedState,
     type InstanceTabState,
-    persistState,
-    readPersistedState,
-    readRecentFiles,
-    writeRecentFiles,
+    saveEditorState,
+    loadEditorState,
     pushRecent,
     rehydrateFromPersisted,
   } from '$lib/utils/files/files-persistence';
@@ -123,15 +121,13 @@ import { get } from 'svelte/store';
   let blamePopups: (BlamePopup | null)[] = [null, null];
   let pendingJumps: ({ line: number; col: number } | null)[] = [null, null];
 
-  function loadRecentFiles(instanceId: string) {
-    recentFiles = readRecentFiles(instanceId);
-  }
-
   function pushRecentFile(path: string) {
-    if (!currentInstanceId) return;
+    if (!currentInstanceId || !currentProjectId) return;
     const updated = pushRecent(recentFiles, path);
     recentFiles = updated;
-    writeRecentFiles(currentInstanceId, updated);
+    captureEditorState(0);
+    captureEditorState(1);
+    saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), updated);
   }
 
   function snapshotInstanceState(): InstanceTabState {
@@ -208,7 +204,7 @@ import { get } from 'svelte/store';
       panes = panes;
       focusedPane = 0;
     }
-    if (currentInstanceId) persistState(currentInstanceId, snapshotInstanceState());
+    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
   }
 
   function startSplitResize(e: PointerEvent) {
@@ -229,7 +225,7 @@ import { get } from 'svelte/store';
   function stopSplitResize() {
     if (!isSplitResizing) return;
     isSplitResizing = false;
-    if (currentInstanceId) persistState(currentInstanceId, snapshotInstanceState());
+    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
   }
 
   function captureEditorState(i: number) {
@@ -849,7 +845,7 @@ import { get } from 'svelte/store';
     pane.tabs = sortedByPin(pane.tabs);
     pane.activeTabIdx = activePath ? pane.tabs.findIndex(t => t.path === activePath) : -1;
     panes = panes;
-    if (currentInstanceId) persistState(currentInstanceId, snapshotInstanceState());
+    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
     closeTabCtxMenu();
   }
 
@@ -869,7 +865,7 @@ import { get } from 'svelte/store';
     pane.tabs = kept;
     pane.activeTabIdx = kept.indexOf(current);
     panes = panes;
-    if (currentInstanceId) persistState(currentInstanceId, snapshotInstanceState());
+    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
     closeTabCtxMenu();
   }
 
@@ -924,22 +920,25 @@ import { get } from 'svelte/store';
   $: { if (activeTabs[1]) { blamePopups[1] = null; } }
 
   function saveCurrentState() {
-    if (currentInstanceId === null) return;
+    if (currentInstanceId === null || currentProjectId === null) return;
     captureEditorState(0);
     captureEditorState(1);
     const state = snapshotInstanceState();
     savedState.set(currentInstanceId, state);
-    persistState(currentInstanceId, state);
+    saveEditorState(currentProjectId, currentInstanceId, state, recentFiles);
   }
 
   let currentInstanceId: string | null = null;
+  let currentProjectId: string | null = null;
+  $: currentProjectId = $activeProjectId;
   $: {
     const id = $activeInstance?.id ?? null;
     const wtp = $activeInstance?.worktreePath ?? null;
+    const pid = $activeProjectId;
     if (id !== currentInstanceId) {
       saveCurrentState();
       currentInstanceId = id;
-      if (id !== null) loadRecentFiles(id); else recentFiles = [];
+      recentFiles = [];
       panes = panes.map(() => makePane());
       editState = null;
       contextMenu = null;
@@ -957,21 +956,23 @@ import { get } from 'svelte/store';
         syncActiveTabToTree();
         refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
         refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
-      } else if (id !== null && wtp !== null) {
+      } else if (id !== null && wtp !== null && pid !== null) {
         selectedDir = '';
-        const persisted = readPersistedState(id);
-        if (persisted) {
-          rehydrateTabs(wtp, persisted).then(() => {
-            syncActiveTabToTree();
-            refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
-            refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
-          });
-        } else {
-          panes = [makePane(), makePane()];
-          expanded = new Set();
-          splitMode = false;
-          splitLeftWidth = 0;
-        }
+        loadEditorState(pid, id).then(({ persisted, recentFiles: rf }) => {
+          recentFiles = rf;
+          if (persisted) {
+            rehydrateTabs(wtp, persisted).then(() => {
+              syncActiveTabToTree();
+              refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
+              refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
+            });
+          } else {
+            panes = [makePane(), makePane()];
+            expanded = new Set();
+            splitMode = false;
+            splitLeftWidth = 0;
+          }
+        });
       } else {
         selectedDir = '';
         panes = [makePane(), makePane()];

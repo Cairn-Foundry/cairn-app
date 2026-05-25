@@ -1,5 +1,14 @@
 import { isBinaryPath, readFile } from "$lib/services/file-service";
+import {
+	type FileState,
+	getFileState,
+	type PersistedPane,
+	type PersistedTab,
+	saveFileState,
+} from "$lib/services/file-state-service";
 import { detectLineEndings, normalizeLineEndings } from "./files-indent";
+
+export type { PersistedPane, PersistedTab };
 
 export interface Tab {
 	path: string;
@@ -9,18 +18,6 @@ export interface Tab {
 	scrollTop: number;
 	pinned?: boolean;
 	lineEndings?: "LF" | "CRLF";
-}
-
-export interface PersistedTab {
-	path: string;
-	cursorPos: number;
-	scrollTop: number;
-	pinned?: boolean;
-}
-
-export interface PersistedPane {
-	tabs: PersistedTab[];
-	activeTabIdx: number;
 }
 
 export interface PersistedState {
@@ -42,78 +39,82 @@ export interface InstanceTabState {
 	splitLeftWidth: number;
 }
 
-const FILE_STATE_KEY = (id: string) => `cairn:file-state:${id}`;
-const RECENT_FILES_KEY = (id: string) => `cairn:recent-files:${id}`;
 const RECENT_FILES_LIMIT = 10;
 
-export function persistState(
+export function saveEditorState(
+	projectId: string,
 	instanceId: string,
 	state: InstanceTabState,
+	recentFiles: string[],
 ): void {
-	try {
-		const data: PersistedState = {
-			panes: state.panes.map((p) => ({
-				tabs: p.tabs.map((t) => ({
-					path: t.path,
-					cursorPos: t.cursorPos,
-					scrollTop: t.scrollTop,
-					pinned: t.pinned,
-				})),
-				activeTabIdx: p.activeTabIdx,
+	const fileState: FileState = {
+		panes: state.panes.map((p) => ({
+			tabs: p.tabs.map((t) => ({
+				path: t.path,
+				cursorPos: t.cursorPos,
+				scrollTop: t.scrollTop,
+				pinned: t.pinned,
 			})),
-			expanded: [...state.expanded],
-			splitMode: state.splitMode,
-			splitLeftWidth: state.splitLeftWidth,
-		};
-		localStorage.setItem(FILE_STATE_KEY(instanceId), JSON.stringify(data));
-	} catch {}
+			activeTabIdx: p.activeTabIdx,
+		})),
+		expanded: [...state.expanded],
+		splitMode: state.splitMode,
+		splitLeftWidth: state.splitLeftWidth,
+		recentFiles,
+	};
+	saveFileState(projectId, instanceId, fileState);
 }
 
-export function readPersistedState(instanceId: string): PersistedState | null {
-	try {
-		const raw = localStorage.getItem(FILE_STATE_KEY(instanceId));
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as PersistedState & {
-			tabs?: PersistedTab[];
-			activeTabIdx?: number;
-			tabs2?: PersistedTab[];
-			activeTabIdx2?: number;
-		};
-		if (!parsed.panes && parsed.tabs) {
-			const panes: PersistedPane[] = [
-				{ tabs: parsed.tabs, activeTabIdx: parsed.activeTabIdx ?? -1 },
-				{ tabs: parsed.tabs2 ?? [], activeTabIdx: parsed.activeTabIdx2 ?? -1 },
-			];
-			return {
-				panes,
-				expanded: parsed.expanded,
-				splitMode: parsed.splitMode,
-				splitLeftWidth: parsed.splitLeftWidth,
-			};
-		}
-		return parsed;
-	} catch {
-		return null;
-	}
-}
-
-export function readRecentFiles(instanceId: string): string[] {
-	try {
-		const raw = localStorage.getItem(RECENT_FILES_KEY(instanceId));
-		return raw ? (JSON.parse(raw) as string[]) : [];
-	} catch {
-		return [];
-	}
-}
-
-export function writeRecentFiles(instanceId: string, paths: string[]): void {
-	try {
-		localStorage.setItem(RECENT_FILES_KEY(instanceId), JSON.stringify(paths));
-	} catch {}
+export async function loadEditorState(
+	projectId: string,
+	instanceId: string,
+): Promise<{ persisted: PersistedState | null; recentFiles: string[] }> {
+	const fileState = await getFileState(projectId, instanceId);
+	if (!fileState) return { persisted: null, recentFiles: [] };
+	return {
+		persisted: {
+			panes: fileState.panes,
+			expanded: fileState.expanded,
+			splitMode: fileState.splitMode,
+			splitLeftWidth: fileState.splitLeftWidth,
+		},
+		recentFiles: fileState.recentFiles,
+	};
 }
 
 export function pushRecent(prev: string[], path: string): string[] {
 	return [path, ...prev.filter((p) => p !== path)].slice(0, RECENT_FILES_LIMIT);
+}
+
+export interface RehydrateResult {
+	panes: PaneTabState[];
+	expanded: Set<string>;
+	splitMode: boolean;
+	splitLeftWidth: number;
+}
+
+export async function rehydrateFromPersisted(
+	wtp: string,
+	persisted: PersistedState,
+): Promise<RehydrateResult> {
+	const rehydratedLists = await Promise.all(
+		persisted.panes.map((p) => rehydrateTabList(wtp, p.tabs)),
+	);
+
+	const panes: PaneTabState[] = rehydratedLists.map((tabs, i) => {
+		let activeTabIdx = persisted.panes[i].activeTabIdx;
+		if (tabs.length === 0) activeTabIdx = -1;
+		else if (activeTabIdx >= tabs.length) activeTabIdx = tabs.length - 1;
+		else if (activeTabIdx < 0) activeTabIdx = 0;
+		return { tabs, activeTabIdx };
+	});
+
+	return {
+		panes,
+		expanded: new Set(persisted.expanded),
+		splitMode: persisted.splitMode ?? false,
+		splitLeftWidth: persisted.splitLeftWidth ?? 0,
+	};
 }
 
 async function rehydrateTabList(
@@ -148,35 +149,4 @@ async function rehydrateTabList(
 			lineEndings: le,
 		};
 	});
-}
-
-export interface RehydrateResult {
-	panes: PaneTabState[];
-	expanded: Set<string>;
-	splitMode: boolean;
-	splitLeftWidth: number;
-}
-
-export async function rehydrateFromPersisted(
-	wtp: string,
-	persisted: PersistedState,
-): Promise<RehydrateResult> {
-	const rehydratedLists = await Promise.all(
-		persisted.panes.map((p) => rehydrateTabList(wtp, p.tabs)),
-	);
-
-	const panes: PaneTabState[] = rehydratedLists.map((tabs, i) => {
-		let activeTabIdx = persisted.panes[i].activeTabIdx;
-		if (tabs.length === 0) activeTabIdx = -1;
-		else if (activeTabIdx >= tabs.length) activeTabIdx = tabs.length - 1;
-		else if (activeTabIdx < 0) activeTabIdx = 0;
-		return { tabs, activeTabIdx };
-	});
-
-	return {
-		panes,
-		expanded: new Set(persisted.expanded),
-		splitMode: persisted.splitMode ?? false,
-		splitLeftWidth: persisted.splitLeftWidth ?? 0,
-	};
 }

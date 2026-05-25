@@ -76,6 +76,10 @@ pub fn run() {
             send_message,
             reset_agent_session,
             stop_agent,
+            get_ui_state,
+            save_ui_state,
+            get_file_state,
+            save_file_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

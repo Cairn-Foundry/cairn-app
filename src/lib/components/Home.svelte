@@ -14,31 +14,23 @@
     openProject: string;
     projectCreated: { id: string };
     sectionShown: void;
+    sectionChange: { section: string; settingsTab: string };
   }>();
 
   export let openSection: HomeSection | null = null;
-  export let openSettingsTab: SettingsTab | null = null;
+  export let openSettingsTab: string | null = null;
 
   let activeSection: HomeSection = 'projects';
   let settingsTab: SettingsTab = 'general';
   let mounted = false;
 
-  onMount(() => {
-    try {
-      const savedSection = localStorage.getItem('cairn.homeSection') as HomeSection | null;
-      if (savedSection) activeSection = savedSection;
-      const savedTab = localStorage.getItem('cairn.homeSettingsTab') as SettingsTab | null;
-      if (savedTab) settingsTab = savedTab;
-    } catch {}
-    mounted = true;
-  });
+  onMount(() => { mounted = true; });
 
-  $: if (mounted) try { localStorage.setItem('cairn.homeSection', activeSection); } catch {}
-  $: if (mounted) try { localStorage.setItem('cairn.homeSettingsTab', settingsTab); } catch {}
+  $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });
 
   $: if (openSection !== null) {
     activeSection = openSection;
-    if (openSettingsTab !== null) settingsTab = openSettingsTab;
+    if (openSettingsTab !== null) settingsTab = openSettingsTab as SettingsTab;
     dispatch('sectionShown');
   }
 

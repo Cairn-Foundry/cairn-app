@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { activeStep, activeScreen } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
+  import { getUiState, saveUiState } from '$lib/services/ui-state-service';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
@@ -13,48 +15,66 @@
 
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;
-  let homeOpenSettingsTab: 'general' | 'shortcuts' | null = null;
+  let homeOpenSettingsTab: string | null = null;
+  let homeSection: string = 'projects';
+  let homeSettingsTab: string = 'general';
   let showCreate = false;
   let mounted = false;
+
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  function persistUiState() {
+    if (!mounted) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveUiState({
+        screen,
+        activeProjectId: get(activeProjectId),
+        openTabOrder: get(openTabOrder),
+        activeStep: get(activeStep),
+        homeSection,
+        homeSettingsTab,
+      });
+    }, 300);
+  }
 
   onMount(async () => {
     settings.load();
 
-    let savedScreen: Screen | null = null;
-    try {
-      savedScreen = localStorage.getItem('cairn.screen') as Screen | null;
-      if (savedScreen) screen = savedScreen;
-      const savedStep = localStorage.getItem('cairn.step');
-      if (savedStep) activeStep.set(savedStep as any);
-    } catch {}
+    const saved = await getUiState();
+    screen = saved.screen;
+    homeSection = saved.homeSection;
+    homeSettingsTab = saved.homeSettingsTab;
+    activeStep.set(saved.activeStep as any);
 
     await loadProjects();
     await loadListing();
 
-    try {
-      const savedOrder = localStorage.getItem('cairn.openTabOrder');
-      if (savedOrder) reorderTabs(JSON.parse(savedOrder));
-    } catch {}
+    if (saved.openTabOrder.length > 0) reorderTabs(saved.openTabOrder);
 
-    const savedActiveId = localStorage.getItem('cairn.activeProjectId');
-    if (savedActiveId) {
-      openProject(savedActiveId);
-      activeProjectId.set(savedActiveId);
-      await loadInstances(savedActiveId);
-      if (!savedScreen) screen = 'workspace';
+    if (saved.activeProjectId) {
+      openProject(saved.activeProjectId);
+      activeProjectId.set(saved.activeProjectId);
+      await loadInstances(saved.activeProjectId);
+      if (saved.screen === 'workspace') {
+        homeOpenSection = saved.homeSection as HomeSection;
+        homeOpenSettingsTab = saved.homeSettingsTab;
+      }
+    }
+
+    if (saved.screen === 'home') {
+      homeOpenSection = saved.homeSection as HomeSection;
+      homeOpenSettingsTab = saved.homeSettingsTab;
     }
 
     mounted = true;
   });
 
-  $: if (mounted) try { localStorage.setItem('cairn.screen', screen); } catch {}
-  $: activeScreen.set(screen);
-  activeStep.subscribe(step => { if (!mounted) return; try { localStorage.setItem('cairn.step', step); } catch {} });
-  openTabOrder.subscribe(order => { if (!mounted) return; try { localStorage.setItem('cairn.openTabOrder', JSON.stringify(order)); } catch {} });
+  $: if (mounted) { activeScreen.set(screen); persistUiState(); }
+  activeStep.subscribe(() => persistUiState());
+  openTabOrder.subscribe(() => persistUiState());
   activeProjectId.subscribe(async (id) => {
-    if (!mounted) return;
-    try { if (id) localStorage.setItem('cairn.activeProjectId', id); } catch {}
     if (id) await loadInstances(id);
+    persistUiState();
   });
 
   async function handleOpenProject(id: string) {
@@ -79,6 +99,12 @@
     activeProjectId.set(id);
     screen = 'workspace';
   }
+
+  function handleSectionChange(e: CustomEvent<{ section: string; settingsTab: string }>) {
+    homeSection = e.detail.section;
+    homeSettingsTab = e.detail.settingsTab;
+    persistUiState();
+  }
 </script>
 
 <div class="os-window">
@@ -89,6 +115,7 @@
       on:openProject={(e) => handleOpenProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
       on:sectionShown={() => { homeOpenSection = null; homeOpenSettingsTab = null; }}
+      on:sectionChange={handleSectionChange}
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
