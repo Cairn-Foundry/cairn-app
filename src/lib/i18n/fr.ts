@@ -54,6 +54,8 @@ export const fr = {
 		hintOpen:
 			"Sélectionnez un dossier local à ouvrir en tant que projet Cairn.",
 		hintClone: "Choisissez le dossier parent dans lequel le dépôt sera cloné.",
+		orTypePath: "ou",
+		pathInputPlaceholder: "/chemin/vers/le/projet",
 		repoUrl: "URL du dépôt",
 		repoUrlPlaceholder: "https://github.com/utilisateur/depot.git",
 		protocol: "Protocole",

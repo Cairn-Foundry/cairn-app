@@ -53,6 +53,8 @@ export const en = {
 			"Pick the folder where this project lives. Any directory works - git is not required.",
 		hintOpen: "Select any local folder to open as a Cairn project.",
 		hintClone: "Choose the parent folder where the repository will be cloned.",
+		orTypePath: "or",
+		pathInputPlaceholder: "/path/to/project",
 		repoUrl: "Repository URL",
 		repoUrlPlaceholder: "https://github.com/user/repo.git",
 		protocol: "Protocol",

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
@@ -68,15 +68,17 @@
     }
   }
 
-  // For "open", fire the picker immediately so opening the modal feels instant
-  onMount(() => {
-    if (mode === 'open') pickDirectory();
-  });
-
   // Auto-fill name from clone URL on blur
   function inferNameFromUrl() {
     if (name || !cloneUrl.trim()) return;
     const slug = cloneUrl.trim().split('/').at(-1)?.replace(/\.git$/, '') ?? '';
+    if (slug) name = slug;
+  }
+
+  // Auto-fill name from manually typed path on blur
+  function inferNameFromPath() {
+    if (name || !path.trim()) return;
+    const slug = path.trim().replace(/\/$/, '').split('/').at(-1) ?? '';
     if (slug) name = slug;
   }
 
@@ -200,6 +202,15 @@
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
         </button>
+        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
+        <input
+          class="ap-input mono"
+          bind:value={path}
+          on:blur={inferNameFromPath}
+          placeholder={t('addProject.pathInputPlaceholder') as string}
+          autocomplete="off"
+          spellcheck="false"
+        />
 
       <!-- ══ OPEN — step 0: location ══ -->
       {:else if mode === 'open' && step === 0}
@@ -218,6 +229,15 @@
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
         </button>
+        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
+        <input
+          class="ap-input mono"
+          bind:value={path}
+          on:blur={inferNameFromPath}
+          placeholder={t('addProject.pathInputPlaceholder') as string}
+          autocomplete="off"
+          spellcheck="false"
+        />
 
       <!-- ══ OPEN — step 1: identity ══ -->
       {:else if mode === 'open' && step === 1}
@@ -324,6 +344,14 @@
           </span>
           {#if path}<Icon name="check" size={14}/>{/if}
         </button>
+        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
+        <input
+          class="ap-input mono"
+          bind:value={path}
+          placeholder={t('addProject.pathInputPlaceholder') as string}
+          autocomplete="off"
+          spellcheck="false"
+        />
 
       {/if}
 
@@ -447,6 +475,24 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* ── Path or divider ── */
+  .path-or {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 12px;
+    color: var(--fg-4);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .path-or::before, .path-or::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--stroke-1);
   }
 
   /* ── Clone method ── */
