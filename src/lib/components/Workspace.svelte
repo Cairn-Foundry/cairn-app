@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { activeStep, quickOpenVisible } from '$lib/stores/ui.js';
+  import { activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -11,6 +11,8 @@
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
+  import CommandPalette from '$lib/components/files/CommandPalette.svelte';
+  import { shortcuts, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
   import type { FileNode } from '$lib/services/file-service';
@@ -302,6 +304,15 @@
     tree={quickOpenTree}
     onOpen={handleQuickOpenFile}
     onClose={() => quickOpenVisible.set(false)}
+  />
+{/if}
+
+{#if $commandPaletteVisible}
+  <CommandPalette
+    shortcuts={$shortcuts}
+    shortcutDefs={SHORTCUT_DEFS}
+    onClose={() => commandPaletteVisible.set(false)}
+    onAction={(id) => { commandPaletteVisible.set(false); filesView?.executeAction(id); }}
   />
 {/if}
 

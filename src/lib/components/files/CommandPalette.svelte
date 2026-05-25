@@ -144,12 +144,12 @@
     padding: 14px 16px;
     font-size: 14px;
     font-family: var(--font-ui);
-    color: var(--text-0);
+    color: var(--fg-0);
     outline: none;
     box-sizing: border-box;
   }
 
-  .cp-input::placeholder { color: var(--text-2); }
+  .cp-input::placeholder { color: var(--fg-3); }
 
   .cp-list {
     list-style: none;
@@ -167,7 +167,7 @@
     gap: 2px;
   }
 
-  .cp-item-selected { background: var(--accent-muted, oklch(0.72 0.14 250 / 0.14)); }
+  .cp-item-selected { background: var(--accent-weak); }
 
   .cp-item-main {
     display: flex;
@@ -178,14 +178,16 @@
   .cp-item-label {
     font-size: 13px;
     font-family: var(--font-ui);
-    color: var(--text-0);
+    color: var(--fg-2);
     flex: 1;
   }
+
+  .cp-item-selected .cp-item-label { color: var(--fg-0); }
 
   .cp-item-group {
     font-size: 10.5px;
     font-family: var(--font-ui);
-    color: var(--text-2);
+    color: var(--fg-3);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--bg-2);
@@ -203,7 +205,7 @@
   .cp-item-desc {
     font-size: 11.5px;
     font-family: var(--font-ui);
-    color: var(--text-2);
+    color: var(--fg-3);
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
@@ -224,14 +226,14 @@
     border-radius: 3px;
     font-size: 10.5px;
     font-family: var(--font-ui);
-    color: var(--text-1);
+    color: var(--fg-2);
   }
 
   .cp-empty {
     padding: 16px;
     font-size: 13px;
     font-family: var(--font-ui);
-    color: var(--text-2);
+    color: var(--fg-3);
     text-align: center;
   }
 </style>

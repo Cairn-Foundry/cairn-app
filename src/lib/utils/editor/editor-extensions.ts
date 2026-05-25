@@ -54,7 +54,7 @@ function duplicateLineStay(view: EditorView): boolean {
 	return true;
 }
 
-const SHORTCUT_COMMANDS: {
+export const SHORTCUT_COMMANDS: {
 	id: ShortcutId;
 	run: (view: EditorView) => boolean;
 }[] = [

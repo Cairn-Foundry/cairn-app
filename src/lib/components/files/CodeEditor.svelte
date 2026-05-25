@@ -35,7 +35,7 @@
     setUnstagedDiff, setStagedDiff,
     type DiffHunk,
   } from '$lib/utils/editor/editor-diff-gutter';
-  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap } from '$lib/utils/editor/editor-extensions';
+  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
   export let content: string = '';
@@ -81,6 +81,15 @@
     if (current !== text) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: text }, userEvent: 'input' });
     }
+  }
+
+  export function runEditorCommand(id: string): boolean {
+    if (!view) return false;
+    const cmd = SHORTCUT_COMMANDS.find(c => c.id === id);
+    if (!cmd) return false;
+    const ran = cmd.run(view);
+    if (ran) view.focus();
+    return ran;
   }
 
   let container: HTMLDivElement;

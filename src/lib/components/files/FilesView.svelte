@@ -5,12 +5,11 @@ import { get } from 'svelte/store';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import SearchPanel from './SearchPanel.svelte';
-  import CommandPalette from './CommandPalette.svelte';
   import EditorPane from './EditorPane.svelte';
   import FileTreeView from './FileTreeView.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
-  import { activeScreen, quickOpenVisible } from '$lib/stores/ui';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
   import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileAtCommit, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -456,8 +455,7 @@ import { get } from 'svelte/store';
   let sidebarHidden = false;
 
   // ── Command palette ──────────────────────────────────────────────────────────
-  let commandPaletteVisible = false;
-  export function openCommandPalette() { commandPaletteVisible = true; }
+  export function openCommandPalette() { commandPaletteVisible.set(true); }
   export function openQuickOpen() { $quickOpenVisible = true; }
   export function getTree(): FileNode[] { return tree; }
   export function openFileByPath(path: string) { quickOpenFile(path); }
@@ -704,7 +702,18 @@ import { get } from 'svelte/store';
     settings.save({ editorFontSize: EDITOR_DEFAULTS.fontSize });
   }
 
-  async function executeAction(id: string) {
+  const FILES_STEP_ACTIONS = new Set([
+    'searchFiles', 'splitEditor', 'toggleSidebar', 'closeTab', 'reopenClosedTab',
+    'nextTab', 'prevTab', 'tabHistoryBack', 'tabHistoryForward', 'saveFile',
+    'toggleLineComment', 'toggleBlockComment', 'moveLineUp', 'moveLineDown',
+    'copyLineDown', 'deleteLine', 'selectLine', 'matchingBracket', 'indentMore',
+    'indentLess', 'expandSelection', 'goToLine', 'addCursorAbove', 'addCursorBelow',
+    'duplicateLine', 'treeSelectAll', 'treeCopy', 'treeCut', 'treePaste',
+    'treeDelete', 'treeRename', 'treeNewFile', 'treeNewFolder',
+  ]);
+
+  export async function executeAction(id: string) {
+    if (FILES_STEP_ACTIONS.has(id)) activeStep.set('files');
     switch (id) {
       case 'quickOpen':         $quickOpenVisible = true; break;
       case 'searchFiles':       toggleSearchPanel(); break;
@@ -721,6 +730,54 @@ import { get } from 'svelte/store';
       case 'fontSizeUp':        bumpFontSize(+1); break;
       case 'fontSizeDown':      bumpFontSize(-1); break;
       case 'fontSizeReset':     resetFontSize(); break;
+      case 'commandPalette':    commandPaletteVisible.set(true); break;
+      case 'treeSelectAll':
+        multiSelected = new Set(flattenVisible(tree, expanded).map(n => n.path));
+        break;
+      case 'treeCopy':
+        if (multiSelected.size > 0 && worktreePath)
+          fileClipboard = { nodes: flattenToNodes(tree, multiSelected), srcWorktreePath: worktreePath, op: 'copy' };
+        break;
+      case 'treeCut':
+        if (multiSelected.size > 0 && worktreePath)
+          fileClipboard = { nodes: flattenToNodes(tree, multiSelected), srcWorktreePath: worktreePath, op: 'cut' };
+        break;
+      case 'treePaste': {
+        const targetPath = [...multiSelected][0] ?? null;
+        const targetNode = targetPath ? (flattenVisible(tree, expanded).find(n => n.path === targetPath) ?? null) : null;
+        if (fileClipboard && worktreePath) await pasteClipboard(fileClipboard, targetNode, worktreePath);
+        break;
+      }
+      case 'treeDelete': {
+        if (multiSelected.size > 0) {
+          const paths = [...multiSelected];
+          const label = paths.length === 1 ? `"${basename(paths[0])}"` : `${paths.length} items`;
+          if (confirm(`Delete ${label}?`)) await bulkDelete();
+        }
+        break;
+      }
+      case 'treeRename':
+        if (multiSelected.size === 1) {
+          const path = [...multiSelected][0];
+          const node = flattenVisible(tree, expanded).find(n => n.path === path);
+          if (node) startEdit({ type: 'rename', node, parentPath: parentPathOf(node.path), value: node.name });
+        }
+        break;
+      case 'treeNewFile': {
+        const parentPath = [...multiSelected].find(p => flattenVisible(tree, expanded).find(x => x.path === p)?.isDir) ?? selectedDir;
+        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
+        startEdit({ type: 'new-file', node: null, parentPath, value: '' });
+        break;
+      }
+      case 'treeNewFolder': {
+        const parentPath = [...multiSelected].find(p => flattenVisible(tree, expanded).find(x => x.path === p)?.isDir) ?? selectedDir;
+        if (parentPath) { expanded.add(parentPath); expanded = expanded; }
+        startEdit({ type: 'new-dir', node: null, parentPath, value: '' });
+        break;
+      }
+      default:
+        panes[focusedPane].editorRef?.runEditorCommand(id);
+        break;
     }
   }
 
@@ -745,7 +802,7 @@ import { get } from 'svelte/store';
     toggleSidebar: () => { sidebarHidden = !sidebarHidden; },
     bumpFontSize,
     resetFontSize,
-    openCommandPalette: () => { commandPaletteVisible = true; },
+    openCommandPalette: () => { commandPaletteVisible.set(true); },
     openQuickOpen: () => { $quickOpenVisible = true; },
     openSettings: () => onGoSettings?.(),
     saveActivePane: (i) => { flushSave(i); },
@@ -1473,14 +1530,6 @@ import { get } from 'svelte/store';
   </div>
 </div>
 
-{#if commandPaletteVisible}
-  <CommandPalette
-    shortcuts={$shortcuts}
-    shortcutDefs={SHORTCUT_DEFS}
-    onClose={() => { commandPaletteVisible = false; }}
-    onAction={(id) => { commandPaletteVisible = false; executeAction(id); }}
-  />
-{/if}
 
 {#if tabCtxMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
