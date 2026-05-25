@@ -676,6 +676,14 @@ export const fr = {
 		deleteProject: "Supprimer le projet",
 	},
 
+	deleteInstance: {
+		heading: "Confirmer la suppression",
+		title: (name: string) => `Supprimer "${name}" ?`,
+		description:
+			"Cela supprimera l'instance et effacera son worktree. Vos fichiers originaux de projet ne seront pas affectés.",
+		deleteInstance: "Supprimer l'instance",
+	},
+
 	settings: {
 		title: "Paramètres",
 		searchPlaceholder: "Rechercher des paramètres…",

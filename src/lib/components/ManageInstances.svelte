@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
   import { t } from '$lib/i18n';
   import { instances, removeInstance } from '$lib/stores/instance';
   import { activeProject, activateInstance } from '$lib/stores/project';
@@ -16,7 +17,7 @@
 
   let search = '';
   let deletingId: string | null = null;
-  let confirmDeleteId: string | null = null;
+  let pendingDeleteInst: Instance | null = null;
   let moreOpenId: string | null = null;
   let copiedId: string | null = null;
   let moreMenuPos = { top: 0, right: 0 };
@@ -50,24 +51,21 @@
     setTimeout(() => { copiedId = null; }, CLIPBOARD_CLEAR_DELAY);
   }
 
-  async function handleDelete(inst: Instance) {
-    if (!$activeProject) return;
+  function handleDelete(inst: Instance) {
     moreOpenId = null;
-    if (confirmDeleteId !== inst.id) {
-      confirmDeleteId = inst.id;
-      return;
-    }
+    pendingDeleteInst = inst;
+  }
+
+  async function confirmDelete() {
+    if (!$activeProject || !pendingDeleteInst) return;
+    const inst = pendingDeleteInst;
+    pendingDeleteInst = null;
     deletingId = inst.id;
-    confirmDeleteId = null;
     try {
       await removeInstance(inst.id, $activeProject.id);
     } finally {
       deletingId = null;
     }
-  }
-
-  function cancelDelete() {
-    confirmDeleteId = null;
   }
 
   $: moreInst = moreOpenId ? ($instances.find(i => i.id === moreOpenId) ?? null) : null;
@@ -119,9 +117,8 @@
           {#each filtered as inst (inst.id)}
             {@const isActive = inst.id === activeInstanceId}
             {@const isDeleting = deletingId === inst.id}
-            {@const isConfirming = confirmDeleteId === inst.id}
             {@const isMoreOpen = moreOpenId === inst.id}
-            <li class="mi-row" class:active={isActive} class:deleting={isDeleting} class:confirming={isConfirming}>
+            <li class="mi-row" class:active={isActive} class:deleting={isDeleting}>
 
               <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
 
@@ -136,12 +133,8 @@
               </div>
 
               <div class="mi-actions">
-                {#if isConfirming}
-                  <span class="mi-confirm-label">{t('manageInstances.deleteConfirm')}</span>
-                  <button class="row-btn danger" on:click={() => handleDelete(inst)} disabled={isDeleting}>
-                    {#if isDeleting}<Spinner size={10}/>{:else}{t('common.confirm')}{/if}
-                  </button>
-                  <button class="row-btn" on:click={cancelDelete}>{t('common.cancel')}</button>
+                {#if isDeleting}
+                  <Spinner size={10}/>
                 {:else}
                   {#if !isActive}
                     <button class="row-btn" on:click={() => handleSetActive(inst)}>
@@ -196,6 +189,14 @@
 
   </div>
 </div>
+
+{#if pendingDeleteInst}
+  <DeleteInstanceModal
+    instance={pendingDeleteInst}
+    on:close={() => pendingDeleteInst = null}
+    on:confirm={confirmDelete}
+  />
+{/if}
 
 <style>
   .mi-modal { width: min(580px, 94vw); }
@@ -263,7 +264,6 @@
   .mi-row:hover { background: var(--bg-2); }
   .mi-row.active { background: var(--accent-weak); }
   .mi-row.deleting { opacity: 0.4; pointer-events: none; }
-  .mi-row.confirming { background: oklch(0.20 0.03 15 / 0.5); }
 
   .mi-dot {
     width: 6px;
@@ -305,12 +305,6 @@
     flex-shrink: 0;
   }
 
-  .mi-confirm-label {
-    font-size: 11px;
-    color: var(--fg-2);
-    margin-right: 4px;
-  }
-
   .row-btn {
     padding: 3px 9px;
     font-family: var(--font-ui);
@@ -330,8 +324,6 @@
   .row-btn.icon-only { padding: 4px 5px; color: var(--fg-3); border-color: transparent; }
   .row-btn.icon-only:hover,
   .row-btn.icon-only.open { color: var(--fg-1); background: var(--bg-3); border-color: var(--stroke-1); }
-  .row-btn.danger { color: var(--fg-3); border-color: transparent; }
-  .row-btn.danger:hover { color: oklch(0.75 0.16 15); border-color: oklch(0.45 0.10 15 / 0.5); background: oklch(0.20 0.04 15); }
 
   /* More dropdown — fixed to escape overflow:hidden scroll containers */
   .more-overlay {

@@ -660,6 +660,14 @@ export const en = {
 		deleteProject: "Delete project",
 	},
 
+	deleteInstance: {
+		heading: "Confirm deletion",
+		title: (name: string) => `Delete "${name}"?`,
+		description:
+			"This will remove the instance and delete its worktree. Your original project files will not be affected.",
+		deleteInstance: "Delete instance",
+	},
+
 	settings: {
 		title: "Settings",
 		searchPlaceholder: "Search settings…",
