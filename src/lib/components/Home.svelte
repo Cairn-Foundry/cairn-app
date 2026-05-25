@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import AddProject from '$lib/components/AddProject.svelte';
   import EditProject from '$lib/components/EditProject.svelte';
@@ -21,6 +21,20 @@
 
   let activeSection: HomeSection = 'projects';
   let settingsTab: SettingsTab = 'general';
+  let mounted = false;
+
+  onMount(() => {
+    try {
+      const savedSection = localStorage.getItem('cairn.homeSection') as HomeSection | null;
+      if (savedSection) activeSection = savedSection;
+      const savedTab = localStorage.getItem('cairn.homeSettingsTab') as SettingsTab | null;
+      if (savedTab) settingsTab = savedTab;
+    } catch {}
+    mounted = true;
+  });
+
+  $: if (mounted) try { localStorage.setItem('cairn.homeSection', activeSection); } catch {}
+  $: if (mounted) try { localStorage.setItem('cairn.homeSettingsTab', settingsTab); } catch {}
 
   $: if (openSection !== null) {
     activeSection = openSection;

@@ -20,8 +20,9 @@
   onMount(async () => {
     settings.load();
 
+    let savedScreen: Screen | null = null;
     try {
-      const savedScreen = localStorage.getItem('cairn.screen') as Screen | null;
+      savedScreen = localStorage.getItem('cairn.screen') as Screen | null;
       if (savedScreen) screen = savedScreen;
       const savedStep = localStorage.getItem('cairn.step');
       if (savedStep) activeStep.set(savedStep as any);
@@ -40,7 +41,7 @@
       openProject(savedActiveId);
       activeProjectId.set(savedActiveId);
       await loadInstances(savedActiveId);
-      screen = 'workspace';
+      if (!savedScreen) screen = 'workspace';
     }
 
     mounted = true;
