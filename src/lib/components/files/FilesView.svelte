@@ -1298,14 +1298,18 @@ import { get } from 'svelte/store';
     moveGhost(e.clientX, e.clientY);
 
     const targetDirAttr = findDropTargetDir(e.clientX, e.clientY);
-    if (targetDirAttr === null) {
-      dragOverDir = null;
-      return;
-    }
-    const targetDir = targetDirAttr; // '' = root
     const sources = multiSelected.size > 1 && multiSelected.has(dragSrcNode.path)
       ? [...multiSelected]
       : [dragSrcNode.path];
+
+    if (targetDirAttr === null) {
+      const pointedEl = document.elementFromPoint(e.clientX, e.clientY);
+      const treeScrollEl = pointedEl?.closest('.files-tree-scroll');
+      const wouldMove = sources.some(s => s.includes('/'));
+      dragOverDir = treeScrollEl && wouldMove ? '' : null;
+      return;
+    }
+    const targetDir = targetDirAttr; // '' = root
 
     const invalid = sources.some(s => s === targetDir || targetDir.startsWith(s + '/'));
     dragOverDir = invalid ? null : targetDir;
