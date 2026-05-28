@@ -4,8 +4,8 @@ v0.3 -> Editeur de code fonctionnel et intégration des projets et des instances
 v0.4 -> Paramètres pour personnaliser l'application et gérer le fonctionnement des fonctionnalités
 v0.5 -> Gestion de git dans l'éditeur de code, vue historique et refacto global, internalisation des textes
 v0.6 -> Wrapper IA et intéraction avec Claude CLI
-v0.7 -> Intégration complète de l'agent IA dans l'éditeur et fonctionnement de la partie Review
-v0.8 -> Intégration de la partie Git
+v0.7 -> Intégration fonctionnelle de la step Git
+v0.8 -> Intégration complète de l'agent IA dans l'éditeur et fonctionnement de la partie Review
 v0.9 -> Intégration de la partie Pipeline
 v0.10 -> Intégration des providers de tickets GitLab, Jira, GitHub, ect...
 v0.11 -> Refacto global et optimisation
