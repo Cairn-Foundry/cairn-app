@@ -26,8 +26,10 @@ export function findDropTargetDir(x: number, y: number): string | null {
 	const el = document.elementFromPoint(x, y);
 	if (!el) return null;
 	const btn = (el as HTMLElement).closest(
-		"[data-tree-dir]",
+		"[data-tree-dir], [data-tree-parent]",
 	) as HTMLElement | null;
 	if (!btn) return null;
-	return btn.getAttribute("data-tree-dir") ?? null;
+	if (btn.hasAttribute("data-tree-dir"))
+		return btn.getAttribute("data-tree-dir") ?? null;
+	return btn.getAttribute("data-tree-parent") ?? null;
 }

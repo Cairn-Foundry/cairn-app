@@ -3,7 +3,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import type { FileNode, GitStatusMap } from '$lib/services/file-service';
-  import { fileIcon as fileIconFor, nodeGitStatus } from '$lib/utils/files/files-tree';
+  import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
 
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 
@@ -151,6 +151,7 @@
       class="file-tree-item {openTabPaths.has(node.path) ? 'open' : ''} {activeTabPath === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenuTargetPath === node.path ? 'ctx-target' : ''} {status ? 'git-' + status : ''} {multiSelected.has(node.path) ? 'multi-selected' : ''} {node.isDir && dragOverDir === node.path ? 'drag-over' : ''} {cutPaths.has(node.path) ? 'file-cut' : ''}"
       style="padding-left: {12 + depth * 14}px"
       data-tree-dir={node.isDir ? node.path : undefined}
+      data-tree-parent={!node.isDir ? parentPathOf(node.path) : undefined}
       on:click={(e) => onNodeClick(e, node)}
       on:contextmenu={(e) => onContextMenu(e, node)}
       on:pointerdown={(e) => onNodePointerDown(e, node)}
