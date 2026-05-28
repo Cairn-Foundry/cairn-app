@@ -142,7 +142,7 @@ export const fr = {
 		activeBadge: "Active",
 		fromBranch: "depuis",
 		actions: {
-			select: "Sélectionner",
+			switch: "Basculer",
 			copyPath: "Copier le chemin du worktree",
 			copyPathDone: "Copié",
 			deleteInstance: "Supprimer l'instance",

@@ -118,7 +118,16 @@
             {@const isActive = inst.id === activeInstanceId}
             {@const isDeleting = deletingId === inst.id}
             {@const isMoreOpen = moreOpenId === inst.id}
-            <li class="mi-row" class:active={isActive} class:deleting={isDeleting}>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <li
+              class="mi-row"
+              class:active={isActive}
+              class:deleting={isDeleting}
+              class:clickable={!isActive && !isDeleting}
+              on:click={() => { if (!isActive && !isDeleting) handleSetActive(inst); }}
+              role={!isActive && !isDeleting ? 'button' : undefined}
+              tabindex={!isActive && !isDeleting ? 0 : undefined}
+            >
 
               <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
 
@@ -136,17 +145,11 @@
                 {#if isDeleting}
                   <Spinner size={10}/>
                 {:else}
-                  {#if !isActive}
-                    <button class="row-btn" on:click={() => handleSetActive(inst)}>
-                      {t('manageInstances.actions.select')}
-                    </button>
-                  {/if}
-
                   <button
                     class="row-btn icon-only"
                     class:open={isMoreOpen}
                     aria-label="More actions"
-                    on:click={(e) => openMore(inst, e.currentTarget)}
+                    on:click|stopPropagation={(e) => openMore(inst, e.currentTarget)}
                   >
                     <Icon name="more" size={13}/>
                   </button>
@@ -263,6 +266,7 @@
   .mi-row:last-child { border-bottom: none; }
   .mi-row:hover { background: var(--bg-2); }
   .mi-row.active { background: var(--accent-weak); }
+  .mi-row.clickable { cursor: pointer; }
   .mi-row.deleting { opacity: 0.4; pointer-events: none; }
 
   .mi-dot {
