@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
   import { activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -16,6 +16,7 @@
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
   import type { FileNode } from '$lib/services/file-service';
+  import { matchesSearch } from '$lib/utils/files/files-search';
 
   import type { Instance } from '$lib/types/instance';
   import { instances } from '$lib/stores/instance';
@@ -32,6 +33,17 @@
   let showManageModal = false;
   let showShortcuts = false;
   let filesView: FilesView;
+  let instanceSearch = '';
+  let instanceSearchEl: HTMLInputElement | null = null;
+
+  async function openInstanceMenu() {
+    instanceSearch = '';
+    showInstanceMenu = !showInstanceMenu;
+    if (showInstanceMenu) {
+      await tick();
+      instanceSearchEl?.focus();
+    }
+  }
 
   let quickOpenTree: FileNode[] = [];
   $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
@@ -44,6 +56,7 @@
 
   async function selectInstance(id: string) {
     showInstanceMenu = false;
+    instanceSearch = '';
     await activateInstance(activeProjectId, id);
   }
 
@@ -146,6 +159,35 @@
   onDestroy(() => unlistenFullscreen?.());
 
   $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
+
+  $: instanceGroups = (() => {
+    const byId = new Map($instances.map(i => [i.id, i]));
+    const placed = new Set<string>();
+    const result: Array<{ inst: typeof $instances[0]; depth: number }> = [];
+
+    function placeSubtree(inst: typeof $instances[0], depth: number) {
+      if (placed.has(inst.id)) return;
+      result.push({ inst, depth });
+      placed.add(inst.id);
+      for (const child of $instances) {
+        if (child.parentInstanceId === inst.id) placeSubtree(child, depth + 1);
+      }
+    }
+
+    for (const inst of $instances) {
+      if (!placed.has(inst.id) && !byId.has(inst.parentInstanceId ?? '')) {
+        placeSubtree(inst, 0);
+      }
+    }
+    return result;
+  })();
+
+  $: instanceGroupsFiltered = instanceSearch
+    ? instanceGroups.filter(({ inst }) =>
+        matchesSearch(inst.ticket.id, instanceSearch) ||
+        matchesSearch(inst.ticket.title, instanceSearch)
+      )
+    : instanceGroups;
 </script>
 
 <div class="workspace">
@@ -193,17 +235,29 @@
   <!-- Instance header -->
   <div class="instance-header">
     {#if activeInstance}
-      <div class="instance-switcher-wrap" use:clickOutside={() => showInstanceMenu = false}>
-        <button class="instance-switcher" on:click={() => showInstanceMenu = !showInstanceMenu}>
+      <div class="instance-switcher-wrap" use:clickOutside={() => { showInstanceMenu = false; instanceSearch = ''; }}>
+        <button class="instance-switcher" on:click={openInstanceMenu}>
           <Icon name="ticket" size={12}/>
           <span class="mono">{activeInstance.ticket.id}</span>
           <Icon name="chev-d" size={11}/>
         </button>
         {#if showInstanceMenu}
           <div class="instance-menu">
-            {#each $instances as inst}
+            <div class="instance-menu-search">
+              <Icon name="search" size={11}/>
+              <input
+                bind:this={instanceSearchEl}
+                bind:value={instanceSearch}
+                class="instance-menu-search-input"
+                placeholder={t('manageInstances.searchPlaceholder') as string}
+                autocomplete="off"
+                on:keydown={(e) => e.key === 'Escape' && (showInstanceMenu = false)}
+              />
+            </div>
+            {#each instanceGroupsFiltered as { inst, depth }}
               <button
                 class="instance-menu-item {inst.id === activeInstance?.id ? 'active' : ''}"
+                style="padding-left: {10 + depth * 12}px"
                 on:click={() => selectInstance(inst.id)}
               >
                 <span class="mono">{inst.ticket.id}</span>
@@ -241,6 +295,12 @@
         <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
       </div>
     {:else}
+      {#if $instances.length > 0}
+        <button class="create-instance-btn" on:click={() => showManageModal = true}>
+          <Icon name="branch" size={13}/>
+          {t('workspace.switchInstance')}
+        </button>
+      {/if}
       <button class="create-instance-btn" on:click={() => dispatch('createInstance')}>
         <Icon name="plus" size={13}/>
         {t('workspace.createInstance')}
@@ -279,12 +339,27 @@
             <div class="no-instance-icon">
               <Icon name="cairn" size={48}/>
             </div>
-            <h2 class="no-instance-headline">{t('workspace.noInstanceHeadline')}</h2>
-            <p class="no-instance-sub">{t('workspace.noInstanceSub')}</p>
-            <button class="btn primary no-instance-cta" on:click={() => dispatch('createInstance')}>
-              <Icon name="plus" size={14}/>
-              {t('workspace.noInstanceCta')}
-            </button>
+            {#if $instances.length > 0}
+              <h2 class="no-instance-headline">{t('workspace.noInstanceHasOthersHeadline')}</h2>
+              <p class="no-instance-sub">{t('workspace.noInstanceHasOthersSub')}</p>
+              <div class="no-instance-actions">
+                <button class="btn primary no-instance-cta" on:click={() => showManageModal = true}>
+                  <Icon name="branch" size={14}/>
+                  {t('workspace.switchInstance')}
+                </button>
+                <button class="btn no-instance-cta" on:click={() => dispatch('createInstance')}>
+                  <Icon name="plus" size={14}/>
+                  {t('workspace.noInstanceCta')}
+                </button>
+              </div>
+            {:else}
+              <h2 class="no-instance-headline">{t('workspace.noInstanceHeadline')}</h2>
+              <p class="no-instance-sub">{t('workspace.noInstanceSub')}</p>
+              <button class="btn primary no-instance-cta" on:click={() => dispatch('createInstance')}>
+                <Icon name="plus" size={14}/>
+                {t('workspace.noInstanceCta')}
+              </button>
+            {/if}
           </div>
         </div>
       {:else}
@@ -346,6 +421,28 @@
     min-width: 200px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
+
+  .instance-menu-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--stroke-0);
+    color: var(--fg-4);
+  }
+
+  .instance-menu-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    color: var(--fg-0);
+    min-width: 0;
+  }
+  .instance-menu-search-input::placeholder { color: var(--fg-4); }
 
   .instance-menu-item {
     display: flex;
@@ -450,6 +547,13 @@
   .no-instance-cta {
     padding: 10px 22px;
     font-size: 13px;
+  }
+
+  .no-instance-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
 

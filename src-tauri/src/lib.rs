@@ -58,6 +58,7 @@ pub fn run() {
             list_branches,
             list_instances,
             create_instance,
+            duplicate_instance,
             delete_instance,
             set_active_instance,
             get_listing,

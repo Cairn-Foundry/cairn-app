@@ -26,6 +26,8 @@ pub struct StoredInstance {
     pub use_git: bool,
     #[serde(rename = "baseBranch", default)]
     pub base_branch: String,
+    #[serde(rename = "parentInstanceId", default, skip_serializing_if = "Option::is_none")]
+    pub parent_instance_id: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -44,6 +46,8 @@ pub struct Instance {
     pub use_git: bool,
     #[serde(rename = "baseBranch")]
     pub base_branch: String,
+    #[serde(rename = "parentInstanceId", skip_serializing_if = "Option::is_none")]
+    pub parent_instance_id: Option<String>,
 }
 
 impl StoredInstance {
@@ -58,6 +62,7 @@ impl StoredInstance {
             created_at: self.created_at,
             use_git: self.use_git,
             base_branch: self.base_branch,
+            parent_instance_id: self.parent_instance_id,
         }
     }
 }
@@ -173,11 +178,109 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                 .as_millis() as u64,
             use_git: args.use_git,
             base_branch: args.base_branch.unwrap_or_default(),
+            parent_instance_id: None,
         };
 
         let mut instances = read_instances(&args.project_id)?;
         instances.push(stored.clone());
         write_instances(&args.project_id, &instances)?;
+
+        Ok(stored.with_project(args.project_id))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+pub struct DuplicateInstanceArgs {
+    #[serde(rename = "sourceId")]
+    pub source_id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "newId")]
+    pub new_id: String,
+    pub ticket: InstanceTicket,
+    #[serde(rename = "copyWorkingChanges")]
+    pub copy_working_changes: bool,
+}
+
+#[tauri::command]
+pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let instances = read_instances(&args.project_id)?;
+        let source = instances.iter()
+            .find(|i| i.id == args.source_id)
+            .ok_or_else(|| format!("Instance '{}' not found", args.source_id))?
+            .clone();
+
+        let (branch, worktree_path_str) = if source.use_git {
+            let projects = read_projects()?;
+            let expanded_project = projects.iter()
+                .find(|p| p.id == args.project_id)
+                .map(|p| shellexpand::tilde(&p.path).into_owned())
+                .ok_or_else(|| "Project not found".to_string())?;
+
+            let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+
+            let src_branch = repo.find_branch(&source.branch, BranchType::Local)
+                .map_err(|e| e.to_string())?;
+            let src_commit = src_branch.get().peel_to_commit().map_err(|e| e.to_string())?;
+
+            let short_id = &args.new_id[..8.min(args.new_id.len())];
+            let new_branch = format!("{}--{}", source.branch, short_id);
+            repo.branch(&new_branch, &src_commit, false).map_err(|e| e.to_string())?;
+
+            let slug = new_branch.replace('/', "-");
+            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
+
+            if let Err(e) = repo.worktree(
+                &slug,
+                &worktree_path,
+                Some(git2::WorktreeAddOptions::new().reference(Some(
+                    &repo.find_branch(&new_branch, BranchType::Local)
+                        .map_err(|e| e.to_string())?
+                        .into_reference(),
+                ))),
+            ) {
+                if let Ok(mut b) = repo.find_branch(&new_branch, BranchType::Local) {
+                    let _ = b.delete();
+                }
+                return Err(format!("Failed to create worktree: {}", e));
+            }
+
+            if args.copy_working_changes {
+                copy_dir_recursive(std::path::Path::new(&source.worktree_path), &worktree_path)?;
+            }
+
+            (new_branch, worktree_path.to_string_lossy().to_string())
+        } else {
+            let slug = args.ticket.id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
+            fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
+            if args.copy_working_changes {
+                copy_dir_recursive(std::path::Path::new(&source.worktree_path), &worktree_path)?;
+            }
+            (String::new(), worktree_path.to_string_lossy().to_string())
+        };
+
+        let stored = StoredInstance {
+            id: args.new_id,
+            ticket: args.ticket,
+            branch,
+            worktree_path: worktree_path_str,
+            status: "idle".to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64,
+            use_git: source.use_git,
+            base_branch: source.base_branch.clone(),
+            parent_instance_id: Some(args.source_id.clone()),
+        };
+
+        let mut all_instances = read_instances(&args.project_id)?;
+        all_instances.push(stored.clone());
+        write_instances(&args.project_id, &all_instances)?;
 
         Ok(stored.with_project(args.project_id))
     })

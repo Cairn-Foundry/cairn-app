@@ -3,8 +3,9 @@
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
+  import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
-  import { instances, removeInstance } from '$lib/stores/instance';
+  import { instances, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
@@ -17,6 +18,8 @@
 
   let search = '';
   let deletingId: string | null = null;
+  let duplicatingId: string | null = null;
+  let pendingDuplicateInst: Instance | null = null;
   let pendingDeleteInst: Instance | null = null;
   let moreOpenId: string | null = null;
   let copiedId: string | null = null;
@@ -32,6 +35,34 @@
   $: filtered = $instances.filter(i =>
     matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
   );
+
+  $: grouped = (() => {
+    const allById = new Map($instances.map(i => [i.id, i]));
+    const filteredIds = new Set(filtered.map(i => i.id));
+
+    function isVisibleRoot(inst: Instance): boolean {
+      if (!inst.parentInstanceId) return true;
+      const parent = allById.get(inst.parentInstanceId);
+      return !parent || !filteredIds.has(parent.id);
+    }
+
+    const placed = new Set<string>();
+    const result: Array<{ inst: Instance; depth: number }> = [];
+
+    function placeSubtree(inst: Instance, depth: number) {
+      if (placed.has(inst.id)) return;
+      result.push({ inst, depth });
+      placed.add(inst.id);
+      for (const child of filtered) {
+        if (child.parentInstanceId === inst.id) placeSubtree(child, depth + 1);
+      }
+    }
+
+    for (const inst of filtered) {
+      if (!placed.has(inst.id) && isVisibleRoot(inst)) placeSubtree(inst, 0);
+    }
+    return result;
+  })();
 
   async function handleSetActive(inst: Instance) {
     if (!$activeProject) return;
@@ -49,6 +80,23 @@
     await navigator.clipboard.writeText(inst.worktreePath);
     copiedId = inst.id;
     setTimeout(() => { copiedId = null; }, CLIPBOARD_CLEAR_DELAY);
+  }
+
+  function handleDuplicate(inst: Instance) {
+    moreOpenId = null;
+    pendingDuplicateInst = inst;
+  }
+
+  async function confirmDuplicate(e: CustomEvent<{ title: string; copyWorkingChanges: boolean }>) {
+    if (!pendingDuplicateInst) return;
+    const inst = pendingDuplicateInst;
+    pendingDuplicateInst = null;
+    duplicatingId = inst.id;
+    try {
+      await duplicateInstance(inst, e.detail);
+    } finally {
+      duplicatingId = null;
+    }
   }
 
   function handleDelete(inst: Instance) {
@@ -114,7 +162,7 @@
         <div class="mi-empty">{(t('manageInstances.emptyFiltered') as (q: string) => string)(search)}</div>
       {:else}
         <ul class="mi-list">
-          {#each filtered as inst (inst.id)}
+          {#each grouped as { inst, depth } (inst.id)}
             {@const isActive = inst.id === activeInstanceId}
             {@const isDeleting = deletingId === inst.id}
             {@const isMoreOpen = moreOpenId === inst.id}
@@ -124,10 +172,15 @@
               class:active={isActive}
               class:deleting={isDeleting}
               class:clickable={!isActive && !isDeleting}
+              class:mi-row-child={depth > 0}
+              style="padding-left: {16 + depth * 14}px"
               on:click={() => { if (!isActive && !isDeleting) handleSetActive(inst); }}
               role={!isActive && !isDeleting ? 'button' : undefined}
               tabindex={!isActive && !isDeleting ? 0 : undefined}
             >
+              {#if depth > 0}
+                <span class="mi-child-indent" style="left: {16 + (depth - 1) * 14}px" aria-hidden="true"></span>
+              {/if}
 
               <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
 
@@ -142,7 +195,7 @@
               </div>
 
               <div class="mi-actions">
-                {#if isDeleting}
+                {#if isDeleting || duplicatingId === inst.id}
                   <Spinner size={10}/>
                 {:else}
                   <button
@@ -166,6 +219,11 @@
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <div class="more-overlay" on:click={() => moreOpenId = null} role="presentation"></div>
       <div class="more-menu" style="top:{moreMenuPos.top}px; right:{moreMenuPos.right}px;">
+        <button class="more-item" on:click={() => handleDuplicate(moreInst)}>
+          <Icon name="copy" size={13}/>
+          {t('manageInstances.actions.duplicate')}
+        </button>
+        <div class="more-sep"></div>
         <button class="more-item" on:click={() => handleReveal(moreInst)}>
           <Icon name="folder" size={13}/>
           {t('manageInstances.actions.reveal')}
@@ -198,6 +256,15 @@
     instance={pendingDeleteInst}
     on:close={() => pendingDeleteInst = null}
     on:confirm={confirmDelete}
+  />
+{/if}
+
+{#if pendingDuplicateInst}
+  <DuplicateInstanceModal
+    instance={pendingDuplicateInst}
+    defaultTitle={getNextDuplicateTitle(pendingDuplicateInst)}
+    on:close={() => pendingDuplicateInst = null}
+    on:confirm={confirmDuplicate}
   />
 {/if}
 
@@ -262,12 +329,24 @@
     border-bottom: 1px solid var(--stroke-0);
     transition: background 0.1s;
     min-height: 52px;
+    position: relative;
   }
   .mi-row:last-child { border-bottom: none; }
   .mi-row:hover { background: var(--bg-2); }
   .mi-row.active { background: var(--accent-weak); }
   .mi-row.clickable { cursor: pointer; }
   .mi-row.deleting { opacity: 0.4; pointer-events: none; }
+  .mi-row-child { background: var(--bg-0); }
+  .mi-row-child:hover { background: var(--bg-2); }
+
+  .mi-child-indent {
+    position: absolute;
+    left: 16px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--stroke-1);
+  }
 
   .mi-dot {
     width: 6px;

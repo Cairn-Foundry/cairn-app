@@ -12,7 +12,7 @@ pub use agent::{AgentState, send_message, reset_agent_session, stop_agent};
 pub use file_state::{get_file_state, save_file_state};
 pub use files::{read_dir_tree, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{list_branches, validate_git_repo, git_status};
-pub use instances::{list_instances, create_instance, delete_instance};
+pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, run_agent_command, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};

@@ -142,6 +142,7 @@ export const en = {
 		fromBranch: "from",
 		actions: {
 			switch: "Switch",
+			duplicate: "Duplicate",
 			copyPath: "Copy worktree path",
 			copyPathDone: "Copied",
 			deleteInstance: "Delete instance",
@@ -149,6 +150,15 @@ export const en = {
 			copyPathLabel: "Copy path",
 		},
 		newInstance: "New instance",
+		duplicateModal: {
+			heading: "Duplicate instance",
+			titleLabel: "Title",
+			titlePlaceholder: "Instance title",
+			copyChangesLabel: "Copy uncommitted changes",
+			copyChangesDesc:
+				"Include working directory changes not yet committed to the branch",
+			confirm: "Duplicate",
+		},
 	},
 
 	workspace: {
@@ -169,6 +179,10 @@ export const en = {
 		noInstanceSub:
 			"An instance is an isolated environment paired with an agent session. Each task gets its own space.",
 		noInstanceCta: "New instance",
+		noInstanceHasOthersHeadline: "No active instance",
+		noInstanceHasOthersSub:
+			"Your other instances are still available. Switch to one or create a new one.",
+		switchInstance: "Switch instance",
 	},
 
 	shortcuts: {

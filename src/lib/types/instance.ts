@@ -23,6 +23,7 @@ export interface Instance {
 	createdAt: number;
 	useGit: boolean;
 	baseBranch: string;
+	parentInstanceId?: string;
 }
 
 export interface TimelineEvent {

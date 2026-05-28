@@ -1,8 +1,9 @@
-import { derived, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
 import type { CreateInstanceArgs } from "$lib/services/instance-service";
 import {
 	createInstance,
 	deleteInstance,
+	duplicateInstance as duplicateInstanceService,
 	listInstances,
 } from "$lib/services/instance-service";
 import type { Instance, TimelineEvent } from "$lib/types/instance";
@@ -41,6 +42,41 @@ export async function spawnInstance(
 	instances.update((list) => [...list, instance]);
 	await activateInstance(args.projectId, instance.id);
 	return instance;
+}
+
+export async function duplicateInstance(
+	source: {
+		id: string;
+		projectId: string;
+		ticket: { id: string; title: string };
+	},
+	opts: { title: string; copyWorkingChanges: boolean },
+): Promise<Instance> {
+	const newId = crypto.randomUUID();
+	const seq =
+		get(instances).filter((i) => i.parentInstanceId === source.id).length + 1;
+	const ticket = {
+		id: `${source.ticket.id}-${seq}`,
+		title: opts.title,
+	};
+	const instance = await duplicateInstanceService({
+		sourceId: source.id,
+		projectId: source.projectId,
+		newId,
+		ticket,
+		copyWorkingChanges: opts.copyWorkingChanges,
+	});
+	instances.update((list) => [...list, instance]);
+	return instance;
+}
+
+export function getNextDuplicateTitle(source: {
+	id: string;
+	ticket: { title: string };
+}): string {
+	const seq =
+		get(instances).filter((i) => i.parentInstanceId === source.id).length + 1;
+	return `${source.ticket.title} (${seq})`;
 }
 
 export async function removeInstance(

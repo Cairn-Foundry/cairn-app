@@ -21,6 +21,20 @@ export async function createInstance(
 	return invoke<Instance>("create_instance", { args });
 }
 
+export interface DuplicateInstanceArgs {
+	sourceId: string;
+	projectId: string;
+	newId: string;
+	ticket: { id: string; title: string };
+	copyWorkingChanges: boolean;
+}
+
+export async function duplicateInstance(
+	args: DuplicateInstanceArgs,
+): Promise<Instance> {
+	return invoke<Instance>("duplicate_instance", { args });
+}
+
 export async function deleteInstance(
 	id: string,
 	projectId: string,

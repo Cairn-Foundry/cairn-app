@@ -143,6 +143,7 @@ export const fr = {
 		fromBranch: "depuis",
 		actions: {
 			switch: "Basculer",
+			duplicate: "Dupliquer",
 			copyPath: "Copier le chemin du worktree",
 			copyPathDone: "Copié",
 			deleteInstance: "Supprimer l'instance",
@@ -150,6 +151,15 @@ export const fr = {
 			copyPathLabel: "Copier le chemin",
 		},
 		newInstance: "Nouvelle instance",
+		duplicateModal: {
+			heading: "Dupliquer l'instance",
+			titleLabel: "Titre",
+			titlePlaceholder: "Titre de l'instance",
+			copyChangesLabel: "Copier les changements non commités",
+			copyChangesDesc:
+				"Inclure les modifications du répertoire de travail non encore commitées sur la branche",
+			confirm: "Dupliquer",
+		},
 	},
 
 	workspace: {
@@ -170,6 +180,10 @@ export const fr = {
 		noInstanceSub:
 			"Une instance est un environnement isolé couplé à une session agent. Chaque tâche dispose de son propre espace.",
 		noInstanceCta: "Nouvelle instance",
+		noInstanceHasOthersHeadline: "Aucune instance active",
+		noInstanceHasOthersSub:
+			"Vos autres instances sont toujours disponibles. Basculez vers l'une d'elles ou créez-en une nouvelle.",
+		switchInstance: "Changer d'instance",
 	},
 
 	shortcuts: {
