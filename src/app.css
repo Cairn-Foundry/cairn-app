@@ -59,6 +59,10 @@
   --warning-weak: oklch(0.80 0.14 75 / 0.15);
   --danger-weak:  oklch(0.70 0.18 25 / 0.15);
 
+  /* Git diff line backgrounds */
+  --git-add-bg:    oklch(0.74 0.14 150 / 0.12);
+  --git-remove-bg: oklch(0.70 0.18 25 / 0.12);
+
   /* Radii */
   --r-xs: 3px;
   --r-sm: 5px;
