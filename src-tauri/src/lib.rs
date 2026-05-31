@@ -76,6 +76,7 @@ pub fn run() {
             git_diff_unstaged,
             git_diff_staged,
             git_diff_file,
+            git_file_at_head,
             git_stage_file,
             git_unstage_file,
             git_stage_all,

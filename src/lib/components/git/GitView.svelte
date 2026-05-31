@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import InlineDiff from '$lib/components/review/InlineDiff.svelte';
+  import { langFromPath, readFile, isBinaryPath } from '$lib/services/file-service';
+  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { t } from '$lib/i18n';
   import {
     git,
@@ -16,12 +19,13 @@
   $: state = $git;
   $: instance = $activeInstance;
 
-  type HunkCard = {
+  type FileCard = {
     file: string;
     basename: string;
     dirpath: string;
-    hunk: string;
-    lines: { kind: string; content: string }[];
+    oldContent: string;
+    newContent: string;
+    hasDiff: boolean;
     filePath: string;
     status: string;
   };
@@ -54,53 +58,66 @@
     return parts.length > 1 ? parts.slice(0, -1).join('/') + '/' : '';
   }
 
-  function buildCards(
+  function buildFileCards(
     statusEntries: [string, string][],
     diffs: typeof state.unstagedDiffs,
-  ): HunkCard[] {
+    untracked: Record<string, string> = {},
+  ): FileCard[] {
     const byPath = new Map(diffs.map(f => [f.filePath, f]));
-    const cards: HunkCard[] = [];
-    for (const [filePath, status] of statusEntries) {
-      const diff = byPath.get(filePath);
-      if (diff && diff.hunks.length > 0) {
-        for (const h of diff.hunks) {
-          cards.push({
-            file: filePath,
-            basename: basename(filePath),
-            dirpath: dirpath(filePath),
-            hunk: h.header,
-            lines: h.lines,
-            filePath,
-            status,
-          });
-        }
-      } else {
-        cards.push({
-          file: filePath,
-          basename: basename(filePath),
-          dirpath: dirpath(filePath),
-          hunk: '',
-          lines: [],
-          filePath,
-          status,
-        });
+    return statusEntries.map(([filePath, status]) => {
+      const lines = (byPath.get(filePath)?.hunks ?? []).flatMap(h => h.lines);
+      let oldContent = lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n');
+      let newContent = lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n');
+      let hasDiff = lines.length > 0;
+      // Untracked files have no diff hunks — show their content as all-added.
+      if (!hasDiff && status === 'untracked' && filePath in untracked) {
+        oldContent = '';
+        newContent = untracked[filePath];
+        hasDiff = newContent.length > 0;
       }
-    }
-    return cards;
-  }
-
-  // Count unique files (not hunks) for the column header
-  function uniqueFiles(cards: HunkCard[]): number {
-    return new Set(cards.map(c => c.filePath)).size;
+      return {
+        file: filePath,
+        basename: basename(filePath),
+        dirpath: dirpath(filePath),
+        oldContent,
+        newContent,
+        hasDiff,
+        filePath,
+        status,
+      };
+    });
   }
 
   const isStaged = (s: string) => s.startsWith('staged-');
 
-  $: unstagedHunks = buildCards(
+  let untrackedContent: Record<string, string> = {};
+
+  $: void loadUntrackedContent(state.status, instance?.worktreePath ?? null);
+
+  async function loadUntrackedContent(
+    status: typeof state.status,
+    wt: string | null,
+  ): Promise<void> {
+    if (!wt) {
+      if (Object.keys(untrackedContent).length) untrackedContent = {};
+      return;
+    }
+    const paths = Object.entries(status)
+      .filter(([p, s]) => s === 'untracked' && !isBinaryPath(p))
+      .map(([p]) => p);
+    const next: Record<string, string> = {};
+    for (const p of paths) {
+      next[p] = (await readFile(`${wt}/${p}`).catch(() => '')) ?? '';
+    }
+    untrackedContent = next;
+  }
+
+  $: unstagedCards = buildFileCards(
     Object.entries(state.status).filter(([, s]) => !isStaged(s)),
     state.unstagedDiffs,
+    untrackedContent,
   );
-  $: stagedHunks = buildCards(
+  $: stagedCards = buildFileCards(
     Object.entries(state.status).filter(([, s]) => isStaged(s)),
     state.stagedDiffs,
   );
@@ -140,15 +157,15 @@
     <div class="git-col-head">
       <Icon name="circle" size={12}/>
       <span>{t('git.unstagedChanges')}</span>
-      <span class="count">{uniqueFiles(unstagedHunks)} {t('git.files')}</span>
+      <span class="count">{unstagedCards.length} {t('git.files')}</span>
     </div>
     <div class="hunks-list">
-      {#if unstagedHunks.length === 0}
+      {#if unstagedCards.length === 0}
         <div class="empty-hint">
           {state.isLoading ? '...' : t('git.cleanAllStaged')}
         </div>
       {:else}
-        {#each unstagedHunks as h}
+        {#each unstagedCards as h (h.filePath)}
           <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
             <div class="hunk-card-head">
               <span class="status-badge {STATUS_CLASS[h.status] ?? ''}">
@@ -162,8 +179,12 @@
                 {t('git.stage')} →
               </button>
             </div>
-            {#if h.lines.length > 0}
-              <pre class="hunk-body">{#each h.lines as line}<span class="dl-{line.kind}">{line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' '}{line.content + '\n'}</span>{/each}</pre>
+            {#if h.hasDiff}
+              <div class="card-diff">
+                {#key h.filePath}
+                  <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
+                {/key}
+              </div>
             {:else}
               <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
             {/if}
@@ -178,15 +199,15 @@
     <div class="git-col-head">
       <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
       <span>{t('git.stagedForCommit')}</span>
-      <span class="count accent">{uniqueFiles(stagedHunks)} {t('git.files')}</span>
+      <span class="count accent">{stagedCards.length} {t('git.files')}</span>
     </div>
     <div class="hunks-list">
-      {#if stagedHunks.length === 0}
+      {#if stagedCards.length === 0}
         <div class="empty-hint">
           {t('git.noStagedChanges')}
         </div>
       {:else}
-        {#each stagedHunks as h}
+        {#each stagedCards as h (h.filePath)}
           <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
             <div class="hunk-card-head">
               <span class="status-badge {STATUS_CLASS[h.status] ?? ''}">
@@ -200,8 +221,12 @@
                 ← {t('git.unstage')}
               </button>
             </div>
-            {#if h.lines.length > 0}
-              <pre class="hunk-body">{#each h.lines as line}<span class="dl-{line.kind}">{line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' '}{line.content + '\n'}</span>{/each}</pre>
+            {#if h.hasDiff}
+              <div class="card-diff">
+                {#key h.filePath}
+                  <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
+                {/key}
+              </div>
             {:else}
               <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
             {/if}
@@ -387,23 +412,12 @@
   }
 
   /* Diff body */
-  .hunk-body {
-    margin: 0;
-    padding: 6px 12px;
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    line-height: 1.6;
-    max-height: 260px;
-    overflow-x: auto;
-    overflow-y: auto;
-    min-width: 0;
+  .card-diff {
+    position: relative;
     background: var(--bg-0);
     border-top: 1px solid var(--stroke-0);
+    min-width: 0;
   }
-
-  .dl-add     { color: var(--success); display: block; background: color-mix(in oklch, var(--success) 7%, transparent); }
-  .dl-remove  { color: var(--danger);  display: block; background: color-mix(in oklch, var(--danger)  7%, transparent); }
-  .dl-context { color: var(--fg-3);    display: block; }
 
   .hunk-no-preview {
     padding: 10px 12px;

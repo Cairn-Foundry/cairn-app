@@ -407,7 +407,6 @@ export const fr = {
 		recentLabel: "Récent",
 		loading: "Chargement…",
 		notCommittedYet: "Pas encore commité",
-		showCommitDiff: "Afficher le diff du commit",
 		convertLineEndings: "Convertir les fins de ligne",
 		convertIndentStyle: "Convertir le style d'indentation",
 		toggleWhitespace: "Afficher/masquer les espaces",
@@ -489,16 +488,9 @@ export const fr = {
 	diffPeek: {
 		changesLines: (start: number, end: number) =>
 			`Modifications - lignes ${start}–${end}`,
-		currentChangesLines: (start: number, end: number) =>
-			`Modifications actuelles - lignes ${start}–${end}`,
-		introducedIn: (hash: string) => `Introduit dans ${hash}`,
 		revertHunk: "Annuler le hunk",
 		revertHunkTitle: "Ignorer ce hunk et restaurer HEAD",
-		confirmRevert: "Confirmer l'annulation",
-		closeBlame: "Fermer le blame",
 		closeDiff: "Fermer le diff",
-		blameLoading: "Chargement…",
-		failedToLoadDiff: "Impossible de charger le diff",
 	},
 
 	git: {
@@ -529,7 +521,8 @@ export const fr = {
 		stageAll: "Tout indexer",
 		unstageAll: "Tout désindexer",
 		noUpstream: "pas d'upstream",
-		nFilesStaged: (n: number) => `${n} fichier${n !== 1 ? "s" : ""} indexé${n !== 1 ? "s" : ""}`,
+		nFilesStaged: (n: number) =>
+			`${n} fichier${n !== 1 ? "s" : ""} indexé${n !== 1 ? "s" : ""}`,
 		commitPlaceholder: "feat(scope): décrivez votre modification",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		stage: "Indexer",

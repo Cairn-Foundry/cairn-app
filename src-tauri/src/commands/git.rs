@@ -232,6 +232,20 @@ pub fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, String
 }
 
 #[tauri::command]
+pub fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, String> {
+    let expanded = expand(&worktree_path);
+    let output = git_cmd(&expanded)
+        .args(["show", &format!("HEAD:{}", file_path)])
+        .output()
+        .map_err(|e| e.to_string())?;
+    // File is new/untracked, deleted from HEAD, or the repo has no commit yet.
+    if !output.status.success() {
+        return Ok(String::new());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
 pub fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, String> {
     let expanded = expand(&worktree_path);
     let mut args = vec!["diff", "--unified=3"];

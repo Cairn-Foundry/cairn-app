@@ -1,12 +1,12 @@
 import { derived, get, writable } from "svelte/store";
-import { activeInstance } from "./instance";
-import * as gitService from "$lib/services/git-service";
 import type {
-	GitFileStatus,
-	GitFileDiff,
 	GitCommit,
+	GitFileDiff,
+	GitFileStatus,
 	RemoteStatus,
 } from "$lib/services/git-service";
+import * as gitService from "$lib/services/git-service";
+import { activeInstance } from "./instance";
 
 type GitState = {
 	status: GitFileStatus;

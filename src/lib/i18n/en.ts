@@ -395,7 +395,6 @@ export const en = {
 		recentLabel: "Recent",
 		loading: "Loading…",
 		notCommittedYet: "Not committed yet",
-		showCommitDiff: "Show commit diff",
 		convertLineEndings: "Convert line endings",
 		convertIndentStyle: "Convert indent style",
 		toggleWhitespace: "Toggle whitespace rendering",
@@ -477,16 +476,9 @@ export const en = {
 	diffPeek: {
 		changesLines: (start: number, end: number) =>
 			`Changes - lines ${start}–${end}`,
-		currentChangesLines: (start: number, end: number) =>
-			`Current changes - lines ${start}–${end}`,
-		introducedIn: (hash: string) => `Introduced in ${hash}`,
 		revertHunk: "Revert hunk",
 		revertHunkTitle: "Discard this hunk and restore to HEAD",
-		confirmRevert: "Confirm revert",
-		closeBlame: "Close blame",
 		closeDiff: "Close diff",
-		blameLoading: "Loading…",
-		failedToLoadDiff: "Failed to load diff",
 	},
 
 	git: {

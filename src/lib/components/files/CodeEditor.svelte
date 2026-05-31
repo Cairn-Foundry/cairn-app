@@ -31,9 +31,8 @@
   import { lintKeymap } from '@codemirror/lint';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
   import {
-    buildDiffGutter, hunksToLineMap,
-    setUnstagedDiff, setStagedDiff,
-    type DiffHunk,
+    buildDiffGutter, setDiffBaseContent, revertChunkAtLine,
+    type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
@@ -48,9 +47,8 @@
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
   export let fontSize: number = EDITOR_DEFAULTS.fontSize;
-  export let diffHunks: DiffHunk[] = [];
-  export let stagedHunks: DiffHunk[] = [];
-  export let onDiffClick: ((hunk: DiffHunk) => void) | undefined = undefined;
+  export let baseContent: string | null = null;
+  export let onChunkClick: ((chunk: GutterChunk) => void) | undefined = undefined;
   export let showWhitespace: boolean = false;
   export let savedState: EditorState | null = null;
 
@@ -81,6 +79,13 @@
     if (current !== text) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: text }, userEvent: 'input' });
     }
+  }
+
+  export function revertChunkAt(line: number): boolean {
+    if (!view) return false;
+    const reverted = revertChunkAtLine(view, line);
+    if (reverted) view.focus();
+    return reverted;
   }
 
   export function runEditorCommand(id: string): boolean {
@@ -226,11 +231,7 @@
       search({ top: true }),
       highlightSelectionMatches({ minSelectionLength: EDITOR_DEFAULTS.selectionMatchMinLength, wholeWords: false }),
       autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: EDITOR_DEFAULTS.autocompleteMaxRendered }),
-      buildDiffGutter({
-        getHunks: () => diffHunks,
-        getStagedHunks: () => stagedHunks,
-        onClick: (hunk) => onDiffClick?.(hunk),
-      }),
+      buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
       minimapCompartment.of(buildMinimap(minimapEnabled)),
       themeCompartment.of(buildEditorTheme(theme)),
@@ -278,9 +279,7 @@
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });
 
-  $: if (view) view.dispatch({ effects: setUnstagedDiff.of(hunksToLineMap(diffHunks)) });
-
-  $: if (view) view.dispatch({ effects: setStagedDiff.of(hunksToLineMap(stagedHunks)) });
+  $: if (view && baseContent !== null) setDiffBaseContent(view, baseContent);
 
   $: if (view) view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
 

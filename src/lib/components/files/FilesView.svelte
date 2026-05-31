@@ -10,7 +10,7 @@ import { get } from 'svelte/store';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, gitFileAtCommit, type FileNode, type GitStatusMap, type DiffHunk, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
@@ -44,10 +44,10 @@ import { get } from 'svelte/store';
     basename,
   } from '$lib/utils/files/files-tree';
   import {
-    loadPaneDiff,
+    loadPaneBase,
     emptyDiffState,
-    buildRevertedContent,
   } from '$lib/utils/files/files-diff';
+  import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
   import {
     computeTabInsertIndex,
     sortedByPin,
@@ -65,25 +65,13 @@ import { get } from 'svelte/store';
 
   export let onGoSettings: (() => void) | undefined = undefined;
 
-  interface BlamePopup {
-    entry: BlameEntry;
-    filePath: string;
-    oldContent: string | null;
-    newContent: string | null;
-    loadingDiff: boolean;
-    error: string | null;
-  }
-
   interface PaneState {
     tabs: Tab[];
     activeTabIdx: number;
     saving: boolean;
-    currentDiffHunks: DiffHunk[];
-    currentStagedHunks: DiffHunk[];
+    baseContent: string | null;
     currentBlame: Map<number, BlameEntry>;
-    activeDiffHunk: DiffHunk | null;
-    revertPending: boolean;
-    reverting: boolean;
+    activeChunk: GutterChunk | null;
     dragSrcIndex: number | null;
     insertIndex: number | null;
     didDrag: boolean;
@@ -101,12 +89,9 @@ import { get } from 'svelte/store';
       tabs: [],
       activeTabIdx: -1,
       saving: false,
-      currentDiffHunks: [],
-      currentStagedHunks: [],
+      baseContent: null,
       currentBlame: new Map(),
-      activeDiffHunk: null,
-      revertPending: false,
-      reverting: false,
+      activeChunk: null,
       dragSrcIndex: null,
       insertIndex: null,
       didDrag: false,
@@ -123,7 +108,6 @@ import { get } from 'svelte/store';
   let panes: PaneState[] = [makePane(), makePane()];
   let cursorLines: number[] = [1, 1];
   let cursorCols: number[] = [1, 1];
-  let blamePopups: (BlamePopup | null)[] = [null, null];
   let pendingJumps: ({ line: number; col: number } | null)[] = [null, null];
 
   function pushRecentFile(path: string) {
@@ -244,36 +228,47 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
-  async function loadDiffHunks(i: number, tab: { path: string } | null): Promise<void> {
+  async function loadPaneBaseFor(i: number, tab: { path: string } | null): Promise<void> {
     const pane = panes[i];
     if (!tab || !worktreePath) {
       const empty = emptyDiffState();
-      pane.currentDiffHunks = empty.currentDiffHunks;
-      pane.currentStagedHunks = empty.currentStagedHunks;
+      pane.baseContent = empty.baseContent;
       pane.currentBlame = empty.currentBlame;
       panes = panes;
       return;
     }
     try {
       const status = gitStatusMap[tab.path];
-      const pending = pane.tabs.find(t => t.path === tab.path)?.pending ?? '';
-      const result = await loadPaneDiff(worktreePath, tab.path, status, pending);
-      pane.currentDiffHunks = result.currentDiffHunks;
-      pane.currentStagedHunks = result.currentStagedHunks;
+      const result = await loadPaneBase(worktreePath, tab.path, status);
+      pane.baseContent = result.baseContent;
       pane.currentBlame = result.currentBlame;
     } catch {
       const empty = emptyDiffState();
-      pane.currentDiffHunks = empty.currentDiffHunks;
-      pane.currentStagedHunks = empty.currentStagedHunks;
+      pane.baseContent = empty.baseContent;
       pane.currentBlame = empty.currentBlame;
     }
     panes = panes;
   }
 
   async function refreshDiff(i: number, tab: { path: string } | null) {
-    panes[i].activeDiffHunk = null;
+    panes[i].activeChunk = null;
+    panes[i].baseContent = null;
     panes = panes;
-    await loadDiffHunks(i, tab);
+    await loadPaneBaseFor(i, tab);
+  }
+
+  function handleChunkClick(i: number, chunk: GutterChunk) {
+    panes[i].activeChunk = chunk;
+    panes = panes;
+  }
+
+  async function revertActiveChunk(i: number) {
+    const pane = panes[i];
+    if (!pane.activeChunk) return;
+    pane.editorRef?.revertChunkAt(pane.activeChunk.anchorLine);
+    pane.activeChunk = null;
+    panes = panes;
+    await flushSave(i);
   }
 
   async function switchTab(i: number, idx: number) {
@@ -350,6 +345,10 @@ import { get } from 'svelte/store';
       pane.tabs[pane.activeTabIdx].content = tab.pending;
       panes = panes;
       if (wasDeleted) await loadTree(worktreePath);
+      // Reflect the new git status (clean → modified, etc.) in the tree/tabs
+      // immediately instead of waiting for the 3s poll.
+      const updatedStatus = await gitStatus(worktreePath).catch(() => null);
+      if (updatedStatus !== null) { gitStatusMap = updatedStatus; tree = rawTree; }
       refreshDiff(i, tab);
     } catch (e) {
       error = String(e);
@@ -391,7 +390,7 @@ import { get } from 'svelte/store';
     if (isBinaryPath(node.path)) {
       pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       pane.activeTabIdx = pane.tabs.length - 1;
-      pane.currentDiffHunks = []; pane.currentStagedHunks = []; pane.currentBlame = new Map();
+      pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
       return;
@@ -407,38 +406,6 @@ import { get } from 'svelte/store';
       if (i === 0) pushRecentFile(node.path);
       refreshDiff(i, { path: node.path });
     } catch (e) { error = String(e); }
-  }
-
-  function handleDiffClick(i: number, hunk: DiffHunk) {
-    panes[i].activeDiffHunk = panes[i].activeDiffHunk === hunk ? null : hunk;
-    panes[i].revertPending = false;
-    panes = panes;
-  }
-
-  async function revertHunk(hunk: DiffHunk, i: number): Promise<void> {
-    const pane = panes[i];
-    const tab = pane.tabs[pane.activeTabIdx] ?? null;
-    if (!worktreePath || !tab) return;
-    pane.reverting = true;
-    panes = panes;
-    try {
-      const newContent = buildRevertedContent(tab.pending, hunk);
-      const writeContent = denormalizeLineEndings(newContent, tab.lineEndings ?? 'LF');
-      await writeFile(`${worktreePath}/${tab.path}`, writeContent);
-
-      pane.tabs[pane.activeTabIdx].content = newContent;
-      pane.tabs[pane.activeTabIdx].pending = newContent;
-      pane.activeDiffHunk = null;
-      pane.revertPending = false;
-      panes = panes;
-
-      const updated = await gitStatus(worktreePath).catch(() => null);
-      if (updated !== null) { gitStatusMap = updated; tree = rawTree; }
-      await refreshDiff(i, tab);
-    } finally {
-      panes[i].reverting = false;
-      panes = panes;
-    }
   }
 
   let searchPanelByProject = new Map<string, boolean>();
@@ -665,28 +632,6 @@ import { get } from 'svelte/store';
     cursorLines[i] = line;
     cursorCols[i] = col;
     panes = panes;
-  }
-
-  async function openBlamePopup(entry: BlameEntry, filePath: string, paneIdx: 0 | 1) {
-    const popup: BlamePopup = { entry, filePath, oldContent: null, newContent: null, loadingDiff: true, error: null };
-    blamePopups[paneIdx] = popup;
-    panes = panes;
-    try {
-      const [newContent, oldContent] = await Promise.all([
-        worktreePath ? gitFileAtCommit(worktreePath, entry.hash, filePath) : Promise.resolve(''),
-        worktreePath ? gitFileAtCommit(worktreePath, `${entry.hash}^`, filePath).catch(() => '') : Promise.resolve(''),
-      ]);
-      popup.newContent = newContent;
-      popup.oldContent = oldContent;
-      popup.loadingDiff = false;
-      blamePopups[paneIdx] = { ...popup };
-      panes = panes;
-    } catch (e) {
-      popup.loadingDiff = false;
-      popup.error = e instanceof Error ? e.message : t('diffPeek.failedToLoadDiff') as string;
-      blamePopups[paneIdx] = { ...popup };
-      panes = panes;
-    }
   }
 
   let gitPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -979,8 +924,7 @@ import { get } from 'svelte/store';
   $: sidebarRight = $settings.sidebarPosition === 'right';
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
-  $: { if (activeTabs[0]) { cursorLines[0] = 1; cursorCols[0] = 1; blamePopups[0] = null; } }
-  $: { if (activeTabs[1]) { blamePopups[1] = null; } }
+  $: { if (activeTabs[0]) { cursorLines[0] = 1; cursorCols[0] = 1; } }
 
   function saveCurrentState() {
     if (currentInstanceId === null || currentProjectId === null) return;
@@ -1061,7 +1005,7 @@ import { get } from 'svelte/store';
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
       tree = rawTree;
-      loadDiffHunks(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
+      loadPaneBaseFor(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
     } finally {
@@ -1110,7 +1054,7 @@ import { get } from 'svelte/store';
     if (isBinaryPath(node.path)) {
       pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
       pane.activeTabIdx = pane.tabs.length - 1;
-      pane.currentDiffHunks = []; pane.currentStagedHunks = []; pane.currentBlame = new Map();
+      pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
       pushRecentFile(node.path);
       return;
@@ -1495,12 +1439,8 @@ import { get } from 'svelte/store';
           cursorLine={cursorLines[i]}
           cursorCol={cursorCols[i]}
           currentLineBlame={currentLineBlames[i]}
-          currentDiffHunks={pane.currentDiffHunks}
-          currentStagedHunks={pane.currentStagedHunks}
-          activeDiffHunk={pane.activeDiffHunk}
-          revertPending={pane.revertPending}
-          reverting={pane.reverting}
-          blamePopup={blamePopups[i]}
+          baseContent={pane.baseContent}
+          activeChunk={pane.activeChunk}
           recentFiles={recentFiles}
           treeFilePaths={treeFilePaths}
           placeholderText={t('files.selectFileToEdit') as string}
@@ -1517,16 +1457,12 @@ import { get } from 'svelte/store';
           onChange={(value) => handleChange(i, value)}
           onBlur={($settings.saveOn) === 'blur' ? () => flushSave(i) : undefined}
           onCursorChange={(l, c) => handleCursorChange(i, l, c)}
-          onDiffClick={(hunk) => handleDiffClick(i, hunk)}
+          onChunkClick={(chunk) => handleChunkClick(i, chunk)}
+          onRevertChunk={() => revertActiveChunk(i)}
+          onCloseHunk={() => { panes[i].activeChunk = null; panes = panes; }}
           onConvertLineEndings={() => convertLineEndings(i as 0 | 1)}
           onConvertIndent={() => convertIndent(i as 0 | 1)}
           onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace) })}
-          onRevertConfirm={(hunk) => revertHunk(hunk, i)}
-          onRevertRequest={() => { panes[i].revertPending = true; panes = panes; }}
-          onRevertCancel={() => { panes[i].revertPending = false; panes = panes; }}
-          onCloseDiffPeek={() => { panes[i].activeDiffHunk = null; panes[i].revertPending = false; panes = panes; }}
-          onCloseBlamePopup={() => { blamePopups[i] = null; panes[i].activeDiffHunk = null; panes[i].revertPending = false; panes = panes; }}
-          onOpenBlamePopup={(entry, filePath) => openBlamePopup(entry, filePath, i as 0 | 1)}
           onOpenRecent={(node) => openFileInPane(i, node)}
         />
       {/if}

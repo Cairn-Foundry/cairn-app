@@ -59,6 +59,13 @@ export async function getDiffFile(
 	return invoke("git_diff_file", { worktreePath, filePath, staged });
 }
 
+export async function getFileAtHead(
+	worktreePath: string,
+	filePath: string,
+): Promise<string> {
+	return invoke("git_file_at_head", { worktreePath, filePath });
+}
+
 export async function stageFile(
 	worktreePath: string,
 	filePath: string,

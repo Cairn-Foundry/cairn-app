@@ -214,7 +214,6 @@ interface EditorPalette {
 	tooltipShadow: string;
 	diffAdded: string;
 	diffModified: string;
-	diffStaged?: string;
 	diffDeleted: string;
 	whitespace?: string;
 	cursorWidth?: string;
@@ -250,7 +249,6 @@ const PALETTE_DARK: EditorPalette = {
 	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.55)",
 	diffAdded: "oklch(0.78 0.14 135)",
 	diffModified: "oklch(0.82 0.14 60)",
-	diffStaged: "oklch(0.72 0.14 250)",
 	diffDeleted: "oklch(0.72 0.20 25)",
 	whitespace: "oklch(0.36 0.006 80)",
 	nonMatchBg: "oklch(0.70 0.18 15 / 0.25)",
@@ -284,7 +282,6 @@ const PALETTE_LIGHT: EditorPalette = {
 	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.15)",
 	diffAdded: "oklch(0.55 0.18 135)",
 	diffModified: "oklch(0.60 0.18 60)",
-	diffStaged: "oklch(0.50 0.18 250)",
 	diffDeleted: "oklch(0.55 0.22 25)",
 	whitespace: "oklch(0.68 0.008 70)",
 	nonMatchBg: "oklch(0.48 0.18 15 / 0.2)",
@@ -420,9 +417,6 @@ function buildThemeFromPalette(p: EditorPalette): Extension {
 	}
 	if (p.panelBorder) {
 		spec[".cm-panels-top"] = { borderBottom: `1px solid ${p.panelBorder}` };
-	}
-	if (p.diffStaged) {
-		spec[".cm-diff-staged"] = { backgroundColor: p.diffStaged };
 	}
 	if (p.whitespace) {
 		spec[".cm-highlightSpace, .cm-highlightTab"] = { color: p.whitespace };

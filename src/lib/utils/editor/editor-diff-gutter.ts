@@ -1,127 +1,191 @@
-import { type Extension, StateEffect, StateField } from "@codemirror/state";
-import { GutterMarker, gutter } from "@codemirror/view";
-import type { DiffHunk, DiffHunkLine } from "$lib/services/file-service";
+import { Chunk } from "@codemirror/merge";
+import {
+	type Extension,
+	StateEffect,
+	StateField,
+	Text,
+} from "@codemirror/state";
+import { type EditorView, GutterMarker, gutter } from "@codemirror/view";
 
-export type { DiffHunk, DiffHunkLine };
 export type DiffKind = "added" | "modified" | "deleted";
 
-export const setUnstagedDiff = StateEffect.define<Map<number, DiffKind>>();
-export const setStagedDiff = StateEffect.define<Map<number, DiffKind>>();
+/**
+ * Payload handed to the click handler when a gutter marker is clicked.
+ * `before`/`after` are the HEAD and current content of the chunk, ready to
+ * feed a side-by-side diff view. `anchorLine` lets the revert look the chunk
+ * up again against the live document.
+ */
+export interface GutterChunk {
+	lineStart: number;
+	lineEnd: number;
+	anchorLine: number;
+	before: string;
+	after: string;
+}
 
-export const unstagedDiffField = StateField.define<Map<number, DiffKind>>({
-	create: () => new Map(),
-	update: (value, tr) => {
-		for (const e of tr.effects) if (e.is(setUnstagedDiff)) return e.value;
-		return value;
-	},
-});
+interface DiffState {
+	base: Text;
+	chunks: readonly Chunk[];
+	lineKinds: Map<number, DiffKind>;
+}
 
-export const stagedDiffField = StateField.define<Map<number, DiffKind>>({
-	create: () => new Map(),
-	update: (value, tr) => {
-		for (const e of tr.effects) if (e.is(setStagedDiff)) return e.value;
-		return value;
-	},
-});
+// Effect carrying the new base (HEAD) content to diff the live buffer against.
+export const setDiffBase = StateEffect.define<string>();
 
-export function hunksToLineMap(hunks: DiffHunk[]): Map<number, DiffKind> {
+// Bound the diff cost: without a scan limit, a chunk that spans a large, very
+// different region (e.g. line-ending mismatch, or a heavily-rewritten file) is
+// fully re-diffed on every keystroke — O(n·m), hundreds of ms, freezing the UI.
+// `scanLimit` makes the algorithm fall back to a fast, slightly coarser diff for
+// such regions. This mirrors @codemirror/merge's own default for merge views.
+const DIFF_CONFIG = { scanLimit: 500 };
+
+function textOf(content: string): Text {
+	return Text.of(content.length ? content.split("\n") : [""]);
+}
+
+function chunkKind(chunk: Chunk): DiffKind {
+	if (chunk.fromA === chunk.toA) return "added";
+	if (chunk.fromB === chunk.toB) return "deleted";
+	return "modified";
+}
+
+function chunkLineRange(
+	doc: Text,
+	chunk: Chunk,
+): { start: number; end: number } {
+	const start = doc.lineAt(Math.min(chunk.fromB, doc.length)).number;
+	if (chunk.fromB === chunk.toB) return { start, end: start };
+	const lastPos = Math.min(Math.max(chunk.toB - 1, chunk.fromB), doc.length);
+	return { start, end: doc.lineAt(lastPos).number };
+}
+
+function chunkCoversLine(doc: Text, chunk: Chunk, line: number): boolean {
+	const { start, end } = chunkLineRange(doc, chunk);
+	return line >= start && line <= end;
+}
+
+function buildLineKinds(
+	doc: Text,
+	chunks: readonly Chunk[],
+): Map<number, DiffKind> {
 	const map = new Map<number, DiffKind>();
-	for (const hunk of hunks) {
-		let newLine = hunk.newStart;
-		let prevWasDelete = false;
-		let inDeletionBlock = false;
-		let deletionPoint = 0;
-		let deletionHadPlus = false;
-
-		const flushDeletion = () => {
-			if (inDeletionBlock && !deletionHadPlus) {
-				const marker = Math.max(1, deletionPoint);
-				if (!map.has(marker)) map.set(marker, "deleted");
-			}
-			inDeletionBlock = false;
-			deletionHadPlus = false;
-			prevWasDelete = false;
-		};
-
-		for (const l of hunk.lines) {
-			if (l.type === "-") {
-				if (!inDeletionBlock) {
-					deletionPoint = newLine;
-					deletionHadPlus = false;
-				}
-				inDeletionBlock = true;
-				prevWasDelete = true;
-			} else if (l.type === "+") {
-				map.set(newLine, prevWasDelete ? "modified" : "added");
-				prevWasDelete = false;
-				inDeletionBlock = false;
-				deletionHadPlus = false;
-				newLine++;
-			} else {
-				flushDeletion();
-				newLine++;
-			}
+	for (const chunk of chunks) {
+		const kind = chunkKind(chunk);
+		const { start, end } = chunkLineRange(doc, chunk);
+		if (kind === "deleted") {
+			if (!map.has(start)) map.set(start, "deleted");
+		} else {
+			for (let line = start; line <= end; line++) map.set(line, kind);
 		}
-		flushDeletion();
 	}
 	return map;
 }
 
+const diffField = StateField.define<DiffState>({
+	create(state) {
+		return { base: state.doc, chunks: [], lineKinds: new Map() };
+	},
+	update(value, tr) {
+		let { base } = value;
+		let baseChanged = false;
+		for (const e of tr.effects) {
+			if (e.is(setDiffBase)) {
+				base = textOf(e.value);
+				baseChanged = true;
+			}
+		}
+		if (!baseChanged && !tr.docChanged) return value;
+
+		const chunks = baseChanged
+			? Chunk.build(base, tr.state.doc, DIFF_CONFIG)
+			: Chunk.updateB(
+					value.chunks,
+					base,
+					tr.state.doc,
+					tr.changes,
+					DIFF_CONFIG,
+				);
+		return { base, chunks, lineKinds: buildLineKinds(tr.state.doc, chunks) };
+	},
+});
+
 class DiffMarker extends GutterMarker {
-	constructor(
-		readonly kind: DiffKind,
-		readonly lineNum: number,
-		readonly staged = false,
-	) {
+	constructor(readonly kind: DiffKind) {
 		super();
 	}
 	toDOM() {
 		const el = document.createElement("div");
-		el.className = `cm-diff-marker cm-diff-${this.kind}${this.staged ? " cm-diff-staged" : ""}`;
+		el.className = `cm-diff-marker cm-diff-${this.kind}`;
 		return el;
 	}
 }
 
+function chunkPayload(base: Text, doc: Text, chunk: Chunk): GutterChunk {
+	const before = base.sliceString(
+		chunk.fromA,
+		Math.min(chunk.toA, base.length),
+	);
+	const after = doc.sliceString(chunk.fromB, Math.min(chunk.toB, doc.length));
+	const { start, end } = chunkLineRange(doc, chunk);
+	return { lineStart: start, lineEnd: end, anchorLine: start, before, after };
+}
+
 export function buildDiffGutter(opts: {
-	getHunks: () => DiffHunk[];
-	getStagedHunks: () => DiffHunk[];
-	onClick?: (hunk: DiffHunk) => void;
+	onChunkClick?: (chunk: GutterChunk) => void;
 }): Extension {
 	return [
-		unstagedDiffField,
-		stagedDiffField,
+		diffField,
 		gutter({
 			class: "cm-diff-gutter",
-			lineMarker(v, line) {
-				const num = v.state.doc.lineAt(line.from).number;
-				const kind = v.state.field(unstagedDiffField).get(num);
-				const stagedKind = v.state.field(stagedDiffField).get(num);
-				if (stagedKind) return new DiffMarker(stagedKind, num, true);
-				if (kind) return new DiffMarker(kind, num, false);
-				return null;
+			lineMarker(view, line) {
+				const ln = view.state.doc.lineAt(line.from).number;
+				const kind = view.state.field(diffField).lineKinds.get(ln);
+				return kind ? new DiffMarker(kind) : null;
 			},
 			lineMarkerChange: (update) =>
-				update.startState.field(unstagedDiffField) !==
-					update.state.field(unstagedDiffField) ||
-				update.startState.field(stagedDiffField) !==
-					update.state.field(stagedDiffField),
-			initialSpacer: () => new DiffMarker("added", 0),
+				update.startState.field(diffField) !== update.state.field(diffField),
+			initialSpacer: () => new DiffMarker("added"),
 			domEventHandlers: {
-				mousedown(v, line) {
-					const lineNum = v.state.doc.lineAt(line.from).number;
-					if (
-						!v.state.field(unstagedDiffField).has(lineNum) &&
-						!v.state.field(stagedDiffField).has(lineNum)
-					)
-						return false;
-					const allHunks = [...opts.getHunks(), ...opts.getStagedHunks()];
-					const hunk = allHunks.find(
-						(h) => lineNum >= h.newStart && lineNum <= h.newEnd,
-					);
-					if (hunk) opts.onClick?.(hunk);
+				mousedown(view, line) {
+					const doc = view.state.doc;
+					const ln = doc.lineAt(line.from).number;
+					const { base, chunks, lineKinds } = view.state.field(diffField);
+					if (!lineKinds.has(ln)) return false;
+					const chunk = chunks.find((c) => chunkCoversLine(doc, c, ln));
+					if (!chunk) return false;
+					opts.onChunkClick?.(chunkPayload(base, doc, chunk));
 					return true;
 				},
 			},
 		}),
 	];
+}
+
+export function setDiffBaseContent(view: EditorView, base: string): void {
+	view.dispatch({ effects: setDiffBase.of(base) });
+}
+
+/**
+ * Revert the chunk covering `line` back to its HEAD content. Returns false if
+ * no chunk is there any more (e.g. the user kept typing). The change is a
+ * normal edit, so it goes through the usual onChange/save flow and is undoable.
+ */
+export function revertChunkAtLine(view: EditorView, line: number): boolean {
+	const doc = view.state.doc;
+	const { base, chunks } = view.state.field(diffField);
+	const chunk = chunks.find((c) => chunkCoversLine(doc, c, line));
+	if (!chunk) return false;
+	const insert = base.sliceString(
+		chunk.fromA,
+		Math.min(chunk.toA, base.length),
+	);
+	view.dispatch({
+		changes: {
+			from: chunk.fromB,
+			to: Math.min(chunk.toB, doc.length),
+			insert,
+		},
+		userEvent: "revert",
+	});
+	return true;
 }

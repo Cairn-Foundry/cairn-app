@@ -2,19 +2,12 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
-  import DiffPeek from './DiffPeek.svelte';
+  import HunkDiffPanel from './HunkDiffPanel.svelte';
   import { settings } from '$lib/stores/settings';
-  import { isBinaryPath, type GitStatusMap, type DiffHunk, type BlameEntry, type FileNode } from '$lib/services/file-service';
+  import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
+  import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
   import { breadcrumbSegments, basename, parentPathOf } from '$lib/utils/files/files-tree';
   import type { Tab } from '$lib/utils/files/files-persistence';
-
-  type BlamePopup = {
-    entry: BlameEntry;
-    loadingDiff: boolean;
-    error: string | null;
-    oldContent: string | null;
-    newContent: string | null;
-  };
 
   export let rootEl: HTMLElement | null = null;
   export let paneClass = '';
@@ -40,12 +33,8 @@
   export let cursorLine: number;
   export let cursorCol: number;
   export let currentLineBlame: BlameEntry | null;
-  export let currentDiffHunks: DiffHunk[];
-  export let currentStagedHunks: DiffHunk[];
-  export let activeDiffHunk: DiffHunk | null;
-  export let revertPending: boolean;
-  export let reverting: boolean;
-  export let blamePopup: BlamePopup | null;
+  export let baseContent: string | null;
+  export let activeChunk: GutterChunk | null;
   export let recentFiles: string[] = [];
   export let treeFilePaths: Set<string> = new Set();
   export let placeholderText = 'Select a file to edit';
@@ -63,16 +52,12 @@
   export let onChange: (value: string) => void;
   export let onBlur: (() => void) | undefined = undefined;
   export let onCursorChange: (line: number, col: number) => void;
-  export let onDiffClick: (hunk: DiffHunk) => void;
+  export let onChunkClick: (chunk: GutterChunk) => void;
+  export let onRevertChunk: () => void;
+  export let onCloseHunk: () => void;
   export let onConvertLineEndings: () => void;
   export let onConvertIndent: () => void;
   export let onToggleWhitespace: () => void;
-  export let onRevertConfirm: (hunk: DiffHunk) => void;
-  export let onRevertRequest: () => void;
-  export let onRevertCancel: () => void;
-  export let onCloseDiffPeek: () => void;
-  export let onCloseBlamePopup: () => void;
-  export let onOpenBlamePopup: (entry: BlameEntry, filePath: string) => void;
   export let onOpenRecent: (node: FileNode) => void;
 </script>
 
@@ -162,9 +147,8 @@
             initialCursorPos={activeTab.cursorPos}
             initialScrollTop={activeTab.scrollTop}
             savedState={editorState}
-            diffHunks={currentDiffHunks}
-            stagedHunks={currentStagedHunks}
-            onDiffClick={onDiffClick}
+            {baseContent}
+            onChunkClick={onChunkClick}
             onChange={onChange}
             onBlur={onBlur}
             onCursorChange={onCursorChange}
@@ -172,17 +156,9 @@
         {/key}
       {/if}
     </div>
-    <DiffPeek
-      hunk={activeDiffHunk}
-      {revertPending}
-      {reverting}
-      {activeLang}
-      blame={blamePopup}
-      onRevertConfirm={onRevertConfirm}
-      onRevertRequest={onRevertRequest}
-      onRevertCancel={onRevertCancel}
-      onDismiss={blamePopup ? onCloseBlamePopup : onCloseDiffPeek}
-    />
+    {#if activeChunk}
+      <HunkDiffPanel chunk={activeChunk} {activeLang} onRevert={onRevertChunk} onDismiss={onCloseHunk} />
+    {/if}
     <div class="editor-statusbar">
       <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
       <span class="statusbar-sep">|</span>
@@ -204,11 +180,7 @@
         {#if currentLineBlame.hash === '0000000'}
           <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">{t('files.notCommittedYet')}</span>
         {:else}
-          <button
-            class="statusbar-item statusbar-btn statusbar-blame"
-            on:click={() => onOpenBlamePopup(currentLineBlame!, activeTab!.path)}
-            title={t('files.showCommitDiff') as string}
-          >{currentLineBlame.hash} ({currentLineBlame.author})</button>
+          <span class="statusbar-item statusbar-blame">{currentLineBlame.hash} ({currentLineBlame.author})</span>
         {/if}
       {/if}
     </div>
@@ -429,7 +401,6 @@
     font-size: 11px;
     opacity: 0.85;
   }
-  .statusbar-blame:hover { opacity: 1; color: var(--fg-1); }
 
   .statusbar-blame-uncommitted {
     cursor: default;
