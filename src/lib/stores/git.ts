@@ -123,19 +123,31 @@ export async function unstageAll(): Promise<void> {
 	await refreshStatus();
 }
 
-export async function commitChanges(message: string): Promise<void> {
+export async function getGitIdentity(): Promise<gitService.GitIdentity> {
+	const wt = worktree();
+	if (!wt) return { name: '', email: '' };
+	return gitService.getIdentity(wt);
+}
+
+export async function commitChanges(
+	message: string,
+	options: gitService.CommitOptions = {},
+): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.commit(wt, message);
+	await gitService.commit(wt, message, options);
 	_git.update((s) => ({ ...s, commitMessage: "" }));
 	await refreshStatus();
 	await refreshLog();
 }
 
-export async function amendLastCommit(message: string): Promise<void> {
+export async function amendLastCommit(
+	message: string,
+	options: Pick<gitService.CommitOptions, 'noVerify' | 'signOff' | 'authorName' | 'authorEmail'> = {},
+): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.amendCommit(wt, message);
+	await gitService.amendCommit(wt, message, options);
 	await refreshStatus();
 	await refreshLog();
 }

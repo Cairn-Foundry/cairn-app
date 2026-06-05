@@ -130,6 +130,7 @@
       on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
+      on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
       on:createInstance={() => showCreate = true}
     />
   </div>

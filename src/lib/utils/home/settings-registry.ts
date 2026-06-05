@@ -7,7 +7,8 @@ export type SettingsTab =
 	| "editor"
 	| "shortcuts"
 	| "project"
-	| "languages";
+	| "languages"
+	| "git";
 
 export interface SettingEntry {
 	label: string;

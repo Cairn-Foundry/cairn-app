@@ -8,6 +8,7 @@
   import ShortcutsTab from './settings/ShortcutsTab.svelte';
   import ProjectTab from './settings/ProjectTab.svelte';
   import LanguagesTab from './settings/LanguagesTab.svelte';
+  import GitTab from './settings/GitTab.svelte';
   import { searchSettings, type SettingsTab, type SettingEntry } from '$lib/utils/home/settings-registry';
 
   export let settingsTab: SettingsTab = 'general';
@@ -108,6 +109,7 @@
     <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
     <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
     <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
+    <button class="settings-tab {settingsTab === 'git'        ? 'active' : ''}" on:click={() => settingsTab = 'git'}>{t('settings.tabs.git')}</button>
   </div>
 
   {#if settingsTab === 'general'}
@@ -122,6 +124,8 @@
     <ProjectTab/>
   {:else if settingsTab === 'languages'}
     <LanguagesTab/>
+  {:else if settingsTab === 'git'}
+    <GitTab/>
   {/if}
 {/if}
 

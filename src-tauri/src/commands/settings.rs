@@ -37,6 +37,14 @@ pub struct WorkflowTabConfig {
     pub order: u32,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GitProfile {
+    pub id: String,
+    pub label: String,
+    pub name: String,
+    pub email: String,
+}
+
 fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
     vec![
         WorkflowTabConfig { key: "files".into(),  name: "Files".into(),  icon: "folder".into(), enabled: true, order: 0 },
@@ -77,6 +85,8 @@ pub struct CairnSettings {
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
     pub save_on: String,
+    #[serde(rename = "gitProfiles", default)]
+    pub git_profiles: Vec<GitProfile>,
 }
 
 fn default_sidebar_position() -> String { "left".to_string() }
@@ -107,6 +117,7 @@ impl Default for CairnSettings {
             sidebar_position: default_sidebar_position(),
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
+            git_profiles: Vec::new(),
         }
     }
 }

@@ -47,6 +47,15 @@ pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<P
         .join("file-state.json"))
 }
 
+pub fn instance_commit_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("commit-state.json"))
+}
+
 pub fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
     for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;

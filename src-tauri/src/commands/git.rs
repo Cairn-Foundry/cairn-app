@@ -37,6 +37,12 @@ pub struct GitCommit {
 }
 
 #[derive(Serialize)]
+pub struct GitIdentity {
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Serialize)]
 pub struct RemoteStatus {
     #[serde(rename = "ahead")]
     pub ahead: usize,
@@ -314,9 +320,41 @@ pub fn git_unstage_all(worktree_path: String) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_commit(worktree_path: String, message: String) -> Result<String, String> {
+pub fn git_get_identity(worktree_path: String) -> Result<GitIdentity, String> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["commit", "-m", &message]).output().map_err(|e| e.to_string())?;
+    let name = git_cmd(&expanded)
+        .args(["config", "user.name"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    let email = git_cmd(&expanded)
+        .args(["config", "user.email"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    Ok(GitIdentity { name, email })
+}
+
+#[tauri::command]
+pub fn git_commit(
+    worktree_path: String,
+    message: String,
+    no_verify: bool,
+    sign_off: bool,
+    allow_empty: bool,
+    author_name: String,
+    author_email: String,
+) -> Result<String, String> {
+    let expanded = expand(&worktree_path);
+    let mut cmd = git_cmd(&expanded);
+    cmd.arg("commit").arg("-m").arg(&message);
+    if no_verify   { cmd.arg("--no-verify"); }
+    if sign_off    { cmd.arg("--signoff"); }
+    if allow_empty { cmd.arg("--allow-empty"); }
+    if !author_name.is_empty() && !author_email.is_empty() {
+        cmd.arg(format!("--author={} <{}>", author_name, author_email));
+    }
+    let out = cmd.output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());
     }
@@ -324,9 +362,23 @@ pub fn git_commit(worktree_path: String, message: String) -> Result<String, Stri
 }
 
 #[tauri::command]
-pub fn git_amend_commit(worktree_path: String, message: String) -> Result<String, String> {
+pub fn git_amend_commit(
+    worktree_path: String,
+    message: String,
+    no_verify: bool,
+    sign_off: bool,
+    author_name: String,
+    author_email: String,
+) -> Result<String, String> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["commit", "--amend", "-m", &message]).output().map_err(|e| e.to_string())?;
+    let mut cmd = git_cmd(&expanded);
+    cmd.arg("commit").arg("--amend").arg("-m").arg(&message);
+    if no_verify { cmd.arg("--no-verify"); }
+    if sign_off  { cmd.arg("--signoff"); }
+    if !author_name.is_empty() && !author_email.is_empty() {
+        cmd.arg(format!("--author={} <{}>", author_name, author_email));
+    }
+    let out = cmd.output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());
     }

@@ -21,6 +21,7 @@ const DEFAULTS: CairnSettings = {
 	sidebarPosition: "left",
 	showWhitespace: false,
 	saveOn: "blur",
+	gitProfiles: [],
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);

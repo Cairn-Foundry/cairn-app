@@ -2,6 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import type { WorkflowStep } from "$lib/types/instance";
 import type { ShortcutConfig } from "$lib/types/shortcuts";
 
+export interface GitProfile {
+	id: string;
+	label: string;
+	name: string;
+	email: string;
+}
+
 export interface WorkflowTabConfig {
 	key: WorkflowStep;
 	name: string;
@@ -29,6 +36,7 @@ export interface CairnSettings {
 		| "projectChange"
 		| "instanceChange"
 		| "manual";
+	gitProfiles: GitProfile[];
 }
 
 export function getSettings(): Promise<CairnSettings> {

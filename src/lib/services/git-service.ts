@@ -88,18 +88,52 @@ export async function unstageAll(worktreePath: string): Promise<void> {
 	return invoke("git_unstage_all", { worktreePath });
 }
 
+export type GitIdentity = {
+	name: string;
+	email: string;
+};
+
+export type CommitOptions = {
+	noVerify?: boolean;
+	signOff?: boolean;
+	allowEmpty?: boolean;
+	authorName?: string;
+	authorEmail?: string;
+};
+
+export async function getIdentity(worktreePath: string): Promise<GitIdentity> {
+	return invoke("git_get_identity", { worktreePath });
+}
+
 export async function commit(
 	worktreePath: string,
 	message: string,
+	options: CommitOptions = {},
 ): Promise<string> {
-	return invoke("git_commit", { worktreePath, message });
+	return invoke("git_commit", {
+		worktreePath,
+		message,
+		noVerify: options.noVerify ?? false,
+		signOff: options.signOff ?? false,
+		allowEmpty: options.allowEmpty ?? false,
+		authorName: options.authorName ?? '',
+		authorEmail: options.authorEmail ?? '',
+	});
 }
 
 export async function amendCommit(
 	worktreePath: string,
 	message: string,
+	options: Pick<CommitOptions, 'noVerify' | 'signOff' | 'authorName' | 'authorEmail'> = {},
 ): Promise<string> {
-	return invoke("git_amend_commit", { worktreePath, message });
+	return invoke("git_amend_commit", {
+		worktreePath,
+		message,
+		noVerify: options.noVerify ?? false,
+		signOff: options.signOff ?? false,
+		authorName: options.authorName ?? '',
+		authorEmail: options.authorEmail ?? '',
+	});
 }
 
 export async function getCurrentBranch(worktreePath: string): Promise<string> {

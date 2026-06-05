@@ -81,6 +81,7 @@ pub fn run() {
             git_unstage_file,
             git_stage_all,
             git_unstage_all,
+            git_get_identity,
             git_commit,
             git_amend_commit,
             git_current_branch,
@@ -98,6 +99,8 @@ pub fn run() {
             stop_agent,
             get_ui_state,
             save_ui_state,
+            get_commit_state,
+            save_commit_state,
             get_file_state,
             save_file_state,
         ])
