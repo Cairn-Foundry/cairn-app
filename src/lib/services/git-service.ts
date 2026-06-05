@@ -116,23 +116,26 @@ export async function commit(
 		noVerify: options.noVerify ?? false,
 		signOff: options.signOff ?? false,
 		allowEmpty: options.allowEmpty ?? false,
-		authorName: options.authorName ?? '',
-		authorEmail: options.authorEmail ?? '',
+		authorName: options.authorName ?? "",
+		authorEmail: options.authorEmail ?? "",
 	});
 }
 
 export async function amendCommit(
 	worktreePath: string,
 	message: string,
-	options: Pick<CommitOptions, 'noVerify' | 'signOff' | 'authorName' | 'authorEmail'> = {},
+	options: Pick<
+		CommitOptions,
+		"noVerify" | "signOff" | "authorName" | "authorEmail"
+	> = {},
 ): Promise<string> {
 	return invoke("git_amend_commit", {
 		worktreePath,
 		message,
 		noVerify: options.noVerify ?? false,
 		signOff: options.signOff ?? false,
-		authorName: options.authorName ?? '',
-		authorEmail: options.authorEmail ?? '',
+		authorName: options.authorName ?? "",
+		authorEmail: options.authorEmail ?? "",
 	});
 }
 

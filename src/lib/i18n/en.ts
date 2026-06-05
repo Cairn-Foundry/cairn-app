@@ -841,7 +841,8 @@ export const en = {
 		git: {
 			groupTitle: "Git Profiles",
 			groupDesc: "Author identities used in commits",
-			noProfiles: "No profiles yet. Create one to quickly switch git author identity.",
+			noProfiles:
+				"No profiles yet. Create one to quickly switch git author identity.",
 			addProfile: "New profile",
 			editProfile: "Edit",
 			deleteProfile: "Delete",
@@ -855,7 +856,8 @@ export const en = {
 			profileSave: "Save profile",
 			profileCancel: "Cancel",
 			deleteConfirmTitle: "Delete profile",
-			deleteConfirmBody: (label: string) => `Are you sure you want to delete the profile "${label}"? This action cannot be undone.`,
+			deleteConfirmBody: (label: string) =>
+				`Are you sure you want to delete the profile "${label}"? This action cannot be undone.`,
 			deleteConfirm: "Delete",
 		},
 		shortcuts: {

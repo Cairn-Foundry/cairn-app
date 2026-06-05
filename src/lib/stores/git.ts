@@ -125,7 +125,7 @@ export async function unstageAll(): Promise<void> {
 
 export async function getGitIdentity(): Promise<gitService.GitIdentity> {
 	const wt = worktree();
-	if (!wt) return { name: '', email: '' };
+	if (!wt) return { name: "", email: "" };
 	return gitService.getIdentity(wt);
 }
 
@@ -143,7 +143,10 @@ export async function commitChanges(
 
 export async function amendLastCommit(
 	message: string,
-	options: Pick<gitService.CommitOptions, 'noVerify' | 'signOff' | 'authorName' | 'authorEmail'> = {},
+	options: Pick<
+		gitService.CommitOptions,
+		"noVerify" | "signOff" | "authorName" | "authorEmail"
+	> = {},
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;

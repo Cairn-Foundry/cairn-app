@@ -16,9 +16,8 @@
     confirm: { title: string; copyWorkingChanges: boolean };
   }>();
 
-  async function onMount() {
-    await tick();
-    titleInput?.select();
+  function autoSelect(node: HTMLInputElement) {
+    tick().then(() => node.select());
   }
 
   function handleSubmit() {
@@ -59,7 +58,7 @@
         <span class="dup-label">{t('manageInstances.duplicateModal.titleLabel')}</span>
         <input
           bind:this={titleInput}
-          use:onMount
+          use:autoSelect
           bind:value={title}
           class="dup-input"
           placeholder={t('manageInstances.duplicateModal.titlePlaceholder') as string}
@@ -79,6 +78,7 @@
             class:on={copyWorkingChanges}
             on:click={() => copyWorkingChanges = !copyWorkingChanges}
             aria-pressed={copyWorkingChanges}
+            aria-label={t('manageInstances.duplicateModal.copyChangesLabel') as string}
           >
             <span class="toggle-thumb"></span>
           </button>

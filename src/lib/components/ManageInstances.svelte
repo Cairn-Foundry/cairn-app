@@ -167,6 +167,7 @@
             {@const isDeleting = deletingId === inst.id}
             {@const isMoreOpen = moreOpenId === inst.id}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <li
               class="mi-row"
               class:active={isActive}

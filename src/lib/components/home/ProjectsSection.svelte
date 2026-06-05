@@ -492,6 +492,7 @@
             data-folder-id={folder.id}
           >
             <!-- folder header row -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="folder-header"
               on:pointerdown={(e) => onFolderPointerDown(e, folderIdx)}

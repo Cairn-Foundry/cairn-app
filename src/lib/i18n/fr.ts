@@ -863,7 +863,8 @@ export const fr = {
 		git: {
 			groupTitle: "Profils Git",
 			groupDesc: "Identités utilisées dans les commits",
-			noProfiles: "Aucun profil pour l'instant. Créez-en un pour changer rapidement d'identité git.",
+			noProfiles:
+				"Aucun profil pour l'instant. Créez-en un pour changer rapidement d'identité git.",
 			addProfile: "Nouveau profil",
 			editProfile: "Modifier",
 			deleteProfile: "Supprimer",
@@ -877,7 +878,8 @@ export const fr = {
 			profileSave: "Enregistrer le profil",
 			profileCancel: "Annuler",
 			deleteConfirmTitle: "Supprimer le profil",
-			deleteConfirmBody: (label: string) => `Êtes-vous sûr de vouloir supprimer le profil "${label}" ? Cette action est irréversible.`,
+			deleteConfirmBody: (label: string) =>
+				`Êtes-vous sûr de vouloir supprimer le profil "${label}" ? Cette action est irréversible.`,
 			deleteConfirm: "Supprimer",
 		},
 		shortcuts: {
