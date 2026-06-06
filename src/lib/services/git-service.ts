@@ -209,6 +209,8 @@ export type GitGraphCommit = {
 	refs: string[];
 };
 
-export async function getGraph(worktreePath: string): Promise<GitGraphCommit[]> {
+export async function getGraph(
+	worktreePath: string,
+): Promise<GitGraphCommit[]> {
 	return invoke("git_graph", { worktreePath });
 }

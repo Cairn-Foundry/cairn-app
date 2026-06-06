@@ -128,6 +128,12 @@
     state.unstagedDiffs,
     untrackedContent,
   );
+
+  let changesSearch = '';
+  $: filteredUnstagedCards = changesSearch.trim()
+    ? unstagedCards.filter(h => h.filePath.toLowerCase().includes(changesSearch.toLowerCase()))
+    : unstagedCards;
+
   $: stagedCards = buildFileCards(
     Object.entries(state.status).filter(([, s]) => isStaged(s)),
     state.stagedDiffs,
@@ -162,6 +168,21 @@
   }
 
   $: aheadCount = state.remoteStatus?.ahead ?? 0;
+  $: aheadHashes = new Set(state.log.slice(0, aheadCount).map(c => c.hash));
+
+  let logSearch = '';
+
+  $: filteredLog = (() => {
+    const list = state.log.filter(c => c.onCurrentBranch);
+    if (!logSearch.trim()) return list;
+    const q = logSearch.toLowerCase();
+    return list.filter(c =>
+      c.message.toLowerCase().includes(q) ||
+      c.author.toLowerCase().includes(q) ||
+      c.hash.toLowerCase().includes(q) ||
+      c.shortHash.toLowerCase().includes(q),
+    );
+  })();
 
   let lastWorktreePath = '';
 
@@ -339,6 +360,19 @@
     </div>
 
     {#if $gitLeftTab === 'changes'}
+      <div class="log-filter-bar">
+        <div class="log-search">
+          <Icon name="search" size={11}/>
+          <input
+            class="log-search-input"
+            bind:value={changesSearch}
+            placeholder={t('git.changesSearchPlaceholder') as string}
+          />
+          {#if changesSearch}
+            <button class="log-search-clear" on:click={() => changesSearch = ''}>×</button>
+          {/if}
+        </div>
+      </div>
       <div class="hunks-list">
         {#if unstagedCards.length === 0}
           <div class="empty-hint">
@@ -350,8 +384,10 @@
               {t('git.workingTreeClean')}
             {/if}
           </div>
+        {:else if filteredUnstagedCards.length === 0}
+          <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
-          {#each unstagedCards as h (h.filePath)}
+          {#each filteredUnstagedCards as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
               <div class="hunk-card-head">
                 <span class="file-info">
@@ -392,12 +428,27 @@
           </button>
         </div>
       {/if}
+      <div class="log-filter-bar">
+        <div class="log-search">
+          <Icon name="search" size={11}/>
+          <input
+            class="log-search-input"
+            bind:value={logSearch}
+            placeholder={t('git.logSearchPlaceholder') as string}
+          />
+          {#if logSearch}
+            <button class="log-search-clear" on:click={() => logSearch = ''}>×</button>
+          {/if}
+        </div>
+      </div>
       <div class="log-list">
         {#if state.log.length === 0}
           <div class="empty-hint">{t('git.noHistory')}</div>
+        {:else if filteredLog.length === 0}
+          <div class="empty-hint">{t('git.logNoResults')}</div>
         {:else}
-          {#each state.log as commit, i}
-            <div class="log-entry" class:is-ahead={i < aheadCount} class:off-branch={!commit.onCurrentBranch}>
+          {#each filteredLog as commit}
+            <div class="log-entry" class:is-ahead={aheadHashes.has(commit.hash)}>
               <div class="log-entry-main">
                 <span class="log-hash">{commit.shortHash}</span>
                 <span class="log-message">{commit.message}</span>
@@ -706,6 +757,55 @@
     font-size: 11px;
   }
 
+  .log-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--stroke-0);
+    flex-shrink: 0;
+  }
+
+  .log-search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    padding: 3px 7px;
+    min-width: 0;
+    color: var(--fg-4);
+  }
+  .log-search:focus-within {
+    border-color: var(--accent);
+    color: var(--fg-2);
+  }
+
+  .log-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 11px;
+    color: var(--fg-0);
+    font-family: var(--font-ui);
+    min-width: 0;
+  }
+  .log-search-input::placeholder { color: var(--fg-4); }
+
+  .log-search-clear {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--fg-4);
+    cursor: pointer;
+  }
+  .log-search-clear:hover { color: var(--fg-1); }
+
   .log-list {
     flex: 1;
     overflow-y: auto;
@@ -725,6 +825,7 @@
   }
   .log-entry:hover { background: var(--bg-2); }
   .log-entry.is-ahead { border-left-color: var(--accent); }
+  .log-entry.is-ahead .log-message { color: var(--fg-0); font-weight: 500; }
 
   .log-entry-main {
     display: flex;
@@ -748,7 +849,6 @@
     text-overflow: ellipsis;
   }
   .log-entry.is-ahead .log-message { color: var(--fg-0); font-weight: 500; }
-  .log-entry.off-branch .log-message { color: var(--fg-4); }
 
   .log-entry-meta {
     display: flex;

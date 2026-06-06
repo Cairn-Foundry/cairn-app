@@ -2,6 +2,8 @@
   import { createEventDispatcher } from 'svelte';
   import type { GitGraphCommit } from '$lib/services/git-service';
   import type { Instance } from '$lib/types/instance';
+  import Icon from '$lib/components/Icon.svelte';
+  import { t } from '$lib/i18n';
 
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
@@ -10,6 +12,30 @@
   const dispatch = createEventDispatcher<{ switchInstance: Instance }>();
 
   $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
+
+  let graphSearch = '';
+
+  $: processedCommits = (() => {
+    if (!graphSearch.trim()) return commits;
+    const q = graphSearch.toLowerCase();
+    return commits.filter(c =>
+      c.message.toLowerCase().includes(q) ||
+      c.author.toLowerCase().includes(q) ||
+      c.hash.toLowerCase().includes(q) ||
+      c.shortHash.toLowerCase().includes(q) ||
+      c.refs.some(r => r.toLowerCase().includes(q)) ||
+      (() => {
+        const instance = c.refs
+          .map(r => {
+            if (r.startsWith('HEAD -> ')) return branchToInstance.get(r.slice(8));
+            if (!r.includes('/') && r !== 'HEAD' && !r.startsWith('tag: ')) return branchToInstance.get(r);
+            return undefined;
+          })
+          .find(Boolean);
+        return !!instance?.ticket?.id?.toLowerCase().includes(q);
+      })(),
+    );
+  })();
 
   const ROW_H  = 36;
   const COL_W  = 22;
@@ -156,7 +182,7 @@
     return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
   }
 
-  $: rows = computeGraph(commits);
+  $: rows = computeGraph(processedCommits);
   $: globalMaxLane = rows.reduce((acc, r) => Math.max(acc, r.maxLaneInRow), 0);
   $: svgW = (globalMaxLane + 1) * COL_W + HALF + 4;
 
@@ -172,7 +198,7 @@
     if (!headRow) return new Set<string>();
     const visited = new Set<string>();
     const queue = [headRow.commit.hash];
-    const byHash = new Map(commits.map(c => [c.hash, c]));
+    const byHash = new Map(processedCommits.map(c => [c.hash, c]));
     while (queue.length > 0) {
       const hash = queue.pop()!;
       if (visited.has(hash)) continue;
@@ -183,86 +209,162 @@
   })();
 </script>
 
-<div class="graph-scroll">
-  {#each rows as row}
-    {@const chips = parseRefs(row.commit.refs)}
-    {@const isCurrent = row.commit.refs.some(r =>
-      r === currentBranch || r.endsWith(`-> ${currentBranch}`) || r === `HEAD -> ${currentBranch}`
-    )}
-    {@const isOnBranch = currentBranchAncestors.has(row.commit.hash)}
-    <div
-      class="commit-outer"
-      class:is-current={isCurrent}
-      class:is-on-branch={isOnBranch && !isCurrent}
-    >
-      <div class="graph-row">
-        <svg
-          class="graph-svg"
-          width={svgW}
-          height={ROW_H}
-          viewBox="0 0 {svgW} {ROW_H}"
-          style="width:{svgW}px"
-        >
-          {#each row.paths as p}
-            <path
-              d={p.d}
-              stroke={p.color}
-              stroke-width={STROKE}
-              fill="none"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          {/each}
-          {#if isCurrent}
-            <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R + 3} fill="none" stroke={row.color} stroke-width="1.5" />
-          {/if}
-          <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R} fill={row.color} />
-        </svg>
-
-        <div class="row-body">
-          <span class="commit-text">{row.commit.message}</span>
-          <span class="row-meta">
-            <span class="meta-hash">{row.commit.shortHash}</span>
-            <span class="meta-sep">·</span>
-            <span class="meta-date">{relativeTime(row.commit.date)}</span>
-          </span>
-        </div>
-      </div>
-
-      {#if chips.length > 0}
-        <div class="chips-strip" style="padding-left:{svgW + 4}px">
-          {#each row.belowLanes as bl}
-            <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}"></div>
-          {/each}
-          {#each chips as chip}
-            {@const linkedInstance = branchToInstance.get(chip.label)}
-            <span
-              class="ref-chip chip-{chip.kind}"
-              class:chip-linked={!!linkedInstance}
-              role={linkedInstance ? 'button' : undefined}
-              style={chip.kind === 'head-branch' || chip.kind === 'local'
-                ? `--chip-color:${row.color};`
-                : ''}
-              on:click={linkedInstance ? () => dispatch('switchInstance', linkedInstance) : undefined}
-              on:keydown={linkedInstance ? (e) => e.key === 'Enter' && dispatch('switchInstance', linkedInstance) : undefined}
-            >
-              {chip.label}
-              {#if linkedInstance}
-                <span class="chip-ticket">{linkedInstance.ticket.id}</span>
-              {/if}
-            </span>
-          {/each}
-        </div>
+<div class="graph-wrap">
+  <div class="graph-toolbar">
+    <div class="graph-search">
+      <Icon name="search" size={11}/>
+      <input
+        class="graph-search-input"
+        bind:value={graphSearch}
+        placeholder={t('git.graphSearchPlaceholder') as string}
+      />
+      {#if graphSearch}
+        <button class="graph-search-clear" on:click={() => graphSearch = ''}>×</button>
       {/if}
     </div>
-  {/each}
+  </div>
 
-  {#if commits.length === 0}
-    <div class="graph-empty">No commits yet.</div>
-  {/if}
+  <div class="graph-scroll">
+    {#each rows as row}
+      {@const chips = parseRefs(row.commit.refs)}
+      {@const isCurrent = row.commit.refs.some(r =>
+        r === currentBranch || r.endsWith(`-> ${currentBranch}`) || r === `HEAD -> ${currentBranch}`
+      )}
+      {@const isOnBranch = currentBranchAncestors.has(row.commit.hash)}
+      <div
+        class="commit-outer"
+        class:is-current={isCurrent}
+        class:is-on-branch={isOnBranch && !isCurrent}
+      >
+        <div class="graph-row">
+          <svg
+            class="graph-svg"
+            width={svgW}
+            height={ROW_H}
+            viewBox="0 0 {svgW} {ROW_H}"
+            style="width:{svgW}px"
+          >
+            {#each row.paths as p}
+              <path
+                d={p.d}
+                stroke={p.color}
+                stroke-width={STROKE}
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            {/each}
+            {#if isCurrent}
+              <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R + 3} fill="none" stroke={row.color} stroke-width="1.5" />
+            {/if}
+            <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R} fill={row.color} />
+          </svg>
+
+          <div class="row-body">
+            <span class="commit-text">{row.commit.message}</span>
+            <span class="row-meta">
+              <span class="meta-author">{row.commit.author}</span>
+              <span class="meta-sep">·</span>
+              <span class="meta-hash">{row.commit.shortHash}</span>
+              <span class="meta-sep">·</span>
+              <span class="meta-date">{relativeTime(row.commit.date)}</span>
+            </span>
+          </div>
+        </div>
+
+        {#if chips.length > 0}
+          <div class="chips-strip" style="padding-left:{svgW + 4}px">
+            {#each row.belowLanes as bl}
+              <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}"></div>
+            {/each}
+            {#each chips as chip}
+              {@const linkedInstance = branchToInstance.get(chip.label)}
+              <span
+                class="ref-chip chip-{chip.kind}"
+                class:chip-linked={!!linkedInstance}
+                role={linkedInstance ? 'button' : undefined}
+                style={chip.kind === 'head-branch' || chip.kind === 'local'
+                  ? `--chip-color:${row.color};`
+                  : ''}
+                on:click={linkedInstance ? () => dispatch('switchInstance', linkedInstance) : undefined}
+                on:keydown={linkedInstance ? (e) => e.key === 'Enter' && dispatch('switchInstance', linkedInstance) : undefined}
+              >
+                {chip.label}
+                {#if linkedInstance}
+                  <span class="chip-ticket">{linkedInstance.ticket.id}</span>
+                {/if}
+              </span>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+
+    {#if commits.length === 0}
+      <div class="graph-empty">{t('git.noHistory')}</div>
+    {:else if rows.length === 0}
+      <div class="graph-empty">{t('git.graphNoResults')}</div>
+    {/if}
+  </div>
 </div>
 
 <style>
+  .graph-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .graph-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--stroke-0);
+    flex-shrink: 0;
+  }
+
+  .graph-search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    padding: 3px 7px;
+    min-width: 0;
+    color: var(--fg-4);
+  }
+  .graph-search:focus-within {
+    border-color: var(--accent);
+    color: var(--fg-2);
+  }
+
+  .graph-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 11px;
+    color: var(--fg-0);
+    font-family: var(--font-ui);
+    min-width: 0;
+  }
+  .graph-search-input::placeholder { color: var(--fg-4); }
+
+  .graph-search-clear {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--fg-4);
+    cursor: pointer;
+  }
+  .graph-search-clear:hover { color: var(--fg-1); }
+
   .graph-scroll {
     flex: 1;
     overflow-y: auto;
@@ -404,6 +506,16 @@
     flex-shrink: 0;
   }
 
+  .meta-author {
+    font-size: 10px;
+    font-family: var(--font-ui);
+    color: var(--fg-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+
   .meta-hash {
     font-size: 10px;
     font-family: var(--font-mono);
@@ -413,8 +525,7 @@
 
   .meta-sep {
     font-size: 9px;
-    color: var(--fg-4);
-    opacity: 0.5;
+    color: var(--fg-2);
     user-select: none;
   }
 
@@ -422,8 +533,6 @@
     font-size: 10px;
     font-family: var(--font-mono);
     color: var(--fg-4);
-    min-width: 22px;
-    text-align: right;
   }
 
   .graph-empty {
