@@ -197,3 +197,17 @@ export async function getLog(
 ): Promise<GitCommit[]> {
 	return invoke("git_log", { worktreePath, limit });
 }
+
+export type GitGraphCommit = {
+	hash: string;
+	shortHash: string;
+	message: string;
+	author: string;
+	date: string;
+	parents: string[];
+	refs: string[];
+};
+
+export async function getGraph(worktreePath: string): Promise<GitGraphCommit[]> {
+	return invoke("git_graph", { worktreePath });
+}

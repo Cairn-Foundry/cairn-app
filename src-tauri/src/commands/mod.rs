@@ -21,6 +21,7 @@ pub use git::{
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
     git_push, git_pull, git_fetch, git_remote_status,
     git_log,
+    git_graph,
 };
 pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};

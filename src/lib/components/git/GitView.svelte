@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import InlineDiff from '$lib/components/review/InlineDiff.svelte';
+  import GraphView from '$lib/components/git/GraphView.svelte';
   import { langFromPath, readFile, isBinaryPath } from '$lib/services/file-service';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { t } from '$lib/i18n';
@@ -9,6 +11,7 @@
     git,
     refreshStatus,
     refreshLog,
+    refreshGraph,
     stageFile,
     unstageFile,
     commitChanges,
@@ -18,7 +21,7 @@
   } from '$lib/stores/git';
   import { activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
-  import { pendingGitAction } from '$lib/stores/ui';
+  import { activeStep, pendingGitAction } from '$lib/stores/ui';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void }>();
@@ -139,6 +142,27 @@
     return `on ${state.currentBranch}${suffix}`;
   })();
 
+  let leftTab: 'changes' | 'log' | 'graph' = 'changes';
+
+  function setLeftTab(tab: 'changes' | 'log' | 'graph') {
+    leftTab = tab;
+    if (tab === 'log') refreshLog();
+    if (tab === 'graph') refreshGraph();
+  }
+
+  function relativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    const d = Math.floor(h / 24);
+    return d < 30 ? `${d}d` : new Date(dateStr).toLocaleDateString();
+  }
+
+  $: aheadCount = state.remoteStatus?.ahead ?? 0;
+
   let lastWorktreePath = '';
 
   onMount(() => {
@@ -151,10 +175,17 @@
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {
     lastWorktreePath = instance.worktreePath;
     refreshStatus();
+    refreshLog();
+  }
+
+  $: if ($activeStep === 'git' && instance?.worktreePath) {
+    refreshStatus();
+    refreshLog();
+    if (leftTab === 'graph') refreshGraph();
   }
 
   $: stagedCount = Object.values(state.status).filter(s => isStaged(s)).length;
-  $: canCommit = (stagedCount > 0 || amendMode) && state.commitMessage.trim().length > 0;
+  $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
 
   let showOptions = false;
   let profileDropdownOpen = false;
@@ -164,6 +195,7 @@
   let signOff = false;
   let allowEmpty = false;
   let amendMode = false;
+  let appendTicketId = false;
   let selectedProfileId = '';
 
   function pickProfile(id: string) {
@@ -179,7 +211,7 @@
     }
   }
 
-  $: hasActiveOptions = noVerify || signOff || allowEmpty || amendMode;
+  $: hasActiveOptions = noVerify || signOff || allowEmpty || amendMode || appendTicketId;
 
   let commitStateLoaded = false;
   let prevInstanceId = '';
@@ -195,11 +227,13 @@
           signOff = s.signOff;
           allowEmpty = s.allowEmpty;
           selectedProfileId = s.selectedProfileId;
+          appendTicketId = s.appendTicketId ?? false;
         } else {
           noVerify = false;
           signOff = false;
           allowEmpty = false;
           selectedProfileId = '';
+          appendTicketId = false;
         }
         commitStateLoaded = true;
       });
@@ -208,7 +242,7 @@
 
   $: if (commitStateLoaded && instance) {
     saveCommitState(instance.projectId, instance.id, {
-      noVerify, signOff, allowEmpty, selectedProfileId,
+      noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId,
     });
   }
 
@@ -233,65 +267,152 @@
     return opts;
   }
 
+  function buildCommitMessage(): string {
+    const ticketId = instance?.ticket?.id;
+    if (appendTicketId && ticketId) {
+      return `${state.commitMessage}, ${ticketId}`;
+    }
+    return state.commitMessage;
+  }
+
   async function doCommit() {
     const opts = buildOptions();
+    const message = buildCommitMessage();
     if (amendMode) {
-      await amendLastCommit(state.commitMessage, opts);
+      await amendLastCommit(message, opts);
       amendMode = false;
     } else {
-      await commitChanges(state.commitMessage, opts);
+      await commitChanges(message, opts);
+    }
+  }
+
+  let isPushing = false;
+
+  async function doPush() {
+    isPushing = true;
+    await tick();
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    try {
+      await pushBranch();
+    } finally {
+      isPushing = false;
     }
   }
 
   async function doCommitAndPush() {
     await doCommit();
-    await pushBranch();
+    await doPush();
   }
 </script>
 
 <svelte:window on:pointerdown={handleWindowPointerdown}/>
 
 <div class="git-layout">
-  <!-- Left column: unstaged -->
+  <!-- Left column: changes / log tabs -->
   <div class="git-col">
-    <div class="git-col-head">
-      <Icon name="circle" size={12}/>
-      <span>{t('git.unstagedChanges')}</span>
-      <span class="count">{unstagedCards.length} {t('git.files')}</span>
+    <div class="git-col-head tab-head">
+      <button
+        class="col-tab"
+        class:active={leftTab === 'changes'}
+        on:click={() => leftTab = 'changes'}
+      >
+        {t('git.changesTab')}
+        <span class="col-tab-count">{unstagedCards.length}</span>
+      </button>
+      <button
+        class="col-tab"
+        class:active={leftTab === 'log'}
+        on:click={() => setLeftTab('log')}
+      >
+        {t('git.logTab')}
+        {#if aheadCount > 0}
+          <span class="col-tab-badge">{aheadCount}</span>
+        {/if}
+      </button>
+      <button
+        class="col-tab"
+        class:active={leftTab === 'graph'}
+        on:click={() => setLeftTab('graph')}
+      >
+        {t('git.graphTab')}
+      </button>
     </div>
-    <div class="hunks-list">
-      {#if unstagedCards.length === 0}
-        <div class="empty-hint">
-          {state.isLoading ? '...' : t('git.cleanAllStaged')}
-        </div>
-      {:else}
-        {#each unstagedCards as h (h.filePath)}
-          <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
-            <div class="hunk-card-head">
-              <span class="file-info">
-                <span class="file-basename">{h.basename}</span>
-                {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
-              </span>
-              <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
-                <Icon name="external" size={12}/>
-              </button>
-              <button class="stage-btn" on:click={() => stageFile(h.filePath)}>
-                {t('git.stage')}
-              </button>
-            </div>
-            {#if h.hasDiff}
-              <div class="card-diff">
-                {#key h.filePath}
-                  <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
-                {/key}
-              </div>
+
+    {#if leftTab === 'changes'}
+      <div class="hunks-list">
+        {#if unstagedCards.length === 0}
+          <div class="empty-hint">
+            {#if state.isLoading}
+              ...
+            {:else if stagedCards.length > 0}
+              {t('git.cleanAllStaged')}
             {:else}
-              <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+              {t('git.workingTreeClean')}
             {/if}
           </div>
-        {/each}
+        {:else}
+          {#each unstagedCards as h (h.filePath)}
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
+              <div class="hunk-card-head">
+                <span class="file-info">
+                  <span class="file-basename">{h.basename}</span>
+                  {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
+                </span>
+                <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
+                  <Icon name="external" size={12}/>
+                </button>
+                <button class="stage-btn" on:click={() => stageFile(h.filePath)}>
+                  {t('git.stage')}
+                </button>
+              </div>
+              {#if h.hasDiff}
+                <div class="card-diff">
+                  {#key h.filePath}
+                    <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
+                  {/key}
+                </div>
+              {:else}
+                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {:else if leftTab === 'log'}
+      {#if aheadCount > 0}
+        <div class="log-push-bar">
+          <span class="log-push-label">{aheadCount} {t('git.commitsAhead')}</span>
+          <button class="btn primary log-push-btn" disabled={isPushing} on:click={doPush}>
+            {#if isPushing}
+              <Spinner size={12} trackColor="oklch(1 0 0 / 0.3)" color="white"/>
+            {:else}
+              <Icon name="send" size={12}/>
+            {/if}
+            {t('git.push')}
+          </button>
+        </div>
       {/if}
-    </div>
+      <div class="log-list">
+        {#if state.log.length === 0}
+          <div class="empty-hint">{t('git.noHistory')}</div>
+        {:else}
+          {#each state.log as commit, i}
+            <div class="log-entry" class:is-ahead={i < aheadCount}>
+              <div class="log-entry-main">
+                <span class="log-hash">{commit.shortHash}</span>
+                <span class="log-message">{commit.message}</span>
+              </div>
+              <div class="log-entry-meta">
+                <span class="log-author">{commit.author}</span>
+                <span class="log-date">{relativeTime(commit.date)}</span>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {:else if leftTab === 'graph'}
+      <GraphView commits={state.graph} currentBranch={state.currentBranch}/>
+    {/if}
   </div>
 
   <!-- Right column: staged + commit -->
@@ -410,26 +531,6 @@
         <div class="commit-options">
           <label class="option-item">
             <span class="option-text">
-              <span class="option-label">{t('git.noVerify')}</span>
-              <span class="option-desc">{t('git.noVerifyDesc')}</span>
-            </span>
-            <label class="settings-toggle">
-              <input type="checkbox" bind:checked={noVerify} />
-              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
-            </label>
-          </label>
-          <label class="option-item">
-            <span class="option-text">
-              <span class="option-label">{t('git.signOff')}</span>
-              <span class="option-desc">{t('git.signOffDesc')}</span>
-            </span>
-            <label class="settings-toggle">
-              <input type="checkbox" bind:checked={signOff} />
-              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
-            </label>
-          </label>
-          <label class="option-item">
-            <span class="option-text">
               <span class="option-label">{t('git.allowEmpty')}</span>
               <span class="option-desc">{t('git.allowEmptyDesc')}</span>
             </span>
@@ -445,6 +546,39 @@
             </span>
             <label class="settings-toggle">
               <input type="checkbox" checked={amendMode} on:change={toggleAmend} />
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+          <label class="option-item">
+            <span class="option-text">
+              <span class="option-label">{t('git.appendTicketId')}</span>
+              <span class="option-desc">{t('git.appendTicketIdDesc')}</span>
+              {#if instance?.ticket?.id}
+                <span class="option-ticket-preview">{instance.ticket.id}</span>
+              {/if}
+            </span>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={appendTicketId} disabled={!instance?.ticket?.id} />
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+          <label class="option-item">
+            <span class="option-text">
+              <span class="option-label">{t('git.noVerify')}</span>
+              <span class="option-desc">{t('git.noVerifyDesc')}</span>
+            </span>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={noVerify} />
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+          <label class="option-item">
+            <span class="option-text">
+              <span class="option-label">{t('git.signOff')}</span>
+              <span class="option-desc">{t('git.signOffDesc')}</span>
+            </span>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={signOff} />
               <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
             </label>
           </label>
@@ -492,12 +626,141 @@
     flex-shrink: 0;
   }
 
+  .tab-head {
+    padding: 0;
+    gap: 0;
+  }
+
+  .col-tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 14px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--fg-3);
+    font-size: 12px;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: color .1s, border-color .1s;
+    white-space: nowrap;
+  }
+  .col-tab:hover { color: var(--fg-1); }
+  .col-tab.active {
+    color: var(--fg-0);
+    border-bottom-color: var(--accent);
+  }
+
+  .col-tab-count {
+    font-size: 10px;
+    color: var(--fg-4);
+    background: var(--bg-3);
+    border-radius: 8px;
+    padding: 1px 5px;
+    line-height: 1.4;
+  }
+  .col-tab.active .col-tab-count { color: var(--fg-2); }
+
+  .col-tab-badge {
+    font-size: 10px;
+    color: white;
+    background: var(--accent);
+    border-radius: 8px;
+    padding: 1px 5px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
   .count {
     margin-left: auto;
     font-size: 11px;
     color: var(--fg-4);
   }
   .count.accent { color: var(--accent); }
+
+  /* Log panel */
+  .log-push-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--accent-weak);
+    border-bottom: 1px solid var(--accent-line);
+    flex-shrink: 0;
+  }
+
+  .log-push-label {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .log-push-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .log-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .log-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--stroke-0);
+    border-left: 3px solid transparent;
+    transition: background .1s;
+    cursor: default;
+  }
+  .log-entry:hover { background: var(--bg-2); }
+  .log-entry.is-ahead { border-left-color: var(--accent); }
+
+  .log-entry-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .log-hash {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--fg-4);
+    flex-shrink: 0;
+  }
+
+  .log-message {
+    font-size: 12px;
+    color: var(--fg-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .log-entry.is-ahead .log-message { color: var(--fg-0); font-weight: 500; }
+
+  .log-entry-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 0;
+  }
+
+  .log-author {
+    font-size: 11px;
+    color: var(--fg-3);
+  }
+
+  .log-date {
+    font-size: 11px;
+    color: var(--fg-4);
+    margin-left: auto;
+  }
 
   /* Hunk list */
   .hunks-list {
@@ -729,6 +992,13 @@
   .option-desc {
     font-size: 11px;
     color: var(--fg-4);
+  }
+
+  .option-ticket-preview {
+    font-size: 10px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    margin-top: 2px;
   }
 
   /* Profile picker */

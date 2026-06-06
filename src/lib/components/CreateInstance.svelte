@@ -11,14 +11,13 @@
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
-  // step: 0 = ticket, 1 = mode, 2 = git config (skipped for local), 3 = agent + recap
+  // step: 0 = ticket, 1 = mode, 2 = git config (skipped for local)
   let step = 0;
   let ticketId = '';
   let ticketTitle = '';
   let useGit = true;
   let branchName = '';
   let baseBranch = 'main';
-  let profile = 'feature';
   let availableBranches: string[] = [];
   let branchSearch = '';
   let isGitRepo = false;
@@ -53,15 +52,14 @@
     ? `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`
     : `~/.cairn/worktrees/${slugify(ticketId)}`;
 
-  $: totalSteps = useGit ? 4 : 3;
+  $: totalSteps = useGit ? 3 : 2;
 
-  $: displayStep = (!useGit && step === 3) ? 3 : step + 1;
+  $: displayStep = step + 1;
 
   const stepMeta: Record<number, { label: string; title: string }> = {
     0: { label: t('createInstance.stepLabels.ticket') as string, title: t('createInstance.stepTitles.ticket') as string },
     1: { label: t('createInstance.stepLabels.mode') as string,   title: t('createInstance.stepTitles.mode') as string },
     2: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
-    3: { label: t('createInstance.stepLabels.agent') as string,  title: t('createInstance.stepTitles.agent') as string },
   };
 
   $: duplicateBranch = useGit && branchName.trim().length > 0
@@ -74,17 +72,15 @@
 
   function next() {
     error = '';
-    if (step === 1 && !useGit) { step = 3; return; }
-    step = Math.min(3, step + 1);
+    step = Math.min(2, step + 1);
   }
 
   function back() {
     error = '';
-    if (step === 3 && !useGit) { step = 1; return; }
     step = Math.max(0, step - 1);
   }
 
-  $: dots = useGit ? [0, 1, 2, 3] : [0, 1, 3];
+  $: dots = useGit ? [0, 1, 2] : [0, 1];
 
   async function handleCreate() {
     if (!$activeProject) return;
@@ -225,40 +221,8 @@
         </div>
       {/if}
 
-      {#if step === 3}
-        <div class="form-row">
-          <label for="profile-btn-feature">{t('createInstance.agentProfile')}</label>
-          <div class="source-tabs" style="margin: 0;">
-            {#each [['feature','Feature'],['refactor','Refactor'],['debug','Debug'],['docs','Documentation'],['review','Review']] as [k, l]}
-              <button id={k === 'feature' ? 'profile-btn-feature' : undefined} class={profile === k ? 'active' : ''} on:click={() => profile = k}>{l}</button>
-            {/each}
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
-          <div class="summary-card">
-            <div class="sum-row"><span class="label">{t('createInstance.summaryTicket')}</span><span class="val">{ticketId}</span></div>
-            <div class="sum-row"><span class="label">{t('createInstance.summaryMode')}</span><span class="val">{useGit ? t('createInstance.summaryModeGit') : t('createInstance.summaryModeLocal')}</span></div>
-            {#if useGit}
-              <div class="sum-row"><span class="label">{t('createInstance.summaryBranch')}</span><span class="val">{branchName}</span></div>
-              <div class="sum-row"><span class="label">{t('createInstance.summaryBase')}</span><span class="val">{baseBranch}</span></div>
-            {/if}
-            <div class="sum-row"><span class="label">{t('createInstance.summaryWorktree')}</span><span class="val mono-small">{worktreePath}</span></div>
-            <div class="sum-row"><span class="label">{t('createInstance.summaryProfile')}</span><span class="val">{profile}</span></div>
-          </div>
-          <div class="summary-card">
-            <div class="sum-row" style="color: var(--fg-2); font-size: 11px;">
-              <Icon name="sparkles" size={13} style="color: var(--accent)"/>
-              {#if useGit}
-                <span>{t('createInstance.summaryNoteGit')}</span>
-              {:else}
-                <span>{t('createInstance.summaryNoteLocal')}</span>
-              {/if}
-            </div>
-          </div>
-        </div>
-        {#if error}
-          <div class="error-box">{error}</div>
-        {/if}
+      {#if error}
+        <div class="error-box">{error}</div>
       {/if}
 
     </div>
@@ -273,7 +237,7 @@
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={creating}>{t('common.back')}</button>
       {/if}
-      {#if step < 3}
+      {#if step < (useGit ? 2 : 1)}
         <button
           class="btn primary"
           disabled={!canNext}

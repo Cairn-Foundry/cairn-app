@@ -96,8 +96,8 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 .unwrap_or("")
                 .to_string();
             current_file = Some(GitFileDiff { file_path: path, hunks: Vec::new() });
-        } else if line.starts_with("+++ ") || line.starts_with("--- ") || line.starts_with("index ") || line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("Binary") {
-            // Skip metadata lines
+        } else if line.starts_with("+++ ") || line.starts_with("--- ") || line.starts_with("index ") || line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("Binary") || line.starts_with('\\') {
+            // Skip metadata lines and no-newline markers
         } else if line.starts_with("@@ ") {
             if let Some(hunk) = current_hunk.take() {
                 if let Some(ref mut f) = current_file {
@@ -496,6 +496,48 @@ pub fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, String> 
     let behind = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
     Ok(RemoteStatus { ahead, behind, remote, has_upstream: true })
+}
+
+// ---------------------------------------------------------------------------
+// Graph
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+pub struct GitGraphCommit {
+    pub hash: String,
+    #[serde(rename = "shortHash")]
+    pub short_hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
+    pub parents: Vec<String>,
+    pub refs: Vec<String>,
+}
+
+#[tauri::command]
+pub fn git_graph(worktree_path: String) -> Result<Vec<GitGraphCommit>, String> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args([
+        "log", "--all", "--topo-order",
+        "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%D\x1f%s",
+    ]))?;
+    let commits = raw.lines().filter(|l| !l.is_empty()).map(|line| {
+        let p: Vec<&str> = line.splitn(7, '\x1f').collect();
+        let parents = p.get(2).unwrap_or(&"")
+            .split_whitespace().filter(|s| !s.is_empty()).map(String::from).collect();
+        let refs = p.get(5).unwrap_or(&"")
+            .split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).map(String::from).collect();
+        GitGraphCommit {
+            hash:        p.first()  .unwrap_or(&"").to_string(),
+            short_hash:  p.get(1)   .unwrap_or(&"").to_string(),
+            parents,
+            author:      p.get(3)   .unwrap_or(&"").to_string(),
+            date:        p.get(4)   .unwrap_or(&"").to_string(),
+            refs,
+            message:     p.get(6).map(|s| s.trim_end()).unwrap_or("").to_string(),
+        }
+    }).collect();
+    Ok(commits)
 }
 
 // ---------------------------------------------------------------------------

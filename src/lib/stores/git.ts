@@ -3,10 +3,12 @@ import type {
 	GitCommit,
 	GitFileDiff,
 	GitFileStatus,
+	GitGraphCommit,
 	RemoteStatus,
 } from "$lib/services/git-service";
 import * as gitService from "$lib/services/git-service";
 import { activeInstance } from "./instance";
+import { activeProject } from "./project";
 
 type GitState = {
 	status: GitFileStatus;
@@ -15,6 +17,7 @@ type GitState = {
 	currentBranch: string;
 	branches: string[];
 	log: GitCommit[];
+	graph: GitGraphCommit[];
 	remoteStatus: RemoteStatus | null;
 	commitMessage: string;
 	isLoading: boolean;
@@ -28,6 +31,7 @@ const INITIAL: GitState = {
 	currentBranch: "",
 	branches: [],
 	log: [],
+	graph: [],
 	remoteStatus: null,
 	commitMessage: "",
 	isLoading: false,
@@ -92,6 +96,17 @@ export async function refreshLog(): Promise<void> {
 		_git.update((s) => ({ ...s, log }));
 	} catch {
 		// Non-fatal — repo may have no commits yet
+	}
+}
+
+export async function refreshGraph(): Promise<void> {
+	const path = worktree() ?? get(activeProject)?.path;
+	if (!path) return;
+	try {
+		const graph = await gitService.getGraph(path);
+		_git.update((s) => ({ ...s, graph }));
+	} catch {
+		// Non-fatal
 	}
 }
 

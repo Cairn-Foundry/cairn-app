@@ -138,7 +138,14 @@
   {#if showCreate}
     <CreateInstance
       on:close={() => showCreate = false}
-      on:create={() => { showCreate = false; screen = 'workspace'; activeStep.set('agent'); }}
+      on:create={() => {
+        showCreate = false;
+        screen = 'workspace';
+        const firstStep = get(settings).workflowTabs
+          .filter(t => t.enabled)
+          .sort((a, b) => a.order - b.order)[0]?.key ?? 'files';
+        activeStep.set(firstStep as any);
+      }}
     />
   {/if}
 </div>

@@ -5,6 +5,7 @@ export interface CommitState {
 	signOff: boolean;
 	allowEmpty: boolean;
 	selectedProfileId: string;
+	appendTicketId: boolean;
 }
 
 export async function getCommitState(

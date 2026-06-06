@@ -318,6 +318,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .btn.primary:hover { background: var(--accent-hover); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--fg-2); }
 .btn.ghost:hover { background: var(--bg-2); color: var(--fg-0); }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
 .btn.danger { color: var(--danger); }
 .btn.danger:hover { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
 .btn .kbd {

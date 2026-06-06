@@ -12,6 +12,8 @@ pub struct CommitState {
     pub allow_empty: bool,
     #[serde(rename = "selectedProfileId", default)]
     pub selected_profile_id: String,
+    #[serde(rename = "appendTicketId", default)]
+    pub append_ticket_id: bool,
 }
 
 fn read_commit_state(project_id: &str, instance_id: &str) -> Result<Option<CommitState>, String> {
