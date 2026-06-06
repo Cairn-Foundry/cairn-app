@@ -34,6 +34,8 @@ pub struct GitCommit {
     pub author: String,
     pub date: String,
     pub message: String,
+    #[serde(rename = "onCurrentBranch")]
+    pub on_current_branch: bool,
 }
 
 #[derive(Serialize)]
@@ -548,8 +550,16 @@ pub fn git_graph(worktree_path: String) -> Result<Vec<GitGraphCommit>, String> {
 pub fn git_log(worktree_path: String, limit: usize) -> Result<Vec<GitCommit>, String> {
     let expanded = expand(&worktree_path);
     let limit_str = limit.to_string();
+
+    let head_raw = run(git_cmd(&expanded).args(["log", "HEAD", "--format=%H"])).unwrap_or_default();
+    let on_branch: std::collections::HashSet<String> = head_raw
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
+
     let raw = run(
-        git_cmd(&expanded).args(["log", &format!("-{}", limit_str), "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s"])
+        git_cmd(&expanded).args(["log", "--all", "--topo-order", &format!("-{}", limit_str), "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s"])
     )?;
 
     let commits = raw
@@ -557,12 +567,15 @@ pub fn git_log(worktree_path: String, limit: usize) -> Result<Vec<GitCommit>, St
         .filter(|l| !l.is_empty())
         .map(|line| {
             let parts: Vec<&str> = line.splitn(5, '\x1f').collect();
+            let hash = parts.first().unwrap_or(&"").to_string();
+            let on_current_branch = on_branch.contains(&hash);
             GitCommit {
-                hash: parts.first().unwrap_or(&"").to_string(),
+                hash,
                 short_hash: parts.get(1).unwrap_or(&"").to_string(),
                 author: parts.get(2).unwrap_or(&"").to_string(),
                 date: parts.get(3).unwrap_or(&"").to_string(),
-                message: parts.get(4).unwrap_or(&"").to_string(),
+                message: parts.get(4).map(|s| s.trim_end()).unwrap_or("").to_string(),
+                on_current_branch,
             }
         })
         .collect();

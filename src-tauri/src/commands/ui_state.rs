@@ -1,6 +1,24 @@
+use std::collections::HashMap;
 use std::fs;
 use serde::{Deserialize, Serialize};
 use crate::storage::ui_state_file;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ProjectUiState {
+    #[serde(rename = "activeStep", default = "default_step")]
+    pub active_step: String,
+    #[serde(rename = "gitLeftTab", default = "default_git_left_tab")]
+    pub git_left_tab: String,
+}
+
+impl Default for ProjectUiState {
+    fn default() -> Self {
+        Self {
+            active_step: default_step(),
+            git_left_tab: default_git_left_tab(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UiState {
@@ -10,18 +28,19 @@ pub struct UiState {
     pub active_project_id: Option<String>,
     #[serde(rename = "openTabOrder", default)]
     pub open_tab_order: Vec<String>,
-    #[serde(rename = "activeStep", default = "default_step")]
-    pub active_step: String,
     #[serde(rename = "homeSection", default = "default_home_section")]
     pub home_section: String,
     #[serde(rename = "homeSettingsTab", default = "default_settings_tab")]
     pub home_settings_tab: String,
+    #[serde(rename = "projectStates", default)]
+    pub project_states: HashMap<String, ProjectUiState>,
 }
 
 fn default_screen() -> String { "home".to_string() }
 fn default_step() -> String { "files".to_string() }
 fn default_home_section() -> String { "projects".to_string() }
 fn default_settings_tab() -> String { "general".to_string() }
+fn default_git_left_tab() -> String { "changes".to_string() }
 
 impl Default for UiState {
     fn default() -> Self {
@@ -29,9 +48,9 @@ impl Default for UiState {
             screen: default_screen(),
             active_project_id: None,
             open_tab_order: Vec::new(),
-            active_step: default_step(),
             home_section: default_home_section(),
             home_settings_tab: default_settings_tab(),
+            project_states: HashMap::new(),
         }
     }
 }

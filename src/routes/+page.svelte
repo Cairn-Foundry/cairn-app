@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
-  import { activeStep, activeScreen } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
+  import type { ProjectUiState } from '$lib/services/ui-state-service';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
@@ -21,18 +22,33 @@
   let showCreate = false;
   let mounted = false;
 
+  let projectStates: Record<string, ProjectUiState> = {};
+
+  function updateProjectState() {
+    const id = get(activeProjectId);
+    if (!id) return;
+    projectStates = { ...projectStates, [id]: { activeStep: get(activeStep), gitLeftTab: get(gitLeftTab) } };
+  }
+
+  function applyProjectState(id: string) {
+    const ps = projectStates[id];
+    activeStep.set((ps?.activeStep ?? 'files') as any);
+    gitLeftTab.set((ps?.gitLeftTab ?? 'changes') as any);
+  }
+
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   function persistUiState() {
     if (!mounted) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
+      updateProjectState();
       saveUiState({
         screen,
         activeProjectId: get(activeProjectId),
         openTabOrder: get(openTabOrder),
-        activeStep: get(activeStep),
         homeSection,
         homeSettingsTab,
+        projectStates,
       });
     }, 300);
   }
@@ -44,7 +60,7 @@
     screen = saved.screen;
     homeSection = saved.homeSection;
     homeSettingsTab = saved.homeSettingsTab;
-    activeStep.set(saved.activeStep as any);
+    projectStates = saved.projectStates ?? {};
 
     await loadProjects();
     await loadListing();
@@ -55,6 +71,7 @@
       openProject(saved.activeProjectId);
       activeProjectId.set(saved.activeProjectId);
       await loadInstances(saved.activeProjectId);
+      applyProjectState(saved.activeProjectId);
       if (saved.screen === 'workspace') {
         homeOpenSection = saved.homeSection as HomeSection;
         homeOpenSettingsTab = saved.homeSettingsTab;
@@ -71,16 +88,25 @@
 
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
   activeStep.subscribe(() => persistUiState());
+  gitLeftTab.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
   activeProjectId.subscribe(async (id) => {
     if (id) await loadInstances(id);
     persistUiState();
   });
 
+  function handleProjectChange(newId: string) {
+    updateProjectState();
+    activeProjectId.set(newId);
+    applyProjectState(newId);
+  }
+
   async function handleOpenProject(id: string) {
     openProject(id);
+    updateProjectState();
     activeProjectId.set(id);
     screen = 'workspace';
+    applyProjectState(id);
   }
 
   function handleCloseProject(id: string) {
@@ -90,14 +116,16 @@
       screen = 'home';
       activeProjectId.set(null);
     } else if ($activeProjectId === id) {
-      activeProjectId.set(remaining[0].id);
+      handleProjectChange(remaining[0].id);
     }
   }
 
   function handleProjectCreated(id: string) {
     openProject(id);
+    updateProjectState();
     activeProjectId.set(id);
     screen = 'workspace';
+    applyProjectState(id);
   }
 
   function handleSectionChange(e: CustomEvent<{ section: string; settingsTab: string }>) {
@@ -123,7 +151,7 @@
       openProjects={$openProjects}
       activeProjectId={$activeProjectId ?? ''}
       activeInstance={$activeInstance}
-      on:projectChange={(e) => activeProjectId.set(e.detail)}
+      on:projectChange={(e) => handleProjectChange(e.detail)}
       on:closeProject={(e) => handleCloseProject(e.detail)}
       on:reorderTabs={(e) => reorderTabs(e.detail)}
       on:addProject={() => { homeOpenSection = null; screen = 'home'; }}

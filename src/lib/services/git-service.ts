@@ -26,6 +26,7 @@ export type GitCommit = {
 	author: string;
 	date: string;
 	message: string;
+	onCurrentBranch: boolean;
 };
 
 export type RemoteStatus = {

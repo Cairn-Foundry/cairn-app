@@ -1,8 +1,15 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import type { GitGraphCommit } from '$lib/services/git-service';
+  import type { Instance } from '$lib/types/instance';
 
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
+  export let instances: Instance[] = [];
+
+  const dispatch = createEventDispatcher<{ switchInstance: Instance }>();
+
+  $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
 
   const ROW_H  = 36;
   const COL_W  = 22;
@@ -130,7 +137,10 @@
         chips.push({ label: r, kind: 'local' });
       }
     }
-    return chips;
+    const order: Record<RefChip['kind'], number> = {
+      'head-branch': 0, 'head': 1, 'local': 2, 'remote': 3, 'tag': 4,
+    };
+    return chips.sort((a, b) => order[a.kind] - order[b.kind]);
   }
 
   function relativeTime(dateStr: string): string {
@@ -225,12 +235,22 @@
             <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}"></div>
           {/each}
           {#each chips as chip}
+            {@const linkedInstance = branchToInstance.get(chip.label)}
             <span
               class="ref-chip chip-{chip.kind}"
+              class:chip-linked={!!linkedInstance}
+              role={linkedInstance ? 'button' : undefined}
               style={chip.kind === 'head-branch' || chip.kind === 'local'
                 ? `--chip-color:${row.color};`
                 : ''}
-            >{chip.label}</span>
+              on:click={linkedInstance ? () => dispatch('switchInstance', linkedInstance) : undefined}
+              on:keydown={linkedInstance ? (e) => e.key === 'Enter' && dispatch('switchInstance', linkedInstance) : undefined}
+            >
+              {chip.label}
+              {#if linkedInstance}
+                <span class="chip-ticket">{linkedInstance.ticket.id}</span>
+              {/if}
+            </span>
           {/each}
         </div>
       {/if}
@@ -255,9 +275,10 @@
     position: relative;
   }
   .commit-outer:hover                    { background: var(--bg-2); }
-  .commit-outer.is-on-branch             { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+  .commit-outer.is-on-branch              { background: color-mix(in srgb, var(--accent) 3%, transparent); }
   .commit-outer.is-on-branch .commit-text { color: var(--fg-0); }
   .commit-outer.is-current               { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .commit-outer.is-current .commit-text  { color: var(--fg-0); }
 
   .graph-row {
     display: flex;
@@ -284,7 +305,7 @@
     min-width: 0;
     font-size: 12.5px;
     font-family: var(--font-ui);
-    color: var(--fg-1);
+    color: var(--fg-2);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -312,6 +333,7 @@
   .ref-chip {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     font-size: 10px;
     padding: 0 5px;
     height: 16px;
@@ -320,6 +342,20 @@
     white-space: nowrap;
     font-weight: 500;
     letter-spacing: 0.01em;
+  }
+
+  .chip-linked {
+    cursor: pointer;
+  }
+  .chip-linked:hover {
+    filter: brightness(1.2);
+  }
+
+  .chip-ticket {
+    font-size: 9px;
+    opacity: 0.65;
+    font-weight: 400;
+    letter-spacing: 0.02em;
   }
 
   /* HEAD → branch: solid colored background, most prominent */

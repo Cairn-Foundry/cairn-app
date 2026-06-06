@@ -19,9 +19,10 @@
     pushBranch,
     setCommitMessage,
   } from '$lib/stores/git';
-  import { activeInstance } from '$lib/stores/instance';
+  import { activeInstance, instances } from '$lib/stores/instance';
+  import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { activeStep, pendingGitAction } from '$lib/stores/ui';
+  import { activeStep, pendingGitAction, gitLeftTab } from '$lib/stores/ui';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void }>();
@@ -37,6 +38,7 @@
 
   $: state = $git;
   $: instance = $activeInstance;
+  $: projectInstances = instance ? $instances.filter(i => i.projectId === instance.projectId) : [];
 
   type FileCard = {
     file: string;
@@ -142,10 +144,8 @@
     return `on ${state.currentBranch}${suffix}`;
   })();
 
-  let leftTab: 'changes' | 'log' | 'graph' = 'changes';
-
   function setLeftTab(tab: 'changes' | 'log' | 'graph') {
-    leftTab = tab;
+    gitLeftTab.set(tab);
     if (tab === 'log') refreshLog();
     if (tab === 'graph') refreshGraph();
   }
@@ -181,7 +181,7 @@
   $: if ($activeStep === 'git' && instance?.worktreePath) {
     refreshStatus();
     refreshLog();
-    if (leftTab === 'graph') refreshGraph();
+    if ($gitLeftTab === 'graph') refreshGraph();
   }
 
   $: stagedCount = Object.values(state.status).filter(s => isStaged(s)).length;
@@ -313,15 +313,15 @@
     <div class="git-col-head tab-head">
       <button
         class="col-tab"
-        class:active={leftTab === 'changes'}
-        on:click={() => leftTab = 'changes'}
+        class:active={$gitLeftTab === 'changes'}
+        on:click={() => setLeftTab('changes')}
       >
         {t('git.changesTab')}
         <span class="col-tab-count">{unstagedCards.length}</span>
       </button>
       <button
         class="col-tab"
-        class:active={leftTab === 'log'}
+        class:active={$gitLeftTab === 'log'}
         on:click={() => setLeftTab('log')}
       >
         {t('git.logTab')}
@@ -331,14 +331,14 @@
       </button>
       <button
         class="col-tab"
-        class:active={leftTab === 'graph'}
+        class:active={$gitLeftTab === 'graph'}
         on:click={() => setLeftTab('graph')}
       >
         {t('git.graphTab')}
       </button>
     </div>
 
-    {#if leftTab === 'changes'}
+    {#if $gitLeftTab === 'changes'}
       <div class="hunks-list">
         {#if unstagedCards.length === 0}
           <div class="empty-hint">
@@ -378,7 +378,7 @@
           {/each}
         {/if}
       </div>
-    {:else if leftTab === 'log'}
+    {:else if $gitLeftTab === 'log'}
       {#if aheadCount > 0}
         <div class="log-push-bar">
           <span class="log-push-label">{aheadCount} {t('git.commitsAhead')}</span>
@@ -397,7 +397,7 @@
           <div class="empty-hint">{t('git.noHistory')}</div>
         {:else}
           {#each state.log as commit, i}
-            <div class="log-entry" class:is-ahead={i < aheadCount}>
+            <div class="log-entry" class:is-ahead={i < aheadCount} class:off-branch={!commit.onCurrentBranch}>
               <div class="log-entry-main">
                 <span class="log-hash">{commit.shortHash}</span>
                 <span class="log-message">{commit.message}</span>
@@ -410,8 +410,13 @@
           {/each}
         {/if}
       </div>
-    {:else if leftTab === 'graph'}
-      <GraphView commits={state.graph} currentBranch={state.currentBranch}/>
+    {:else if $gitLeftTab === 'graph'}
+      <GraphView
+        commits={state.graph}
+        currentBranch={state.currentBranch}
+        instances={projectInstances}
+        on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
+      />
     {/if}
   </div>
 
@@ -743,6 +748,7 @@
     text-overflow: ellipsis;
   }
   .log-entry.is-ahead .log-message { color: var(--fg-0); font-weight: 500; }
+  .log-entry.off-branch .log-message { color: var(--fg-4); }
 
   .log-entry-meta {
     display: flex;

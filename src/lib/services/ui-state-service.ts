@@ -1,21 +1,26 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export interface ProjectUiState {
+	activeStep: string;
+	gitLeftTab: string;
+}
+
 export interface UiState {
 	screen: "home" | "workspace";
 	activeProjectId: string | null;
 	openTabOrder: string[];
-	activeStep: string;
 	homeSection: string;
 	homeSettingsTab: string;
+	projectStates: Record<string, ProjectUiState>;
 }
 
 const DEFAULTS: UiState = {
 	screen: "home",
 	activeProjectId: null,
 	openTabOrder: [],
-	activeStep: "files",
 	homeSection: "projects",
 	homeSettingsTab: "general",
+	projectStates: {},
 };
 
 export async function getUiState(): Promise<UiState> {
