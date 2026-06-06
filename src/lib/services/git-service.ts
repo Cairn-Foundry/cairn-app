@@ -214,3 +214,10 @@ export async function getGraph(
 ): Promise<GitGraphCommit[]> {
 	return invoke("git_graph", { worktreePath });
 }
+
+export async function getDiffCommit(
+	worktreePath: string,
+	commitHash: string,
+): Promise<GitFileDiff[]> {
+	return invoke("git_diff_commit", { worktreePath, commitHash });
+}

@@ -542,6 +542,7 @@ export const en = {
 		graphSortDateAsc: "Date (oldest first)",
 		graphSortName: "Name",
 		graphNoResults: "No results match your search.",
+		commitDiffEmpty: "This commit has no file changes.",
 	},
 
 	review: {

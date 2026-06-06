@@ -557,6 +557,7 @@ export const fr = {
 		graphSortDateAsc: "Date (ancien d'abord)",
 		graphSortName: "Nom",
 		graphNoResults: "Aucun résultat ne correspond à votre recherche.",
+		commitDiffEmpty: "Ce commit n'apporte aucune modification de fichier.",
 	},
 
 	review: {

@@ -543,6 +543,19 @@ pub fn git_graph(worktree_path: String) -> Result<Vec<GitGraphCommit>, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Commit diff
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, String> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args([
+        "show", "--format=", "--no-color", "--unified=3", &commit_hash,
+    ]))?;
+    Ok(parse_diff(&raw))
+}
+
+// ---------------------------------------------------------------------------
 // History
 // ---------------------------------------------------------------------------
 

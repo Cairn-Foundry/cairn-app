@@ -94,6 +94,7 @@ pub fn run() {
             git_remote_status,
             git_log,
             git_graph,
+            git_diff_commit,
             search_in_files,
             send_message,
             reset_agent_session,

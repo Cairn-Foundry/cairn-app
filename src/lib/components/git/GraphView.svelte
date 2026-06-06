@@ -8,8 +8,9 @@
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
   export let instances: Instance[] = [];
+  export let selectedHash = '';
 
-  const dispatch = createEventDispatcher<{ switchInstance: Instance }>();
+  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit }>();
 
   $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
 
@@ -235,6 +236,11 @@
         class="commit-outer"
         class:is-current={isCurrent}
         class:is-on-branch={isOnBranch && !isCurrent}
+        class:is-selected={row.commit.hash === selectedHash}
+        role="button"
+        tabindex="0"
+        on:click={() => dispatch('selectCommit', row.commit)}
+        on:keydown={(e) => e.key === 'Enter' && dispatch('selectCommit', row.commit)}
       >
         <div class="graph-row">
           <svg
@@ -372,15 +378,20 @@
   }
 
   .commit-outer {
-    cursor: default;
+    cursor: pointer;
     transition: background 50ms;
     position: relative;
   }
-  .commit-outer:hover                    { background: var(--bg-2); }
-  .commit-outer.is-on-branch              { background: color-mix(in srgb, var(--accent) 3%, transparent); }
-  .commit-outer.is-on-branch .commit-text { color: var(--fg-0); }
-  .commit-outer.is-current               { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-  .commit-outer.is-current .commit-text  { color: var(--fg-0); }
+  .commit-outer:hover                         { background: var(--bg-3); }
+  .commit-outer.is-on-branch                  { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+  .commit-outer.is-on-branch:hover            { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .commit-outer.is-on-branch .commit-text     { color: var(--fg-0); }
+  .commit-outer.is-current                    { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .commit-outer.is-current:hover              { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .commit-outer.is-current .commit-text       { color: var(--fg-0); }
+  .commit-outer.is-selected                   { background: color-mix(in srgb, var(--accent) 14%, transparent); outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; }
+  .commit-outer.is-selected:hover             { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .commit-outer.is-selected .commit-text      { color: var(--fg-0); }
 
   .graph-row {
     display: flex;

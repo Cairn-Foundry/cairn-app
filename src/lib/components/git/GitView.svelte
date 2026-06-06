@@ -5,6 +5,8 @@
   import InlineDiff from '$lib/components/review/InlineDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
   import { langFromPath, readFile, isBinaryPath } from '$lib/services/file-service';
+  import { getDiffCommit } from '$lib/services/git-service';
+  import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { t } from '$lib/i18n';
   import {
@@ -50,6 +52,8 @@
     hasDiff: boolean;
     filePath: string;
     status: string;
+    added: number;
+    removed: number;
   };
 
   const STATUS_CLASS: Record<string, string> = {
@@ -81,11 +85,15 @@
       let oldContent = lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n');
       let newContent = lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n');
       let hasDiff = lines.length > 0;
+      let added = lines.filter(l => l.kind === 'add').length;
+      let removed = lines.filter(l => l.kind === 'remove').length;
       // Untracked files have no diff hunks — show their content as all-added.
       if (!hasDiff && status === 'untracked' && filePath in untracked) {
         oldContent = '';
         newContent = untracked[filePath];
         hasDiff = newContent.length > 0;
+        added = newContent ? newContent.split('\n').length : 0;
+        removed = 0;
       }
       return {
         file: filePath,
@@ -96,6 +104,8 @@
         hasDiff,
         filePath,
         status,
+        added,
+        removed,
       };
     });
   }
@@ -150,8 +160,75 @@
     return `on ${state.currentBranch}${suffix}`;
   })();
 
+  type SelectedCommitInfo = {
+    hash: string;
+    shortHash: string;
+    message: string;
+    author: string;
+    date: string;
+  };
+
+  let selectedCommit: SelectedCommitInfo | null = null;
+  let selectedCommitDiff: GitFileDiff[] = [];
+  let isLoadingCommitDiff = false;
+
+  function diffStatus(hunks: GitDiffHunk[]): string {
+    const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
+    const hasAdd = changed.some(l => l.kind === 'add');
+    const hasRemove = changed.some(l => l.kind === 'remove');
+    if (hasAdd && !hasRemove) return 'staged-added';
+    if (!hasAdd && hasRemove) return 'staged-deleted';
+    return 'staged-modified';
+  }
+
+  $: commitDiffCards = selectedCommitDiff.map(f => {
+    const lines = f.hunks.flatMap(h => h.lines);
+    return {
+      filePath: f.filePath,
+      file: f.filePath,
+      basename: basename(f.filePath),
+      dirpath: dirpath(f.filePath),
+      oldContent: lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n'),
+      newContent: lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n'),
+      hasDiff: lines.length > 0,
+      status: diffStatus(f.hunks),
+      added: lines.filter(l => l.kind === 'add').length,
+      removed: lines.filter(l => l.kind === 'remove').length,
+    };
+  });
+
+  $: totalAdded          = commitDiffCards.reduce((s, c) => s + c.added,   0);
+  $: totalRemoved        = commitDiffCards.reduce((s, c) => s + c.removed, 0);
+  $: totalStagedAdded   = stagedCards.reduce((s, c) => s + c.added,   0);
+  $: totalStagedRemoved = stagedCards.reduce((s, c) => s + c.removed, 0);
+
+  async function selectCommit(commit: SelectedCommitInfo) {
+    if (!instance?.worktreePath) return;
+    if (selectedCommit?.hash === commit.hash) {
+      clearSelectedCommit();
+      return;
+    }
+    selectedCommit = commit;
+    selectedCommitDiff = [];
+    isLoadingCommitDiff = true;
+    try {
+      selectedCommitDiff = await getDiffCommit(instance.worktreePath, commit.hash);
+    } catch {
+      selectedCommitDiff = [];
+    } finally {
+      isLoadingCommitDiff = false;
+    }
+  }
+
+  function clearSelectedCommit() {
+    selectedCommit = null;
+    selectedCommitDiff = [];
+    isLoadingCommitDiff = false;
+  }
+
   function setLeftTab(tab: 'changes' | 'log' | 'graph') {
     gitLeftTab.set(tab);
+    if (tab === 'changes') clearSelectedCommit();
     if (tab === 'log') refreshLog();
     if (tab === 'graph') refreshGraph();
   }
@@ -393,9 +470,17 @@
                   <span class="file-basename">{h.basename}</span>
                   {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
                 </span>
-                <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
-                  <Icon name="external" size={12}/>
-                </button>
+                {#if h.added > 0 || h.removed > 0}
+                  <span class="diff-stat">
+                    {#if h.added > 0}<span class="stat-add">+{h.added}</span>{/if}
+                    {#if h.removed > 0}<span class="stat-remove">-{h.removed}</span>{/if}
+                  </span>
+                {/if}
+                {#if h.status !== 'deleted'}
+                  <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
+                    <Icon name="external" size={12}/>
+                  </button>
+                {/if}
                 <button class="stage-btn" on:click={() => stageFile(h.filePath)}>
                   {t('git.stage')}
                 </button>
@@ -448,7 +533,15 @@
           <div class="empty-hint">{t('git.logNoResults')}</div>
         {:else}
           {#each filteredLog as commit}
-            <div class="log-entry" class:is-ahead={aheadHashes.has(commit.hash)}>
+            <div
+              class="log-entry"
+              class:is-ahead={aheadHashes.has(commit.hash)}
+              class:is-selected={selectedCommit?.hash === commit.hash}
+              role="button"
+              tabindex="0"
+              on:click={() => selectCommit(commit)}
+              on:keydown={(e) => e.key === 'Enter' && selectCommit(commit)}
+            >
               <div class="log-entry-main">
                 <span class="log-hash">{commit.shortHash}</span>
                 <span class="log-message">{commit.message}</span>
@@ -466,51 +559,137 @@
         commits={state.graph}
         currentBranch={state.currentBranch}
         instances={projectInstances}
+        selectedHash={selectedCommit?.hash ?? ''}
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
+        on:selectCommit={(e) => selectCommit(e.detail)}
       />
     {/if}
   </div>
 
-  <!-- Right column: staged + commit -->
+  <!-- Right column: commit diff when selected, else staged + commit -->
   <div class="git-col">
-    <div class="git-col-head">
-      <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
-      <span>{t('git.stagedForCommit')}</span>
-      <span class="count accent">{stagedCards.length} {t('git.files')}</span>
-    </div>
-    <div class="hunks-list">
-      {#if stagedCards.length === 0}
-        <div class="empty-hint">
-          {t('git.noStagedChanges')}
-        </div>
-      {:else}
-        {#each stagedCards as h (h.filePath)}
-          <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
-            <div class="hunk-card-head">
-              <span class="file-info">
-                <span class="file-basename">{h.basename}</span>
-                {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
-              </span>
-              <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
-                <Icon name="external" size={12}/>
-              </button>
-              <button class="unstage-btn" on:click={() => unstageFile(h.filePath)}>
-                {t('git.unstage')}
-              </button>
-            </div>
-            {#if h.hasDiff}
-              <div class="card-diff">
-                {#key h.filePath}
-                  <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
-                {/key}
-              </div>
-            {:else}
-              <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
-            {/if}
+    {#if selectedCommit}
+      <div class="git-col-head commit-diff-head">
+        <button class="back-btn" title={t('common.close') as string} on:click={clearSelectedCommit}>
+          <Icon name="x" size={11}/>
+        </button>
+        <div class="commit-diff-info">
+          <div class="commit-diff-title">
+            <span class="log-hash">{selectedCommit.shortHash}</span>
+            <span class="commit-diff-message">{selectedCommit.message}</span>
           </div>
-        {/each}
-      {/if}
-    </div>
+          <span class="log-author">{selectedCommit.author}</span>
+        </div>
+        <div class="commit-diff-right">
+          {#if isLoadingCommitDiff}
+            <Spinner size={10} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+          {:else}
+            <span class="log-date">{relativeTime(selectedCommit.date)}</span>
+            <span class="meta-sep">·</span>
+            <span class="diff-file-count">{commitDiffCards.length} {t('git.files')}</span>
+            {#if totalAdded > 0 || totalRemoved > 0}
+              <span class="meta-sep">·</span>
+              <span class="diff-stat">
+                {#if totalAdded > 0}<span class="stat-add">+{totalAdded}</span>{/if}
+                {#if totalRemoved > 0}<span class="stat-remove">-{totalRemoved}</span>{/if}
+              </span>
+            {/if}
+          {/if}
+        </div>
+      </div>
+      <div class="hunks-list">
+        {#if isLoadingCommitDiff}
+          <div class="empty-hint">
+            <Spinner size={16} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+          </div>
+        {:else if commitDiffCards.length === 0}
+          <div class="empty-hint">{t('git.commitDiffEmpty')}</div>
+        {:else}
+          {#each commitDiffCards as card (card.filePath)}
+            <div class="hunk-card {STATUS_CLASS[card.status] ?? ''}">
+              <div class="hunk-card-head">
+                <span class="file-info">
+                  <span class="file-basename">{card.basename}</span>
+                  {#if card.dirpath}<span class="file-dir">{card.dirpath}</span>{/if}
+                </span>
+                {#if card.added > 0 || card.removed > 0}
+                  <span class="diff-stat">
+                    {#if card.added > 0}<span class="stat-add">+{card.added}</span>{/if}
+                    {#if card.removed > 0}<span class="stat-remove">-{card.removed}</span>{/if}
+                  </span>
+                {/if}
+                {#if card.status !== 'staged-deleted'}
+                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', card.filePath)}>
+                    <Icon name="external" size={12}/>
+                  </button>
+                {/if}
+              </div>
+              {#if card.hasDiff}
+                <div class="card-diff">
+                  {#key card.filePath}
+                    <InlineDiff oldContent={card.oldContent} newContent={card.newContent} language={langFromPath(card.filePath) as EditorLanguage} />
+                  {/key}
+                </div>
+              {:else}
+                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {:else}
+      <div class="git-col-head">
+        <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
+        <span>{t('git.stagedForCommit')}</span>
+        <span class="count accent">{stagedCards.length} {t('git.files')}</span>
+        {#if totalStagedAdded > 0 || totalStagedRemoved > 0}
+          <span class="diff-stat">
+            {#if totalStagedAdded > 0}<span class="stat-add">+{totalStagedAdded}</span>{/if}
+            {#if totalStagedRemoved > 0}<span class="stat-remove">-{totalStagedRemoved}</span>{/if}
+          </span>
+        {/if}
+      </div>
+      <div class="hunks-list">
+        {#if stagedCards.length === 0}
+          <div class="empty-hint">
+            {t('git.noStagedChanges')}
+          </div>
+        {:else}
+          {#each stagedCards as h (h.filePath)}
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
+              <div class="hunk-card-head">
+                <span class="file-info">
+                  <span class="file-basename">{h.basename}</span>
+                  {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
+                </span>
+                {#if h.added > 0 || h.removed > 0}
+                  <span class="diff-stat">
+                    {#if h.added > 0}<span class="stat-add">+{h.added}</span>{/if}
+                    {#if h.removed > 0}<span class="stat-remove">-{h.removed}</span>{/if}
+                  </span>
+                {/if}
+                {#if h.status !== 'staged-deleted'}
+                  <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
+                    <Icon name="external" size={12}/>
+                  </button>
+                {/if}
+                <button class="unstage-btn" on:click={() => unstageFile(h.filePath)}>
+                  {t('git.unstage')}
+                </button>
+              </div>
+              {#if h.hasDiff}
+                <div class="card-diff">
+                  {#key h.filePath}
+                    <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
+                  {/key}
+                </div>
+              {:else}
+                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
 
     <div class="commit-composer">
       <div class="commit-composer-head">
@@ -651,6 +830,7 @@
         </button>
       </div>
     </div>
+    {/if}
   </div>
 </div>
 
@@ -821,11 +1001,13 @@
     border-bottom: 1px solid var(--stroke-0);
     border-left: 3px solid transparent;
     transition: background .1s;
-    cursor: default;
+    cursor: pointer;
   }
   .log-entry:hover { background: var(--bg-2); }
   .log-entry.is-ahead { border-left-color: var(--accent); }
   .log-entry.is-ahead .log-message { color: var(--fg-0); font-weight: 500; }
+  .log-entry.is-selected { background: color-mix(in srgb, var(--accent) 12%, transparent); border-left-color: var(--accent); }
+  .log-entry.is-selected .log-message { color: var(--fg-0); }
 
   .log-entry-main {
     display: flex;
@@ -933,6 +1115,26 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Diff stat badge */
+  .diff-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .stat-add {
+    color: var(--success);
+    font-weight: 500;
+  }
+
+  .stat-remove {
+    color: var(--danger);
+    font-weight: 500;
   }
 
   /* Open file button */
@@ -1275,5 +1477,67 @@
     font-size: 11px;
     color: var(--fg-4);
     font-family: var(--font-mono);
+  }
+
+  /* Commit diff panel */
+  .commit-diff-head {
+    gap: 10px;
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--stroke-1);
+    border-radius: 3px;
+    padding: 5px 6px;
+    cursor: pointer;
+    color: var(--fg-3);
+    flex-shrink: 0;
+  }
+  .back-btn:hover { background: var(--bg-4); color: var(--fg-0); border-color: var(--stroke-2); }
+
+  .commit-diff-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .commit-diff-title {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .commit-diff-message {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .commit-diff-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .commit-diff-right .log-date { margin-left: 0; }
+
+  .meta-sep {
+    font-size: 11px;
+    color: var(--fg-2);
+    user-select: none;
+  }
+
+  .diff-file-count {
+    font-size: 11px;
+    color: var(--fg-4);
   }
 </style>
