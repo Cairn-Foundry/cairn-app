@@ -239,12 +239,14 @@ export async function stashPush(
 	message: string,
 	includeUntracked: boolean,
 	keepIndex: boolean,
+	paths: string[] = [],
 ): Promise<void> {
 	return invoke("git_stash_push", {
 		worktreePath,
 		message,
 		includeUntracked,
 		keepIndex,
+		paths,
 	});
 }
 

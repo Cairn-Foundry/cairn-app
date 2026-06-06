@@ -575,6 +575,9 @@ export const en = {
 		discardChanges: "Discard changes",
 		discardConfirm: (file: string) =>
 			`Discard all changes to "${file}"? This cannot be undone.`,
+		stashSelectedTitle: "Stash selected files",
+		discardMultipleConfirm: (n: number) =>
+			`Discard changes in ${n} file${n !== 1 ? "s" : ""}? This cannot be undone.`,
 	},
 
 	review: {

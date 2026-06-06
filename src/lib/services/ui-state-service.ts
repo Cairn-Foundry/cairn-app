@@ -5,6 +5,7 @@ export interface ProjectUiState {
 	gitLeftTab: string;
 	gitChangesSearch: string;
 	gitLogSearch: string;
+	gitStagedSearch: string;
 }
 
 export interface UiState {

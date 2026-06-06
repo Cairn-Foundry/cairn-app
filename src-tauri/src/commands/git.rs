@@ -615,6 +615,7 @@ pub fn git_stash_push(
     message: String,
     include_untracked: bool,
     keep_index: bool,
+    paths: Vec<String>,
 ) -> Result<(), String> {
     let expanded = expand(&worktree_path);
     let mut cmd = git_cmd(&expanded);
@@ -622,6 +623,10 @@ pub fn git_stash_push(
     if include_untracked { cmd.arg("--include-untracked"); }
     if keep_index { cmd.arg("--keep-index"); }
     if !message.is_empty() { cmd.args(["-m", &message]); }
+    if !paths.is_empty() {
+        cmd.arg("--");
+        for path in &paths { cmd.arg(path); }
+    }
     let out = cmd.output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());

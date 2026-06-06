@@ -9,6 +9,7 @@ const DEFAULT: ProjectUiState = {
 	gitLeftTab: "changes",
 	gitChangesSearch: "",
 	gitLogSearch: "",
+	gitStagedSearch: "",
 };
 
 const _states = writable<Record<string, ProjectUiState>>({});
@@ -48,7 +49,12 @@ export function applyProjectState(id: string): void {
 }
 
 export function updateProjectViewState(
-	patch: Partial<Pick<ProjectUiState, "gitChangesSearch" | "gitLogSearch">>,
+	patch: Partial<
+		Pick<
+			ProjectUiState,
+			"gitChangesSearch" | "gitLogSearch" | "gitStagedSearch"
+		>
+	>,
 ): void {
 	const id = get(activeProjectId);
 	if (!id) return;

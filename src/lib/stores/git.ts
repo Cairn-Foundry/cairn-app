@@ -245,11 +245,39 @@ export async function pushStash(
 	message: string,
 	includeUntracked: boolean,
 	keepIndex: boolean,
+	paths: string[] = [],
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashPush(wt, message, includeUntracked, keepIndex);
+	await gitService.stashPush(wt, message, includeUntracked, keepIndex, paths);
 	await Promise.all([refreshStashes(), refreshStatus()]);
+}
+
+export async function stageFiles(filePaths: string[]): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	for (const filePath of filePaths) {
+		await gitService.stageFile(wt, filePath);
+	}
+	await refreshStatus();
+}
+
+export async function unstageFiles(filePaths: string[]): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	for (const filePath of filePaths) {
+		await gitService.unstageFile(wt, filePath);
+	}
+	await refreshStatus();
+}
+
+export async function discardFiles(filePaths: string[]): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	for (const filePath of filePaths) {
+		await gitService.discardFile(wt, filePath);
+	}
+	await refreshStatus();
 }
 
 export async function popStash(index: number): Promise<void> {

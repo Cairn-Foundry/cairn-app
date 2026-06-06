@@ -595,6 +595,9 @@ export const fr = {
 		discardChanges: "Annuler les modifications",
 		discardConfirm: (file: string) =>
 			`Annuler toutes les modifications de "${file}" ? Cette action est irréversible.`,
+		stashSelectedTitle: "Stash des fichiers sélectionnés",
+		discardMultipleConfirm: (n: number) =>
+			`Annuler les modifications de ${n} fichier${n !== 1 ? "s" : ""} ? Cette action est irréversible.`,
 	},
 
 	review: {

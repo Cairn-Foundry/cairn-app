@@ -18,13 +18,17 @@
     refreshStashes,
     getStashDiff,
     stageFile,
+    stageFiles,
     unstageFile,
+    unstageFiles,
+    discardFile,
+    discardFiles,
     commitChanges,
     amendLastCommit,
     pushBranch,
+    pushStash,
     setCommitMessage,
     revertCommit,
-    discardFile,
   } from '$lib/stores/git';
   import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
@@ -155,6 +159,10 @@
     state.stagedDiffs,
   );
 
+  $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()
+    ? stagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitStagedSearch.toLowerCase()))
+    : stagedCards;
+
   $: remoteLabel = (() => {
     if (!state.currentBranch) return '';
     if (!state.remoteStatus?.hasUpstream) return `on ${state.currentBranch}`;
@@ -273,7 +281,138 @@
     }
   }
 
+  // --- Multi-select ---
+  let selectedFilePaths = new Set<string>();
+  let selectAllCb: HTMLInputElement | null = null;
+
+  // Auto-prune: remove from selection files that no longer exist (staged/discarded)
+  $: {
+    const valid = new Set(unstagedCards.map(c => c.filePath));
+    const pruned = [...selectedFilePaths].filter(p => valid.has(p));
+    if (pruned.length !== selectedFilePaths.size) selectedFilePaths = new Set(pruned);
+  }
+
+  $: selectedCount = selectedFilePaths.size;
+  $: visibleSelected = filteredUnstagedCards.filter(c => selectedFilePaths.has(c.filePath)).length;
+  $: allVisibleSelected = filteredUnstagedCards.length > 0 && visibleSelected === filteredUnstagedCards.length;
+  $: someVisibleSelected = visibleSelected > 0 && !allVisibleSelected;
+  $: if (selectAllCb) selectAllCb.indeterminate = someVisibleSelected;
+
+  function toggleFileSelection(filePath: string) {
+    const next = new Set(selectedFilePaths);
+    if (next.has(filePath)) next.delete(filePath);
+    else next.add(filePath);
+    selectedFilePaths = next;
+  }
+
+  function toggleSelectAll() {
+    const next = new Set(selectedFilePaths);
+    if (allVisibleSelected) {
+      filteredUnstagedCards.forEach(c => next.delete(c.filePath));
+    } else {
+      filteredUnstagedCards.forEach(c => next.add(c.filePath));
+    }
+    selectedFilePaths = next;
+  }
+
+  async function stageSelected() {
+    await stageFiles([...selectedFilePaths]);
+  }
+
+  // --- Stash selection modal ---
+  let stashSelectionOpen = false;
+  let stashSelectionMessage = '';
+  let stashSelectionIncludeUntracked = true;
+  let stashSelectionKeepIndex = false;
+  let isStashingSelection = false;
+  let stashSelectionMsgInput: HTMLInputElement;
+
+  async function openStashSelection() {
+    stashSelectionMessage = '';
+    stashSelectionIncludeUntracked = true;
+    stashSelectionKeepIndex = false;
+    stashSelectionOpen = true;
+    await tick();
+    stashSelectionMsgInput?.focus();
+  }
+
+  function closeStashSelection() {
+    stashSelectionOpen = false;
+  }
+
+  async function handleStashSelection() {
+    isStashingSelection = true;
+    try {
+      await pushStash(stashSelectionMessage, stashSelectionIncludeUntracked, stashSelectionKeepIndex, [...selectedFilePaths]);
+      stashSelectionOpen = false;
+    } finally {
+      isStashingSelection = false;
+    }
+  }
+
+  // --- Discard multiple ---
+  let discardMultipleActive = false;
+  let isDiscardingMultiple = false;
+
+  function openDiscardMultiple() {
+    discardMultipleActive = true;
+  }
+
+  function closeDiscardMultiple() {
+    discardMultipleActive = false;
+  }
+
+  async function handleDiscardMultiple() {
+    isDiscardingMultiple = true;
+    const paths = [...selectedFilePaths];
+    try {
+      await discardFiles(paths);
+      for (const path of paths) dispatch('fileDiscarded', path);
+      discardMultipleActive = false;
+    } finally {
+      isDiscardingMultiple = false;
+    }
+  }
+
+  // --- Staged multi-select ---
+  let selectedStagedFilePaths = new Set<string>();
+  let selectAllStagedCb: HTMLInputElement | null = null;
+
+  $: {
+    const valid = new Set(stagedCards.map(c => c.filePath));
+    const pruned = [...selectedStagedFilePaths].filter(p => valid.has(p));
+    if (pruned.length !== selectedStagedFilePaths.size) selectedStagedFilePaths = new Set(pruned);
+  }
+
+  $: selectedStagedCount = selectedStagedFilePaths.size;
+  $: visibleStagedSelected = filteredStagedCards.filter(c => selectedStagedFilePaths.has(c.filePath)).length;
+  $: allStagedSelected = filteredStagedCards.length > 0 && visibleStagedSelected === filteredStagedCards.length;
+  $: someStagedSelected = visibleStagedSelected > 0 && !allStagedSelected;
+  $: if (selectAllStagedCb) selectAllStagedCb.indeterminate = someStagedSelected;
+
+  function toggleStagedFileSelection(filePath: string) {
+    const next = new Set(selectedStagedFilePaths);
+    if (next.has(filePath)) next.delete(filePath);
+    else next.add(filePath);
+    selectedStagedFilePaths = next;
+  }
+
+  function toggleSelectAllStaged() {
+    const next = new Set(selectedStagedFilePaths);
+    if (allStagedSelected) {
+      filteredStagedCards.forEach(c => next.delete(c.filePath));
+    } else {
+      filteredStagedCards.forEach(c => next.add(c.filePath));
+    }
+    selectedStagedFilePaths = next;
+  }
+
+  async function unstageSelected() {
+    await unstageFiles([...selectedStagedFilePaths]);
+  }
+
   let selectedStash: GitStash | null = null;
+  let tabHeadHeight = 0;
   let stashDiffFiles: GitFileDiff[] = [];
   let isLoadingStashDiff = false;
 
@@ -483,12 +622,18 @@
   }
 </script>
 
-<svelte:window on:pointerdown={handleWindowPointerdown} on:keydown={(e) => { if (e.key === 'Escape' && discardTarget) closeDiscard(); }}/>
+<svelte:window on:pointerdown={handleWindowPointerdown} on:keydown={(e) => {
+  if (e.key === 'Escape') {
+    if (discardTarget) closeDiscard();
+    else if (discardMultipleActive) closeDiscardMultiple();
+    else if (stashSelectionOpen) closeStashSelection();
+  }
+}}/>
 
 <div class="git-layout">
   <!-- Left column: changes / log tabs -->
   <div class="git-col">
-    <div class="git-col-head tab-head">
+    <div class="git-col-head tab-head" bind:offsetHeight={tabHeadHeight}>
       <button
         class="col-tab"
         class:active={$gitLeftTab === 'changes'}
@@ -528,6 +673,24 @@
 
     {#if $gitLeftTab === 'changes'}
       <div class="log-filter-bar">
+        {#if filteredUnstagedCards.length > 0 || selectedCount > 0}
+          <input
+            type="checkbox"
+            class="select-all-cb"
+            bind:this={selectAllCb}
+            checked={allVisibleSelected}
+            title={t('git.stageAll') as string}
+            on:change={toggleSelectAll}
+          />
+          {#if selectedCount > 0}
+            <span class="selection-count">{selectedCount}</span>
+          {/if}
+        {/if}
+        {#if selectedCount > 0}
+          <button class="bulk-btn" on:click={stageSelected}>{t('git.stage')}</button>
+          <button class="bulk-btn" on:click={openStashSelection}>{t('git.stashTab')}</button>
+          <button class="bulk-btn bulk-btn-danger" on:click={openDiscardMultiple}>{t('git.discard')}</button>
+        {/if}
         <div class="log-search">
           <Icon name="search" size={11}/>
           <input
@@ -558,6 +721,12 @@
           {#each filteredUnstagedCards as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
               <div class="hunk-card-head">
+                <input
+                  type="checkbox"
+                  class="file-select-cb"
+                  checked={selectedFilePaths.has(h.filePath)}
+                  on:change={() => toggleFileSelection(h.filePath)}
+                />
                 <span class="file-info">
                   <span class="file-basename">{h.basename}</span>
                   {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
@@ -822,7 +991,7 @@
         {/if}
       </div>
     {:else}
-      <div class="git-col-head">
+      <div class="git-col-head" style="height: {tabHeadHeight}px; padding-top: 0; padding-bottom: 0; box-sizing: border-box;">
         <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
         <span>{t('git.stagedForCommit')}</span>
         <span class="count accent">{stagedCards.length} {t('git.files')}</span>
@@ -833,15 +1002,50 @@
           </span>
         {/if}
       </div>
+      {#if stagedCards.length > 0}
+        <div class="log-filter-bar">
+          <input
+            type="checkbox"
+            class="select-all-cb"
+            bind:this={selectAllStagedCb}
+            checked={allStagedSelected}
+            on:change={toggleSelectAllStaged}
+          />
+          {#if selectedStagedCount > 0}
+            <span class="selection-count">{selectedStagedCount}</span>
+            <button class="bulk-btn" on:click={unstageSelected}>{t('git.unstage')}</button>
+          {/if}
+          <div class="log-search">
+            <Icon name="search" size={11}/>
+            <input
+              class="log-search-input"
+              value={$currentProjectViewState.gitStagedSearch}
+              on:input={(e) => updateProjectViewState({ gitStagedSearch: e.currentTarget.value })}
+              placeholder={t('git.changesSearchPlaceholder') as string}
+            />
+            {#if $currentProjectViewState.gitStagedSearch}
+              <button class="log-search-clear" on:click={() => updateProjectViewState({ gitStagedSearch: '' })}>×</button>
+            {/if}
+          </div>
+        </div>
+      {/if}
       <div class="hunks-list">
         {#if stagedCards.length === 0}
           <div class="empty-hint">
             {t('git.noStagedChanges')}
           </div>
+        {:else if filteredStagedCards.length === 0}
+          <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
-          {#each stagedCards as h (h.filePath)}
+          {#each filteredStagedCards as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
               <div class="hunk-card-head">
+                <input
+                  type="checkbox"
+                  class="file-select-cb"
+                  checked={selectedStagedFilePaths.has(h.filePath)}
+                  on:change={() => toggleStagedFileSelection(h.filePath)}
+                />
                 <span class="file-info">
                   <span class="file-basename">{h.basename}</span>
                   {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
@@ -1054,6 +1258,109 @@
   </div>
 {/if}
 
+{#if discardMultipleActive}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={closeDiscardMultiple}
+    on:keydown={(e) => e.key === 'Escape' && closeDiscardMultiple()}
+  >
+    <div class="modal confirm-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <div>
+          <div class="step-count">GIT</div>
+          <h3>{t('git.discardChanges')}</h3>
+        </div>
+        <button class="icon-btn close" on:click={closeDiscardMultiple}>
+          <Icon name="x" size={16}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-body">{(t('git.discardMultipleConfirm') as (n: number) => string)(selectedCount)}</p>
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button class="btn ghost" on:click={closeDiscardMultiple}>{t('common.cancel')}</button>
+        <button class="btn danger" disabled={isDiscardingMultiple} on:click={handleDiscardMultiple}>
+          {#if isDiscardingMultiple}<Spinner size={12} trackColor="oklch(1 0 0 / .3)" color="var(--danger)"/>{/if}
+          <Icon name="undo" size={13}/>
+          {t('git.discard')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if stashSelectionOpen}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={closeStashSelection}
+    on:keydown={(e) => e.key === 'Escape' && closeStashSelection()}
+  >
+    <div class="modal stash-sel-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <div>
+          <div class="step-count">GIT</div>
+          <h3>{t('git.stashSelectedTitle')}</h3>
+        </div>
+        <button class="icon-btn close" on:click={closeStashSelection}>
+          <Icon name="x" size={16}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="stash-field">
+          <label class="stash-field-label" for="stash-sel-msg">{t('git.stashMessageLabel')}</label>
+          <input
+            id="stash-sel-msg"
+            class="stash-modal-input"
+            bind:this={stashSelectionMsgInput}
+            bind:value={stashSelectionMessage}
+            placeholder={t('git.stashMessagePlaceholder') as string}
+            on:keydown={(e) => e.key === 'Enter' && !isStashingSelection && handleStashSelection()}
+          />
+        </div>
+        <div class="stash-options">
+          <label class="stash-option">
+            <div class="stash-option-text">
+              <span class="stash-option-label">{t('git.stashIncludeUntracked')}</span>
+              <span class="stash-option-desc">{t('git.stashIncludeUntrackedDesc')}</span>
+            </div>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={stashSelectionIncludeUntracked}/>
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+          <label class="stash-option">
+            <div class="stash-option-text">
+              <span class="stash-option-label">{t('git.stashKeepIndex')}</span>
+              <span class="stash-option-desc">{t('git.stashKeepIndexDesc')}</span>
+            </div>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={stashSelectionKeepIndex}/>
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button class="btn ghost" on:click={closeStashSelection}>{t('common.cancel')}</button>
+        <button class="btn primary" disabled={isStashingSelection} on:click={handleStashSelection}>
+          {#if isStashingSelection}<Spinner size={12} trackColor="oklch(1 0 0 / .3)" color="white"/>{/if}
+          {t('git.stashPush')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .git-layout {
     display: flex;
@@ -1078,6 +1385,7 @@
     padding: 10px 14px;
     border-bottom: 1px solid var(--stroke-0);
     font-size: 12px;
+    line-height: 1;
     color: var(--fg-2);
     flex-shrink: 0;
   }
@@ -1091,21 +1399,22 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 9px 14px;
+    padding: 10px 14px;
+    margin: 0;
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
     color: var(--fg-3);
     font-size: 12px;
+    line-height: 1;
     font-family: var(--font-ui);
     cursor: pointer;
-    transition: color .1s, border-color .1s;
+    transition: color .1s;
     white-space: nowrap;
   }
   .col-tab:hover { color: var(--fg-1); }
   .col-tab.active {
     color: var(--fg-0);
-    border-bottom-color: var(--accent);
+    box-shadow: inset 0 -2px 0 0 var(--accent);
   }
 
   .col-tab-count {
@@ -1822,5 +2131,150 @@
   .diff-file-count {
     font-size: 11px;
     color: var(--fg-4);
+  }
+
+  /* Multi-select checkboxes */
+  .select-all-cb,
+  .file-select-cb {
+    -webkit-appearance: none;
+    appearance: none;
+    flex-shrink: 0;
+    width: 13px;
+    height: 13px;
+    border: 1.5px solid var(--stroke-2);
+    border-radius: 3px;
+    background: var(--bg-2);
+    cursor: pointer;
+    position: relative;
+    transition: background .12s, border-color .12s;
+  }
+  .select-all-cb:hover,
+  .file-select-cb:hover {
+    border-color: var(--accent);
+  }
+  .select-all-cb:checked,
+  .file-select-cb:checked,
+  .select-all-cb:indeterminate {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .select-all-cb:checked::after,
+  .file-select-cb:checked::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 0px;
+    width: 5px;
+    height: 8px;
+    border-right: 1.5px solid white;
+    border-bottom: 1.5px solid white;
+    transform: rotate(45deg) translateY(-1px);
+  }
+  .select-all-cb:indeterminate::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 1.5px;
+    background: white;
+    border-radius: 1px;
+    transform: translate(-50%, -50%);
+  }
+
+  .selection-count {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-weak);
+    border-radius: 6px;
+    padding: 1px 5px;
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+
+  .bulk-btn {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-0);
+    color: var(--fg-2);
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  .bulk-btn:hover {
+    background: var(--bg-4);
+    border-color: var(--stroke-1);
+    color: var(--fg-0);
+  }
+  .bulk-btn-danger:hover {
+    background: var(--danger-weak);
+    border-color: transparent;
+    color: var(--danger);
+  }
+
+  /* Stash selection modal */
+  .stash-sel-modal { width: min(420px, 92vw); }
+
+  .stash-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .stash-field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-2);
+  }
+  .stash-modal-input {
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    color: var(--fg-0);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color .12s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .stash-modal-input:focus { border-color: var(--accent); }
+  .stash-modal-input::placeholder { color: var(--fg-4); }
+
+  .stash-options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stash-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-top: 1px solid var(--stroke-0);
+    cursor: pointer;
+    gap: 12px;
+  }
+  .stash-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stash-option-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-1);
+  }
+  .stash-option-desc {
+    font-size: 11px;
+    color: var(--fg-3);
   }
 </style>

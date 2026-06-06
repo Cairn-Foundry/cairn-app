@@ -13,6 +13,8 @@ pub struct ProjectUiState {
     pub git_changes_search: String,
     #[serde(rename = "gitLogSearch", default)]
     pub git_log_search: String,
+    #[serde(rename = "gitStagedSearch", default)]
+    pub git_staged_search: String,
 }
 
 impl Default for ProjectUiState {
@@ -22,6 +24,7 @@ impl Default for ProjectUiState {
             git_left_tab: default_git_left_tab(),
             git_changes_search: String::new(),
             git_log_search: String::new(),
+            git_staged_search: String::new(),
         }
     }
 }
