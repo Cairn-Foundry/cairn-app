@@ -4,6 +4,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import InlineDiff from '$lib/components/review/InlineDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
+  import StashView from '$lib/components/git/StashView.svelte';
   import { langFromPath, readFile, isBinaryPath } from '$lib/services/file-service';
   import { getDiffCommit } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
@@ -14,13 +15,18 @@
     refreshStatus,
     refreshLog,
     refreshGraph,
+    refreshStashes,
+    getStashDiff,
     stageFile,
     unstageFile,
     commitChanges,
     amendLastCommit,
     pushBranch,
     setCommitMessage,
+    revertCommit,
+    discardFile,
   } from '$lib/stores/git';
+  import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
   import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
@@ -28,7 +34,7 @@
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
-  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void }>();
+  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string }>();
 
   function goToGitSettings() {
     pendingGitAction.set('createProfile');
@@ -224,13 +230,89 @@
     selectedCommit = null;
     selectedCommitDiff = [];
     isLoadingCommitDiff = false;
+    revertError = null;
   }
 
-  function setLeftTab(tab: 'changes' | 'log' | 'graph') {
+  let isReverting = false;
+  let revertError: string | null = null;
+
+  async function doRevert(hash: string) {
+    isReverting = true;
+    revertError = null;
+    try {
+      await revertCommit(hash);
+      clearSelectedCommit();
+    } catch (e) {
+      revertError = String(e);
+    } finally {
+      isReverting = false;
+    }
+  }
+
+  let discardTarget: string | null = null;
+  let isDiscarding = false;
+
+  function openDiscard(filePath: string) {
+    discardTarget = filePath;
+  }
+
+  function closeDiscard() {
+    discardTarget = null;
+  }
+
+  async function handleDiscard() {
+    if (!discardTarget) return;
+    isDiscarding = true;
+    const path = discardTarget;
+    try {
+      await discardFile(path);
+      discardTarget = null;
+      dispatch('fileDiscarded', path);
+    } finally {
+      isDiscarding = false;
+    }
+  }
+
+  let selectedStash: GitStash | null = null;
+  let stashDiffFiles: GitFileDiff[] = [];
+  let isLoadingStashDiff = false;
+
+  $: stashDiffCards = stashDiffFiles.map(f => {
+    const lines = f.hunks.flatMap(h => h.lines);
+    return {
+      filePath: f.filePath,
+      file: f.filePath,
+      basename: basename(f.filePath),
+      dirpath: dirpath(f.filePath),
+      oldContent: lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n'),
+      newContent: lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n'),
+      hasDiff: lines.length > 0,
+      status: diffStatus(f.hunks),
+      added: lines.filter(l => l.kind === 'add').length,
+      removed: lines.filter(l => l.kind === 'remove').length,
+    };
+  });
+
+  async function handleSelectStash(stash: GitStash | null) {
+    selectedStash = stash;
+    stashDiffFiles = [];
+    if (!stash) return;
+    isLoadingStashDiff = true;
+    try {
+      stashDiffFiles = await getStashDiff(stash.index);
+    } catch {
+      stashDiffFiles = [];
+    } finally {
+      isLoadingStashDiff = false;
+    }
+  }
+
+  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash') {
     gitLeftTab.set(tab);
-    if (tab === 'changes') clearSelectedCommit();
-    if (tab === 'log') refreshLog();
-    if (tab === 'graph') refreshGraph();
+    if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
+    if (tab === 'log') { refreshLog(); selectedStash = null; }
+    if (tab === 'graph') { refreshGraph(); selectedStash = null; }
+    if (tab === 'stash') { clearSelectedCommit(); refreshStashes(); }
   }
 
   function relativeTime(dateStr: string): string {
@@ -401,7 +483,7 @@
   }
 </script>
 
-<svelte:window on:pointerdown={handleWindowPointerdown}/>
+<svelte:window on:pointerdown={handleWindowPointerdown} on:keydown={(e) => { if (e.key === 'Escape' && discardTarget) closeDiscard(); }}/>
 
 <div class="git-layout">
   <!-- Left column: changes / log tabs -->
@@ -414,6 +496,16 @@
       >
         {t('git.changesTab')}
         <span class="col-tab-count">{unstagedCards.length}</span>
+      </button>
+      <button
+        class="col-tab"
+        class:active={$gitLeftTab === 'stash'}
+        on:click={() => setLeftTab('stash')}
+      >
+        {t('git.stashTab')}
+        {#if state.stashes.length > 0}
+          <span class="col-tab-count">{state.stashes.length}</span>
+        {/if}
       </button>
       <button
         class="col-tab"
@@ -479,6 +571,11 @@
                 {#if h.status !== 'deleted'}
                   <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
                     <Icon name="external" size={12}/>
+                  </button>
+                {/if}
+                {#if h.status !== 'untracked'}
+                  <button class="discard-btn" title={t('git.discardTitle') as string} on:click={() => openDiscard(h.filePath)}>
+                    <Icon name="undo" size={12}/>
                   </button>
                 {/if}
                 <button class="stage-btn" on:click={() => stageFile(h.filePath)}>
@@ -563,12 +660,83 @@
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
         on:selectCommit={(e) => selectCommit(e.detail)}
       />
+    {:else if $gitLeftTab === 'stash'}
+      <StashView
+        selectedStashIndex={selectedStash?.index ?? null}
+        on:selectStash={(e) => handleSelectStash(e.detail)}
+      />
     {/if}
   </div>
 
-  <!-- Right column: commit diff when selected, else staged + commit -->
+  <!-- Right column: commit diff / stash diff when selected, else staged + commit -->
   <div class="git-col">
-    {#if selectedCommit}
+    {#if $gitLeftTab === 'stash' && selectedStash}
+      <div class="git-col-head commit-diff-head">
+        <button class="back-btn" title={t('common.close') as string} on:click={() => handleSelectStash(null)}>
+          <Icon name="x" size={11}/>
+        </button>
+        <div class="commit-diff-info">
+          <div class="commit-diff-title">
+            <span class="log-hash">{selectedStash.name}</span>
+            <span class="commit-diff-message">{selectedStash.message || selectedStash.name}</span>
+          </div>
+          {#if selectedStash.branch}
+            <span class="log-author">{t('git.stashOn')} {selectedStash.branch}</span>
+          {/if}
+        </div>
+        <div class="commit-diff-right">
+          {#if isLoadingStashDiff}
+            <Spinner size={10} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+          {:else}
+            <span class="log-date">{selectedStash.date ? new Date(selectedStash.date).toLocaleDateString() : ''}</span>
+            {#if stashDiffCards.length > 0}
+              <span class="meta-sep">·</span>
+              <span class="diff-file-count">{stashDiffCards.length} {t('git.files')}</span>
+            {/if}
+          {/if}
+        </div>
+      </div>
+      <div class="hunks-list">
+        {#if isLoadingStashDiff}
+          <div class="empty-hint">
+            <Spinner size={16} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+          </div>
+        {:else if stashDiffCards.length === 0}
+          <div class="empty-hint">{t('git.stashDiffEmpty')}</div>
+        {:else}
+          {#each stashDiffCards as card (card.filePath)}
+            <div class="hunk-card {STATUS_CLASS[card.status] ?? ''}">
+              <div class="hunk-card-head">
+                <span class="file-info">
+                  <span class="file-basename">{card.basename}</span>
+                  {#if card.dirpath}<span class="file-dir">{card.dirpath}</span>{/if}
+                </span>
+                {#if card.added > 0 || card.removed > 0}
+                  <span class="diff-stat">
+                    {#if card.added > 0}<span class="stat-add">+{card.added}</span>{/if}
+                    {#if card.removed > 0}<span class="stat-remove">-{card.removed}</span>{/if}
+                  </span>
+                {/if}
+                {#if card.status !== 'staged-deleted'}
+                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', card.filePath)}>
+                    <Icon name="external" size={12}/>
+                  </button>
+                {/if}
+              </div>
+              {#if card.hasDiff}
+                <div class="card-diff">
+                  {#key card.filePath}
+                    <InlineDiff oldContent={card.oldContent} newContent={card.newContent} language={langFromPath(card.filePath) as EditorLanguage} />
+                  {/key}
+                </div>
+              {:else}
+                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {:else if selectedCommit}
       <div class="git-col-head commit-diff-head">
         <button class="back-btn" title={t('common.close') as string} on:click={clearSelectedCommit}>
           <Icon name="x" size={11}/>
@@ -595,8 +763,24 @@
               </span>
             {/if}
           {/if}
+          <button
+            class="revert-btn"
+            disabled={isReverting || isLoadingCommitDiff}
+            title={t('git.revertCommitTitle') as string}
+            on:click={() => doRevert(selectedCommit!.hash)}
+          >
+            {#if isReverting}
+              <Spinner size={10} trackColor="var(--bg-3)" color="var(--fg-2)"/>
+            {:else}
+              <Icon name="undo" size={11}/>
+            {/if}
+            {t('git.revertCommit')}
+          </button>
         </div>
       </div>
+      {#if revertError}
+        <div class="revert-error">{revertError}</div>
+      {/if}
       <div class="hunks-list">
         {#if isLoadingCommitDiff}
           <div class="empty-hint">
@@ -833,6 +1017,42 @@
     {/if}
   </div>
 </div>
+
+{#if discardTarget}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={closeDiscard}
+    on:keydown={(e) => e.key === 'Escape' && closeDiscard()}
+  >
+    <div class="modal confirm-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <div>
+          <div class="step-count">GIT</div>
+          <h3>{t('git.discardChanges')}</h3>
+        </div>
+        <button class="icon-btn close" on:click={closeDiscard}>
+          <Icon name="x" size={16}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-body">{(t('git.discardConfirm') as (f: string) => string)(discardTarget)}</p>
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button class="btn ghost" on:click={closeDiscard}>{t('common.cancel')}</button>
+        <button class="btn danger" disabled={isDiscarding} on:click={handleDiscard}>
+          {#if isDiscarding}<Spinner size={12} trackColor="oklch(1 0 0 / .3)" color="var(--danger)"/>{/if}
+          <Icon name="undo" size={13}/>
+          {t('git.discard')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .git-layout {
@@ -1529,6 +1749,69 @@
     flex-shrink: 0;
   }
   .commit-diff-right .log-date { margin-left: 0; }
+
+  .discard-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--stroke-1);
+    border-radius: 3px;
+    padding: 3px 5px;
+    cursor: pointer;
+    color: var(--fg-3);
+    flex-shrink: 0;
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  .discard-btn:hover {
+    background: var(--danger-weak);
+    border-color: transparent;
+    color: var(--danger);
+  }
+
+  .confirm-modal { width: min(400px, 92vw); }
+
+  .confirm-body {
+    font-size: 13px;
+    color: var(--fg-1);
+    line-height: 1.6;
+    margin: 0;
+    word-break: break-all;
+  }
+
+  .revert-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: 1px solid var(--stroke-1);
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    color: var(--fg-2);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  .revert-btn:hover:not(:disabled) {
+    background: var(--bg-4);
+    border-color: var(--stroke-2);
+    color: var(--fg-0);
+  }
+  .revert-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .revert-error {
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+    font-family: var(--font-mono);
+    white-space: pre-wrap;
+    flex-shrink: 0;
+  }
 
   .meta-sep {
     font-size: 11px;

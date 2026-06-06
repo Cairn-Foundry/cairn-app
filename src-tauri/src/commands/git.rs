@@ -556,6 +556,190 @@ pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec
 }
 
 // ---------------------------------------------------------------------------
+// Stash
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+pub struct GitStash {
+    pub index: usize,
+    pub name: String,
+    pub message: String,
+    pub branch: String,
+    pub date: String,
+}
+
+fn parse_stash_subject(subject: &str) -> (String, String) {
+    if let Some(rest) = subject.strip_prefix("WIP on ") {
+        if let Some(colon_pos) = rest.find(": ") {
+            let branch = rest[..colon_pos].to_string();
+            let after_colon = &rest[colon_pos + 2..];
+            // WIP stashes: "hash message" — skip the short hash prefix
+            let msg = after_colon.splitn(2, ' ').nth(1).unwrap_or(after_colon).to_string();
+            return (branch, if msg.is_empty() { after_colon.to_string() } else { msg });
+        }
+    }
+    if let Some(rest) = subject.strip_prefix("On ") {
+        if let Some(colon_pos) = rest.find(": ") {
+            let branch = rest[..colon_pos].to_string();
+            let msg = rest[colon_pos + 2..].to_string();
+            return (branch, msg);
+        }
+    }
+    (String::new(), subject.to_string())
+}
+
+#[tauri::command]
+pub fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args([
+        "stash", "list", "--format=%gd\x1f%s\x1f%aI",
+    ]))?;
+    let stashes = raw.lines()
+        .filter(|l| !l.is_empty())
+        .enumerate()
+        .map(|(i, line)| {
+            let parts: Vec<&str> = line.splitn(3, '\x1f').collect();
+            let name = parts.first().unwrap_or(&"").to_string();
+            let subject = parts.get(1).unwrap_or(&"").to_string();
+            let date = parts.get(2).unwrap_or(&"").trim().to_string();
+            let (branch, message) = parse_stash_subject(&subject);
+            GitStash { index: i, name, message, branch, date }
+        })
+        .collect();
+    Ok(stashes)
+}
+
+#[tauri::command]
+pub fn git_stash_push(
+    worktree_path: String,
+    message: String,
+    include_untracked: bool,
+    keep_index: bool,
+) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let mut cmd = git_cmd(&expanded);
+    cmd.arg("stash").arg("push");
+    if include_untracked { cmd.arg("--include-untracked"); }
+    if keep_index { cmd.arg("--keep-index"); }
+    if !message.is_empty() { cmd.args(["-m", &message]); }
+    let out = cmd.output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_stash_pop(worktree_path: String, index: usize) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let stash_ref = format!("stash@{{{}}}", index);
+    let out = git_cmd(&expanded).args(["stash", "pop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_stash_apply(worktree_path: String, index: usize) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let stash_ref = format!("stash@{{{}}}", index);
+    let out = git_cmd(&expanded).args(["stash", "apply", &stash_ref]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_stash_drop(worktree_path: String, index: usize) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let stash_ref = format!("stash@{{{}}}", index);
+    let out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_stash_show(worktree_path: String, index: usize) -> Result<Vec<GitFileDiff>, String> {
+    let expanded = expand(&worktree_path);
+    let stash_ref = format!("stash@{{{}}}", index);
+    let raw = run(git_cmd(&expanded).args([
+        "stash", "show", "-p", "--no-color", "--unified=3", &stash_ref,
+    ]))?;
+    Ok(parse_diff(&raw))
+}
+
+#[tauri::command]
+pub fn git_stash_clear(worktree_path: String) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded).args(["stash", "clear"]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_stash_rename(worktree_path: String, index: usize, message: String) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let stash_ref = format!("stash@{{{}}}", index);
+    // Resolve the commit SHA before dropping the reflog entry
+    let sha_out = git_cmd(&expanded).args(["rev-parse", &stash_ref]).output().map_err(|e| e.to_string())?;
+    if !sha_out.status.success() {
+        return Err(String::from_utf8_lossy(&sha_out.stderr).to_string());
+    }
+    let sha = String::from_utf8_lossy(&sha_out.stdout).trim().to_string();
+    // Drop old entry (shifts indices above it down by 1)
+    let drop_out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    if !drop_out.status.success() {
+        return Err(String::from_utf8_lossy(&drop_out.stderr).to_string());
+    }
+    // Re-store with updated message (becomes stash@{0})
+    let store_out = git_cmd(&expanded).args(["stash", "store", "-m", &message, &sha]).output().map_err(|e| e.to_string())?;
+    if !store_out.status.success() {
+        return Err(String::from_utf8_lossy(&store_out.stderr).to_string());
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Discard
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .args(["restore", "--", &file_path])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Revert
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<String, String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .args(["revert", "--no-edit", &commit_hash])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+// ---------------------------------------------------------------------------
 // History
 // ---------------------------------------------------------------------------
 

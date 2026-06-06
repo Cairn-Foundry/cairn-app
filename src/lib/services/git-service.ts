@@ -221,3 +221,83 @@ export async function getDiffCommit(
 ): Promise<GitFileDiff[]> {
 	return invoke("git_diff_commit", { worktreePath, commitHash });
 }
+
+export type GitStash = {
+	index: number;
+	name: string;
+	message: string;
+	branch: string;
+	date: string;
+};
+
+export async function getStashList(worktreePath: string): Promise<GitStash[]> {
+	return invoke("git_stash_list", { worktreePath });
+}
+
+export async function stashPush(
+	worktreePath: string,
+	message: string,
+	includeUntracked: boolean,
+	keepIndex: boolean,
+): Promise<void> {
+	return invoke("git_stash_push", {
+		worktreePath,
+		message,
+		includeUntracked,
+		keepIndex,
+	});
+}
+
+export async function stashPop(
+	worktreePath: string,
+	index: number,
+): Promise<void> {
+	return invoke("git_stash_pop", { worktreePath, index });
+}
+
+export async function stashApply(
+	worktreePath: string,
+	index: number,
+): Promise<void> {
+	return invoke("git_stash_apply", { worktreePath, index });
+}
+
+export async function stashDrop(
+	worktreePath: string,
+	index: number,
+): Promise<void> {
+	return invoke("git_stash_drop", { worktreePath, index });
+}
+
+export async function getStashShow(
+	worktreePath: string,
+	index: number,
+): Promise<GitFileDiff[]> {
+	return invoke("git_stash_show", { worktreePath, index });
+}
+
+export async function stashClear(worktreePath: string): Promise<void> {
+	return invoke("git_stash_clear", { worktreePath });
+}
+
+export async function stashRename(
+	worktreePath: string,
+	index: number,
+	message: string,
+): Promise<void> {
+	return invoke("git_stash_rename", { worktreePath, index, message });
+}
+
+export async function revertCommit(
+	worktreePath: string,
+	commitHash: string,
+): Promise<string> {
+	return invoke("git_revert_commit", { worktreePath, commitHash });
+}
+
+export async function discardFile(
+	worktreePath: string,
+	filePath: string,
+): Promise<void> {
+	return invoke("git_discard_file", { worktreePath, filePath });
+}

@@ -23,6 +23,9 @@ pub use git::{
     git_log,
     git_graph,
     git_diff_commit,
+    git_stash_list, git_stash_push, git_stash_pop, git_stash_apply,
+    git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
+    git_revert_commit, git_discard_file,
 };
 pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};

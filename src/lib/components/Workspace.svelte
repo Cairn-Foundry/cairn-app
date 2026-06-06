@@ -338,7 +338,7 @@
       <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); }} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
       <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
       {#if !activeInstance}
         <div class="no-instance">

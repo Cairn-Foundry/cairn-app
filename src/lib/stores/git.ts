@@ -4,6 +4,7 @@ import type {
 	GitFileDiff,
 	GitFileStatus,
 	GitGraphCommit,
+	GitStash,
 	RemoteStatus,
 } from "$lib/services/git-service";
 import * as gitService from "$lib/services/git-service";
@@ -18,6 +19,7 @@ type GitState = {
 	branches: string[];
 	log: GitCommit[];
 	graph: GitGraphCommit[];
+	stashes: GitStash[];
 	remoteStatus: RemoteStatus | null;
 	commitMessage: string;
 	isLoading: boolean;
@@ -32,6 +34,7 @@ const INITIAL: GitState = {
 	branches: [],
 	log: [],
 	graph: [],
+	stashes: [],
 	remoteStatus: null,
 	commitMessage: "",
 	isLoading: false,
@@ -225,4 +228,84 @@ export function setCommitMessage(msg: string): void {
 
 export function resetGitStore(): void {
 	_git.set(INITIAL);
+}
+
+export async function refreshStashes(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	try {
+		const stashes = await gitService.getStashList(wt);
+		_git.update((s) => ({ ...s, stashes }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+export async function pushStash(
+	message: string,
+	includeUntracked: boolean,
+	keepIndex: boolean,
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashPush(wt, message, includeUntracked, keepIndex);
+	await Promise.all([refreshStashes(), refreshStatus()]);
+}
+
+export async function popStash(index: number): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashPop(wt, index);
+	await Promise.all([refreshStashes(), refreshStatus()]);
+}
+
+export async function applyStash(index: number): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashApply(wt, index);
+	await refreshStatus();
+}
+
+export async function dropStash(index: number): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashDrop(wt, index);
+	await refreshStashes();
+}
+
+export async function clearStashes(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashClear(wt);
+	await refreshStashes();
+}
+
+export async function renameStash(
+	index: number,
+	message: string,
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.stashRename(wt, index, message);
+	await refreshStashes();
+}
+
+export async function getStashDiff(index: number): Promise<GitFileDiff[]> {
+	const wt = worktree();
+	if (!wt) return [];
+	return gitService.getStashShow(wt, index);
+}
+
+export async function revertCommit(commitHash: string): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.revertCommit(wt, commitHash);
+	await Promise.all([refreshStatus(), refreshLog()]);
+}
+
+export async function discardFile(filePath: string): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await gitService.discardFile(wt, filePath);
+	await refreshStatus();
 }

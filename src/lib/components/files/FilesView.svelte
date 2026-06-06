@@ -427,6 +427,27 @@ import { get } from 'svelte/store';
   export function getTree(): FileNode[] { return tree; }
   export function openFileByPath(path: string) { quickOpenFile(path); }
 
+  export async function reloadFileByPath(path: string): Promise<void> {
+    if (!worktreePath) return;
+    try {
+      const raw = await readFile(`${worktreePath}/${path}`) ?? '';
+      const le = detectLineEndings(raw);
+      const text = normalizeLineEndings(raw, le);
+      for (const pane of panes) {
+        for (const tab of pane.tabs) {
+          if (tab.path === path) {
+            tab.content = text;
+            tab.pending = text;
+            if (le) tab.lineEndings = le;
+          }
+        }
+      }
+      panes = panes;
+    } catch {
+      // File may not exist after discard; leave tabs as-is
+    }
+  }
+
   $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
 
   function toggleSearchPanel() {

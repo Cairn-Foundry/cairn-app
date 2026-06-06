@@ -558,6 +558,43 @@ export const fr = {
 		graphSortName: "Nom",
 		graphNoResults: "Aucun résultat ne correspond à votre recherche.",
 		commitDiffEmpty: "Ce commit n'apporte aucune modification de fichier.",
+		stashTab: "Stash",
+		stashEmpty: "Aucun stash pour l'instant.",
+		stashNew: "Nouveau stash",
+		stashMessageLabel: "Description",
+		stashMessagePlaceholder: "Description du stash (facultatif)",
+		stashIncludeUntracked: "Inclure les fichiers non suivis",
+		stashIncludeUntrackedDesc:
+			"Sauvegarde les fichiers non suivis en plus des modifications indexées et non indexées",
+		stashKeepIndex: "Conserver les modifications indexées",
+		stashKeepIndexDesc:
+			"Conserve les modifications indexées dans l'index après le stash",
+		stashPush: "Sauvegarder",
+		stashApply: "Appliquer",
+		stashApplyTitle:
+			"Restaure les modifications dans le répertoire de travail - le stash est conservé",
+		stashPop: "Pop",
+		stashPopTitle:
+			"Restaure les modifications dans le répertoire de travail et supprime ce stash",
+		stashDrop: "Supprimer",
+		stashEditTitle: "Renommer le stash",
+		stashClear: "Tout supprimer",
+		stashClearConfirm:
+			"Supprimer tous les stashs ? Cette action est irréversible.",
+		stashDropConfirm: (name: string) =>
+			`Supprimer "${name}" ? Cette action est irréversible.`,
+		stashSearchPlaceholder: "Rechercher dans les stashs...",
+		stashNoResults: "Aucun stash ne correspond à votre recherche.",
+		stashOn: "sur",
+		stashDiffEmpty: "Ce stash n'apporte aucune modification de fichier.",
+		revertCommit: "Inverser",
+		revertCommitTitle:
+			"Créer un nouveau commit qui annule les modifications de ce commit",
+		discard: "Annuler",
+		discardTitle: "Annuler les modifications de ce fichier",
+		discardChanges: "Annuler les modifications",
+		discardConfirm: (file: string) =>
+			`Annuler toutes les modifications de "${file}" ? Cette action est irréversible.`,
 	},
 
 	review: {
