@@ -23,6 +23,7 @@
   import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { activeStep, pendingGitAction, gitLeftTab } from '$lib/stores/ui';
+  import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void }>();
@@ -129,9 +130,8 @@
     untrackedContent,
   );
 
-  let changesSearch = '';
-  $: filteredUnstagedCards = changesSearch.trim()
-    ? unstagedCards.filter(h => h.filePath.toLowerCase().includes(changesSearch.toLowerCase()))
+  $: filteredUnstagedCards = $currentProjectViewState.gitChangesSearch.trim()
+    ? unstagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitChangesSearch.toLowerCase()))
     : unstagedCards;
 
   $: stagedCards = buildFileCards(
@@ -170,12 +170,10 @@
   $: aheadCount = state.remoteStatus?.ahead ?? 0;
   $: aheadHashes = new Set(state.log.slice(0, aheadCount).map(c => c.hash));
 
-  let logSearch = '';
-
   $: filteredLog = (() => {
     const list = state.log.filter(c => c.onCurrentBranch);
-    if (!logSearch.trim()) return list;
-    const q = logSearch.toLowerCase();
+    const q = $currentProjectViewState.gitLogSearch.trim().toLowerCase();
+    if (!q) return list;
     return list.filter(c =>
       c.message.toLowerCase().includes(q) ||
       c.author.toLowerCase().includes(q) ||
@@ -365,11 +363,12 @@
           <Icon name="search" size={11}/>
           <input
             class="log-search-input"
-            bind:value={changesSearch}
+            value={$currentProjectViewState.gitChangesSearch}
+            on:input={(e) => updateProjectViewState({ gitChangesSearch: e.currentTarget.value })}
             placeholder={t('git.changesSearchPlaceholder') as string}
           />
-          {#if changesSearch}
-            <button class="log-search-clear" on:click={() => changesSearch = ''}>×</button>
+          {#if $currentProjectViewState.gitChangesSearch}
+            <button class="log-search-clear" on:click={() => updateProjectViewState({ gitChangesSearch: '' })}>×</button>
           {/if}
         </div>
       </div>
@@ -433,11 +432,12 @@
           <Icon name="search" size={11}/>
           <input
             class="log-search-input"
-            bind:value={logSearch}
+            value={$currentProjectViewState.gitLogSearch}
+            on:input={(e) => updateProjectViewState({ gitLogSearch: e.currentTarget.value })}
             placeholder={t('git.logSearchPlaceholder') as string}
           />
-          {#if logSearch}
-            <button class="log-search-clear" on:click={() => logSearch = ''}>×</button>
+          {#if $currentProjectViewState.gitLogSearch}
+            <button class="log-search-clear" on:click={() => updateProjectViewState({ gitLogSearch: '' })}>×</button>
           {/if}
         </div>
       </div>

@@ -6,7 +6,7 @@
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
-  import type { ProjectUiState } from '$lib/services/ui-state-service';
+  import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
@@ -22,33 +22,19 @@
   let showCreate = false;
   let mounted = false;
 
-  let projectStates: Record<string, ProjectUiState> = {};
-
-  function updateProjectState() {
-    const id = get(activeProjectId);
-    if (!id) return;
-    projectStates = { ...projectStates, [id]: { activeStep: get(activeStep), gitLeftTab: get(gitLeftTab) } };
-  }
-
-  function applyProjectState(id: string) {
-    const ps = projectStates[id];
-    activeStep.set((ps?.activeStep ?? 'files') as any);
-    gitLeftTab.set((ps?.gitLeftTab ?? 'changes') as any);
-  }
-
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   function persistUiState() {
     if (!mounted) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      updateProjectState();
+      snapshotCurrentProject();
       saveUiState({
         screen,
         activeProjectId: get(activeProjectId),
         openTabOrder: get(openTabOrder),
         homeSection,
         homeSettingsTab,
-        projectStates,
+        projectStates: getAllProjectStates(),
       });
     }, 300);
   }
@@ -60,7 +46,7 @@
     screen = saved.screen;
     homeSection = saved.homeSection;
     homeSettingsTab = saved.homeSettingsTab;
-    projectStates = saved.projectStates ?? {};
+    initViewStates(saved.projectStates ?? {});
 
     await loadProjects();
     await loadListing();
@@ -90,20 +76,21 @@
   activeStep.subscribe(() => persistUiState());
   gitLeftTab.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
+  viewStates.subscribe(() => persistUiState());
   activeProjectId.subscribe(async (id) => {
     if (id) await loadInstances(id);
     persistUiState();
   });
 
   function handleProjectChange(newId: string) {
-    updateProjectState();
+    snapshotCurrentProject();
     activeProjectId.set(newId);
     applyProjectState(newId);
   }
 
   async function handleOpenProject(id: string) {
     openProject(id);
-    updateProjectState();
+    snapshotCurrentProject();
     activeProjectId.set(id);
     screen = 'workspace';
     applyProjectState(id);
@@ -122,7 +109,7 @@
 
   function handleProjectCreated(id: string) {
     openProject(id);
-    updateProjectState();
+    snapshotCurrentProject();
     activeProjectId.set(id);
     screen = 'workspace';
     applyProjectState(id);

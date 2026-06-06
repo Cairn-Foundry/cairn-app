@@ -334,6 +334,12 @@
     </aside>
 
     <main class="main">
+      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); }} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">
@@ -363,13 +369,6 @@
             {/if}
           </div>
         </div>
-      {:else}
-        <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
-        <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
-        <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
-        <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
-        <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); }} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
-        <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
       {/if}
     </main>
   </div>
@@ -504,12 +503,14 @@
   }
 
   .no-instance {
-    flex: 1;
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--bg-0);
     padding: 40px 24px;
+    z-index: 10;
   }
 
   .no-instance-inner {

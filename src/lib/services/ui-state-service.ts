@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 export interface ProjectUiState {
 	activeStep: string;
 	gitLeftTab: string;
+	gitChangesSearch: string;
+	gitLogSearch: string;
 }
 
 export interface UiState {
