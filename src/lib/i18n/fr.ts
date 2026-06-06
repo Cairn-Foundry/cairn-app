@@ -556,7 +556,7 @@ export const fr = {
 		graphSortDateDesc: "Date (récent d'abord)",
 		graphSortDateAsc: "Date (ancien d'abord)",
 		graphSortName: "Nom",
-		graphNoResults: "Aucune branche ne correspond à votre recherche.",
+		graphNoResults: "Aucun résultat ne correspond à votre recherche.",
 	},
 
 	review: {

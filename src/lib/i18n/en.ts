@@ -541,7 +541,7 @@ export const en = {
 		graphSortDateDesc: "Date (recent first)",
 		graphSortDateAsc: "Date (oldest first)",
 		graphSortName: "Name",
-		graphNoResults: "No branches match your search.",
+		graphNoResults: "No results match your search.",
 	},
 
 	review: {
