@@ -1,6 +1,6 @@
 use std::fs;
 use serde::{Deserialize, Serialize};
-use crate::storage::settings_file;
+use crate::storage::{settings_file, write_json_atomic};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CairnShortcutBinding {
@@ -45,15 +45,16 @@ pub struct GitProfile {
     pub email: String,
 }
 
+// Keep this list in sync with DEFAULT_WF_TABS in
+// src/lib/utils/home/workflow-tabs.ts (same keys, order and icons).
 fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
     vec![
         WorkflowTabConfig { key: "files".into(),  name: "Files".into(),  icon: "folder".into(), enabled: true, order: 0 },
         WorkflowTabConfig { key: "agent".into(),  name: "Agent".into(),  icon: "agent".into(),  enabled: true, order: 1 },
-        WorkflowTabConfig { key: "review".into(), name: "Review".into(), icon: "review".into(), enabled: true, order: 2 },
-        WorkflowTabConfig { key: "tests".into(),  name: "Tests".into(),  icon: "tests".into(),  enabled: true, order: 3 },
-        WorkflowTabConfig { key: "git".into(),    name: "Git".into(),    icon: "git".into(),    enabled: true, order: 4 },
-        WorkflowTabConfig { key: "cicd".into(),   name: "CI/CD".into(),  icon: "ci".into(),     enabled: true, order: 5 },
-        WorkflowTabConfig { key: "claude-test".into(), name: "Claude Test".into(), icon: "terminal".into(), enabled: true, order: 6 },
+        WorkflowTabConfig { key: "tests".into(),  name: "Tests".into(),  icon: "tests".into(),  enabled: true, order: 2 },
+        WorkflowTabConfig { key: "git".into(),    name: "Git".into(),    icon: "git".into(),    enabled: true, order: 3 },
+        WorkflowTabConfig { key: "cicd".into(),   name: "CI/CD".into(),  icon: "ci".into(),     enabled: true, order: 4 },
+        WorkflowTabConfig { key: "review".into(), name: "Review".into(), icon: "review".into(), enabled: true, order: 5 },
     ]
 }
 
@@ -130,10 +131,7 @@ fn read_settings() -> Result<CairnSettings, String> {
 }
 
 fn write_settings(settings: &CairnSettings) -> Result<(), String> {
-    let path = settings_file()?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&settings_file()?, settings)
 }
 
 #[tauri::command]

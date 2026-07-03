@@ -155,7 +155,7 @@ import { get } from 'svelte/store';
   let showHidden = false;
   let multiSelected = new Set<string>();
 
-  // ── Pointer-event drag state ──────────────────────────────────────────────────
+  // -- Pointer-event drag state --------------------------------------------------
   let dragSrcNode: FileNode | null = null;
   let dragOverDir: string | null = null;
   let dragActive = false;
@@ -170,7 +170,7 @@ import { get } from 'svelte/store';
   let loadingPaths = new Set<string>();
   let error = '';
 
-  // ── Split pane ────────────────────────────────────────────────────────────────
+  // -- Split pane ----------------------------------------------------------------
   let splitMode = false;
   let focusedPane: 0 | 1 = 0;
   let isSplitResizing = false;
@@ -363,7 +363,7 @@ import { get } from 'svelte/store';
       if (tab.pending === tab.content) continue;
       const path = tab.path;
       const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
-      tab.content = tab.pending; // shared ref — mutates original tabs[i] so saveCurrentState captures clean state
+      tab.content = tab.pending; // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
       writeFile(`${wtp}/${path}`, wc).catch(() => {});
     }
   }
@@ -410,18 +410,18 @@ import { get } from 'svelte/store';
 
   let searchPanelByProject = new Map<string, boolean>();
 
-  // ── Closed-tab history (for ⌘⇧T reopen) ────────────────────────────────────
+  // -- Closed-tab history (for ⌘⇧T reopen) ------------------------------------
   let closedTabsStack: Tab[] = [];
 
-  // ── Tab navigation history (for ⌘Alt+←/→) ──────────────────────────────────
+  // -- Tab navigation history (for ⌘Alt+←/→) ----------------------------------
   let tabNavBack: number[] = [];
   let tabNavForward: number[] = [];
   let tabNavSkip = false;
 
-  // ── Sidebar visibility ───────────────────────────────────────────────────────
+  // -- Sidebar visibility -------------------------------------------------------
   let sidebarHidden = false;
 
-  // ── Command palette ──────────────────────────────────────────────────────────
+  // -- Command palette ----------------------------------------------------------
   export function openCommandPalette() { commandPaletteVisible.set(true); }
   export function openQuickOpen() { $quickOpenVisible = true; }
   export function getTree(): FileNode[] { return tree; }
@@ -465,7 +465,7 @@ import { get } from 'svelte/store';
     searchPanelByProject = next;
   }
 
-  // ── Context menu & inline editing ────────────────────────────────────────────
+  // -- Context menu & inline editing --------------------------------------------
 
   interface ContextMenu { x: number; y: number; node: FileNode | null }
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
@@ -856,7 +856,7 @@ import { get } from 'svelte/store';
     else openFile(node);
   }
 
-  // ── Tab context menu (pin/close-others) ──────────────────────────────────────
+  // -- Tab context menu (pin/close-others) --------------------------------------
   let tabCtxMenu: { x: number; y: number; idx: number; pane: 0 | 1 } | null = null;
 
   function openTabCtxMenu(e: MouseEvent, idx: number, pane: 0 | 1) {
@@ -1212,7 +1212,7 @@ import { get } from 'svelte/store';
     }
   }
 
-  // ── Multi-select ──────────────────────────────────────────────────────────────
+  // -- Multi-select --------------------------------------------------------------
 
   function handleTreeNodeClick(e: MouseEvent, node: FileNode) {
     if (dragJustEnded) { dragJustEnded = false; return; }
@@ -1232,7 +1232,7 @@ import { get } from 'svelte/store';
     openFile(node);
   }
 
-  // ── Drag-and-drop (pointer-event based, works in WKWebView) ──────────────────
+  // -- Drag-and-drop (pointer-event based, works in WKWebView) ------------------
 
   function onNodePointerDown(e: PointerEvent, node: FileNode) {
     if (gitStatusMap[node.path] === 'deleted') return;
@@ -1315,7 +1315,7 @@ import { get } from 'svelte/store';
     await loadTree(worktreePath);
   }
 
-  // ── Bulk delete ───────────────────────────────────────────────────────────────
+  // -- Bulk delete ---------------------------------------------------------------
 
   function isPathDeleted(tabPath: string): boolean {
     for (const p of multiSelected) {
@@ -1423,7 +1423,7 @@ import { get } from 'svelte/store';
     {#each panes as pane, i}
       {#if i === 0 || splitMode}
         {#if i === 1}
-          <!-- ── Split resize handle ──────────────────────────────────────────── -->
+          <!-- -- Split resize handle -------------------------------------------- -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="split-resize-handle"
@@ -1599,7 +1599,7 @@ import { get } from 'svelte/store';
   .resize-handle:hover,
   .resize-handle:active { background: var(--accent); }
 
-  /* ── Editor wrap ─────────────────────────────────────────────── */
+  /* -- Editor wrap ----------------------------------------------- */
 
   .files-editor-wrap { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
 
@@ -1613,7 +1613,7 @@ import { get } from 'svelte/store';
   .split-resize-handle:hover,
   .split-resize-handle:active { background: var(--accent); }
 
-  /* ── Context menu ────────────────────────────────────────────────── */
+  /* -- Context menu -------------------------------------------------- */
 
   .ctx-backdrop {
     position: fixed;

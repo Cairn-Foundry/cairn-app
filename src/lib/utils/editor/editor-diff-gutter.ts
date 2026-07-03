@@ -34,7 +34,7 @@ export const setDiffBase = StateEffect.define<string>();
 
 // Bound the diff cost: without a scan limit, a chunk that spans a large, very
 // different region (e.g. line-ending mismatch, or a heavily-rewritten file) is
-// fully re-diffed on every keystroke — O(n·m), hundreds of ms, freezing the UI.
+// fully re-diffed on every keystroke - O(n·m), hundreds of ms, freezing the UI.
 // `scanLimit` makes the algorithm fall back to a fast, slightly coarser diff for
 // such regions. This mirrors @codemirror/merge's own default for merge views.
 const DIFF_CONFIG = { scanLimit: 500 };

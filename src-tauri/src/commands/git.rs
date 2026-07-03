@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 use git2::{Repository, BranchType};
 use serde::Serialize;
@@ -72,7 +74,20 @@ fn git_cmd(worktree: &str) -> Command {
 
 fn run(cmd: &mut Command) -> Result<String, String> {
     let output = cmd.output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Reject values that git would parse as an option. Real branch/ref names can't
+/// begin with '-' (git's own ref-name rules forbid it), so a leading dash means
+/// a crafted or malformed argument, not a legitimate ref.
+fn validate_ref(name: &str) -> Result<(), String> {
+    if name.starts_with('-') {
+        return Err(format!("Invalid git reference: {name}"));
+    }
+    Ok(())
 }
 
 fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
@@ -91,15 +106,14 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
             if let Some(f) = current_file.take() {
                 files.push(f);
             }
-            // Extract file path from "diff --git a/path b/path"
+            // Provisional path from "diff --git a/path b/path"; refined below from
+            // the authoritative "+++ b/path" header when present.
             let path = line
                 .split(" b/")
                 .last()
                 .unwrap_or("")
                 .to_string();
             current_file = Some(GitFileDiff { file_path: path, hunks: Vec::new() });
-        } else if line.starts_with("+++ ") || line.starts_with("--- ") || line.starts_with("index ") || line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("Binary") || line.starts_with('\\') {
-            // Skip metadata lines and no-newline markers
         } else if line.starts_with("@@ ") {
             if let Some(hunk) = current_hunk.take() {
                 if let Some(ref mut f) = current_file {
@@ -110,6 +124,14 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 header: line.to_string(),
                 lines: Vec::new(),
             });
+        } else if current_hunk.is_none() {
+            // Header metadata (before the first hunk of a file). Prefer the exact
+            // post-image path; "+++ /dev/null" for deletions leaves the provisional.
+            if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("+++ b/")) {
+                f.file_path = path.to_string();
+            }
+        } else if line.starts_with('\\') {
+            // "\ No newline at end of file" marker inside a hunk: not a real line.
         } else if let Some(ref mut hunk) = current_hunk {
             let kind = if line.starts_with('+') {
                 "add"
@@ -400,6 +422,7 @@ pub fn git_current_branch(worktree_path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn git_checkout_branch(worktree_path: String, branch_name: String) -> Result<(), String> {
+    validate_ref(&branch_name)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded).args(["checkout", &branch_name]).output().map_err(|e| e.to_string())?;
     if !out.status.success() {
@@ -410,6 +433,8 @@ pub fn git_checkout_branch(worktree_path: String, branch_name: String) -> Result
 
 #[tauri::command]
 pub fn git_create_branch(worktree_path: String, branch_name: String, from_branch: String) -> Result<(), String> {
+    validate_ref(&branch_name)?;
+    validate_ref(&from_branch)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded).args(["checkout", "-b", &branch_name, &from_branch]).output().map_err(|e| e.to_string())?;
     if !out.status.success() {
@@ -420,8 +445,9 @@ pub fn git_create_branch(worktree_path: String, branch_name: String, from_branch
 
 #[tauri::command]
 pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(), String> {
+    validate_ref(&branch_name)?;
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["branch", "-d", &branch_name]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["branch", "-d", "--", &branch_name]).output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());
     }
@@ -434,6 +460,7 @@ pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(
 
 #[tauri::command]
 pub fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, String> {
+    validate_ref(&branch)?;
     let expanded = expand(&worktree_path);
     let mut args = vec!["push"];
     if set_upstream {
@@ -548,6 +575,7 @@ pub fn git_graph(worktree_path: String) -> Result<Vec<GitGraphCommit>, String> {
 
 #[tauri::command]
 pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, String> {
+    validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
         "show", "--format=", "--no-color", "--unified=3", &commit_hash,
@@ -573,9 +601,13 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
         if let Some(colon_pos) = rest.find(": ") {
             let branch = rest[..colon_pos].to_string();
             let after_colon = &rest[colon_pos + 2..];
-            // WIP stashes: "hash message" — skip the short hash prefix
-            let msg = after_colon.splitn(2, ' ').nth(1).unwrap_or(after_colon).to_string();
-            return (branch, if msg.is_empty() { after_colon.to_string() } else { msg });
+            // WIP stashes look like "<hash> <message>": drop the leading short
+            // hash. When only a hash is present there is no message to show.
+            let msg = after_colon
+                .split_once(' ')
+                .map(|(_hash, rest)| rest.to_string())
+                .unwrap_or_default();
+            return (branch, msg);
         }
     }
     if let Some(rest) = subject.strip_prefix("On ") {
@@ -591,8 +623,10 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
 #[tauri::command]
 pub fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
     let expanded = expand(&worktree_path);
+    // %gs (reflog subject) is what native `git stash list` shows and, unlike %s
+    // (commit subject), reflects a rename done via `git stash store -m`.
     let raw = run(git_cmd(&expanded).args([
-        "stash", "list", "--format=%gd\x1f%s\x1f%aI",
+        "stash", "list", "--format=%gd\x1f%gs\x1f%aI",
     ]))?;
     let stashes = raw.lines()
         .filter(|l| !l.is_empty())
@@ -697,14 +731,19 @@ pub fn git_stash_rename(worktree_path: String, index: usize, message: String) ->
         return Err(String::from_utf8_lossy(&sha_out.stderr).to_string());
     }
     let sha = String::from_utf8_lossy(&sha_out.stdout).trim().to_string();
-    // Drop old entry (shifts indices above it down by 1)
+    // Renaming means re-labelling the reflog entry. `git stash store` of an
+    // already-stored commit is a no-op, so the entry must be dropped first and
+    // then re-stored with the new message (it becomes stash@{0}). To close the
+    // data-loss window if the re-store fails, we re-store the commit with a
+    // best-effort fallback so the stash is never silently lost.
     let drop_out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
     if !drop_out.status.success() {
         return Err(String::from_utf8_lossy(&drop_out.stderr).to_string());
     }
-    // Re-store with updated message (becomes stash@{0})
     let store_out = git_cmd(&expanded).args(["stash", "store", "-m", &message, &sha]).output().map_err(|e| e.to_string())?;
     if !store_out.status.success() {
+        // Recovery: put the stash commit back so the rename can't lose it.
+        let _ = git_cmd(&expanded).args(["stash", "store", &sha]).output();
         return Err(String::from_utf8_lossy(&store_out.stderr).to_string());
     }
     Ok(())
@@ -717,12 +756,31 @@ pub fn git_stash_rename(worktree_path: String, index: usize, message: String) ->
 #[tauri::command]
 pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), String> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded)
-        .args(["restore", "--", &file_path])
+
+    // `git restore` only reverts tracked files; for an untracked file it is a
+    // silent no-op, so the path has to be deleted from disk instead.
+    let tracked = git_cmd(&expanded)
+        .args(["ls-files", "--error-unmatch", "--", &file_path])
         .output()
-        .map_err(|e| e.to_string())?;
-    if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        .map_err(|e| e.to_string())?
+        .status
+        .success();
+
+    if tracked {
+        let out = git_cmd(&expanded)
+            .args(["restore", "--worktree", "--", &file_path])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        }
+    } else {
+        let full = Path::new(&expanded).join(&file_path);
+        if full.is_dir() {
+            fs::remove_dir_all(&full).map_err(|e| e.to_string())?;
+        } else if full.exists() {
+            fs::remove_file(&full).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }
@@ -733,6 +791,7 @@ pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), 
 
 #[tauri::command]
 pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<String, String> {
+    validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .args(["revert", "--no-edit", &commit_hash])
@@ -783,4 +842,281 @@ pub fn git_log(worktree_path: String, limit: usize) -> Result<Vec<GitCommit>, St
         .collect();
 
     Ok(commits)
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    // --- Pure parser / guard tests (no git required) -----------------------
+
+    #[test]
+    fn validate_ref_rejects_option_like_values() {
+        assert!(validate_ref("main").is_ok());
+        assert!(validate_ref("feature/thing").is_ok());
+        assert!(validate_ref("release-1.2").is_ok());
+        assert!(validate_ref("-rf").is_err());
+        assert!(validate_ref("--upload-pack=evil").is_err());
+    }
+
+    #[test]
+    fn parse_diff_extracts_path_and_lines() {
+        let raw = "\
+diff --git a/src/main.rs b/src/main.rs
+index 1111111..2222222 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,3 @@
+ unchanged
+-old line
++new line
+";
+        let files = parse_diff(raw);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_path, "src/main.rs");
+        assert_eq!(files[0].hunks.len(), 1);
+        let lines = &files[0].hunks[0].lines;
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].kind, "context");
+        assert_eq!(lines[0].content, "unchanged");
+        assert_eq!(lines[1].kind, "remove");
+        assert_eq!(lines[1].content, "old line");
+        assert_eq!(lines[2].kind, "add");
+        assert_eq!(lines[2].content, "new line");
+    }
+
+    #[test]
+    fn parse_diff_keeps_body_lines_that_look_like_headers() {
+        // Regression: a removed line "-- text" prints as "--- text" and an added
+        // line "++ text" prints as "+++ text"; these must NOT be dropped as file
+        // metadata once we are inside a hunk.
+        let raw = "\
+diff --git a/notes.md b/notes.md
+index 1111111..2222222 100644
+--- a/notes.md
++++ b/notes.md
+@@ -1,2 +1,2 @@
+-- removed dashes
+++ added plus
+";
+        let files = parse_diff(raw);
+        let lines = &files[0].hunks[0].lines;
+        assert_eq!(lines.len(), 2, "dashed body lines must be preserved");
+        assert_eq!(lines[0].kind, "remove");
+        assert_eq!(lines[0].content, "- removed dashes");
+        assert_eq!(lines[1].kind, "add");
+        assert_eq!(lines[1].content, "+ added plus");
+    }
+
+    #[test]
+    fn parse_diff_skips_no_newline_marker() {
+        let raw = "\
+diff --git a/f.txt b/f.txt
+index 1111111..2222222 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1 +1 @@
+-a
+\\ No newline at end of file
++b
+";
+        let files = parse_diff(raw);
+        let lines = &files[0].hunks[0].lines;
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].content, "a");
+        assert_eq!(lines[1].content, "b");
+    }
+
+    #[test]
+    fn parse_diff_handles_multiple_files() {
+        let raw = "\
+diff --git a/one.txt b/one.txt
+--- a/one.txt
++++ b/one.txt
+@@ -0,0 +1 @@
++first
+diff --git a/two.txt b/two.txt
+--- a/two.txt
++++ b/two.txt
+@@ -0,0 +1 @@
++second
+";
+        let files = parse_diff(raw);
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].file_path, "one.txt");
+        assert_eq!(files[1].file_path, "two.txt");
+    }
+
+    #[test]
+    fn parse_stash_subject_variants() {
+        assert_eq!(
+            parse_stash_subject("WIP on main: 1a2b3c4 add feature"),
+            ("main".into(), "add feature".into()),
+        );
+        // Only a hash, no message: must not leak the hash as the message.
+        assert_eq!(
+            parse_stash_subject("WIP on main: 1a2b3c4"),
+            ("main".into(), String::new()),
+        );
+        assert_eq!(
+            parse_stash_subject("On feature/x: custom label"),
+            ("feature/x".into(), "custom label".into()),
+        );
+        assert_eq!(
+            parse_stash_subject("just a raw subject"),
+            (String::new(), "just a raw subject".into()),
+        );
+    }
+
+    // --- Integration tests against a throwaway git repo --------------------
+
+    struct TempRepo {
+        path: PathBuf,
+    }
+
+    impl TempRepo {
+        fn new() -> Self {
+            static COUNTER: AtomicU32 = AtomicU32::new(0);
+            let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+            let path = std::env::temp_dir()
+                .join(format!("cairn-git-test-{}-{}", std::process::id(), n));
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(&path).unwrap();
+            let repo = TempRepo { path };
+            repo.git(&["init", "-q"]);
+            repo.git(&["config", "user.name", "Test"]);
+            repo.git(&["config", "user.email", "test@example.com"]);
+            repo.git(&["config", "commit.gpgsign", "false"]);
+            repo
+        }
+
+        fn wt(&self) -> String {
+            self.path.to_string_lossy().to_string()
+        }
+
+        fn git(&self, args: &[&str]) -> std::process::Output {
+            Command::new("git")
+                .current_dir(&self.path)
+                .args(args)
+                .output()
+                .expect("git should be runnable")
+        }
+
+        fn write(&self, rel: &str, content: &str) {
+            let p = self.path.join(rel);
+            if let Some(parent) = p.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(p, content).unwrap();
+        }
+
+        fn commit(&self, rel: &str, content: &str, message: &str) {
+            self.write(rel, content);
+            self.git(&["add", rel]);
+            self.git(&["commit", "-q", "-m", message]);
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn git_status_categorizes_entries() {
+        let repo = TempRepo::new();
+        repo.commit("tracked.txt", "one\n", "init");
+
+        repo.write("tracked.txt", "two\n"); // modified, unstaged
+        repo.write("untracked.txt", "new\n"); // untracked
+        repo.write("staged.txt", "add\n");
+        repo.git(&["add", "staged.txt"]); // staged addition
+
+        let status = git_status(repo.wt()).unwrap();
+        assert_eq!(status.get("tracked.txt").map(String::as_str), Some("modified"));
+        assert_eq!(status.get("untracked.txt").map(String::as_str), Some("untracked"));
+        assert_eq!(status.get("staged.txt").map(String::as_str), Some("staged-added"));
+    }
+
+    #[test]
+    fn discard_untracked_file_deletes_it() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "a\n", "init");
+        repo.write("untracked.txt", "junk\n");
+        assert!(repo.path.join("untracked.txt").exists());
+
+        git_discard_file(repo.wt(), "untracked.txt".into()).unwrap();
+
+        assert!(
+            !repo.path.join("untracked.txt").exists(),
+            "discarding an untracked file must remove it"
+        );
+    }
+
+    #[test]
+    fn discard_tracked_file_reverts_to_head() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "original\n", "init");
+        repo.write("a.txt", "modified\n");
+
+        git_discard_file(repo.wt(), "a.txt".into()).unwrap();
+
+        let restored = fs::read_to_string(repo.path.join("a.txt")).unwrap();
+        assert_eq!(restored, "original\n");
+    }
+
+    #[test]
+    fn stash_rename_relabels_without_losing_the_stash() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.write("a.txt", "two\n");
+
+        git_stash_push(repo.wt(), "old label".into(), false, false, vec![]).unwrap();
+        let before = git_stash_list(repo.wt()).unwrap();
+        assert_eq!(before.len(), 1);
+        assert_eq!(before[0].message, "old label");
+
+        git_stash_rename(repo.wt(), 0, "new label".into()).unwrap();
+
+        let after = git_stash_list(repo.wt()).unwrap();
+        assert_eq!(after.len(), 1, "rename must not lose or duplicate the stash");
+        assert_eq!(after[0].message, "new label");
+    }
+
+    #[test]
+    fn diff_unstaged_reports_worktree_changes() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "line one\n", "init");
+        repo.write("a.txt", "line one changed\n");
+
+        let files = git_diff_unstaged(repo.wt()).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_path, "a.txt");
+        let kinds: Vec<&str> = files[0].hunks[0].lines.iter().map(|l| l.kind.as_str()).collect();
+        assert!(kinds.contains(&"remove"));
+        assert!(kinds.contains(&"add"));
+    }
+
+    #[test]
+    fn run_propagates_git_failure() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "a\n", "init");
+        // A syntactically valid but nonexistent revision must surface as Err,
+        // not a silent empty-but-ok result.
+        assert!(git_diff_commit(repo.wt(), "deadbeefdeadbeef".into()).is_err());
+    }
+
+    #[test]
+    fn checkout_rejects_dash_prefixed_ref() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "a\n", "init");
+        assert!(git_checkout_branch(repo.wt(), "-rf".into()).is_err());
+    }
 }

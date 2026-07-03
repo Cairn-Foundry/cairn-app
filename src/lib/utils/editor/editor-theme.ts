@@ -83,7 +83,7 @@ export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 	}
 }
 
-// ── Syntax highlighting ──────────────────────────────────────────────────────
+// -- Syntax highlighting ------------------------------------------------------
 
 interface HighlightPalette {
 	kw: string;
@@ -185,7 +185,7 @@ export function buildHighlight(theme: string): HighlightStyle {
 	]);
 }
 
-// ── Editor theme palettes ────────────────────────────────────────────────────
+// -- Editor theme palettes ----------------------------------------------------
 
 interface EditorPalette {
 	bg: string;

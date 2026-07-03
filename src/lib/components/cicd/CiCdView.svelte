@@ -13,10 +13,10 @@
       ]},
       { name: 'test', jobs: [
         { name: 'unit', status: 'failed', time: '41s' },
-        { name: 'integration', status: 'pending', time: '—' },
+        { name: 'integration', status: 'pending', time: '-' },
       ]},
-      { name: 'build', jobs: [{ name: 'build-web', status: 'pending', time: '—' }] },
-      { name: 'deploy', jobs: [{ name: 'deploy-staging', status: 'pending', time: '—' }] },
+      { name: 'build', jobs: [{ name: 'build-web', status: 'pending', time: '-' }] },
+      { name: 'deploy', jobs: [{ name: 'deploy-staging', status: 'pending', time: '-' }] },
     ],
   };
 </script>
@@ -71,7 +71,7 @@
     <div class="pipeline-log-link error">
       <Icon name="alert" size={14} style="color: var(--danger)"/>
       <div class="msg">
-        <b style="color: var(--danger)">unit</b> failed at <span class="fname">src/auth/totp.test.ts:51</span> — "rejects tokens from the previous window"
+        <b style="color: var(--danger)">unit</b> failed at <span class="fname">src/auth/totp.test.ts:51</span> - "rejects tokens from the previous window"
       </div>
       <button class="fix-with-agent" style="padding: 6px 10px; font-size: 12px;">
         <Icon name="sparkles" size={12}/> {t('cicd.fixWithAgent')}

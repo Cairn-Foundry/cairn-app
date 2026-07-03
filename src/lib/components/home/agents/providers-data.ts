@@ -37,7 +37,7 @@ export const PROVIDERS: ProviderDef[] = [
 	{
 		id: "claude-code-cli",
 		name: "Claude Code CLI",
-		desc: "Official Anthropic CLI — current Agent Bridge driver.",
+		desc: "Official Anthropic CLI - current Agent Bridge driver.",
 		note: "No API key required. Uses your local Claude Code session.",
 		status: "active",
 		hasApiKey: false,
@@ -210,7 +210,7 @@ export const PROVIDERS: ProviderDef[] = [
 			{ id: "mistral", label: "Mistral 7B", contextWindow: 32768 },
 			{ id: "codellama", label: "Code Llama", contextWindow: 16384 },
 			{ id: "deepseek-r1", label: "DeepSeek R1", contextWindow: 131072 },
-			{ id: "__custom__", label: "Custom…" },
+			{ id: "__custom__", label: "Custom..." },
 		],
 		accentColor: "#8B5CF6",
 		logo: "Ol",

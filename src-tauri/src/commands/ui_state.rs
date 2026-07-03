@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use serde::{Deserialize, Serialize};
-use crate::storage::ui_state_file;
+use crate::storage::{ui_state_file, write_json_atomic};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProjectUiState {
@@ -72,10 +72,7 @@ fn read_ui_state() -> Result<UiState, String> {
 }
 
 fn write_ui_state(state: &UiState) -> Result<(), String> {
-    let path = ui_state_file()?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(state).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&ui_state_file()?, state)
 }
 
 #[tauri::command]

@@ -39,7 +39,7 @@
   let editingFolderNameValue = '';
   let showCreateFolder = false;
 
-  // ── folder reorder (insert-index, like file tabs) ────────────────────────
+  // -- folder reorder (insert-index, like file tabs) ------------------------
   let folderDragSrcIndex: number | null = null;
   let folderInsertIndex: number | null = null;
   let foldersDragBarEl: HTMLElement | null = null;
@@ -48,7 +48,7 @@
   let folderDragTimer: ReturnType<typeof setTimeout> | null = null;
   const FOLDER_DRAG_DELAY = 150;
 
-  // ── project card reorder + folder-assign drag ────────────────────────────
+  // -- project card reorder + folder-assign drag ----------------------------
   type ProjDragCtx = { type: 'folder'; folderId: string } | { type: 'ungrouped' };
 
   let projDragSrcIndex: number | null = null;
@@ -83,7 +83,7 @@
     return items.length;
   }
 
-  // ── derived ──────────────────────────────────────────────────────────────
+  // -- derived --------------------------------------------------------------
   $: allFolderProjectIds = new Set($projectFolders.flatMap((f) => f.projectIds));
   $: ungroupedProjects = $projects.filter((p) => !allFolderProjectIds.has(p.id));
 
@@ -100,7 +100,7 @@
     ? $projects.filter((p) => matchesSearch(p.name, search) || matchesSearch(p.path, search))
     : null;
 
-  // ── menus ────────────────────────────────────────────────────────────────
+  // -- menus ----------------------------------------------------------------
   function openMenu(e: MouseEvent, id: string) {
     e.stopPropagation();
     menuFolderId = null;
@@ -118,7 +118,7 @@
     menuFolderId = null;
   }
 
-  // ── project actions ───────────────────────────────────────────────────────
+  // -- project actions -------------------------------------------------------
   async function handleDuplicate(id: string) {
     closeMenu();
     await duplicateProjectInStore(id);
@@ -150,7 +150,7 @@
     projectFolders.removeProjectFromFolder(projectId);
   }
 
-  // ── folder actions ───────────────────────────────────────────────────────
+  // -- folder actions -------------------------------------------------------
   function startRenameFolder(id: string, current: string) {
     menuFolderId = null;
     editingFolderNameId = id;
@@ -184,7 +184,7 @@
     deletingFolder = null;
   }
 
-  // ── project card reorder handlers ────────────────────────────────────────
+  // -- project card reorder handlers ----------------------------------------
   function onProjCardPointerDown(e: PointerEvent, idx: number, ctx: ProjDragCtx, projectId: string) {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button, input')) return;
@@ -226,7 +226,7 @@
     }
     dragOverUngrouped = false;
 
-    // Folder drop zone — skip if it's the same folder the card comes from
+    // Folder drop zone - skip if it's the same folder the card comes from
     const folderBlockEl  = el?.closest<HTMLElement>('[data-folder-id]');
     const hoveredFolderId = folderBlockEl?.dataset.folderId ?? null;
     const isSameFolder   = projDragCtx?.type === 'folder' && projDragCtx.folderId === hoveredFolderId;
@@ -308,7 +308,7 @@
     action();
   }
 
-  // ── folder reorder (insert-index, like file tabs) ─────────────────────────
+  // -- folder reorder (insert-index, like file tabs) -------------------------
   function onFolderPointerDown(e: PointerEvent, idx: number) {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button, input')) return;
@@ -377,7 +377,7 @@
 
 </script>
 
-<!-- hero + quick actions — hidden via CSS when searching to keep DOM stable -->
+<!-- hero + quick actions - hidden via CSS when searching to keep DOM stable -->
 <div class="home-hero" class:hidden={!!search}>
   <h1>{t('home.greeting')}<br/><em>{t('home.greetingTagline')}</em></h1>
 </div>
@@ -412,7 +412,7 @@
   <div class="menu-backdrop" on:click={closeMenu} on:keydown={() => {}}></div>
 {/if}
 
-<!-- ─── header bar (always rendered — keeps input in same DOM node) ─────── -->
+<!-- --- header bar (always rendered - keeps input in same DOM node) ------- -->
 <div class="home-section-title">
   <span class="section-label">
     <Icon name={filteredProjects !== null ? 'search' : 'folder'} size={13}/>
@@ -441,7 +441,7 @@
   </div>
 </div>
 
-<!-- ─── search mode ───────────────────────────────────────────────────────── -->
+<!-- --- search mode --------------------------------------------------------- -->
 {#if filteredProjects !== null}
   {#if filteredProjects.length === 0}
     <div class="empty-state">{(t('home.projects.emptyFiltered') as (q: string) => string)(search)}</div>
@@ -472,9 +472,9 @@
   {/if}
 
 {:else}
-  <!-- ─── normal mode ─────────────────────────────────────────────────────── -->
+  <!-- --- normal mode ------------------------------------------------------- -->
 
-  <!-- ─── Dossiers section ─────────────────────────────────────────── -->
+  <!-- --- Dossiers section ------------------------------------------- -->
   {#if $projectFolders.length > 0}
     <div class="section-block">
       <div class="section-block-title">{t('home.projects.folders.sectionLabel')}</div>
@@ -607,7 +607,7 @@
     </div>
   {/if}
 
-  <!-- ─── Projets section ──────────────────────────────────────────── -->
+  <!-- --- Projets section -------------------------------------------- -->
   {#if ungroupedProjects.length > 0 || $projects.length === 0 || projDragCtx?.type === 'folder'}
     <div
       class="section-block"
@@ -689,14 +689,14 @@
 <style>
   .hidden { display: none; }
 
-  /* ── backdrop ────────────────────────────────────────────────────────── */
+  /* -- backdrop ---------------------------------------------------------- */
   .menu-backdrop {
     position: fixed;
     inset: 0;
     z-index: 50;
   }
 
-  /* ── header bar ──────────────────────────────────────────────────────── */
+  /* -- header bar -------------------------------------------------------- */
   .section-label {
     display: flex;
     align-items: center;
@@ -725,7 +725,7 @@
   }
   .new-folder-btn:hover { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-2); }
 
-  /* ── search ──────────────────────────────────────────────────────────── */
+  /* -- search ------------------------------------------------------------ */
   .search-bar {
     display: flex;
     align-items: center;
@@ -759,7 +759,7 @@
   }
   .search-clear:hover { color: var(--fg-0); }
 
-  /* ── section blocks ──────────────────────────────────────────────────── */
+  /* -- section blocks ---------------------------------------------------- */
   .section-block {
     margin-bottom: 28px;
   }
@@ -787,7 +787,7 @@
     padding: 0 2px;
   }
 
-  /* ── folders grid ────────────────────────────────────────────────────── */
+  /* -- folders grid ------------------------------------------------------ */
   .folders-grid {
     display: flex;
     flex-direction: column;
@@ -803,7 +803,7 @@
   }
 
 
-  /* ── folder header ───────────────────────────────────────────────────── */
+  /* -- folder header ----------------------------------------------------- */
   .folder-header {
     display: flex;
     align-items: center;
@@ -912,7 +912,7 @@
     min-width: 0;
   }
 
-  /* ── folder expanded content ─────────────────────────────────────────── */
+  /* -- folder expanded content ------------------------------------------- */
   .folder-empty {
     padding: 14px 12px;
     font-size: 12px;
@@ -926,7 +926,7 @@
     margin-bottom: 0 !important;
   }
 
-  /* ── project cards ───────────────────────────────────────────────────── */
+  /* -- project cards ----------------------------------------------------- */
   :global(.project-card) {
     position: relative;
     overflow: visible !important;
@@ -969,7 +969,7 @@
   .card-more:focus-visible { opacity: 1; }
   .card-more:hover { background: var(--bg-4); color: var(--fg-0); }
 
-  /* ── context menus ───────────────────────────────────────────────────── */
+  /* -- context menus ----------------------------------------------------- */
   .card-menu {
     position: absolute;
     z-index: 100;
@@ -1007,7 +1007,7 @@
   .card-menu-item.danger:hover { background: var(--danger-weak, oklch(0.28 0.06 15)); }
   .card-menu-sep { height: 1px; background: var(--stroke-0); margin: 4px 0; }
 
-  /* ── misc ────────────────────────────────────────────────────────────── */
+  /* -- misc -------------------------------------------------------------- */
   .empty-state {
     padding: 32px 0;
     color: var(--fg-3);

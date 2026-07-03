@@ -1,7 +1,7 @@
 use std::fs;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::storage::instance_file_state_file;
+use crate::storage::{instance_file_state_file, write_json_atomic};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct FileState {
@@ -26,10 +26,7 @@ fn read_file_state(project_id: &str, instance_id: &str) -> Result<Option<FileSta
 }
 
 fn write_file_state(project_id: &str, instance_id: &str, state: &FileState) -> Result<(), String> {
-    let path = instance_file_state_file(project_id, instance_id)?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(state).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&instance_file_state_file(project_id, instance_id)?, state)
 }
 
 #[tauri::command]

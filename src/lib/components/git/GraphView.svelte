@@ -425,7 +425,7 @@
     letter-spacing: -0.01em;
   }
 
-  /* Chips strip — dedicated row below the commit line */
+  /* Chips strip - dedicated row below the commit line */
   .chips-strip {
     display: flex;
     flex-wrap: wrap;

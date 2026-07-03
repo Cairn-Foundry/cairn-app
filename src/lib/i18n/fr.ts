@@ -15,11 +15,11 @@ export const fr = {
 		select: "Sélectionner",
 		search: "Rechercher",
 		clearSearch: "Effacer la recherche",
-		loading: "Chargement…",
-		saving: "Enregistrement…",
-		creating: "Création…",
-		cloning: "Clonage…",
-		reverting: "Annulation…",
+		loading: "Chargement...",
+		saving: "Enregistrement...",
+		creating: "Création...",
+		cloning: "Clonage...",
+		reverting: "Annulation...",
 		stepOf: (step: number, total: number) => `Étape ${step} sur ${total}`,
 	},
 
@@ -46,7 +46,7 @@ export const fr = {
 		projectNamePlaceholder: "Mon super projet",
 		repoNamePlaceholder: "nom-du-depot",
 		folderSelectedMain: "Dossier sélectionné",
-		browsMain: "Parcourir…",
+		browsMain: "Parcourir...",
 		browseSub: "Cliquer pour ouvrir le sélecteur de dossier",
 		destinationSelectedMain: "Destination sélectionnée",
 		hintNew:
@@ -81,7 +81,7 @@ export const fr = {
 			branch: "Configurer le worktree",
 		},
 		ticketId: "ID du ticket",
-		ticketIdPlaceholder: "FEAT-42, BUG-118, …",
+		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Titre",
 		titlePlaceholder: "Description courte du travail",
 		gitWorktree: "Git worktree",
@@ -91,7 +91,7 @@ export const fr = {
 		localOnlyDesc:
 			"Travaillez avec une branche et un worktree dans votre projet local.",
 		baseBranch: "Branche de base",
-		filterBranches: "Filtrer les branches…",
+		filterBranches: "Filtrer les branches...",
 		noBranchesMatch: (q: string) => `Aucune branche ne correspond à "${q}"`,
 		baseBranchPlaceholder: "main",
 		newBranchName: "Nom de la nouvelle branche",
@@ -99,7 +99,7 @@ export const fr = {
 			`Une branche nommée ${name} existe déjà dans ce projet.`,
 		worktreeInfoPrefix: "créera un checkout isolé dans",
 		worktreeInfoSuffix: "Votre arbre de travail principal reste intact.",
-		settingUp: "Configuration de l'instance…",
+		settingUp: "Configuration de l'instance...",
 		createInstance: "Créer l'instance",
 	},
 
@@ -114,7 +114,7 @@ export const fr = {
 	manageInstances: {
 		heading: "Instances du projet",
 		subheading: "Gérer les instances",
-		searchPlaceholder: "Rechercher par ID de ticket ou titre…",
+		searchPlaceholder: "Rechercher par ID de ticket ou titre...",
 		emptyAll: "Aucune instance pour ce projet.",
 		emptyFiltered: (q: string) => `Aucune instance ne correspond à "${q}".`,
 		deleteConfirm: "Supprimer cette instance ?",
@@ -371,12 +371,18 @@ export const fr = {
 		you: "Vous",
 		streaming: "en cours",
 		inputPlaceholder:
-			"Rediriger l'agent, poser une question ou ajouter du contexte…",
+			"Rediriger l'agent, poser une question ou ajouter du contexte...",
 		sendBtn: "Envoyer",
 		mentionFile: "mentionner un fichier",
 		liveActivity: "Activité en direct",
 		liveActivitySub: "- ce que fait l'agent, en ce moment",
 		autoScroll: "défilement auto",
+		instanceStarted: "Instance démarrée",
+		noActiveInstance: "Aucune instance active",
+		responseReceived: "Réponse de l'agent reçue",
+		sessionReset: "Session réinitialisée",
+		waitingResponse: "En attente de réponse...",
+		waitingAgent: "En attente de l'agent...",
 	},
 
 	cicd: {
@@ -390,7 +396,7 @@ export const fr = {
 		selectFileToEdit: "Sélectionner un fichier à modifier",
 		binaryFilePreview: "Fichier binaire - aperçu indisponible",
 		recentLabel: "Récent",
-		loading: "Chargement…",
+		loading: "Chargement...",
 		notCommittedYet: "Pas encore commité",
 		convertLineEndings: "Convertir les fins de ligne",
 		convertIndentStyle: "Convertir le style d'indentation",
@@ -400,10 +406,10 @@ export const fr = {
 		closeTab: "Fermer l'onglet",
 		filePath: "Chemin du fichier",
 		unsaved: "● non enregistré",
-		savingStatus: "enregistrement…",
+		savingStatus: "enregistrement...",
 		treeEmpty: "Worktree vide",
 		treeNoInstance: "Aucune instance active",
-		treeLoading: "Chargement…",
+		treeLoading: "Chargement...",
 		treeTooltips: {
 			collapseAll: "Tout réduire",
 			expandAll: "Tout développer",
@@ -442,19 +448,19 @@ export const fr = {
 	},
 
 	quickOpen: {
-		placeholder: "Aller au fichier…",
+		placeholder: "Aller au fichier...",
 		noResults: (q: string) => `Aucun fichier ne correspond à "${q}"`,
 	},
 
 	commandPalette: {
-		placeholder: "Saisir une commande…",
+		placeholder: "Saisir une commande...",
 		noResults: (q: string) => `Aucune commande ne correspond à "${q}"`,
 		ariaLabel: "Palette de commandes",
 	},
 
 	search: {
 		title: "Recherche",
-		placeholder: "Rechercher…",
+		placeholder: "Rechercher...",
 		includePlaceholder: "Inclure : ex. *.ts, *.svelte",
 		excludePlaceholder: "Exclure : ex. node_modules, dist",
 		toggleFilters: "Afficher/masquer les filtres",
@@ -463,7 +469,7 @@ export const fr = {
 		closeSearch: "Fermer la recherche",
 		caseSensitive: "Respecter la casse",
 		regularExpression: "Expression régulière",
-		searching: "Recherche en cours…",
+		searching: "Recherche en cours...",
 		noResults: "Aucun résultat",
 		resultsSummary: (count: number, files: number) =>
 			`${count} résultat${count !== 1 ? "s" : ""} dans ${files} fichier${files !== 1 ? "s" : ""}`,
@@ -472,7 +478,7 @@ export const fr = {
 
 	diffPeek: {
 		changesLines: (start: number, end: number) =>
-			`Modifications - lignes ${start}–${end}`,
+			`Modifications - lignes ${start}-${end}`,
 		revertHunk: "Annuler le hunk",
 		revertHunkTitle: "Ignorer ce hunk et restaurer HEAD",
 		closeDiff: "Fermer le diff",
@@ -661,7 +667,7 @@ export const fr = {
 			configTitle: "Configuration",
 			fields: {
 				apiKey: "Clé API",
-				apiKeyPlaceholder: "sk-…",
+				apiKeyPlaceholder: "sk-...",
 				apiKeyHint: "Stockée localement - jamais envoyée aux serveurs Cairn.",
 				baseUrl: "URL de base",
 				baseUrlPlaceholder: "https://api.example.com/v1",
@@ -700,7 +706,7 @@ export const fr = {
 					model: "Modèle",
 					systemPrompt: "Prompt système",
 					systemPromptPlaceholder:
-						"Tu es un …\n\nDécris le rôle, le ton, les contraintes et les instructions spécifiques de l'agent.",
+						"Tu es un ...\n\nDécris le rôle, le ton, les contraintes et les instructions spécifiques de l'agent.",
 					systemPromptHint:
 						"Injecté avant chaque conversation. Reste concis et ciblé.",
 					overrideParams: "Remplacer les paramètres du fournisseur",
@@ -721,7 +727,7 @@ export const fr = {
 			openProjectDesc: "Importer un dossier local existant comme projet.",
 			cloneFromRemote: "Cloner depuis un dépôt distant",
 			cloneFromRemoteDesc: "GitHub, GitLab ou toute URL Git.",
-			filterPlaceholder: "Filtrer les projets…",
+			filterPlaceholder: "Filtrer les projets...",
 			filterAriaLabel: "Filtrer les projets",
 			clearSearch: "Effacer la recherche",
 			projectsCount: (n: number) => `Projets - ${n}`,
@@ -749,7 +755,7 @@ export const fr = {
 					heading: "Organiser",
 					title: "Nouveau dossier",
 					nameLabel: "Nom du dossier",
-					namePlaceholder: "Ex. Travail, Perso…",
+					namePlaceholder: "Ex. Travail, Perso...",
 					create: "Créer le dossier",
 				},
 			},
@@ -784,13 +790,15 @@ export const fr = {
 
 	settings: {
 		title: "Paramètres",
-		searchPlaceholder: "Rechercher des paramètres…",
+		searchPlaceholder: "Rechercher des paramètres...",
 		searchAriaLabel: "Rechercher des paramètres",
 		clearSearch: "Effacer la recherche",
 		exportTitle: "Exporter les paramètres en JSON",
 		importTitle: "Importer les paramètres depuis un JSON",
 		export: "Exporter",
 		import: "Importer",
+		importError:
+			"Impossible d'importer les paramètres : le fichier n'est pas un JSON valide.",
 		noResults: (q: string) => `Aucun paramètre ne correspond à "${q}".`,
 		tabs: {
 			general: "Général",
@@ -902,7 +910,7 @@ export const fr = {
 		languages: {
 			groupTitle: "Langue",
 			desc: "Langue d'affichage de l'interface",
-			searchPlaceholder: "Rechercher une langue…",
+			searchPlaceholder: "Rechercher une langue...",
 			searchAriaLabel: "Rechercher une langue",
 			clearSearch: "Effacer la recherche",
 			active: "Active",
@@ -933,12 +941,12 @@ export const fr = {
 		},
 		shortcuts: {
 			groupFallback: "Autre",
-			searchPlaceholder: "Rechercher des raccourcis…",
+			searchPlaceholder: "Rechercher des raccourcis...",
 			searchAriaLabel: "Rechercher des raccourcis",
 			clearSearch: "Effacer la recherche",
 			enableShortcut: "Activer le raccourci",
 			customized: "Personnalisé",
-			pressKeyCombo: "Appuyer sur une combinaison de touches…",
+			pressKeyCombo: "Appuyer sur une combinaison de touches...",
 			conflictsWithAnother: "Conflit avec un autre raccourci",
 			resetToDefault: "Réinitialiser par défaut",
 			resetShortcut: "Réinitialiser le raccourci",

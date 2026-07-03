@@ -7,7 +7,7 @@
 
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 
-  // ── Sidebar header state/actions ─────────────────────────────────────────
+  // -- Sidebar header state/actions -----------------------------------------
   export let treeWidth: number;
   export let searchPanelOpen: boolean;
   export let splitMode: boolean;
@@ -24,7 +24,7 @@
   export let onToggleSplit: () => void;
   export let onToggleHidden: () => void;
 
-  // ── Tree state ───────────────────────────────────────────────────────────
+  // -- Tree state -----------------------------------------------------------
   export let loading: boolean;
   export let error: string;
   export let worktreePath: string | null;
@@ -44,7 +44,7 @@
   export let activeTabPath: string | null;
   export let dirtyTabPaths: Set<string>;
 
-  // ── Tree callbacks ───────────────────────────────────────────────────────
+  // -- Tree callbacks -------------------------------------------------------
   export let onRootClick: () => void;
   export let onNodeClick: (e: MouseEvent, node: FileNode) => void;
   export let onContextMenu: (e: MouseEvent, node: FileNode | null) => void;
@@ -165,7 +165,7 @@
         <span class="tab-dot">●</span>
       {/if}
       {#if loadingPaths.has(node.path)}
-        <span class="tree-loading-dot">…</span>
+        <span class="tree-loading-dot">...</span>
       {/if}
     </button>
   {/if}

@@ -1,4 +1,4 @@
-import { derived, get, writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import type {
 	GitCommit,
 	GitFileDiff,
@@ -45,20 +45,25 @@ const _git = writable<GitState>(INITIAL);
 
 export const git = { subscribe: _git.subscribe };
 
-const isStaged = (s: string) => s.startsWith("staged-");
+export function clearGitError(): void {
+	_git.update((s) => (s.error ? { ...s, error: null } : s));
+}
 
-// Derived helpers consumed by components
-export const stagedFiles = derived(_git, ($g) =>
-	Object.entries($g.status)
-		.filter(([, s]) => isStaged(s))
-		.map(([path]) => path),
-);
-
-export const unstagedFiles = derived(_git, ($g) =>
-	Object.entries($g.status)
-		.filter(([, s]) => !isStaged(s))
-		.map(([path, status]) => ({ path, status })),
-);
+/**
+ * Run a mutating git operation, surfacing any failure through the store's
+ * `error` field (rendered by GitView) and clearing a stale error on success.
+ * The rejection is re-thrown so callers can still react if needed.
+ */
+async function mutate<T>(op: () => Promise<T>): Promise<T> {
+	try {
+		const result = await op();
+		clearGitError();
+		return result;
+	} catch (e) {
+		_git.update((s) => ({ ...s, error: String(e) }));
+		throw e;
+	}
+}
 
 function worktree(): string | null {
 	return get(activeInstance)?.worktreePath ?? null;
@@ -98,7 +103,7 @@ export async function refreshLog(): Promise<void> {
 		const log = await gitService.getLog(wt);
 		_git.update((s) => ({ ...s, log }));
 	} catch {
-		// Non-fatal — repo may have no commits yet
+		// Non-fatal - repo may have no commits yet
 	}
 }
 
@@ -116,28 +121,28 @@ export async function refreshGraph(): Promise<void> {
 export async function stageFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stageFile(wt, filePath);
+	await mutate(() => gitService.stageFile(wt, filePath));
 	await refreshStatus();
 }
 
 export async function unstageFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.unstageFile(wt, filePath);
+	await mutate(() => gitService.unstageFile(wt, filePath));
 	await refreshStatus();
 }
 
 export async function stageAll(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stageAll(wt);
+	await mutate(() => gitService.stageAll(wt));
 	await refreshStatus();
 }
 
 export async function unstageAll(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.unstageAll(wt);
+	await mutate(() => gitService.unstageAll(wt));
 	await refreshStatus();
 }
 
@@ -153,7 +158,7 @@ export async function commitChanges(
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.commit(wt, message, options);
+	await mutate(() => gitService.commit(wt, message, options));
 	_git.update((s) => ({ ...s, commitMessage: "" }));
 	await refreshStatus();
 	await refreshLog();
@@ -168,7 +173,7 @@ export async function amendLastCommit(
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.amendCommit(wt, message, options);
+	await mutate(() => gitService.amendCommit(wt, message, options));
 	await refreshStatus();
 	await refreshLog();
 }
@@ -178,14 +183,14 @@ export async function pushBranch(): Promise<void> {
 	if (!wt) return;
 	const state = get(_git);
 	const hasUpstream = state.remoteStatus?.hasUpstream ?? false;
-	await gitService.push(wt, !hasUpstream, state.currentBranch);
+	await mutate(() => gitService.push(wt, !hasUpstream, state.currentBranch));
 	await refreshStatus();
 }
 
 export async function pullBranch(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.pull(wt);
+	await mutate(() => gitService.pull(wt));
 	await refreshStatus();
 }
 
@@ -201,7 +206,7 @@ export async function loadBranches(projectPath: string): Promise<void> {
 export async function checkoutBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.checkoutBranch(wt, branchName);
+	await mutate(() => gitService.checkoutBranch(wt, branchName));
 	await refreshStatus();
 }
 
@@ -211,14 +216,14 @@ export async function createBranch(
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.createBranch(wt, branchName, fromBranch);
+	await mutate(() => gitService.createBranch(wt, branchName, fromBranch));
 	await refreshStatus();
 }
 
 export async function deleteBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.deleteBranch(wt, branchName);
+	await mutate(() => gitService.deleteBranch(wt, branchName));
 	await refreshStatus();
 }
 
@@ -249,62 +254,70 @@ export async function pushStash(
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashPush(wt, message, includeUntracked, keepIndex, paths);
+	await mutate(() =>
+		gitService.stashPush(wt, message, includeUntracked, keepIndex, paths),
+	);
 	await Promise.all([refreshStashes(), refreshStatus()]);
 }
 
 export async function stageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	for (const filePath of filePaths) {
-		await gitService.stageFile(wt, filePath);
-	}
+	await mutate(async () => {
+		for (const filePath of filePaths) {
+			await gitService.stageFile(wt, filePath);
+		}
+	});
 	await refreshStatus();
 }
 
 export async function unstageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	for (const filePath of filePaths) {
-		await gitService.unstageFile(wt, filePath);
-	}
+	await mutate(async () => {
+		for (const filePath of filePaths) {
+			await gitService.unstageFile(wt, filePath);
+		}
+	});
 	await refreshStatus();
 }
 
 export async function discardFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	for (const filePath of filePaths) {
-		await gitService.discardFile(wt, filePath);
-	}
+	await mutate(async () => {
+		for (const filePath of filePaths) {
+			await gitService.discardFile(wt, filePath);
+		}
+	});
 	await refreshStatus();
 }
 
 export async function popStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashPop(wt, index);
+	await mutate(() => gitService.stashPop(wt, index));
 	await Promise.all([refreshStashes(), refreshStatus()]);
 }
 
 export async function applyStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashApply(wt, index);
+	await mutate(() => gitService.stashApply(wt, index));
 	await refreshStatus();
 }
 
 export async function dropStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashDrop(wt, index);
+	await mutate(() => gitService.stashDrop(wt, index));
 	await refreshStashes();
 }
 
 export async function clearStashes(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashClear(wt);
+	await mutate(() => gitService.stashClear(wt));
 	await refreshStashes();
 }
 
@@ -314,7 +327,7 @@ export async function renameStash(
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.stashRename(wt, index, message);
+	await mutate(() => gitService.stashRename(wt, index, message));
 	await refreshStashes();
 }
 
@@ -327,13 +340,13 @@ export async function getStashDiff(index: number): Promise<GitFileDiff[]> {
 export async function revertCommit(commitHash: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.revertCommit(wt, commitHash);
+	await mutate(() => gitService.revertCommit(wt, commitHash));
 	await Promise.all([refreshStatus(), refreshLog()]);
 }
 
 export async function discardFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await gitService.discardFile(wt, filePath);
+	await mutate(() => gitService.discardFile(wt, filePath));
 	await refreshStatus();
 }

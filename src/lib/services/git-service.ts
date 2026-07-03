@@ -15,10 +15,20 @@ export type GitFileDiff = {
 	hunks: GitDiffHunk[];
 };
 
-export type GitFileStatus = Record<
-	string,
-	"staged" | "modified" | "untracked" | "deleted"
->;
+// Wire values emitted by the Rust `git_status` command. Staged entries carry a
+// `staged-` prefix describing the index change; unstaged worktree changes are
+// `modified` / `deleted` / `untracked`.
+export type GitFileStatusValue =
+	| "staged-added"
+	| "staged-deleted"
+	| "staged-renamed"
+	| "staged-copied"
+	| "staged-modified"
+	| "modified"
+	| "deleted"
+	| "untracked";
+
+export type GitFileStatus = Record<string, GitFileStatusValue>;
 
 export type GitCommit = {
 	hash: string;

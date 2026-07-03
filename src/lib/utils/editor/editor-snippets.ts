@@ -18,12 +18,12 @@ export const jsSnippets = [
 	}),
 	snippetCompletion("for (const ${item} of ${iterable}) {\n\t${}\n}", {
 		label: "forof",
-		detail: "for…of",
+		detail: "for...of",
 		type: "keyword",
 	}),
 	snippetCompletion("for (const ${key} in ${object}) {\n\t${}\n}", {
 		label: "forin",
-		detail: "for…in",
+		detail: "for...in",
 		type: "keyword",
 	}),
 	snippetCompletion("while (${condition}) {\n\t${}\n}", {

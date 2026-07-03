@@ -134,7 +134,7 @@
             {/if}
             {#if selectedModel?.contextWindow && config.model !== '__custom__'}
               <span class="field-hint">
-                {t('home.agents.fields.contextWindow')} — {formatContext(selectedModel.contextWindow)} tokens
+                {t('home.agents.fields.contextWindow')} - {formatContext(selectedModel.contextWindow)} tokens
               </span>
             {/if}
           </div>

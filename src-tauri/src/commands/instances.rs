@@ -1,10 +1,16 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use git2::{Repository, BranchType};
 use serde::{Deserialize, Serialize};
-use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive};
+use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive, write_json_atomic};
 use super::file_state::delete_file_state_dir;
 use super::projects::read_projects;
+
+/// Serializes the read-modify-write of `instances.json` so concurrent
+/// create/duplicate/delete calls (which run on the blocking thread pool) can't
+/// clobber each other and drop an instance.
+static INSTANCES_WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct InstanceTicket {
@@ -82,6 +88,14 @@ pub struct CreateInstanceArgs {
     pub base_branch: Option<String>,
 }
 
+/// Build a filesystem-safe, collision-free worktree slug for a non-git instance
+/// by combining the (possibly duplicate) ticket id with the instance's unique id.
+fn non_git_slug(ticket_id: &str, instance_id: &str) -> String {
+    let base = ticket_id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+    let short_id: String = instance_id.chars().take(8).collect();
+    format!("{base}-{short_id}")
+}
+
 pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
     let path = instances_file(project_id)?;
     if !path.exists() { return Ok(vec![]); }
@@ -90,10 +104,7 @@ pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
 }
 
 pub fn write_instances(project_id: &str, instances: &Vec<StoredInstance>) -> Result<(), String> {
-    let path = instances_file(project_id)?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(instances).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&instances_file(project_id)?, instances)
 }
 
 #[tauri::command]
@@ -159,7 +170,7 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
 
             (branch, worktree_path.to_string_lossy().to_string())
         } else {
-            let slug = args.ticket.id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+            let slug = non_git_slug(&args.ticket.id, &args.id);
             let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
             fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
             copy_dir_recursive(&std::path::Path::new(&expanded_project), &worktree_path)?;
@@ -181,6 +192,7 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
             parent_instance_id: None,
         };
 
+        let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
         let mut instances = read_instances(&args.project_id)?;
         instances.push(stored.clone());
         write_instances(&args.project_id, &instances)?;
@@ -226,7 +238,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
                 .map_err(|e| e.to_string())?;
             let src_commit = src_branch.get().peel_to_commit().map_err(|e| e.to_string())?;
 
-            let short_id = &args.new_id[..8.min(args.new_id.len())];
+            let short_id: String = args.new_id.chars().take(8).collect();
             let new_branch = format!("{}--{}", source.branch, short_id);
             repo.branch(&new_branch, &src_commit, false).map_err(|e| e.to_string())?;
 
@@ -254,7 +266,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
 
             (new_branch, worktree_path.to_string_lossy().to_string())
         } else {
-            let slug = args.ticket.id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+            let slug = non_git_slug(&args.ticket.id, &args.new_id);
             let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
             fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
             if args.copy_working_changes {
@@ -278,6 +290,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
             parent_instance_id: Some(args.source_id.clone()),
         };
 
+        let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
         let mut all_instances = read_instances(&args.project_id)?;
         all_instances.push(stored.clone());
         write_instances(&args.project_id, &all_instances)?;
@@ -290,6 +303,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
 
 #[tauri::command]
 pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
+    let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
     let mut instances = read_instances(&project_id)?;
     let instance = instances.iter().find(|i| i.id == id)
         .ok_or_else(|| format!("Instance '{}' not found", id))?
@@ -322,4 +336,26 @@ pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
     write_instances(&project_id, &instances)?;
     let _ = delete_file_state_dir(&project_id, &id);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::non_git_slug;
+
+    #[test]
+    fn non_git_slug_sanitizes_and_lowercases() {
+        let slug = non_git_slug("FEAT-42", "abcdef1234567890");
+        assert!(slug.starts_with("feat-42-"), "got {slug}");
+        assert!(slug.ends_with("abcdef12"), "got {slug}");
+        // No non-alphanumeric survivors except the separators we introduced.
+        assert!(non_git_slug("a/b c", "0000000011")
+            .starts_with("a-b-c-"));
+    }
+
+    #[test]
+    fn non_git_slug_is_unique_for_colliding_ticket_ids() {
+        let a = non_git_slug("SAME", "11111111aaaa");
+        let b = non_git_slug("SAME", "22222222bbbb");
+        assert_ne!(a, b, "same ticket id must still yield distinct slugs");
+    }
 }

@@ -46,7 +46,7 @@
   let loading = false;
   let error = '';
 
-  // ── Fields ────────────────────────────────────────────────────────────────
+  // -- Fields ----------------------------------------------------------------
   let name = '';
   let path = '';
   let color = '#6366f1';
@@ -54,7 +54,7 @@
   let cloneMethod: 'https' | 'ssh' = 'https';
 
 
-  // ── Directory picker ───────────────────────────────────────────────────────
+  // -- Directory picker -------------------------------------------------------
   async function pickDirectory() {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
@@ -82,7 +82,7 @@
     if (slug) name = slug;
   }
 
-  // ── canNext ────────────────────────────────────────────────────────────────
+  // -- canNext ----------------------------------------------------------------
   $: canNext = (() => {
     if (mode === 'new')   { if (step === 0) return name.trim().length > 0; return path.length > 0; }
     if (mode === 'open')  { if (step === 0) return path.length > 0;        return name.trim().length > 0; }
@@ -111,7 +111,7 @@
         resolvedPath = await validateDirectory(path);
       }
 
-      // Duplicate-path guard — surface a friendly message rather than a silent skip
+      // Duplicate-path guard - surface a friendly message rather than a silent skip
       const duplicate = $projects.find(p => p.path === resolvedPath);
       if (duplicate) {
         error = (t('addProject.duplicateError') as (name: string) => string)(duplicate.name);
@@ -146,11 +146,11 @@
 >
   <div class="modal ap-modal" on:click|stopPropagation role="presentation">
 
-    <!-- ── Head ── -->
+    <!-- -- Head -- -->
     <div class="modal-head">
       <div>
         <div class="step-count">
-          {modeLabel[mode]} · {(t('common.stepOf') as (s: number, t: number) => string)(step + 1, totalSteps)} — {stepLabels[mode][step]}
+          {modeLabel[mode]} · {(t('common.stepOf') as (s: number, t: number) => string)(step + 1, totalSteps)} - {stepLabels[mode][step]}
         </div>
         <h3>{modalTitles[mode][step]}</h3>
       </div>
@@ -159,10 +159,10 @@
       </button>
     </div>
 
-    <!-- ── Body ── -->
+    <!-- -- Body -- -->
     <div class="modal-body">
 
-      <!-- ══ NEW — step 0: identity ══ -->
+      <!-- -- NEW - step 0: identity -- -->
       {#if mode === 'new' && step === 0}
 
         <div class="form-section">
@@ -185,7 +185,7 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-      <!-- ══ NEW — step 1: location ══ -->
+      <!-- -- NEW - step 1: location -- -->
       {:else if mode === 'new' && step === 1}
 
         <p class="ap-hint">{t('addProject.hintNew')}</p>
@@ -212,7 +212,7 @@
           spellcheck="false"
         />
 
-      <!-- ══ OPEN — step 0: location ══ -->
+      <!-- -- OPEN - step 0: location -- -->
       {:else if mode === 'open' && step === 0}
 
         <p class="ap-hint">{t('addProject.hintOpen')}</p>
@@ -239,7 +239,7 @@
           spellcheck="false"
         />
 
-      <!-- ══ OPEN — step 1: identity ══ -->
+      <!-- -- OPEN - step 1: identity -- -->
       {:else if mode === 'open' && step === 1}
 
         <div class="form-section">
@@ -262,7 +262,7 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-      <!-- ══ CLONE — step 0: source ══ -->
+      <!-- -- CLONE - step 0: source -- -->
       {:else if mode === 'clone' && step === 0}
 
         <div class="form-section">
@@ -304,7 +304,7 @@
           </p>
         </div>
 
-      <!-- ══ CLONE — step 1: identity ══ -->
+      <!-- -- CLONE - step 1: identity -- -->
       {:else if mode === 'clone' && step === 1}
 
         <div class="form-section">
@@ -327,7 +327,7 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-      <!-- ══ CLONE — step 2: destination ══ -->
+      <!-- -- CLONE - step 2: destination -- -->
       {:else if mode === 'clone' && step === 2}
 
         <p class="ap-hint">{t('addProject.hintClone')}</p>
@@ -363,7 +363,7 @@
 
     </div>
 
-    <!-- ── Foot ── -->
+    <!-- -- Foot -- -->
     <div class="modal-foot">
       <div class="step-dots">
         {#each { length: totalSteps } as _, i}
@@ -398,7 +398,7 @@
 <style>
   .ap-modal { width: min(520px, 92vw); }
 
-  /* ── Labels & inputs ── */
+  /* -- Labels & inputs -- */
   .ap-hint {
     font-size: 13px;
     color: var(--fg-3);
@@ -437,7 +437,7 @@
   .ap-input::placeholder { color: var(--fg-4); opacity: 1; }
   .ap-input.mono { font-family: var(--font-mono); font-size: 13px; }
 
-  /* ── Directory button ── */
+  /* -- Directory button -- */
   .dir-btn {
     display: flex;
     align-items: center;
@@ -477,7 +477,7 @@
     text-overflow: ellipsis;
   }
 
-  /* ── Path or divider ── */
+  /* -- Path or divider -- */
   .path-or {
     display: flex;
     align-items: center;
@@ -495,7 +495,7 @@
     background: var(--stroke-1);
   }
 
-  /* ── Clone method ── */
+  /* -- Clone method -- */
   .method-row { display: flex; gap: 8px; margin-bottom: 10px; }
   .method-btn {
     display: flex;
@@ -516,7 +516,7 @@
   .method-hint { font-size: 12px; color: var(--fg-3); margin: 0; line-height: 1.5; }
 
 
-  /* ── Error banner ── */
+  /* -- Error banner -- */
   .ap-error {
     display: flex;
     align-items: flex-start;

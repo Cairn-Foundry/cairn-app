@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use crate::storage::{projects_file, listing_file, worktrees_dir, cairn_dir};
+use crate::storage::{projects_file, listing_file, worktrees_dir, cairn_dir, write_json_atomic};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
@@ -21,10 +21,7 @@ pub fn read_projects() -> Result<Vec<Project>, String> {
 }
 
 pub fn write_projects(projects: &Vec<Project>) -> Result<(), String> {
-    let path = projects_file()?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(projects).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&projects_file()?, projects)
 }
 
 #[tauri::command]
@@ -107,7 +104,7 @@ pub fn set_active_instance(project_id: String, instance_id: Option<String>) -> R
     write_projects(&projects)
 }
 
-// ── listing.json ─────────────────────────────────────────────────────────────
+// listing.json
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProjectFolder {
@@ -134,10 +131,7 @@ fn read_listing() -> Result<ListingConfig, String> {
 }
 
 fn write_listing(listing: &ListingConfig) -> Result<(), String> {
-    let path = listing_file()?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(listing).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&listing_file()?, listing)
 }
 
 #[tauri::command]

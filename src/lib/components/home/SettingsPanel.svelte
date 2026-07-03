@@ -9,12 +9,14 @@
   import ProjectTab from './settings/ProjectTab.svelte';
   import LanguagesTab from './settings/LanguagesTab.svelte';
   import GitTab from './settings/GitTab.svelte';
+  import { writeFile } from '$lib/services/file-service';
   import { searchSettings, type SettingsTab, type SettingEntry } from '$lib/utils/home/settings-registry';
 
   export let settingsTab: SettingsTab = 'general';
 
   let settingsSearch = '';
   let importFileInput: HTMLInputElement;
+  let importError = '';
 
   $: settingsResults = searchSettings(settingsSearch);
 
@@ -25,24 +27,26 @@
 
   async function exportSettings() {
     const { save } = await import('@tauri-apps/plugin-dialog');
-    const { invoke } = await import('@tauri-apps/api/core');
     const path = await save({
       defaultPath: 'cairn-settings.json',
       filters: [{ name: 'JSON', extensions: ['json'] }],
     });
     if (!path) return;
-    await invoke('write_file', { path, content: JSON.stringify($settings, null, 2) });
+    await writeFile(path, JSON.stringify($settings, null, 2));
   }
 
   function handleImportFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    importError = '';
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
         settings.save(parsed);
-      } catch {}
+      } catch {
+        importError = t('settings.importError') as string;
+      }
     };
     reader.readAsText(file);
     (e.target as HTMLInputElement).value = '';
@@ -82,6 +86,10 @@
     on:change={handleImportFile}
   />
 </div>
+
+{#if importError}
+  <div class="settings-import-error" role="alert">{importError}</div>
+{/if}
 
 {#if settingsSearch.trim()}
   {#if settingsResults.length > 0}
@@ -130,7 +138,18 @@
 {/if}
 
 <style>
-  /* Shared styles for settings rows/groups/toggles — used by all tab subcomponents */
+  /* Shared styles for settings rows/groups/toggles - used by all tab subcomponents */
+  .settings-import-error {
+    max-width: 560px;
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+    border-radius: var(--r-sm);
+  }
+
   :global(.settings-group) {
     margin-top: 28px;
     max-width: 560px;

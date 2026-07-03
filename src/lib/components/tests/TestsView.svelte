@@ -14,11 +14,11 @@
     { group: 'routes/auth.test.ts', items: [
       { name: 'POST /auth/totp/enable requires session', status: 'pass', time: '22ms' },
       { name: 'POST /auth/totp/verify with valid token', status: 'pass', time: '31ms' },
-      { name: 'POST /auth/totp/verify rate-limits', status: 'skip', time: '—' },
+      { name: 'POST /auth/totp/verify rate-limits', status: 'skip', time: '-' },
     ]},
     { group: 'auth/index.test.ts', items: [
       { name: 'login accepts password + totp', status: 'pass', time: '41ms' },
-      { name: 'login requires totp when enabled', status: 'run', time: '—' },
+      { name: 'login requires totp when enabled', status: 'run', time: '-' },
     ]},
   ];
 
@@ -113,7 +113,7 @@
         <div class="ai-icon"><Icon name="sparkles" size={16}/></div>
         <div>
           <div class="head"><span class="ai-label">{t('tests.likelyCause')}</span></div>
-          <code style="font-family: var(--font-mono)">authenticator.options</code> is set once inside <code style="font-family: var(--font-mono)">verifyTotp</code>, but <code style="font-family: var(--font-mono)">otplib</code>'s options are static across calls — the test's previous <code style="font-family: var(--font-mono)">generate</code> call leaked a window value. Switching to <code style="font-family: var(--font-mono)">authenticator.create({"{ window: 0 }"}).check(...)</code> will isolate it per call.
+          <code style="font-family: var(--font-mono)">authenticator.options</code> is set once inside <code style="font-family: var(--font-mono)">verifyTotp</code>, but <code style="font-family: var(--font-mono)">otplib</code>'s options are static across calls - the test's previous <code style="font-family: var(--font-mono)">generate</code> call leaked a window value. Switching to <code style="font-family: var(--font-mono)">authenticator.create({"{ window: 0 }"}).check(...)</code> will isolate it per call.
         </div>
       </div>
     </div>

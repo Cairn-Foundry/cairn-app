@@ -409,7 +409,7 @@
   .row-btn.icon-only:hover,
   .row-btn.icon-only.open { color: var(--fg-1); background: var(--bg-3); border-color: var(--stroke-1); }
 
-  /* More dropdown — fixed to escape overflow:hidden scroll containers */
+  /* More dropdown - fixed to escape overflow:hidden scroll containers */
   .more-overlay {
     position: fixed;
     inset: 0;

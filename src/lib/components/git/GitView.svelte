@@ -29,6 +29,7 @@
     pushStash,
     setCommitMessage,
     revertCommit,
+    clearGitError,
   } from '$lib/stores/git';
   import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
@@ -97,7 +98,7 @@
       let hasDiff = lines.length > 0;
       let added = lines.filter(l => l.kind === 'add').length;
       let removed = lines.filter(l => l.kind === 'remove').length;
-      // Untracked files have no diff hunks — show their content as all-added.
+      // Untracked files have no diff hunks - show their content as all-added.
       if (!hasDiff && status === 'untracked' && filePath in untracked) {
         oldContent = '';
         newContent = untracked[filePath];
@@ -466,7 +467,29 @@
   }
 
   $: aheadCount = state.remoteStatus?.ahead ?? 0;
-  $: aheadHashes = new Set(state.log.slice(0, aheadCount).map(c => c.hash));
+  // The ahead commits are the first `aheadCount` commits ON THE CURRENT BRANCH,
+  // not the first entries of the all-branches log.
+  $: aheadHashes = new Set(
+    state.log.filter(c => c.onCurrentBranch).slice(0, aheadCount).map(c => c.hash),
+  );
+
+  // The stash list is re-fetched after every stash mutation, and pop/drop/rename
+  // renumber indices. Keep the open selection pointing at the same stash (or
+  // clear it if that stash is gone) so the diff panel never shows a stale one.
+  $: reconcileSelectedStash($git.stashes);
+  function reconcileSelectedStash(list: GitStash[]) {
+    const sel = selectedStash;
+    if (!sel) return;
+    const match = list.find(
+      s => s.date === sel.date && s.message === sel.message && s.branch === sel.branch,
+    );
+    if (!match) {
+      selectedStash = null;
+      stashDiffFiles = [];
+    } else if (match.index !== sel.index) {
+      handleSelectStash(match);
+    }
+  }
 
   $: filteredLog = (() => {
     const list = state.log.filter(c => c.onCurrentBranch);
@@ -629,6 +652,16 @@
     else if (stashSelectionOpen) closeStashSelection();
   }
 }}/>
+
+{#if state.error}
+  <div class="git-error-banner" role="alert">
+    <Icon name="alert" size={13}/>
+    <span class="git-error-text">{state.error}</span>
+    <button class="git-error-dismiss" on:click={clearGitError} aria-label={t('common.close') as string}>
+      <Icon name="x" size={12}/>
+    </button>
+  </div>
+{/if}
 
 <div class="git-layout">
   <!-- Left column: changes / log tabs -->
@@ -2120,6 +2153,42 @@
     font-family: var(--font-mono);
     white-space: pre-wrap;
     flex-shrink: 0;
+  }
+
+  .git-error-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .git-error-text {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .git-error-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    color: var(--danger);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.1s;
+  }
+
+  .git-error-dismiss:hover {
+    opacity: 1;
   }
 
   .meta-sep {

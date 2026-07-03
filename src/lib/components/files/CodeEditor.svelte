@@ -100,7 +100,7 @@
   let container: HTMLDivElement;
   let view: EditorView;
 
-  // ── Context menu ────────────────────────────────────────────────────────────
+  // -- Context menu ------------------------------------------------------------
 
   type ContextMenuState = { x: number; y: number; hasSelection: boolean };
   let ctxMenu: ContextMenuState | null = null;
@@ -163,7 +163,7 @@
     if (e.key === 'Escape') closeContextMenu();
   }
 
-  // ── Compartments ───────────────────────────────────────────────────────────
+  // -- Compartments -----------------------------------------------------------
 
   const minimapCompartment = new Compartment();
   const fontSizeCompartment = new Compartment();
@@ -172,7 +172,7 @@
   const highlightCompartment = new Compartment();
   const whitespaceCompartment = new Compartment();
 
-  // ── Extensions ─────────────────────────────────────────────────────────────
+  // -- Extensions -------------------------------------------------------------
 
   function buildLanguageExtensions(): Extension[] {
     const isJS = language === 'ts' || language === 'tsx' || language === 'js' || language === 'jsx';
@@ -266,7 +266,7 @@
     }
   });
 
-  // ── Reactive sync ──────────────────────────────────────────────────────────
+  // -- Reactive sync ----------------------------------------------------------
 
   $: if (view) {
     const current = view.state.doc.toString();

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import { t, getLocale } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
+  import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { marked } from 'marked';
 
@@ -52,7 +52,7 @@
   let currentProvider = $derived(selectableProviders.find((p) => p.id === providerId) ?? selectableProviders[0]);
 
   function now(): string {
-    return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
   }
 
   async function autoscroll() {
@@ -69,7 +69,7 @@
 
   onMount(async () => {
     messages = [
-      { role: 'system', content: $activeInstance ? `Instance démarrée · ${$activeInstance.ticket.title}` : 'Aucune instance active', time: now() },
+      { role: 'system', content: $activeInstance ? `${t('agent.instanceStarted')} · ${$activeInstance.ticket.title}` : (t('agent.noActiveInstance') as string), time: now() },
     ];
 
     unlisten = await listen<{ line: string; source: string; summary?: string }>('claude-output', (e) => {
@@ -94,7 +94,7 @@
         } else {
           messages.push({ role: 'agent', content: line, time: now() });
         }
-        activity.push({ time: now(), icon: 'sparkles', label: summary || "Réponse de l'agent reçue", source: 'stdout' });
+        activity.push({ time: now(), icon: 'sparkles', label: summary || (t('agent.responseReceived') as string), source: 'stdout' });
       }
 
       autoscroll();
@@ -120,16 +120,12 @@
     const t_now = now();
     messages.push({ role: 'user', content: message, time: t_now });
     messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
-    activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '…' : ''), source: 'stdin' });
+    activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '...' : ''), source: 'stdin' });
 
     await autoscroll();
 
     try {
-      await invoke('send_message', {
-        message,
-        workingDir: $activeInstance.worktreePath,
-        providerId,
-      });
+      await sendMessage(message, $activeInstance.worktreePath, providerId);
     } catch (e) {
       error = String(e);
       busy = false;
@@ -139,8 +135,9 @@
   }
 
   async function interrupt() {
+    if (!$activeInstance) return;
     try {
-      await invoke('stop_agent', { providerId });
+      await stopAgent(providerId, $activeInstance.worktreePath);
     } catch (e) {
       error = String(e);
     }
@@ -149,9 +146,9 @@
   async function newSession() {
     error = '';
     try {
-      await invoke('reset_agent_session', { providerId });
+      if ($activeInstance) await resetAgentSession(providerId, $activeInstance.worktreePath);
       messages = [
-        { role: 'system', content: $activeInstance ? `Session réinitialisée · ${$activeInstance.ticket.title}` : 'Session réinitialisée', time: now() },
+        { role: 'system', content: $activeInstance ? `${t('agent.sessionReset')} · ${$activeInstance.ticket.title}` : (t('agent.sessionReset') as string), time: now() },
       ];
       activity = [];
     } catch (e) {
@@ -254,7 +251,7 @@
       <div class="chat-input">
         <textarea
           bind:this={textareaEl}
-          placeholder={!$activeInstance ? 'Aucune instance active' : busy ? 'En attente de réponse…' : (t('agent.inputPlaceholder') as string)}
+          placeholder={!$activeInstance ? (t('agent.noActiveInstance') as string) : busy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
           bind:value={draft}
           oninput={resizeTextarea}
           onkeydown={onKeydown}
@@ -294,7 +291,7 @@
     <div class="activity-list" bind:this={activityEl}>
       {#if activity.length === 0}
         <div style="padding: 16px 12px; color: var(--fg-3); font-size: 12px; font-style: italic;">
-          {$activeInstance ? "En attente de l'agent…" : 'Aucune instance active'}
+          {$activeInstance ? (t('agent.waitingAgent') as string) : (t('agent.noActiveInstance') as string)}
         </div>
       {:else}
         {#each activity as entry}

@@ -192,7 +192,7 @@
 </script>
 
 <div class="workspace">
-  <!-- Project tabs — padding-left clears native macOS traffic lights -->
+  <!-- Project tabs - padding-left clears native macOS traffic lights -->
   <div class="tabs-row" style="padding-left: {tabsPadding};" bind:this={tabsRowEl}>
     <button class="brand-chip" on:click={() => dispatch('goHome')} title={t('workspace.homeTitle') as string}>
       <CairnLogo size={18}/>

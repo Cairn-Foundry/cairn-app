@@ -41,7 +41,7 @@ export const ACCENT_PRESETS: { label: string; color: string }[] = [
 	},
 ];
 
-// Font names are proper typeface names — not translated.
+// Font names are proper typeface names - not translated.
 export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] =
 	[
 		{

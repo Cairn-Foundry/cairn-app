@@ -584,7 +584,7 @@
     white-space: nowrap;
   }
 
-  /* Actions row — hidden until hover/selection */
+  /* Actions row - hidden until hover/selection */
   .stash-item-actions {
     display: flex;
     align-items: center;

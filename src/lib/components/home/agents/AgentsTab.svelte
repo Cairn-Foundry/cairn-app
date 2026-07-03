@@ -347,7 +347,7 @@
     align-items: flex-start;
   }
 
-  /* ── Sidebar ── */
+  /* -- Sidebar -- */
   .agents-sidebar {
     width: 210px;
     flex-shrink: 0;
@@ -514,7 +514,7 @@
   }
   .btn-delete-cancel:hover { background: var(--bg-4); color: var(--fg-1); }
 
-  /* ── Detail / Empty state ── */
+  /* -- Detail / Empty state -- */
   .agent-detail {
     flex: 1;
     padding: 0 0 24px 28px;
@@ -563,7 +563,7 @@
   }
   .btn-create-first:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
-  /* ── Agent form ── */
+  /* -- Agent form -- */
   .agent-form {
     display: flex;
     flex-direction: column;

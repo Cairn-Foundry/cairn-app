@@ -13,7 +13,7 @@ const d = (id: ShortcutId) => ({
 });
 
 export const SHORTCUT_DEFS: ShortcutDef[] = [
-	// ── Files group ────────────────────────────────────────────────────────────
+	// -- Files group ------------------------------------------------------------
 	{
 		id: "quickOpen",
 		...d("quickOpen"),
@@ -50,7 +50,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "files",
 		default: { key: "0", mod: true, shift: false, alt: false, ctrl: false },
 	},
-	// ── Editor group ───────────────────────────────────────────────────────────
+	// -- Editor group -----------------------------------------------------------
 	{
 		id: "toggleLineComment",
 		...d("toggleLineComment"),
@@ -183,7 +183,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "editor",
 		default: { key: "d", mod: true, shift: true, alt: false, ctrl: false },
 	},
-	// ── Tabs group ─────────────────────────────────────────────────────────────
+	// -- Tabs group -------------------------------------------------------------
 	{
 		id: "closeTab",
 		...d("closeTab"),
@@ -232,7 +232,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 			ctrl: false,
 		},
 	},
-	// ── View group ─────────────────────────────────────────────────────────────
+	// -- View group -------------------------------------------------------------
 	{
 		id: "toggleSidebar",
 		...d("toggleSidebar"),
@@ -251,7 +251,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "view",
 		default: { key: ",", mod: true, shift: false, alt: false, ctrl: false },
 	},
-	// ── File tree group ────────────────────────────────────────────────────────
+	// -- File tree group --------------------------------------------------------
 	{
 		id: "treeSelectAll",
 		...d("treeSelectAll"),

@@ -1,4 +1,4 @@
-/* ── Fonts ── */
+/* -- Fonts -- */
 @import '@fontsource/inter-tight/400.css';
 @import '@fontsource/inter-tight/400-italic.css';
 @import '@fontsource/inter-tight/500.css';
@@ -13,10 +13,10 @@
 @import '@fontsource/instrument-serif/400.css';
 
 /* =========================================================
-   Cairn — warm dark, cairn-stone neutrals
+   Cairn - warm dark, cairn-stone neutrals
    ========================================================= */
 :root {
-  /* Backgrounds — warm, slightly green-brown tinted */
+  /* Backgrounds - warm, slightly green-brown tinted */
   --bg-0: oklch(0.16 0.008 70);           /* deepest (window bg) */
   --bg-1: oklch(0.185 0.008 70);          /* sidebar */
   --bg-2: oklch(0.215 0.008 70);          /* main panels */
@@ -105,7 +105,7 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 
 /* ==============================
-   App chrome — the desktop window
+   App chrome - the desktop window
    ============================== */
 .os-window {
   position: fixed; inset: 0;
@@ -1451,7 +1451,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .stone.s3 { width: 21px; height: 10px; background: var(--stone-1); }
 .stone.s4 { width: 26px; height: 12px; background: var(--stone-0); }
 
-/* Checkpoint (user-saved) — accent stone on top */
+/* Checkpoint (user-saved) - accent stone on top */
 .cairn-stack.checkpoint .stone.s1 {
   background: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-weak), inset 0 1px 0 color-mix(in oklch, var(--accent) 60%, white);

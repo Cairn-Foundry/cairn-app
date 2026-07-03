@@ -1,6 +1,6 @@
 use std::fs;
 use serde::{Deserialize, Serialize};
-use crate::storage::instance_commit_state_file;
+use crate::storage::{instance_commit_state_file, write_json_atomic};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CommitState {
@@ -24,10 +24,7 @@ fn read_commit_state(project_id: &str, instance_id: &str) -> Result<Option<Commi
 }
 
 fn write_commit_state(project_id: &str, instance_id: &str, state: &CommitState) -> Result<(), String> {
-    let path = instance_commit_state_file(project_id, instance_id)?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&path, serde_json::to_string_pretty(state).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    write_json_atomic(&instance_commit_state_file(project_id, instance_id)?, state)
 }
 
 #[tauri::command]

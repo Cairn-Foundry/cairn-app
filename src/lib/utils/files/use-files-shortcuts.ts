@@ -9,7 +9,7 @@ import {
 } from "./files-tree";
 
 export interface FilesShortcutsContext {
-	// ── Action getters/setters ─────────────────────────────────────────────
+	// -- Action getters/setters ---------------------------------------------
 	getActiveShortcuts: () => Record<ShortcutId, ShortcutBinding | null>;
 	isWorkspaceActive: () => boolean;
 	isEditorFocused: () => boolean;
@@ -137,7 +137,7 @@ export function makeFilesKeyHandler(ctx: FilesShortcutsContext) {
 			ctx.tabHistoryForward();
 		}
 
-		// Jump to tab by number — ⌘1–⌘9, hardcoded (not user-configurable)
+		// Jump to tab by number - ⌘1-⌘9, hardcoded (not user-configurable)
 		if (
 			(IS_MAC ? e.metaKey : e.ctrlKey) &&
 			!e.shiftKey &&

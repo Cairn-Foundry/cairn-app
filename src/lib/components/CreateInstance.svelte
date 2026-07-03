@@ -109,7 +109,7 @@
   <div class="modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">{(t('common.stepOf') as (s: number, t: number) => string)(displayStep, totalSteps)} — {stepMeta[step].label}</div>
+        <div class="step-count">{(t('common.stepOf') as (s: number, t: number) => string)(displayStep, totalSteps)} - {stepMeta[step].label}</div>
         <h3>{stepMeta[step].title}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')}><Icon name="x" size={16}/></button>
