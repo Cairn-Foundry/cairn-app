@@ -47,6 +47,15 @@ pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<P
         .join("file-state.json"))
 }
 
+pub fn instance_terminal_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("terminal-state.json"))
+}
+
 pub fn instance_commit_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")

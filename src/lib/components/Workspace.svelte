@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui.js';
+  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -10,6 +10,7 @@
   import TestsView from '$lib/components/tests/TestsView.svelte';
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
+  import TerminalView from '$lib/components/terminal/TerminalView.svelte';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
   import { shortcuts, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -51,6 +52,7 @@
   function handleQuickOpenFile(path: string) {
     filesView?.openFileByPath(path);
     activeStep.set('files');
+    terminalActive.set(false);
     quickOpenVisible.set(false);
   }
 
@@ -314,9 +316,9 @@
     <aside class="sidebar" class:sidebar-empty={!activeInstance}>
       {#each STEPS as s}
         <button
-          class="step {$activeStep === s.id ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
+          class="step {$activeStep === s.id && !$terminalActive ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
           disabled={!activeInstance}
-          on:click={() => activeStep.set(s.id as any)}
+          on:click={() => { activeStep.set(s.id as any); terminalActive.set(false); }}
         >
           <span class="icon"><Icon name={s.icon} size={20}/></span>
           <span class="label">{s.label}</span>
@@ -327,19 +329,25 @@
       {/each}
       <div class="divider"></div>
       <div class="spacer"></div>
-      <button class="step" aria-label={t('workspace.ariaTerminal') as string}>
+      <button
+        class="step {$terminalActive ? 'active' : ''}"
+        disabled={!activeInstance}
+        aria-label={t('workspace.ariaTerminal') as string}
+        on:click={() => terminalActive.set(true)}
+      >
         <span class="icon"><Icon name="terminal" size={18}/></span>
         <span class="label">{t('workspace.termLabel')}</span>
       </button>
     </aside>
 
     <main class="main">
-      <div class="step-view" class:step-hidden={$activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'review'}><ReviewView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
-      <div class="step-view" class:step-hidden={$activeStep !== 'cicd'}><CiCdView/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'agent'}><AgentView/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'review'}><ReviewView/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'tests'}><TestsView/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); terminalActive.set(false); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'cicd'}><CiCdView/></div>
+      <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">

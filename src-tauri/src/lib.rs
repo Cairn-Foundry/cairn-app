@@ -1,7 +1,7 @@
 pub mod storage;
 pub mod commands;
 
-use commands::AgentState;
+use commands::{AgentState, TerminalState};
 use commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -12,6 +12,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AgentState::new())
+        .manage(TerminalState::new())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -109,6 +110,13 @@ pub fn run() {
             send_message,
             reset_agent_session,
             stop_agent,
+            terminal_create,
+            terminal_write,
+            terminal_resize,
+            terminal_close,
+            terminal_close_all,
+            get_terminal_state,
+            save_terminal_state,
             get_ui_state,
             save_ui_state,
             get_commit_state,

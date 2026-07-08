@@ -80,25 +80,29 @@ impl AgentState {
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct AgentOutputEvent {
-    line:    String,
-    source:  String,
-    summary: Option<String>,
+    line:        String,
+    source:      String,
+    summary:     Option<String>,
+    working_dir: Option<String>,
 }
 
-pub fn emit_agent(app: &tauri::AppHandle, line: String, source: &str) {
+pub fn emit_agent(app: &tauri::AppHandle, line: String, source: &str, working_dir: Option<String>) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line,
         source: source.to_string(),
         summary: None,
+        working_dir,
     });
 }
 
-fn emit_agent_response(app: &tauri::AppHandle, content: String, summary: String) {
+fn emit_agent_response(app: &tauri::AppHandle, content: String, summary: String, working_dir: Option<String>) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line:    content,
         source:  "stdout".to_string(),
         summary: Some(summary),
+        working_dir,
     });
 }
 
@@ -122,7 +126,7 @@ pub async fn send_message(
         .get_id(&key)
         .map(str::to_string);
 
-    emit_agent(&app, message.clone(), "stdin");
+    emit_agent(&app, message.clone(), "stdin", Some(working_dir.clone()));
 
     let handle: RunningChild = Arc::new(RunningAgent {
         child: Mutex::new(None),
@@ -148,7 +152,7 @@ pub async fn send_message(
         match result {
             Ok(response) => {
                 if !response.content.is_empty() {
-                    emit_agent_response(&app_out, response.content, response.summary);
+                    emit_agent_response(&app_out, response.content, response.summary, Some(working_dir.clone()));
                 }
                 if let Some(id) = response.session_id {
                     if let Ok(mut s) = app_out.state::<AgentState>().session.lock() {
@@ -156,9 +160,9 @@ pub async fn send_message(
                     }
                 }
             }
-            Err(e) => emit_agent(&app_out, format!("[error: {e}]"), "system"),
+            Err(e) => emit_agent(&app_out, format!("[error: {e}]"), "system", Some(working_dir.clone())),
         }
-        emit_agent(&app_out, "[done]".into(), "system");
+        emit_agent(&app_out, "[done]".into(), "system", Some(working_dir.clone()));
     });
 
     Ok(())
@@ -172,11 +176,11 @@ pub async fn reset_agent_session(
 ) -> Result<(), String> {
     let state = app.state::<AgentState>();
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    match (provider_id, working_dir) {
-        (Some(p), Some(w)) => session.clear_key(&session_key(&p, &w)),
+    match (&provider_id, &working_dir) {
+        (Some(p), Some(w)) => session.clear_key(&session_key(p, w)),
         _ => session.clear_all(),
     }
-    emit_agent(&app, "[session reset]".into(), "system");
+    emit_agent(&app, "[session reset]".into(), "system", working_dir);
     Ok(())
 }
 
@@ -189,8 +193,8 @@ pub async fn stop_agent(
     let state = app.state::<AgentState>();
 
     // Resolve which running agents to stop: a specific one, or all as a fallback.
-    let keys: Vec<String> = match (provider_id, working_dir) {
-        (Some(p), Some(w)) => vec![session_key(&p, &w)],
+    let keys: Vec<String> = match (&provider_id, &working_dir) {
+        (Some(p), Some(w)) => vec![session_key(p, w)],
         _ => state.running.lock().map_err(|e| e.to_string())?.keys().cloned().collect(),
     };
 
@@ -206,6 +210,6 @@ pub async fn stop_agent(
         }
     }
 
-    emit_agent(&app, "[session stopped]".into(), "system");
+    emit_agent(&app, "[session stopped]".into(), "system", working_dir);
     Ok(())
 }

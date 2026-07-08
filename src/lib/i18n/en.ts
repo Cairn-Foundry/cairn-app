@@ -373,6 +373,17 @@ export const en = {
 		waitingAgent: "Waiting for the agent...",
 	},
 
+	terminal: {
+		title: "Terminals",
+		new: "New terminal",
+		close: "Close terminal",
+		rename: "Rename terminal",
+		renameHint: "Double-click to rename",
+		closeOthers: "Close others",
+		emptyHint: "No terminal open for this instance. Open one to run commands.",
+		noInstance: "No active instance",
+	},
+
 	cicd: {
 		title: "Pipelines",
 		refresh: "Refresh",

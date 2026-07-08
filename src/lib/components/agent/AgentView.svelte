@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick, untrack } from 'svelte';
+  import { get } from 'svelte/store';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Icon from '$lib/components/Icon.svelte';
   import { t, getLocale } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
+  import { activeInstance, instances } from '$lib/stores/instance';
   import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
+  import type { Instance } from '$lib/types/instance';
   import { marked } from 'marked';
 
   marked.use({ async: false, gfm: true });
@@ -30,26 +32,62 @@
     source: 'stdin' | 'stdout' | 'system';
   }
 
-  let providerId = $state(selectableProviders[0].id);
+  interface Conversation {
+    messages: Message[];
+    activity: ActivityEntry[];
+    draft: string;
+    busy: boolean;
+    error: string;
+    providerId: string;
+  }
+
+  let conversations = $state<Record<string, Conversation>>({});
   let providerOpen = $state(false);
-  let messages = $state<Message[]>([]);
-  let activity = $state<ActivityEntry[]>([]);
-  let draft = $state('');
-  let busy = $state(false);
-  let error = $state('');
   let scrollEl: HTMLElement;
   let activityEl: HTMLElement;
   let providerBtnEl: HTMLElement;
-  let textareaEl: HTMLTextAreaElement;
+  let textareaEl = $state<HTMLTextAreaElement>();
   let unlisten: UnlistenFn | undefined;
+
+  let activeId = $derived($activeInstance?.id ?? null);
+  let current = $derived(activeId ? conversations[activeId] : undefined);
+  let currentProvider = $derived(
+    selectableProviders.find((p) => p.id === current?.providerId) ?? selectableProviders[0],
+  );
+
+  function createConversation(inst: Instance): Conversation {
+    return {
+      messages: [{ role: 'system', content: `${t('agent.instanceStarted')} · ${inst.ticket.title}`, time: now() }],
+      activity: [],
+      draft: '',
+      busy: false,
+      error: '',
+      providerId: selectableProviders[0].id,
+    };
+  }
+
+  function ensureConversation(inst: Instance): Conversation {
+    let conv = conversations[inst.id];
+    if (!conv) {
+      conv = createConversation(inst);
+      conversations[inst.id] = conv;
+    }
+    return conv;
+  }
+
+  function conversationForWorkingDir(workingDir?: string | null): Conversation | undefined {
+    if (workingDir) {
+      const inst = get(instances).find((i) => i.worktreePath === workingDir);
+      return inst ? ensureConversation(inst) : undefined;
+    }
+    return current;
+  }
 
   function resizeTextarea() {
     if (!textareaEl) return;
     textareaEl.style.height = 'auto';
     textareaEl.style.height = textareaEl.scrollHeight + 'px';
   }
-
-  let currentProvider = $derived(selectableProviders.find((p) => p.id === providerId) ?? selectableProviders[0]);
 
   function now(): string {
     return new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
@@ -67,37 +105,44 @@
     }
   }
 
-  onMount(async () => {
-    messages = [
-      { role: 'system', content: $activeInstance ? `${t('agent.instanceStarted')} · ${$activeInstance.ticket.title}` : (t('agent.noActiveInstance') as string), time: now() },
-    ];
+  $effect(() => {
+    const inst = $activeInstance;
+    if (!inst) return;
+    if (!untrack(() => conversations[inst.id])) {
+      conversations[inst.id] = createConversation(inst);
+    }
+    tick().then(resizeTextarea);
+  });
 
-    unlisten = await listen<{ line: string; source: string; summary?: string }>('claude-output', (e) => {
-      const { source, line, summary } = e.payload;
+  onMount(async () => {
+    unlisten = await listen<{ line: string; source: string; summary?: string; workingDir?: string }>('claude-output', (e) => {
+      const { source, line, summary, workingDir } = e.payload;
+      const conv = conversationForWorkingDir(workingDir);
+      if (!conv) return;
 
       if (source === 'system') {
         if (line === '[done]' || line === '[session reset]' || line === '[session stopped]') {
-          busy = false;
-          const last = messages.findLast((m) => m.role === 'agent');
+          conv.busy = false;
+          const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
         } else if (line.startsWith('[error:')) {
-          error = line.slice(8, -1);
-          busy = false;
-          const last = messages.findLast((m) => m.role === 'agent');
+          conv.error = line.slice(8, -1);
+          conv.busy = false;
+          const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
         }
-        activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
+        conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
       } else if (source === 'stdout') {
-        const last = messages.findLast((m) => m.role === 'agent' && m.streaming);
+        const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
         if (last) {
           last.content = line;
         } else {
-          messages.push({ role: 'agent', content: line, time: now() });
+          conv.messages.push({ role: 'agent', content: line, time: now() });
         }
-        activity.push({ time: now(), icon: 'sparkles', label: summary || (t('agent.responseReceived') as string), source: 'stdout' });
+        conv.activity.push({ time: now(), icon: 'sparkles', label: summary || (t('agent.responseReceived') as string), source: 'stdout' });
       }
 
-      autoscroll();
+      if (conv === current) autoscroll();
     });
 
     await autoscroll();
@@ -108,51 +153,58 @@
   });
 
   async function send() {
-    if (!draft.trim() || busy || !$activeInstance) return;
+    const inst = $activeInstance;
+    if (!inst) return;
+    const conv = ensureConversation(inst);
+    if (!conv.draft.trim() || conv.busy) return;
 
-    const message = draft.trim();
-    draft = '';
+    const message = conv.draft.trim();
+    conv.draft = '';
     await tick();
     resizeTextarea();
-    error = '';
-    busy = true;
+    conv.error = '';
+    conv.busy = true;
 
     const t_now = now();
-    messages.push({ role: 'user', content: message, time: t_now });
-    messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
-    activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '...' : ''), source: 'stdin' });
+    conv.messages.push({ role: 'user', content: message, time: t_now });
+    conv.messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
+    conv.activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '...' : ''), source: 'stdin' });
 
     await autoscroll();
 
     try {
-      await sendMessage(message, $activeInstance.worktreePath, providerId);
+      await sendMessage(message, inst.worktreePath, conv.providerId);
     } catch (e) {
-      error = String(e);
-      busy = false;
-      const last = messages.findLast((m) => m.role === 'agent' && m.streaming);
+      conv.error = String(e);
+      conv.busy = false;
+      const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
       if (last) last.streaming = false;
     }
   }
 
   async function interrupt() {
-    if (!$activeInstance) return;
+    const inst = $activeInstance;
+    if (!inst || !current) return;
     try {
-      await stopAgent(providerId, $activeInstance.worktreePath);
+      await stopAgent(current.providerId, inst.worktreePath);
     } catch (e) {
-      error = String(e);
+      current.error = String(e);
     }
   }
 
   async function newSession() {
-    error = '';
+    const inst = $activeInstance;
+    if (!inst) return;
+    const conv = ensureConversation(inst);
+    conv.error = '';
     try {
-      if ($activeInstance) await resetAgentSession(providerId, $activeInstance.worktreePath);
-      messages = [
-        { role: 'system', content: $activeInstance ? `${t('agent.sessionReset')} · ${$activeInstance.ticket.title}` : (t('agent.sessionReset') as string), time: now() },
+      await resetAgentSession(conv.providerId, inst.worktreePath);
+      conv.messages = [
+        { role: 'system', content: `${t('agent.sessionReset')} · ${inst.ticket.title}`, time: now() },
       ];
-      activity = [];
+      conv.activity = [];
     } catch (e) {
-      error = String(e);
+      conv.error = String(e);
     }
   }
 
@@ -184,8 +236,8 @@
               {#each selectableProviders as p}
                 <button
                   class="provider-option"
-                  class:active={p.id === providerId}
-                  onclick={() => { providerId = p.id; providerOpen = false; }}
+                  class:active={p.id === current?.providerId}
+                  onclick={() => { if (current) current.providerId = p.id; providerOpen = false; }}
                 >
                   {p.name}
                 </button>
@@ -195,20 +247,26 @@
         </div>
       </div>
       <div class="pane-actions">
-        <button class="btn ghost" onclick={newSession} disabled={busy}>
+        <button class="btn ghost" onclick={newSession} disabled={!current || current.busy}>
           <Icon name="plus" size={13}/> {t('agent.restart')}
         </button>
       </div>
     </div>
 
-    {#if error}
+    {#if current?.error}
       <div style="padding: 6px 14px; background: rgba(255,80,80,.08); border-bottom: 1px solid rgba(255,80,80,.25); color: #ff8080; font-family: var(--font-mono); font-size: 11px;">
-        {error}
+        {current.error}
       </div>
     {/if}
 
     <div class="chat-scroll" bind:this={scrollEl}>
-      {#each messages as m}
+      {#if !current}
+        <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
+          <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
+          {t('agent.noActiveInstance')} · {now()}
+        </div>
+      {/if}
+      {#each current?.messages ?? [] as m}
         {#if m.role === 'system'}
           <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
             <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
@@ -249,14 +307,21 @@
 
     <div class="chat-input-wrap">
       <div class="chat-input">
-        <textarea
-          bind:this={textareaEl}
-          placeholder={!$activeInstance ? (t('agent.noActiveInstance') as string) : busy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
-          bind:value={draft}
-          oninput={resizeTextarea}
-          onkeydown={onKeydown}
-          disabled={busy || !$activeInstance}
-        ></textarea>
+        {#if current}
+          <textarea
+            bind:this={textareaEl}
+            placeholder={current.busy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
+            bind:value={current.draft}
+            oninput={resizeTextarea}
+            onkeydown={onKeydown}
+            disabled={current.busy}
+          ></textarea>
+        {:else}
+          <textarea
+            placeholder={t('agent.noActiveInstance') as string}
+            disabled
+          ></textarea>
+        {/if}
         <div class="chat-input-row">
           <span class="profile-picker"><span class="dot"></span> feature</span>
           {#if $activeInstance}
@@ -264,7 +329,7 @@
           {/if}
           <span class="chip"><Icon name="at" size={11}/> {t('agent.mentionFile')}</span>
           <div class="spacer"></div>
-          {#if busy}
+          {#if current?.busy}
             <button class="btn btn-stop" onclick={interrupt}>
               <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">⌘.</span>
             </button>
@@ -272,7 +337,7 @@
             <button
               class="btn"
               onclick={send}
-              disabled={!$activeInstance || !draft.trim()}
+              disabled={!current || !current.draft.trim()}
             >
               <Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">⌘↵</span>
             </button>
@@ -289,13 +354,13 @@
       <span class="pause"><Icon name="pause" size={11}/> {t('agent.autoScroll')}</span>
     </div>
     <div class="activity-list" bind:this={activityEl}>
-      {#if activity.length === 0}
+      {#if !current || current.activity.length === 0}
         <div style="padding: 16px 12px; color: var(--fg-3); font-size: 12px; font-style: italic;">
           {$activeInstance ? (t('agent.waitingAgent') as string) : (t('agent.noActiveInstance') as string)}
         </div>
       {:else}
-        {#each activity as entry}
-          <div class="act-row" class:live={entry.source === 'stdin' && busy}>
+        {#each current.activity as entry}
+          <div class="act-row" class:live={entry.source === 'stdin' && current.busy}>
             <span class="act-time">{entry.time}</span>
             <span class="act-icon" class:write={entry.source === 'stdout'} class:ok={entry.source === 'system' && entry.label.includes('reset')}>
               <Icon name={entry.icon} size={13}/>

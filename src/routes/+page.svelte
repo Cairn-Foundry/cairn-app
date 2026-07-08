@@ -4,6 +4,7 @@
   import { activeStep, activeScreen, gitLeftTab } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
+  import { initTerminals } from '$lib/stores/terminal';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
@@ -40,6 +41,7 @@
   }
 
   onMount(async () => {
+    initTerminals();
     settings.load();
 
     const saved = await getUiState();

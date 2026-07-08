@@ -8,6 +8,7 @@ import {
 } from "$lib/services/instance-service";
 import type { Instance, TimelineEvent } from "$lib/types/instance";
 import { activateInstance, activeProject } from "./project";
+import { removeInstanceTerminals } from "./terminal";
 
 export const instances = writable<Instance[]>([]);
 export const timeline = writable<TimelineEvent[]>([]);
@@ -83,6 +84,7 @@ export async function removeInstance(
 	id: string,
 	projectId: string,
 ): Promise<void> {
+	await removeInstanceTerminals(id);
 	await deleteInstance(id, projectId);
 	instances.update((list) => list.filter((i) => i.id !== id));
 }

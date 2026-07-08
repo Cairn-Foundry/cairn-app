@@ -385,6 +385,18 @@ export const fr = {
 		waitingAgent: "En attente de l'agent...",
 	},
 
+	terminal: {
+		title: "Terminaux",
+		new: "Nouveau terminal",
+		close: "Fermer le terminal",
+		rename: "Renommer le terminal",
+		renameHint: "Double-cliquez pour renommer",
+		closeOthers: "Fermer les autres",
+		emptyHint:
+			"Aucun terminal ouvert pour cette instance. Ouvrez-en un pour lancer des commandes dans son worktree.",
+		noInstance: "Aucune instance active",
+	},
+
 	cicd: {
 		title: "Pipelines",
 		refresh: "Actualiser",

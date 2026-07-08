@@ -1,0 +1,1 @@
+- [Instance cleanup gap](project_instance-cleanup-gap.md) - removeInstance leaves per-instance terminals/conversations/PTYs uncleaned; watch new per-instance state for leaks
