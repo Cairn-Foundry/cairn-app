@@ -106,6 +106,7 @@ pub fn terminal_create(
         .insert(id.clone(), TerminalSession { writer, master: pair.master, child });
 
     let reader_id = id.clone();
+    let app_out = app.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
         let mut pending: Vec<u8> = Vec::new();
