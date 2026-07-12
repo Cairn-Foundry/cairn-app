@@ -37,6 +37,7 @@ export interface CairnSettings {
 		| "instanceChange"
 		| "manual";
 	gitProfiles: GitProfile[];
+	agentActivityWidth: number;
 }
 
 export function getSettings(): Promise<CairnSettings> {

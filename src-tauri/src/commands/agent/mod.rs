@@ -9,14 +9,9 @@ pub mod providers;
 pub use providers::{ClaudeCliProvider, ProviderRegistry};
 
 pub struct AgentResponse {
-    pub content: String,
-    pub summary: String,
     pub session_id: Option<String>,
 }
 
-/// Shared handle to a running agent subprocess. The provider stores its spawned
-/// child here so `stop_agent` can kill it; `cancelled` distinguishes a
-/// user-requested stop from a genuine failure.
 pub struct RunningAgent {
     pub child: Mutex<Option<Child>>,
     pub cancelled: AtomicBool,
@@ -27,6 +22,7 @@ pub type RunningChild = Arc<RunningAgent>;
 pub trait AgentProvider: Send + Sync {
     fn send(
         &self,
+        app: &tauri::AppHandle,
         message: &str,
         working_dir: &str,
         session_id: Option<&str>,
@@ -34,8 +30,6 @@ pub trait AgentProvider: Send + Sync {
     ) -> Result<AgentResponse, String>;
 }
 
-/// Sessions are keyed per (provider, working_dir) so distinct instances/worktrees
-/// never resume one another's conversation.
 fn session_key(provider_id: &str, working_dir: &str) -> String {
     format!("{provider_id}\u{1f}{working_dir}")
 }
@@ -97,11 +91,11 @@ pub fn emit_agent(app: &tauri::AppHandle, line: String, source: &str, working_di
     });
 }
 
-fn emit_agent_response(app: &tauri::AppHandle, content: String, summary: String, working_dir: Option<String>) {
+pub fn emit_agent_tool(app: &tauri::AppHandle, label: String, tool: &str, working_dir: Option<String>) {
     let _ = app.emit("claude-output", AgentOutputEvent {
-        line:    content,
-        source:  "stdout".to_string(),
-        summary: Some(summary),
+        line:    label,
+        source:  "tool".to_string(),
+        summary: Some(tool.to_string()),
         working_dir,
     });
 }
@@ -137,23 +131,18 @@ pub async fn send_message(
 
     let app_out = app.clone();
     std::thread::spawn(move || {
-        let result = provider.send(&message, &working_dir, session_id.as_deref(), &handle);
+        let result = provider.send(&app_out, &message, &working_dir, session_id.as_deref(), &handle);
 
         if let Ok(mut running) = app_out.state::<AgentState>().running.lock() {
             running.remove(&key);
         }
 
-        // A user-requested stop already notified the frontend; don't emit the
-        // subprocess's (now meaningless) error or partial result on top of it.
         if handle.cancelled.load(Ordering::SeqCst) {
             return;
         }
 
         match result {
             Ok(response) => {
-                if !response.content.is_empty() {
-                    emit_agent_response(&app_out, response.content, response.summary, Some(working_dir.clone()));
-                }
                 if let Some(id) = response.session_id {
                     if let Ok(mut s) = app_out.state::<AgentState>().session.lock() {
                         s.set_id(&key, id);
@@ -192,7 +181,6 @@ pub async fn stop_agent(
 ) -> Result<(), String> {
     let state = app.state::<AgentState>();
 
-    // Resolve which running agents to stop: a specific one, or all as a fallback.
     let keys: Vec<String> = match (&provider_id, &working_dir) {
         (Some(p), Some(w)) => vec![session_key(p, w)],
         _ => state.running.lock().map_err(|e| e.to_string())?.keys().cloned().collect(),

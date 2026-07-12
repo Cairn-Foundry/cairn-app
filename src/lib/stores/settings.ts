@@ -22,6 +22,7 @@ const DEFAULTS: CairnSettings = {
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],
+	agentActivityWidth: 300,
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);

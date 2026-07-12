@@ -5,8 +5,10 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t, getLocale } from '$lib/i18n';
   import { activeInstance, instances } from '$lib/stores/instance';
+  import { settings } from '$lib/stores/settings';
   import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
+  import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
   import type { Instance } from '$lib/types/instance';
   import { marked } from 'marked';
 
@@ -29,7 +31,7 @@
     time: string;
     icon: string;
     label: string;
-    source: 'stdin' | 'stdout' | 'system';
+    source: 'stdin' | 'tool' | 'system';
   }
 
   interface Conversation {
@@ -48,6 +50,17 @@
   let providerBtnEl: HTMLElement;
   let textareaEl = $state<HTMLTextAreaElement>();
   let unlisten: UnlistenFn | undefined;
+  let copiedKey = $state<string | null>(null);
+
+  let activityWidth = $state(300);
+  let isActivityResizing = $state(false);
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
+
+  $effect(() => {
+    const w = $settings.agentActivityWidth;
+    if (!untrack(() => isActivityResizing)) activityWidth = w;
+  });
 
   let activeId = $derived($activeInstance?.id ?? null);
   let current = $derived(activeId ? conversations[activeId] : undefined);
@@ -93,6 +106,46 @@
     return new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
   }
 
+  function iconForTool(tool?: string): string {
+    switch ((tool ?? '').toLowerCase()) {
+      case 'read': return 'file';
+      case 'write':
+      case 'edit':
+      case 'multiedit': return 'edit';
+      case 'bash': return 'terminal';
+      case 'grep':
+      case 'glob': return 'search';
+      default: return 'zap';
+    }
+  }
+
+  async function copyText(text: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedKey = key;
+      setTimeout(() => { if (copiedKey === key) copiedKey = null; }, 1500);
+    } catch {}
+  }
+
+  function startActivityResize(e: PointerEvent) {
+    isActivityResizing = true;
+    resizeStartX = e.clientX;
+    resizeStartWidth = activityWidth;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onActivityResizeMove(e: PointerEvent) {
+    if (!isActivityResizing) return;
+    const delta = resizeStartX - e.clientX;
+    activityWidth = Math.max(240, Math.min(640, resizeStartWidth + delta));
+  }
+
+  function stopActivityResize() {
+    if (!isActivityResizing) return;
+    isActivityResizing = false;
+    settings.save({ agentActivityWidth: Math.round(activityWidth) });
+  }
+
   async function autoscroll() {
     await tick();
     if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
@@ -130,16 +183,17 @@
           conv.busy = false;
           const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
+          conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
         }
-        conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
-      } else if (source === 'stdout') {
+      } else if (source === 'assistant') {
         const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
         if (last) {
-          last.content = line;
+          last.content += line;
         } else {
-          conv.messages.push({ role: 'agent', content: line, time: now() });
+          conv.messages.push({ role: 'agent', content: line, time: now(), streaming: true });
         }
-        conv.activity.push({ time: now(), icon: 'sparkles', label: summary || (t('agent.responseReceived') as string), source: 'stdout' });
+      } else if (source === 'tool') {
+        conv.activity.push({ time: now(), icon: iconForTool(summary), label: line, source: 'tool' });
       }
 
       if (conv === current) autoscroll();
@@ -212,13 +266,25 @@
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       send();
+      return;
+    }
+    
+    if (!IS_MAC && e.ctrlKey && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        document.execCommand(e.shiftKey ? 'redo' : 'undo');
+      } else if (key === 'y') {
+        e.preventDefault();
+        document.execCommand('redo');
+      }
     }
   }
 </script>
 
 <svelte:window onclick={onWindowClick}/>
 
-<div class="agent-split">
+<div class="agent-split" style="grid-template-columns: minmax(0, 1fr) {activityWidth}px;">
   <div class="agent-chat">
     <div class="pane-header">
       <div class="pane-title">
@@ -266,7 +332,7 @@
           {t('agent.noActiveInstance')} · {now()}
         </div>
       {/if}
-      {#each current?.messages ?? [] as m}
+      {#each current?.messages ?? [] as m, i}
         {#if m.role === 'system'}
           <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
             <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
@@ -279,7 +345,7 @@
                 {#if m.role === 'user'}
                   {t('agent.you')}
                 {:else}
-                  <Icon name="sparkles" size={12} style="vertical-align: -1px; margin-right: 4px;"/>Agent
+                  <Icon name="sparkles" size={12}/>Agent
                 {/if}
               </span>
               <span>·</span>
@@ -287,6 +353,15 @@
               {#if m.streaming}
                 <span>·</span>
                 <span style="color: var(--accent)">{t('agent.streaming')}</span>
+              {/if}
+              {#if m.content}
+                <button
+                  class="copy-btn"
+                  title={copiedKey === `${activeId}:${i}` ? (t('common.copied') as string) : (t('common.copy') as string)}
+                  onclick={() => copyText(m.content, `${activeId}:${i}`)}
+                >
+                  <Icon name={copiedKey === `${activeId}:${i}` ? 'check' : 'copy'} size={12}/>
+                </button>
               {/if}
             </div>
             <div class="bubble">
@@ -323,15 +398,11 @@
           ></textarea>
         {/if}
         <div class="chat-input-row">
-          <span class="profile-picker"><span class="dot"></span> feature</span>
-          {#if $activeInstance}
-            <span class="chip"><Icon name="attach" size={11}/> {$activeInstance.ticket.id} · {$activeInstance.ticket.title}</span>
-          {/if}
           <span class="chip"><Icon name="at" size={11}/> {t('agent.mentionFile')}</span>
           <div class="spacer"></div>
           {#if current?.busy}
             <button class="btn btn-stop" onclick={interrupt}>
-              <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">⌘.</span>
+              <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">{MOD_LABEL}.</span>
             </button>
           {:else}
             <button
@@ -339,7 +410,7 @@
               onclick={send}
               disabled={!current || !current.draft.trim()}
             >
-              <Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">⌘↵</span>
+              <Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">{MOD_LABEL}↵</span>
             </button>
           {/if}
         </div>
@@ -348,10 +419,19 @@
   </div>
 
   <div class="activity">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="activity-resize"
+      class:active={isActivityResizing}
+      role="separator"
+      aria-orientation="vertical"
+      onpointerdown={startActivityResize}
+      onpointermove={onActivityResizeMove}
+      onpointerup={stopActivityResize}
+    ></div>
     <div class="activity-head">
-      <span class="live-dot"></span>
+      <Icon name="zap" size={13}/>
       {t('agent.liveActivity')}
-      <span class="pause"><Icon name="pause" size={11}/> {t('agent.autoScroll')}</span>
     </div>
     <div class="activity-list" bind:this={activityEl}>
       {#if !current || current.activity.length === 0}
@@ -362,7 +442,7 @@
         {#each current.activity as entry}
           <div class="act-row" class:live={entry.source === 'stdin' && current.busy}>
             <span class="act-time">{entry.time}</span>
-            <span class="act-icon" class:write={entry.source === 'stdout'} class:ok={entry.source === 'system' && entry.label.includes('reset')}>
+            <span class="act-icon" class:write={entry.source === 'tool'} class:error={entry.source === 'system'}>
               <Icon name={entry.icon} size={13}/>
             </span>
             <div class="act-body">
@@ -439,6 +519,59 @@
   .provider-option.active {
     color: var(--accent);
     background: var(--accent-weak, var(--bg-3));
+  }
+
+  .msg .meta .role {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    margin-left: 2px;
+    color: var(--fg-3);
+    background: transparent;
+    border: none;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s, color 0.1s, background 0.1s;
+  }
+
+  .msg:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { color: var(--fg-0); background: var(--bg-2); }
+
+  .activity { position: relative; }
+
+  .activity-resize {
+    position: absolute;
+    top: 0;
+    left: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 5;
+    touch-action: none;
+  }
+
+  .activity-resize::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: transparent;
+    transition: background 0.1s;
+  }
+
+  .activity-resize:hover::after,
+  .activity-resize.active::after {
+    background: var(--accent-line, var(--stroke-1));
   }
 
 .btn-stop {

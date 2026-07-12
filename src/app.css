@@ -716,18 +716,6 @@ input, textarea { font-family: inherit; color: inherit; }
 .chip:hover { color: var(--fg-0); }
 .chat-input-row .spacer { flex: 1; }
 
-.profile-picker {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 8px;
-  font-size: 11px;
-  color: var(--fg-1);
-  font-family: var(--font-mono);
-  border: 1px solid var(--stroke-0);
-  border-radius: 99px;
-  background: var(--bg-2);
-}
-.profile-picker .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-
 /* Activity feed (right of agent) */
 .activity {
   display: flex; flex-direction: column;
@@ -743,24 +731,7 @@ input, textarea { font-family: inherit; color: inherit; }
   font-weight: 500;
   color: var(--fg-1);
 }
-.live-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 0 4px var(--success-weak);
-  animation: pulse 1.6s infinite;
-}
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 4px var(--success-weak); }
-  50% { box-shadow: 0 0 0 7px oklch(0.74 0.14 150 / 0.1); }
-}
-.activity-head .pause {
-  margin-left: auto;
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; color: var(--fg-2);
-  padding: 3px 8px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--stroke-0);
-}
+.activity-head svg { color: var(--accent); }
 
 .activity-list {
   flex: 1;

@@ -88,8 +88,11 @@ pub struct CairnSettings {
     pub save_on: String,
     #[serde(rename = "gitProfiles", default)]
     pub git_profiles: Vec<GitProfile>,
+    #[serde(rename = "agentActivityWidth", default = "default_agent_activity_width")]
+    pub agent_activity_width: u32,
 }
 
+fn default_agent_activity_width() -> u32 { 300 }
 fn default_sidebar_position() -> String { "left".to_string() }
 fn default_show_whitespace() -> bool { false }
 fn default_save_on() -> String { "blur".to_string() }
@@ -119,6 +122,7 @@ impl Default for CairnSettings {
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),
+            agent_activity_width: default_agent_activity_width(),
         }
     }
 }

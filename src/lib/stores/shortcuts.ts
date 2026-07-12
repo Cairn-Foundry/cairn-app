@@ -6,6 +6,7 @@ import type {
 	ShortcutDef,
 	ShortcutId,
 } from "$lib/types/shortcuts";
+import { IS_MAC } from "$lib/utils/platform";
 
 const d = (id: ShortcutId) => ({
 	label: t(`shortcuts.defs.${id}.label`) as string,
@@ -343,9 +344,6 @@ export const activeShortcuts = derived(settings, ($s) => {
 	}
 	return result;
 });
-
-const IS_MAC =
-	typeof navigator !== "undefined" && navigator.platform.startsWith("Mac");
 
 export function matchesShortcut(
 	e: KeyboardEvent,

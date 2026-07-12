@@ -1,6 +1,7 @@
 import type { FileNode } from "$lib/services/file-service";
 import { matchesShortcut } from "$lib/stores/shortcuts";
 import type { ShortcutBinding, ShortcutId } from "$lib/types/shortcuts";
+import { IS_MAC } from "$lib/utils/platform";
 import {
 	basename,
 	flattenToNodes,
@@ -70,9 +71,6 @@ export interface FilesShortcutsContext {
 	}) => void;
 	expandDir: (path: string) => void;
 }
-
-const IS_MAC =
-	typeof navigator !== "undefined" && navigator.platform.startsWith("Mac");
 
 export function makeFilesKeyHandler(ctx: FilesShortcutsContext) {
 	return async function handleGlobalKey(e: KeyboardEvent) {
