@@ -76,6 +76,8 @@ pub struct CreateInstanceArgs {
     pub branch: Option<String>,
     #[serde(rename = "baseBranch")]
     pub base_branch: Option<String>,
+    #[serde(rename = "linkExisting", default)]
+    pub link_existing: bool,
 }
 
 pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
@@ -101,22 +103,48 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
         let expanded_project = shellexpand::tilde(&args.project_path).into_owned();
 
         let (branch, worktree_path_str) = {
-            let branch = args.branch.clone().ok_or("branch is required")?;
-            let base_branch = args.base_branch.clone().ok_or("baseBranch is required")?;
+            let branch_input = args.branch.clone().ok_or("branch is required")?;
 
             let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-            let base_obj = repo
-                .revparse_single(&format!("refs/heads/{}", base_branch))
-                .or_else(|_| repo.revparse_single(&format!("refs/remotes/{}", base_branch)))
-                .or_else(|_| repo.revparse_single(&base_branch))
-                .map_err(|_| format!("Base branch '{}' not found", base_branch))?;
-            let base_commit = base_obj.peel_to_commit().map_err(|e| e.to_string())?;
+            let (branch, branch_created) = if args.link_existing {
+                if repo.find_branch(&branch_input, BranchType::Local).is_ok() {
+                    (branch_input.clone(), false)
+                } else {
+                    let remote_obj = repo
+                        .revparse_single(&format!("refs/remotes/{}", branch_input))
+                        .map_err(|_| format!("Branch '{}' not found", branch_input))?;
+                    let remote_commit = remote_obj.peel_to_commit().map_err(|e| e.to_string())?;
+                    let local_name = branch_input
+                        .splitn(2, '/')
+                        .nth(1)
+                        .unwrap_or(&branch_input)
+                        .to_string();
+                    if repo.find_branch(&local_name, BranchType::Local).is_ok() {
+                        (local_name, false)
+                    } else {
+                        let mut local = repo
+                            .branch(&local_name, &remote_commit, false)
+                            .map_err(|e| format!("Failed to create branch '{}': {}", local_name, e))?;
+                        let _ = local.set_upstream(Some(&branch_input));
+                        (local_name, true)
+                    }
+                }
+            } else {
+                let base_branch = args.base_branch.clone().ok_or("baseBranch is required")?;
 
-            let branch_created = match repo.branch(&branch, &base_commit, false) {
-                Ok(_) => true,
-                Err(e) if e.code() == git2::ErrorCode::Exists => false,
-                Err(e) => return Err(format!("Failed to create branch '{}': {}", branch, e)),
+                let base_obj = repo
+                    .revparse_single(&format!("refs/heads/{}", base_branch))
+                    .or_else(|_| repo.revparse_single(&format!("refs/remotes/{}", base_branch)))
+                    .or_else(|_| repo.revparse_single(&base_branch))
+                    .map_err(|_| format!("Base branch '{}' not found", base_branch))?;
+                let base_commit = base_obj.peel_to_commit().map_err(|e| e.to_string())?;
+
+                match repo.branch(&branch_input, &base_commit, false) {
+                    Ok(_) => (branch_input.clone(), true),
+                    Err(e) if e.code() == git2::ErrorCode::Exists => (branch_input.clone(), false),
+                    Err(e) => return Err(format!("Failed to create branch '{}': {}", branch_input, e)),
+                }
             };
 
             let slug = branch.replace('/', "-");

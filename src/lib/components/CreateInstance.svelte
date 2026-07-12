@@ -11,12 +11,14 @@
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
-  // step: 0 = ticket, 1 = git config
+  // step: 0 = ticket, 1 = mode, 2 = git config
   let step = 0;
+  let mode: 'create' | 'existing' = 'create';
   let ticketId = '';
   let ticketTitle = '';
   let branchName = '';
   let baseBranch = 'main';
+  let existingBranch = '';
   let availableBranches: string[] = [];
   let remoteBranches: string[] = [];
   let branchSearch = '';
@@ -60,28 +62,43 @@
     prevSlug = generated;
   }
 
-  $: worktreePath = `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`;
+  $: existingLocalName = remoteBranches.includes(existingBranch)
+    ? existingBranch.split('/').slice(1).join('/')
+    : existingBranch;
 
-  $: totalSteps = 2;
+  $: effectiveBranch = mode === 'create' ? branchName : existingLocalName;
+
+  $: worktreePath = `~/.cairn/worktrees/${effectiveBranch.replace(/\//g, '-')}`;
+
+  $: totalSteps = 3;
 
   $: displayStep = step + 1;
 
   const stepMeta: Record<number, { label: string; title: string }> = {
     0: { label: t('createInstance.stepLabels.ticket') as string, title: t('createInstance.stepTitles.ticket') as string },
-    1: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
+    1: { label: t('createInstance.stepLabels.mode') as string, title: t('createInstance.stepTitles.mode') as string },
+    2: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
   };
 
-  $: duplicateBranch = branchName.trim().length > 0
+  $: duplicateBranch = mode === 'create'
+    && branchName.trim().length > 0
     && $instances.some(i => i.branch === branchName.trim());
+
+  $: existingInUse = mode === 'existing'
+    && existingLocalName.length > 0
+    && $instances.some(i => i.branch === existingLocalName);
 
   $: canNext =
     step === 0 ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
-    step === 1 ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch :
+    step === 1 ? isGitRepo :
+    step === 2 ? (mode === 'create'
+      ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch
+      : isGitRepo && existingBranch.length > 0 && !existingInUse) :
     true;
 
   function next() {
     error = '';
-    step = Math.min(1, step + 1);
+    step = Math.min(2, step + 1);
   }
 
   function back() {
@@ -89,7 +106,7 @@
     step = Math.max(0, step - 1);
   }
 
-  $: dots = [0, 1];
+  $: dots = [0, 1, 2];
 
   async function handleCreate() {
     if (!$activeProject) return;
@@ -103,8 +120,9 @@
         projectId: $activeProject.id,
         projectPath: $activeProject.path,
         ticket: { id: ticketId.trim(), title: ticketTitle.trim() },
-        branch: branchName.trim(),
-        baseBranch,
+        ...(mode === 'create'
+          ? { branch: branchName.trim(), baseBranch, linkExisting: false }
+          : { branch: existingBranch, baseBranch: existingLocalName, linkExisting: true }),
       });
       dispatch('create', { instanceId: instance.id });
     } catch (err) {
@@ -143,14 +161,35 @@
         </div>
       {/if}
 
-      {#if step === 1 && !isGitRepo}
-        <div class="info-box">
-          <div class="info-icon"><Icon name="info" size={14}/></div>
-          <div>{t('createInstance.notGitRepo')}</div>
-        </div>
+      {#if step === 1}
+        {#if isGitRepo}
+          <div class="mode-grid">
+            <button
+              class="mode-card {mode === 'create' ? 'active' : ''}"
+              on:click={() => mode = 'create'}
+            >
+              <span class="mode-icon"><Icon name="plus" size={22}/></span>
+              <span class="mode-label">{t('createInstance.createBranch')}</span>
+              <span class="mode-desc">{t('createInstance.createBranchDesc')}</span>
+            </button>
+            <button
+              class="mode-card {mode === 'existing' ? 'active' : ''}"
+              on:click={() => mode = 'existing'}
+            >
+              <span class="mode-icon"><Icon name="branch" size={22}/></span>
+              <span class="mode-label">{t('createInstance.existingBranch')}</span>
+              <span class="mode-desc">{t('createInstance.existingBranchDesc')}</span>
+            </button>
+          </div>
+        {:else}
+          <div class="info-box">
+            <div class="info-icon"><Icon name="info" size={14}/></div>
+            <div>{t('createInstance.notGitRepo')}</div>
+          </div>
+        {/if}
       {/if}
 
-      {#if step === 1 && isGitRepo}
+      {#if step === 2 && mode === 'create'}
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
@@ -241,6 +280,96 @@
         </div>
       {/if}
 
+      {#if step === 2 && mode === 'existing'}
+        <div class="form-row">
+          <div class="field-label">{t('createInstance.selectExistingBranch')}</div>
+          {#if availableBranches.length > 0 || remoteBranches.length > 0}
+            {@const localMatches = availableBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const remoteMatches = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
+            <div class="branch-list-wrap">
+              <div class="branch-search-row">
+                <Icon name="search" size={13}/>
+                <input
+                  class="branch-search"
+                  type="text"
+                  bind:value={branchSearch}
+                  placeholder={t('createInstance.filterBranches') as string}
+                  autocomplete="off"
+                />
+                <button
+                  class="branch-refresh"
+                  type="button"
+                  title={t('createInstance.refreshBranches') as string}
+                  disabled={refreshingBranches}
+                  on:click={loadBranchList}
+                >
+                  {#if refreshingBranches}
+                    <Spinner size={12} trackColor="var(--stroke-1)" color="var(--accent)"/>
+                  {:else}
+                    <Icon name="refresh" size={13}/>
+                  {/if}
+                </button>
+              </div>
+              <div class="branch-list">
+                {#if localMatches.length === 0 && remoteMatches.length === 0}
+                  <div class="branch-empty">{(t('createInstance.noBranchesMatch') as (q: string) => string)(branchSearch)}</div>
+                {/if}
+                {#if localMatches.length > 0}
+                  <div class="branch-group-label">{t('createInstance.localBranches')}</div>
+                  {#each localMatches as b}
+                    {@const inUse = $instances.some(i => i.branch === b)}
+                    <button
+                      class="branch-item {existingBranch === b ? 'active' : ''}"
+                      disabled={inUse}
+                      title={inUse ? (t('createInstance.branchInUse') as (name: string) => string)(b) : ''}
+                      on:click={() => existingBranch = b}
+                    >
+                      <Icon name="branch" size={13}/>
+                      <span class="branch-name">{b}</span>
+                      {#if existingBranch === b}<Icon name="check" size={12}/>{/if}
+                    </button>
+                  {/each}
+                {/if}
+                {#if remoteMatches.length > 0}
+                  <div class="branch-group-label">{t('createInstance.remoteBranches')}</div>
+                  {#each remoteMatches as b}
+                    <button
+                      class="branch-item {existingBranch === b ? 'active' : ''}"
+                      on:click={() => existingBranch = b}
+                    >
+                      <Icon name="branch" size={13}/>
+                      <span class="branch-name">{b}</span>
+                      {#if existingBranch === b}<Icon name="check" size={12}/>{/if}
+                    </button>
+                  {/each}
+                {/if}
+              </div>
+            </div>
+          {:else}
+            <div class="info-box">
+              <div class="info-icon"><Icon name="info" size={14}/></div>
+              <div>{t('createInstance.noExistingBranches')}</div>
+            </div>
+          {/if}
+          {#if existingInUse}
+            <div class="field-error">
+              <Icon name="info" size={12}/>
+              {(t('createInstance.branchInUse') as (name: string) => string)(existingLocalName)}
+            </div>
+          {/if}
+        </div>
+        {#if existingBranch.length > 0}
+          <div class="info-box">
+            <div class="info-icon"><Icon name="info" size={14}/></div>
+            <div>
+              <strong style="color: var(--fg-0)">Cairn</strong> {t('createInstance.worktreeInfoPrefix')}
+              <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
+              {t('createInstance.worktreeInfoSuffix')}
+            </div>
+          </div>
+        {/if}
+      {/if}
+
       {#if error}
         <div class="error-box">{error}</div>
       {/if}
@@ -257,7 +386,7 @@
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={creating}>{t('common.back')}</button>
       {/if}
-      {#if step < 1}
+      {#if step < 2}
         <button
           class="btn primary"
           disabled={!canNext}
@@ -283,6 +412,56 @@
   :global(input.input-error) {
     border-color: var(--danger, oklch(0.62 0.18 15)) !important;
     box-shadow: 0 0 0 3px var(--danger-weak, oklch(0.28 0.06 15));
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mode-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--fg-1);
+  }
+
+  .mode-card:hover {
+    border-color: var(--fg-3);
+    background: var(--bg-2);
+  }
+
+  .mode-card.active {
+    border-color: var(--accent);
+    background: var(--accent-weak);
+  }
+
+  .mode-icon {
+    color: var(--fg-2);
+    margin-bottom: 2px;
+  }
+
+  .mode-card.active .mode-icon { color: var(--accent); }
+
+  .mode-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .mode-desc {
+    font-size: 11px;
+    color: var(--fg-3);
+    line-height: 1.5;
   }
 
   .field-error {
@@ -414,6 +593,8 @@
   .branch-item:hover { background: var(--bg-3); color: var(--fg-0); }
   .branch-item.active { background: var(--accent-weak); color: var(--fg-0); }
   .branch-item.active :global(svg) { color: var(--accent); }
+  .branch-item:disabled { opacity: 0.45; cursor: not-allowed; }
+  .branch-item:disabled:hover { background: none; color: var(--fg-2); }
   .branch-name { flex: 1; }
 
   /* Loading overlay */

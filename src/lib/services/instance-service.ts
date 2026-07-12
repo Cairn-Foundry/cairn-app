@@ -8,6 +8,7 @@ export interface CreateInstanceArgs {
 	ticket: { id: string; title: string };
 	branch?: string;
 	baseBranch?: string;
+	linkExisting?: boolean;
 }
 
 export async function listInstances(projectId: string): Promise<Instance[]> {

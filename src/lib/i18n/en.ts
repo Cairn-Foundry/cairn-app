@@ -71,12 +71,22 @@ export const en = {
 	createInstance: {
 		stepLabels: {
 			ticket: "Ticket",
+			mode: "Mode",
 			branch: "Branch",
 		},
 		stepTitles: {
 			ticket: "Describe the work",
+			mode: "Choose a branch mode",
 			branch: "Shape the worktree",
 		},
+		createBranch: "Create a branch",
+		createBranchDesc: "Start a new branch from a base branch.",
+		existingBranch: "Use an existing branch",
+		existingBranchDesc: "Attach the instance to a branch that already exists.",
+		selectExistingBranch: "Existing branch",
+		noExistingBranches: "This project has no branches to link yet.",
+		branchInUse: (name: string) =>
+			`Branch ${name} is already linked to another instance.`,
 		ticketId: "Ticket ID",
 		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Title",
