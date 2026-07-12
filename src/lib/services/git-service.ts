@@ -50,6 +50,13 @@ export async function getStatus(worktreePath: string): Promise<GitFileStatus> {
 	return invoke("git_status", { worktreePath });
 }
 
+export async function checkIgnore(
+	worktreePath: string,
+	paths: string[],
+): Promise<string[]> {
+	return invoke("git_check_ignore", { worktreePath, paths });
+}
+
 export async function getDiffUnstaged(
 	worktreePath: string,
 ): Promise<GitFileDiff[]> {
@@ -205,8 +212,13 @@ export async function getRemoteStatus(
 export async function getLog(
 	worktreePath: string,
 	limit = 50,
+	offset = 0,
 ): Promise<GitCommit[]> {
-	return invoke("git_log", { worktreePath, limit });
+	return invoke("git_log", { worktreePath, limit, offset });
+}
+
+export async function getHeadMessage(worktreePath: string): Promise<string> {
+	return invoke("git_head_message", { worktreePath });
 }
 
 export type GitGraphCommit = {
@@ -221,8 +233,10 @@ export type GitGraphCommit = {
 
 export async function getGraph(
 	worktreePath: string,
+	limit = 200,
+	offset = 0,
 ): Promise<GitGraphCommit[]> {
-	return invoke("git_graph", { worktreePath });
+	return invoke("git_graph", { worktreePath, limit, offset });
 }
 
 export async function getDiffCommit(

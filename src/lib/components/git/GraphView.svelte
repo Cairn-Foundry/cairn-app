@@ -3,18 +3,42 @@
   import type { GitGraphCommit } from '$lib/services/git-service';
   import type { Instance } from '$lib/types/instance';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
 
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
   export let instances: Instance[] = [];
   export let selectedHash = '';
+  export let hasMore = false;
 
-  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit }>();
+  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean }>();
+
+  let isLoadingMore = false;
+  let lastCount = 0;
+  $: if (commits.length !== lastCount) { lastCount = commits.length; isLoadingMore = false; }
+
+  function handleScroll(e: Event) {
+    if (isLoadingMore || !hasMore) return;
+    const el = e.currentTarget as HTMLElement;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+      isLoadingMore = true;
+      dispatch('loadMore');
+    }
+  }
 
   $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
 
   let graphSearch = '';
+
+  let searchActive = false;
+  $: {
+    const active = graphSearch.trim().length > 0;
+    if (active !== searchActive) {
+      searchActive = active;
+      dispatch('searchToggle', active);
+    }
+  }
 
   $: processedCommits = (() => {
     if (!graphSearch.trim()) return commits;
@@ -225,7 +249,7 @@
     </div>
   </div>
 
-  <div class="graph-scroll">
+  <div class="graph-scroll" on:scroll={handleScroll}>
     {#each rows as row}
       {@const chips = parseRefs(row.commit.refs)}
       {@const isCurrent = row.commit.refs.some(r =>
@@ -310,6 +334,10 @@
       <div class="graph-empty">{t('git.noHistory')}</div>
     {:else if rows.length === 0}
       <div class="graph-empty">{t('git.graphNoResults')}</div>
+    {:else if hasMore && !graphSearch.trim()}
+      <div class="graph-loading-more">
+        <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+      </div>
     {/if}
   </div>
 </div>
@@ -544,6 +572,13 @@
     font-size: 10px;
     font-family: var(--font-mono);
     color: var(--fg-4);
+  }
+
+  .graph-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
   }
 
   .graph-empty {

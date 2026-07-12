@@ -228,19 +228,17 @@
         on:click={() => selectStash(stash)}
         on:keydown={(e) => e.key === 'Enter' && selectStash(stash)}
       >
-        <div class="stash-item-main">
-          <span class="stash-index">{stash.index}</span>
-          <div class="stash-info">
-            <span class="stash-message">{stash.message || stash.name}</span>
-            {#if stash.branch}
-              <span class="stash-branch">
-                <Icon name="branch" size={9}/>
-                {stash.branch}
-              </span>
-            {/if}
-          </div>
-          <span class="stash-date">{relativeTime(stash.date)}</span>
+        <span class="stash-index">{stash.index}</span>
+        <div class="stash-info">
+          <span class="stash-message">{stash.message || stash.name}</span>
+          {#if stash.branch}
+            <span class="stash-branch">
+              <Icon name="branch" size={9}/>
+              {stash.branch}
+            </span>
+          {/if}
         </div>
+        <span class="stash-date">{relativeTime(stash.date)}</span>
         <div class="stash-item-actions">
           {#if loadingIndex === stash.index}
             <Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)"/>
@@ -519,22 +517,16 @@
   /* Stash item */
   .stash-item {
     display: flex;
-    flex-direction: column;
-    padding: 8px 12px;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
     border-bottom: 1px solid var(--stroke-0);
     cursor: pointer;
     transition: background .1s;
-    gap: 5px;
+    min-width: 0;
   }
   .stash-item:hover { background: var(--bg-1); }
   .stash-item.is-selected { background: var(--bg-2); }
-
-  .stash-item-main {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
 
   .stash-index {
     font-size: 10px;
@@ -584,19 +576,13 @@
     white-space: nowrap;
   }
 
-  /* Actions row - hidden until hover/selection */
+  /* Actions */
   .stash-item-actions {
     display: flex;
     align-items: center;
     gap: 4px;
     justify-content: flex-end;
-    opacity: 0;
-    transition: opacity .1s;
-    height: 22px;
-  }
-  .stash-item:hover .stash-item-actions,
-  .stash-item.is-selected .stash-item-actions {
-    opacity: 1;
+    flex-shrink: 0;
   }
 
   .stash-action-btn {

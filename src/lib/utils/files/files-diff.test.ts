@@ -9,6 +9,7 @@ vi.mock("$lib/services/file-service", () => ({
 
 vi.mock("$lib/services/git-service", () => ({
 	getFileAtHead: vi.fn().mockResolvedValue(""),
+	checkIgnore: vi.fn().mockResolvedValue([]),
 }));
 
 describe("emptyDiffState", () => {
@@ -26,9 +27,9 @@ describe("loadPaneBase", () => {
 		expect(gitService.getFileAtHead).not.toHaveBeenCalled();
 	});
 
-	it("returns empty state for untracked files without calling git", async () => {
+	it("suppresses the gutter (null base) for untracked files without calling git", async () => {
 		const state = await loadPaneBase("/wt", "file.ts", "untracked");
-		expect(state).toEqual(emptyDiffState());
+		expect(state.baseContent).toBeNull();
 		expect(gitService.getFileAtHead).not.toHaveBeenCalled();
 	});
 
@@ -43,6 +44,18 @@ describe("loadPaneBase", () => {
 		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce("clean");
 		const state = await loadPaneBase("/wt", "file.ts", undefined);
 		expect(state.baseContent).toBe("clean");
+	});
+
+	it("suppresses the gutter (null base) for ignored files", async () => {
+		vi.mocked(gitService.checkIgnore).mockResolvedValueOnce([".env"]);
+		const state = await loadPaneBase("/wt", ".env", undefined);
+		expect(state.baseContent).toBeNull();
+	});
+
+	it("normalizes CRLF HEAD content to LF so it matches the editor buffer", async () => {
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce("a\r\nb\r\nc");
+		const state = await loadPaneBase("/wt", "file.ts", "modified");
+		expect(state.baseContent).toBe("a\nb\nc");
 	});
 
 	it("falls back to empty base when git show fails", async () => {

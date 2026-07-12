@@ -1,22 +1,26 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher, tick } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
-  import InlineDiff from '$lib/components/review/InlineDiff.svelte';
+  import GitDiff from '$lib/components/git/GitDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
-  import { langFromPath, readFile, isBinaryPath } from '$lib/services/file-service';
-  import { getDiffCommit } from '$lib/services/git-service';
+  import { readFile, isBinaryPath } from '$lib/services/file-service';
+  import { getDiffCommit, checkIgnore } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
-  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { t } from '$lib/i18n';
   import {
     git,
     refreshStatus,
     refreshLog,
+    loadMoreLog,
+    loadAllLog,
     refreshGraph,
+    loadMoreGraph,
+    loadAllGraph,
     refreshStashes,
     getStashDiff,
+    getHeadCommitMessage,
     stageFile,
     stageFiles,
     unstageFile,
@@ -28,6 +32,7 @@
     pushBranch,
     pushStash,
     setCommitMessage,
+    setCommitBody,
     revertCommit,
     clearGitError,
   } from '$lib/stores/git';
@@ -58,8 +63,7 @@
     file: string;
     basename: string;
     dirpath: string;
-    oldContent: string;
-    newContent: string;
+    hunks: GitDiffHunk[];
     hasDiff: boolean;
     filePath: string;
     status: string;
@@ -84,45 +88,47 @@
     return parts.length > 1 ? parts.slice(0, -1).join('/') + '/' : '';
   }
 
-  function buildFileCards(
-    statusEntries: [string, string][],
-    diffs: typeof state.unstagedDiffs,
-    untracked: Record<string, string> = {},
-  ): FileCard[] {
-    const byPath = new Map(diffs.map(f => [f.filePath, f]));
-    const sorted = [...statusEntries].sort(([a], [b]) => basename(a).localeCompare(basename(b)));
-    return sorted.map(([filePath, status]) => {
-      const lines = (byPath.get(filePath)?.hunks ?? []).flatMap(h => h.lines);
-      let oldContent = lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n');
-      let newContent = lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n');
-      let hasDiff = lines.length > 0;
-      let added = lines.filter(l => l.kind === 'add').length;
-      let removed = lines.filter(l => l.kind === 'remove').length;
-      // Untracked files have no diff hunks - show their content as all-added.
-      if (!hasDiff && status === 'untracked' && filePath in untracked) {
-        oldContent = '';
-        newContent = untracked[filePath];
-        hasDiff = newContent.length > 0;
-        added = newContent ? newContent.split('\n').length : 0;
-        removed = 0;
-      }
-      return {
-        file: filePath,
-        basename: basename(filePath),
-        dirpath: dirpath(filePath),
-        oldContent,
-        newContent,
-        hasDiff,
-        filePath,
-        status,
-        added,
-        removed,
-      };
-    });
+  function statFromHunks(hunks: GitDiffHunk[]) {
+    const lines = hunks.flatMap(h => h.lines);
+    return {
+      added: lines.filter(l => l.kind === 'add').length,
+      removed: lines.filter(l => l.kind === 'remove').length,
+      hasDiff: lines.length > 0,
+    };
   }
 
-  const isStaged = (s: string) => s.startsWith('staged-');
+  function makeCard(filePath: string, hunks: GitDiffHunk[], status: string): FileCard {
+    const { added, removed, hasDiff } = statFromHunks(hunks);
+    return {
+      file: filePath,
+      basename: basename(filePath),
+      dirpath: dirpath(filePath),
+      hunks,
+      hasDiff,
+      filePath,
+      status,
+      added,
+      removed,
+    };
+  }
 
+  function unstagedStatus(hunks: GitDiffHunk[]): string {
+    const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
+    const hasAdd = changed.some(l => l.kind === 'add');
+    const hasRemove = changed.some(l => l.kind === 'remove');
+    return hasRemove && !hasAdd ? 'deleted' : 'modified';
+  }
+
+  function untrackedHunks(content: string): GitDiffHunk[] {
+    if (!content) return [];
+    const lines = content.replace(/\n$/, '').split('\n');
+    return [{
+      header: `@@ -0,0 +1,${lines.length} @@`,
+      lines: lines.map(l => ({ kind: 'add' as const, content: l })),
+    }];
+  }
+
+  let untrackedPaths: string[] = [];
   let untrackedContent: Record<string, string> = {};
 
   $: void loadUntrackedContent(state.status, instance?.worktreePath ?? null);
@@ -132,33 +138,43 @@
     wt: string | null,
   ): Promise<void> {
     if (!wt) {
-      if (Object.keys(untrackedContent).length) untrackedContent = {};
+      untrackedPaths = [];
+      untrackedContent = {};
       return;
     }
-    const paths = Object.entries(status)
-      .filter(([p, s]) => s === 'untracked' && !isBinaryPath(p))
+    const all = Object.entries(status)
+      .filter(([, s]) => s === 'untracked')
       .map(([p]) => p);
+    const ignored = new Set(await checkIgnore(wt, all).catch(() => []));
+    const visible = all.filter(p => !ignored.has(p));
+    untrackedPaths = visible;
     const next: Record<string, string> = {};
-    for (const p of paths) {
+    for (const p of visible) {
+      if (isBinaryPath(p)) continue;
       next[p] = (await readFile(`${wt}/${p}`).catch(() => '')) ?? '';
     }
     untrackedContent = next;
   }
 
-  $: unstagedCards = buildFileCards(
-    Object.entries(state.status).filter(([, s]) => !isStaged(s)),
-    state.unstagedDiffs,
-    untrackedContent,
-  );
+  $: unstagedCards = (() => {
+    const cards = state.unstagedDiffs.map(f =>
+      makeCard(f.filePath, f.hunks, unstagedStatus(f.hunks)),
+    );
+    const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
+    for (const p of untrackedPaths) {
+      if (seen.has(p)) continue;
+      cards.push(makeCard(p, untrackedHunks(untrackedContent[p] ?? ''), 'untracked'));
+    }
+    return cards.sort((a, b) => a.basename.localeCompare(b.basename));
+  })();
 
   $: filteredUnstagedCards = $currentProjectViewState.gitChangesSearch.trim()
     ? unstagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitChangesSearch.toLowerCase()))
     : unstagedCards;
 
-  $: stagedCards = buildFileCards(
-    Object.entries(state.status).filter(([, s]) => isStaged(s)),
-    state.stagedDiffs,
-  );
+  $: stagedCards = state.stagedDiffs
+    .map(f => makeCard(f.filePath, f.hunks, diffStatus(f.hunks)))
+    .sort((a, b) => a.basename.localeCompare(b.basename));
 
   $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()
     ? stagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitStagedSearch.toLowerCase()))
@@ -197,18 +213,17 @@
   }
 
   $: commitDiffCards = selectedCommitDiff.map(f => {
-    const lines = f.hunks.flatMap(h => h.lines);
+    const { added, removed, hasDiff } = statFromHunks(f.hunks);
     return {
       filePath: f.filePath,
       file: f.filePath,
       basename: basename(f.filePath),
       dirpath: dirpath(f.filePath),
-      oldContent: lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n'),
-      newContent: lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n'),
-      hasDiff: lines.length > 0,
+      hunks: f.hunks,
+      hasDiff,
       status: diffStatus(f.hunks),
-      added: lines.filter(l => l.kind === 'add').length,
-      removed: lines.filter(l => l.kind === 'remove').length,
+      added,
+      removed,
     };
   });
 
@@ -418,18 +433,17 @@
   let isLoadingStashDiff = false;
 
   $: stashDiffCards = stashDiffFiles.map(f => {
-    const lines = f.hunks.flatMap(h => h.lines);
+    const { added, removed, hasDiff } = statFromHunks(f.hunks);
     return {
       filePath: f.filePath,
       file: f.filePath,
       basename: basename(f.filePath),
       dirpath: dirpath(f.filePath),
-      oldContent: lines.filter(l => l.kind !== 'add').map(l => l.content).join('\n'),
-      newContent: lines.filter(l => l.kind !== 'remove').map(l => l.content).join('\n'),
-      hasDiff: lines.length > 0,
+      hunks: f.hunks,
+      hasDiff,
       status: diffStatus(f.hunks),
-      added: lines.filter(l => l.kind === 'add').length,
-      removed: lines.filter(l => l.kind === 'remove').length,
+      added,
+      removed,
     };
   });
 
@@ -466,16 +480,25 @@
     return d < 30 ? `${d}d` : new Date(dateStr).toLocaleDateString();
   }
 
+  let isLoadingMoreLog = false;
+  async function handleLogScroll(e: Event) {
+    if (isLoadingMoreLog || !state.logHasMore) return;
+    const el = e.currentTarget as HTMLElement;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
+      isLoadingMoreLog = true;
+      try {
+        await loadMoreLog();
+      } finally {
+        isLoadingMoreLog = false;
+      }
+    }
+  }
+
   $: aheadCount = state.remoteStatus?.ahead ?? 0;
-  // The ahead commits are the first `aheadCount` commits ON THE CURRENT BRANCH,
-  // not the first entries of the all-branches log.
   $: aheadHashes = new Set(
     state.log.filter(c => c.onCurrentBranch).slice(0, aheadCount).map(c => c.hash),
   );
 
-  // The stash list is re-fetched after every stash mutation, and pop/drop/rename
-  // renumber indices. Keep the open selection pointing at the same stash (or
-  // clear it if that stash is gone) so the diff panel never shows a stale one.
   $: reconcileSelectedStash($git.stashes);
   function reconcileSelectedStash(list: GitStash[]) {
     const sel = selectedStash;
@@ -504,12 +527,22 @@
   })();
 
   let lastWorktreePath = '';
+  let logSearchLoaded = false;
+  let graphSearchActive = false;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   onMount(() => {
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
       refreshStatus();
     }
+    pollTimer = setInterval(() => {
+      if (instance?.worktreePath) refreshStatus(true);
+    }, 5000);
+  });
+
+  onDestroy(() => {
+    if (pollTimer) clearInterval(pollTimer);
   });
 
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {
@@ -520,11 +553,24 @@
 
   $: if ($activeStep === 'git' && instance?.worktreePath) {
     refreshStatus();
-    refreshLog();
-    if ($gitLeftTab === 'graph') refreshGraph();
+    if (!logSearchLoaded) refreshLog();
+    if ($gitLeftTab === 'graph' && !graphSearchActive) refreshGraph();
   }
 
-  $: stagedCount = Object.values(state.status).filter(s => isStaged(s)).length;
+  $: syncLogSearchMode($currentProjectViewState.gitLogSearch);
+  function syncLogSearchMode(q: string) {
+    const active = q.trim().length > 0;
+    if (active && !logSearchLoaded) { logSearchLoaded = true; loadAllLog(); }
+    else if (!active && logSearchLoaded) { logSearchLoaded = false; refreshLog(); }
+  }
+
+  function handleGraphSearchToggle(active: boolean) {
+    graphSearchActive = active;
+    if (active) loadAllGraph();
+    else refreshGraph();
+  }
+
+  $: stagedCount = stagedCards.length;
   $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
 
   let showOptions = false;
@@ -589,9 +635,17 @@
   async function toggleAmend() {
     amendMode = !amendMode;
     if (amendMode) {
-      await refreshLog();
-      const lastMsg = $git.log[0]?.message ?? '';
-      if (lastMsg) setCommitMessage(lastMsg);
+      const full = await getHeadCommitMessage();
+      if (full) {
+        const nl = full.indexOf('\n');
+        if (nl === -1) {
+          setCommitMessage(full);
+          setCommitBody('');
+        } else {
+          setCommitMessage(full.slice(0, nl));
+          setCommitBody(full.slice(nl + 1).replace(/^\n+/, ''));
+        }
+      }
     }
   }
 
@@ -608,11 +662,13 @@
   }
 
   function buildCommitMessage(): string {
+    let title = state.commitMessage;
     const ticketId = instance?.ticket?.id;
     if (appendTicketId && ticketId) {
-      return `${state.commitMessage}, ${ticketId}`;
+      title = `${title}, ${ticketId}`;
     }
-    return state.commitMessage;
+    const body = state.commitBody.trim();
+    return body ? `${title}\n\n${body}` : title;
   }
 
   async function doCommit() {
@@ -786,9 +842,7 @@
               </div>
               {#if h.hasDiff}
                 <div class="card-diff">
-                  {#key h.filePath}
-                    <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
-                  {/key}
+                  <GitDiff hunks={h.hunks} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -825,7 +879,7 @@
           {/if}
         </div>
       </div>
-      <div class="log-list">
+      <div class="log-list" on:scroll={handleLogScroll}>
         {#if state.log.length === 0}
           <div class="empty-hint">{t('git.noHistory')}</div>
         {:else if filteredLog.length === 0}
@@ -851,6 +905,11 @@
               </div>
             </div>
           {/each}
+          {#if state.logHasMore && !$currentProjectViewState.gitLogSearch.trim()}
+            <div class="log-loading-more">
+              <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+            </div>
+          {/if}
         {/if}
       </div>
     {:else if $gitLeftTab === 'graph'}
@@ -859,6 +918,9 @@
         currentBranch={state.currentBranch}
         instances={projectInstances}
         selectedHash={selectedCommit?.hash ?? ''}
+        hasMore={state.graphHasMore}
+        on:loadMore={loadMoreGraph}
+        on:searchToggle={(e) => handleGraphSearchToggle(e.detail)}
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
         on:selectCommit={(e) => selectCommit(e.detail)}
       />
@@ -927,9 +989,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  {#key card.filePath}
-                    <InlineDiff oldContent={card.oldContent} newContent={card.newContent} language={langFromPath(card.filePath) as EditorLanguage} />
-                  {/key}
+                  <GitDiff hunks={card.hunks} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -1012,9 +1072,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  {#key card.filePath}
-                    <InlineDiff oldContent={card.oldContent} newContent={card.newContent} language={langFromPath(card.filePath) as EditorLanguage} />
-                  {/key}
+                  <GitDiff hunks={card.hunks} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -1100,9 +1158,7 @@
               </div>
               {#if h.hasDiff}
                 <div class="card-diff">
-                  {#key h.filePath}
-                    <InlineDiff oldContent={h.oldContent} newContent={h.newContent} language={langFromPath(h.filePath) as EditorLanguage} />
-                  {/key}
+                  <GitDiff hunks={h.hunks} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -1177,11 +1233,18 @@
         </button>
         <button class="ai-suggest"><Icon name="sparkles" size={11}/> {t('git.regenerateWithAi')}</button>
       </div>
-      <textarea
-        class="commit-msg"
+      <input
+        class="commit-title"
+        type="text"
         value={state.commitMessage}
         placeholder={t('git.commitPlaceholder') as string}
-        on:input={(e) => setCommitMessage((e.target as HTMLTextAreaElement).value)}
+        on:input={(e) => setCommitMessage((e.target as HTMLInputElement).value)}
+      />
+      <textarea
+        class="commit-msg"
+        value={state.commitBody}
+        placeholder={t('git.commitBodyPlaceholder') as string}
+        on:input={(e) => setCommitBody((e.target as HTMLTextAreaElement).value)}
       ></textarea>
       {#if showOptions}
         <div class="commit-options">
@@ -1553,6 +1616,13 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+  }
+
+  .log-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
   }
 
   .log-entry {
@@ -2011,6 +2081,23 @@
     border-color: var(--stroke-1);
   }
 
+  .commit-title {
+    width: 100%;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 8px;
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+  }
+  .commit-title:focus { border-color: var(--accent); }
+  .commit-title::placeholder { color: var(--fg-4); }
+
   .commit-msg {
     width: 100%;
     background: var(--bg-0);
@@ -2022,7 +2109,7 @@
     line-height: 1.5;
     padding: 8px;
     resize: vertical;
-    min-height: 64px;
+    min-height: 52px;
     outline: none;
     box-sizing: border-box;
   }

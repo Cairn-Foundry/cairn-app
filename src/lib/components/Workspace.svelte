@@ -23,6 +23,7 @@
   import { instances } from '$lib/stores/instance';
   import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
+  import { gitFileCounts } from '$lib/stores/git';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
@@ -324,6 +325,11 @@
           <span class="label">{s.label}</span>
           {#if doneSteps.has(s.id)}
             <span class="check"><Icon name="check" size={11}/></span>
+          {:else if s.id === 'git' && $gitFileCounts.total > 0}
+            <span class="git-badge" title={`${$gitFileCounts.unstaged} unstaged, ${$gitFileCounts.staged} staged`}>
+              {#if $gitFileCounts.unstaged > 0}<span class="seg unstaged">{$gitFileCounts.unstaged}</span>{/if}
+              {#if $gitFileCounts.staged > 0}<span class="seg staged">{$gitFileCounts.staged}</span>{/if}
+            </span>
           {/if}
         </button>
       {/each}

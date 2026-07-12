@@ -80,9 +80,6 @@ fn run(cmd: &mut Command) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-/// Reject values that git would parse as an option. Real branch/ref names can't
-/// begin with '-' (git's own ref-name rules forbid it), so a leading dash means
-/// a crafted or malformed argument, not a legitimate ref.
 fn validate_ref(name: &str) -> Result<(), String> {
     if name.starts_with('-') {
         return Err(format!("Invalid git reference: {name}"));
@@ -106,8 +103,7 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
             if let Some(f) = current_file.take() {
                 files.push(f);
             }
-            // Provisional path from "diff --git a/path b/path"; refined below from
-            // the authoritative "+++ b/path" header when present.
+
             let path = line
                 .split(" b/")
                 .last()
@@ -125,8 +121,6 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 lines: Vec::new(),
             });
         } else if current_hunk.is_none() {
-            // Header metadata (before the first hunk of a file). Prefer the exact
-            // post-image path; "+++ /dev/null" for deletions leaves the provisional.
             if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("+++ b/")) {
                 f.file_path = path.to_string();
             }
@@ -172,6 +166,36 @@ pub fn list_branches(project_path: String) -> Result<Vec<String>, String> {
         .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
         .collect();
     Ok(names)
+}
+
+#[derive(Serialize)]
+pub struct BranchList {
+    pub local: Vec<String>,
+    pub remote: Vec<String>,
+}
+
+#[tauri::command]
+pub fn list_branches_detailed(project_path: String) -> Result<BranchList, String> {
+    let expanded = expand(&project_path);
+    let repo = Repository::open(&expanded).map_err(|e| e.to_string())?;
+
+    let local = repo
+        .branches(Some(BranchType::Local))
+        .map_err(|e| e.to_string())?
+        .filter_map(|b| b.ok())
+        .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
+        .collect();
+
+    let remote = repo
+        .branches(Some(BranchType::Remote))
+        .map_err(|e| e.to_string())?
+        .filter_map(|b| b.ok())
+        .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
+        // `origin/HEAD` is a symbolic pointer, not a real base branch.
+        .filter(|n| !n.ends_with("/HEAD"))
+        .collect();
+
+    Ok(BranchList { local, remote })
 }
 
 #[tauri::command]
@@ -241,6 +265,22 @@ pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, Stri
     }
 
     Ok(map)
+}
+
+#[tauri::command]
+pub fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, String> {
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    let expanded = expand(&worktree_path);
+    let mut cmd = git_cmd(&expanded);
+    cmd.arg("check-ignore").arg("--");
+    for p in &paths {
+        cmd.arg(p);
+    }
+    let out = cmd.output().map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    Ok(text.lines().filter(|l| !l.is_empty()).map(|l| l.trim_end().to_string()).collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -409,6 +449,19 @@ pub fn git_amend_commit(
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
+#[tauri::command]
+pub fn git_head_message(worktree_path: String) -> Result<String, String> {
+    let expanded = expand(&worktree_path);
+    let output = git_cmd(&expanded)
+        .args(["log", "-1", "--format=%B"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Ok(String::new());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+}
+
 // ---------------------------------------------------------------------------
 // Branches
 // ---------------------------------------------------------------------------
@@ -544,10 +597,12 @@ pub struct GitGraphCommit {
 }
 
 #[tauri::command]
-pub fn git_graph(worktree_path: String) -> Result<Vec<GitGraphCommit>, String> {
+pub fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, String> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
         "log", "--all", "--topo-order",
+        &format!("--skip={}", offset),
+        &format!("-{}", limit),
         "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%D\x1f%s",
     ]))?;
     let commits = raw.lines().filter(|l| !l.is_empty()).map(|line| {
@@ -725,17 +780,13 @@ pub fn git_stash_clear(worktree_path: String) -> Result<(), String> {
 pub fn git_stash_rename(worktree_path: String, index: usize, message: String) -> Result<(), String> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
-    // Resolve the commit SHA before dropping the reflog entry
+
     let sha_out = git_cmd(&expanded).args(["rev-parse", &stash_ref]).output().map_err(|e| e.to_string())?;
     if !sha_out.status.success() {
         return Err(String::from_utf8_lossy(&sha_out.stderr).to_string());
     }
     let sha = String::from_utf8_lossy(&sha_out.stdout).trim().to_string();
-    // Renaming means re-labelling the reflog entry. `git stash store` of an
-    // already-stored commit is a no-op, so the entry must be dropped first and
-    // then re-stored with the new message (it becomes stash@{0}). To close the
-    // data-loss window if the re-store fails, we re-store the commit with a
-    // best-effort fallback so the stash is never silently lost.
+
     let drop_out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
     if !drop_out.status.success() {
         return Err(String::from_utf8_lossy(&drop_out.stderr).to_string());
@@ -757,8 +808,6 @@ pub fn git_stash_rename(worktree_path: String, index: usize, message: String) ->
 pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), String> {
     let expanded = expand(&worktree_path);
 
-    // `git restore` only reverts tracked files; for an untracked file it is a
-    // silent no-op, so the path has to be deleted from disk instead.
     let tracked = git_cmd(&expanded)
         .args(["ls-files", "--error-unmatch", "--", &file_path])
         .output()
@@ -808,9 +857,8 @@ pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<S
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_log(worktree_path: String, limit: usize) -> Result<Vec<GitCommit>, String> {
+pub fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, String> {
     let expanded = expand(&worktree_path);
-    let limit_str = limit.to_string();
 
     let head_raw = run(git_cmd(&expanded).args(["log", "HEAD", "--format=%H"])).unwrap_or_default();
     let on_branch: std::collections::HashSet<String> = head_raw
@@ -820,7 +868,7 @@ pub fn git_log(worktree_path: String, limit: usize) -> Result<Vec<GitCommit>, St
         .collect();
 
     let raw = run(
-        git_cmd(&expanded).args(["log", "--all", "--topo-order", &format!("-{}", limit_str), "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s"])
+        git_cmd(&expanded).args(["log", "--all", "--topo-order", &format!("--skip={}", offset), &format!("-{}", limit), "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s"])
     )?;
 
     let commits = raw

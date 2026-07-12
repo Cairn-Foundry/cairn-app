@@ -47,6 +47,22 @@ pub fn read_dir_tree(path: String, show_hidden: bool) -> Result<Vec<FileNode>, S
 }
 
 #[tauri::command]
+pub fn list_dir_names(path: String) -> Result<Vec<String>, String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let p = PathBuf::from(&expanded);
+    if !p.exists() {
+        return Ok(Vec::new());
+    }
+    let mut names = Vec::new();
+    for entry in fs::read_dir(&p).map_err(|e| e.to_string())?.flatten() {
+        if let Some(n) = entry.file_name().to_str() {
+            names.push(n.to_string());
+        }
+    }
+    Ok(names)
+}
+
+#[tauri::command]
 pub fn read_file(path: String) -> Result<Option<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);

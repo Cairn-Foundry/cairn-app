@@ -1,4 +1,4 @@
-import { get, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
 import type {
 	GitCommit,
 	GitFileDiff,
@@ -22,9 +22,15 @@ type GitState = {
 	stashes: GitStash[];
 	remoteStatus: RemoteStatus | null;
 	commitMessage: string;
+	commitBody: string;
+	logHasMore: boolean;
+	graphHasMore: boolean;
 	isLoading: boolean;
 	error: string | null;
 };
+
+const LOG_PAGE = 50;
+const GRAPH_PAGE = 200;
 
 const INITIAL: GitState = {
 	status: {},
@@ -37,6 +43,9 @@ const INITIAL: GitState = {
 	stashes: [],
 	remoteStatus: null,
 	commitMessage: "",
+	commitBody: "",
+	logHasMore: false,
+	graphHasMore: false,
 	isLoading: false,
 	error: null,
 };
@@ -45,15 +54,20 @@ const _git = writable<GitState>(INITIAL);
 
 export const git = { subscribe: _git.subscribe };
 
+export const gitFileCounts = derived(git, ($g) => {
+	const staged = new Set($g.stagedDiffs.map((f) => f.filePath));
+	const unstaged = new Set($g.unstagedDiffs.map((f) => f.filePath));
+	for (const [p, s] of Object.entries($g.status)) {
+		if (s === "untracked") unstaged.add(p);
+	}
+	const all = new Set([...staged, ...unstaged]);
+	return { staged: staged.size, unstaged: unstaged.size, total: all.size };
+});
+
 export function clearGitError(): void {
 	_git.update((s) => (s.error ? { ...s, error: null } : s));
 }
 
-/**
- * Run a mutating git operation, surfacing any failure through the store's
- * `error` field (rendered by GitView) and clearing a stale error on success.
- * The rejection is re-thrown so callers can still react if needed.
- */
 async function mutate<T>(op: () => Promise<T>): Promise<T> {
 	try {
 		const result = await op();
@@ -69,10 +83,10 @@ function worktree(): string | null {
 	return get(activeInstance)?.worktreePath ?? null;
 }
 
-export async function refreshStatus(): Promise<void> {
+export async function refreshStatus(silent = false): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	_git.update((s) => ({ ...s, isLoading: true, error: null }));
+	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
 	try {
 		const [status, unstagedDiffs, stagedDiffs, currentBranch, remoteStatus] =
 			await Promise.all([
@@ -100,10 +114,27 @@ export async function refreshLog(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	try {
-		const log = await gitService.getLog(wt);
-		_git.update((s) => ({ ...s, log }));
+		const log = await gitService.getLog(wt, LOG_PAGE, 0);
+		_git.update((s) => ({ ...s, log, logHasMore: log.length === LOG_PAGE }));
 	} catch {
 		// Non-fatal - repo may have no commits yet
+	}
+}
+
+export async function loadMoreLog(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	const state = get(_git);
+	if (!state.logHasMore) return;
+	try {
+		const more = await gitService.getLog(wt, LOG_PAGE, state.log.length);
+		_git.update((s) => {
+			const seen = new Set(s.log.map((c) => c.hash));
+			const merged = [...s.log, ...more.filter((c) => !seen.has(c.hash))];
+			return { ...s, log: merged, logHasMore: more.length === LOG_PAGE };
+		});
+	} catch {
+		// Non-fatal
 	}
 }
 
@@ -111,11 +142,64 @@ export async function refreshGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
 	try {
-		const graph = await gitService.getGraph(path);
-		_git.update((s) => ({ ...s, graph }));
+		const graph = await gitService.getGraph(path, GRAPH_PAGE, 0);
+		_git.update((s) => ({
+			...s,
+			graph,
+			graphHasMore: graph.length === GRAPH_PAGE,
+		}));
 	} catch {
 		// Non-fatal
 	}
+}
+
+export async function loadMoreGraph(): Promise<void> {
+	const path = worktree() ?? get(activeProject)?.path;
+	if (!path) return;
+	const state = get(_git);
+	if (!state.graphHasMore) return;
+	try {
+		const more = await gitService.getGraph(
+			path,
+			GRAPH_PAGE,
+			state.graph.length,
+		);
+		_git.update((s) => {
+			const seen = new Set(s.graph.map((c) => c.hash));
+			const merged = [...s.graph, ...more.filter((c) => !seen.has(c.hash))];
+			return { ...s, graph: merged, graphHasMore: more.length === GRAPH_PAGE };
+		});
+	} catch {
+		// Non-fatal
+	}
+}
+
+export async function loadAllLog(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	try {
+		const log = await gitService.getLog(wt, 1_000_000, 0);
+		_git.update((s) => ({ ...s, log, logHasMore: false }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+export async function loadAllGraph(): Promise<void> {
+	const path = worktree() ?? get(activeProject)?.path;
+	if (!path) return;
+	try {
+		const graph = await gitService.getGraph(path, 1_000_000, 0);
+		_git.update((s) => ({ ...s, graph, graphHasMore: false }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+export async function getHeadCommitMessage(): Promise<string> {
+	const wt = worktree();
+	if (!wt) return "";
+	return gitService.getHeadMessage(wt).catch(() => "");
 }
 
 export async function stageFile(filePath: string): Promise<void> {
@@ -159,7 +243,7 @@ export async function commitChanges(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.commit(wt, message, options));
-	_git.update((s) => ({ ...s, commitMessage: "" }));
+	_git.update((s) => ({ ...s, commitMessage: "", commitBody: "" }));
 	await refreshStatus();
 	await refreshLog();
 }
@@ -229,6 +313,10 @@ export async function deleteBranch(branchName: string): Promise<void> {
 
 export function setCommitMessage(msg: string): void {
 	_git.update((s) => ({ ...s, commitMessage: msg }));
+}
+
+export function setCommitBody(body: string): void {
+	_git.update((s) => ({ ...s, commitBody: body }));
 }
 
 export function resetGitStore(): void {

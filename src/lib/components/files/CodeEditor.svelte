@@ -31,7 +31,7 @@
   import { lintKeymap } from '@codemirror/lint';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
   import {
-    buildDiffGutter, setDiffBaseContent, revertChunkAtLine,
+    buildDiffGutter, setDiffBaseContent, clearDiffBaseContent, revertChunkAtLine,
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
@@ -279,7 +279,10 @@
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });
 
-  $: if (view && baseContent !== null) setDiffBaseContent(view, baseContent);
+  $: if (view) {
+    if (baseContent !== null) setDiffBaseContent(view, baseContent);
+    else clearDiffBaseContent(view);
+  }
 
   $: if (view) view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
 

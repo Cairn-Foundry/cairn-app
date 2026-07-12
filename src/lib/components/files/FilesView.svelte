@@ -10,7 +10,8 @@ import { get } from 'svelte/store';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
-  import { readDirTree, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { refreshStatus as refreshGitStore } from '$lib/stores/git';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
@@ -37,7 +38,6 @@ import { get } from 'svelte/store';
     flattenToNodes,
     collectFilePaths,
     collectDirPaths,
-    getSiblingNames,
     pasteDestName,
     resolveDestName,
     parentPathOf,
@@ -349,6 +349,8 @@ import { get } from 'svelte/store';
       // immediately instead of waiting for the 3s poll.
       const updatedStatus = await gitStatus(worktreePath).catch(() => null);
       if (updatedStatus !== null) { gitStatusMap = updatedStatus; tree = rawTree; }
+      // Keep the sidebar git counters live without waiting for the poll.
+      void refreshGitStore(true);
       refreshDiff(i, tab);
     } catch (e) {
       error = String(e);
@@ -478,9 +480,17 @@ import { get } from 'svelte/store';
   let selectedDir: string = '';
   let fileClipboard: FileClipboard | null = null;
 
-  function startEdit(state: EditState) {
+  let editSiblingNames = new Set<string>();
+
+  async function startEdit(state: EditState) {
     editValue = state.value;
     editState = state;
+    editSiblingNames = new Set();
+    if (worktreePath) {
+      const dir = state.parentPath ? `${worktreePath}/${state.parentPath}` : worktreePath;
+      const names = await listDirNames(dir).catch(() => []);
+      editSiblingNames = new Set(names.map(n => n.toLowerCase()));
+    }
   }
 
   let ctxMenuEl: HTMLDivElement | null = null;
@@ -619,10 +629,9 @@ import { get } from 'svelte/store';
   function cancelEdit() { editState = null; editValue = ''; }
 
   $: editConflict = !!editState && !!editValue.trim() && (() => {
-    const siblings = new Set([...getSiblingNames(tree, editState!.parentPath)].map(n => n.toLowerCase()));
     const val = editValue.trim().toLowerCase();
     const isSelf = editState!.type === 'rename' && val === editState!.node?.name.toLowerCase();
-    return siblings.has(val) && !isSelf;
+    return editSiblingNames.has(val) && !isSelf;
   })();
 
   let treeWidth = 220;
@@ -1026,6 +1035,7 @@ import { get } from 'svelte/store';
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
       tree = rawTree;
+      void refreshGitStore(true);
       loadPaneBaseFor(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);

@@ -9,12 +9,6 @@ import { type EditorView, GutterMarker, gutter } from "@codemirror/view";
 
 export type DiffKind = "added" | "modified" | "deleted";
 
-/**
- * Payload handed to the click handler when a gutter marker is clicked.
- * `before`/`after` are the HEAD and current content of the chunk, ready to
- * feed a side-by-side diff view. `anchorLine` lets the revert look the chunk
- * up again against the live document.
- */
 export interface GutterChunk {
 	lineStart: number;
 	lineEnd: number;
@@ -25,18 +19,15 @@ export interface GutterChunk {
 
 interface DiffState {
 	base: Text;
+	hasBase: boolean;
 	chunks: readonly Chunk[];
 	lineKinds: Map<number, DiffKind>;
 }
 
-// Effect carrying the new base (HEAD) content to diff the live buffer against.
 export const setDiffBase = StateEffect.define<string>();
 
-// Bound the diff cost: without a scan limit, a chunk that spans a large, very
-// different region (e.g. line-ending mismatch, or a heavily-rewritten file) is
-// fully re-diffed on every keystroke - O(n·m), hundreds of ms, freezing the UI.
-// `scanLimit` makes the algorithm fall back to a fast, slightly coarser diff for
-// such regions. This mirrors @codemirror/merge's own default for merge views.
+export const clearDiffBase = StateEffect.define<null>();
+
 const DIFF_CONFIG = { scanLimit: 500 };
 
 function textOf(content: string): Text {
@@ -83,18 +74,36 @@ function buildLineKinds(
 
 const diffField = StateField.define<DiffState>({
 	create(state) {
-		return { base: state.doc, chunks: [], lineKinds: new Map() };
+		return {
+			base: state.doc,
+			hasBase: false,
+			chunks: [],
+			lineKinds: new Map(),
+		};
 	},
 	update(value, tr) {
-		let { base } = value;
+		let { base, hasBase } = value;
 		let baseChanged = false;
+		let cleared = false;
 		for (const e of tr.effects) {
 			if (e.is(setDiffBase)) {
 				base = textOf(e.value);
+				hasBase = true;
 				baseChanged = true;
 			}
+			if (e.is(clearDiffBase)) {
+				hasBase = false;
+				cleared = true;
+			}
+		}
+		if (cleared) {
+			return { base, hasBase: false, chunks: [], lineKinds: new Map() };
 		}
 		if (!baseChanged && !tr.docChanged) return value;
+
+		if (!hasBase) {
+			return { base, hasBase, chunks: [], lineKinds: new Map() };
+		}
 
 		const chunks = baseChanged
 			? Chunk.build(base, tr.state.doc, DIFF_CONFIG)
@@ -105,7 +114,12 @@ const diffField = StateField.define<DiffState>({
 					tr.changes,
 					DIFF_CONFIG,
 				);
-		return { base, chunks, lineKinds: buildLineKinds(tr.state.doc, chunks) };
+		return {
+			base,
+			hasBase,
+			chunks,
+			lineKinds: buildLineKinds(tr.state.doc, chunks),
+		};
 	},
 });
 
@@ -165,11 +179,10 @@ export function setDiffBaseContent(view: EditorView, base: string): void {
 	view.dispatch({ effects: setDiffBase.of(base) });
 }
 
-/**
- * Revert the chunk covering `line` back to its HEAD content. Returns false if
- * no chunk is there any more (e.g. the user kept typing). The change is a
- * normal edit, so it goes through the usual onChange/save flow and is undoable.
- */
+export function clearDiffBaseContent(view: EditorView): void {
+	view.dispatch({ effects: clearDiffBase.of(null) });
+}
+
 export function revertChunkAtLine(view: EditorView, line: number): boolean {
 	const doc = view.state.doc;
 	const { base, chunks } = view.state.field(diffField);

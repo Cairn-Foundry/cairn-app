@@ -7,9 +7,6 @@ use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive, write_js
 use super::file_state::delete_file_state_dir;
 use super::projects::read_projects;
 
-/// Serializes the read-modify-write of `instances.json` so concurrent
-/// create/duplicate/delete calls (which run on the blocking thread pool) can't
-/// clobber each other and drop an instance.
 static INSTANCES_WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -88,8 +85,6 @@ pub struct CreateInstanceArgs {
     pub base_branch: Option<String>,
 }
 
-/// Build a filesystem-safe, collision-free worktree slug for a non-git instance
-/// by combining the (possibly duplicate) ticket id with the instance's unique id.
 fn non_git_slug(ticket_id: &str, instance_id: &str) -> String {
     let base = ticket_id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
     let short_id: String = instance_id.chars().take(8).collect();
@@ -124,8 +119,10 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
 
             let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-            let base_ref = format!("refs/heads/{}", base_branch);
-            let base_obj = repo.revparse_single(&base_ref)
+            let base_obj = repo
+                .revparse_single(&format!("refs/heads/{}", base_branch))
+                .or_else(|_| repo.revparse_single(&format!("refs/remotes/{}", base_branch)))
+                .or_else(|_| repo.revparse_single(&base_branch))
                 .map_err(|_| format!("Base branch '{}' not found", base_branch))?;
             let base_commit = base_obj.peel_to_commit().map_err(|e| e.to_string())?;
 

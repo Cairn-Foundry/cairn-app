@@ -5,7 +5,7 @@
   import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
-  import { listBranches } from '$lib/services/instance-service';
+  import { listBranchesDetailed } from '$lib/services/instance-service';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
 
@@ -19,27 +19,41 @@
   let branchName = '';
   let baseBranch = 'main';
   let availableBranches: string[] = [];
+  let remoteBranches: string[] = [];
   let branchSearch = '';
   let isGitRepo = false;
   let creating = false;
   let error = '';
   let prevSlug = '';
 
-  onMount(async () => {
-    if ($activeProject) {
-      try {
-        availableBranches = await listBranches($activeProject.path);
-        isGitRepo = true;
-        if (availableBranches.includes('main')) baseBranch = 'main';
-        else if (availableBranches.includes('master')) baseBranch = 'master';
-        else if (availableBranches.length > 0) baseBranch = availableBranches[0];
-      } catch {
-        availableBranches = [];
-        isGitRepo = false;
-        useGit = false;
+  let refreshingBranches = false;
+
+  async function loadBranchList() {
+    if (!$activeProject) return;
+    refreshingBranches = true;
+    try {
+      const { local, remote } = await listBranchesDetailed($activeProject.path);
+      availableBranches = local;
+      remoteBranches = remote;
+      isGitRepo = true;
+      const all = [...local, ...remote];
+      if (!all.includes(baseBranch)) {
+        if (local.includes('main')) baseBranch = 'main';
+        else if (local.includes('master')) baseBranch = 'master';
+        else if (local.length > 0) baseBranch = local[0];
+        else if (remote.length > 0) baseBranch = remote[0];
       }
+    } catch {
+      availableBranches = [];
+      remoteBranches = [];
+      isGitRepo = false;
+      useGit = false;
+    } finally {
+      refreshingBranches = false;
     }
-  });
+  }
+
+  onMount(loadBranchList);
 
   $: if (ticketId) {
     const slug = slugify(ticketId);
@@ -165,7 +179,9 @@
       {#if step === 2}
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
-          {#if availableBranches.length > 0}
+          {#if availableBranches.length > 0 || remoteBranches.length > 0}
+            {@const localMatches = availableBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const remoteMatches = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
             <div class="branch-list-wrap">
               <div class="branch-search-row">
                 <Icon name="search" size={13}/>
@@ -176,20 +192,50 @@
                   placeholder={t('createInstance.filterBranches') as string}
                   autocomplete="off"
                 />
+                <button
+                  class="branch-refresh"
+                  type="button"
+                  title={t('createInstance.refreshBranches') as string}
+                  disabled={refreshingBranches}
+                  on:click={loadBranchList}
+                >
+                  {#if refreshingBranches}
+                    <Spinner size={12} trackColor="var(--stroke-1)" color="var(--accent)"/>
+                  {:else}
+                    <Icon name="refresh" size={13}/>
+                  {/if}
+                </button>
               </div>
               <div class="branch-list">
-                {#each availableBranches.filter(b => matchesSearch(b, branchSearch)) as b}
-                  <button
-                    class="branch-item {baseBranch === b ? 'active' : ''}"
-                    on:click={() => baseBranch = b}
-                  >
-                    <Icon name="branch" size={13}/>
-                    <span class="branch-name">{b}</span>
-                    {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
-                  </button>
-                {:else}
+                {#if localMatches.length === 0 && remoteMatches.length === 0}
                   <div class="branch-empty">{(t('createInstance.noBranchesMatch') as (q: string) => string)(branchSearch)}</div>
-                {/each}
+                {/if}
+                {#if localMatches.length > 0}
+                  <div class="branch-group-label">{t('createInstance.localBranches')}</div>
+                  {#each localMatches as b}
+                    <button
+                      class="branch-item {baseBranch === b ? 'active' : ''}"
+                      on:click={() => baseBranch = b}
+                    >
+                      <Icon name="branch" size={13}/>
+                      <span class="branch-name">{b}</span>
+                      {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
+                    </button>
+                  {/each}
+                {/if}
+                {#if remoteMatches.length > 0}
+                  <div class="branch-group-label">{t('createInstance.remoteBranches')}</div>
+                  {#each remoteMatches as b}
+                    <button
+                      class="branch-item {baseBranch === b ? 'active' : ''}"
+                      on:click={() => baseBranch = b}
+                    >
+                      <Icon name="branch" size={13}/>
+                      <span class="branch-name">{b}</span>
+                      {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
+                    </button>
+                  {/each}
+                {/if}
               </div>
             </div>
           {:else}
@@ -393,6 +439,23 @@
   }
   .branch-search::placeholder { color: var(--fg-4); }
 
+  .branch-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .branch-refresh:hover { background: var(--bg-3); color: var(--fg-0); }
+  .branch-refresh:disabled { cursor: default; opacity: 0.6; }
+
   .branch-list {
     display: flex;
     flex-direction: column;
@@ -407,6 +470,15 @@
     font-size: 12px;
     color: var(--fg-3);
     text-align: center;
+  }
+
+  .branch-group-label {
+    padding: 6px 10px 2px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--fg-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .branch-item {

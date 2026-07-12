@@ -45,3 +45,14 @@ export async function deleteInstance(
 export async function listBranches(projectPath: string): Promise<string[]> {
 	return invoke<string[]>("list_branches", { projectPath });
 }
+
+export interface BranchList {
+	local: string[];
+	remote: string[];
+}
+
+export async function listBranchesDetailed(
+	projectPath: string,
+): Promise<BranchList> {
+	return invoke<BranchList>("list_branches_detailed", { projectPath });
+}

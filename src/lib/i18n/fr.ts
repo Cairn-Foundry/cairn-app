@@ -92,6 +92,9 @@ export const fr = {
 			"Travaillez avec une branche et un worktree dans votre projet local.",
 		baseBranch: "Branche de base",
 		filterBranches: "Filtrer les branches...",
+		refreshBranches: "Actualiser les branches",
+		localBranches: "Locales",
+		remoteBranches: "Distantes",
 		noBranchesMatch: (q: string) => `Aucune branche ne correspond à "${q}"`,
 		baseBranchPlaceholder: "main",
 		newBranchName: "Nom de la nouvelle branche",
@@ -528,6 +531,7 @@ export const fr = {
 		nFilesStaged: (n: number) =>
 			`${n} fichier${n !== 1 ? "s" : ""} indexé${n !== 1 ? "s" : ""}`,
 		commitPlaceholder: "feat(scope): décrivez votre modification",
+		commitBodyPlaceholder: "Ajouter une description plus longue (facultatif)...",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		stage: "Indexer",
 		unstage: "Désindexer",

@@ -14,6 +14,10 @@ export async function readDirTree(
 	return invoke<FileNode[]>("read_dir_tree", { path, showHidden });
 }
 
+export async function listDirNames(path: string): Promise<string[]> {
+	return invoke<string[]>("list_dir_names", { path });
+}
+
 export async function readFile(path: string): Promise<string | null> {
 	return invoke<string | null>("read_file", { path });
 }

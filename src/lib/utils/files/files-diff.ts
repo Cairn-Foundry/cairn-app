@@ -1,9 +1,13 @@
 import { type BlameEntry, gitBlame } from "$lib/services/file-service";
-import { getFileAtHead } from "$lib/services/git-service";
+import { checkIgnore, getFileAtHead } from "$lib/services/git-service";
 
 export interface PaneDiffState {
-	baseContent: string;
+	baseContent: string | null;
 	currentBlame: Map<number, BlameEntry>;
+}
+
+function toLf(text: string): string {
+	return text.replace(/\r\n/g, "\n");
 }
 
 export function emptyDiffState(): PaneDiffState {
@@ -18,10 +22,12 @@ export async function loadPaneBase(
 	path: string,
 	status: string | undefined,
 ): Promise<PaneDiffState> {
-	// Untracked or deleted files have no HEAD content to compare against:
-	// the whole buffer reads as added (untracked) or the tab is gone (deleted).
-	if (status === "untracked" || status === "deleted") {
+	if (status === "deleted") {
 		return emptyDiffState();
+	}
+
+	if (status === "untracked") {
+		return { baseContent: null, currentBlame: new Map() };
 	}
 
 	const blamePromise = gitBlame(worktreePath, path).catch((err) => {
@@ -29,10 +35,22 @@ export async function loadPaneBase(
 		return new Map<number, BlameEntry>();
 	});
 
+	if (!status) {
+		const [ignored, baseContent, currentBlame] = await Promise.all([
+			checkIgnore(worktreePath, [path]).catch(() => [] as string[]),
+			getFileAtHead(worktreePath, path).catch(() => ""),
+			blamePromise,
+		]);
+		if (ignored.length > 0) {
+			return { baseContent: null, currentBlame: new Map() };
+		}
+		return { baseContent: toLf(baseContent), currentBlame };
+	}
+
 	const [baseContent, currentBlame] = await Promise.all([
 		getFileAtHead(worktreePath, path).catch(() => ""),
 		blamePromise,
 	]);
 
-	return { baseContent, currentBlame };
+	return { baseContent: toLf(baseContent), currentBlame };
 }
