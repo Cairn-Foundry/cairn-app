@@ -182,7 +182,6 @@ input, textarea { font-family: inherit; color: inherit; }
   border-right: 1px solid transparent;
   border-left: 1px solid transparent;
   border-bottom: none;
-  border-radius: var(--r-sm) var(--r-sm) 0 0;
   transition: all .12s;
   position: relative; top: 1px;
   cursor: pointer;

@@ -297,7 +297,7 @@
           {#if creating}
             <Spinner /> {t('common.creating')}
           {:else}
-            <Icon name="sparkles" size={14}/> {t('createInstance.createInstance')}
+            <Icon name="plus" size={14}/> {t('createInstance.createInstance')}
           {/if}
         </button>
       {/if}

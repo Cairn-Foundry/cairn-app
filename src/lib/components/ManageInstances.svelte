@@ -242,11 +242,10 @@
     {/if}
 
     <div class="modal-foot">
+      <div class="spacer"></div>
       <button class="btn primary" on:click={() => { dispatch('newInstance'); dispatch('close'); }}>
         <Icon name="plus" size={13}/> {t('manageInstances.newInstance')}
       </button>
-      <div class="spacer"></div>
-      <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.close')}</button>
     </div>
 
   </div>

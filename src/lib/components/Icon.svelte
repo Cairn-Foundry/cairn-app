@@ -28,9 +28,10 @@
   </svg>
 {:else if name === 'review'}
   <svg {...common} {...$$restProps}>
-    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-    <rect x="9" y="3" width="6" height="4" rx="1"/>
-    <path d="M9 12l2 2 4-4"/>
+    <path d="M4 5l1.2 1.2L7.5 4"/>
+    <path d="M4 12l1.2 1.2L7.5 10"/>
+    <path d="M4 19l1.2 1.2L7.5 17"/>
+    <path d="M11 5.5h9M11 12h9M11 18.5h9"/>
   </svg>
 {:else if name === 'git'}
   <svg {...common} {...$$restProps}>
@@ -48,9 +49,11 @@
   </svg>
 {:else if name === 'ci'}
   <svg {...common} {...$$restProps}>
-    <path d="M12 2c-4 3-6 7-6 11v2l2 2h8l2-2v-2c0-4-2-8-6-11z"/>
-    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-    <path d="M9 20v1a3 3 0 0 0 6 0v-1"/>
+    <rect x="3" y="4" width="5" height="5" rx="1"/>
+    <rect x="3" y="15" width="5" height="5" rx="1"/>
+    <rect x="16" y="9.5" width="5" height="5" rx="1"/>
+    <path d="M8 6.5h4a2 2 0 0 1 2 2v1.5"/>
+    <path d="M8 17.5h4a2 2 0 0 0 2-2v-1.5"/>
   </svg>
 {:else if name === 'check'}
   <svg {...common} {...$$restProps}>

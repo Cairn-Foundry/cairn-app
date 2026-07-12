@@ -37,7 +37,7 @@
         on:click={() => selectedId = p.id}
         disabled={p.status === 'coming-soon'}
       >
-        <span class="provider-logo" style="--color: {p.accentColor}">{p.logo}</span>
+        <span class="provider-logo">{p.logo}</span>
         <span class="provider-item-info">
           <span class="provider-item-name">{p.name}</span>
           <span class="provider-item-status {p.status} {configs[p.id]?.enabled ? 'on' : ''}">
@@ -64,7 +64,7 @@
   <section class="provider-config">
     {#if selected}
       <div class="config-header">
-        <span class="config-logo" style="--color: {selected.accentColor}">{selected.logo}</span>
+        <span class="config-logo">{selected.logo}</span>
         <div class="config-header-text">
           <h2 class="config-title">{selected.name}</h2>
           <p class="config-desc">{selected.desc}</p>
@@ -231,14 +231,14 @@
     width: 28px;
     height: 28px;
     border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--color) 18%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color) 30%, transparent);
-    color: var(--color);
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-1);
+    color: var(--fg-2);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     font-family: var(--font-mono);
     flex-shrink: 0;
     letter-spacing: -.02em;
@@ -287,14 +287,14 @@
     width: 40px;
     height: 40px;
     border-radius: var(--r-md);
-    background: color-mix(in srgb, var(--color) 18%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color) 30%, transparent);
-    color: var(--color);
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-1);
+    color: var(--fg-2);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     font-family: var(--font-mono);
     flex-shrink: 0;
     letter-spacing: -.02em;
