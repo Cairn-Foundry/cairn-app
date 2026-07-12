@@ -46,6 +46,8 @@
   let debounceTimer: ReturnType<typeof setTimeout>;
   let queryInputEl: HTMLInputElement | null = null;
   let lastWorktreePath: string | null = null;
+  let lastHidden = true;
+  let searchToken = 0;
 
   $: if (!hidden) tick().then(() => queryInputEl?.focus());
 
@@ -77,31 +79,36 @@
   }
 
   async function runSearch() {
-    if (!worktreePath || !query.trim()) {
+    if (hidden || !worktreePath || !query.trim()) {
       results = [];
       groups = [];
       return;
     }
+    const token = ++searchToken;
     searching = true;
     error = '';
     try {
-      results = await searchInFiles(worktreePath, query, {
+      const matches = await searchInFiles(worktreePath, query, {
         caseSensitive,
         isRegex,
         includeGlob,
         excludeGlob,
       });
+      if (token !== searchToken) return;
+      results = matches;
       groups = groupResults(results);
     } catch (e) {
+      if (token !== searchToken) return;
       error = String(e);
       results = [];
       groups = [];
     } finally {
-      searching = false;
+      if (token === searchToken) searching = false;
     }
   }
 
   function scheduleSearch() {
+    if (hidden) return;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(runSearch, SEARCH_DEBOUNCE_MS);
   }
@@ -109,11 +116,23 @@
   $: if (worktreePath !== lastWorktreePath) {
     if (lastWorktreePath !== null) savedStates.set(lastWorktreePath, captureState());
     lastWorktreePath = worktreePath;
+    searchToken++;
     results = [];
     groups = [];
     error = '';
     applyState(worktreePath ? (savedStates.get(worktreePath) ?? DEFAULT_STATE) : DEFAULT_STATE);
     scheduleSearch();
+  }
+
+  $: if (hidden !== lastHidden) {
+    lastHidden = hidden;
+    if (hidden) {
+      clearTimeout(debounceTimer);
+      searchToken++;
+      searching = false;
+    } else {
+      scheduleSearch();
+    }
   }
 
   $: query, caseSensitive, isRegex, includeGlob, excludeGlob, scheduleSearch();

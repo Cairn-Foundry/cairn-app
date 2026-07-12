@@ -1,7 +1,15 @@
 use std::fs;
 use std::path::PathBuf;
-use regex::RegexBuilder;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use grep_matcher::Matcher;
+use grep_regex::RegexMatcherBuilder;
+use grep_searcher::{BinaryDetection, SearcherBuilder, Sink, SinkMatch};
+use ignore::WalkBuilder;
+use ignore::overrides::OverrideBuilder;
 use serde::Serialize;
+
+const SEARCH_RESULT_CAP: usize = 2000;
 
 #[derive(Serialize)]
 pub struct FileNode {
@@ -124,54 +132,6 @@ pub fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
     }
 }
 
-const BINARY_EXTENSIONS: &[&str] = &[
-    "png","jpg","jpeg","gif","webp","ico","bmp","tiff",
-    "pdf","doc","docx","xls","xlsx","ppt","pptx",
-    "zip","tar","gz","bz2","xz","7z","rar",
-    "mp3","mp4","wav","ogg","flac","avi","mov","mkv",
-    "wasm","bin","exe","dll","so","dylib","a","o",
-    "ttf","otf","woff","woff2","eot",
-    "db","sqlite","sqlite3",
-];
-
-fn glob_match(pattern: &str, name: &str) -> bool {
-    let p: Vec<char> = pattern.to_lowercase().chars().collect();
-    let n: Vec<char> = name.to_lowercase().chars().collect();
-    let mut dp = vec![vec![false; n.len() + 1]; p.len() + 1];
-    dp[0][0] = true;
-    for i in 1..=p.len() {
-        if p[i - 1] == '*' { dp[i][0] = dp[i - 1][0]; }
-    }
-    for i in 1..=p.len() {
-        for j in 1..=n.len() {
-            dp[i][j] = if p[i - 1] == '*' {
-                dp[i - 1][j] || dp[i][j - 1]
-            } else if p[i - 1] == '?' || p[i - 1] == n[j - 1] {
-                dp[i - 1][j - 1]
-            } else {
-                false
-            };
-        }
-    }
-    dp[p.len()][n.len()]
-}
-
-fn path_matches_exclude(rel_path: &str, patterns: &[&str]) -> bool {
-    patterns.iter().any(|pat| {
-        let pat = pat.trim();
-        if pat.is_empty() { return false; }
-        rel_path.split('/').any(|seg| glob_match(pat, seg))
-    })
-}
-
-fn file_matches_include(name: &str, patterns: &[&str]) -> bool {
-    if patterns.iter().all(|p| p.trim().is_empty()) { return true; }
-    patterns.iter().any(|pat| {
-        let pat = pat.trim();
-        !pat.is_empty() && glob_match(pat, name)
-    })
-}
-
 #[derive(Serialize)]
 pub struct SearchMatch {
     pub path: String,
@@ -184,26 +144,44 @@ pub struct SearchMatch {
     pub match_end: u32,
 }
 
-fn collect_text_files(dir: &PathBuf, root: &PathBuf, include: &[&str], exclude: &[&str], out: &mut Vec<PathBuf>) {
-    let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.filter_map(|e| e.ok()) {
-        let path = entry.path();
-        let name = match path.file_name() { Some(n) => n.to_string_lossy().to_string(), None => continue };
-        if name.starts_with('.') { continue; }
-        let rel = match path.strip_prefix(root) { Ok(r) => r.to_string_lossy().to_string(), Err(_) => continue };
-        if path.is_dir() {
-            if path_matches_exclude(&rel, exclude) { continue; }
-            collect_text_files(&path, root, include, exclude, out);
-        } else {
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-            if BINARY_EXTENSIONS.contains(&ext.as_str()) { continue; }
-            if path_matches_exclude(&rel, exclude) { continue; }
-            if !file_matches_include(&name, include) { continue; }
-            out.push(path);
+struct MatchSink<'a, M: Matcher> {
+    matcher: &'a M,
+    rel: &'a str,
+    results: &'a Mutex<Vec<SearchMatch>>,
+    count: &'a AtomicUsize,
+}
+
+impl<'a, M: Matcher> Sink for MatchSink<'a, M> {
+    type Error = std::io::Error;
+
+    fn matched(&mut self, _searcher: &grep_searcher::Searcher, mat: &SinkMatch) -> Result<bool, std::io::Error> {
+        let line_num = mat.line_number().unwrap_or(0) as u32;
+        let bytes = mat.bytes();
+        let end = bytes.iter().rposition(|&b| b != b'\n' && b != b'\r').map_or(0, |i| i + 1);
+        let line_bytes = &bytes[..end];
+        let line_text = String::from_utf8_lossy(line_bytes).into_owned();
+
+        let mut start = 0usize;
+        while start <= line_bytes.len() {
+            match self.matcher.find_at(line_bytes, start) {
+                Ok(Some(m)) => {
+                    if self.count.fetch_add(1, Ordering::Relaxed) >= SEARCH_RESULT_CAP {
+                        return Ok(false);
+                    }
+                    self.results.lock().unwrap().push(SearchMatch {
+                        path: self.rel.to_string(),
+                        line: line_num,
+                        col: (m.start() + 1) as u32,
+                        text: line_text.clone(),
+                        match_start: m.start() as u32,
+                        match_end: m.end() as u32,
+                    });
+                    start = if m.end() > m.start() { m.end() } else { m.end() + 1 };
+                }
+                _ => break,
+            }
         }
+        Ok(self.count.load(Ordering::Relaxed) < SEARCH_RESULT_CAP)
     }
 }
 
@@ -222,46 +200,70 @@ pub async fn search_in_files(
         let root_path = PathBuf::from(&expanded);
 
         let pattern = if is_regex { query.clone() } else { regex::escape(&query) };
-        let re = RegexBuilder::new(&pattern)
-            .case_insensitive(!case_sensitive)
-            .build()
-            .map_err(|e| format!("Invalid regex: {}", e))?;
+        let matcher = Arc::new(
+            RegexMatcherBuilder::new()
+                .case_insensitive(!case_sensitive)
+                .build(&pattern)
+                .map_err(|e| format!("Invalid regex: {}", e))?,
+        );
 
-        let include_parts: Vec<&str> = include_glob.split(',').collect();
-        let exclude_parts: Vec<&str> = exclude_glob.split(',').collect();
-
-        let mut files = vec![];
-        collect_text_files(&root_path, &root_path, &include_parts, &exclude_parts, &mut files);
-        files.sort();
-
-        let mut results: Vec<SearchMatch> = vec![];
-        'file: for file_path in &files {
-            let content = match fs::read(file_path) {
-                Ok(b) => b,
-                Err(_) => continue,
-            };
-            let text = match std::str::from_utf8(&content) {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
-            let rel = file_path.strip_prefix(&root_path)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
-
-            for (line_idx, line_text) in text.lines().enumerate() {
-                for m in re.find_iter(line_text) {
-                    results.push(SearchMatch {
-                        path: rel.clone(),
-                        line: (line_idx + 1) as u32,
-                        col: (m.start() + 1) as u32,
-                        text: line_text.to_string(),
-                        match_start: m.start() as u32,
-                        match_end: m.end() as u32,
-                    });
-                    if results.len() >= 2000 { break 'file; }
-                }
+        let mut override_builder = OverrideBuilder::new(&root_path);
+        for inc in include_glob.split(',') {
+            let inc = inc.trim();
+            if !inc.is_empty() {
+                override_builder.add(inc).map_err(|e| e.to_string())?;
             }
         }
+        for exc in exclude_glob.split(',') {
+            let exc = exc.trim();
+            if !exc.is_empty() {
+                override_builder.add(&format!("!{}", exc)).map_err(|e| e.to_string())?;
+                override_builder.add(&format!("!**/{}/**", exc)).map_err(|e| e.to_string())?;
+            }
+        }
+        let overrides = override_builder.build().map_err(|e| e.to_string())?;
+
+        let results: Arc<Mutex<Vec<SearchMatch>>> = Arc::new(Mutex::new(Vec::new()));
+        let count = Arc::new(AtomicUsize::new(0));
+
+        WalkBuilder::new(&root_path)
+            .overrides(overrides)
+            .build_parallel()
+            .run(|| {
+                let matcher = Arc::clone(&matcher);
+                let results = Arc::clone(&results);
+                let count = Arc::clone(&count);
+                let root_path = root_path.clone();
+                Box::new(move |entry| {
+                    use ignore::WalkState;
+                    if count.load(Ordering::Relaxed) >= SEARCH_RESULT_CAP {
+                        return WalkState::Quit;
+                    }
+                    let entry = match entry { Ok(e) => e, Err(_) => return WalkState::Continue };
+                    if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                        return WalkState::Continue;
+                    }
+                    let path = entry.path();
+                    let rel = path.strip_prefix(&root_path).unwrap_or(path).to_string_lossy().into_owned();
+                    let mut searcher = SearcherBuilder::new()
+                        .binary_detection(BinaryDetection::quit(0))
+                        .line_number(true)
+                        .build();
+                    let sink = MatchSink { matcher: matcher.as_ref(), rel: &rel, results: &results, count: &count };
+                    let _ = searcher.search_path(matcher.as_ref(), path, sink);
+                    if count.load(Ordering::Relaxed) >= SEARCH_RESULT_CAP {
+                        WalkState::Quit
+                    } else {
+                        WalkState::Continue
+                    }
+                })
+            });
+
+        let mut results = Arc::try_unwrap(results)
+            .map(|m| m.into_inner().unwrap())
+            .unwrap_or_default();
+        results.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)).then(a.col.cmp(&b.col)));
+        results.truncate(SEARCH_RESULT_CAP);
         Ok(results)
     })
     .await

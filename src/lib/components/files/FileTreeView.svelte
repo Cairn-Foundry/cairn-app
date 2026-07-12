@@ -81,6 +81,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => onContextMenu(e, null)}>
+  {#if worktreePath}
   <div class="files-tree-header">
     <div class="tree-header-actions">
       <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.collapseAll') as string} on:click={(e) => { e.stopPropagation(); onCollapseAll(); }}>
@@ -109,6 +110,7 @@
       </button>
     </div>
   </div>
+  {/if}
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="files-tree-scroll" bind:this={scrollEl} on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
