@@ -42,7 +42,7 @@
   import { lintKeymap } from '@codemirror/lint';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
   import {
-    buildDiffGutter, setDiffBaseContent, clearDiffBaseContent, revertChunkAtLine,
+    buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine,
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
@@ -270,21 +270,28 @@
 
   // -- Reactive sync ----------------------------------------------------------
 
-  $: if (view) {
+  let syncedBase: string | null | undefined = undefined;
+
+  $: if (view) syncDocAndBase(content, baseContent);
+
+  function syncDocAndBase(nextContent: string, nextBase: string | null) {
     const current = view.state.doc.toString();
-    if (current !== content) {
-      view.dispatch({ changes: { from: 0, to: current.length, insert: content } });
-    }
+    const docChanged = current !== nextContent;
+    const baseChanged = nextBase !== syncedBase;
+    if (!docChanged && !baseChanged) return;
+    const applyBase = baseChanged || docChanged;
+    view.dispatch({
+      changes: docChanged ? { from: 0, to: current.length, insert: nextContent } : undefined,
+      effects: applyBase
+        ? [nextBase !== null ? setDiffBase.of(nextBase) : clearDiffBase.of(null)]
+        : undefined,
+    });
+    syncedBase = nextBase;
   }
 
   $: if (view) view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(minimapEnabled)) });
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });
-
-  $: if (view) {
-    if (baseContent !== null) setDiffBaseContent(view, baseContent);
-    else clearDiffBaseContent(view);
-  }
 
   $: if (view) view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
 

@@ -175,14 +175,6 @@ export function buildDiffGutter(opts: {
 	];
 }
 
-export function setDiffBaseContent(view: EditorView, base: string): void {
-	view.dispatch({ effects: setDiffBase.of(base) });
-}
-
-export function clearDiffBaseContent(view: EditorView): void {
-	view.dispatch({ effects: clearDiffBase.of(null) });
-}
-
 export function revertChunkAtLine(view: EditorView, line: number): boolean {
 	const doc = view.state.doc;
 	const { base, chunks } = view.state.field(diffField);

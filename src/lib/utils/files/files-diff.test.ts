@@ -58,12 +58,12 @@ describe("loadPaneBase", () => {
 		expect(state.baseContent).toBe("a\nb\nc");
 	});
 
-	it("falls back to empty base when git show fails", async () => {
+	it("suppresses the gutter (null base) when git show fails", async () => {
 		vi.mocked(gitService.getFileAtHead).mockRejectedValueOnce(
 			new Error("git show failed"),
 		);
 		const state = await loadPaneBase("/wt", "file.ts", "modified");
-		expect(state.baseContent).toBe("");
+		expect(state.baseContent).toBeNull();
 	});
 
 	it("handles gitBlame failure gracefully", async () => {

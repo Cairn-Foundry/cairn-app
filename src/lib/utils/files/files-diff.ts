@@ -38,19 +38,25 @@ export async function loadPaneBase(
 	if (!status) {
 		const [ignored, baseContent, currentBlame] = await Promise.all([
 			checkIgnore(worktreePath, [path]).catch(() => [] as string[]),
-			getFileAtHead(worktreePath, path).catch(() => ""),
+			getFileAtHead(worktreePath, path).catch(() => null),
 			blamePromise,
 		]);
 		if (ignored.length > 0) {
 			return { baseContent: null, currentBlame: new Map() };
 		}
-		return { baseContent: toLf(baseContent), currentBlame };
+		return {
+			baseContent: baseContent === null ? null : toLf(baseContent),
+			currentBlame,
+		};
 	}
 
 	const [baseContent, currentBlame] = await Promise.all([
-		getFileAtHead(worktreePath, path).catch(() => ""),
+		getFileAtHead(worktreePath, path).catch(() => null),
 		blamePromise,
 	]);
 
-	return { baseContent: toLf(baseContent), currentBlame };
+	return {
+		baseContent: baseContent === null ? null : toLf(baseContent),
+		currentBlame,
+	};
 }

@@ -43,10 +43,7 @@ import { get } from 'svelte/store';
     parentPathOf,
     basename,
   } from '$lib/utils/files/files-tree';
-  import {
-    loadPaneBase,
-    emptyDiffState,
-  } from '$lib/utils/files/files-diff';
+  import { loadPaneBase } from '$lib/utils/files/files-diff';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
   import {
     computeTabInsertIndex,
@@ -152,6 +149,7 @@ import { get } from 'svelte/store';
   let rawTree: FileNode[] = [];
   let tree: FileNode[] = [];
   let gitStatusMap: GitStatusMap = {};
+  let gitStatusWorktree: string | null = null;
   let showHidden = false;
   let multiSelected = new Set<string>();
 
@@ -231,22 +229,30 @@ import { get } from 'svelte/store';
   async function loadPaneBaseFor(i: number, tab: { path: string } | null): Promise<void> {
     const pane = panes[i];
     if (!tab || !worktreePath) {
-      const empty = emptyDiffState();
-      pane.baseContent = empty.baseContent;
-      pane.currentBlame = empty.currentBlame;
+      pane.baseContent = null;
+      pane.currentBlame = new Map();
       panes = panes;
       return;
     }
-    try {
-      const status = gitStatusMap[tab.path];
-      const result = await loadPaneBase(worktreePath, tab.path, status);
-      pane.baseContent = result.baseContent;
-      pane.currentBlame = result.currentBlame;
-    } catch {
-      const empty = emptyDiffState();
-      pane.baseContent = empty.baseContent;
-      pane.currentBlame = empty.currentBlame;
+    if (gitStatusWorktree !== worktreePath) {
+      pane.baseContent = null;
+      pane.currentBlame = new Map();
+      panes = panes;
+      return;
     }
+    const reqWorktree = worktreePath;
+    const reqPath = tab.path;
+    let result: { baseContent: string | null; currentBlame: Map<number, BlameEntry> };
+    try {
+      result = await loadPaneBase(reqWorktree, reqPath, gitStatusMap[reqPath]);
+    } catch {
+      result = { baseContent: null, currentBlame: new Map() };
+    }
+    const cur = panes[i];
+    if (!cur || worktreePath !== reqWorktree) return;
+    if (cur.tabs[cur.activeTabIdx]?.path !== reqPath) return;
+    cur.baseContent = result.baseContent;
+    cur.currentBlame = result.currentBlame;
     panes = panes;
   }
 
@@ -1039,8 +1045,10 @@ import { get } from 'svelte/store';
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
       tree = rawTree;
+      gitStatusWorktree = root;
       void refreshGitStore(true);
       loadPaneBaseFor(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
+      loadPaneBaseFor(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
     } finally {
