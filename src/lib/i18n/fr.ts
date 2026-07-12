@@ -531,7 +531,8 @@ export const fr = {
 		nFilesStaged: (n: number) =>
 			`${n} fichier${n !== 1 ? "s" : ""} indexé${n !== 1 ? "s" : ""}`,
 		commitPlaceholder: "feat(scope): décrivez votre modification",
-		commitBodyPlaceholder: "Ajouter une description plus longue (facultatif)...",
+		commitBodyPlaceholder:
+			"Ajouter une description plus longue (facultatif)...",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		stage: "Indexer",
 		unstage: "Désindexer",
