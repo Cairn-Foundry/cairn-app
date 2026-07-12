@@ -57,8 +57,20 @@
   export let onEditValueChange: (value: string) => void;
   export let onEmptyAreaClick: () => void;
 
+  let scrollEl: HTMLElement | null = null;
+
   function focusOnMount(el: HTMLInputElement) {
     tick().then(() => { el.focus(); el.select(); });
+  }
+
+  $: revealActiveInTree(activeTabPath);
+
+  function revealActiveInTree(path: string | null) {
+    if (!path) return;
+    tick().then(() => {
+      const el = scrollEl?.querySelector(`[data-tree-path="${CSS.escape(path)}"]`);
+      el?.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   function handleEditKey(e: KeyboardEvent) {
@@ -99,7 +111,7 @@
   </div>
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="files-tree-scroll" on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
+  <div class="files-tree-scroll" bind:this={scrollEl} on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
     {#if loading}
       <div class="tree-state">{t('files.treeLoading')}</div>
     {:else if error}
@@ -150,6 +162,7 @@
       type="button"
       class="file-tree-item {openTabPaths.has(node.path) ? 'open' : ''} {activeTabPath === node.path ? 'active' : ''} {loadingPaths.has(node.path) ? 'loading' : ''} {node.isDir && node.path === selectedDir ? 'selected-dir' : ''} {contextMenuTargetPath === node.path ? 'ctx-target' : ''} {status ? 'git-' + status : ''} {multiSelected.has(node.path) ? 'multi-selected' : ''} {node.isDir && dragOverDir === node.path ? 'drag-over' : ''} {cutPaths.has(node.path) ? 'file-cut' : ''}"
       style="padding-left: {12 + depth * 14}px"
+      data-tree-path={node.path}
       data-tree-dir={node.isDir ? node.path : undefined}
       data-tree-parent={!node.isDir ? parentPathOf(node.path) : undefined}
       on:click={(e) => onNodeClick(e, node)}

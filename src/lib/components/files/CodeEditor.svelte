@@ -1,9 +1,20 @@
+<script context="module" lang="ts">
+  import { Compartment as CompartmentModule } from '@codemirror/state';
+
+  const minimapCompartment = new CompartmentModule();
+  const fontSizeCompartment = new CompartmentModule();
+  const shortcutKeymapCompartment = new CompartmentModule();
+  const themeCompartment = new CompartmentModule();
+  const highlightCompartment = new CompartmentModule();
+  const whitespaceCompartment = new CompartmentModule();
+</script>
+
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { EditorView, keymap } from '@codemirror/view';
-  import { EditorState, EditorSelection, Compartment, Prec, type Extension } from '@codemirror/state';
+  import { EditorState, EditorSelection, Prec, type Extension } from '@codemirror/state';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import {
     buildEditorTheme, buildHighlight, buildDiffGutterTheme,
@@ -162,15 +173,6 @@
   function handleCtxKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') closeContextMenu();
   }
-
-  // -- Compartments -----------------------------------------------------------
-
-  const minimapCompartment = new Compartment();
-  const fontSizeCompartment = new Compartment();
-  const shortcutKeymapCompartment = new Compartment();
-  const themeCompartment = new Compartment();
-  const highlightCompartment = new Compartment();
-  const whitespaceCompartment = new Compartment();
 
   // -- Extensions -------------------------------------------------------------
 

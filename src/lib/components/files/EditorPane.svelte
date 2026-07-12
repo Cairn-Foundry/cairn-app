@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
@@ -59,6 +60,15 @@
   export let onConvertIndent: () => void;
   export let onToggleWhitespace: () => void;
   export let onOpenRecent: (node: FileNode) => void;
+
+  $: scrollActiveTabIntoView(activeTabIdx);
+
+  function scrollActiveTabIntoView(_idx: number) {
+    tick().then(() => {
+      const el = tabsBarEl?.querySelector('.file-tab.tab-active');
+      el?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    });
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

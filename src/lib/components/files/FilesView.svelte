@@ -819,7 +819,10 @@ import { get } from 'svelte/store';
     let unlistenFocus: (() => void) | null = null;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-        if (focused && worktreePath) loadTree(worktreePath);
+        if (focused && worktreePath) {
+          loadTree(worktreePath, { silent: true });
+          void reloadOpenFilesFromDisk();
+        }
         if (!focused && ($settings.saveOn) === 'windowChange') {
           for (let i = 0; i < panes.length; i++) flushSave(i);
         }
@@ -1026,8 +1029,9 @@ import { get } from 'svelte/store';
     loadTree(worktreePath);
   }
 
-  async function loadTree(root: string) {
-    loading = true;
+  async function loadTree(root: string, opts?: { silent?: boolean }) {
+    const silent = opts?.silent === true && rawTree.length > 0;
+    if (!silent) loading = true;
     error = '';
     try {
       [rawTree, gitStatusMap] = await Promise.all([
@@ -1040,8 +1044,32 @@ import { get } from 'svelte/store';
     } catch (e) {
       error = String(e);
     } finally {
-      loading = false;
+      if (!silent) loading = false;
     }
+  }
+
+  async function reloadOpenFilesFromDisk() {
+    if (!worktreePath) return;
+    let changed = false;
+    for (const pane of panes) {
+      for (const tab of pane.tabs) {
+        if (isBinaryPath(tab.path)) continue;
+        if (tab.pending !== tab.content) continue;
+        try {
+          const raw = await readFile(`${worktreePath}/${tab.path}`);
+          if (raw === null) continue;
+          const le = detectLineEndings(raw);
+          const text = normalizeLineEndings(raw, le);
+          if (text === tab.content) continue;
+          tab.content = text;
+          tab.pending = text;
+          tab.lineEndings = le;
+          pane.editorStateCache.delete(tab.path);
+          changed = true;
+        } catch {}
+      }
+    }
+    if (changed) panes = panes;
   }
 
   $: tree = rawTree;
@@ -1050,6 +1078,7 @@ import { get } from 'svelte/store';
 
   $: openTabPaths = new Set(panes[0].tabs.map(t => t.path));
   $: activeTabPath = activeTabs[0]?.path ?? null;
+  $: if (activeTabPath) syncActiveTabToTree();
   $: dirtyTabPaths = new Set(panes.flatMap(pn => pn.tabs.filter(t => t.pending !== t.content).map(t => t.path)));
   $: contextMenuTargetPath = contextMenu?.node?.path ?? null;
 
