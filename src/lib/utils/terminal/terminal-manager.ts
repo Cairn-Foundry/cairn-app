@@ -1,5 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import {
@@ -37,6 +39,39 @@ function buildTheme() {
 	};
 }
 
+function applyTheme(): void {
+	const theme = buildTheme();
+	for (const m of managed.values()) {
+		m.term.options.theme = theme;
+	}
+}
+
+if (typeof document !== "undefined") {
+	const observer = new MutationObserver(() => applyTheme());
+	observer.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ["data-theme", "style"],
+	});
+}
+
+const isMac =
+	typeof navigator !== "undefined" &&
+	navigator.platform.toLowerCase().includes("mac");
+
+function handleClipboardKey(term: Terminal, e: KeyboardEvent): boolean {
+	if (e.type !== "keydown") return true;
+	const copyCombo = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey;
+	if (!copyCombo) return true;
+
+	if (e.key.toLowerCase() === "c") {
+		const selection = term.getSelection();
+		if (!selection) return true;
+		void writeText(selection);
+		return false;
+	}
+	return true;
+}
+
 const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	listen<{ id: string; data: string }>("terminal-output", (e) => {
 		managed.get(e.payload.id)?.term.write(e.payload.data);
@@ -59,13 +94,20 @@ export function create(id: string): void {
 		fontSize: 12.5,
 		cursorBlink: true,
 		scrollback: 5000,
+		allowProposedApi: true,
 		theme: buildTheme(),
 	});
 	const fit = new FitAddon();
 	term.loadAddon(fit);
 
+	const unicode11 = new Unicode11Addon();
+	term.loadAddon(unicode11);
+	term.unicode.activeVersion = "11";
+
 	const el = document.createElement("div");
 	el.className = "terminal-host";
+
+	term.attachCustomKeyEventHandler((e) => handleClipboardKey(term, e));
 
 	term.onData((data) => {
 		void writeToTerminal(id, data);

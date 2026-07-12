@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code style
+
+- Do not add explanatory comments describing what the code is doing. Keep the code self-documenting and only comment when strictly necessary (e.g. a non-obvious gotcha).
+
 ## Commands
 
 ```bash
