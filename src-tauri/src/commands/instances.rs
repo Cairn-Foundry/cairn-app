@@ -25,8 +25,6 @@ pub struct StoredInstance {
     pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: u64,
-    #[serde(rename = "useGit", default)]
-    pub use_git: bool,
     #[serde(rename = "baseBranch", default)]
     pub base_branch: String,
     #[serde(rename = "parentInstanceId", default, skip_serializing_if = "Option::is_none")]
@@ -45,8 +43,6 @@ pub struct Instance {
     pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: u64,
-    #[serde(rename = "useGit")]
-    pub use_git: bool,
     #[serde(rename = "baseBranch")]
     pub base_branch: String,
     #[serde(rename = "parentInstanceId", skip_serializing_if = "Option::is_none")]
@@ -63,7 +59,6 @@ impl StoredInstance {
             worktree_path: self.worktree_path,
             status: self.status,
             created_at: self.created_at,
-            use_git: self.use_git,
             base_branch: self.base_branch,
             parent_instance_id: self.parent_instance_id,
         }
@@ -78,17 +73,9 @@ pub struct CreateInstanceArgs {
     #[serde(rename = "projectPath")]
     pub project_path: String,
     pub ticket: InstanceTicket,
-    #[serde(rename = "useGit")]
-    pub use_git: bool,
     pub branch: Option<String>,
     #[serde(rename = "baseBranch")]
     pub base_branch: Option<String>,
-}
-
-fn non_git_slug(ticket_id: &str, instance_id: &str) -> String {
-    let base = ticket_id.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
-    let short_id: String = instance_id.chars().take(8).collect();
-    format!("{base}-{short_id}")
 }
 
 pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
@@ -113,9 +100,9 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
     tauri::async_runtime::spawn_blocking(move || {
         let expanded_project = shellexpand::tilde(&args.project_path).into_owned();
 
-        let (branch, worktree_path_str) = if args.use_git {
-            let branch = args.branch.clone().ok_or("branch is required for git mode")?;
-            let base_branch = args.base_branch.clone().ok_or("baseBranch is required for git mode")?;
+        let (branch, worktree_path_str) = {
+            let branch = args.branch.clone().ok_or("branch is required")?;
+            let base_branch = args.base_branch.clone().ok_or("baseBranch is required")?;
 
             let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
@@ -166,12 +153,6 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
             }
 
             (branch, worktree_path.to_string_lossy().to_string())
-        } else {
-            let slug = non_git_slug(&args.ticket.id, &args.id);
-            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
-            fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
-            copy_dir_recursive(&std::path::Path::new(&expanded_project), &worktree_path)?;
-            (String::new(), worktree_path.to_string_lossy().to_string())
         };
 
         let stored = StoredInstance {
@@ -184,7 +165,6 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64,
-            use_git: args.use_git,
             base_branch: args.base_branch.unwrap_or_default(),
             parent_instance_id: None,
         };
@@ -222,7 +202,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
             .ok_or_else(|| format!("Instance '{}' not found", args.source_id))?
             .clone();
 
-        let (branch, worktree_path_str) = if source.use_git {
+        let (branch, worktree_path_str) = {
             let projects = read_projects()?;
             let expanded_project = projects.iter()
                 .find(|p| p.id == args.project_id)
@@ -262,14 +242,6 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
             }
 
             (new_branch, worktree_path.to_string_lossy().to_string())
-        } else {
-            let slug = non_git_slug(&args.ticket.id, &args.new_id);
-            let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
-            fs::create_dir_all(&worktree_path).map_err(|e| e.to_string())?;
-            if args.copy_working_changes {
-                copy_dir_recursive(std::path::Path::new(&source.worktree_path), &worktree_path)?;
-            }
-            (String::new(), worktree_path.to_string_lossy().to_string())
         };
 
         let stored = StoredInstance {
@@ -282,7 +254,6 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64,
-            use_git: source.use_git,
             base_branch: source.base_branch.clone(),
             parent_instance_id: Some(args.source_id.clone()),
         };
@@ -311,48 +282,24 @@ pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
         fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
     }
 
-    if instance.use_git {
-        let projects = read_projects()?;
-        let expanded_project = projects.iter()
-            .find(|p| p.id == project_id)
-            .map(|p| shellexpand::tilde(&p.path).into_owned())
-            .ok_or_else(|| "Project not found".to_string())?;
+    let projects = read_projects()?;
+    let expanded_project = projects.iter()
+        .find(|p| p.id == project_id)
+        .map(|p| shellexpand::tilde(&p.path).into_owned())
+        .ok_or_else(|| "Project not found".to_string())?;
 
-        let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+    let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-        let slug = instance.branch.replace('/', "-");
-        if let Ok(wt) = repo.find_worktree(&slug) {
-            let _ = wt.prune(None);
-        }
-        if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
-            let _ = branch.delete();
-        };
+    let slug = instance.branch.replace('/', "-");
+    if let Ok(wt) = repo.find_worktree(&slug) {
+        let _ = wt.prune(None);
     }
+    if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
+        let _ = branch.delete();
+    };
 
     instances.retain(|i| i.id != id);
     write_instances(&project_id, &instances)?;
     let _ = delete_file_state_dir(&project_id, &id);
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::non_git_slug;
-
-    #[test]
-    fn non_git_slug_sanitizes_and_lowercases() {
-        let slug = non_git_slug("FEAT-42", "abcdef1234567890");
-        assert!(slug.starts_with("feat-42-"), "got {slug}");
-        assert!(slug.ends_with("abcdef12"), "got {slug}");
-        // No non-alphanumeric survivors except the separators we introduced.
-        assert!(non_git_slug("a/b c", "0000000011")
-            .starts_with("a-b-c-"));
-    }
-
-    #[test]
-    fn non_git_slug_is_unique_for_colliding_ticket_ids() {
-        let a = non_git_slug("SAME", "11111111aaaa");
-        let b = non_git_slug("SAME", "22222222bbbb");
-        assert_ne!(a, b, "same ticket id must still yield distinct slugs");
-    }
 }

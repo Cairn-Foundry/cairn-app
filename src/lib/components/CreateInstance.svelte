@@ -11,11 +11,10 @@
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
-  // step: 0 = ticket, 1 = mode, 2 = git config (skipped for local)
+  // step: 0 = ticket, 1 = git config
   let step = 0;
   let ticketId = '';
   let ticketTitle = '';
-  let useGit = true;
   let branchName = '';
   let baseBranch = 'main';
   let availableBranches: string[] = [];
@@ -47,7 +46,6 @@
       availableBranches = [];
       remoteBranches = [];
       isGitRepo = false;
-      useGit = false;
     } finally {
       refreshingBranches = false;
     }
@@ -62,31 +60,28 @@
     prevSlug = generated;
   }
 
-  $: worktreePath = useGit
-    ? `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`
-    : `~/.cairn/worktrees/${slugify(ticketId)}`;
+  $: worktreePath = `~/.cairn/worktrees/${branchName.replace(/\//g, '-')}`;
 
-  $: totalSteps = useGit ? 3 : 2;
+  $: totalSteps = 2;
 
   $: displayStep = step + 1;
 
   const stepMeta: Record<number, { label: string; title: string }> = {
     0: { label: t('createInstance.stepLabels.ticket') as string, title: t('createInstance.stepTitles.ticket') as string },
-    1: { label: t('createInstance.stepLabels.mode') as string,   title: t('createInstance.stepTitles.mode') as string },
-    2: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
+    1: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
   };
 
-  $: duplicateBranch = useGit && branchName.trim().length > 0
+  $: duplicateBranch = branchName.trim().length > 0
     && $instances.some(i => i.branch === branchName.trim());
 
   $: canNext =
     step === 0 ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
-    step === 2 ? branchName.trim().length > 0 && !duplicateBranch :
+    step === 1 ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch :
     true;
 
   function next() {
     error = '';
-    step = Math.min(2, step + 1);
+    step = Math.min(1, step + 1);
   }
 
   function back() {
@@ -94,7 +89,7 @@
     step = Math.max(0, step - 1);
   }
 
-  $: dots = useGit ? [0, 1, 2] : [0, 1];
+  $: dots = [0, 1];
 
   async function handleCreate() {
     if (!$activeProject) return;
@@ -108,8 +103,8 @@
         projectId: $activeProject.id,
         projectPath: $activeProject.path,
         ticket: { id: ticketId.trim(), title: ticketTitle.trim() },
-        useGit,
-        ...(useGit ? { branch: branchName.trim(), baseBranch } : {}),
+        branch: branchName.trim(),
+        baseBranch,
       });
       dispatch('create', { instanceId: instance.id });
     } catch (err) {
@@ -148,35 +143,14 @@
         </div>
       {/if}
 
-      {#if step === 1}
-        <div class="mode-grid">
-          <button
-            class="mode-card {useGit ? 'active' : ''} {!isGitRepo ? 'disabled' : ''}"
-            disabled={!isGitRepo}
-            on:click={() => { if (isGitRepo) useGit = true; }}
-          >
-            <span class="mode-icon"><Icon name="branch" size={22}/></span>
-            <span class="mode-label">{t('createInstance.gitWorktree')}</span>
-            <span class="mode-desc">
-              {#if isGitRepo}
-                {t('createInstance.gitWorktreeDesc')}
-              {:else}
-                {t('createInstance.gitWorktreeUnavailable')}
-              {/if}
-            </span>
-          </button>
-          <button
-            class="mode-card {!useGit ? 'active' : ''}"
-            on:click={() => useGit = false}
-          >
-            <span class="mode-icon"><Icon name="folder" size={22}/></span>
-            <span class="mode-label">{t('createInstance.localOnly')}</span>
-            <span class="mode-desc">{t('createInstance.localOnlyDesc')}</span>
-          </button>
+      {#if step === 1 && !isGitRepo}
+        <div class="info-box">
+          <div class="info-icon"><Icon name="info" size={14}/></div>
+          <div>{t('createInstance.notGitRepo')}</div>
         </div>
       {/if}
 
-      {#if step === 2}
+      {#if step === 1 && isGitRepo}
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
@@ -260,7 +234,7 @@
         <div class="info-box">
           <div class="info-icon"><Icon name="info" size={14}/></div>
           <div>
-            <strong style="color: var(--fg-0)">git worktree</strong> {t('createInstance.worktreeInfoPrefix')}
+            <strong style="color: var(--fg-0)">Cairn</strong> {t('createInstance.worktreeInfoPrefix')}
             <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
             {t('createInstance.worktreeInfoSuffix')}
           </div>
@@ -283,7 +257,7 @@
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={creating}>{t('common.back')}</button>
       {/if}
-      {#if step < (useGit ? 2 : 1)}
+      {#if step < 1}
         <button
           class="btn primary"
           disabled={!canNext}
@@ -293,7 +267,7 @@
           {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
       {:else}
-        <button class="btn primary" on:click={handleCreate} disabled={creating}>
+        <button class="btn primary" on:click={handleCreate} disabled={creating || !isGitRepo}>
           {#if creating}
             <Spinner /> {t('common.creating')}
           {:else}
@@ -306,65 +280,6 @@
 </div>
 
 <style>
-  .mode-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .mode-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 16px;
-    background: var(--bg-0);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-md);
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, background 0.15s;
-    color: var(--fg-1);
-  }
-
-  .mode-card:hover {
-    border-color: var(--fg-3);
-    background: var(--bg-2);
-  }
-
-  .mode-card.active {
-    border-color: var(--accent);
-    background: var(--accent-weak);
-  }
-
-  .mode-card.disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  .mode-card.disabled:hover {
-    border-color: var(--stroke-0);
-    background: var(--bg-0);
-  }
-
-  .mode-icon {
-    color: var(--fg-2);
-    margin-bottom: 2px;
-  }
-
-  .mode-card.active .mode-icon { color: var(--accent); }
-
-  .mode-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg-0);
-  }
-
-  .mode-desc {
-    font-size: 11px;
-    color: var(--fg-3);
-    line-height: 1.5;
-  }
-
   :global(input.input-error) {
     border-color: var(--danger, oklch(0.62 0.18 15)) !important;
     box-shadow: 0 0 0 3px var(--danger-weak, oklch(0.28 0.06 15));

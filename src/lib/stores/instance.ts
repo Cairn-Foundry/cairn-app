@@ -1,4 +1,5 @@
 import { derived, get, writable } from "svelte/store";
+import { t } from "$lib/i18n";
 import type { CreateInstanceArgs } from "$lib/services/instance-service";
 import {
 	createInstance,
@@ -7,20 +8,49 @@ import {
 	listInstances,
 } from "$lib/services/instance-service";
 import type { Instance, TimelineEvent } from "$lib/types/instance";
+import type { Project } from "$lib/types/project";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";
 
 export const instances = writable<Instance[]>([]);
 export const timeline = writable<TimelineEvent[]>([]);
 
+export const BASE_INSTANCE_ID = "__base__";
+
+export function isBaseInstance(id: string | null | undefined): boolean {
+	return id === BASE_INSTANCE_ID;
+}
+
+export function baseInstance(project: Project): Instance {
+	return {
+		id: BASE_INSTANCE_ID,
+		projectId: project.id,
+		ticket: {
+			id: "base",
+			title: t("workspace.baseFolder.title") as string,
+		},
+		branch: "",
+		worktreePath: project.path,
+		status: "idle",
+		createdAt: 0,
+		baseBranch: "",
+	};
+}
+
 export const activeInstance = derived(
 	[instances, activeProject],
 	([$instances, $activeProject]) => {
-		if (!$activeProject?.activeInstanceId) return null;
-		return (
-			$instances.find((i) => i.id === $activeProject.activeInstanceId) ?? null
-		);
+		if (!$activeProject) return null;
+		const id = $activeProject.activeInstanceId;
+		if (!id || id === BASE_INSTANCE_ID) return baseInstance($activeProject);
+		return $instances.find((i) => i.id === id) ?? baseInstance($activeProject);
 	},
+);
+
+export const instancesWithBase = derived(
+	[instances, activeProject],
+	([$instances, $activeProject]) =>
+		$activeProject ? [baseInstance($activeProject), ...$instances] : $instances,
 );
 
 export const activeTimeline = derived(

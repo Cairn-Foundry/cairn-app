@@ -66,24 +66,22 @@
         />
       </label>
 
-      {#if instance.useGit}
-        <label class="dup-toggle">
-          <div class="dup-toggle-text">
-            <span class="dup-label">{t('manageInstances.duplicateModal.copyChangesLabel')}</span>
-            <span class="dup-desc">{t('manageInstances.duplicateModal.copyChangesDesc')}</span>
-          </div>
-          <button
-            type="button"
-            class="toggle-btn"
-            class:on={copyWorkingChanges}
-            on:click={() => copyWorkingChanges = !copyWorkingChanges}
-            aria-pressed={copyWorkingChanges}
-            aria-label={t('manageInstances.duplicateModal.copyChangesLabel') as string}
-          >
-            <span class="toggle-thumb"></span>
-          </button>
-        </label>
-      {/if}
+      <label class="dup-toggle">
+        <div class="dup-toggle-text">
+          <span class="dup-label">{t('manageInstances.duplicateModal.copyChangesLabel')}</span>
+          <span class="dup-desc">{t('manageInstances.duplicateModal.copyChangesDesc')}</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:on={copyWorkingChanges}
+          on:click={() => copyWorkingChanges = !copyWorkingChanges}
+          aria-pressed={copyWorkingChanges}
+          aria-label={t('manageInstances.duplicateModal.copyChangesLabel') as string}
+        >
+          <span class="toggle-thumb"></span>
+        </button>
+      </label>
     </div>
 
     <div class="modal-foot">

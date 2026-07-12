@@ -72,24 +72,18 @@ export const fr = {
 	createInstance: {
 		stepLabels: {
 			ticket: "Ticket",
-			mode: "Mode",
 			branch: "Branche",
 		},
 		stepTitles: {
 			ticket: "Décrire le travail",
-			mode: "Choisir un mode de configuration",
 			branch: "Configurer le worktree",
 		},
 		ticketId: "ID du ticket",
 		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Titre",
 		titlePlaceholder: "Description courte du travail",
-		gitWorktree: "Git worktree",
-		gitWorktreeDesc: "Recommandé pour un travail collaboratif ou suivi.",
-		gitWorktreeUnavailable: "Indisponible - ce projet n'est pas un dépôt git.",
-		localOnly: "Local uniquement",
-		localOnlyDesc:
-			"Travaillez avec une branche et un worktree dans votre projet local.",
+		notGitRepo:
+			"Ce projet n'est pas un dépôt git, les instances sont donc indisponibles. Travaillez directement dans le dossier de base.",
 		baseBranch: "Branche de base",
 		filterBranches: "Filtrer les branches...",
 		refreshBranches: "Actualiser les branches",
@@ -100,7 +94,7 @@ export const fr = {
 		newBranchName: "Nom de la nouvelle branche",
 		duplicateBranch: (name: string) =>
 			`Une branche nommée ${name} existe déjà dans ce projet.`,
-		worktreeInfoPrefix: "créera un checkout isolé dans",
+		worktreeInfoPrefix: "créera un environnement isolé dans",
 		worktreeInfoSuffix: "Votre arbre de travail principal reste intact.",
 		settingUp: "Configuration de l'instance...",
 		createInstance: "Créer l'instance",
@@ -152,6 +146,11 @@ export const fr = {
 
 	workspace: {
 		homeTitle: "Accueil",
+		baseFolder: {
+			title: "Dépôt principal",
+			subtitle: "Travail direct, sans worktree isolé",
+		},
+		instancesGroup: "Instances",
 		addProject: "Projet",
 		pauseAgent: "Mettre l'agent en pause",
 		finalizeInstance: "Finaliser l'instance",

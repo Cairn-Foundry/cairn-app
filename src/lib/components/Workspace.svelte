@@ -20,8 +20,8 @@
   import { matchesSearch } from '$lib/utils/files/files-search';
 
   import type { Instance } from '$lib/types/instance';
-  import { instances } from '$lib/stores/instance';
-  import { activateInstance } from '$lib/stores/project';
+  import { instances, baseInstance, isBaseInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
+  import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { gitFileCounts } from '$lib/stores/git';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
@@ -164,21 +164,24 @@
 
   $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
 
-  $: instanceGroups = (() => {
-    const byId = new Map($instances.map(i => [i.id, i]));
-    const placed = new Set<string>();
-    const result: Array<{ inst: typeof $instances[0]; depth: number }> = [];
+  $: baseInst = $activeProject ? baseInstance($activeProject) : null;
 
-    function placeSubtree(inst: typeof $instances[0], depth: number) {
+  $: instanceGroups = (() => {
+    const list = $instances;
+    const byId = new Map(list.map(i => [i.id, i]));
+    const placed = new Set<string>();
+    const result: Array<{ inst: typeof list[0]; depth: number }> = [];
+
+    function placeSubtree(inst: typeof list[0], depth: number) {
       if (placed.has(inst.id)) return;
       result.push({ inst, depth });
       placed.add(inst.id);
-      for (const child of $instances) {
+      for (const child of list) {
         if (child.parentInstanceId === inst.id) placeSubtree(child, depth + 1);
       }
     }
 
-    for (const inst of $instances) {
+    for (const inst of list) {
       if (!placed.has(inst.id) && !byId.has(inst.parentInstanceId ?? '')) {
         placeSubtree(inst, 0);
       }
@@ -240,9 +243,14 @@
   <div class="instance-header">
     {#if activeInstance}
       <div class="instance-switcher-wrap" use:clickOutside={() => { showInstanceMenu = false; instanceSearch = ''; }}>
-        <button class="instance-switcher" on:click={openInstanceMenu}>
-          <Icon name="ticket" size={12}/>
-          <span class="mono">{activeInstance.ticket.id}</span>
+        <button class="instance-switcher {isBaseInstance(activeInstance.id) ? 'is-base' : ''}" on:click={openInstanceMenu}>
+          {#if isBaseInstance(activeInstance.id)}
+            <Icon name="folder" size={12}/>
+            <span>{activeInstance.ticket.title}</span>
+          {:else}
+            <Icon name="ticket" size={12}/>
+            <span class="mono">{activeInstance.ticket.id}</span>
+          {/if}
           <Icon name="chev-d" size={11}/>
         </button>
         {#if showInstanceMenu}
@@ -258,17 +266,28 @@
                 on:keydown={(e) => e.key === 'Escape' && (showInstanceMenu = false)}
               />
             </div>
-            {#each instanceGroupsFiltered as { inst, depth }}
-              <button
-                class="instance-menu-item {inst.id === activeInstance?.id ? 'active' : ''}"
-                style="padding-left: {10 + depth * 12}px"
-                on:click={() => selectInstance(inst.id)}
-              >
-                <span class="mono">{inst.ticket.id}</span>
-                <span class="instance-menu-title">{inst.ticket.title}</span>
-              </button>
-            {/each}
+            <button
+              class="instance-menu-item instance-menu-base {activeInstance?.id === BASE_INSTANCE_ID ? 'active' : ''}"
+              on:click={() => selectInstance(BASE_INSTANCE_ID)}
+            >
+              <Icon name="folder" size={13}/>
+              <span>{baseInst?.ticket.title}</span>
+            </button>
             <div class="instance-menu-divider"></div>
+            {#if instanceGroupsFiltered.length > 0}
+              <div class="instance-menu-group">{t('workspace.instancesGroup')}</div>
+              {#each instanceGroupsFiltered as { inst, depth }}
+                <button
+                  class="instance-menu-item {inst.id === activeInstance?.id ? 'active' : ''}"
+                  style="padding-left: {10 + depth * 12}px"
+                  on:click={() => selectInstance(inst.id)}
+                >
+                  <span class="mono">{inst.ticket.id}</span>
+                  <span class="instance-menu-title">{inst.ticket.title}</span>
+                </button>
+              {/each}
+              <div class="instance-menu-divider"></div>
+            {/if}
             <button class="instance-menu-item instance-menu-new" on:click={() => { showInstanceMenu = false; dispatch('createInstance'); }}>
               <Icon name="plus" size={11}/>
               <span>{t('workspace.newInstance')}</span>
@@ -282,22 +301,28 @@
         {/if}
       </div>
 
-      <div class="instance-title">
-        <span class="instance-dot"></span>
-        <span class="ticket-name">{activeInstance.ticket.title}</span>
-      </div>
+      {#if isBaseInstance(activeInstance.id)}
+        <div class="instance-title base-descriptor">
+          <span class="base-hint">{t('workspace.baseFolder.subtitle')}</span>
+        </div>
+      {:else}
+        <div class="instance-title">
+          <span class="instance-dot"></span>
+          <span class="ticket-name">{activeInstance.ticket.title}</span>
+        </div>
 
-      {#if activeInstance.branch}
-        <div class="branch-info">
-          <Icon name="branch" size={11}/>
-          <span class="target">{activeInstance.branch}</span>
+        {#if activeInstance.branch}
+          <div class="branch-info">
+            <Icon name="branch" size={11}/>
+            <span class="target">{activeInstance.branch}</span>
+          </div>
+        {/if}
+
+        <div class="instance-actions">
+          <button class="btn"><Icon name="pause" size={13}/> {t('workspace.pauseAgent')}</button>
+          <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
         </div>
       {/if}
-
-      <div class="instance-actions">
-        <button class="btn"><Icon name="pause" size={13}/> {t('workspace.pauseAgent')}</button>
-        <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
-      </div>
     {:else}
       {#if $instances.length > 0}
         <button class="create-instance-btn" on:click={() => showManageModal = true}>
@@ -476,6 +501,24 @@
   .instance-menu-item.active { background: var(--accent-weak); color: var(--fg-0); }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }
+
+  .instance-menu-base {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg-1);
+  }
+  .instance-menu-base :global(svg) { color: var(--fg-3); flex-shrink: 0; }
+  .instance-menu-base.active :global(svg) { color: var(--accent); }
+
+  .instance-menu-group {
+    padding: 4px 10px 2px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--fg-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
 
   .instance-menu-divider { height: 1px; background: var(--stroke-0); margin: 4px 0; }
 

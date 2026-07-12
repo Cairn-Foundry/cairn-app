@@ -17,24 +17,24 @@
    ========================================================= */
 :root {
   /* Backgrounds - warm, slightly green-brown tinted */
-  --bg-0: oklch(0.16 0.008 70);           /* deepest (window bg) */
+  --bg-0: oklch(0.155 0.008 70);          /* deepest (window bg) */
   --bg-1: oklch(0.185 0.008 70);          /* sidebar */
-  --bg-2: oklch(0.215 0.008 70);          /* main panels */
-  --bg-3: oklch(0.245 0.008 70);          /* elevated cards */
-  --bg-4: oklch(0.285 0.008 70);          /* hover */
-  --bg-5: oklch(0.33 0.008 70);
+  --bg-2: oklch(0.222 0.008 70);          /* main panels */
+  --bg-3: oklch(0.262 0.009 70);          /* elevated cards */
+  --bg-4: oklch(0.31 0.009 70);           /* hover */
+  --bg-5: oklch(0.36 0.009 70);
 
   /* Text */
-  --fg-0: oklch(0.96 0.005 80);           /* primary */
-  --fg-1: oklch(0.82 0.005 80);           /* secondary */
-  --fg-2: oklch(0.64 0.006 80);           /* tertiary */
-  --fg-3: oklch(0.48 0.006 80);           /* dim */
-  --fg-4: oklch(0.36 0.006 80);           /* very dim */
+  --fg-0: oklch(0.97 0.005 80);           /* primary */
+  --fg-1: oklch(0.84 0.005 80);           /* secondary */
+  --fg-2: oklch(0.66 0.006 80);           /* tertiary */
+  --fg-3: oklch(0.52 0.006 80);           /* dim */
+  --fg-4: oklch(0.40 0.006 80);           /* very dim */
 
   /* Strokes */
-  --stroke-0: oklch(0.26 0.008 70);       /* subtle dividers */
-  --stroke-1: oklch(0.32 0.008 70);       /* standard */
-  --stroke-2: oklch(0.42 0.008 70);       /* emphasized */
+  --stroke-0: oklch(0.29 0.008 70);       /* subtle dividers */
+  --stroke-1: oklch(0.37 0.008 70);       /* standard */
+  --stroke-2: oklch(0.47 0.008 70);       /* emphasized */
 
   /* Cairn stone tones (warm warm grays) */
   --stone-0: oklch(0.48 0.012 55);
@@ -344,6 +344,17 @@ input, textarea { font-family: inherit; color: inherit; }
 .instance-switcher .count {
   font-size: 10px; color: var(--fg-3);
   font-family: var(--font-mono);
+}
+.instance-switcher.is-base {
+  background: var(--bg-2);
+  border-color: var(--stroke-1);
+}
+
+.base-descriptor { min-width: 0; }
+.base-hint {
+  font-size: 12px;
+  color: var(--fg-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* Main content row */

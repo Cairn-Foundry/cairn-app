@@ -6,7 +6,6 @@ export interface CreateInstanceArgs {
 	projectId: string;
 	projectPath: string;
 	ticket: { id: string; title: string };
-	useGit: boolean;
 	branch?: string;
 	baseBranch?: string;
 }

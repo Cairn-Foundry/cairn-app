@@ -5,7 +5,7 @@
   import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
   import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
-  import { instances, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
+  import { instances, instancesWithBase, isBaseInstance, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
@@ -32,12 +32,12 @@
     moreOpenId = inst.id;
   }
 
-  $: filtered = $instances.filter(i =>
-    matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
+  $: filtered = $instancesWithBase.filter(i =>
+    isBaseInstance(i.id) || matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
   );
 
   $: grouped = (() => {
-    const allById = new Map($instances.map(i => [i.id, i]));
+    const allById = new Map($instancesWithBase.map(i => [i.id, i]));
     const filteredIds = new Set(filtered.map(i => i.id));
 
     function isVisibleRoot(inst: Instance): boolean {
@@ -116,7 +116,7 @@
     }
   }
 
-  $: moreInst = moreOpenId ? ($instances.find(i => i.id === moreOpenId) ?? null) : null;
+  $: moreInst = moreOpenId ? ($instancesWithBase.find(i => i.id === moreOpenId) ?? null) : null;
 
   const STATUS_DOT: Record<string, string> = {
     running: 'var(--accent)',
@@ -156,16 +156,20 @@
     </div>
 
     <div class="modal-body mi-body">
-      {#if $instances.length === 0}
+      {#if $instancesWithBase.length === 0}
         <div class="mi-empty">{t('manageInstances.emptyAll')}</div>
       {:else if filtered.length === 0}
         <div class="mi-empty">{(t('manageInstances.emptyFiltered') as (q: string) => string)(search)}</div>
       {:else}
         <ul class="mi-list">
-          {#each grouped as { inst, depth } (inst.id)}
+          {#each grouped as { inst, depth }, idx (inst.id)}
+            {@const isBase = isBaseInstance(inst.id)}
             {@const isActive = inst.id === activeInstanceId}
             {@const isDeleting = deletingId === inst.id}
             {@const isMoreOpen = moreOpenId === inst.id}
+            {#if idx === 1 && isBaseInstance(grouped[0].inst.id)}
+              <li class="mi-group-row">{t('workspace.instancesGroup')}</li>
+            {/if}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <li
@@ -174,6 +178,7 @@
               class:deleting={isDeleting}
               class:clickable={!isActive && !isDeleting}
               class:mi-row-child={depth > 0}
+              class:mi-row-base={isBase}
               style="padding-left: {16 + depth * 14}px"
               on:click={() => { if (!isActive && !isDeleting) handleSetActive(inst); }}
               role={!isActive && !isDeleting ? 'button' : undefined}
@@ -183,11 +188,17 @@
                 <span class="mi-child-indent" style="left: {16 + (depth - 1) * 14}px" aria-hidden="true"></span>
               {/if}
 
-              <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
+              {#if isBase}
+                <span class="mi-icon"><Icon name="folder" size={13}/></span>
+              {:else}
+                <span class="mi-dot" style="background:{STATUS_DOT[inst.status] ?? STATUS_DOT.idle}"></span>
+              {/if}
 
               <div class="mi-body-inner">
                 <span class="mi-title">{inst.ticket.title}</span>
-                {#if inst.branch}
+                {#if isBase}
+                  <span class="mi-sub">{t('workspace.baseFolder.subtitle')}</span>
+                {:else if inst.branch}
                   <span class="mi-branch">
                     <Icon name="branch" size={10}/>
                     {inst.branch}
@@ -220,11 +231,13 @@
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <div class="more-overlay" on:click={() => moreOpenId = null} role="presentation"></div>
       <div class="more-menu" style="top:{moreMenuPos.top}px; right:{moreMenuPos.right}px;">
-        <button class="more-item" on:click={() => handleDuplicate(moreInst)}>
-          <Icon name="copy" size={13}/>
-          {t('manageInstances.actions.duplicate')}
-        </button>
-        <div class="more-sep"></div>
+        {#if !isBaseInstance(moreInst.id)}
+          <button class="more-item" on:click={() => handleDuplicate(moreInst)}>
+            <Icon name="copy" size={13}/>
+            {t('manageInstances.actions.duplicate')}
+          </button>
+          <div class="more-sep"></div>
+        {/if}
         <button class="more-item" on:click={() => handleReveal(moreInst)}>
           <Icon name="folder" size={13}/>
           {t('manageInstances.actions.reveal')}
@@ -233,11 +246,13 @@
           <Icon name={copiedId === moreInst.id ? 'check' : 'copy'} size={13}/>
           {copiedId === moreInst.id ? t('manageInstances.actions.copyPathDone') : t('manageInstances.actions.copyPathLabel')}
         </button>
-        <div class="more-sep"></div>
-        <button class="more-item danger" on:click={() => handleDelete(moreInst)}>
-          <Icon name="trash" size={13}/>
-          {t('common.delete')}
-        </button>
+        {#if !isBaseInstance(moreInst.id)}
+          <div class="more-sep"></div>
+          <button class="more-item danger" on:click={() => handleDelete(moreInst)}>
+            <Icon name="trash" size={13}/>
+            {t('common.delete')}
+          </button>
+        {/if}
       </div>
     {/if}
 
@@ -353,6 +368,33 @@
     height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+
+  .mi-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-3);
+    flex-shrink: 0;
+  }
+  .mi-row-base.active .mi-icon { color: var(--accent); }
+
+  .mi-row-base { background: var(--bg-0); }
+  .mi-row-base:hover { background: var(--bg-2); }
+  .mi-row-base.active { background: var(--accent-weak); }
+
+  .mi-group-row {
+    padding: 10px 16px 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--fg-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .mi-sub {
+    font-size: 11px;
+    color: var(--fg-3);
   }
 
   .mi-body-inner {

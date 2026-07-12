@@ -71,24 +71,18 @@ export const en = {
 	createInstance: {
 		stepLabels: {
 			ticket: "Ticket",
-			mode: "Mode",
 			branch: "Branch",
 		},
 		stepTitles: {
 			ticket: "Describe the work",
-			mode: "Choose a setup mode",
 			branch: "Shape the worktree",
 		},
 		ticketId: "Ticket ID",
 		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Title",
 		titlePlaceholder: "Short description of the work",
-		gitWorktree: "Git worktree",
-		gitWorktreeDesc: "Recommended for collaborative or tracked work.",
-		gitWorktreeUnavailable:
-			"Not available - this project is not a git repository.",
-		localOnly: "Local only",
-		localOnlyDesc: "Work with branch and worktree inside your local project.",
+		notGitRepo:
+			"This project is not a git repository, so instances are unavailable. Work directly in the base folder instead.",
 		baseBranch: "Base branch",
 		filterBranches: "Filter branches...",
 		refreshBranches: "Refresh branches",
@@ -99,7 +93,7 @@ export const en = {
 		newBranchName: "New branch name",
 		duplicateBranch: (name: string) =>
 			`A branch named ${name} already exists in this project.`,
-		worktreeInfoPrefix: "will create an isolated checkout at",
+		worktreeInfoPrefix: "will create an isolated environment at",
 		worktreeInfoSuffix: "Your main working tree stays untouched.",
 		settingUp: "Setting up instance...",
 		createInstance: "Create instance",
@@ -151,6 +145,11 @@ export const en = {
 
 	workspace: {
 		homeTitle: "Home",
+		baseFolder: {
+			title: "Main repository",
+			subtitle: "Working directly, no isolated worktree",
+		},
+		instancesGroup: "Instances",
 		addProject: "Project",
 		pauseAgent: "Pause agent",
 		finalizeInstance: "Finalize instance",
