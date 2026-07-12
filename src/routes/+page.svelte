@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { activeStep, activeScreen, gitLeftTab, terminalActive } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
@@ -8,6 +8,7 @@
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
+  import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
@@ -22,6 +23,9 @@
   let homeSettingsTab: string = 'general';
   let showCreate = false;
   let mounted = false;
+
+  let removeCopyHandler: (() => void) | null = null;
+  onDestroy(() => removeCopyHandler?.());
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   function persistUiState() {
@@ -41,6 +45,8 @@
   }
 
   onMount(async () => {
+    removeCopyHandler = installCopySelectionHandler();
+
     initTerminals();
     settings.load();
 
