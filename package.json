@@ -16,7 +16,7 @@
     "tauri": "tauri",
     "tauri:linux": "env -u LD_LIBRARY_PATH -u GTK_PATH -u GIO_MODULE_DIR -u GDK_PIXBUF_MODULE_FILE tauri"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.10.3",
