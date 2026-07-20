@@ -577,6 +577,9 @@ export const fr = {
 		manageProfiles: "Gérer les profils",
 		changesSearchPlaceholder: "Rechercher par nom de fichier...",
 		changesNoResults: "Aucun fichier ne correspond à votre recherche.",
+		notARepoTitle: "Pas un dépôt Git",
+		notARepoBody:
+			"Ce dossier de projet n'est pas suivi par Git. Les fonctionnalités de gestion de version sont indisponibles tant qu'il n'est pas un dépôt.",
 		logSearchPlaceholder: "Rechercher par message, auteur ou hash...",
 		logCurrentBranch: "Branche courante seulement",
 		logAllBranches: "Toutes les branches",

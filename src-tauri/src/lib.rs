@@ -75,6 +75,7 @@ pub fn run() {
             get_settings,
             update_settings,
             list_branches_detailed,
+            is_git_repo,
             git_status,
             git_check_ignore,
             git_diff_unstaged,

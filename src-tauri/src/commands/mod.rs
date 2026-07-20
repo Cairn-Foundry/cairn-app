@@ -15,7 +15,7 @@ pub use commit_state::{get_commit_state, save_commit_state};
 pub use file_state::{get_file_state, save_file_state};
 pub use files::{read_dir_tree, list_dir_names, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{
-    list_branches, list_branches_detailed, validate_git_repo, git_status, git_check_ignore,
+    list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_check_ignore,
     git_diff_unstaged, git_diff_staged, git_diff_file, git_file_at_head,
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,

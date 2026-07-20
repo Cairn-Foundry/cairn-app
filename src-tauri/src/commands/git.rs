@@ -220,6 +220,35 @@ pub fn validate_git_repo(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn is_git_repo(worktree_path: String) -> Result<bool, String> {
+    let expanded = expand(&worktree_path);
+    if !Path::new(&expanded).is_dir() {
+        return Ok(false);
+    }
+
+    let output = git_cmd(&expanded)
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Ok(false);
+    }
+
+    let toplevel = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if toplevel.is_empty() {
+        return Ok(false);
+    }
+
+    // The path is a repository only when it is the repo/worktree root itself,
+    // not merely nested inside a parent repository (git walks up by default).
+    match (fs::canonicalize(&expanded), fs::canonicalize(&toplevel)) {
+        (Ok(a), Ok(b)) => Ok(a == b),
+        _ => Ok(false),
+    }
+}
+
+#[tauri::command]
 pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, String> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)

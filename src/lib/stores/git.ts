@@ -26,6 +26,7 @@ type GitState = {
 	logHasMore: boolean;
 	graphHasMore: boolean;
 	isLoading: boolean;
+	isGitRepo: boolean;
 	error: string | null;
 };
 
@@ -47,6 +48,7 @@ const INITIAL: GitState = {
 	logHasMore: false,
 	graphHasMore: false,
 	isLoading: false,
+	isGitRepo: true,
 	error: null,
 };
 
@@ -88,6 +90,24 @@ export async function refreshStatus(silent = false): Promise<void> {
 	if (!wt) return;
 	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
 	try {
+		const isRepo = await gitService.isGitRepo(wt);
+		if (!isRepo) {
+			_git.update((s) => ({
+				...s,
+				status: {},
+				unstagedDiffs: [],
+				stagedDiffs: [],
+				currentBranch: "",
+				remoteStatus: null,
+				log: [],
+				graph: [],
+				stashes: [],
+				isGitRepo: false,
+				isLoading: false,
+				error: null,
+			}));
+			return;
+		}
 		const [status, unstagedDiffs, stagedDiffs, currentBranch, remoteStatus] =
 			await Promise.all([
 				gitService.getStatus(wt),
@@ -103,6 +123,7 @@ export async function refreshStatus(silent = false): Promise<void> {
 			stagedDiffs,
 			currentBranch,
 			remoteStatus,
+			isGitRepo: true,
 			isLoading: false,
 		}));
 	} catch (e) {

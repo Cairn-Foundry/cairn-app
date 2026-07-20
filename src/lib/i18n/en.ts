@@ -559,6 +559,9 @@ export const en = {
 		manageProfiles: "Manage profiles",
 		changesSearchPlaceholder: "Search by filename...",
 		changesNoResults: "No files match your search.",
+		notARepoTitle: "Not a Git repository",
+		notARepoBody:
+			"This project folder is not tracked by Git. Version control features are unavailable until it becomes a repository.",
 		logSearchPlaceholder: "Search by message, author or hash...",
 		logCurrentBranch: "Current branch only",
 		logAllBranches: "All branches",

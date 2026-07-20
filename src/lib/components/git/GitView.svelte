@@ -720,6 +720,7 @@
   </div>
 {/if}
 
+{#if state.isGitRepo}
 <div class="git-layout">
   <!-- Left column: changes / log tabs -->
   <div class="git-col">
@@ -1328,6 +1329,13 @@
     {/if}
   </div>
 </div>
+{:else}
+  <div class="git-nonrepo">
+    <div class="git-nonrepo-icon"><Icon name="git" size={44}/></div>
+    <h3 class="git-nonrepo-title">{t('git.notARepoTitle')}</h3>
+    <p class="git-nonrepo-text">{t('git.notARepoBody')}</p>
+  </div>
+{/if}
 
 {#if discardTarget}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -1473,6 +1481,34 @@
     display: flex;
     height: 100%;
     overflow: hidden;
+  }
+
+  .git-nonrepo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+  }
+  .git-nonrepo-icon {
+    color: var(--fg-4);
+    opacity: 0.6;
+  }
+  .git-nonrepo-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+  .git-nonrepo-text {
+    margin: 0;
+    max-width: 380px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg-3);
   }
 
   .git-col {

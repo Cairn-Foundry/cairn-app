@@ -46,6 +46,10 @@ export type RemoteStatus = {
 	hasUpstream: boolean;
 };
 
+export async function isGitRepo(worktreePath: string): Promise<boolean> {
+	return invoke("is_git_repo", { worktreePath });
+}
+
 export async function getStatus(worktreePath: string): Promise<GitFileStatus> {
 	return invoke("git_status", { worktreePath });
 }
