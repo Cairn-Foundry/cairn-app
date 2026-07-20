@@ -50,11 +50,12 @@
   let quickOpenTree: FileNode[] = [];
   $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
 
-  function handleQuickOpenFile(path: string) {
-    filesView?.openFileByPath(path);
+  async function handleQuickOpenFile(path: string) {
     activeStep.set('files');
     terminalActive.set(false);
     quickOpenVisible.set(false);
+    await tick();
+    filesView?.openFileByPath(path);
   }
 
   async function selectInstance(id: string) {
@@ -372,7 +373,7 @@
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={(e) => { filesView?.openFileByPath(e.detail); activeStep.set('files'); terminalActive.set(false); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { activeStep.set('files'); terminalActive.set(false); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'cicd'}><CiCdView/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       {#if !activeInstance}
