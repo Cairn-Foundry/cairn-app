@@ -114,7 +114,7 @@ export async function removeInstance(
 	id: string,
 	projectId: string,
 ): Promise<void> {
-	await removeInstanceTerminals(id);
+	await removeInstanceTerminals(projectId, id);
 	await deleteInstance(id, projectId);
 	instances.update((list) => list.filter((i) => i.id !== id));
 }

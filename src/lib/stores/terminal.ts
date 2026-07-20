@@ -21,13 +21,18 @@ const restored = new Set<string>();
 
 let cleanupDone: Promise<void> | null = null;
 
+export function terminalScope(projectId: string, instanceId: string): string {
+	return `${projectId}:${instanceId}`;
+}
+
 export function initTerminals(): void {
 	if (!cleanupDone) cleanupDone = closeAllTerminals().catch(() => {});
 }
 
 function persist(projectId: string, instanceId: string): void {
-	const terminals = get(terminalSessions)[instanceId] ?? [];
-	const activeId = get(activeTerminalId)[instanceId] ?? null;
+	const key = terminalScope(projectId, instanceId);
+	const terminals = get(terminalSessions)[key] ?? [];
+	const activeId = get(activeTerminalId)[key] ?? null;
 	void saveTerminalState(projectId, instanceId, { terminals, activeId }).catch(
 		() => {},
 	);
@@ -38,8 +43,9 @@ export async function restoreTerminals(
 	instanceId: string,
 	cwd: string | null,
 ): Promise<void> {
-	if (restored.has(instanceId)) return;
-	restored.add(instanceId);
+	const key = terminalScope(projectId, instanceId);
+	if (restored.has(key)) return;
+	restored.add(key);
 
 	if (cleanupDone) await cleanupDone;
 
@@ -53,10 +59,10 @@ export async function restoreTerminals(
 		await createTerminal(tab.id, cwd, cols, rows);
 	}
 
-	terminalSessions.update((m) => ({ ...m, [instanceId]: tabs }));
+	terminalSessions.update((m) => ({ ...m, [key]: tabs }));
 	activeTerminalId.update((m) => ({
 		...m,
-		[instanceId]: saved?.activeId ?? tabs[0].id,
+		[key]: saved?.activeId ?? tabs[0].id,
 	}));
 }
 
@@ -65,8 +71,9 @@ export async function addTerminal(
 	instanceId: string,
 	cwd: string | null,
 ): Promise<void> {
+	const key = terminalScope(projectId, instanceId);
 	const id = `${instanceId}:${crypto.randomUUID()}`;
-	const list = get(terminalSessions)[instanceId] ?? [];
+	const list = get(terminalSessions)[key] ?? [];
 	const title = `Terminal ${list.length + 1}`;
 
 	// Create the xterm sink before spawning the shell so no early output is lost.
@@ -76,9 +83,9 @@ export async function addTerminal(
 
 	terminalSessions.update((m) => ({
 		...m,
-		[instanceId]: [...(m[instanceId] ?? []), { id, title }],
+		[key]: [...(m[key] ?? []), { id, title }],
 	}));
-	activeTerminalId.update((m) => ({ ...m, [instanceId]: id }));
+	activeTerminalId.update((m) => ({ ...m, [key]: id }));
 	persist(projectId, instanceId);
 }
 
@@ -87,17 +94,18 @@ export async function removeTerminal(
 	instanceId: string,
 	id: string,
 ): Promise<void> {
+	const key = terminalScope(projectId, instanceId);
 	await closeTerminalCmd(id).catch(() => {});
 	manager.dispose(id);
 
 	terminalSessions.update((m) => ({
 		...m,
-		[instanceId]: (m[instanceId] ?? []).filter((t) => t.id !== id),
+		[key]: (m[key] ?? []).filter((t) => t.id !== id),
 	}));
 	activeTerminalId.update((m) => {
-		if (m[instanceId] !== id) return m;
-		const list = get(terminalSessions)[instanceId] ?? [];
-		return { ...m, [instanceId]: list[list.length - 1]?.id ?? null };
+		if (m[key] !== id) return m;
+		const list = get(terminalSessions)[key] ?? [];
+		return { ...m, [key]: list[list.length - 1]?.id ?? null };
 	});
 	persist(projectId, instanceId);
 }
@@ -107,7 +115,8 @@ export function setActiveTerminal(
 	instanceId: string,
 	id: string,
 ): void {
-	activeTerminalId.update((m) => ({ ...m, [instanceId]: id }));
+	const key = terminalScope(projectId, instanceId);
+	activeTerminalId.update((m) => ({ ...m, [key]: id }));
 	persist(projectId, instanceId);
 }
 
@@ -117,32 +126,33 @@ export function renameTerminal(
 	id: string,
 	title: string,
 ): void {
+	const key = terminalScope(projectId, instanceId);
 	terminalSessions.update((m) => ({
 		...m,
-		[instanceId]: (m[instanceId] ?? []).map((s) =>
-			s.id === id ? { ...s, title } : s,
-		),
+		[key]: (m[key] ?? []).map((s) => (s.id === id ? { ...s, title } : s)),
 	}));
 	persist(projectId, instanceId);
 }
 
 export async function removeInstanceTerminals(
+	projectId: string,
 	instanceId: string,
 ): Promise<void> {
-	const list = get(terminalSessions)[instanceId] ?? [];
+	const key = terminalScope(projectId, instanceId);
+	const list = get(terminalSessions)[key] ?? [];
 	for (const s of list) {
 		await closeTerminalCmd(s.id).catch(() => {});
 		manager.dispose(s.id);
 	}
-	restored.delete(instanceId);
+	restored.delete(key);
 	terminalSessions.update((m) => {
 		const next = { ...m };
-		delete next[instanceId];
+		delete next[key];
 		return next;
 	});
 	activeTerminalId.update((m) => {
 		const next = { ...m };
-		delete next[instanceId];
+		delete next[key];
 		return next;
 	});
 }

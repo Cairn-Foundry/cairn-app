@@ -11,6 +11,7 @@
     setActiveTerminal,
     renameTerminal,
     restoreTerminals,
+    terminalScope,
   } from '$lib/stores/terminal';
   import type { TerminalSession } from '$lib/stores/terminal';
   import * as manager from '$lib/utils/terminal/terminal-manager';
@@ -22,9 +23,12 @@
 
   let activeId = $derived($activeInstance?.id ?? null);
   let projectId = $derived($activeInstance?.projectId ?? null);
-  let sessions = $derived(activeId ? ($terminalSessions[activeId] ?? []) : []);
+  let scopeKey = $derived(
+    projectId && activeId ? terminalScope(projectId, activeId) : null,
+  );
+  let sessions = $derived(scopeKey ? ($terminalSessions[scopeKey] ?? []) : []);
   let activeTid = $derived(
-    activeId ? ($activeTerminalId[activeId] ?? sessions[0]?.id ?? null) : null,
+    scopeKey ? ($activeTerminalId[scopeKey] ?? sessions[0]?.id ?? null) : null,
   );
 
   $effect(() => {
