@@ -7,6 +7,7 @@
   const themeCompartment = new CompartmentModule();
   const highlightCompartment = new CompartmentModule();
   const whitespaceCompartment = new CompartmentModule();
+  const languageCompartment = new CompartmentModule();
 </script>
 
 <script lang="ts">
@@ -207,7 +208,7 @@
       ])),
       shortcutKeymapCompartment.of(buildShortcutKeymap($activeShortcuts)),
 
-      ...buildLanguageExtensions(),
+      languageCompartment.of(buildLanguageExtensions()),
       lineNumbers(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -301,6 +302,12 @@
       themeCompartment.reconfigure(buildEditorTheme(theme)),
       highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
     ]});
+  }
+
+  let syncedLang: EditorLanguage | undefined = undefined;
+  $: if (view && language !== syncedLang) {
+    syncedLang = language;
+    view.dispatch({ effects: languageCompartment.reconfigure(buildLanguageExtensions()) });
   }
 
   $: if (view) view.dispatch({ effects: whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []) });
