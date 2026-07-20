@@ -1032,6 +1032,9 @@ import { get } from 'svelte/store';
   onDestroy(saveCurrentState);
 
   $: if (worktreePath) {
+    rawTree = [];
+    tree = [];
+    gitStatusMap = {};
     loadTree(worktreePath);
   }
 

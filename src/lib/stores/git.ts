@@ -344,6 +344,38 @@ export function resetGitStore(): void {
 	_git.set(INITIAL);
 }
 
+export function clearGitData(): void {
+	_git.update((s) => ({
+		...s,
+		status: {},
+		unstagedDiffs: [],
+		stagedDiffs: [],
+		currentBranch: "",
+		remoteStatus: null,
+		log: [],
+		graph: [],
+		stashes: [],
+		logHasMore: false,
+		graphHasMore: false,
+		isGitRepo: true,
+		isLoading: false,
+		error: null,
+	}));
+}
+
+let lastClearedWorktree: string | null | undefined;
+activeInstance.subscribe((inst) => {
+	const wt = inst?.worktreePath ?? null;
+	if (lastClearedWorktree === undefined) {
+		lastClearedWorktree = wt;
+		return;
+	}
+	if (wt !== lastClearedWorktree) {
+		lastClearedWorktree = wt;
+		clearGitData();
+	}
+});
+
 export async function refreshStashes(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
