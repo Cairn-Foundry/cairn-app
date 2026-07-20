@@ -350,13 +350,6 @@ input, textarea { font-family: inherit; color: inherit; }
   border-color: var(--stroke-1);
 }
 
-.base-descriptor { min-width: 0; }
-.base-hint {
-  font-size: 12px;
-  color: var(--fg-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
 /* Main content row */
 .content-row {
   flex: 1;

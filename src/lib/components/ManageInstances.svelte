@@ -196,9 +196,7 @@
 
               <div class="mi-body-inner">
                 <span class="mi-title">{inst.ticket.title}</span>
-                {#if isBase}
-                  <span class="mi-sub">{t('workspace.baseFolder.subtitle')}</span>
-                {:else if inst.branch}
+                {#if !isBase && inst.branch}
                   <span class="mi-branch">
                     <Icon name="branch" size={10}/>
                     {inst.branch}
@@ -390,11 +388,6 @@
     color: var(--fg-4);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-  }
-
-  .mi-sub {
-    font-size: 11px;
-    color: var(--fg-3);
   }
 
   .mi-body-inner {

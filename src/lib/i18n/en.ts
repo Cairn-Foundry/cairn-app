@@ -157,7 +157,6 @@ export const en = {
 		homeTitle: "Home",
 		baseFolder: {
 			title: "Main repository",
-			subtitle: "Working directly, no isolated worktree",
 		},
 		instancesGroup: "Instances",
 		addProject: "Project",

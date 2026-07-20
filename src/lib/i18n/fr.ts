@@ -159,7 +159,6 @@ export const fr = {
 		homeTitle: "Accueil",
 		baseFolder: {
 			title: "Dépôt principal",
-			subtitle: "Travail direct, sans worktree isolé",
 		},
 		instancesGroup: "Instances",
 		addProject: "Projet",

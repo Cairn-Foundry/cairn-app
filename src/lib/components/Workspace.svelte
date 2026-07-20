@@ -301,11 +301,7 @@
         {/if}
       </div>
 
-      {#if isBaseInstance(activeInstance.id)}
-        <div class="instance-title base-descriptor">
-          <span class="base-hint">{t('workspace.baseFolder.subtitle')}</span>
-        </div>
-      {:else}
+      {#if !isBaseInstance(activeInstance.id)}
         <div class="instance-title">
           <span class="instance-dot"></span>
           <span class="ticket-name">{activeInstance.ticket.title}</span>
