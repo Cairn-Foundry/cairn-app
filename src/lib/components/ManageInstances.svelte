@@ -454,8 +454,8 @@
   }
 
   .mi-finished {
-    background: var(--success-weak);
-    color: var(--success);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
   }
 
   .mi-actions {

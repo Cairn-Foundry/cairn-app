@@ -59,12 +59,9 @@
     if (lastCompletionPing > 0) {
       selectorAlert = true;
       if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
-      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 1600);
+      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 700);
     }
   }
-  $: projectHasDoneAgent = activeInstance
-    ? Object.keys($agentDone).some((k) => k.startsWith(`${activeInstance.projectId}:`))
-    : false;
 
   async function handleQuickOpenFile(path: string) {
     activeStep.set('files');
@@ -270,9 +267,6 @@
           {:else}
             <Icon name="ticket" size={12}/>
             <span class="mono">{activeInstance.ticket.id}</span>
-          {/if}
-          {#if projectHasDoneAgent}
-            <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
           {/if}
           <Icon name="chev-d" size={11}/>
         </button>
@@ -550,7 +544,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--success);
+    background: #fff;
     flex-shrink: 0;
   }
   .instance-menu-item .agent-done-dot {
@@ -561,11 +555,11 @@
   }
 
   .instance-switcher.agent-alert {
-    animation: agent-alert-flash 0.5s ease-in-out 3;
+    animation: agent-alert-flash 0.6s ease-in-out 1;
   }
   @keyframes agent-alert-flash {
     0%, 100% { border-color: var(--stroke-0); box-shadow: none; }
-    50% { border-color: var(--success); box-shadow: 0 0 0 3px var(--success-weak); }
+    50% { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3); }
   }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }
