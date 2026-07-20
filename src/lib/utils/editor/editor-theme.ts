@@ -391,6 +391,61 @@ function buildThemeFromPalette(p: EditorPalette): Extension {
 			height: "3px",
 			alignSelf: "flex-end",
 		},
+		".cm-panels": {
+			backgroundColor: p.bg,
+			color: p.fg,
+		},
+		".cm-panel.cm-search": {
+			padding: "7px 10px",
+			fontSize: "12px",
+			fontFamily: "inherit",
+		},
+		".cm-panel.cm-search label": {
+			display: "inline-flex",
+			alignItems: "center",
+			gap: "3px",
+			fontSize: "11px",
+			color: p.gutterFg,
+		},
+		".cm-panel.cm-search input[type=checkbox]": {
+			accentColor: p.accent,
+			margin: "0 1px",
+		},
+		".cm-panel.cm-search .cm-textfield": {
+			backgroundColor: p.activeLine,
+			color: p.fg,
+			border: `1px solid ${p.panelBorder ?? p.tooltipBorder}`,
+			borderRadius: "4px",
+			padding: "3px 7px",
+			fontSize: "12px",
+			outline: "none",
+		},
+		".cm-panel.cm-search .cm-textfield:focus": {
+			borderColor: p.accent,
+		},
+		".cm-panel.cm-search .cm-button": {
+			backgroundColor: p.foldPlaceholderBg,
+			backgroundImage: "none",
+			color: p.fg,
+			border: `1px solid ${p.panelBorder ?? p.tooltipBorder}`,
+			borderRadius: "4px",
+			padding: "3px 9px",
+			fontSize: "11.5px",
+			cursor: "pointer",
+		},
+		".cm-panel.cm-search .cm-button:hover": {
+			backgroundColor: p.foldPlaceholderBorder,
+			borderColor: p.accent,
+		},
+		".cm-panel.cm-search button[name=close]": {
+			color: p.gutterFg,
+			cursor: "pointer",
+			fontSize: "18px",
+			padding: "0 4px",
+		},
+		".cm-panel.cm-search button[name=close]:hover": {
+			color: p.fg,
+		},
 	};
 
 	if (p.nonMatchBg && p.nonMatchOutline) {
