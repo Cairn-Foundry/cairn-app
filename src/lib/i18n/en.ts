@@ -495,6 +495,8 @@ export const en = {
 	git: {
 		unstagedChanges: "Unstaged changes",
 		stagedForCommit: "Staged for commit",
+		collapseStaged: "Collapse staged files",
+		expandStaged: "Expand staged files",
 		hunks: (n: number) => `${n} hunk${n !== 1 ? "s" : ""}`,
 		stageHunk: "+ Stage hunk",
 		unstageHunk: "− Unstage",

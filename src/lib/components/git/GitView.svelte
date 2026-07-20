@@ -574,6 +574,7 @@
   $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
 
   let showOptions = false;
+  let stagedCollapsed = false;
   let profileDropdownOpen = false;
   let profileTriggerEl: HTMLElement | null = null;
   let profileDropdownEl: HTMLElement | null = null;
@@ -1082,7 +1083,15 @@
         {/if}
       </div>
     {:else}
-      <div class="git-col-head" style="height: {tabHeadHeight}px; padding-top: 0; padding-bottom: 0; box-sizing: border-box;">
+      <button
+        type="button"
+        class="git-col-head staged-head-toggle"
+        style="height: {tabHeadHeight}px; padding-top: 0; padding-bottom: 0; box-sizing: border-box;"
+        on:click={() => (stagedCollapsed = !stagedCollapsed)}
+        aria-expanded={!stagedCollapsed}
+        title={stagedCollapsed ? (t('git.expandStaged') as string) : (t('git.collapseStaged') as string)}
+      >
+        <Icon name={stagedCollapsed ? 'chev-r' : 'chev-d'} size={12}/>
         <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
         <span>{t('git.stagedForCommit')}</span>
         <span class="count accent">{stagedCards.length} {t('git.files')}</span>
@@ -1092,8 +1101,8 @@
             {#if totalStagedRemoved > 0}<span class="stat-remove">-{totalStagedRemoved}</span>{/if}
           </span>
         {/if}
-      </div>
-      {#if stagedCards.length > 0}
+      </button>
+      {#if !stagedCollapsed && stagedCards.length > 0}
         <div class="log-filter-bar">
           <input
             type="checkbox"
@@ -1120,6 +1129,7 @@
           </div>
         </div>
       {/if}
+      {#if !stagedCollapsed}
       <div class="hunks-list">
         {#if stagedCards.length === 0}
           <div class="empty-hint">
@@ -1167,6 +1177,7 @@
           {/each}
         {/if}
       </div>
+      {/if}
 
     <div class="commit-composer">
       <div class="commit-composer-head">
@@ -1485,6 +1496,18 @@
     color: var(--fg-2);
     flex-shrink: 0;
   }
+
+  .staged-head-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--stroke-0);
+    font-family: var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition: color .1s;
+  }
+  .staged-head-toggle:hover { color: var(--fg-0); }
 
   .tab-head {
     padding: 0;
