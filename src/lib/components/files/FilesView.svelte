@@ -970,26 +970,29 @@ import { get } from 'svelte/store';
     captureEditorState(0);
     captureEditorState(1);
     const state = snapshotInstanceState();
-    savedState.set(currentInstanceId, state);
+    savedState.set(`${currentProjectId}:${currentInstanceId}`, state);
     saveEditorState(currentProjectId, currentInstanceId, state, recentFiles);
   }
 
   let currentInstanceId: string | null = null;
   let currentProjectId: string | null = null;
-  $: currentProjectId = $activeProjectId;
+  let currentScope: string | null = null;
   $: {
     const id = $activeInstance?.id ?? null;
     const wtp = $activeInstance?.worktreePath ?? null;
     const pid = $activeProjectId;
-    if (id !== currentInstanceId) {
+    const scope = pid && id ? `${pid}:${id}` : null;
+    if (scope !== currentScope) {
       saveCurrentState();
       currentInstanceId = id;
+      currentProjectId = pid;
+      currentScope = scope;
       recentFiles = [];
       panes = panes.map(() => makePane());
       editState = null;
       contextMenu = null;
-      if (id !== null && savedState.has(id)) {
-        const s = savedState.get(id)!;
+      if (scope !== null && savedState.has(scope)) {
+        const s = savedState.get(scope)!;
         panes = s.panes.map((sp, i) => {
           const base = makePane();
           base.tabs = sp.tabs;
