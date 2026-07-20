@@ -574,8 +574,32 @@
   $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
 
   let showOptions = false;
-  let stagedCollapsed = false;
+  let collapsedUnstaged = new Set<string>();
+  let collapsedStaged = new Set<string>();
   let profileDropdownOpen = false;
+
+  function toggleUnstagedCollapse(path: string) {
+    if (collapsedUnstaged.has(path)) collapsedUnstaged.delete(path);
+    else collapsedUnstaged.add(path);
+    collapsedUnstaged = collapsedUnstaged;
+  }
+  function toggleStagedCollapse(path: string) {
+    if (collapsedStaged.has(path)) collapsedStaged.delete(path);
+    else collapsedStaged.add(path);
+    collapsedStaged = collapsedStaged;
+  }
+  function collapseAllUnstaged() {
+    collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(c => c.filePath));
+  }
+  function expandAllUnstaged() {
+    collapsedUnstaged = new Set();
+  }
+  function collapseAllStaged() {
+    collapsedStaged = new Set(stagedCards.filter(c => c.hasDiff).map(c => c.filePath));
+  }
+  function expandAllStaged() {
+    collapsedStaged = new Set();
+  }
   let profileTriggerEl: HTMLElement | null = null;
   let profileDropdownEl: HTMLElement | null = null;
   let noVerify = false;
@@ -782,6 +806,14 @@
           <button class="bulk-btn" on:click={openStashSelection}>{t('git.stashTab')}</button>
           <button class="bulk-btn bulk-btn-danger" on:click={openDiscardMultiple}>{t('git.discard')}</button>
         {/if}
+        {#if unstagedCards.length > 0}
+          <button class="collapse-toggle-btn" title={t('git.collapseAll') as string} on:click={collapseAllUnstaged}>
+            <Icon name="collapse-all" size={13}/>
+          </button>
+          <button class="collapse-toggle-btn" title={t('git.expandAll') as string} on:click={expandAllUnstaged}>
+            <Icon name="expand-all" size={13}/>
+          </button>
+        {/if}
         <div class="log-search">
           <Icon name="search" size={11}/>
           <input
@@ -810,8 +842,13 @@
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
           {#each filteredUnstagedCards as h (h.filePath)}
-            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedUnstaged.has(h.filePath)}>
               <div class="hunk-card-head">
+                {#if h.hasDiff}
+                  <button class="card-collapse-btn" title={(collapsedUnstaged.has(h.filePath) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleUnstagedCollapse(h.filePath)}>
+                    <Icon name={collapsedUnstaged.has(h.filePath) ? 'chev-r' : 'chev-d'} size={12}/>
+                  </button>
+                {/if}
                 <input
                   type="checkbox"
                   class="file-select-cb"
@@ -843,9 +880,11 @@
                 </button>
               </div>
               {#if h.hasDiff}
-                <div class="card-diff">
-                  <GitDiff hunks={h.hunks} />
-                </div>
+                {#if !collapsedUnstaged.has(h.filePath)}
+                  <div class="card-diff">
+                    <GitDiff hunks={h.hunks} />
+                  </div>
+                {/if}
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
               {/if}
@@ -1084,15 +1123,7 @@
         {/if}
       </div>
     {:else}
-      <button
-        type="button"
-        class="git-col-head staged-head-toggle"
-        style="height: {tabHeadHeight}px; padding-top: 0; padding-bottom: 0; box-sizing: border-box;"
-        on:click={() => (stagedCollapsed = !stagedCollapsed)}
-        aria-expanded={!stagedCollapsed}
-        title={stagedCollapsed ? (t('git.expandStaged') as string) : (t('git.collapseStaged') as string)}
-      >
-        <Icon name={stagedCollapsed ? 'chev-r' : 'chev-d'} size={12}/>
+      <div class="git-col-head" style="height: {tabHeadHeight}px; padding-top: 0; padding-bottom: 0; box-sizing: border-box;">
         <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
         <span>{t('git.stagedForCommit')}</span>
         <span class="count accent">{stagedCards.length} {t('git.files')}</span>
@@ -1102,8 +1133,8 @@
             {#if totalStagedRemoved > 0}<span class="stat-remove">-{totalStagedRemoved}</span>{/if}
           </span>
         {/if}
-      </button>
-      {#if !stagedCollapsed && stagedCards.length > 0}
+      </div>
+      {#if stagedCards.length > 0}
         <div class="log-filter-bar">
           <input
             type="checkbox"
@@ -1116,6 +1147,12 @@
             <span class="selection-count">{selectedStagedCount}</span>
             <button class="bulk-btn" on:click={unstageSelected}>{t('git.unstage')}</button>
           {/if}
+          <button class="collapse-toggle-btn" title={t('git.collapseAll') as string} on:click={collapseAllStaged}>
+            <Icon name="collapse-all" size={13}/>
+          </button>
+          <button class="collapse-toggle-btn" title={t('git.expandAll') as string} on:click={expandAllStaged}>
+            <Icon name="expand-all" size={13}/>
+          </button>
           <div class="log-search">
             <Icon name="search" size={11}/>
             <input
@@ -1130,7 +1167,6 @@
           </div>
         </div>
       {/if}
-      {#if !stagedCollapsed}
       <div class="hunks-list">
         {#if stagedCards.length === 0}
           <div class="empty-hint">
@@ -1140,8 +1176,13 @@
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
           {#each filteredStagedCards as h (h.filePath)}
-            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}">
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedStaged.has(h.filePath)}>
               <div class="hunk-card-head">
+                {#if h.hasDiff}
+                  <button class="card-collapse-btn" title={(collapsedStaged.has(h.filePath) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleStagedCollapse(h.filePath)}>
+                    <Icon name={collapsedStaged.has(h.filePath) ? 'chev-r' : 'chev-d'} size={12}/>
+                  </button>
+                {/if}
                 <input
                   type="checkbox"
                   class="file-select-cb"
@@ -1168,9 +1209,11 @@
                 </button>
               </div>
               {#if h.hasDiff}
-                <div class="card-diff">
-                  <GitDiff hunks={h.hunks} />
-                </div>
+                {#if !collapsedStaged.has(h.filePath)}
+                  <div class="card-diff">
+                    <GitDiff hunks={h.hunks} />
+                  </div>
+                {/if}
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
               {/if}
@@ -1178,7 +1221,6 @@
           {/each}
         {/if}
       </div>
-      {/if}
 
     <div class="commit-composer">
       <div class="commit-composer-head">
@@ -1533,17 +1575,36 @@
     flex-shrink: 0;
   }
 
-  .staged-head-toggle {
-    width: 100%;
+  .collapse-toggle-btn {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     background: none;
     border: none;
-    border-bottom: 1px solid var(--stroke-0);
-    font-family: var(--font-ui);
-    text-align: left;
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
     cursor: pointer;
-    transition: color .1s;
+    transition: background .12s, color .12s;
   }
-  .staged-head-toggle:hover { color: var(--fg-0); }
+  .collapse-toggle-btn:hover { background: var(--bg-4); color: var(--fg-0); }
+
+  .card-collapse-btn {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    border-radius: var(--r-xs);
+    color: var(--fg-3);
+    cursor: pointer;
+    transition: color .12s;
+  }
+  .card-collapse-btn:hover { color: var(--fg-0); }
 
   .tab-head {
     padding: 0;

@@ -510,8 +510,10 @@ export const fr = {
 	git: {
 		unstagedChanges: "Modifications non indexées",
 		stagedForCommit: "Indexé pour le commit",
-		collapseStaged: "Réduire les fichiers indexés",
-		expandStaged: "Développer les fichiers indexés",
+		collapseAll: "Tout réduire",
+		expandAll: "Tout développer",
+		collapseFile: "Réduire le fichier",
+		expandFile: "Développer le fichier",
 		hunks: (n: number) => `${n} hunk${n !== 1 ? "s" : ""}`,
 		stageHunk: "+ Indexer le hunk",
 		unstageHunk: "− Désindexer",
