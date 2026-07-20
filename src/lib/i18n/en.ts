@@ -159,6 +159,7 @@ export const en = {
 			title: "Main repository",
 		},
 		agentRunning: "Agent running",
+		agentFinished: "Agent finished - open this instance to review",
 		instancesGroup: "Instances",
 		addProject: "Project",
 		pauseAgent: "Pause agent",

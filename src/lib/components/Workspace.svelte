@@ -24,7 +24,7 @@
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { gitFileCounts } from '$lib/stores/git';
-  import { agentBusy, agentActivityKey } from '$lib/stores/agent-activity';
+  import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
@@ -50,6 +50,21 @@
 
   let quickOpenTree: FileNode[] = [];
   $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
+
+  let lastCompletionPing = 0;
+  let selectorAlert = false;
+  let selectorAlertTimer: ReturnType<typeof setTimeout> | null = null;
+  $: if ($agentCompletionPing !== lastCompletionPing) {
+    lastCompletionPing = $agentCompletionPing;
+    if (lastCompletionPing > 0) {
+      selectorAlert = true;
+      if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
+      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 1600);
+    }
+  }
+  $: projectHasDoneAgent = activeInstance
+    ? Object.keys($agentDone).some((k) => k.startsWith(`${activeInstance.projectId}:`))
+    : false;
 
   async function handleQuickOpenFile(path: string) {
     activeStep.set('files');
@@ -162,7 +177,10 @@
     } catch {}
   });
 
-  onDestroy(() => unlistenFullscreen?.());
+  onDestroy(() => {
+    unlistenFullscreen?.();
+    if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
+  });
 
   $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
 
@@ -245,13 +263,16 @@
   <div class="instance-header">
     {#if activeInstance}
       <div class="instance-switcher-wrap" use:clickOutside={() => { showInstanceMenu = false; instanceSearch = ''; }}>
-        <button class="instance-switcher {isBaseInstance(activeInstance.id) ? 'is-base' : ''}" on:click={openInstanceMenu}>
+        <button class="instance-switcher {isBaseInstance(activeInstance.id) ? 'is-base' : ''}" class:agent-alert={selectorAlert} on:click={openInstanceMenu}>
           {#if isBaseInstance(activeInstance.id)}
             <Icon name="folder" size={12}/>
             <span>{activeInstance.ticket.title}</span>
           {:else}
             <Icon name="ticket" size={12}/>
             <span class="mono">{activeInstance.ticket.id}</span>
+          {/if}
+          {#if projectHasDoneAgent}
+            <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
           {/if}
           <Icon name="chev-d" size={11}/>
         </button>
@@ -276,6 +297,8 @@
               <span>{baseInst?.ticket.title}</span>
               {#if baseInst && $agentBusy[agentActivityKey(baseInst.projectId, baseInst.id)]}
                 <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
+              {:else if baseInst && $agentDone[agentActivityKey(baseInst.projectId, baseInst.id)]}
+                <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
               {/if}
             </button>
             <div class="instance-menu-divider"></div>
@@ -291,6 +314,8 @@
                   <span class="instance-menu-title">{inst.ticket.title}</span>
                   {#if $agentBusy[agentActivityKey(inst.projectId, inst.id)]}
                     <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
+                  {:else if $agentDone[agentActivityKey(inst.projectId, inst.id)]}
+                    <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
                   {/if}
                 </button>
               {/each}
@@ -519,6 +544,28 @@
   @keyframes agent-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
+  }
+
+  .agent-done-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .instance-menu-item .agent-done-dot {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .instance-switcher.agent-alert {
+    animation: agent-alert-flash 0.5s ease-in-out 3;
+  }
+  @keyframes agent-alert-flash {
+    0%, 100% { border-color: var(--stroke-0); box-shadow: none; }
+    50% { border-color: var(--success); box-shadow: 0 0 0 3px var(--success-weak); }
   }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }

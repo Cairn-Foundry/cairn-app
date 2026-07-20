@@ -161,6 +161,7 @@ export const fr = {
 			title: "Dépôt principal",
 		},
 		agentRunning: "Agent en cours",
+		agentFinished: "Agent terminé - ouvrez cette instance pour consulter",
 		instancesGroup: "Instances",
 		addProject: "Projet",
 		pauseAgent: "Mettre l'agent en pause",

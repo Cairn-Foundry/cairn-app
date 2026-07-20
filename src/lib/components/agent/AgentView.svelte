@@ -7,7 +7,8 @@
   import { activeInstance, instances } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
-  import { setAgentBusy } from '$lib/stores/agent-activity';
+  import { setAgentBusy, setAgentDone, pingAgentCompletion } from '$lib/stores/agent-activity';
+  import { activeStep, terminalActive } from '$lib/stores/ui';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
   import type { Instance } from '$lib/types/instance';
@@ -102,6 +103,23 @@
     setAgentBusy(inst.projectId, inst.id, busy);
   }
 
+  function isViewingAgent(inst: Instance): boolean {
+    return inst.id === $activeInstance?.id && $activeStep === 'agent' && !$terminalActive;
+  }
+
+  function notifyAgentCompletion(inst: Instance) {
+    if (isViewingAgent(inst)) return;
+    setAgentDone(inst.projectId, inst.id, true);
+    pingAgentCompletion();
+  }
+
+  $effect(() => {
+    const inst = $activeInstance;
+    if (inst && $activeStep === 'agent' && !$terminalActive) {
+      setAgentDone(inst.projectId, inst.id, false);
+    }
+  });
+
   function resizeTextarea() {
     if (!textareaEl) return;
     textareaEl.style.height = 'auto';
@@ -181,13 +199,19 @@
       const conv = ensureConversation(inst);
 
       if (source === 'system') {
-        if (line === '[done]' || line === '[session reset]' || line === '[session stopped]') {
+        if (line === '[done]') {
+          setBusy(inst, false);
+          notifyAgentCompletion(inst);
+          const last = conv.messages.findLast((m) => m.role === 'agent');
+          if (last?.streaming) last.streaming = false;
+        } else if (line === '[session reset]' || line === '[session stopped]') {
           setBusy(inst, false);
           const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
         } else if (line.startsWith('[error:')) {
           conv.error = line.slice(8, -1);
           setBusy(inst, false);
+          notifyAgentCompletion(inst);
           const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
           conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });

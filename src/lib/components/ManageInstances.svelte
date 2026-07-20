@@ -6,7 +6,7 @@
   import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
   import { instances, instancesWithBase, isBaseInstance, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
-  import { agentBusy, agentActivityKey } from '$lib/stores/agent-activity';
+  import { agentBusy, agentDone, agentActivityKey } from '$lib/stores/agent-activity';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
@@ -209,6 +209,11 @@
                 <span class="mi-running" title={t('workspace.agentRunning') as string}>
                   <span class="mi-running-dot"></span>
                   {t('workspace.agentRunning')}
+                </span>
+              {:else if $agentDone[agentActivityKey(inst.projectId, inst.id)]}
+                <span class="mi-running mi-finished" title={t('workspace.agentFinished') as string}>
+                  <Icon name="check" size={11}/>
+                  {t('manageInstances.statusLabels.done')}
                 </span>
               {/if}
 
@@ -446,6 +451,11 @@
   @keyframes mi-agent-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
+  }
+
+  .mi-finished {
+    background: var(--success-weak);
+    color: var(--success);
   }
 
   .mi-actions {
