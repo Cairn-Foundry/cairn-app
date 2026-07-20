@@ -4,7 +4,7 @@
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Icon from '$lib/components/Icon.svelte';
   import { t, getLocale } from '$lib/i18n';
-  import { activeInstance, instances } from '$lib/stores/instance';
+  import { activeInstance, instancesWithBase } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
   import { setAgentBusy, setAgentDone, pingAgentCompletion } from '$lib/stores/agent-activity';
@@ -92,7 +92,7 @@
 
   function instanceForWorkingDir(workingDir?: string | null): Instance | undefined {
     if (workingDir) {
-      return get(instances).find((i) => i.worktreePath === workingDir);
+      return get(instancesWithBase).find((i) => i.worktreePath === workingDir);
     }
     return $activeInstance ?? undefined;
   }
