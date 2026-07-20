@@ -60,6 +60,36 @@ fn drain_utf8(pending: &mut Vec<u8>) -> String {
     }
 }
 
+#[cfg(not(windows))]
+fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
+    let is_utf8 = |name: &str| {
+        std::env::var(name)
+            .map(|v| {
+                let v = v.to_ascii_lowercase();
+                v.contains("utf-8") || v.contains("utf8")
+            })
+            .unwrap_or(false)
+    };
+
+    if is_utf8("LC_ALL") || is_utf8("LC_CTYPE") || is_utf8("LANG") {
+        return;
+    }
+
+    #[cfg(target_os = "macos")]
+    let utf8_locale = "en_US.UTF-8";
+    #[cfg(not(target_os = "macos"))]
+    let utf8_locale = "C.UTF-8";
+
+    cmd.env("LANG", utf8_locale);
+    cmd.env("LC_CTYPE", utf8_locale);
+    if std::env::var("LC_ALL").is_ok() {
+        cmd.env("LC_ALL", utf8_locale);
+    }
+}
+
+#[cfg(windows)]
+fn ensure_utf8_locale(_cmd: &mut CommandBuilder) {}
+
 fn default_shell() -> String {
     #[cfg(windows)]
     {
@@ -92,6 +122,7 @@ pub fn terminal_create(
         }
     }
     cmd.env("TERM", "xterm-256color");
+    ensure_utf8_locale(&mut cmd);
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
