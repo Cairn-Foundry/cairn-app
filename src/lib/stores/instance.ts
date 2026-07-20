@@ -9,6 +9,7 @@ import {
 } from "$lib/services/instance-service";
 import type { Instance, TimelineEvent } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
+import { clearProjectAgentActivity } from "./agent-activity";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";
 
@@ -115,6 +116,7 @@ export async function removeInstance(
 	projectId: string,
 ): Promise<void> {
 	await removeInstanceTerminals(projectId, id);
+	clearProjectAgentActivity(projectId, id);
 	await deleteInstance(id, projectId);
 	instances.update((list) => list.filter((i) => i.id !== id));
 }

@@ -160,6 +160,7 @@ export const fr = {
 		baseFolder: {
 			title: "Dépôt principal",
 		},
+		agentRunning: "Agent en cours",
 		instancesGroup: "Instances",
 		addProject: "Projet",
 		pauseAgent: "Mettre l'agent en pause",

@@ -7,6 +7,7 @@
   import { activeInstance, instances } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
   import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
+  import { setAgentBusy } from '$lib/stores/agent-activity';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
   import type { Instance } from '$lib/types/instance';
@@ -88,12 +89,17 @@
     return conv;
   }
 
-  function conversationForWorkingDir(workingDir?: string | null): Conversation | undefined {
+  function instanceForWorkingDir(workingDir?: string | null): Instance | undefined {
     if (workingDir) {
-      const inst = get(instances).find((i) => i.worktreePath === workingDir);
-      return inst ? ensureConversation(inst) : undefined;
+      return get(instances).find((i) => i.worktreePath === workingDir);
     }
-    return current;
+    return $activeInstance ?? undefined;
+  }
+
+  function setBusy(inst: Instance, busy: boolean) {
+    const conv = ensureConversation(inst);
+    conv.busy = busy;
+    setAgentBusy(inst.projectId, inst.id, busy);
   }
 
   function resizeTextarea() {
@@ -170,17 +176,18 @@
   onMount(async () => {
     unlisten = await listen<{ line: string; source: string; summary?: string; workingDir?: string }>('claude-output', (e) => {
       const { source, line, summary, workingDir } = e.payload;
-      const conv = conversationForWorkingDir(workingDir);
-      if (!conv) return;
+      const inst = instanceForWorkingDir(workingDir);
+      if (!inst) return;
+      const conv = ensureConversation(inst);
 
       if (source === 'system') {
         if (line === '[done]' || line === '[session reset]' || line === '[session stopped]') {
-          conv.busy = false;
+          setBusy(inst, false);
           const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
         } else if (line.startsWith('[error:')) {
           conv.error = line.slice(8, -1);
-          conv.busy = false;
+          setBusy(inst, false);
           const last = conv.messages.findLast((m) => m.role === 'agent');
           if (last?.streaming) last.streaming = false;
           conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
@@ -217,7 +224,7 @@
     await tick();
     resizeTextarea();
     conv.error = '';
-    conv.busy = true;
+    setBusy(inst, true);
 
     const t_now = now();
     conv.messages.push({ role: 'user', content: message, time: t_now });
@@ -230,7 +237,7 @@
       await sendMessage(message, inst.worktreePath, conv.providerId);
     } catch (e) {
       conv.error = String(e);
-      conv.busy = false;
+      setBusy(inst, false);
       const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
       if (last) last.streaming = false;
     }

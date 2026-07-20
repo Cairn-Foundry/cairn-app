@@ -158,6 +158,7 @@ export const en = {
 		baseFolder: {
 			title: "Main repository",
 		},
+		agentRunning: "Agent running",
 		instancesGroup: "Instances",
 		addProject: "Project",
 		pauseAgent: "Pause agent",

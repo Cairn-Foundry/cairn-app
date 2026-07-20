@@ -24,6 +24,7 @@
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { gitFileCounts } from '$lib/stores/git';
+  import { agentBusy, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
@@ -273,6 +274,9 @@
             >
               <Icon name="folder" size={13}/>
               <span>{baseInst?.ticket.title}</span>
+              {#if baseInst && $agentBusy[agentActivityKey(baseInst.projectId, baseInst.id)]}
+                <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
+              {/if}
             </button>
             <div class="instance-menu-divider"></div>
             {#if instanceGroupsFiltered.length > 0}
@@ -285,6 +289,9 @@
                 >
                   <span class="mono">{inst.ticket.id}</span>
                   <span class="instance-menu-title">{inst.ticket.title}</span>
+                  {#if $agentBusy[agentActivityKey(inst.projectId, inst.id)]}
+                    <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
+                  {/if}
                 </button>
               {/each}
               <div class="instance-menu-divider"></div>
@@ -481,6 +488,7 @@
   .instance-menu-search-input::placeholder { color: var(--fg-4); }
 
   .instance-menu-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -496,6 +504,22 @@
   }
   .instance-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .instance-menu-item.active { background: var(--accent-weak); color: var(--fg-0); }
+
+  .agent-busy-dot {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: agent-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes agent-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }
 

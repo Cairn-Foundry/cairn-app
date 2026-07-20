@@ -6,6 +6,7 @@
   import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
   import { instances, instancesWithBase, isBaseInstance, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
+  import { agentBusy, agentActivityKey } from '$lib/stores/agent-activity';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
@@ -203,6 +204,13 @@
                   </span>
                 {/if}
               </div>
+
+              {#if $agentBusy[agentActivityKey(inst.projectId, inst.id)]}
+                <span class="mi-running" title={t('workspace.agentRunning') as string}>
+                  <span class="mi-running-dot"></span>
+                  {t('workspace.agentRunning')}
+                </span>
+              {/if}
 
               <div class="mi-actions">
                 {#if isDeleting || duplicatingId === inst.id}
@@ -414,6 +422,30 @@
     font-size: 11px;
     font-family: var(--font-mono);
     color: var(--fg-3);
+  }
+
+  .mi-running {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-weak);
+    color: var(--accent);
+    font-size: 10.5px;
+    font-weight: 500;
+  }
+  .mi-running-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: mi-agent-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes mi-agent-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
   }
 
   .mi-actions {
