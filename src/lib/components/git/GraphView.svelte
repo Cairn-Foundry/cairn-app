@@ -107,6 +107,18 @@
 
   function laneX(lane: number): number { return lane * COL_W + HALF; }
 
+  function convergeCurve(ax: number, cx: number): string {
+    const midY = ROW_H / 2;
+    const cp = midY * 0.75;
+    return `M ${ax} 0 C ${ax} ${cp * 2} ${cx} ${midY - cp * 0.5} ${cx} ${midY}`;
+  }
+
+  function branchDownCurve(cx: number, ax: number): string {
+    const midY = ROW_H / 2;
+    const cp = midY * 0.75;
+    return `M ${cx} ${midY} C ${cx} ${midY + cp * 0.5} ${ax} ${ROW_H - cp * 2} ${ax} ${ROW_H}`;
+  }
+
   function computeGraph(commits: GitGraphCommit[]): GraphRow[] {
     const lanes: (LaneState | null)[] = [];
     let colorIdx = 0;
@@ -145,10 +157,16 @@
         if (lanes.some(l => l?.targetHash === ph)) continue;
         let slot = lanes.findIndex(l => l === null);
         if (slot === -1) { slot = lanes.length; lanes.push(null); }
-        lanes[slot] = { targetHash: ph, color: PALETTE[colorIdx++ % PALETTE.length] };
+        lanes[slot] = { targetHash: ph, color: PALETTE[colorIdx++ % PALETTE.length], branch: mergedBranchLabel(commit.message) };
       }
 
       while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
+
+      const mergeParentLanes = new Set<number>();
+      for (let pi = 1; pi < commit.parents.length; pi++) {
+        const idx = lanes.findIndex(l => l?.targetHash === commit.parents[pi]);
+        if (idx !== -1 && idx !== myLane) mergeParentLanes.add(idx);
+      }
 
       const below  = lanes.map(l => l ? { ...l } : null);
       const cx     = laneX(myLane);
@@ -164,20 +182,17 @@
         if (li === myLane) {
           if (a) paths.push({ d: `M ${cx} 0 L ${cx} ${midY}`,        color: myColor, branch: myBranch });
           if (b) paths.push({ d: `M ${cx} ${midY} L ${cx} ${ROW_H}`, color: myColor, branch: b?.branch ?? myBranch });
+        } else if (mergeParentLanes.has(li)) {
+          if (a?.targetHash === commit.hash) {
+            paths.push({ d: convergeCurve(ax, cx), color: a.color, branch: a.branch });
+          } else if (a) {
+            paths.push({ d: `M ${ax} 0 L ${ax} ${midY}`, color: a.color, branch: a.branch });
+          }
+          if (b) paths.push({ d: branchDownCurve(cx, ax), color: b.color, branch: b.branch });
         } else if (a?.targetHash === commit.hash) {
-          const cp = midY * 0.75;
-          paths.push({
-            d: `M ${ax} 0 C ${ax} ${cp * 2} ${cx} ${midY - cp * 0.5} ${cx} ${midY}`,
-            color: a.color,
-            branch: a.branch,
-          });
+          paths.push({ d: convergeCurve(ax, cx), color: a.color, branch: a.branch });
         } else if (!a && b) {
-          const cp = midY * 0.75;
-          paths.push({
-            d: `M ${cx} ${midY} C ${cx} ${midY + cp * 0.5} ${ax} ${ROW_H - cp * 2} ${ax} ${ROW_H}`,
-            color: b.color,
-            branch: b.branch,
-          });
+          paths.push({ d: branchDownCurve(cx, ax), color: b.color, branch: b.branch });
         } else if (a && b) {
           paths.push({ d: `M ${ax} 0 L ${ax} ${ROW_H}`, color: a.color, branch: a.branch });
         }
@@ -189,6 +204,14 @@
         .filter((x): x is { idx: number; color: string; branch: string | undefined } => x !== null);
       return { commit, lane: myLane, color: myColor, branch: myBranch, paths, maxLaneInRow, belowLanes };
     });
+  }
+
+  function mergedBranchLabel(message: string): string | undefined {
+    const pr = message.match(/^Merge pull request #\d+ from (\S+)/);
+    if (pr) return pr[1];
+    const named = message.match(/^Merge (?:remote-tracking )?branch '([^']+)'/);
+    if (named) return named[1];
+    return undefined;
   }
 
   function branchLabelForCommit(commit: GitGraphCommit): string | undefined {
