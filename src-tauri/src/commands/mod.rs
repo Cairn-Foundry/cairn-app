@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod agent_activity;
 pub mod commit_state;
 pub mod file_state;
 pub mod files;
@@ -11,6 +12,7 @@ pub mod terminal;
 pub mod ui_state;
 
 pub use agent::{AgentState, send_message, reset_agent_session, stop_agent};
+pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use file_state::{get_file_state, save_file_state};
 pub use files::{read_dir_tree, list_dir_names, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};

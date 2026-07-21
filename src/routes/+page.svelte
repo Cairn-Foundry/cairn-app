@@ -5,6 +5,7 @@
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
+  import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
@@ -48,6 +49,7 @@
     removeCopyHandler = installCopySelectionHandler();
 
     initTerminals();
+    void loadAgentActivity();
     settings.load();
 
     const saved = await getUiState();

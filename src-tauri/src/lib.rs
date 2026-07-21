@@ -124,6 +124,8 @@ pub fn run() {
             save_terminal_state,
             get_ui_state,
             save_ui_state,
+            get_agent_activity,
+            save_agent_activity,
             get_commit_state,
             save_commit_state,
             get_file_state,

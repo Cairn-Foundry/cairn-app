@@ -1,10 +1,19 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
+import {
+	getAgentActivity,
+	saveAgentActivity,
+} from "$lib/services/agent-activity-service";
 
 export const agentBusy = writable<Record<string, boolean>>({});
 
 export const agentDone = writable<Record<string, boolean>>({});
 
 export const agentCompletionPing = writable(0);
+
+export async function loadAgentActivity(): Promise<void> {
+	const done = await getAgentActivity();
+	agentDone.set(done);
+}
 
 export function agentActivityKey(
 	projectId: string,
@@ -35,14 +44,17 @@ export function setAgentDone(
 	done: boolean,
 ): void {
 	const key = agentActivityKey(projectId, instanceId);
+	let changed = false;
 	agentDone.update((m) => {
 		if (!!m[key] === done) return m;
+		changed = true;
 		if (!done) {
 			const { [key]: _removed, ...rest } = m;
 			return rest;
 		}
 		return { ...m, [key]: true };
 	});
+	if (changed) saveAgentActivity(get(agentDone));
 }
 
 export function pingAgentCompletion(): void {

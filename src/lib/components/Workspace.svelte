@@ -59,7 +59,7 @@
     if (lastCompletionPing > 0) {
       selectorAlert = true;
       if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
-      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 700);
+      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 1900);
     }
   }
   $: activeInstanceDone = activeInstance
@@ -560,7 +560,7 @@
   }
 
   .instance-switcher.agent-alert {
-    animation: agent-alert-flash 0.6s ease-in-out 1;
+    animation: agent-alert-flash 0.6s ease-in-out 3;
   }
   @keyframes agent-alert-flash {
     0%, 100% { border-color: var(--stroke-0); box-shadow: none; }

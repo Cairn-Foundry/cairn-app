@@ -38,6 +38,10 @@ pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
 }
 
+pub fn agent_activity_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("agent-activity.json"))
+}
+
 pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
