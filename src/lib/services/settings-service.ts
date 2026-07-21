@@ -38,6 +38,7 @@ export interface CairnSettings {
 		| "manual";
 	gitProfiles: GitProfile[];
 	agentActivityWidth: number;
+	quickSearchShowGitignored: boolean;
 }
 
 export function getSettings(): Promise<CairnSettings> {

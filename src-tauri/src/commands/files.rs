@@ -47,6 +47,33 @@ fn read_dir_recursive(dir: &PathBuf, root: &PathBuf, show_hidden: bool) -> Vec<F
 }
 
 #[tauri::command]
+pub fn list_all_files(path: String, include_ignored: bool) -> Result<Vec<String>, String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let root = PathBuf::from(&expanded);
+    if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
+
+    let mut builder = WalkBuilder::new(&root);
+    builder
+        .hidden(false)
+        .git_ignore(!include_ignored)
+        .git_global(!include_ignored)
+        .git_exclude(!include_ignored)
+        .ignore(!include_ignored)
+        .parents(!include_ignored)
+        .filter_entry(|e| e.file_name() != ".git");
+
+    let mut files = Vec::new();
+    for entry in builder.build().flatten() {
+        if entry.file_type().is_some_and(|ft| ft.is_file()) {
+            if let Ok(rel) = entry.path().strip_prefix(&root) {
+                files.push(rel.to_string_lossy().to_string());
+            }
+        }
+    }
+    Ok(files)
+}
+
+#[tauri::command]
 pub fn read_dir_tree(path: String, show_hidden: bool) -> Result<Vec<FileNode>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);

@@ -228,7 +228,10 @@
         on:click={() => selectStash(stash)}
         on:keydown={(e) => e.key === 'Enter' && selectStash(stash)}
       >
-        <span class="stash-index">{stash.index}</span>
+        <span class="stash-index" title={`${stash.fileCount} ${t('git.files')}`}>
+          <Icon name="file" size={9}/>
+          {stash.fileCount}
+        </span>
         <div class="stash-info">
           <span class="stash-message">{stash.message || stash.name}</span>
           {#if stash.branch}
@@ -251,7 +254,7 @@
               {t('git.stashApply')}
             </button>
             <button
-              class="stash-action-btn stash-pop-btn"
+              class="stash-action-btn"
               title={t('git.stashPopTitle') as string}
               on:click|stopPropagation={() => handlePop(stash)}
             >
@@ -529,6 +532,10 @@
   .stash-item.is-selected { background: var(--bg-2); }
 
   .stash-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     font-size: 10px;
     font-family: var(--font-mono);
     font-weight: 600;
@@ -608,16 +615,6 @@
   }
   .stash-action-btn.icon-only {
     padding: 2px 5px;
-  }
-  .stash-pop-btn {
-    color: var(--accent);
-    border-color: var(--accent-line);
-    background: var(--accent-weak);
-  }
-  .stash-pop-btn:hover {
-    background: var(--accent);
-    color: white;
-    border-color: transparent;
   }
   .stash-action-btn.danger {
     color: var(--fg-3);

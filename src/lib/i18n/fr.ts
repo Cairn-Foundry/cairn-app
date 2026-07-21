@@ -164,7 +164,6 @@ export const fr = {
 		agentFinished: "Agent terminé - ouvrez cette instance pour consulter",
 		instancesGroup: "Instances",
 		addProject: "Projet",
-		pauseAgent: "Mettre l'agent en pause",
 		finalizeInstance: "Finaliser l'instance",
 		createInstance: "Créer une instance",
 		newInstance: "Nouvelle instance",
@@ -474,6 +473,7 @@ export const fr = {
 	quickOpen: {
 		placeholder: "Aller au fichier...",
 		noResults: (q: string) => `Aucun fichier ne correspond à "${q}"`,
+		toggleGitignored: "Afficher/masquer les fichiers gitignorés",
 	},
 
 	commandPalette: {
@@ -909,6 +909,11 @@ export const fr = {
 			showMinimapDesc:
 				"Panneau d'aperçu dans la barre de défilement droite de l'éditeur.",
 			toggleMinimap: "Basculer la minimap",
+			quickSearchGroup: "Recherche rapide",
+			quickSearchGitignored:
+				"Afficher les fichiers gitignorés dans la recherche rapide",
+			quickSearchGitignoredDesc:
+				"Inclure les fichiers correspondant au .gitignore dans les résultats de la recherche rapide de fichiers.",
 			saveOn: "Enregistrer au",
 			saveOnDesc:
 				"Quand l'éditeur enregistre automatiquement les fichiers ouverts.",

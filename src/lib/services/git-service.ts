@@ -250,12 +250,20 @@ export async function getDiffCommit(
 	return invoke("git_diff_commit", { worktreePath, commitHash });
 }
 
+export async function getCommitBody(
+	worktreePath: string,
+	commitHash: string,
+): Promise<string> {
+	return invoke("git_commit_body", { worktreePath, commitHash });
+}
+
 export type GitStash = {
 	index: number;
 	name: string;
 	message: string;
 	branch: string;
 	date: string;
+	fileCount: number;
 };
 
 export async function getStashList(worktreePath: string): Promise<GitStash[]> {

@@ -5,23 +5,52 @@
   import type { FileNode } from '$lib/services/file-service';
   import { flattenTreeFilePaths, scorePathMatch } from '$lib/utils/files/files-search';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
+  import { listAllFiles } from '$lib/services/file-service';
+  import { settings } from '$lib/stores/settings';
 
   interface Props {
     tree: FileNode[];
+    worktreePath?: string;
     onOpen: (path: string) => void;
     onClose: () => void;
   }
 
-  let { tree, onOpen, onClose }: Props = $props();
+  let { tree, worktreePath = '', onOpen, onClose }: Props = $props();
 
   let query = $state('');
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
 
-  const allFiles = $derived(flattenTreeFilePaths(tree));
+  let files = $state<string[]>([]);
+
+  const showGitignored = $derived($settings.quickSearchShowGitignored);
+
+  function toggleGitignored() {
+    settings.save({ quickSearchShowGitignored: !showGitignored });
+    inputEl?.focus();
+  }
+
+  $effect(() => {
+    const wt = worktreePath;
+    const includeIgnored = showGitignored;
+    if (!wt) {
+      files = flattenTreeFilePaths(tree);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await listAllFiles(wt, includeIgnored);
+        if (!cancelled) files = list;
+      } catch {
+        if (!cancelled) files = flattenTreeFilePaths(tree);
+      }
+    })();
+    return () => { cancelled = true; };
+  });
 
   const results = $derived(
-    allFiles
+    files
       .map(path => ({ path, s: scorePathMatch(path, query) }))
       .filter(x => x.s >= 0)
       .sort((a, b) => b.s - a.s)
@@ -64,6 +93,14 @@
         autocomplete="off"
         spellcheck="false"
       />
+      <button
+        class="gitignore-toggle {showGitignored ? 'active' : ''}"
+        title={t('quickOpen.toggleGitignored') as string}
+        onclick={toggleGitignored}
+      >
+        <Icon name="eye" size={12}/>
+        <span>.gitignore</span>
+      </button>
       <kbd class="esc-hint">esc</kbd>
     </div>
 
@@ -138,6 +175,31 @@
     color: var(--fg-0);
   }
   .search-input::placeholder { color: var(--fg-4, var(--fg-3)); }
+
+  .gitignore-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    color: var(--fg-3);
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background .1s, color .1s, border-color .1s;
+  }
+  .gitignore-toggle:hover {
+    color: var(--fg-1);
+    border-color: var(--stroke-1);
+  }
+  .gitignore-toggle.active {
+    color: var(--accent);
+    background: var(--accent-weak);
+    border-color: var(--accent-line);
+  }
 
   .esc-hint {
     font-family: var(--font-mono);

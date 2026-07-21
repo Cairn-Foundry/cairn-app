@@ -347,7 +347,6 @@
         {/if}
 
         <div class="instance-actions">
-          <button class="btn"><Icon name="pause" size={13}/> {t('workspace.pauseAgent')}</button>
           <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
         </div>
       {/if}
@@ -444,6 +443,7 @@
 {#if $quickOpenVisible}
   <QuickOpen
     tree={quickOpenTree}
+    worktreePath={activeInstance?.worktreePath ?? ''}
     onOpen={handleQuickOpenFile}
     onClose={() => quickOpenVisible.set(false)}
   />

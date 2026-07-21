@@ -18,6 +18,13 @@ export async function listDirNames(path: string): Promise<string[]> {
 	return invoke<string[]>("list_dir_names", { path });
 }
 
+export async function listAllFiles(
+	path: string,
+	includeIgnored: boolean,
+): Promise<string[]> {
+	return invoke<string[]>("list_all_files", { path, includeIgnored });
+}
+
 export async function readFile(path: string): Promise<string | null> {
 	return invoke<string | null>("read_file", { path });
 }

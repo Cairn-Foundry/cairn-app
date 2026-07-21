@@ -90,9 +90,12 @@ pub struct CairnSettings {
     pub git_profiles: Vec<GitProfile>,
     #[serde(rename = "agentActivityWidth", default = "default_agent_activity_width")]
     pub agent_activity_width: u32,
+    #[serde(rename = "quickSearchShowGitignored", default = "default_quick_search_show_gitignored")]
+    pub quick_search_show_gitignored: bool,
 }
 
 fn default_agent_activity_width() -> u32 { 300 }
+fn default_quick_search_show_gitignored() -> bool { false }
 fn default_sidebar_position() -> String { "left".to_string() }
 fn default_show_whitespace() -> bool { false }
 fn default_save_on() -> String { "blur".to_string() }
@@ -123,6 +126,7 @@ impl Default for CairnSettings {
             save_on: default_save_on(),
             git_profiles: Vec::new(),
             agent_activity_width: default_agent_activity_width(),
+            quick_search_show_gitignored: default_quick_search_show_gitignored(),
         }
     }
 }

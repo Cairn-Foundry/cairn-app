@@ -65,6 +65,8 @@
     font-size: 11.5px;
     line-height: 1.55;
     background: var(--bg-0);
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
   }
 
   .diff-row {

@@ -6,7 +6,7 @@
   import GraphView from '$lib/components/git/GraphView.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
   import { readFile, isBinaryPath } from '$lib/services/file-service';
-  import { getDiffCommit, checkIgnore } from '$lib/services/git-service';
+  import { getDiffCommit, getCommitBody, checkIgnore } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
   import { t } from '$lib/i18n';
   import {
@@ -202,7 +202,18 @@
 
   let selectedCommit: SelectedCommitInfo | null = null;
   let selectedCommitDiff: GitFileDiff[] = [];
+  let selectedCommitBody = '';
   let isLoadingCommitDiff = false;
+  const commitByWorktree: Record<string, SelectedCommitInfo> = {};
+
+  let commitTitleEl: HTMLInputElement;
+  let commitBodyEl: HTMLTextAreaElement;
+  $: if (commitTitleEl && document.activeElement !== commitTitleEl && commitTitleEl.value !== state.commitMessage) {
+    commitTitleEl.value = state.commitMessage;
+  }
+  $: if (commitBodyEl && document.activeElement !== commitBodyEl && commitBodyEl.value !== state.commitBody) {
+    commitBodyEl.value = state.commitBody;
+  }
 
   function diffStatus(hunks: GitDiffHunk[]): string {
     const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
@@ -233,27 +244,43 @@
   $: totalStagedAdded   = stagedCards.reduce((s, c) => s + c.added,   0);
   $: totalStagedRemoved = stagedCards.reduce((s, c) => s + c.removed, 0);
 
+  async function fetchCommitDetail(commit: SelectedCommitInfo) {
+    if (!instance?.worktreePath) return;
+    const worktreePath = instance.worktreePath;
+    selectedCommit = commit;
+    selectedCommitDiff = [];
+    selectedCommitBody = '';
+    isLoadingCommitDiff = true;
+    try {
+      const [diff, body] = await Promise.all([
+        getDiffCommit(worktreePath, commit.hash),
+        getCommitBody(worktreePath, commit.hash).catch(() => ''),
+      ]);
+      selectedCommitDiff = diff;
+      selectedCommitBody = body;
+    } catch {
+      selectedCommitDiff = [];
+      selectedCommitBody = '';
+    } finally {
+      isLoadingCommitDiff = false;
+    }
+  }
+
   async function selectCommit(commit: SelectedCommitInfo) {
     if (!instance?.worktreePath) return;
     if (selectedCommit?.hash === commit.hash) {
       clearSelectedCommit();
       return;
     }
-    selectedCommit = commit;
-    selectedCommitDiff = [];
-    isLoadingCommitDiff = true;
-    try {
-      selectedCommitDiff = await getDiffCommit(instance.worktreePath, commit.hash);
-    } catch {
-      selectedCommitDiff = [];
-    } finally {
-      isLoadingCommitDiff = false;
-    }
+    commitByWorktree[instance.worktreePath] = commit;
+    await fetchCommitDetail(commit);
   }
 
   function clearSelectedCommit() {
+    if (instance?.worktreePath) delete commitByWorktree[instance.worktreePath];
     selectedCommit = null;
     selectedCommitDiff = [];
+    selectedCommitBody = '';
     isLoadingCommitDiff = false;
     revertError = null;
   }
@@ -547,7 +574,16 @@
   });
 
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {
-    lastWorktreePath = instance.worktreePath;
+    const prevWorktree = lastWorktreePath;
+    const nextWorktree = instance.worktreePath;
+    if (prevWorktree) {
+      if (selectedCommit) commitByWorktree[prevWorktree] = selectedCommit;
+      else delete commitByWorktree[prevWorktree];
+    }
+    lastWorktreePath = nextWorktree;
+    const restored = commitByWorktree[nextWorktree];
+    if (restored) fetchCommitDetail(restored);
+    else clearSelectedCommit();
     refreshStatus();
     refreshLog();
   }
@@ -817,7 +853,7 @@
           {/if}
         {/if}
         {#if selectedCount > 0}
-          <button class="bulk-btn" on:click={stageSelected}>{t('git.stage')}</button>
+          <button class="bulk-btn bulk-btn-primary" on:click={stageSelected}>{t('git.stage')}</button>
           <button class="bulk-btn" on:click={openStashSelection}>{t('git.stashTab')}</button>
           <button class="bulk-btn bulk-btn-danger" on:click={openDiscardMultiple}>{t('git.discard')}</button>
         {/if}
@@ -1080,6 +1116,7 @@
                 {#if totalRemoved > 0}<span class="stat-remove">-{totalRemoved}</span>{/if}
               </span>
             {/if}
+            <span class="revert-sep"></span>
           {/if}
           <button
             class="revert-btn"
@@ -1098,6 +1135,9 @@
       </div>
       {#if revertError}
         <div class="revert-error">{revertError}</div>
+      {/if}
+      {#if selectedCommitBody}
+        <div class="commit-body-detail">{selectedCommitBody}</div>
       {/if}
       <div class="hunks-list">
         {#if isLoadingCommitDiff}
@@ -1305,13 +1345,13 @@
       <input
         class="commit-title"
         type="text"
-        value={state.commitMessage}
+        bind:this={commitTitleEl}
         placeholder={t('git.commitPlaceholder') as string}
         on:input={(e) => setCommitMessage((e.target as HTMLInputElement).value)}
       />
       <textarea
         class="commit-msg"
-        value={state.commitBody}
+        bind:this={commitBodyEl}
         placeholder={t('git.commitBodyPlaceholder') as string}
         on:input={(e) => setCommitBody((e.target as HTMLTextAreaElement).value)}
       ></textarea>
@@ -2344,6 +2384,25 @@
     word-break: break-all;
   }
 
+  .revert-sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 2px;
+    background: var(--stroke-1);
+    flex-shrink: 0;
+  }
+
+  .commit-body-detail {
+    padding: 8px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--fg-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-bottom: 1px solid var(--stroke-0);
+    flex-shrink: 0;
+  }
+
   .revert-btn {
     display: flex;
     align-items: center;
@@ -2509,6 +2568,17 @@
     background: var(--danger-weak);
     border-color: transparent;
     color: var(--danger);
+  }
+  .bulk-btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .bulk-btn-primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    filter: brightness(1.08);
   }
 
   /* Stash selection modal */

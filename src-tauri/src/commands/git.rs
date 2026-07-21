@@ -276,6 +276,10 @@ pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, Stri
 
         let category = if x == '?' && y == '?' {
             "untracked"
+        } else if y == 'D' {
+            "deleted"
+        } else if y != ' ' {
+            "modified"
         } else if x != ' ' && x != '?' {
             match x {
                 'A' => "staged-added",
@@ -284,8 +288,6 @@ pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, Stri
                 'C' => "staged-copied",
                 _   => "staged-modified",
             }
-        } else if y == 'D' {
-            "deleted"
         } else {
             "modified"
         };
@@ -667,6 +669,16 @@ pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec
     Ok(parse_diff(&raw))
 }
 
+#[tauri::command]
+pub fn git_commit_body(worktree_path: String, commit_hash: String) -> Result<String, String> {
+    validate_ref(&commit_hash)?;
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args([
+        "show", "-s", "--format=%b", &commit_hash,
+    ]))?;
+    Ok(raw.trim_end().to_string())
+}
+
 // ---------------------------------------------------------------------------
 // Stash
 // ---------------------------------------------------------------------------
@@ -678,6 +690,8 @@ pub struct GitStash {
     pub message: String,
     pub branch: String,
     pub date: String,
+    #[serde(rename = "fileCount")]
+    pub file_count: usize,
 }
 
 fn parse_stash_subject(subject: &str) -> (String, String) {
@@ -721,7 +735,12 @@ pub fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
             let subject = parts.get(1).unwrap_or(&"").to_string();
             let date = parts.get(2).unwrap_or(&"").trim().to_string();
             let (branch, message) = parse_stash_subject(&subject);
-            GitStash { index: i, name, message, branch, date }
+            let file_count = run(git_cmd(&expanded).args([
+                "stash", "show", "--name-only", &format!("stash@{{{i}}}"),
+            ]))
+            .map(|out| out.lines().filter(|l| !l.trim().is_empty()).count())
+            .unwrap_or(0);
+            GitStash { index: i, name, message, branch, date, file_count }
         })
         .collect();
     Ok(stashes)

@@ -162,7 +162,6 @@ export const en = {
 		agentFinished: "Agent finished - open this instance to review",
 		instancesGroup: "Instances",
 		addProject: "Project",
-		pauseAgent: "Pause agent",
 		finalizeInstance: "Finalize instance",
 		createInstance: "Create an instance",
 		newInstance: "New instance",
@@ -460,6 +459,7 @@ export const en = {
 	quickOpen: {
 		placeholder: "Go to file...",
 		noResults: (q: string) => `No files match "${q}"`,
+		toggleGitignored: "Show/hide gitignored files",
 	},
 
 	commandPalette: {
@@ -882,6 +882,10 @@ export const en = {
 			showMinimapDesc:
 				"Scrollbar overview panel on the right side of the code editor.",
 			toggleMinimap: "Toggle minimap",
+			quickSearchGroup: "Quick Search",
+			quickSearchGitignored: "Show gitignored files in quick search",
+			quickSearchGitignoredDesc:
+				"Include files matched by .gitignore in the quick file search results.",
 			saveOn: "Save on",
 			saveOnDesc: "When the editor automatically saves open files to disk.",
 			resetEditor: "Reset editor",
