@@ -31,6 +31,16 @@
 
   let graphSearch = '';
 
+  let branchTip: { x: number; y: number; label: string } | null = null;
+
+  function showBranchTip(e: MouseEvent, label: string | undefined) {
+    if (!label) return;
+    branchTip = { x: e.clientX, y: e.clientY, label };
+  }
+  function hideBranchTip() {
+    branchTip = null;
+  }
+
   let searchActive = false;
   $: {
     const active = graphSearch.trim().length > 0;
@@ -89,6 +99,7 @@
     commit: GitGraphCommit;
     lane: number;
     color: string;
+    branch?: string;
     paths: PathDef[];
     maxLaneInRow: number;
     belowLanes: Array<{ idx: number; color: string; branch?: string }>;
@@ -176,7 +187,7 @@
       const belowLanes = below
         .map((l, idx) => l ? { idx, color: l.color, branch: l.branch } : null)
         .filter((x): x is { idx: number; color: string; branch: string | undefined } => x !== null);
-      return { commit, lane: myLane, color: myColor, paths, maxLaneInRow, belowLanes };
+      return { commit, lane: myLane, color: myColor, branch: myBranch, paths, maxLaneInRow, belowLanes };
     });
   }
 
@@ -296,14 +307,25 @@
                 fill="none"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-              >
-                {#if p.branch}<title>{p.branch}</title>{/if}
-              </path>
+                class:branch-line={!!p.branch}
+                role={p.branch ? 'presentation' : undefined}
+                on:mousemove={p.branch ? (e) => showBranchTip(e, p.branch) : undefined}
+                on:mouseleave={p.branch ? hideBranchTip : undefined}
+              />
             {/each}
             {#if isCurrent}
               <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R + 3} fill="none" stroke={row.color} stroke-width="1.5" />
             {/if}
-            <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R} fill={row.color} />
+            <circle
+              cx={laneX(row.lane)}
+              cy={ROW_H / 2}
+              r={DOT_R}
+              fill={row.color}
+              class:branch-line={!!row.branch}
+              role={row.branch ? 'presentation' : undefined}
+              on:mousemove={row.branch ? (e) => showBranchTip(e, row.branch) : undefined}
+              on:mouseleave={row.branch ? hideBranchTip : undefined}
+            />
           </svg>
 
           <div class="row-body">
@@ -321,7 +343,14 @@
         {#if chips.length > 0}
           <div class="chips-strip" style="padding-left:{svgW + 4}px">
             {#each row.belowLanes as bl}
-              <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}" title={bl.branch ?? undefined}></div>
+              <div
+                class="chips-lane-line"
+                class:branch-line={!!bl.branch}
+                style="left:{laneX(bl.idx) - 1}px; background:{bl.color}"
+                role="presentation"
+                on:mousemove={bl.branch ? (e) => showBranchTip(e, bl.branch) : undefined}
+                on:mouseleave={bl.branch ? hideBranchTip : undefined}
+              ></div>
             {/each}
             {#each chips as chip}
               {@const linkedInstance = branchToInstance.get(chip.label)}
@@ -358,12 +387,37 @@
   </div>
 </div>
 
+{#if branchTip}
+  <div class="branch-tooltip" style="left:{branchTip.x}px; top:{branchTip.y}px">
+    {branchTip.label}
+  </div>
+{/if}
+
 <style>
   .graph-wrap {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+
+  .branch-line { cursor: pointer; }
+
+  .branch-tooltip {
+    position: fixed;
+    z-index: 1000;
+    transform: translate(10px, 14px);
+    pointer-events: none;
+    padding: 3px 7px;
+    background: var(--bg-3);
+    color: var(--fg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
   }
 
   .graph-toolbar {
