@@ -970,6 +970,9 @@
             <button class="log-search-clear" on:click={() => updateProjectViewState({ gitLogSearch: '' })}>×</button>
           {/if}
         </div>
+        <button class="log-refresh-btn" title={t('git.refresh') as string} on:click={() => refreshLog()}>
+          <Icon name="refresh" size={13}/>
+        </button>
       </div>
       <div class="log-list" on:scroll={handleLogScroll}>
         {#if state.log.length === 0}
@@ -1015,6 +1018,7 @@
         on:searchToggle={(e) => handleGraphSearchToggle(e.detail)}
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
         on:selectCommit={(e) => selectCommit(e.detail)}
+        on:refresh={() => refreshGraph()}
       />
     {:else if $gitLeftTab === 'stash'}
       <StashView
@@ -1786,6 +1790,21 @@
     cursor: pointer;
   }
   .log-search-clear:hover { color: var(--fg-1); }
+
+  .log-refresh-btn {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    background: var(--bg-0);
+    color: var(--fg-3);
+    cursor: pointer;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .log-refresh-btn:hover { color: var(--fg-0); border-color: var(--stroke-1); background: var(--bg-1); }
 
   .log-list {
     flex: 1;

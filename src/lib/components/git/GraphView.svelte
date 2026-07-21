@@ -12,7 +12,7 @@
   export let selectedHash = '';
   export let hasMore = false;
 
-  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean }>();
+  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean; refresh: void }>();
 
   let isLoadingMore = false;
   let lastCount = 0;
@@ -272,6 +272,9 @@
         <button class="graph-search-clear" on:click={() => graphSearch = ''}>×</button>
       {/if}
     </div>
+    <button class="graph-refresh-btn" title={t('git.refresh') as string} on:click={() => dispatch('refresh')}>
+      <Icon name="refresh" size={13}/>
+    </button>
   </div>
 
   <div class="graph-scroll" on:scroll={handleScroll}>
@@ -441,6 +444,21 @@
     min-width: 0;
     color: var(--fg-4);
   }
+
+  .graph-refresh-btn {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    background: var(--bg-0);
+    color: var(--fg-3);
+    cursor: pointer;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .graph-refresh-btn:hover { color: var(--fg-0); border-color: var(--stroke-1); background: var(--bg-1); }
   .graph-search:focus-within {
     border-color: var(--accent);
     color: var(--fg-2);
