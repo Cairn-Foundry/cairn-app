@@ -150,7 +150,7 @@ import { get } from 'svelte/store';
   let tree: FileNode[] = [];
   let gitStatusMap: GitStatusMap = {};
   let gitStatusWorktree: string | null = null;
-  let showHidden = false;
+  let showIgnored = false;
   let multiSelected = new Set<string>();
 
   // -- Pointer-event drag state --------------------------------------------------
@@ -1047,7 +1047,7 @@ import { get } from 'svelte/store';
     error = '';
     try {
       [rawTree, gitStatusMap] = await Promise.all([
-        readDirTree(root, showHidden),
+        readDirTree(root, showIgnored),
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
       tree = rawTree;
@@ -1412,7 +1412,7 @@ import { get } from 'svelte/store';
     {treeWidth}
     {searchPanelOpen}
     {splitMode}
-    {showHidden}
+    {showIgnored}
     {tooltipSearch}
     {tooltipSplit}
     onCollapseAll={collapseAll}
@@ -1422,7 +1422,7 @@ import { get } from 'svelte/store';
     onToggleSearchPanel={toggleSearchPanel}
     onRefresh={() => { if (worktreePath) loadTree(worktreePath); }}
     onToggleSplit={toggleSplit}
-    onToggleHidden={() => { showHidden = !showHidden; if (worktreePath) loadTree(worktreePath); }}
+    onToggleIgnored={() => { showIgnored = !showIgnored; if (worktreePath) loadTree(worktreePath); }}
     {loading}
     {error}
     {worktreePath}

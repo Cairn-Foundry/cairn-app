@@ -9,9 +9,9 @@ export interface FileNode {
 
 export async function readDirTree(
 	path: string,
-	showHidden = false,
+	showIgnored = false,
 ): Promise<FileNode[]> {
-	return invoke<FileNode[]>("read_dir_tree", { path, showHidden });
+	return invoke<FileNode[]>("read_dir_tree", { path, showIgnored });
 }
 
 export async function listDirNames(path: string): Promise<string[]> {

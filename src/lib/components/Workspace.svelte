@@ -225,6 +225,7 @@
       <span>Cairn</span>
     </button>
     <div class="tab-divider"></div>
+    <div class="tabs-scroll">
     {#each openProjects as p, i}
       {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
         <div class="drop-indicator"></div>
@@ -252,6 +253,7 @@
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
+    </div>
     <div class="spacer" data-tauri-drag-region></div>
     <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string} on:click={() => quickOpenVisible.set(true)}><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>

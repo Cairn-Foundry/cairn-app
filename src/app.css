@@ -173,6 +173,18 @@ input, textarea { font-family: inherit; color: inherit; }
   background: var(--stroke-1); margin: 0 6px;
 }
 
+.tabs-scroll {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabs-scroll::-webkit-scrollbar { height: 0; display: none; }
+
 .project-tab {
   display: flex; align-items: center; gap: 8px;
   padding: 0 12px;
@@ -182,11 +194,13 @@ input, textarea { font-family: inherit; color: inherit; }
   border-right: 1px solid transparent;
   border-left: 1px solid transparent;
   border-bottom: none;
-  transition: all .12s;
+  transition: color .12s, background .12s, border-color .12s;
   position: relative; top: 1px;
   cursor: pointer;
-  min-width: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
+.project-tab > span:not(.dot) { white-space: nowrap; }
 .project-tab:hover { color: var(--fg-1); background: var(--bg-1); border-left-color: var(--stroke-0); border-right-color: var(--stroke-0); }
 .project-tab.active {
   color: var(--fg-0);
@@ -218,6 +232,8 @@ input, textarea { font-family: inherit; color: inherit; }
   padding: 4px 10px; margin-left: 4px;
   font-size: 12px; color: var(--fg-2);
   border-radius: var(--r-sm);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .tab-add:hover { background: var(--bg-1); color: var(--fg-0); }
 

@@ -81,8 +81,8 @@
 
   const CHIPS_LINE_H = 22;
 
-  interface LaneState { targetHash: string; color: string; }
-  interface PathDef   { d: string; color: string; }
+  interface LaneState { targetHash: string; color: string; branch?: string; }
+  interface PathDef   { d: string; color: string; branch?: string; }
   interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag'; }
 
   interface GraphRow {
@@ -91,7 +91,7 @@
     color: string;
     paths: PathDef[];
     maxLaneInRow: number;
-    belowLanes: Array<{ idx: number; color: string }>;
+    belowLanes: Array<{ idx: number; color: string; branch?: string }>;
   }
 
   function laneX(lane: number): number { return lane * COL_W + HALF; }
@@ -108,20 +108,25 @@
 
       let myLane: number;
       let myColor: string;
+      let myBranch: string | undefined;
 
       if (tracking.length > 0) {
         myLane  = tracking[0].i;
         myColor = tracking[0].l!.color;
+        myBranch = tracking[0].l!.branch;
       } else {
         myLane = lanes.findIndex(l => l === null);
         if (myLane === -1) { myLane = lanes.length; lanes.push(null); }
         myColor = PALETTE[colorIdx++ % PALETTE.length];
       }
 
+      const ownBranch = branchLabelForCommit(commit);
+      if (ownBranch) myBranch = ownBranch;
+
       for (const { i } of tracking) lanes[i] = null;
 
       if (commit.parents.length > 0) {
-        lanes[myLane] = { targetHash: commit.parents[0], color: myColor };
+        lanes[myLane] = { targetHash: commit.parents[0], color: myColor, branch: myBranch };
       }
 
       for (let pi = 1; pi < commit.parents.length; pi++) {
@@ -146,31 +151,40 @@
         const ax = laneX(li);
 
         if (li === myLane) {
-          if (a) paths.push({ d: `M ${cx} 0 L ${cx} ${midY}`,        color: myColor });
-          if (b) paths.push({ d: `M ${cx} ${midY} L ${cx} ${ROW_H}`, color: myColor });
+          if (a) paths.push({ d: `M ${cx} 0 L ${cx} ${midY}`,        color: myColor, branch: myBranch });
+          if (b) paths.push({ d: `M ${cx} ${midY} L ${cx} ${ROW_H}`, color: myColor, branch: b?.branch ?? myBranch });
         } else if (a?.targetHash === commit.hash) {
           const cp = midY * 0.75;
           paths.push({
             d: `M ${ax} 0 C ${ax} ${cp * 2} ${cx} ${midY - cp * 0.5} ${cx} ${midY}`,
             color: a.color,
+            branch: a.branch,
           });
         } else if (!a && b) {
           const cp = midY * 0.75;
           paths.push({
             d: `M ${cx} ${midY} C ${cx} ${midY + cp * 0.5} ${ax} ${ROW_H - cp * 2} ${ax} ${ROW_H}`,
             color: b.color,
+            branch: b.branch,
           });
         } else if (a && b) {
-          paths.push({ d: `M ${ax} 0 L ${ax} ${ROW_H}`, color: a.color });
+          paths.push({ d: `M ${ax} 0 L ${ax} ${ROW_H}`, color: a.color, branch: a.branch });
         }
       }
 
       const maxLaneInRow = Math.max(myLane, maxLen - 1, 0);
       const belowLanes = below
-        .map((l, idx) => l ? { idx, color: l.color } : null)
-        .filter((x): x is { idx: number; color: string } => x !== null);
+        .map((l, idx) => l ? { idx, color: l.color, branch: l.branch } : null)
+        .filter((x): x is { idx: number; color: string; branch: string | undefined } => x !== null);
       return { commit, lane: myLane, color: myColor, paths, maxLaneInRow, belowLanes };
     });
+  }
+
+  function branchLabelForCommit(commit: GitGraphCommit): string | undefined {
+    const chips = parseRefs(commit.refs);
+    const local = chips.find(c => c.kind === 'head-branch' || c.kind === 'local');
+    if (local) return local.label;
+    return chips.find(c => c.kind === 'remote')?.label;
   }
 
   function parseRefs(refs: string[]): RefChip[] {
@@ -282,7 +296,9 @@
                 fill="none"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-              />
+              >
+                {#if p.branch}<title>{p.branch}</title>{/if}
+              </path>
             {/each}
             {#if isCurrent}
               <circle cx={laneX(row.lane)} cy={ROW_H / 2} r={DOT_R + 3} fill="none" stroke={row.color} stroke-width="1.5" />
@@ -305,7 +321,7 @@
         {#if chips.length > 0}
           <div class="chips-strip" style="padding-left:{svgW + 4}px">
             {#each row.belowLanes as bl}
-              <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}"></div>
+              <div class="chips-lane-line" style="left:{laneX(bl.idx) - 1}px; background:{bl.color}" title={bl.branch ?? undefined}></div>
             {/each}
             {#each chips as chip}
               {@const linkedInstance = branchToInstance.get(chip.label)}
@@ -468,7 +484,6 @@
     bottom: 0;
     width: 2px;
     border-radius: 1px;
-    pointer-events: none;
   }
 
   .ref-chip {

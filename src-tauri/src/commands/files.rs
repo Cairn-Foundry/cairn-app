@@ -23,29 +23,64 @@ pub struct FileNode {
     pub children: Option<Vec<FileNode>>,
 }
 
-fn read_dir_recursive(dir: &PathBuf, root: &PathBuf, show_hidden: bool) -> Vec<FileNode> {
-    let mut entries: Vec<FileNode> = match fs::read_dir(dir) {
-        Ok(rd) => rd.filter_map(|e| e.ok()).collect::<Vec<_>>(),
-        Err(_) => return vec![],
-    }
-    .iter()
-    .filter_map(|entry| {
-        let path = entry.path();
-        let name = path.file_name()?.to_string_lossy().to_string();
-        if !show_hidden && name.starts_with('.') { return None; }
-        let rel = path.strip_prefix(root).ok()?.to_string_lossy().to_string();
-        let is_dir = path.is_dir();
-        let children = if is_dir { Some(read_dir_recursive(&path, root, show_hidden)) } else { None };
-        Some(FileNode { name, path: rel, is_dir, children })
-    })
-    .collect();
+#[derive(Default)]
+struct TreeBuilder {
+    is_dir: bool,
+    rel: String,
+    children: std::collections::BTreeMap<String, TreeBuilder>,
+}
 
-    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+fn build_gitignore_tree(root: &PathBuf, show_ignored: bool) -> Vec<FileNode> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .hidden(false)
+        .git_ignore(!show_ignored)
+        .git_global(!show_ignored)
+        .git_exclude(!show_ignored)
+        .ignore(!show_ignored)
+        .parents(!show_ignored)
+        .filter_entry(|e| e.file_name() != ".git");
+
+    let mut tree = TreeBuilder::default();
+    for entry in builder.build().flatten() {
+        let path = entry.path();
+        let rel = match path.strip_prefix(root) {
+            Ok(r) if !r.as_os_str().is_empty() => r,
+            _ => continue,
+        };
+        let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
+
+        let components: Vec<_> = rel.components().collect();
+        let last = components.len().saturating_sub(1);
+        let mut partial = PathBuf::new();
+        let mut cursor = &mut tree;
+        for (i, comp) in components.iter().enumerate() {
+            partial.push(comp);
+            let name = comp.as_os_str().to_string_lossy().to_string();
+            cursor = cursor.children.entry(name).or_default();
+            cursor.rel = partial.to_string_lossy().to_string();
+            cursor.is_dir = if i == last { is_dir } else { true };
+        }
+    }
+
+    to_file_nodes(tree.children)
+}
+
+fn to_file_nodes(children: std::collections::BTreeMap<String, TreeBuilder>) -> Vec<FileNode> {
+    let mut nodes: Vec<FileNode> = children
+        .into_iter()
+        .map(|(name, node)| {
+            let child_nodes = if node.is_dir { Some(to_file_nodes(node.children)) } else { None };
+            FileNode { name, path: node.rel, is_dir: node.is_dir, children: child_nodes }
+        })
+        .collect();
+
+    nodes.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
-    entries
+    nodes
 }
 
 fn collect_files(root: &PathBuf, include_ignored: bool) -> Vec<String> {
@@ -113,11 +148,11 @@ pub fn quick_search(
 }
 
 #[tauri::command]
-pub fn read_dir_tree(path: String, show_hidden: bool) -> Result<Vec<FileNode>, String> {
+pub fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);
     if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-    Ok(read_dir_recursive(&root, &root, show_hidden))
+    Ok(build_gitignore_tree(&root, show_ignored))
 }
 
 #[tauri::command]

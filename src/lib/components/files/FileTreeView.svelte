@@ -11,7 +11,7 @@
   export let treeWidth: number;
   export let searchPanelOpen: boolean;
   export let splitMode: boolean;
-  export let showHidden: boolean;
+  export let showIgnored: boolean;
   export let tooltipSearch: string;
   export let tooltipSplit: string;
 
@@ -22,7 +22,7 @@
   export let onToggleSearchPanel: () => void;
   export let onRefresh: () => void;
   export let onToggleSplit: () => void;
-  export let onToggleHidden: () => void;
+  export let onToggleIgnored: () => void;
 
   // -- Tree state -----------------------------------------------------------
   export let loading: boolean;
@@ -105,7 +105,7 @@
       <button type="button" class="tree-action-btn {splitMode ? 'active' : ''}" data-tooltip={tooltipSplit} on:click={(e) => { e.stopPropagation(); onToggleSplit(); }}>
         <Icon name="columns" size={12}/>
       </button>
-      <button type="button" class="tree-action-btn {showHidden ? 'active' : ''}" data-tooltip={t('files.treeTooltips.toggleHidden') as string} on:click={(e) => { e.stopPropagation(); onToggleHidden(); }}>
+      <button type="button" class="tree-action-btn {showIgnored ? 'active' : ''}" data-tooltip={t('files.treeTooltips.toggleIgnored') as string} on:click={(e) => { e.stopPropagation(); onToggleIgnored(); }}>
         <Icon name="eye" size={12}/>
       </button>
     </div>
