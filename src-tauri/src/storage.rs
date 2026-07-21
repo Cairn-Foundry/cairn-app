@@ -69,12 +69,15 @@ pub fn instance_commit_state_file(project_id: &str, instance_id: &str) -> Result
         .join("commit-state.json"))
 }
 
-/// Serialize `value` as pretty JSON and write it to `path` atomically.
-///
-/// Writes to a temporary sibling file first, then renames it over the target so
-/// a crash or concurrent read never observes a half-written file. The rename is
-/// atomic on the same filesystem, which is always the case here since the temp
-/// file lives in the target's own directory.
+pub fn instance_git_collapse_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("git-collapse-state.json"))
+}
+
 pub fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -112,8 +115,6 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Recreate a symlink at `dst` pointing at the same target as `src`, instead of
-/// following it and copying the target's contents.
 fn copy_symlink(src: &Path, dst: &Path) -> Result<(), String> {
     let target = fs::read_link(src).map_err(|e| e.to_string())?;
     #[cfg(unix)]

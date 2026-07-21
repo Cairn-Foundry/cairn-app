@@ -4,6 +4,7 @@ pub mod commit_state;
 pub mod file_state;
 pub mod files;
 pub mod git;
+pub mod git_collapse_state;
 pub mod instances;
 pub mod projects;
 pub mod settings;
@@ -15,6 +16,7 @@ pub use agent::{AgentState, send_message, reset_agent_session, stop_agent};
 pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use file_state::{get_file_state, save_file_state};
+pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, list_dir_names, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{
     list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_check_ignore,

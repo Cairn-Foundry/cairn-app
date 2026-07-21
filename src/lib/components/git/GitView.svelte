@@ -42,6 +42,7 @@
   import { settings } from '$lib/stores/settings';
   import { activeStep, pendingGitAction, gitLeftTab } from '$lib/stores/ui';
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
+  import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string }>();
@@ -625,6 +626,7 @@
   $: hasActiveOptions = noVerify || signOff || allowEmpty || amendMode || appendTicketId;
 
   let commitStateLoaded = false;
+  let collapseStateLoaded = false;
   let prevInstanceId = '';
 
   $: {
@@ -632,6 +634,7 @@
     if (iid && iid !== prevInstanceId) {
       prevInstanceId = iid;
       commitStateLoaded = false;
+      collapseStateLoaded = false;
       getCommitState(instance!.projectId, iid).then((s) => {
         if (s) {
           noVerify = s.noVerify;
@@ -648,12 +651,24 @@
         }
         commitStateLoaded = true;
       });
+      getGitCollapseState(instance!.projectId, iid).then((s) => {
+        collapsedUnstaged = new Set(s?.collapsedUnstaged ?? []);
+        collapsedStaged = new Set(s?.collapsedStaged ?? []);
+        collapseStateLoaded = true;
+      });
     }
   }
 
   $: if (commitStateLoaded && instance) {
     saveCommitState(instance.projectId, instance.id, {
       noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId,
+    });
+  }
+
+  $: if (collapseStateLoaded && instance) {
+    saveGitCollapseState(instance.projectId, instance.id, {
+      collapsedUnstaged: [...collapsedUnstaged],
+      collapsedStaged: [...collapsedStaged],
     });
   }
 
