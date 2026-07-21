@@ -7,6 +7,8 @@ use grep_regex::RegexMatcherBuilder;
 use grep_searcher::{BinaryDetection, SearcherBuilder, Sink, SinkMatch};
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher as NucleoMatcher};
 use serde::Serialize;
 
 const SEARCH_RESULT_CAP: usize = 2000;
@@ -46,13 +48,8 @@ fn read_dir_recursive(dir: &PathBuf, root: &PathBuf, show_hidden: bool) -> Vec<F
     entries
 }
 
-#[tauri::command]
-pub fn list_all_files(path: String, include_ignored: bool) -> Result<Vec<String>, String> {
-    let expanded = shellexpand::tilde(&path).into_owned();
-    let root = PathBuf::from(&expanded);
-    if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-
-    let mut builder = WalkBuilder::new(&root);
+fn collect_files(root: &PathBuf, include_ignored: bool) -> Vec<String> {
+    let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false)
         .git_ignore(!include_ignored)
@@ -65,12 +62,54 @@ pub fn list_all_files(path: String, include_ignored: bool) -> Result<Vec<String>
     let mut files = Vec::new();
     for entry in builder.build().flatten() {
         if entry.file_type().is_some_and(|ft| ft.is_file()) {
-            if let Ok(rel) = entry.path().strip_prefix(&root) {
+            if let Ok(rel) = entry.path().strip_prefix(root) {
                 files.push(rel.to_string_lossy().to_string());
             }
         }
     }
-    Ok(files)
+    files
+}
+
+pub struct QuickSearchIndex {
+    key: String,
+    paths: Vec<String>,
+}
+
+#[derive(Default)]
+pub struct QuickSearchCache(Mutex<Option<QuickSearchIndex>>);
+
+#[tauri::command]
+pub fn quick_search(
+    state: tauri::State<'_, QuickSearchCache>,
+    path: String,
+    query: String,
+    include_ignored: bool,
+    refresh: bool,
+    limit: usize,
+) -> Result<Vec<String>, String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let key = format!("{}::{}", expanded, include_ignored);
+
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    let stale = refresh || guard.as_ref().map(|c| c.key != key).unwrap_or(true);
+    if stale {
+        let root = PathBuf::from(&expanded);
+        if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
+        let paths = collect_files(&root, include_ignored);
+        *guard = Some(QuickSearchIndex { key, paths });
+    }
+    let paths = &guard.as_ref().unwrap().paths;
+
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(paths.iter().take(limit).cloned().collect());
+    }
+
+    let mut matcher = NucleoMatcher::new(Config::DEFAULT.match_paths());
+    let pattern = Pattern::parse(trimmed, CaseMatching::Smart, Normalization::Smart);
+    let mut matches = pattern.match_list(paths.iter(), &mut matcher);
+    matches.truncate(limit);
+    Ok(matches.into_iter().map(|(p, _)| p.clone()).collect())
 }
 
 #[tauri::command]

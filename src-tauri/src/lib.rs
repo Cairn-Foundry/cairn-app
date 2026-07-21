@@ -13,6 +13,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AgentState::new())
         .manage(TerminalState::new())
+        .manage(QuickSearchCache::default())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -66,7 +67,7 @@ pub fn run() {
             save_folders,
             save_project_order,
             read_dir_tree,
-            list_all_files,
+            quick_search,
             list_dir_names,
             read_file,
             write_file,

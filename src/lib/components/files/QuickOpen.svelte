@@ -5,7 +5,7 @@
   import type { FileNode } from '$lib/services/file-service';
   import { flattenTreeFilePaths, scorePathMatch } from '$lib/utils/files/files-search';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
-  import { listAllFiles } from '$lib/services/file-service';
+  import { quickSearch } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
 
   interface Props {
@@ -17,11 +17,14 @@
 
   let { tree, worktreePath = '', onOpen, onClose }: Props = $props();
 
+  const RESULT_LIMIT = 50;
+
   let query = $state('');
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
 
-  let files = $state<string[]>([]);
+  let results = $state<string[]>([]);
+  let lastIndexKey = '';
 
   const showGitignored = $derived($settings.quickSearchShowGitignored);
 
@@ -30,35 +33,38 @@
     inputEl?.focus();
   }
 
+  function rankInTree(q: string): string[] {
+    return flattenTreeFilePaths(tree)
+      .map(path => ({ path, s: scorePathMatch(path, q) }))
+      .filter(x => x.s >= 0)
+      .sort((a, b) => b.s - a.s)
+      .slice(0, RESULT_LIMIT)
+      .map(x => x.path);
+  }
+
   $effect(() => {
     const wt = worktreePath;
     const includeIgnored = showGitignored;
+    const q = query;
+
     if (!wt) {
-      files = flattenTreeFilePaths(tree);
+      results = rankInTree(q);
       return;
     }
+
+    const indexKey = `${wt}::${includeIgnored}`;
+    const refresh = indexKey !== lastIndexKey;
+    lastIndexKey = indexKey;
+
     let cancelled = false;
-    (async () => {
-      try {
-        const list = await listAllFiles(wt, includeIgnored);
-        if (!cancelled) files = list;
-      } catch {
-        if (!cancelled) files = flattenTreeFilePaths(tree);
-      }
-    })();
+    quickSearch(wt, q, includeIgnored, refresh, RESULT_LIMIT)
+      .then(r => { if (!cancelled) results = r; })
+      .catch(() => { if (!cancelled) results = rankInTree(q); });
     return () => { cancelled = true; };
   });
 
-  const results = $derived(
-    files
-      .map(path => ({ path, s: scorePathMatch(path, query) }))
-      .filter(x => x.s >= 0)
-      .sort((a, b) => b.s - a.s)
-      .slice(0, 50)
-      .map(x => x.path)
-  );
-
   $effect(() => {
+    void results;
     selectedIdx = 0;
   });
 

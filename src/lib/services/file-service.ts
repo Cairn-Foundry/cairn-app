@@ -18,11 +18,20 @@ export async function listDirNames(path: string): Promise<string[]> {
 	return invoke<string[]>("list_dir_names", { path });
 }
 
-export async function listAllFiles(
+export async function quickSearch(
 	path: string,
+	query: string,
 	includeIgnored: boolean,
+	refresh: boolean,
+	limit = 50,
 ): Promise<string[]> {
-	return invoke<string[]>("list_all_files", { path, includeIgnored });
+	return invoke<string[]>("quick_search", {
+		path,
+		query,
+		includeIgnored,
+		refresh,
+		limit,
+	});
 }
 
 export async function readFile(path: string): Promise<string | null> {
