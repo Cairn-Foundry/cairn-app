@@ -53,10 +53,17 @@ export async function openInTerminal(path: string): Promise<void> {
 	return invoke<void>("open_in_terminal", { path });
 }
 
-export type GitStatusMap = Record<
-	string,
-	"staged" | "modified" | "untracked" | "deleted"
->;
+export type GitFileStatus =
+	| "modified"
+	| "untracked"
+	| "deleted"
+	| "staged-added"
+	| "staged-deleted"
+	| "staged-renamed"
+	| "staged-copied"
+	| "staged-modified";
+
+export type GitStatusMap = Record<string, GitFileStatus>;
 
 export interface SearchMatch {
 	path: string;

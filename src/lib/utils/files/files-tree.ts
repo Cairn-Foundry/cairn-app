@@ -78,16 +78,27 @@ export function getSiblingNames(
 	);
 }
 
+export function normalizeGitStatus(status: string): GitStatus | null {
+	if (status.startsWith("staged-")) return "staged";
+	if (GIT_STATUS_PRIORITY.includes(status as GitStatus))
+		return status as GitStatus;
+	return null;
+}
+
 export function nodeGitStatus(
 	node: FileNode,
 	gitStatusMap: GitStatusMap,
-): string | null {
-	if (!node.isDir) return gitStatusMap[node.path] ?? null;
+): GitStatus | null {
+	if (!node.isDir) {
+		const raw = gitStatusMap[node.path];
+		return raw ? normalizeGitStatus(raw) : null;
+	}
 	const prefix = `${node.path}/`;
 	let best: number = GIT_STATUS_PRIORITY.length;
 	for (const [path, status] of Object.entries(gitStatusMap)) {
-		if (path.startsWith(prefix) && status !== "deleted") {
-			const idx = GIT_STATUS_PRIORITY.indexOf(status as GitStatus);
+		const normalized = normalizeGitStatus(status);
+		if (path.startsWith(prefix) && normalized && normalized !== "deleted") {
+			const idx = GIT_STATUS_PRIORITY.indexOf(normalized);
 			if (idx !== -1 && idx < best) best = idx;
 		}
 	}

@@ -123,12 +123,19 @@ describe("getSiblingNames", () => {
 describe("nodeGitStatus", () => {
 	const statusMap: GitStatusMap = {
 		"src/lib/a.ts": "modified",
-		"src/lib/b.ts": "staged",
+		"src/lib/b.ts": "staged-modified",
 		"src/index.ts": "untracked",
 	};
 
 	it("returns file status directly", () => {
 		expect(nodeGitStatus(file("src/lib/a.ts"), statusMap)).toBe("modified");
+	});
+
+	it("normalizes staged-* file status to staged", () => {
+		expect(nodeGitStatus(file("src/lib/b.ts"), statusMap)).toBe("staged");
+		expect(
+			nodeGitStatus(file("x"), { x: "staged-added" } as GitStatusMap),
+		).toBe("staged");
 	});
 
 	it("returns null for file with no status", () => {
