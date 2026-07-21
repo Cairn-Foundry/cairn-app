@@ -257,10 +257,6 @@ input, textarea { font-family: inherit; color: inherit; }
   display: flex; align-items: center; gap: 10px;
   min-width: 0;
 }
-.instance-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--success); box-shadow: 0 0 0 4px var(--success-weak);
-}
 .ticket-id {
   font-family: var(--font-mono);
   font-size: 11px;

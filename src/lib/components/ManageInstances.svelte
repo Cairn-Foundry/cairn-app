@@ -454,8 +454,8 @@
   }
 
   .mi-finished {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
+    background: color-mix(in oklch, var(--fg-0) 12%, transparent);
+    color: var(--fg-0);
   }
 
   .mi-actions {

@@ -62,6 +62,9 @@
       selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 700);
     }
   }
+  $: activeInstanceDone = activeInstance
+    ? !!$agentDone[agentActivityKey(activeInstance.projectId, activeInstance.id)]
+    : false;
 
   async function handleQuickOpenFile(path: string) {
     activeStep.set('files');
@@ -268,6 +271,9 @@
             <Icon name="ticket" size={12}/>
             <span class="mono">{activeInstance.ticket.id}</span>
           {/if}
+          {#if activeInstanceDone}
+            <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
+          {/if}
           <Icon name="chev-d" size={11}/>
         </button>
         {#if showInstanceMenu}
@@ -330,7 +336,6 @@
 
       {#if !isBaseInstance(activeInstance.id)}
         <div class="instance-title">
-          <span class="instance-dot"></span>
           <span class="ticket-name">{activeInstance.ticket.title}</span>
         </div>
 
@@ -544,7 +549,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--fg-0);
     flex-shrink: 0;
   }
   .instance-menu-item .agent-done-dot {
@@ -559,7 +564,10 @@
   }
   @keyframes agent-alert-flash {
     0%, 100% { border-color: var(--stroke-0); box-shadow: none; }
-    50% { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3); }
+    50% {
+      border-color: var(--fg-0);
+      box-shadow: 0 0 0 3px color-mix(in oklch, var(--fg-0) 30%, transparent);
+    }
   }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }
