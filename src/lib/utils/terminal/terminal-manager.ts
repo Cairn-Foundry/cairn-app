@@ -1,4 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
@@ -83,6 +84,30 @@ const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	}),
 ]);
 void listenersReady;
+
+function quotePath(p: string): string {
+	return /\s/.test(p) ? `'${p.replace(/'/g, "'\\''")}'` : p;
+}
+
+if (typeof window !== "undefined") {
+	void getCurrentWebview().onDragDropEvent((event) => {
+		if (event.payload.type !== "drop") return;
+		const { paths, position } = event.payload;
+		if (!paths.length) return;
+		const dpr = window.devicePixelRatio || 1;
+		const x = position.x / dpr;
+		const y = position.y / dpr;
+		for (const [id, m] of managed) {
+			const r = m.el.getBoundingClientRect();
+			if (r.width === 0 || r.height === 0) continue;
+			if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+				m.term.focus();
+				void writeToTerminal(id, paths.map(quotePath).join(" "));
+				return;
+			}
+		}
+	});
+}
 
 export function create(id: string): void {
 	if (managed.has(id)) return;

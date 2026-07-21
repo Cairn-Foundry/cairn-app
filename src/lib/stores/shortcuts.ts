@@ -350,14 +350,13 @@ export function matchesShortcut(
 	b: ShortcutBinding | null,
 ): boolean {
 	if (!b) return false;
-	const modActive = IS_MAC ? e.metaKey : e.ctrlKey;
-	return (
-		e.key.toLowerCase() === b.key.toLowerCase() &&
-		modActive === b.mod &&
-		e.shiftKey === b.shift &&
-		e.altKey === b.alt &&
-		e.ctrlKey === b.ctrl
-	);
+	if (e.key.toLowerCase() !== b.key.toLowerCase()) return false;
+	if (e.shiftKey !== b.shift || e.altKey !== b.alt) return false;
+	if (IS_MAC) {
+		return e.metaKey === b.mod && e.ctrlKey === b.ctrl;
+	}
+	
+	return e.ctrlKey === (b.mod || b.ctrl);
 }
 
 export function toCmKey(b: ShortcutBinding): string {

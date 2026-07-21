@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cairn">
+	<rect width="512" height="512" rx="114" fill="#000000"/>
+
+	<!-- base stone -->
+	<ellipse cx="256" cy="352" rx="130" ry="51" fill="#ffffff"/>
+	<!-- middle stone -->
+	<ellipse cx="256" cy="243" rx="91" ry="43" fill="#ffffff"/>
+	<!-- top stone -->
+	<ellipse cx="256" cy="144" rx="59" ry="36" fill="#ffffff"/>
+</svg>
