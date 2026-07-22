@@ -78,10 +78,12 @@ All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/stora
     listing.json                          # project order + folder groupings
     {project-id}/
       instances.json                      # instances for this project
+      terminal-state.json                 # terminals shared across every instance of the project
       worktrees/                          # git worktrees per instance
       instances/
         {instance-id}/
           file-state.json                 # editor tabs, cursor, scroll, recent files per instance
+          terminal-state.json             # terminals of this instance (order + active one)
 ```
 
 Path helpers for every location are centralized in `storage.rs`. Always add new paths there, never inline. The only remaining `localStorage` use is in `src/lib/i18n/index.ts` for the locale preference (`cairn:locale`).
@@ -100,6 +102,26 @@ Two top-level screens controlled by `screen: 'home' | 'workspace'` in `+page.sve
 
 - **Home** — project list, checkpoints, activity, settings. Active section tracked in `+page.svelte` via `sectionChange` events emitted by `Home.svelte`.
 - **Workspace** — per-project view with workflow tabs (files, agent, review, tests, git, cicd). Active tab is `activeStep` from `src/lib/stores/ui.ts`.
+
+### Tools panel
+
+The workflow tabs occupy the top of the workspace sidebar; everything that is not a workflow step
+lives in the **Tools** button pinned at the bottom. It toggles `ToolsPanel.svelte`
+(`src/lib/components/layout/`), a side panel listing the available tools as cards, in the spirit of
+an application store. Terminal is the only tool for now.
+
+- Adding a tool: add an entry to the `TOOLS` array in `ToolsPanel.svelte` (id, icon, i18n keys under
+  `tools.*`) and handle its id in `selectTool()` in `Workspace.svelte`. Nothing else is wired by id.
+- The panel closes on selection, on the close button, on a click in the sidebar (any click that is
+  not on `.tools-toggle`) and on a click outside (`clickOutside` on the `.sidebar-wrap` wrapper,
+  which is `display: contents` so it stays out of the layout).
+
+Terminals are scoped two ways: per instance (`terminalSessions`, keyed by `projectId:instanceId`)
+and per project (`projectTerminals`, keyed by `projectId`). A project terminal is a single shared PTY
+reachable from every instance of the project; its `cwd` is the worktree of the instance that created
+it and is persisted so it respawns in the same place. Both lists are reorderable by drag, and
+dragging across sections moves a terminal from one scope to the other without restarting its PTY
+(`shareTerminal` / `unshareTerminal` in `stores/terminal.ts`).
 
 ### Agent system
 
