@@ -45,6 +45,7 @@ import { get } from 'svelte/store';
   } from '$lib/utils/files/files-tree';
   import { loadPaneBase } from '$lib/utils/files/files-diff';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
+  import { findHeadingLine } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import {
     computeTabInsertIndex,
     sortedByPin,
@@ -105,7 +106,7 @@ import { get } from 'svelte/store';
   let panes: PaneState[] = [makePane(), makePane()];
   let cursorLines: number[] = [1, 1];
   let cursorCols: number[] = [1, 1];
-  let pendingJumps: ({ line: number; col: number } | null)[] = [null, null];
+  let pendingJumps: ({ line: number; col: number; anchor?: string | null } | null)[] = [null, null];
 
   function pushRecentFile(path: string) {
     if (!currentInstanceId || !currentProjectId) return;
@@ -1261,8 +1262,20 @@ import { get } from 'svelte/store';
       const idx = i;
       const jump = pendingJumps[i]!;
       pendingJumps[i] = null;
-      setTimeout(() => panes[idx].editorRef?.jumpTo(jump.line, jump.col), EDITOR_JUMP_DELAY_MS);
+      // An anchor only resolves once the target file content is loaded.
+      const line = jump.anchor
+        ? findHeadingLine(activeTabs[idx]?.content ?? '', jump.anchor) ?? jump.line
+        : jump.line;
+      setTimeout(() => panes[idx].editorRef?.jumpTo(line, jump.col), EDITOR_JUMP_DELAY_MS);
     }
+  }
+
+  // Shift-click on a markdown link pointing at another file of the project.
+  async function openMarkdownLink(paneIndex: number, path: string, anchor: string | null) {
+    const node = { path, name: basename(path), isDir: false };
+    if (anchor) pendingJumps[paneIndex] = { line: 1, col: 1, anchor };
+    if (paneIndex === 1) await openFileInPane(1, node);
+    else await openFile(node);
   }
 
   // -- Multi-select --------------------------------------------------------------
@@ -1538,6 +1551,7 @@ import { get } from 'svelte/store';
           onConvertIndent={() => convertIndent(i as 0 | 1)}
           onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace) })}
           onOpenRecent={(node) => openFileInPane(i, node)}
+          onOpenLink={(path, anchor) => openMarkdownLink(i, path, anchor)}
         />
       {/if}
     {/each}

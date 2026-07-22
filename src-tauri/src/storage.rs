@@ -38,6 +38,19 @@ pub fn project_terminal_state_file(project_id: &str) -> Result<PathBuf, String> 
     Ok(cairn_dir()?.join("projects").join(project_id).join("terminal-state.json"))
 }
 
+pub fn project_conversations_dir(project_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join(project_id).join("conversations"))
+}
+
+pub fn instance_conversations_dir(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("conversations"))
+}
+
 pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
 }

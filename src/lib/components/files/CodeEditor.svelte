@@ -47,6 +47,7 @@
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
+  import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
   export let content: string = '';
@@ -63,6 +64,8 @@
   export let onChunkClick: ((chunk: GutterChunk) => void) | undefined = undefined;
   export let showWhitespace: boolean = false;
   export let savedState: EditorState | null = null;
+  export let docPath: string | null = null;
+  export let onOpenLink: ((path: string, anchor: string | null) => void) | undefined = undefined;
 
   export function getState(): { cursorPos: number; scrollTop: number } {
     if (!view) return { cursorPos: 0, scrollTop: 0 };
@@ -186,6 +189,9 @@
     const data = jsLang?.language.data;
 
     const exts: Extension[] = [lang];
+    if (language === 'markdown') {
+      exts.push(buildMarkdownWysiwyg({ onOpenFile: (path, anchor) => onOpenLink?.(path, anchor) }));
+    }
     if (data) {
       exts.push(data.of({ autocomplete: completeFromList(isTS ? tsSnippets : jsSnippets) }));
       exts.push(data.of({ autocomplete: scopeCompletionSource(globalThis) }));
@@ -288,6 +294,12 @@
         : undefined,
     });
     syncedBase = nextBase;
+  }
+
+  let syncedDocPath: string | null | undefined = undefined;
+  $: if (view && docPath !== syncedDocPath) {
+    syncedDocPath = docPath;
+    view.dispatch({ effects: setMarkdownDocPath.of(docPath) });
   }
 
   $: if (view) view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(minimapEnabled)) });

@@ -63,6 +63,7 @@
   export let onConvertIndent: () => void;
   export let onToggleWhitespace: () => void;
   export let onOpenRecent: (node: FileNode) => void;
+  export let onOpenLink: (path: string, anchor: string | null) => void;
 
   $: scrollActiveTabIntoView(activeTabIdx);
 
@@ -162,6 +163,8 @@
             initialCursorPos={activeTab.cursorPos}
             initialScrollTop={activeTab.scrollTop}
             savedState={editorState}
+            docPath={activeTab.path}
+            {onOpenLink}
             {baseContent}
             onChunkClick={onChunkClick}
             onChange={onChange}

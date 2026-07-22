@@ -3,11 +3,30 @@
   import { get } from 'svelte/store';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Icon from '$lib/components/Icon.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
   import { t, getLocale } from '$lib/i18n';
   import { activeInstance, instancesWithBase } from '$lib/stores/instance';
   import { settings } from '$lib/stores/settings';
-  import { sendMessage, stopAgent, resetAgentSession } from '$lib/services/agent-service';
-  import { setAgentBusy, setAgentDone, pingAgentCompletion } from '$lib/stores/agent-activity';
+  import { sendMessage, stopAgent } from '$lib/services/agent-service';
+  import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
+  import { conversationToMarkdown, deriveConversationTitle, markdownFileName } from '$lib/utils/agent/conversation-export';
+  import type { ConversationScope } from '$lib/services/conversation-service';
+  import {
+    activeConversationId, conversationScopeKey, conversationsOf, findConversation,
+    instanceConversations as instanceConversationsStore,
+    projectConversations as projectConversationsStore,
+    restoreConversations, selectConversation, deleteConversation, duplicateConversation,
+    loadConversationBody,
+    createConversation as createStoredConversation, updateConversationContent,
+    setConversationProvider, setConversationSession, renameConversation,
+    togglePinned, toggleArchived, moveConversationToScope,
+    type ConversationRef,
+  } from '$lib/stores/conversation';
+  import {
+    setAgentBusy, setAgentDone, pingAgentCompletion, doneConversationOf,
+    agentActivityKey, agentBusyConversations, agentDoneConversation,
+  } from '$lib/stores/agent-activity';
+  import { writeFile } from '$lib/services/file-service';
   import { activeStep, terminalActive } from '$lib/stores/ui';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
@@ -37,6 +56,8 @@
   }
 
   interface Conversation {
+    id: string;
+    scope: ConversationScope;
     messages: Message[];
     activity: ActivityEntry[];
     draft: string;
@@ -45,8 +66,26 @@
     providerId: string;
   }
 
+  interface Run {
+    instanceId: string;
+    conversationId: string;
+    scope: ConversationScope;
+    messages: Message[];
+    activity: ActivityEntry[];
+  }
+
   let conversations = $state<Record<string, Conversation>>({});
+  let runs = $state<Record<string, Run>>({});
+
+  function runOfConversation(conversationId: string): [string, Run] | undefined {
+    return Object.entries(runs).find(
+      ([, run]) => run.conversationId === conversationId,
+    );
+  }
   let providerOpen = $state(false);
+  let historyOpen = $state(true);
+  let loadingConversation = $state(false);
+  let drafts = $state<Record<string, string>>({});
   let scrollEl: HTMLElement;
   let activityEl: HTMLElement;
   let providerBtnEl: HTMLElement;
@@ -66,56 +105,165 @@
 
   let activeId = $derived($activeInstance?.id ?? null);
   let current = $derived(activeId ? conversations[activeId] : undefined);
+  let historyScopeKey = $derived(
+    $activeInstance ? conversationScopeKey($activeInstance.projectId, $activeInstance.id) : '',
+  );
+  let historyInstanceList = $derived($instanceConversationsStore[historyScopeKey] ?? []);
+  let activityKey = $derived(
+    $activeInstance ? agentActivityKey($activeInstance.projectId, $activeInstance.id) : '',
+  );
+  let runningConversationIds = $derived($agentBusyConversations[activityKey] ?? []);
+  let conversationBusy = $derived(!!current && runningConversationIds.includes(current.id));
+  let doneConversationId = $derived($agentDoneConversation[activityKey] ?? null);
+  let historyProjectList = $derived(
+    $activeInstance ? ($projectConversationsStore[$activeInstance.projectId] ?? []) : [],
+  );
   let currentProvider = $derived(
     selectableProviders.find((p) => p.id === current?.providerId) ?? selectableProviders[0],
   );
 
-  function createConversation(inst: Instance): Conversation {
-    return {
-      messages: [{ role: 'system', content: `${t('agent.instanceStarted')} · ${inst.ticket.title}`, time: now() }],
+  function refOf(inst: Instance, scope: ConversationScope): ConversationRef {
+    return { projectId: inst.projectId, instanceId: inst.id, scope };
+  }
+
+  function startedMessage(inst: Instance): Message {
+    return { role: 'system', content: `${t('agent.instanceStarted')} · ${inst.ticket.title}`, time: now() };
+  }
+
+  function startConversation(inst: Instance, scope: ConversationScope): Conversation {
+    const stored = createStoredConversation(
+      refOf(inst, scope),
+      selectableProviders[0].id,
+      t('agent.history.untitled') as string,
+    );
+    const conv: Conversation = {
+      id: stored.id,
+      scope,
+      messages: [startedMessage(inst)],
       activity: [],
       draft: '',
       busy: false,
       error: '',
-      providerId: selectableProviders[0].id,
+      providerId: stored.providerId,
     };
-  }
-
-  function ensureConversation(inst: Instance): Conversation {
-    let conv = conversations[inst.id];
-    if (!conv) {
-      conv = createConversation(inst);
-      conversations[inst.id] = conv;
-    }
+    conversations[inst.id] = conv;
+    syncLive(inst);
     return conv;
   }
 
-  function instanceForWorkingDir(workingDir?: string | null): Instance | undefined {
-    if (workingDir) {
-      return get(instancesWithBase).find((i) => i.worktreePath === workingDir);
-    }
-    return $activeInstance ?? undefined;
+  function ensureConversation(inst: Instance): Conversation {
+    return conversations[inst.id] ?? startConversation(inst, 'instance');
   }
 
-  function setBusy(inst: Instance, busy: boolean) {
-    const conv = ensureConversation(inst);
-    conv.busy = busy;
-    setAgentBusy(inst.projectId, inst.id, busy);
+  function syncLive(inst: Instance) {
+    const conv = conversations[inst.id];
+    if (!conv) return;
+    updateConversationContent(
+      refOf(inst, conv.scope),
+      conv.id,
+      $state.snapshot(conv.messages),
+      $state.snapshot(conv.activity),
+    );
+  }
+
+  async function openConversation(inst: Instance, id: string, scope: ConversationScope) {
+    const found = findConversation(inst.projectId, inst.id, id);
+    if (!found) return;
+    const previous = conversations[inst.id];
+    if (previous) {
+      syncLive(inst);
+      drafts[previous.id] = previous.draft;
+    }
+
+    const found_run = runOfConversation(id);
+    const run = found_run?.[1];
+    const rejoining = !!run;
+
+    let messages: Message[];
+    let activity: ActivityEntry[];
+    if (rejoining && run) {
+      messages = run.messages;
+      activity = run.activity;
+    } else {
+      loadingConversation = true;
+      const body = await loadConversationBody(found.ref, id);
+      loadingConversation = false;
+      messages = body.messages;
+      activity = body.activity;
+    }
+
+    conversations[inst.id] = {
+      id: found.meta.id,
+      scope,
+      messages,
+      activity,
+      draft: drafts[found.meta.id] ?? '',
+      busy: rejoining,
+      error: '',
+      providerId: found.meta.providerId || selectableProviders[0].id,
+    };
+    selectConversation(inst.projectId, inst.id, id);
+    await autoscroll();
+  }
+
+  async function hydrate(inst: Instance) {
+    await restoreConversations(inst.projectId, inst.id);
+    if (conversations[inst.id]) return;
+
+    const scopeKey = conversationScopeKey(inst.projectId, inst.id);
+    const activeStoredId = get(activeConversationId)[scopeKey];
+    const found = activeStoredId
+      ? findConversation(inst.projectId, inst.id, activeStoredId)
+      : null;
+
+    if (found) {
+      await openConversation(inst, found.meta.id, found.ref.scope);
+    } else {
+      startConversation(inst, 'instance');
+    }
+  }
+
+  function instanceById(instanceId: string): Instance | undefined {
+    return get(instancesWithBase).find((i) => i.id === instanceId);
+  }
+
+  function setBusy(inst: Instance, conversationId: string, busy: boolean) {
+    const live = conversations[inst.id];
+    if (live?.id === conversationId) live.busy = busy;
+    setAgentBusy(inst.projectId, inst.id, busy, conversationId);
+  }
+
+  function persistRun(inst: Instance, run: Run) {
+    updateConversationContent(
+      refOf(inst, run.scope),
+      run.conversationId,
+      $state.snapshot(run.messages),
+      $state.snapshot(run.activity),
+    );
+  }
+
+  function endStreaming(run: Run) {
+    const last = run.messages.findLast((m) => m.role === 'agent');
+    if (last?.streaming) last.streaming = false;
   }
 
   function isViewingAgent(inst: Instance): boolean {
     return inst.id === $activeInstance?.id && $activeStep === 'agent' && !$terminalActive;
   }
 
-  function notifyAgentCompletion(inst: Instance) {
-    if (isViewingAgent(inst)) return;
-    setAgentDone(inst.projectId, inst.id, true);
+  function notifyAgentCompletion(inst: Instance, conversationId: string) {
+    if (isViewingAgent(inst) && conversations[inst.id]?.id === conversationId) return;
+    setAgentDone(inst.projectId, inst.id, true, conversationId);
     pingAgentCompletion();
   }
 
   $effect(() => {
     const inst = $activeInstance;
-    if (inst && $activeStep === 'agent' && !$terminalActive) {
+    const openId = inst ? conversations[inst.id]?.id : undefined;
+    if (!inst || $activeStep !== 'agent' || $terminalActive) return;
+    const pending = doneConversationOf(inst.projectId, inst.id);
+    if (pending === null) return;
+    if (pending === '' || pending === openId) {
       setAgentDone(inst.projectId, inst.id, false);
     }
   });
@@ -185,49 +333,62 @@
   $effect(() => {
     const inst = $activeInstance;
     if (!inst) return;
-    if (!untrack(() => conversations[inst.id])) {
-      conversations[inst.id] = createConversation(inst);
-    }
+    if (!untrack(() => conversations[inst.id])) void hydrate(inst);
     tick().then(resizeTextarea);
   });
 
   onMount(async () => {
-    unlisten = await listen<{ line: string; source: string; summary?: string; workingDir?: string }>('claude-output', (e) => {
-      const { source, line, summary, workingDir } = e.payload;
-      const inst = instanceForWorkingDir(workingDir);
+    unlisten = await listen<{ line: string; source: string; summary?: string; workingDir?: string; runId?: string }>('claude-output', (e) => {
+      const { source, line, summary, runId } = e.payload;
+      if (!runId) return;
+
+      const run = runs[runId];
+      if (!run) return;
+
+      const inst = instanceById(run.instanceId);
       if (!inst) return;
-      const conv = ensureConversation(inst);
+
+      const live = conversations[inst.id];
+      const isLive = live?.id === run.conversationId;
 
       if (source === 'system') {
         if (line === '[done]') {
-          setBusy(inst, false);
-          notifyAgentCompletion(inst);
-          const last = conv.messages.findLast((m) => m.role === 'agent');
-          if (last?.streaming) last.streaming = false;
-        } else if (line === '[session reset]' || line === '[session stopped]') {
-          setBusy(inst, false);
-          const last = conv.messages.findLast((m) => m.role === 'agent');
-          if (last?.streaming) last.streaming = false;
-        } else if (line.startsWith('[error:')) {
-          conv.error = line.slice(8, -1);
-          setBusy(inst, false);
-          notifyAgentCompletion(inst);
-          const last = conv.messages.findLast((m) => m.role === 'agent');
-          if (last?.streaming) last.streaming = false;
-          conv.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
+          setBusy(inst, run.conversationId, false);
+          notifyAgentCompletion(inst, run.conversationId);
+          endStreaming(run);
+          persistRun(inst, run);
+          delete runs[runId];
+          return;
+        }
+        if (line === '[session stopped]') {
+          setBusy(inst, run.conversationId, false);
+          endStreaming(run);
+          persistRun(inst, run);
+          delete runs[runId];
+          return;
+        }
+        if (line.startsWith('[error:')) {
+          if (isLive && live) live.error = line.slice(8, -1);
+          setBusy(inst, run.conversationId, false);
+          notifyAgentCompletion(inst, run.conversationId);
+          endStreaming(run);
+          run.activity.push({ time: now(), icon: 'alert', label: line, source: 'system' });
         }
       } else if (source === 'assistant') {
-        const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
+        const last = run.messages.findLast((m) => m.role === 'agent' && m.streaming);
         if (last) {
           last.content += line;
         } else {
-          conv.messages.push({ role: 'agent', content: line, time: now(), streaming: true });
+          run.messages.push({ role: 'agent', content: line, time: now(), streaming: true });
         }
       } else if (source === 'tool') {
-        conv.activity.push({ time: now(), icon: iconForTool(summary), label: line, source: 'tool' });
+        run.activity.push({ time: now(), icon: iconForTool(summary), label: line, source: 'tool' });
+      } else if (source === 'session') {
+        setConversationSession(refOf(inst, run.scope), run.conversationId, line);
       }
 
-      if (conv === current) autoscroll();
+      persistRun(inst, run);
+      if (isLive) autoscroll();
     });
 
     await autoscroll();
@@ -241,57 +402,158 @@
     const inst = $activeInstance;
     if (!inst) return;
     const conv = ensureConversation(inst);
-    if (!conv.draft.trim() || conv.busy) return;
+
+    if (!conv.draft.trim() || runOfConversation(conv.id)) return;
 
     const message = conv.draft.trim();
     conv.draft = '';
+    drafts[conv.id] = '';
     await tick();
     resizeTextarea();
     conv.error = '';
-    setBusy(inst, true);
 
     const t_now = now();
     conv.messages.push({ role: 'user', content: message, time: t_now });
     conv.messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
     conv.activity.push({ time: t_now, icon: 'send', label: message.slice(0, 60) + (message.length > 60 ? '...' : ''), source: 'stdin' });
 
+    const runId = crypto.randomUUID();
+    const run: Run = {
+      instanceId: inst.id,
+      conversationId: conv.id,
+      scope: conv.scope,
+      messages: conv.messages,
+      activity: conv.activity,
+    };
+    runs[runId] = run;
+    setBusy(inst, conv.id, true);
+
+    const ref = refOf(inst, conv.scope);
+    const isFirstPrompt = conv.messages.filter((m) => m.role === 'user').length === 1;
+    if (isFirstPrompt) renameConversation(ref, conv.id, deriveConversationTitle(message));
+    syncLive(inst);
+
     await autoscroll();
 
     try {
-      await sendMessage(message, inst.worktreePath, conv.providerId);
+      const sessionId =
+        conversationsOf(ref).find((c) => c.id === conv.id)?.sessionId ?? null;
+      await sendMessage(message, inst.worktreePath, conv.providerId, runId, sessionId);
     } catch (e) {
       conv.error = String(e);
-      setBusy(inst, false);
-      const last = conv.messages.findLast((m) => m.role === 'agent' && m.streaming);
-      if (last) last.streaming = false;
+      setBusy(inst, conv.id, false);
+      endStreaming(run);
+      persistRun(inst, run);
+      delete runs[runId];
     }
   }
 
   async function interrupt() {
-    const inst = $activeInstance;
-    if (!inst || !current) return;
+    if (!current) return;
+    const running = runOfConversation(current.id);
+    if (!running) return;
     try {
-      await stopAgent(current.providerId, inst.worktreePath);
+      await stopAgent(running[0]);
     } catch (e) {
       current.error = String(e);
     }
   }
 
-  async function newSession() {
+  async function newSession(scope: ConversationScope = 'instance') {
     const inst = $activeInstance;
     if (!inst) return;
-    const conv = ensureConversation(inst);
-    conv.error = '';
-    try {
-      await resetAgentSession(conv.providerId, inst.worktreePath);
-      conv.messages = [
-        { role: 'system', content: `${t('agent.sessionReset')} · ${inst.ticket.title}`, time: now() },
-      ];
-      conv.activity = [];
-    } catch (e) {
-      conv.error = String(e);
+    const previous = conversations[inst.id];
+    if (previous) {
+      syncLive(inst);
+      drafts[previous.id] = previous.draft;
     }
+
+    startConversation(inst, scope);
+    await autoscroll();
   }
+
+  function pickProvider(providerId: string) {
+    const inst = $activeInstance;
+    providerOpen = false;
+    if (!inst || !current) return;
+    current.providerId = providerId;
+    setConversationProvider(refOf(inst, current.scope), current.id, providerId);
+  }
+
+  function withInstance<A extends unknown[]>(fn: (inst: Instance, ...args: A) => void) {
+    return (...args: A) => {
+      const inst = $activeInstance;
+      if (inst) fn(inst, ...args);
+    };
+  }
+
+  const handleSelect = withInstance((inst, id: string, scope: ConversationScope) => {
+    void openConversation(inst, id, scope);
+  });
+
+  const handleCreate = withInstance((_inst, scope: ConversationScope) => {
+    void newSession(scope);
+  });
+
+  const handleRename = withInstance((inst, id: string, scope: ConversationScope, title: string) => {
+    renameConversation(refOf(inst, scope), id, title);
+  });
+
+  const handleDelete = withInstance((inst, id: string, scope: ConversationScope) => {
+    const running = runOfConversation(id);
+    if (running) {
+      void stopAgent(running[0]).catch(() => {});
+      delete runs[running[0]];
+      setBusy(inst, id, false);
+    }
+    deleteConversation(refOf(inst, scope), id);
+    if (conversations[inst.id]?.id === id) {
+      const remaining = conversationsOf(refOf(inst, scope))[0];
+      if (remaining) void openConversation(inst, remaining.id, scope);
+      else startConversation(inst, 'instance');
+    }
+  });
+
+  const handleDuplicate = withInstance((inst, id: string, scope: ConversationScope) => {
+    const source = conversationsOf(refOf(inst, scope)).find((c) => c.id === id);
+    if (!source) return;
+    void duplicateConversation(refOf(inst, scope), id, `${source.title} (${t('agent.history.copySuffix')})`);
+  });
+
+  const handleTogglePin = withInstance((inst, id: string, scope: ConversationScope) => {
+    togglePinned(refOf(inst, scope), id);
+  });
+
+  const handleToggleArchive = withInstance((inst, id: string, scope: ConversationScope) => {
+    toggleArchived(refOf(inst, scope), id);
+  });
+
+  const handleDownload = withInstance((inst, id: string, scope: ConversationScope) => {
+    const ref = refOf(inst, scope);
+    const source = conversationsOf(ref).find((c) => c.id === id);
+    if (!source) return;
+    void downloadConversation(ref, source.id, source.title);
+  });
+
+  async function downloadConversation(ref: ConversationRef, id: string, title: string) {
+    const [body, { save }] = await Promise.all([
+      loadConversationBody(ref, id),
+      import('@tauri-apps/plugin-dialog'),
+    ]);
+    const path = await save({
+      defaultPath: `${markdownFileName(title)}.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (!path) return;
+    await writeFile(path, conversationToMarkdown(title, body.messages));
+  }
+
+  const handleMoveScope = withInstance((inst, from: ConversationScope, id: string) => {
+    void moveConversationToScope(refOf(inst, from), id);
+    if (conversations[inst.id]?.id === id) {
+      conversations[inst.id].scope = from === 'instance' ? 'project' : 'instance';
+    }
+  });
 
   function onKeydown(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -315,10 +577,42 @@
 
 <svelte:window onclick={onWindowClick}/>
 
-<div class="agent-split" style="grid-template-columns: minmax(0, 1fr) {activityWidth}px;">
+<div
+  class="agent-split"
+  style="grid-template-columns: {historyOpen ? '240px ' : ''}minmax(0, 1fr) {activityWidth}px;"
+>
+  {#if historyOpen}
+    <ConversationHistoryPanel
+      instanceConversations={historyInstanceList}
+      projectConversations={historyProjectList}
+      activeId={current?.id ?? null}
+      runningIds={runningConversationIds}
+      doneId={doneConversationId}
+      onSelect={handleSelect}
+      onCreate={handleCreate}
+      onRename={handleRename}
+      onDelete={handleDelete}
+      onDuplicate={handleDuplicate}
+      onTogglePin={handleTogglePin}
+      onToggleArchive={handleToggleArchive}
+      onDownload={handleDownload}
+      onMoveScope={handleMoveScope}
+    />
+  {/if}
+
   <div class="agent-chat">
     <div class="pane-header">
       <div class="pane-title">
+        <button
+          class="history-toggle"
+          class:active={historyOpen}
+          title={t('agent.history.toggle') as string}
+          aria-label={t('agent.history.toggle') as string}
+          onclick={() => { historyOpen = !historyOpen; }}
+        >
+          <Icon name="clock" size={13}/>
+        </button>
+        <span class="pane-title-sep"></span>
         {t('agent.title')}
         <div class="provider-select-wrap" bind:this={providerBtnEl}>
           <button
@@ -334,7 +628,7 @@
                 <button
                   class="provider-option"
                   class:active={p.id === current?.providerId}
-                  onclick={() => { if (current) current.providerId = p.id; providerOpen = false; }}
+                  onclick={() => pickProvider(p.id)}
                 >
                   {p.name}
                 </button>
@@ -344,7 +638,7 @@
         </div>
       </div>
       <div class="pane-actions">
-        <button class="btn ghost" onclick={newSession} disabled={!current || current.busy}>
+        <button class="btn ghost" onclick={() => newSession()} disabled={!current || conversationBusy}>
           <Icon name="plus" size={13}/> {t('agent.restart')}
         </button>
       </div>
@@ -357,6 +651,9 @@
     {/if}
 
     <div class="chat-scroll" bind:this={scrollEl}>
+      {#if loadingConversation}
+        <div class="chat-skeleton"><Skeleton lines={6} gap={14}/></div>
+      {:else}
       {#if !current}
         <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
           <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
@@ -409,6 +706,7 @@
           </div>
         {/if}
       {/each}
+      {/if}
     </div>
 
     <div class="chat-input-wrap">
@@ -416,11 +714,11 @@
         {#if current}
           <textarea
             bind:this={textareaEl}
-            placeholder={current.busy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
+            placeholder={conversationBusy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
             bind:value={current.draft}
             oninput={resizeTextarea}
             onkeydown={onKeydown}
-            disabled={current.busy}
+            disabled={conversationBusy}
           ></textarea>
         {:else}
           <textarea
@@ -431,7 +729,7 @@
         <div class="chat-input-row">
           <span class="chip"><Icon name="at" size={11}/> {t('agent.mentionFile')}</span>
           <div class="spacer"></div>
-          {#if current?.busy}
+          {#if conversationBusy}
             <button class="btn btn-stop" onclick={interrupt}>
               <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">{MOD_LABEL}.</span>
             </button>
@@ -439,7 +737,7 @@
             <button
               class="btn"
               onclick={send}
-              disabled={!current || !current.draft.trim()}
+              disabled={!current || !current.draft.trim() || conversationBusy}
             >
               <Icon name="send" size={12}/> {t('agent.sendBtn')}<span class="kbd">{MOD_LABEL}↵</span>
             </button>
@@ -471,7 +769,7 @@
         </div>
       {:else}
         {#each current.activity as entry}
-          <div class="act-row" class:live={entry.source === 'stdin' && current.busy}>
+          <div class="act-row" class:live={entry.source === 'stdin' && conversationBusy}>
             <span class="act-time">{entry.time}</span>
             <span class="act-icon" class:write={entry.source === 'tool'} class:error={entry.source === 'system'}>
               <Icon name={entry.icon} size={13}/>
@@ -487,6 +785,32 @@
 </div>
 
 <style>
+  .history-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    margin-right: 2px;
+    color: var(--fg-3);
+    background: transparent;
+    border: none;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: color 0.1s, background 0.1s;
+  }
+
+  .history-toggle:hover { color: var(--fg-0); background: var(--bg-2); }
+  .history-toggle.active { color: var(--accent); }
+
+  .pane-title-sep {
+    width: 1px;
+    height: 14px;
+    margin: 0 8px 0 4px;
+    background: var(--stroke-1);
+  }
+
+  .chat-skeleton { padding: 8px 4px; }
+
   .provider-select-wrap {
     position: relative;
   }

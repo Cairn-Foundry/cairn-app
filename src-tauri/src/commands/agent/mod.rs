@@ -27,39 +27,12 @@ pub trait AgentProvider: Send + Sync {
         working_dir: &str,
         session_id: Option<&str>,
         handle: &RunningChild,
+        run_id: &str,
     ) -> Result<AgentResponse, String>;
-}
-
-fn session_key(provider_id: &str, working_dir: &str) -> String {
-    format!("{provider_id}\u{1f}{working_dir}")
-}
-
-#[derive(Default)]
-pub struct AgentSession {
-    session_ids: HashMap<String, String>,
-}
-
-impl AgentSession {
-    fn get_id(&self, key: &str) -> Option<&str> {
-        self.session_ids.get(key).map(String::as_str)
-    }
-
-    fn set_id(&mut self, key: &str, session_id: String) {
-        self.session_ids.insert(key.to_string(), session_id);
-    }
-
-    fn clear_key(&mut self, key: &str) {
-        self.session_ids.remove(key);
-    }
-
-    fn clear_all(&mut self) {
-        self.session_ids.clear();
-    }
 }
 
 pub struct AgentState {
     pub registry: ProviderRegistry,
-    pub session:  Mutex<AgentSession>,
     pub running:  Mutex<HashMap<String, RunningChild>>,
 }
 
@@ -67,7 +40,6 @@ impl AgentState {
     pub fn new() -> Self {
         Self {
             registry: ProviderRegistry::new(),
-            session:  Mutex::new(AgentSession::default()),
             running:  Mutex::new(HashMap::new()),
         }
     }
@@ -80,23 +52,38 @@ struct AgentOutputEvent {
     source:      String,
     summary:     Option<String>,
     working_dir: Option<String>,
+    run_id:      Option<String>,
 }
 
-pub fn emit_agent(app: &tauri::AppHandle, line: String, source: &str, working_dir: Option<String>) {
+pub fn emit_agent(
+    app: &tauri::AppHandle,
+    line: String,
+    source: &str,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line,
         source: source.to_string(),
         summary: None,
         working_dir,
+        run_id,
     });
 }
 
-pub fn emit_agent_tool(app: &tauri::AppHandle, label: String, tool: &str, working_dir: Option<String>) {
+pub fn emit_agent_tool(
+    app: &tauri::AppHandle,
+    label: String,
+    tool: &str,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line:    label,
         source:  "tool".to_string(),
         summary: Some(tool.to_string()),
         working_dir,
+        run_id,
     });
 }
 
@@ -106,6 +93,8 @@ pub async fn send_message(
     message: String,
     working_dir: String,
     provider_id: String,
+    run_id: String,
+    session_id: Option<String>,
 ) -> Result<(), String> {
     let state = app.state::<AgentState>();
 
@@ -113,91 +102,64 @@ pub async fn send_message(
         .get(&provider_id)
         .ok_or_else(|| format!("Unknown provider: {provider_id}"))?;
 
-    let key = session_key(&provider_id, &working_dir);
-
-    let session_id = state.session
-        .lock().map_err(|e| e.to_string())?
-        .get_id(&key)
-        .map(str::to_string);
-
-    emit_agent(&app, message.clone(), "stdin", Some(working_dir.clone()));
+    emit_agent(&app, message.clone(), "stdin", Some(working_dir.clone()), Some(run_id.clone()));
 
     let handle: RunningChild = Arc::new(RunningAgent {
         child: Mutex::new(None),
         cancelled: AtomicBool::new(false),
     });
     state.running.lock().map_err(|e| e.to_string())?
-        .insert(key.clone(), handle.clone());
+        .insert(run_id.clone(), handle.clone());
 
     let app_out = app.clone();
     std::thread::spawn(move || {
-        let result = provider.send(&app_out, &message, &working_dir, session_id.as_deref(), &handle);
+        let result = provider.send(
+            &app_out,
+            &message,
+            &working_dir,
+            session_id.as_deref(),
+            &handle,
+            &run_id,
+        );
 
         if let Ok(mut running) = app_out.state::<AgentState>().running.lock() {
-            running.remove(&key);
+            running.remove(&run_id);
         }
 
         if handle.cancelled.load(Ordering::SeqCst) {
             return;
         }
 
+        let wd = Some(working_dir.clone());
+        let rid = Some(run_id.clone());
         match result {
             Ok(response) => {
                 if let Some(id) = response.session_id {
-                    if let Ok(mut s) = app_out.state::<AgentState>().session.lock() {
-                        s.set_id(&key, id);
-                    }
+                    emit_agent(&app_out, id, "session", wd.clone(), rid.clone());
                 }
             }
-            Err(e) => emit_agent(&app_out, format!("[error: {e}]"), "system", Some(working_dir.clone())),
+            Err(e) => emit_agent(&app_out, format!("[error: {e}]"), "system", wd.clone(), rid.clone()),
         }
-        emit_agent(&app_out, "[done]".into(), "system", Some(working_dir.clone()));
+        emit_agent(&app_out, "[done]".into(), "system", wd, rid);
     });
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn reset_agent_session(
-    app: tauri::AppHandle,
-    provider_id: Option<String>,
-    working_dir: Option<String>,
-) -> Result<(), String> {
-    let state = app.state::<AgentState>();
-    let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    match (&provider_id, &working_dir) {
-        (Some(p), Some(w)) => session.clear_key(&session_key(p, w)),
-        _ => session.clear_all(),
-    }
-    emit_agent(&app, "[session reset]".into(), "system", working_dir);
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn stop_agent(
-    app: tauri::AppHandle,
-    provider_id: Option<String>,
-    working_dir: Option<String>,
-) -> Result<(), String> {
+pub async fn stop_agent(app: tauri::AppHandle, run_id: String) -> Result<(), String> {
     let state = app.state::<AgentState>();
 
-    let keys: Vec<String> = match (&provider_id, &working_dir) {
-        (Some(p), Some(w)) => vec![session_key(p, w)],
-        _ => state.running.lock().map_err(|e| e.to_string())?.keys().cloned().collect(),
-    };
-
-    for key in keys {
-        let handle = state.running.lock().map_err(|e| e.to_string())?.remove(&key);
-        if let Some(handle) = handle {
-            handle.cancelled.store(true, Ordering::SeqCst);
-            if let Ok(mut slot) = handle.child.lock() {
-                if let Some(mut child) = slot.take() {
-                    let _ = child.kill();
-                }
+    let handle = state.running.lock().map_err(|e| e.to_string())?.remove(&run_id);
+    if let Some(handle) = handle {
+        handle.cancelled.store(true, Ordering::SeqCst);
+        if let Ok(mut slot) = handle.child.lock() {
+            if let Some(mut child) = slot.take() {
+                let _ = child.kill();
             }
         }
     }
 
-    emit_agent(&app, "[session stopped]".into(), "system", working_dir);
+    emit_agent(&app, "[session stopped]".into(), "system", None, Some(run_id));
     Ok(())
 }

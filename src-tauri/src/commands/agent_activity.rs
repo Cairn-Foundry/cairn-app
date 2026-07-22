@@ -3,7 +3,7 @@ use std::fs;
 use crate::storage::{agent_activity_file, write_json_atomic};
 
 #[tauri::command]
-pub fn get_agent_activity() -> Result<HashMap<String, bool>, String> {
+pub fn get_agent_activity() -> Result<HashMap<String, String>, String> {
     let path = agent_activity_file()?;
     if !path.exists() {
         return Ok(HashMap::new());
@@ -13,6 +13,6 @@ pub fn get_agent_activity() -> Result<HashMap<String, bool>, String> {
 }
 
 #[tauri::command]
-pub fn save_agent_activity(done: HashMap<String, bool>) -> Result<(), String> {
+pub fn save_agent_activity(done: HashMap<String, String>) -> Result<(), String> {
     write_json_atomic(&agent_activity_file()?, &done)
 }

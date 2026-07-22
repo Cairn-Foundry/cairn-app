@@ -14,6 +14,7 @@ impl AgentProvider for ClaudeCliProvider {
         working_dir: &str,
         session_id: Option<&str>,
         handle: &RunningChild,
+        run_id: &str,
     ) -> Result<AgentResponse, String> {
         let mut args: Vec<String> = vec![
             "-p".into(),
@@ -46,6 +47,7 @@ impl AgentProvider for ClaudeCliProvider {
         }
 
         let wd = Some(working_dir.to_string());
+        let rid = Some(run_id.to_string());
         let mut session_id_out: Option<String> = None;
 
         if let Some(out) = stdout {
@@ -70,14 +72,14 @@ impl AgentProvider for ClaudeCliProvider {
                                     Some("text") => {
                                         if let Some(text) = block.get("text").and_then(Value::as_str) {
                                             if !text.is_empty() {
-                                                emit_agent(app, text.to_string(), "assistant", wd.clone());
+                                                emit_agent(app, text.to_string(), "assistant", wd.clone(), rid.clone());
                                             }
                                         }
                                     }
                                     Some("tool_use") => {
                                         let name = block.get("name").and_then(Value::as_str).unwrap_or("tool");
                                         let label = tool_label(name, block.get("input"));
-                                        emit_agent_tool(app, label, name, wd.clone());
+                                        emit_agent_tool(app, label, name, wd.clone(), rid.clone());
                                     }
                                     _ => {}
                                 }

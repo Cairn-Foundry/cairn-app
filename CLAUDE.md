@@ -35,6 +35,59 @@ meaningful data opts back in via the global `.selectable` class (inputs, `[conte
   diff content): add `class="selectable"`, and place a `CopyButton.svelte` next to it whenever the
   value is a single discrete token the user would want to copy.
 
+### Drag and drop
+
+**Never use the HTML5 drag and drop API** (`draggable`, `dragstart`, `dragover`, `drop`,
+`dataTransfer`). The webview starts its own native drag on the gesture and swallows it, so the
+handlers either never fire or fire inconsistently. Every drag in the app - editor tabs, terminals,
+the project list, conversations - is built on pointer events instead:
+
+- `pointerdown`: bail out on interactive children (`closest('.some-button, input')`), record the
+  start position, `setPointerCapture(e.pointerId)`, and `preventDefault()`.
+- `pointermove`: do nothing until the pointer travelled past a ~6px threshold, then flag the drag
+  as active and add `document.body.classList.add('dragging')` for the `grabbing` cursor.
+- `pointerup`: commit the move, clear the state, remove the `dragging` class.
+- Guard the click handler with a `didDrag` flag so a drag never doubles as a selection, and reset
+  that flag inside the click handler.
+
+**The element that calls `setPointerCapture` must be the one carrying `onclick`.** While a pointer
+is captured, WebKit dispatches the compatibility mouse events to the capturing element, so a click
+handler sitting on a *child* (a nested `<button>`, for instance) never fires - the row looks dead.
+Put `role="button"`, `tabindex="0"`, `onclick` and `onkeydown` on the same element as the pointer
+handlers, and keep inner buttons for their own actions only (they stop propagation).
+
+### Markdown files
+
+`.md` files render inline in the editor (`utils/editor/editor-markdown-wysiwyg.ts`): headings,
+emphasis, links, rules, bullets, task checkboxes, images and tables are decorated and their markup
+is hidden, except on the lines the selection touches, where the raw source is revealed for editing.
+There is no separate preview pane - the document is always editable.
+
+Links are styled and carry their destination in a `data-cm-md-href` attribute; a plain click stays
+an ordinary text click so the document remains editable, and shift-click follows the link.
+`parseLinkTarget` decides how: http/https/mailto go to the system browser through `plugin-opener`
+(covered by `opener:default`), `#anchor` scrolls to the matching heading in the current document,
+and a relative path is resolved against the edited file and opened as a tab by `FilesView`
+(`onOpenLink`), jumping to its anchor once the content is loaded. Any other scheme is ignored.
+
+Inline HTML is deliberately limited to `<img>` (parsed by `parseHtmlImage`); every other tag is
+left as raw text rather than injected, and an image `src` carrying a scheme outside
+http/https/data/blob is dropped. Fence lines of a code block are removed by the block field and
+replaced by a language badge, so no empty code-coloured line is left behind.
+
+Two rules matter when touching that file:
+
+- Decorations are collected in an array and sorted by `Decoration.set(ranges, true)`. A
+  `RangeSetBuilder` cannot be used: tree iteration yields a parent before its children, so ranges
+  arrive unsorted, the builder throws, and CodeMirror silently tears down the plugin - which reads
+  as "the markdown rendering randomly disappears".
+- Anything replacing a line break (tables) must come from a `StateField`, never from a
+  `ViewPlugin`. Inline decorations stay in the plugin so they remain viewport-scoped.
+
+Tables need GFM, so `resolveLanguageExtension` builds markdown on `markdownLanguage`. Local images
+resolve against the edited file's directory and are served through Tauri's asset protocol
+(`assetProtocol` in `tauri.conf.json`), so `CodeEditor` receives the file path via `docPath`.
+
 ## Commands
 
 ```bash
@@ -83,6 +136,9 @@ All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/stora
       instances/
         {instance-id}/
           file-state.json                 # editor tabs, cursor, scroll, recent files per instance
+          conversations/                  # agent conversations of this instance
+            index.json                    # metadata only
+            {conversation-id}.json        # messages + activity of one conversation
           terminal-state.json             # terminals of this instance (order + active one)
 ```
 
@@ -126,6 +182,52 @@ dragging across sections moves a terminal from one scope to the other without re
 ### Agent system
 
 `AgentState` (Rust, `src-tauri/src/commands/agent/mod.rs`) holds a `ProviderRegistry` and a `Mutex<AgentSession>`. Claude Code CLI is the v1 provider (`providers/claude_cli.rs`). The provider runs in a spawned thread and emits `claude-output` Tauri events line-by-line to the frontend.
+
+A run is identified by a `runId` minted by the frontend and passed to `send_message`; every
+`claude-output` event carries it, and `AgentState.running` is keyed by it. Several conversations of
+the same instance can therefore run at the same time, and `stop_agent(runId)` kills exactly one.
+The CLI session id used for `--resume` belongs to the conversation, not to the worktree: it is
+emitted back as an event with `source: 'session'`, stored on the conversation, and handed to the
+next `send_message`. Rust keeps no session state of its own.
+
+### Conversation history
+
+Conversations are scoped like terminals: per instance and per project (`stores/conversation.ts`,
+`ConversationHistoryPanel.svelte` in the Agent view). `AgentView.svelte` keeps the *live*
+conversation (draft, busy, error) in component state and mirrors messages and activity into the
+store, which debounces the write to disk.
+
+Each scope is a directory: `index.json` holds one metadata entry per conversation (title, dates,
+provider, pinned, archived, sessionId, message count, preview) and every transcript lives in its
+own `{id}.json`. Opening the panel reads a single small file; a transcript is read only when its
+conversation is opened, and a streaming answer rewrites only that one file. Search therefore runs
+on title and preview, not on the full transcripts. Moving a conversation between scopes moves both
+its index entry and its transcript file.
+
+The panel has two collapsible groups, project first then instance. Archiving is a filter over those
+same two groups (Active / Archived), never a third list mixed into them. Each group orders itself:
+pinned first, then most recently answered (`lastMessageAt`). That timestamp only moves when the
+transcript itself gains something: re-syncing an unchanged conversation - which happens every time
+one is opened or left - must never reorder the list, and neither must tool activity on its own. Order is therefore never manual - dragging a conversation only moves it between the two
+scopes (see the drag and drop conventions above). Each row shows the last
+message under the title, plus the agent status dot: pulsing while that conversation is running,
+solid while it has finished and has not been read - the same vocabulary as the instance list.
+Drafts are kept per conversation, so switching conversation swaps the input content instead of
+carrying it over.
+
+Agent output is routed by a *run* record pinned to the conversation that sent the prompt
+(`runs` in `AgentView.svelte`, keyed by instance), never to whatever conversation happens to be
+open. The run holds the very arrays the live conversation renders, so switching conversation or
+instance mid-answer keeps the reply in its own conversation; reopening a conversation whose run is
+still in flight reattaches to those arrays instead of the stale file. Sending is gated per
+conversation, not per instance: a conversation that is already answering refuses a second prompt,
+while its siblings stay free to start their own run.
+
+Agent status is tracked per conversation, not per instance: `agentBusyConversation` (in memory) and
+`agentDoneConversation` (persisted in `agent-activity.json`) both map an instance key to the
+conversation id, and the boolean `agentBusy` / `agentDone` stores consumed elsewhere are derived
+from them. The done marker therefore only clears when that conversation is the one on screen, not
+merely when the Agent step is opened.
 
 ### Settings
 

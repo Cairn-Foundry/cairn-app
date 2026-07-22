@@ -4,7 +4,7 @@ import { html } from "@codemirror/lang-html";
 import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { php } from "@codemirror/lang-php";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
@@ -61,7 +61,7 @@ export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 		case "css":
 			return css();
 		case "markdown":
-			return markdown({ codeLanguages: languages });
+			return markdown({ base: markdownLanguage, codeLanguages: languages });
 		case "xml":
 			return xml();
 		case "yaml":
@@ -334,7 +334,7 @@ function buildThemeFromPalette(p: EditorPalette): Extension {
 		},
 		".cm-content": { padding: "12px 0", caretColor: p.caret },
 		".cm-focused": { outline: "none" },
-		".cm-line": { padding: "0 16px 0 0", lineHeight: "1.65" },
+		".cm-line": { padding: "0 16px 0 10px", lineHeight: "1.65" },
 		".cm-gutters": {
 			backgroundColor: p.gutterBg,
 			borderRight: `1px solid ${p.gutterBorder}`,
