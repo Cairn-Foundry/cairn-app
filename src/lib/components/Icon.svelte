@@ -286,6 +286,13 @@
     <rect x="3" y="3" width="7" height="18" rx="1"/>
     <rect x="14" y="3" width="7" height="18" rx="1"/>
   </svg>
+{:else if name === 'grid'}
+  <svg {...common} {...$$restProps}>
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
 {:else if name === 'back'}
   <svg {...common} {...$$restProps}>
     <path d="M19 12H5M12 19l-7-7 7-7"/>

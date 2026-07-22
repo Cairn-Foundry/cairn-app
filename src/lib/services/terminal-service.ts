@@ -53,3 +53,26 @@ export async function saveTerminalState(
 ): Promise<void> {
 	await invoke("save_terminal_state", { projectId, instanceId, state });
 }
+
+export interface ProjectTerminalTab {
+	id: string;
+	title: string;
+	cwd: string | null;
+}
+
+export interface ProjectTerminalLayout {
+	terminals: ProjectTerminalTab[];
+}
+
+export async function getProjectTerminalState(
+	projectId: string,
+): Promise<ProjectTerminalLayout | null> {
+	return await invoke("get_project_terminal_state", { projectId });
+}
+
+export async function saveProjectTerminalState(
+	projectId: string,
+	state: ProjectTerminalLayout,
+): Promise<void> {
+	await invoke("save_project_terminal_state", { projectId, state });
+}

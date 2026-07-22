@@ -125,6 +125,8 @@ pub fn run() {
             terminal_close_all,
             get_terminal_state,
             save_terminal_state,
+            get_project_terminal_state,
+            save_project_terminal_state,
             get_ui_state,
             save_ui_state,
             get_agent_activity,

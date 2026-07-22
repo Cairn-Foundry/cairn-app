@@ -167,12 +167,12 @@ export const fr = {
 		createInstance: "Créer une instance",
 		newInstance: "Nouvelle instance",
 		manageInstances: "Gérer les instances",
-		termLabel: "Term",
+		toolsLabel: "Outils",
 		ariaSearch: "Rechercher",
 		ariaCommandPalette: "Palette de commandes",
 		ariaKeyboardShortcuts: "Raccourcis clavier",
 		ariaSettings: "Paramètres",
-		ariaTerminal: "Terminal",
+		ariaTools: "Outils",
 		noInstanceHeadline: "Choisissez une tâche, créez une instance",
 		noInstanceSub:
 			"Une instance est un environnement isolé couplé à une session agent. Chaque tâche dispose de son propre espace.",
@@ -395,8 +395,23 @@ export const fr = {
 		waitingAgent: "En attente de l'agent...",
 	},
 
+	tools: {
+		title: "Outils",
+		subtitle: "Tout ce que vous pouvez lancer à côté de votre workflow",
+		close: "Fermer les outils",
+		terminalName: "Terminal",
+		terminalDescription:
+			"Les shells de cette instance, ainsi que ceux partagés dans tout le projet.",
+	},
+
 	terminal: {
-		title: "Terminaux",
+		projectSection: "Projet",
+		instanceSection: "Instance",
+		newShared: "Nouveau terminal partagé",
+		sharedEmpty: "Aucun terminal partagé dans ce projet pour l'instant.",
+		instanceEmpty: "Aucun terminal ouvert pour cette instance pour l'instant.",
+		share: "Partager avec le projet",
+		unshare: "Déplacer vers cette instance",
 		new: "Nouveau terminal",
 		close: "Fermer le terminal",
 		rename: "Renommer le terminal",

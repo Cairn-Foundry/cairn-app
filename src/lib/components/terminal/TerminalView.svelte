@@ -5,34 +5,61 @@
   import { terminalActive } from '$lib/stores/ui';
   import {
     terminalSessions,
+    projectTerminals,
     activeTerminalId,
     addTerminal,
+    addProjectTerminal,
     removeTerminal,
+    removeProjectTerminal,
     setActiveTerminal,
     renameTerminal,
+    renameProjectTerminal,
+    reorderTerminal,
+    reorderProjectTerminal,
+    shareTerminal,
+    unshareTerminal,
     restoreTerminals,
+    restoreProjectTerminals,
     terminalScope,
   } from '$lib/stores/terminal';
   import type { TerminalSession } from '$lib/stores/terminal';
   import * as manager from '$lib/utils/terminal/terminal-manager';
+  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
+
+  type Section = 'project' | 'instance';
 
   let slotEl = $state<HTMLDivElement>();
   let editingId = $state<string | null>(null);
   let editValue = $state('');
-  let ctxMenu = $state<{ x: number; y: number; session: TerminalSession } | null>(null);
+  let ctxMenu = $state<{ x: number; y: number; session: TerminalSession; section: Section } | null>(null);
+
+  let projectBodyEl = $state<HTMLDivElement>();
+  let instanceBodyEl = $state<HTMLDivElement>();
+  let drag = $state<{ id: string; from: Section; index: number } | null>(null);
+  let dropAt = $state<{ section: Section; index: number } | null>(null);
+  let dragActive = $state(false);
+  let didDrag = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+
+  const DRAG_THRESHOLD = 6;
 
   let activeId = $derived($activeInstance?.id ?? null);
   let projectId = $derived($activeInstance?.projectId ?? null);
+  let worktreePath = $derived($activeInstance?.worktreePath ?? null);
   let scopeKey = $derived(
     projectId && activeId ? terminalScope(projectId, activeId) : null,
   );
   let sessions = $derived(scopeKey ? ($terminalSessions[scopeKey] ?? []) : []);
+  let shared = $derived(projectId ? ($projectTerminals[projectId] ?? []) : []);
+  let allSessions = $derived([...shared, ...sessions]);
   let activeTid = $derived(
-    scopeKey ? ($activeTerminalId[scopeKey] ?? sessions[0]?.id ?? null) : null,
+    scopeKey ? ($activeTerminalId[scopeKey] ?? allSessions[0]?.id ?? null) : null,
   );
 
   $effect(() => {
     if (!$terminalActive || !projectId || !activeId) return;
+    void restoreProjectTerminals(projectId);
     void restoreTerminals(projectId, activeId, $activeInstance?.worktreePath ?? null);
   });
 
@@ -46,22 +73,33 @@
     if (activeTid) manager.refit(activeTid);
   }
 
+  function sectionOf(id: string): Section {
+    return shared.some((s) => s.id === id) ? 'project' : 'instance';
+  }
+
   async function newTerminal() {
     if (!projectId || !activeId) return;
-    await addTerminal(projectId, activeId, $activeInstance?.worktreePath ?? null);
+    await addTerminal(projectId, activeId, worktreePath);
+  }
+
+  async function newProjectTerminal() {
+    if (!projectId || !activeId) return;
+    await addProjectTerminal(projectId, activeId, worktreePath);
   }
 
   function selectTerminal(id: string) {
     if (projectId && activeId) setActiveTerminal(projectId, activeId, id);
   }
 
-  async function doClose(id: string) {
-    if (projectId && activeId) await removeTerminal(projectId, activeId, id);
+  async function doClose(id: string, section: Section) {
+    if (!projectId || !activeId) return;
+    if (section === 'project') await removeProjectTerminal(projectId, id);
+    else await removeTerminal(projectId, activeId, id);
   }
 
-  async function closeTerminal(id: string, e: MouseEvent) {
+  async function closeTerminal(id: string, section: Section, e: MouseEvent) {
     e.stopPropagation();
-    await doClose(id);
+    await doClose(id, section);
   }
 
   function beginRename(s: TerminalSession) {
@@ -74,10 +112,10 @@
     beginRename(s);
   }
 
-  function openCtxMenu(s: TerminalSession, e: MouseEvent) {
+  function openCtxMenu(s: TerminalSession, section: Section, e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    ctxMenu = { x: e.clientX, y: e.clientY, session: s };
+    ctxMenu = { x: e.clientX, y: e.clientY, session: s, section };
   }
 
   function closeCtxMenu() {
@@ -86,16 +124,25 @@
 
   async function closeOthers(s: TerminalSession) {
     closeCtxMenu();
-    if (!projectId || !activeId) return;
-    for (const t of sessions.filter((o) => o.id !== s.id)) {
-      await removeTerminal(projectId, activeId, t.id);
+    for (const other of allSessions.filter((o) => o.id !== s.id)) {
+      await doClose(other.id, sectionOf(other.id));
     }
+  }
+
+  function toggleShared(s: TerminalSession, section: Section) {
+    closeCtxMenu();
+    if (!projectId || !activeId) return;
+    if (section === 'instance') shareTerminal(projectId, activeId, s.id, worktreePath, shared.length);
+    else unshareTerminal(projectId, activeId, s.id, sessions.length);
   }
 
   function commitRename() {
     if (!editingId) return;
     const title = editValue.trim();
-    if (projectId && activeId && title) renameTerminal(projectId, activeId, editingId, title);
+    if (projectId && activeId && title) {
+      if (sectionOf(editingId) === 'project') renameProjectTerminal(projectId, editingId, title);
+      else renameTerminal(projectId, activeId, editingId, title);
+    }
     editingId = null;
   }
 
@@ -113,64 +160,197 @@
     node.focus();
     node.select();
   }
+
+  function dragPointerDown(e: PointerEvent, section: Section, index: number, id: string) {
+    if (editingId === id) return;
+    if ((e.target as Element).closest('.term-item-close, .term-item-input')) return;
+    e.preventDefault();
+    drag = { id, from: section, index };
+    dropAt = { section, index };
+    dragActive = false;
+    didDrag = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function sectionAt(y: number): Section | null {
+    const bodies = [
+      ['project', projectBodyEl],
+      ['instance', instanceBodyEl],
+    ] as const;
+    for (const [section, el] of bodies) {
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y >= r.top && y <= r.bottom) return section;
+    }
+    return null;
+  }
+
+  function dragPointerMove(e: PointerEvent) {
+    if (!drag) return;
+    if (!dragActive) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+      dragActive = true;
+      document.body.classList.add('dragging');
+    }
+    didDrag = true;
+    const section = sectionAt(e.clientY) ?? dropAt?.section ?? drag.from;
+    const bodyEl = section === 'project' ? projectBodyEl : instanceBodyEl;
+    dropAt = {
+      section,
+      index: computeTabInsertIndex(bodyEl ?? null, e.clientY, { selector: '.term-item', axis: 'y' }),
+    };
+  }
+
+  function dragPointerUp() {
+    if (drag && dropAt && dragActive && projectId && activeId) {
+      const { id, from, index } = drag;
+      if (from === dropAt.section) {
+        if (from === 'project') reorderProjectTerminal(projectId, index, dropAt.index);
+        else reorderTerminal(projectId, activeId, index, dropAt.index);
+      } else if (from === 'instance') {
+        shareTerminal(projectId, activeId, id, worktreePath, dropAt.index);
+      } else {
+        unshareTerminal(projectId, activeId, id, dropAt.index);
+      }
+    }
+    drag = null;
+    dropAt = null;
+    dragActive = false;
+    document.body.classList.remove('dragging');
+  }
+
+  function showsIndicator(section: Section, index: number): boolean {
+    if (!dragActive || !drag || dropAt?.section !== section || dropAt.index !== index) return false;
+    if (drag.from !== section) return true;
+    return index !== drag.index && index !== drag.index + 1;
+  }
 </script>
 
 <svelte:window onresize={onResize} />
 
 <div class="terminal-split">
   <div class="term-list">
-    <div class="term-list-head">
-      <span>{t('terminal.title')}</span>
-      <button class="term-add" onclick={newTerminal} disabled={!activeId} title={t('terminal.new') as string}>
-        <Icon name="plus" size={13}/>
-      </button>
-    </div>
-    <div class="term-list-body">
-      {#each sessions as s (s.id)}
-        <div
-          class="term-item {s.id === activeTid ? 'active' : ''}"
-          role="button"
-          tabindex="0"
-          onclick={() => selectTerminal(s.id)}
-          ondblclick={(e) => startRename(s, e)}
-          oncontextmenu={(e) => openCtxMenu(s, e)}
-          onkeydown={(e) => { if (e.key === 'Enter') selectTerminal(s.id); }}
-        >
-          <Icon name="terminal" size={13}/>
-          {#if editingId === s.id}
-            <input
-              class="term-item-input"
-              bind:value={editValue}
-              use:autofocusSelect
-              aria-label={t('terminal.rename') as string}
-              onclick={(e) => e.stopPropagation()}
-              onkeydown={onRenameKeydown}
-              onblur={commitRename}
-            />
-          {:else}
-            <span
-              class="term-item-title"
-              title={t('terminal.renameHint') as string}
-            >{s.title}</span>
-          {/if}
-          <span
-            class="term-item-close"
+    <div class="term-section">
+      <div class="term-list-head">
+        <span>{t('terminal.projectSection')}</span>
+        <button class="term-add" onclick={newProjectTerminal} disabled={!activeId} title={t('terminal.newShared') as string}>
+          <Icon name="plus" size={13}/>
+        </button>
+      </div>
+      <div class="term-list-body" bind:this={projectBodyEl}>
+        {#each shared as s, i (s.id)}
+          {#if showsIndicator('project', i)}<div class="term-drop"></div>{/if}
+          <div
+            class="term-item {s.id === activeTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
             role="button"
             tabindex="0"
-            aria-label={t('terminal.close') as string}
-            onclick={(e) => closeTerminal(s.id, e)}
-            onkeydown={(e) => { if (e.key === 'Enter') closeTerminal(s.id, e as unknown as MouseEvent); }}
+            onpointerdown={(e) => dragPointerDown(e, 'project', i, s.id)}
+            onpointermove={dragPointerMove}
+            onpointerup={dragPointerUp}
+            onclick={() => { if (!didDrag) selectTerminal(s.id); didDrag = false; }}
+            ondblclick={(e) => startRename(s, e)}
+            oncontextmenu={(e) => openCtxMenu(s, 'project', e)}
+            onkeydown={(e) => { if (e.key === 'Enter') selectTerminal(s.id); }}
           >
-            <Icon name="x" size={11}/>
-          </span>
-        </div>
-      {/each}
+            <Icon name="terminal" size={13}/>
+            {#if editingId === s.id}
+              <input
+                class="term-item-input"
+                bind:value={editValue}
+                use:autofocusSelect
+                aria-label={t('terminal.rename') as string}
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={onRenameKeydown}
+                onblur={commitRename}
+              />
+            {:else}
+              <span class="term-item-title" title={s.cwd ?? (t('terminal.renameHint') as string)}>{s.title}</span>
+            {/if}
+            <span
+              class="term-item-close"
+              role="button"
+              tabindex="0"
+              aria-label={t('terminal.close') as string}
+              onclick={(e) => closeTerminal(s.id, 'project', e)}
+              onkeydown={(e) => { if (e.key === 'Enter') closeTerminal(s.id, 'project', e as unknown as MouseEvent); }}
+            >
+              <Icon name="x" size={11}/>
+            </span>
+          </div>
+        {/each}
+        {#if showsIndicator('project', shared.length)}<div class="term-drop"></div>{/if}
+        {#if shared.length === 0}
+          <p class="term-section-empty">{t('terminal.sharedEmpty')}</p>
+        {/if}
+      </div>
+    </div>
+
+    <div class="term-section term-section-grow">
+      <div class="term-list-head">
+        <span>{t('terminal.instanceSection')}</span>
+        <button class="term-add" onclick={newTerminal} disabled={!activeId} title={t('terminal.new') as string}>
+          <Icon name="plus" size={13}/>
+        </button>
+      </div>
+      <div class="term-list-body" bind:this={instanceBodyEl}>
+        {#each sessions as s, i (s.id)}
+          {#if showsIndicator('instance', i)}<div class="term-drop"></div>{/if}
+          <div
+            class="term-item {s.id === activeTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
+            role="button"
+            tabindex="0"
+            onpointerdown={(e) => dragPointerDown(e, 'instance', i, s.id)}
+            onpointermove={dragPointerMove}
+            onpointerup={dragPointerUp}
+            onclick={() => { if (!didDrag) selectTerminal(s.id); didDrag = false; }}
+            ondblclick={(e) => startRename(s, e)}
+            oncontextmenu={(e) => openCtxMenu(s, 'instance', e)}
+            onkeydown={(e) => { if (e.key === 'Enter') selectTerminal(s.id); }}
+          >
+            <Icon name="terminal" size={13}/>
+            {#if editingId === s.id}
+              <input
+                class="term-item-input"
+                bind:value={editValue}
+                use:autofocusSelect
+                aria-label={t('terminal.rename') as string}
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={onRenameKeydown}
+                onblur={commitRename}
+              />
+            {:else}
+              <span
+                class="term-item-title"
+                title={t('terminal.renameHint') as string}
+              >{s.title}</span>
+            {/if}
+            <span
+              class="term-item-close"
+              role="button"
+              tabindex="0"
+              aria-label={t('terminal.close') as string}
+              onclick={(e) => closeTerminal(s.id, 'instance', e)}
+              onkeydown={(e) => { if (e.key === 'Enter') closeTerminal(s.id, 'instance', e as unknown as MouseEvent); }}
+            >
+              <Icon name="x" size={11}/>
+            </span>
+          </div>
+        {/each}
+        {#if showsIndicator('instance', sessions.length)}<div class="term-drop"></div>{/if}
+        {#if sessions.length === 0}
+          <p class="term-section-empty">{t('terminal.instanceEmpty')}</p>
+        {/if}
+      </div>
     </div>
   </div>
 
   <div class="term-main">
     <div class="term-host-slot" bind:this={slotEl}></div>
-    {#if sessions.length === 0}
+    {#if allSessions.length === 0}
       <div class="term-empty">
         <div class="term-empty-icon"><Icon name="terminal" size={40}/></div>
         <p class="term-empty-text">
@@ -193,15 +373,19 @@
     <button type="button" class="ctx-item" onclick={() => { const s = ctxMenu!.session; closeCtxMenu(); beginRename(s); }}>
       <Icon name="edit" size={13}/> {t('terminal.rename')}
     </button>
+    <button type="button" class="ctx-item" onclick={() => toggleShared(ctxMenu!.session, ctxMenu!.section)}>
+      <Icon name="folder" size={13}/>
+      {ctxMenu.section === 'instance' ? t('terminal.share') : t('terminal.unshare')}
+    </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" onclick={() => { closeCtxMenu(); newTerminal(); }}>
       <Icon name="plus" size={13}/> {t('terminal.new')}
     </button>
     <div class="ctx-sep"></div>
-    <button type="button" class="ctx-item" onclick={() => { const s = ctxMenu!.session; closeCtxMenu(); doClose(s.id); }}>
+    <button type="button" class="ctx-item" onclick={() => { const { session, section } = ctxMenu!; closeCtxMenu(); doClose(session.id, section); }}>
       <Icon name="x" size={13}/> {t('terminal.close')}
     </button>
-    {#if sessions.length > 1}
+    {#if allSessions.length > 1}
       <button type="button" class="ctx-item" onclick={() => closeOthers(ctxMenu!.session)}>
         <Icon name="x" size={13}/> {t('terminal.closeOthers')}
       </button>
@@ -225,15 +409,24 @@
     min-height: 0;
   }
 
+  .term-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .term-section-grow { flex: 1; }
+
   .term-list-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
     border-bottom: 1px solid var(--stroke-0);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    color: var(--fg-1);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-3);
   }
 
   .term-add {
@@ -264,6 +457,23 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-height: 34px;
+  }
+
+  .term-section-empty {
+    margin: 0;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--fg-4);
+    line-height: 1.4;
+  }
+
+  .term-drop {
+    height: 2px;
+    background: var(--accent, #6c8eff);
+    border-radius: 1px;
+    margin: 0 2px;
+    pointer-events: none;
   }
 
   .term-item {
@@ -282,6 +492,7 @@
   }
   .term-item:hover { background: var(--bg-3); color: var(--fg-0); }
   .term-item.active { background: var(--accent-weak); color: var(--fg-0); }
+  .term-item.dragging { opacity: 0.4; cursor: grabbing; }
 
   .term-item-title {
     flex: 1;

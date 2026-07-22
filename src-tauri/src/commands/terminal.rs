@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
-use crate::storage::{instance_terminal_state_file, write_json_atomic};
+use crate::storage::{instance_terminal_state_file, project_terminal_state_file, write_json_atomic};
 
 struct TerminalSession {
     writer: Box<dyn Write + Send>,
@@ -235,4 +235,34 @@ pub fn get_terminal_state(project_id: String, instance_id: String) -> Result<Opt
 #[tauri::command]
 pub fn save_terminal_state(project_id: String, instance_id: String, state: TerminalLayout) -> Result<(), String> {
     write_json_atomic(&instance_terminal_state_file(&project_id, &instance_id)?, &state)
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ProjectTerminalLayout {
+    #[serde(default)]
+    pub terminals: Vec<ProjectTerminalTab>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ProjectTerminalTab {
+    pub id:    String,
+    pub title: String,
+    #[serde(default)]
+    pub cwd:   Option<String>,
+}
+
+#[tauri::command]
+pub fn get_project_terminal_state(project_id: String) -> Result<Option<ProjectTerminalLayout>, String> {
+    let path = project_terminal_state_file(&project_id)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let state = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(Some(state))
+}
+
+#[tauri::command]
+pub fn save_project_terminal_state(project_id: String, state: ProjectTerminalLayout) -> Result<(), String> {
+    write_json_atomic(&project_terminal_state_file(&project_id)?, &state)
 }

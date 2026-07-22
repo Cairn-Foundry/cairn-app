@@ -11,6 +11,7 @@
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
   import TerminalView from '$lib/components/terminal/TerminalView.svelte';
+  import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
   import { shortcuts, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -35,6 +36,7 @@
   let showInstanceMenu = false;
   let showManageModal = false;
   let showShortcuts = false;
+  let showTools = false;
   let filesView: FilesView;
   let instanceSearch = '';
   let instanceSearchEl: HTMLInputElement | null = null;
@@ -72,6 +74,11 @@
     quickOpenVisible.set(false);
     await tick();
     filesView?.openFileByPath(path);
+  }
+
+  function selectTool(id: string) {
+    if (id === 'terminal') terminalActive.set(true);
+    showTools = false;
   }
 
   async function selectInstance(id: string) {
@@ -368,7 +375,13 @@
 
   <!-- Content -->
   <div class="content-row">
-    <aside class="sidebar" class:sidebar-empty={!activeInstance}>
+    <div class="sidebar-wrap" use:clickOutside={() => showTools = false}>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+    <aside
+      class="sidebar"
+      class:sidebar-empty={!activeInstance}
+      on:click={(e) => { if (!(e.target as Element).closest('.tools-toggle')) showTools = false; }}
+    >
       {#each STEPS as s}
         <button
           class="step {$activeStep === s.id && !$terminalActive ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
@@ -390,15 +403,24 @@
       <div class="divider"></div>
       <div class="spacer"></div>
       <button
-        class="step {$terminalActive ? 'active' : ''}"
+        class="step tools-toggle {showTools || $terminalActive ? 'active' : ''}"
         disabled={!activeInstance}
-        aria-label={t('workspace.ariaTerminal') as string}
-        on:click={() => terminalActive.set(true)}
+        aria-label={t('workspace.ariaTools') as string}
+        on:click={() => showTools = !showTools}
       >
-        <span class="icon"><Icon name="terminal" size={18}/></span>
-        <span class="label">{t('workspace.termLabel')}</span>
+        <span class="icon"><Icon name="grid" size={18}/></span>
+        <span class="label">{t('workspace.toolsLabel')}</span>
       </button>
     </aside>
+
+    {#if showTools && activeInstance}
+      <ToolsPanel
+        activeTool={$terminalActive ? 'terminal' : null}
+        on:close={() => showTools = false}
+        on:select={(e) => selectTool(e.detail)}
+      />
+    {/if}
+    </div>
 
     <main class="main">
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
@@ -687,6 +709,7 @@
     justify-content: center;
   }
 
+  .sidebar-wrap { display: contents; }
 
   .sidebar-empty .step {
     opacity: 0.3;
