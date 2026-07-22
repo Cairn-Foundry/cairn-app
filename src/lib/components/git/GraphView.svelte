@@ -675,7 +675,6 @@
   .meta-sep {
     font-size: 9px;
     color: var(--fg-2);
-    user-select: none;
   }
 
   .meta-date {

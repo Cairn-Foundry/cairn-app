@@ -1,6 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import CopyButton from '$lib/components/CopyButton.svelte';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import HunkDiffPanel from './HunkDiffPanel.svelte';
@@ -137,7 +140,9 @@
     </div>
     <div class="editor-body">
       {#if loadingPaths.has(activeTab.path)}
-        <div class="editor-placeholder">{t('files.loading')}</div>
+        <div class="editor-skeleton">
+          <Skeleton lines={12} height={12} gap={12}/>
+        </div>
       {:else if isBinaryPath(activeTab.path)}
         <div class="editor-placeholder">
           <Icon name="file" size={32}/>
@@ -184,13 +189,14 @@
       <span class="statusbar-sep">|</span>
       <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={onToggleWhitespace} title={t('files.toggleWhitespace') as string}>¶</button>
       {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">{t('files.unsaved')}</span>{/if}
-      {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving">{t('files.savingStatus')}</span>{/if}
+      {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving" title={t('common.saving') as string}><Spinner size={9} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/></span>{/if}
       {#if currentLineBlame && activeTab}
         <span class="statusbar-blame-spacer"></span>
         {#if currentLineBlame.hash === '0000000'}
           <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">{t('files.notCommittedYet')}</span>
         {:else}
-          <span class="statusbar-item statusbar-blame">{currentLineBlame.hash} ({currentLineBlame.author})</span>
+          <span class="statusbar-item statusbar-blame"><span class="selectable">{currentLineBlame.hash}</span> ({currentLineBlame.author})</span>
+          <CopyButton value={currentLineBlame.hash} size={10}/>
         {/if}
       {/if}
     </div>
@@ -252,7 +258,6 @@
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
-    user-select: none;
   }
   .file-tab:hover { background: var(--bg-4); color: var(--fg-1); }
   .file-tab.tab-active {
@@ -416,6 +421,8 @@
     cursor: default;
   }
 
+
+  .editor-skeleton { padding: 20px 24px; }
 
   .editor-placeholder {
     display: flex;

@@ -12,6 +12,7 @@
 
   const dispatch = createEventDispatcher<{
     openProject: string;
+    closeProject: string;
     projectCreated: { id: string };
     sectionShown: void;
     sectionChange: { section: string; settingsTab: string };
@@ -48,6 +49,7 @@
     {#if activeSection === 'projects'}
       <ProjectsSection
         on:openProject={(e) => dispatch('openProject', e.detail)}
+        on:closeProject={(e) => dispatch('closeProject', e.detail)}
         on:addProject={(e) => addProjectMode = e.detail}
         on:editProject={(e) => editingProject = e.detail}
       />

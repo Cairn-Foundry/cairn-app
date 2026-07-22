@@ -637,7 +637,6 @@
     color: oklch(1 0 0 / 0.7);
     line-height: 1;
     pointer-events: none;
-    user-select: none;
   }
 
   .field-group { display: flex; flex-direction: column; gap: 6px; }

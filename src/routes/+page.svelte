@@ -139,6 +139,7 @@
       openSection={homeOpenSection}
       openSettingsTab={homeOpenSettingsTab}
       on:openProject={(e) => handleOpenProject(e.detail)}
+      on:closeProject={(e) => handleCloseProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
       on:sectionShown={() => { homeOpenSection = null; homeOpenSettingsTab = null; }}
       on:sectionChange={handleSectionChange}

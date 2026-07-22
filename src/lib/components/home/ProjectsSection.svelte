@@ -2,7 +2,7 @@
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
-  import { projects, unregisterProject, duplicateProjectInStore } from '$lib/stores/project';
+  import { projects, unregisterProject, duplicateProjectInStore, openProjects, activeProjectId } from '$lib/stores/project';
   import { projectFolders } from '$lib/stores/project-folders';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Project, ProjectFolder } from '$lib/types/project';
@@ -18,6 +18,7 @@
     openProject: string;
     addProject: 'new' | 'open' | 'clone';
     editProject: Project;
+    closeProject: string;
   }>();
 
   let search = '';
@@ -406,6 +407,31 @@
   </div>
 </div>
 
+{#if $openProjects.length > 0}
+  <div class="open-tabs" class:hidden={!!search}>
+    <div class="home-section-title">
+      <span class="section-label">
+        <Icon name="folder-open" size={13}/>
+        {(t('home.projects.openTabsCount') as (n: number) => string)($openProjects.length)}
+      </span>
+    </div>
+    <div class="open-tabs-row">
+      {#each $openProjects as p (p.id)}
+        <div class="open-tab" class:active={p.id === $activeProjectId} role="button" tabindex="0"
+             on:click={() => dispatch('openProject', p.id)}
+             on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
+          <span class="open-tab-dot" style="background: {p.color}"></span>
+          <span class="open-tab-name">{p.name}</span>
+          <button class="open-tab-close" aria-label={t('common.close') as string}
+                  on:click|stopPropagation={() => dispatch('closeProject', p.id)}>
+            <Icon name="x" size={11}/>
+          </button>
+        </div>
+      {/each}
+    </div>
+  </div>
+{/if}
+
 <!-- backdrop for menus -->
 {#if menuProjectId || menuFolderId}
   <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -689,6 +715,49 @@
 <style>
   .hidden { display: none; }
 
+  /* -- open project tabs ------------------------------------------------- */
+  .open-tabs { margin-bottom: 40px; }
+
+  .open-tabs-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .open-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 10px;
+    font-size: 12.5px;
+    color: var(--fg-1);
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: color .12s, background .12s, border-color .12s;
+  }
+  .open-tab:hover { background: var(--bg-3); color: var(--fg-0); }
+  .open-tab.active { border-color: var(--accent-line); color: var(--fg-0); }
+
+  .open-tab-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .open-tab-name { white-space: nowrap; }
+
+  .open-tab-close {
+    display: grid;
+    place-items: center;
+    width: 16px; height: 16px;
+    padding: 0;
+    border-radius: 3px;
+    color: var(--fg-3);
+  }
+  .open-tab-close:hover { background: var(--bg-4); color: var(--fg-0); }
+
   /* -- backdrop ---------------------------------------------------------- */
   .menu-backdrop {
     position: fixed;
@@ -810,7 +879,6 @@
     gap: 7px;
     padding: 9px 10px 9px 6px;
     cursor: pointer;
-    user-select: none;
     position: relative;
   }
   .folder-block.folder-dragging { opacity: 0.4; }

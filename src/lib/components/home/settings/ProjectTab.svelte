@@ -102,7 +102,6 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    user-select: none;
   }
 
   .wf-row {

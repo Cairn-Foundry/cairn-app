@@ -2,6 +2,7 @@
   import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import CopyButton from '$lib/components/CopyButton.svelte';
   import GitDiff from '$lib/components/git/GitDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
@@ -991,7 +992,7 @@
               on:keydown={(e) => e.key === 'Enter' && selectCommit(commit)}
             >
               <div class="log-entry-main">
-                <span class="log-hash">{commit.shortHash}</span>
+                <span class="log-hash selectable">{commit.shortHash}</span>
                 <span class="log-message">{commit.message}</span>
               </div>
               <div class="log-entry-meta">
@@ -1037,7 +1038,8 @@
         </button>
         <div class="commit-diff-info">
           <div class="commit-diff-title">
-            <span class="log-hash">{selectedStash.name}</span>
+            <span class="log-hash selectable">{selectedStash.name}</span>
+            <CopyButton value={selectedStash.name}/>
             <span class="commit-diff-message">{selectedStash.message || selectedStash.name}</span>
           </div>
           {#if selectedStash.branch}
@@ -1101,7 +1103,8 @@
         </button>
         <div class="commit-diff-info">
           <div class="commit-diff-title">
-            <span class="log-hash">{selectedCommit.shortHash}</span>
+            <span class="log-hash selectable">{selectedCommit.shortHash}</span>
+            <CopyButton value={selectedCommit.hash}/>
             <span class="commit-diff-message">{selectedCommit.message}</span>
           </div>
           <span class="log-author">{selectedCommit.author}</span>
@@ -2495,7 +2498,6 @@
   .meta-sep {
     font-size: 11px;
     color: var(--fg-2);
-    user-select: none;
   }
 
   .diff-file-count {

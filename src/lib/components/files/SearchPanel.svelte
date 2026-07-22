@@ -493,7 +493,6 @@
     padding-right: 10px;
     color: var(--fg-4);
     font-size: 11px;
-    user-select: none;
   }
   .result-text {
     flex: 1;

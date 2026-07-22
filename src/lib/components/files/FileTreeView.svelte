@@ -1,6 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import type { FileNode, GitStatusMap } from '$lib/services/file-service';
   import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
@@ -115,7 +117,9 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="files-tree-scroll" bind:this={scrollEl} on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
     {#if loading}
-      <div class="tree-state">{t('files.treeLoading')}</div>
+      <div class="tree-skeleton">
+        <Skeleton lines={8} height={11} gap={10}/>
+      </div>
     {:else if error}
       <div class="tree-state error">{error}</div>
     {:else if !worktreePath}
@@ -180,7 +184,7 @@
         <span class="tab-dot">●</span>
       {/if}
       {#if loadingPaths.has(node.path)}
-        <span class="tree-loading-dot">...</span>
+        <Spinner size={10} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/>
       {/if}
     </button>
   {/if}
@@ -278,7 +282,7 @@
 
   button.file-tree-item :global(*) { pointer-events: none; }
   .file-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-loading-dot { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
+  .tree-skeleton { padding: 10px 12px; }
 
   .tree-root-row { box-shadow: 0 1px 0 var(--stroke-0); margin-bottom: 2px; }
   .tree-header-actions {

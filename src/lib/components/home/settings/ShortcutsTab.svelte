@@ -273,7 +273,6 @@
     margin-bottom: 5px;
     cursor: pointer;
     transition: background .1s, border-color .1s;
-    user-select: none;
   }
   .sc-row:hover { background: var(--bg-3); border-color: var(--stroke-1); }
   .sc-row.sc-recording {

@@ -355,7 +355,7 @@ export function matchesShortcut(
 	if (IS_MAC) {
 		return e.metaKey === b.mod && e.ctrlKey === b.ctrl;
 	}
-	
+
 	return e.ctrlKey === (b.mod || b.ctrl);
 }
 

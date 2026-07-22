@@ -49,7 +49,7 @@
         <span class="gutter">{row.oldNo ?? ''}</span>
         <span class="gutter">{row.newNo ?? ''}</span>
         <span class="sign">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '-' : ''}</span>
-        <span class="content">{row.content || ' '}</span>
+        <span class="content selectable">{row.content || ' '}</span>
       </div>
     {/if}
   {/each}
@@ -81,8 +81,6 @@
     padding: 0 6px;
     text-align: right;
     color: var(--fg-4);
-    user-select: none;
-    -webkit-user-select: none;
   }
 
   .sign {
@@ -90,8 +88,6 @@
     width: 12px;
     text-align: center;
     color: var(--fg-4);
-    user-select: none;
-    -webkit-user-select: none;
   }
 
   .content {

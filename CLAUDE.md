@@ -6,6 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Do not add explanatory comments describing what the code is doing. Keep the code self-documenting and only comment when strictly necessary (e.g. a non-obvious gotcha).
 
+## UI conventions
+
+### Loading states
+
+Never render a textual loading message ("Loading...", "Chargement...", "saving..."). Pending
+states are always shown with an animation:
+
+- **Inline / action pending** (buttons, list rows, tree nodes, status bar): `Spinner.svelte`.
+  Size it to the surrounding text (`size={10}`-`{13}`). When the spinner replaces a label, put
+  the meaning back with `title` / `aria-label`.
+- **Content placeholder** (file tree, editor body, lists, panels that load a block of content):
+  `Skeleton.svelte` (`lines`, `height`, `gap`), wrapped in a container that supplies the padding.
+- **Blocking modal work**: `Spinner.svelte` centered over the dimmed body (see `CreateInstance.svelte`).
+
+No new `loading` / `treeLoading` style i18n keys - if a key only exists to say "loading", it does
+not belong in `en.ts` / `fr.ts`.
+
+### Text selection
+
+Interface chrome is not selectable. `body` sets `user-select: none` globally in `app.css`; only
+meaningful data opts back in via the global `.selectable` class (inputs, `[contenteditable]`,
+`.cm-editor`, `.xterm` and `.diff-line .code` are already opted in).
+
+- Labels, buttons, tabs, headings, menu entries, counts: leave them non-selectable. Never add a
+  local `user-select: none` - it is already the default.
+- Useful data (commit hash, blame hash, stash name, file/worktree path, branch name, IDs, code and
+  diff content): add `class="selectable"`, and place a `CopyButton.svelte` next to it whenever the
+  value is a single discrete token the user would want to copy.
+
 ## Commands
 
 ```bash

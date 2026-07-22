@@ -395,7 +395,7 @@
                 </button>
               {/if}
             </div>
-            <div class="bubble">
+            <div class="bubble selectable">
               {#if m.streaming && !m.content}
                 <p><span class="typing-dots"><span></span><span></span><span></span></span></p>
               {:else}
