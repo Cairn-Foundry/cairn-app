@@ -99,6 +99,7 @@ pub fn run() {
             git_pull,
             git_fetch,
             git_remote_status,
+            git_remove_index_lock,
             git_operation_state,
             git_rm,
             git_merge,

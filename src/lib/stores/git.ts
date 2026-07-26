@@ -1,6 +1,7 @@
 import { derived, get, writable } from "svelte/store";
 import type {
 	GitCommit,
+	GitError,
 	GitFileDiff,
 	GitFileStatus,
 	GitGraphCommit,
@@ -11,6 +12,7 @@ import type {
 } from "$lib/services/git-service";
 import * as gitService from "$lib/services/git-service";
 import { listBranchesDetailed } from "$lib/services/instance-service";
+import type { GitErrorAction } from "$lib/utils/git/git-error";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 
@@ -32,7 +34,7 @@ type GitState = {
 	graphHasMore: boolean;
 	isLoading: boolean;
 	isGitRepo: boolean;
-	error: string | null;
+	error: GitError | null;
 };
 
 const LOG_PAGE = 50;
@@ -90,7 +92,7 @@ async function mutate<T>(op: () => Promise<T>): Promise<T> {
 		clearGitError();
 		return result;
 	} catch (e) {
-		_git.update((s) => ({ ...s, error: String(e) }));
+		_git.update((s) => ({ ...s, error: gitService.toGitError(e) }));
 		throw e;
 	}
 }
@@ -150,7 +152,11 @@ export async function refreshStatus(silent = false): Promise<void> {
 			isLoading: false,
 		}));
 	} catch (e) {
-		_git.update((s) => ({ ...s, isLoading: false, error: String(e) }));
+		_git.update((s) => ({
+			...s,
+			isLoading: false,
+			error: gitService.toGitError(e),
+		}));
 	}
 }
 
@@ -306,12 +312,13 @@ export async function amendLastCommit(
 	await refreshLog();
 }
 
-export async function pushBranch(): Promise<void> {
+export async function pushBranch(forceSetUpstream = false): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	const state = get(_git);
 	const hasUpstream = state.remoteStatus?.hasUpstream ?? false;
-	await mutate(() => gitService.push(wt, !hasUpstream, state.currentBranch));
+	const setUpstream = forceSetUpstream || !hasUpstream;
+	await mutate(() => gitService.push(wt, setUpstream, state.currentBranch));
 	await refreshStatus();
 }
 
@@ -321,6 +328,29 @@ export async function pullBranch(): Promise<GitOpResult | null> {
 	const result = await mutate(() => gitService.pull(wt));
 	await refreshStatus();
 	return result;
+}
+
+/**
+ * Recovery offered next to a git error banner. Each action is the fix for the
+ * error code that surfaced it; the operation reports its own failure through
+ * `mutate`, so a failed recovery simply replaces the banner.
+ */
+export async function recoverFromGitError(
+	action: GitErrorAction,
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	if (action === "setUpstream") {
+		await pushBranch(true);
+		return;
+	}
+	if (action === "pullThenPush") {
+		const result = await pullBranch();
+		if (result?.ok) await pushBranch();
+		return;
+	}
+	await mutate(() => gitService.removeIndexLock(wt));
+	await refreshStatus();
 }
 
 export async function fetchRemote(): Promise<void> {

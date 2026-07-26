@@ -6,6 +6,7 @@ pub mod file_state;
 pub mod files;
 pub mod git;
 pub mod git_collapse_state;
+pub mod git_error;
 pub mod instances;
 pub mod projects;
 pub mod settings;
@@ -26,7 +27,7 @@ pub use git::{
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
-    git_push, git_pull, git_fetch, git_remote_status,
+    git_push, git_pull, git_fetch, git_remote_status, git_remove_index_lock,
     git_operation_state, git_rm, git_merge, git_merge_continue, git_merge_abort,
     git_rebase, git_rebase_continue, git_rebase_skip, git_rebase_abort,
     git_log,

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use git2::{Repository, BranchType};
+use crate::commands::git_error::GitError;
 use serde::Serialize;
 
 // ---------------------------------------------------------------------------
@@ -69,20 +70,24 @@ fn expand(path: &str) -> String {
 fn git_cmd(worktree: &str) -> Command {
     let mut cmd = Command::new("git");
     cmd.current_dir(worktree);
+    // Error classification matches git's English messages, so the locale is
+    // pinned rather than inherited from the user's environment.
+    cmd.env("LC_ALL", "C").env("LANG", "C");
     cmd
 }
 
-fn run(cmd: &mut Command) -> Result<String, String> {
-    let output = cmd.output().map_err(|e| e.to_string())?;
+fn run(cmd: &mut Command) -> Result<String, GitError> {
+    let output = cmd.output()?;
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        return Err(GitError::from_process(&output));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-fn validate_ref(name: &str) -> Result<(), String> {
+fn validate_ref(name: &str) -> Result<(), GitError> {
     if name.starts_with('-') {
-        return Err(format!("Invalid git reference: {name}"));
+        return Err(GitError::new("invalid_ref", format!("Invalid git reference: {name}"))
+            .with_context(name));
     }
     Ok(())
 }
@@ -157,10 +162,10 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn list_branches(project_path: String) -> Result<Vec<String>, String> {
+pub fn list_branches(project_path: String) -> Result<Vec<String>, GitError> {
     let expanded = expand(&project_path);
-    let repo = Repository::open(&expanded).map_err(|e| e.to_string())?;
-    let branches = repo.branches(Some(BranchType::Local)).map_err(|e| e.to_string())?;
+    let repo = Repository::open(&expanded)?;
+    let branches = repo.branches(Some(BranchType::Local))?;
     let names = branches
         .filter_map(|b| b.ok())
         .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
@@ -175,20 +180,18 @@ pub struct BranchList {
 }
 
 #[tauri::command]
-pub fn list_branches_detailed(project_path: String) -> Result<BranchList, String> {
+pub fn list_branches_detailed(project_path: String) -> Result<BranchList, GitError> {
     let expanded = expand(&project_path);
-    let repo = Repository::open(&expanded).map_err(|e| e.to_string())?;
+    let repo = Repository::open(&expanded)?;
 
     let local = repo
-        .branches(Some(BranchType::Local))
-        .map_err(|e| e.to_string())?
+        .branches(Some(BranchType::Local))?
         .filter_map(|b| b.ok())
         .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
         .collect();
 
     let remote = repo
-        .branches(Some(BranchType::Remote))
-        .map_err(|e| e.to_string())?
+        .branches(Some(BranchType::Remote))?
         .filter_map(|b| b.ok())
         .filter_map(|(b, _)| b.name().ok().flatten().map(|n| n.to_string()))
         // `origin/HEAD` is a symbolic pointer, not a real base branch.
@@ -199,28 +202,36 @@ pub fn list_branches_detailed(project_path: String) -> Result<BranchList, String
 }
 
 #[tauri::command]
-pub fn validate_git_repo(path: String) -> Result<String, String> {
+pub fn validate_git_repo(path: String) -> Result<String, GitError> {
     let expanded = expand(&path);
     let repo_path = std::path::PathBuf::from(&expanded);
 
     if !repo_path.exists() {
-        return Err(format!("Path does not exist: {}", path));
+        return Err(GitError::new("path_missing", format!("Path does not exist: {}", path))
+            .with_context(&path));
     }
     if !repo_path.is_dir() {
-        return Err(format!("Path is not a directory: {}", path));
+        return Err(GitError::new("path_not_directory", format!("Path is not a directory: {}", path))
+            .with_context(&path));
     }
 
     Repository::discover(&repo_path)
-        .map_err(|_| format!("Not a git repository: {}", path))
+        .map_err(|_| {
+            GitError::new("not_a_repository", format!("Not a git repository: {}", path))
+                .with_context(&path)
+        })
         .and_then(|repo| {
             repo.workdir()
-                .ok_or_else(|| "Bare repositories are not supported".to_string())
+                .ok_or_else(|| {
+                    GitError::new("bare_repository", "Bare repositories are not supported")
+                        .with_context(&path)
+                })
                 .map(|p| p.to_string_lossy().trim_end_matches('/').to_string())
         })
 }
 
 #[tauri::command]
-pub fn is_git_repo(worktree_path: String) -> Result<bool, String> {
+pub fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
     let expanded = expand(&worktree_path);
     if !Path::new(&expanded).is_dir() {
         return Ok(false);
@@ -228,8 +239,7 @@ pub fn is_git_repo(worktree_path: String) -> Result<bool, String> {
 
     let output = git_cmd(&expanded)
         .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
 
     if !output.status.success() {
         return Ok(false);
@@ -249,12 +259,11 @@ pub fn is_git_repo(worktree_path: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>, String> {
+pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>, GitError> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["status", "--porcelain", "-u"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
 
     if !output.status.success() {
         return Ok(HashMap::new());
@@ -306,7 +315,7 @@ pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>
 }
 
 #[tauri::command]
-pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, String> {
+pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, GitError> {
     if paths.is_empty() {
         return Ok(Vec::new());
     }
@@ -316,7 +325,7 @@ pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Resu
     for p in &paths {
         cmd.arg(p);
     }
-    let out = cmd.output().map_err(|e| e.to_string())?;
+    let out = cmd.output()?;
     let text = String::from_utf8_lossy(&out.stdout);
     Ok(text.lines().filter(|l| !l.is_empty()).map(|l| l.trim_end().to_string()).collect())
 }
@@ -326,26 +335,25 @@ pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Resu
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>, GitError> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"]))?;
     Ok(parse_diff(&raw))
 }
 
 #[tauri::command]
-pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, GitError> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"]))?;
     Ok(parse_diff(&raw))
 }
 
 #[tauri::command]
-pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, String> {
+pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, GitError> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["show", &format!("HEAD:{}", file_path)])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     // File is new/untracked, deleted from HEAD, or the repo has no commit yet.
     if !output.status.success() {
         return Ok(String::new());
@@ -354,7 +362,7 @@ pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Resul
 }
 
 #[tauri::command]
-pub async fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, String> {
+pub async fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, GitError> {
     let expanded = expand(&worktree_path);
     let mut args = vec!["diff", "--unified=3"];
     if staged { args.push("--cached"); }
@@ -370,48 +378,48 @@ pub async fn git_diff_file(worktree_path: String, file_path: String, staged: boo
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_stage_file(worktree_path: String, file_path: String) -> Result<(), String> {
+pub fn git_stage_file(worktree_path: String, file_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["add", "--", &file_path]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["add", "--", &file_path]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_unstage_file(worktree_path: String, file_path: String) -> Result<(), String> {
+pub fn git_unstage_file(worktree_path: String, file_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["restore", "--staged", "--", &file_path]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["restore", "--staged", "--", &file_path]).output()?;
     if !out.status.success() {
         // Fallback for repos with no commits yet
-        let out2 = git_cmd(&expanded).args(["rm", "--cached", "--", &file_path]).output().map_err(|e| e.to_string())?;
+        let out2 = git_cmd(&expanded).args(["rm", "--cached", "--", &file_path]).output()?;
         if !out2.status.success() {
-            return Err(String::from_utf8_lossy(&out2.stderr).to_string());
+            return Err(GitError::from_process(&out2));
         }
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stage_all(worktree_path: String) -> Result<(), String> {
+pub fn git_stage_all(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["add", "-A"]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["add", "-A"]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_unstage_all(worktree_path: String) -> Result<(), String> {
+pub fn git_unstage_all(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["restore", "--staged", "."]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["restore", "--staged", "."]).output()?;
     if !out.status.success() {
         // Fallback for repos with no commits yet
-        let out2 = git_cmd(&expanded).args(["rm", "--cached", "-r", "."]).output().map_err(|e| e.to_string())?;
+        let out2 = git_cmd(&expanded).args(["rm", "--cached", "-r", "."]).output()?;
         if !out2.status.success() {
-            return Err(String::from_utf8_lossy(&out2.stderr).to_string());
+            return Err(GitError::from_process(&out2));
         }
     }
     Ok(())
@@ -422,7 +430,7 @@ pub fn git_unstage_all(worktree_path: String) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_get_identity(worktree_path: String) -> Result<GitIdentity, String> {
+pub fn git_get_identity(worktree_path: String) -> Result<GitIdentity, GitError> {
     let expanded = expand(&worktree_path);
     let name = git_cmd(&expanded)
         .args(["config", "user.name"])
@@ -446,7 +454,7 @@ pub fn git_commit(
     allow_empty: bool,
     author_name: String,
     author_email: String,
-) -> Result<String, String> {
+) -> Result<String, GitError> {
     let expanded = expand(&worktree_path);
     let mut cmd = git_cmd(&expanded);
     cmd.arg("commit").arg("-m").arg(&message);
@@ -456,9 +464,9 @@ pub fn git_commit(
     if !author_name.is_empty() && !author_email.is_empty() {
         cmd.arg(format!("--author={} <{}>", author_name, author_email));
     }
-    let out = cmd.output().map_err(|e| e.to_string())?;
+    let out = cmd.output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
@@ -471,7 +479,7 @@ pub fn git_amend_commit(
     sign_off: bool,
     author_name: String,
     author_email: String,
-) -> Result<String, String> {
+) -> Result<String, GitError> {
     let expanded = expand(&worktree_path);
     let mut cmd = git_cmd(&expanded);
     cmd.arg("commit").arg("--amend").arg("-m").arg(&message);
@@ -480,20 +488,19 @@ pub fn git_amend_commit(
     if !author_name.is_empty() && !author_email.is_empty() {
         cmd.arg(format!("--author={} <{}>", author_name, author_email));
     }
-    let out = cmd.output().map_err(|e| e.to_string())?;
+    let out = cmd.output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
 #[tauri::command]
-pub fn git_head_message(worktree_path: String) -> Result<String, String> {
+pub fn git_head_message(worktree_path: String) -> Result<String, GitError> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["log", "-1", "--format=%B"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     if !output.status.success() {
         return Ok(String::new());
     }
@@ -505,42 +512,42 @@ pub fn git_head_message(worktree_path: String) -> Result<String, String> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_current_branch(worktree_path: String) -> Result<String, String> {
+pub fn git_current_branch(worktree_path: String) -> Result<String, GitError> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["branch", "--show-current"]))?;
     Ok(raw.trim().to_string())
 }
 
 #[tauri::command]
-pub fn git_checkout_branch(worktree_path: String, branch_name: String) -> Result<(), String> {
+pub fn git_checkout_branch(worktree_path: String, branch_name: String) -> Result<(), GitError> {
     validate_ref(&branch_name)?;
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["checkout", &branch_name]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["checkout", &branch_name]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_create_branch(worktree_path: String, branch_name: String, from_branch: String) -> Result<(), String> {
+pub fn git_create_branch(worktree_path: String, branch_name: String, from_branch: String) -> Result<(), GitError> {
     validate_ref(&branch_name)?;
     validate_ref(&from_branch)?;
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["checkout", "-b", &branch_name, &from_branch]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["checkout", "-b", &branch_name, &from_branch]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(), String> {
+pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(), GitError> {
     validate_ref(&branch_name)?;
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["branch", "-d", "--", &branch_name]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["branch", "-d", "--", &branch_name]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
@@ -550,55 +557,74 @@ pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, String> {
+pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, GitError> {
     validate_ref(&branch)?;
     let expanded = expand(&worktree_path);
     let mut args = vec!["push"];
     if set_upstream {
         args.extend(["--set-upstream", "origin", branch.as_str()]);
     }
-    let out = git_cmd(&expanded).args(&args).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(&args).output()?;
     let combined = format!(
         "{}{}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
     if !out.status.success() {
-        return Err(combined);
+        return Err(GitError::from_output(combined).with_context(branch));
     }
     Ok(combined)
 }
 
 #[tauri::command]
-pub async fn git_pull(worktree_path: String) -> Result<GitOpResult, String> {
+pub async fn git_pull(worktree_path: String) -> Result<GitOpResult, GitError> {
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
         .args(["pull", "--rebase"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_fetch(worktree_path: String) -> Result<(), String> {
+pub async fn git_fetch(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["fetch", "--prune"]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["fetch", "--prune"]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
+/// Recovery for the `lock_exists` error: removes `.git/index.lock` left behind
+/// by a git process that died. Refuses while another git process is alive so a
+/// running operation is never corrupted.
 #[tauri::command]
-pub fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, String> {
+pub fn git_remove_index_lock(worktree_path: String) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    let lock = git_path(&expanded, "index.lock")
+        .ok_or_else(|| GitError::new("not_a_repository", "Cannot locate the git directory"))?;
+    if !lock.exists() {
+        return Ok(());
+    }
+    if operation_kind(&expanded) != "none" {
+        return Err(GitError::new(
+            "operation_in_progress",
+            "A merge or rebase is in progress: the lock is not stale",
+        ));
+    }
+    fs::remove_file(&lock)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, GitError> {
     let expanded = expand(&worktree_path);
 
     // Get upstream tracking branch
     let upstream_out = git_cmd(&expanded)
         .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
 
     if !upstream_out.status.success() {
         return Ok(RemoteStatus { ahead: 0, behind: 0, remote: String::new(), has_upstream: false });
@@ -722,7 +748,7 @@ fn conflict_entries(worktree: &str) -> Vec<(String, bool)> {
     entries
 }
 
-fn finish_op(worktree: &str, out: std::process::Output) -> Result<GitOpResult, String> {
+fn finish_op(worktree: &str, out: std::process::Output) -> Result<GitOpResult, GitError> {
     let output = format!(
         "{}{}",
         String::from_utf8_lossy(&out.stdout),
@@ -735,11 +761,11 @@ fn finish_op(worktree: &str, out: std::process::Output) -> Result<GitOpResult, S
     if operation_kind(worktree) != "none" || !conflicts.is_empty() {
         return Ok(GitOpResult { ok: false, has_conflicts: true, conflicted_files: conflicts, output });
     }
-    Err(output)
+    Err(GitError::from_output(output))
 }
 
 #[tauri::command]
-pub fn git_operation_state(worktree_path: String) -> Result<GitOperationState, String> {
+pub fn git_operation_state(worktree_path: String) -> Result<GitOperationState, GitError> {
     let expanded = expand(&worktree_path);
     let kind = operation_kind(&expanded);
     if kind == "none" {
@@ -775,91 +801,85 @@ pub fn git_operation_state(worktree_path: String) -> Result<GitOperationState, S
 }
 
 #[tauri::command]
-pub async fn git_rm(worktree_path: String, file_path: String) -> Result<(), String> {
+pub async fn git_rm(worktree_path: String, file_path: String) -> Result<(), GitError> {
     validate_ref(&file_path)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .args(["rm", "-f", "--", &file_path])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn git_merge(worktree_path: String, branch: String) -> Result<GitOpResult, String> {
+pub async fn git_merge(worktree_path: String, branch: String) -> Result<GitOpResult, GitError> {
     validate_ref(&branch)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .args(["merge", "--no-edit", "--", &branch])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_merge_continue(worktree_path: String) -> Result<GitOpResult, String> {
+pub async fn git_merge_continue(worktree_path: String) -> Result<GitOpResult, GitError> {
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
         .args(["merge", "--continue"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_merge_abort(worktree_path: String) -> Result<(), String> {
+pub async fn git_merge_abort(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["merge", "--abort"]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["merge", "--abort"]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn git_rebase(worktree_path: String, onto: String) -> Result<GitOpResult, String> {
+pub async fn git_rebase(worktree_path: String, onto: String) -> Result<GitOpResult, GitError> {
     validate_ref(&onto)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
         .args(["rebase", "--", &onto])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_rebase_continue(worktree_path: String) -> Result<GitOpResult, String> {
+pub async fn git_rebase_continue(worktree_path: String) -> Result<GitOpResult, GitError> {
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
         .args(["rebase", "--continue"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_rebase_skip(worktree_path: String) -> Result<GitOpResult, String> {
+pub async fn git_rebase_skip(worktree_path: String) -> Result<GitOpResult, GitError> {
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
         .args(["rebase", "--skip"])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub async fn git_rebase_abort(worktree_path: String) -> Result<(), String> {
+pub async fn git_rebase_abort(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["rebase", "--abort"]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["rebase", "--abort"]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
@@ -881,7 +901,7 @@ pub struct GitGraphCommit {
 }
 
 #[tauri::command]
-pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, String> {
+pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, GitError> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
         "log", "--all", "--topo-order",
@@ -913,7 +933,7 @@ pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Re
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, GitError> {
     validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
@@ -923,7 +943,7 @@ pub async fn git_diff_commit(worktree_path: String, commit_hash: String) -> Resu
 }
 
 #[tauri::command]
-pub async fn git_commit_body(worktree_path: String, commit_hash: String) -> Result<String, String> {
+pub async fn git_commit_body(worktree_path: String, commit_hash: String) -> Result<String, GitError> {
     validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
@@ -972,7 +992,7 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
 }
 
 #[tauri::command]
-pub async fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
+pub async fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, GitError> {
     let expanded = expand(&worktree_path);
     // %gs (reflog subject) is what native `git stash list` shows and, unlike %s
     // (commit subject), reflects a rename done via `git stash store -m`.
@@ -1006,7 +1026,7 @@ pub fn git_stash_push(
     include_untracked: bool,
     keep_index: bool,
     paths: Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
     let mut cmd = git_cmd(&expanded);
     cmd.arg("stash").arg("push");
@@ -1017,48 +1037,48 @@ pub fn git_stash_push(
         cmd.arg("--");
         for path in &paths { cmd.arg(path); }
     }
-    let out = cmd.output().map_err(|e| e.to_string())?;
+    let out = cmd.output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stash_pop(worktree_path: String, index: usize) -> Result<(), String> {
+pub fn git_stash_pop(worktree_path: String, index: usize) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
-    let out = git_cmd(&expanded).args(["stash", "pop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["stash", "pop", &stash_ref]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stash_apply(worktree_path: String, index: usize) -> Result<(), String> {
+pub fn git_stash_apply(worktree_path: String, index: usize) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
-    let out = git_cmd(&expanded).args(["stash", "apply", &stash_ref]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["stash", "apply", &stash_ref]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stash_drop(worktree_path: String, index: usize) -> Result<(), String> {
+pub fn git_stash_drop(worktree_path: String, index: usize) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
-    let out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stash_show(worktree_path: String, index: usize) -> Result<Vec<GitFileDiff>, String> {
+pub fn git_stash_show(worktree_path: String, index: usize) -> Result<Vec<GitFileDiff>, GitError> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
     let raw = run(git_cmd(&expanded).args([
@@ -1068,35 +1088,35 @@ pub fn git_stash_show(worktree_path: String, index: usize) -> Result<Vec<GitFile
 }
 
 #[tauri::command]
-pub fn git_stash_clear(worktree_path: String) -> Result<(), String> {
+pub fn git_stash_clear(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["stash", "clear"]).output().map_err(|e| e.to_string())?;
+    let out = git_cmd(&expanded).args(["stash", "clear"]).output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_stash_rename(worktree_path: String, index: usize, message: String) -> Result<(), String> {
+pub fn git_stash_rename(worktree_path: String, index: usize, message: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
     let stash_ref = format!("stash@{{{}}}", index);
 
-    let sha_out = git_cmd(&expanded).args(["rev-parse", &stash_ref]).output().map_err(|e| e.to_string())?;
+    let sha_out = git_cmd(&expanded).args(["rev-parse", &stash_ref]).output()?;
     if !sha_out.status.success() {
-        return Err(String::from_utf8_lossy(&sha_out.stderr).to_string());
+        return Err(GitError::from_process(&sha_out));
     }
     let sha = String::from_utf8_lossy(&sha_out.stdout).trim().to_string();
 
-    let drop_out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output().map_err(|e| e.to_string())?;
+    let drop_out = git_cmd(&expanded).args(["stash", "drop", &stash_ref]).output()?;
     if !drop_out.status.success() {
-        return Err(String::from_utf8_lossy(&drop_out.stderr).to_string());
+        return Err(GitError::from_process(&drop_out));
     }
-    let store_out = git_cmd(&expanded).args(["stash", "store", "-m", &message, &sha]).output().map_err(|e| e.to_string())?;
+    let store_out = git_cmd(&expanded).args(["stash", "store", "-m", &message, &sha]).output()?;
     if !store_out.status.success() {
         // Recovery: put the stash commit back so the rename can't lose it.
         let _ = git_cmd(&expanded).args(["stash", "store", &sha]).output();
-        return Err(String::from_utf8_lossy(&store_out.stderr).to_string());
+        return Err(GitError::from_process(&store_out));
     }
     Ok(())
 }
@@ -1106,30 +1126,28 @@ pub fn git_stash_rename(worktree_path: String, index: usize, message: String) ->
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), String> {
+pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
 
     let tracked = git_cmd(&expanded)
         .args(["ls-files", "--error-unmatch", "--", &file_path])
-        .output()
-        .map_err(|e| e.to_string())?
+        .output()?
         .status
         .success();
 
     if tracked {
         let out = git_cmd(&expanded)
             .args(["restore", "--worktree", "--", &file_path])
-            .output()
-            .map_err(|e| e.to_string())?;
+            .output()?;
         if !out.status.success() {
-            return Err(String::from_utf8_lossy(&out.stderr).to_string());
+            return Err(GitError::from_process(&out));
         }
     } else {
         let full = Path::new(&expanded).join(&file_path);
         if full.is_dir() {
-            fs::remove_dir_all(&full).map_err(|e| e.to_string())?;
+            fs::remove_dir_all(&full)?;
         } else if full.exists() {
-            fs::remove_file(&full).map_err(|e| e.to_string())?;
+            fs::remove_file(&full)?;
         }
     }
     Ok(())
@@ -1140,15 +1158,14 @@ pub fn git_discard_file(worktree_path: String, file_path: String) -> Result<(), 
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<String, String> {
+pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<String, GitError> {
     validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded)
         .args(["revert", "--no-edit", &commit_hash])
-        .output()
-        .map_err(|e| e.to_string())?;
+        .output()?;
     if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+        return Err(GitError::from_process(&out));
     }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
@@ -1158,7 +1175,7 @@ pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<S
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, String> {
+pub async fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, GitError> {
     let expanded = expand(&worktree_path);
 
     let head_raw = run(git_cmd(&expanded).args(["log", "HEAD", "--format=%H"])).unwrap_or_default();
@@ -1378,8 +1395,8 @@ diff --git a/two.txt b/two.txt
         }
     }
 
-    #[test]
-    fn git_status_categorizes_entries() {
+    #[tokio::test]
+    async fn git_status_categorizes_entries() {
         let repo = TempRepo::new();
         repo.commit("tracked.txt", "one\n", "init");
 
@@ -1388,7 +1405,7 @@ diff --git a/two.txt b/two.txt
         repo.write("staged.txt", "add\n");
         repo.git(&["add", "staged.txt"]); // staged addition
 
-        let status = git_status(repo.wt()).unwrap();
+        let status = git_status(repo.wt()).await.unwrap();
         assert_eq!(status.get("tracked.txt").map(String::as_str), Some("modified"));
         assert_eq!(status.get("untracked.txt").map(String::as_str), Some("untracked"));
         assert_eq!(status.get("staged.txt").map(String::as_str), Some("staged-added"));
@@ -1421,31 +1438,31 @@ diff --git a/two.txt b/two.txt
         assert_eq!(restored, "original\n");
     }
 
-    #[test]
-    fn stash_rename_relabels_without_losing_the_stash() {
+    #[tokio::test]
+    async fn stash_rename_relabels_without_losing_the_stash() {
         let repo = TempRepo::new();
         repo.commit("a.txt", "one\n", "init");
         repo.write("a.txt", "two\n");
 
         git_stash_push(repo.wt(), "old label".into(), false, false, vec![]).unwrap();
-        let before = git_stash_list(repo.wt()).unwrap();
+        let before = git_stash_list(repo.wt()).await.unwrap();
         assert_eq!(before.len(), 1);
         assert_eq!(before[0].message, "old label");
 
         git_stash_rename(repo.wt(), 0, "new label".into()).unwrap();
 
-        let after = git_stash_list(repo.wt()).unwrap();
+        let after = git_stash_list(repo.wt()).await.unwrap();
         assert_eq!(after.len(), 1, "rename must not lose or duplicate the stash");
         assert_eq!(after[0].message, "new label");
     }
 
-    #[test]
-    fn diff_unstaged_reports_worktree_changes() {
+    #[tokio::test]
+    async fn diff_unstaged_reports_worktree_changes() {
         let repo = TempRepo::new();
         repo.commit("a.txt", "line one\n", "init");
         repo.write("a.txt", "line one changed\n");
 
-        let files = git_diff_unstaged(repo.wt()).unwrap();
+        let files = git_diff_unstaged(repo.wt()).await.unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].file_path, "a.txt");
         let kinds: Vec<&str> = files[0].hunks[0].lines.iter().map(|l| l.kind.as_str()).collect();
@@ -1453,13 +1470,13 @@ diff --git a/two.txt b/two.txt
         assert!(kinds.contains(&"add"));
     }
 
-    #[test]
-    fn run_propagates_git_failure() {
+    #[tokio::test]
+    async fn run_propagates_git_failure() {
         let repo = TempRepo::new();
         repo.commit("a.txt", "a\n", "init");
         // A syntactically valid but nonexistent revision must surface as Err,
         // not a silent empty-but-ok result.
-        assert!(git_diff_commit(repo.wt(), "deadbeefdeadbeef".into()).is_err());
+        assert!(git_diff_commit(repo.wt(), "deadbeefdeadbeef".into()).await.is_err());
     }
 
     #[test]

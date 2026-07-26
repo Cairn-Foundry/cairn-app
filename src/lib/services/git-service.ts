@@ -58,6 +58,66 @@ export type GitOperationState = {
 	total: number;
 };
 
+export const GIT_ERROR_CODES = [
+	"lock_exists",
+	"auth_required",
+	"auth_failed",
+	"protected_branch",
+	"hook_rejected",
+	"permission_denied",
+	"remote_not_found",
+	"remote_unreachable",
+	"no_remote",
+	"network_unreachable",
+	"no_upstream",
+	"non_fast_forward",
+	"dirty_worktree",
+	"unresolved_conflict",
+	"operation_in_progress",
+	"identity_missing",
+	"nothing_to_commit",
+	"detached_head",
+	"branch_exists",
+	"branch_not_merged",
+	"ref_not_found",
+	"no_disk_space",
+	"invalid_ref",
+	"path_missing",
+	"path_not_directory",
+	"not_a_repository",
+	"bare_repository",
+	"git_unavailable",
+	"unknown",
+] as const;
+
+export type GitErrorCode = (typeof GIT_ERROR_CODES)[number];
+
+export type GitError = {
+	code: GitErrorCode;
+	raw: string;
+	context?: string;
+};
+
+export function isKnownGitErrorCode(code: string): code is GitErrorCode {
+	return (GIT_ERROR_CODES as readonly string[]).includes(code);
+}
+
+function isGitError(value: unknown): value is GitError {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		typeof (value as GitError).code === "string" &&
+		typeof (value as GitError).raw === "string"
+	);
+}
+
+// Normalizes anything thrown by an `invoke()` call into a `GitError`, so a
+// rejection that never reached the classifier still carries its raw text.
+export function toGitError(value: unknown): GitError {
+	if (isGitError(value)) return value;
+	return { code: "unknown", raw: String(value) };
+}
+
 export type GitOpResult = {
 	ok: boolean;
 	hasConflicts: boolean;
@@ -220,6 +280,10 @@ export async function pull(worktreePath: string): Promise<GitOpResult> {
 
 export async function fetch(worktreePath: string): Promise<void> {
 	return invoke("git_fetch", { worktreePath });
+}
+
+export async function removeIndexLock(worktreePath: string): Promise<void> {
+	return invoke("git_remove_index_lock", { worktreePath });
 }
 
 export async function getOperationState(

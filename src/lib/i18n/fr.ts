@@ -739,6 +739,134 @@ export const fr = {
 		acceptBoth: "Garder les deux",
 		prevConflict: "Conflit précédent",
 		nextConflict: "Conflit suivant",
+		errors: {
+			showDetails: "Détails",
+			hideDetails: "Masquer les détails",
+			actions: {
+				setUpstream: "Pousser et définir l'upstream",
+				pullThenPush: "Pull et rebase, puis push",
+				removeLock: "Supprimer le fichier de verrou",
+				stashAndRetry: "Remiser les modifications et réessayer",
+			},
+			codes: {
+				lock_exists: {
+					title: "Dépôt verrouillé par un autre processus git",
+					hint: "Un fichier index.lock subsiste. Fermez tout autre client git, puis supprimez-le.",
+				},
+				auth_required: {
+					title: "Aucun identifiant disponible",
+					hint: "Git n'a pas pu demander vos identifiants. Configurez une clé SSH ou un gestionnaire d'identifiants pour ce dépôt distant.",
+				},
+				auth_failed: {
+					title: "Authentification refusée",
+					hint: "Le dépôt distant a rejeté vos identifiants. Vérifiez votre clé SSH ou votre jeton d'accès.",
+				},
+				protected_branch: {
+					title: "Branche protégée",
+					hint: "Le dépôt distant interdit de pousser directement sur cette branche. Passez par une merge request.",
+				},
+				hook_rejected: {
+					title: "Rejeté par un hook git",
+					hint: "Un hook a interrompu l'opération. Sa sortie figure dans les détails.",
+				},
+				permission_denied: {
+					title: "Droits insuffisants",
+					hint: "Votre compte n'a pas le droit d'écrire dans ce dépôt.",
+				},
+				remote_not_found: {
+					title: "Dépôt distant introuvable",
+					hint: "Le dépôt n'existe pas ou n'est pas visible par votre compte. Vérifiez l'URL du remote.",
+				},
+				remote_unreachable: {
+					title: "Dépôt distant invalide",
+					hint: "Le remote configuré ne pointe pas vers un dépôt git.",
+				},
+				no_remote: {
+					title: "Aucun dépôt distant configuré",
+					hint: "Ce dépôt n'a aucun remote vers lequel pousser. Ajoutez-en un avec git remote add origin.",
+				},
+				network_unreachable: {
+					title: "Dépôt distant injoignable",
+					hint: "Vérifiez votre connexion réseau, votre VPN ou le nom d'hôte du remote.",
+				},
+				no_upstream: {
+					title: "Branche sans upstream",
+					hint: "Cette branche ne suit encore aucune branche distante.",
+				},
+				non_fast_forward: {
+					title: "Push refusé : le dépôt distant est en avance",
+					hint: "La branche distante contient des commits que vous n'avez pas. Faites un pull avant de pousser.",
+				},
+				dirty_worktree: {
+					title: "Modifications locales non validées",
+					hint: "Validez ou remisez vos modifications avant cette opération.",
+				},
+				unresolved_conflict: {
+					title: "Conflits non résolus",
+					hint: "Résolvez les conflits restants avant de continuer.",
+				},
+				operation_in_progress: {
+					title: "Une opération est déjà en cours",
+					hint: "Terminez ou annulez le merge ou le rebase en cours.",
+				},
+				identity_missing: {
+					title: "Identité git manquante",
+					hint: "Renseignez un nom et un email dans les profils git avant de committer.",
+				},
+				nothing_to_commit: {
+					title: "Rien à committer",
+					hint: "Aucune modification n'est indexée.",
+				},
+				detached_head: {
+					title: "HEAD détachée",
+					hint: "Vous n'êtes sur aucune branche. Basculez sur une branche avant cette opération.",
+				},
+				branch_exists: {
+					title: "La branche existe déjà",
+					hint: "Choisissez un autre nom.",
+				},
+				branch_not_merged: {
+					title: "Branche non entièrement fusionnée",
+					hint: "Cette branche porte des commits qui n'existent nulle part ailleurs. La supprimer les perdrait.",
+				},
+				ref_not_found: {
+					title: "Référence introuvable",
+					hint: "La branche, le commit ou le chemin n'existe pas dans ce dépôt.",
+				},
+				no_disk_space: {
+					title: "Plus d'espace disque",
+					hint: "Libérez de l'espace disque, puis réessayez.",
+				},
+				invalid_ref: {
+					title: "Référence invalide",
+					hint: "Ce nom ne peut pas être utilisé comme référence git.",
+				},
+				path_missing: {
+					title: "Le chemin n'existe pas",
+					hint: "Vérifiez l'emplacement sélectionné.",
+				},
+				path_not_directory: {
+					title: "Le chemin n'est pas un dossier",
+					hint: "Sélectionnez un dossier.",
+				},
+				not_a_repository: {
+					title: "Ce n'est pas un dépôt git",
+					hint: "Ce dossier n'est pas géré par git.",
+				},
+				bare_repository: {
+					title: "Dépôt bare",
+					hint: "Les dépôts bare ne sont pas pris en charge.",
+				},
+				git_unavailable: {
+					title: "Impossible d'exécuter git",
+					hint: "Vérifiez que git est installé et accessible dans votre PATH.",
+				},
+				unknown: {
+					title: "Échec de l'opération git",
+					hint: "",
+				},
+			},
+		},
 	},
 
 	review: {

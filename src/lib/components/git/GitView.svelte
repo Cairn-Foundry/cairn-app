@@ -9,8 +9,10 @@
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import { readFile, isBinaryPath } from '$lib/services/file-service';
-  import { getDiffCommit, getCommitBody, checkIgnore } from '$lib/services/git-service';
-  import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
+  import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '$lib/services/git-service';
+  import type { GitFileDiff, GitDiffHunk, GitError } from '$lib/services/git-service';
+  import { describeGitError } from '$lib/utils/git/git-error';
+  import type { GitErrorAction } from '$lib/utils/git/git-error';
   import { t } from '$lib/i18n';
   import {
     git,
@@ -38,6 +40,7 @@
     setCommitBody,
     revertCommit,
     clearGitError,
+    recoverFromGitError,
   } from '$lib/stores/git';
   import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
@@ -288,8 +291,22 @@
     revertError = null;
   }
 
+  let errorDetailsOpen = false;
+  let isRecovering = false;
+
+  async function doRecover(action: GitErrorAction) {
+    isRecovering = true;
+    try {
+      await recoverFromGitError(action);
+    } catch {
+      // The failure replaces the banner through the store; nothing to add here.
+    } finally {
+      isRecovering = false;
+    }
+  }
+
   let isReverting = false;
-  let revertError: string | null = null;
+  let revertError: GitError | null = null;
 
   async function doRevert(hash: string) {
     isReverting = true;
@@ -298,7 +315,7 @@
       await revertCommit(hash);
       clearSelectedCommit();
     } catch (e) {
-      revertError = String(e);
+      revertError = toGitError(e);
     } finally {
       isReverting = false;
     }
@@ -805,9 +822,31 @@
 
 <div class="git-root">
 {#if state.error}
+  {@const described = describeGitError(state.error)}
   <div class="git-error-banner" role="alert">
     <Icon name="alert" size={13}/>
-    <span class="git-error-text">{state.error}</span>
+    <div class="git-error-body">
+      <span class="git-error-title">{described.title}</span>
+      {#if described.hint}<span class="git-error-hint">{described.hint}</span>{/if}
+      <div class="git-error-tools">
+        {#if described.action}
+          {@const action = described.action}
+          <button class="git-error-action" on:click={() => doRecover(action)} disabled={isRecovering}>
+            {#if isRecovering}
+              <Spinner size={10}/>
+            {:else}
+              {t(`git.errors.actions.${described.action}`) as string}
+            {/if}
+          </button>
+        {/if}
+        <button class="git-error-toggle" on:click={() => (errorDetailsOpen = !errorDetailsOpen)}>
+          {(errorDetailsOpen ? t('git.errors.hideDetails') : t('git.errors.showDetails')) as string}
+        </button>
+      </div>
+      {#if errorDetailsOpen}
+        <pre class="git-error-raw selectable">{described.raw}</pre>
+      {/if}
+    </div>
     <button class="git-error-dismiss" on:click={clearGitError} aria-label={t('common.close') as string}>
       <Icon name="x" size={12}/>
     </button>
@@ -1183,7 +1222,12 @@
         </div>
       </div>
       {#if revertError}
-        <div class="revert-error">{revertError}</div>
+        {@const describedRevert = describeGitError(revertError)}
+        <div class="revert-error">
+          <span>{describedRevert.title}</span>
+          {#if describedRevert.hint}<span class="revert-error-hint">{describedRevert.hint}</span>{/if}
+          <pre class="revert-error-raw selectable">{describedRevert.raw}</pre>
+        </div>
       {/if}
       {#if selectedCommitBody}
         <div class="commit-body-detail">{selectedCommitBody}</div>
@@ -2531,14 +2575,29 @@
   .revert-btn:disabled { opacity: 0.5; cursor: default; }
 
   .revert-error {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     padding: 8px 14px;
     font-size: 11px;
     color: var(--danger);
     background: color-mix(in srgb, var(--danger) 10%, transparent);
     border-bottom: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+    flex-shrink: 0;
+  }
+
+  .revert-error-hint {
+    opacity: 0.85;
+  }
+
+  .revert-error-raw {
+    margin: 0;
+    max-height: 120px;
+    overflow: auto;
     font-family: var(--font-mono);
     white-space: pre-wrap;
-    flex-shrink: 0;
+    word-break: break-word;
+    opacity: 0.9;
   }
 
   .git-error-banner {
@@ -2554,10 +2613,69 @@
     flex-shrink: 0;
   }
 
-  .git-error-text {
+  .git-error-body {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .git-error-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .git-error-hint {
+    font-family: var(--font-sans);
+    opacity: 0.85;
+    word-break: break-word;
+  }
+
+  .git-error-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .git-error-action,
+  .git-error-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--danger);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .git-error-action:hover:not(:disabled),
+  .git-error-toggle:hover {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
+
+  .git-error-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .git-error-toggle {
+    border-color: transparent;
+    opacity: 0.8;
+  }
+
+  .git-error-raw {
+    margin: 0;
+    max-height: 160px;
+    overflow: auto;
     white-space: pre-wrap;
     word-break: break-word;
+    opacity: 0.9;
   }
 
   .git-error-dismiss {

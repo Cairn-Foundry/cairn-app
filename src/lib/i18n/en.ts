@@ -714,6 +714,134 @@ export const en = {
 		acceptBoth: "Accept both",
 		prevConflict: "Previous conflict",
 		nextConflict: "Next conflict",
+		errors: {
+			showDetails: "Details",
+			hideDetails: "Hide details",
+			actions: {
+				setUpstream: "Push and set upstream",
+				pullThenPush: "Pull and rebase, then push",
+				removeLock: "Remove the lock file",
+				stashAndRetry: "Stash changes and retry",
+			},
+			codes: {
+				lock_exists: {
+					title: "Repository locked by another git process",
+					hint: "An index.lock file is left over. Close any other git client, then remove it.",
+				},
+				auth_required: {
+					title: "No credentials available",
+					hint: "Git could not ask for your credentials. Configure an SSH key or a credential helper for this remote.",
+				},
+				auth_failed: {
+					title: "Authentication rejected",
+					hint: "The remote refused your credentials. Check your SSH key or your access token.",
+				},
+				protected_branch: {
+					title: "Protected branch",
+					hint: "The remote forbids pushing directly to this branch. Open a merge request instead.",
+				},
+				hook_rejected: {
+					title: "Rejected by a git hook",
+					hint: "A hook stopped the operation. The hook output is in the details.",
+				},
+				permission_denied: {
+					title: "Insufficient permissions",
+					hint: "Your account is not allowed to write to this repository.",
+				},
+				remote_not_found: {
+					title: "Remote repository not found",
+					hint: "The repository does not exist or is not visible to your account. Check the remote URL.",
+				},
+				remote_unreachable: {
+					title: "Invalid remote",
+					hint: "The configured remote does not point to a git repository.",
+				},
+				no_remote: {
+					title: "No remote configured",
+					hint: "This repository has no remote to push to. Add one with git remote add origin.",
+				},
+				network_unreachable: {
+					title: "Remote unreachable",
+					hint: "Check your network connection, your VPN, or the remote host name.",
+				},
+				no_upstream: {
+					title: "Branch has no upstream",
+					hint: "This branch does not track a remote branch yet.",
+				},
+				non_fast_forward: {
+					title: "Push rejected: the remote is ahead",
+					hint: "The remote branch has commits you do not have. Pull before pushing.",
+				},
+				dirty_worktree: {
+					title: "Uncommitted local changes",
+					hint: "Commit or stash your changes before running this operation.",
+				},
+				unresolved_conflict: {
+					title: "Unresolved conflicts",
+					hint: "Resolve the remaining conflicts before continuing.",
+				},
+				operation_in_progress: {
+					title: "An operation is already in progress",
+					hint: "Finish or abort the merge or rebase in progress first.",
+				},
+				identity_missing: {
+					title: "Git identity missing",
+					hint: "Set a name and an email in the git profiles before committing.",
+				},
+				nothing_to_commit: {
+					title: "Nothing to commit",
+					hint: "No change is staged.",
+				},
+				detached_head: {
+					title: "Detached HEAD",
+					hint: "You are not on a branch. Check out a branch before running this operation.",
+				},
+				branch_exists: {
+					title: "Branch already exists",
+					hint: "Pick another name.",
+				},
+				branch_not_merged: {
+					title: "Branch not fully merged",
+					hint: "This branch carries commits that exist nowhere else. Deleting it would lose them.",
+				},
+				ref_not_found: {
+					title: "Reference not found",
+					hint: "The branch, commit, or path does not exist in this repository.",
+				},
+				no_disk_space: {
+					title: "No space left on device",
+					hint: "Free up some disk space, then retry.",
+				},
+				invalid_ref: {
+					title: "Invalid reference",
+					hint: "This name cannot be used as a git reference.",
+				},
+				path_missing: {
+					title: "Path does not exist",
+					hint: "Check the selected location.",
+				},
+				path_not_directory: {
+					title: "Path is not a directory",
+					hint: "Select a folder.",
+				},
+				not_a_repository: {
+					title: "Not a git repository",
+					hint: "This folder is not managed by git.",
+				},
+				bare_repository: {
+					title: "Bare repository",
+					hint: "Bare repositories are not supported.",
+				},
+				git_unavailable: {
+					title: "Git could not be run",
+					hint: "Check that git is installed and available in your PATH.",
+				},
+				unknown: {
+					title: "Git operation failed",
+					hint: "",
+				},
+			},
+		},
 	},
 
 	review: {
