@@ -26,7 +26,7 @@ export async function loadPaneBase(
 		return emptyDiffState();
 	}
 
-	if (status === "untracked") {
+	if (status === "untracked" || status === "conflicted") {
 		return { baseContent: null, currentBlame: new Map() };
 	}
 

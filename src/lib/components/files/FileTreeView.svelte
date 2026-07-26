@@ -18,7 +18,6 @@
   export let tooltipSplit: string;
 
   export let onCollapseAll: () => void;
-  export let onExpandAll: () => void;
   export let onNewFileTopLevel: () => void;
   export let onNewFolderTopLevel: () => void;
   export let onToggleSearchPanel: () => void;
@@ -88,9 +87,6 @@
     <div class="tree-header-actions">
       <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.collapseAll') as string} on:click={(e) => { e.stopPropagation(); onCollapseAll(); }}>
         <Icon name="collapse-all" size={12}/>
-      </button>
-      <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.expandAll') as string} on:click={(e) => { e.stopPropagation(); onExpandAll(); }}>
-        <Icon name="expand-all" size={12}/>
       </button>
       <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.newFile') as string} on:click={(e) => { e.stopPropagation(); onNewFileTopLevel(); }}>
         <Icon name="file" size={12}/>
@@ -275,6 +271,7 @@
   .file-tree-item.git-deleted .file-tree-name { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
   .file-tree-item.git-deleted { cursor: default; }
   .file-tree-item.git-staged .file-tree-name { color: var(--accent); }
+  .file-tree-item.git-conflicted .file-tree-name { color: var(--danger); font-weight: 600; }
   .file-tree-item.multi-selected { background: var(--accent-weak); color: var(--fg-0); }
   .file-tree-item.file-cut { opacity: 0.45; }
   .file-tree-item.file-cut .file-tree-name { text-decoration: underline dashed; text-underline-offset: 3px; }

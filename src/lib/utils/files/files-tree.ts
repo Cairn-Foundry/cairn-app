@@ -1,6 +1,7 @@
 import type { FileNode, GitStatusMap } from "$lib/services/file-service";
 
 export const GIT_STATUS_PRIORITY = [
+	"conflicted",
 	"staged",
 	"modified",
 	"deleted",
@@ -46,15 +47,6 @@ export function collectFilePaths(nodes: FileNode[]): Set<string> {
 	}
 	walk(nodes);
 	return result;
-}
-
-export function collectDirPaths(nodes: FileNode[], acc: Set<string>): void {
-	for (const n of nodes) {
-		if (n.isDir) {
-			acc.add(n.path);
-			if (n.children) collectDirPaths(n.children, acc);
-		}
-	}
 }
 
 function findNode(nodes: FileNode[], path: string): FileNode | null {

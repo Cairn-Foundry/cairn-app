@@ -1,7 +1,19 @@
 <script lang="ts">
   import type { GitDiffHunk } from '$lib/services/git-service';
+  import { t } from '$lib/i18n';
 
   export let hunks: GitDiffHunk[] = [];
+
+  const PAGE = 300;
+  let shown = PAGE;
+
+  let lastSignature = '';
+  $: signature =
+    hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
+  $: if (signature !== lastSignature) {
+    lastSignature = signature;
+    shown = PAGE;
+  }
 
   type Row =
     | { kind: 'sep'; header: string }
@@ -38,10 +50,12 @@
     });
     return out;
   })();
+
+  $: hidden = Math.max(0, rows.length - shown);
 </script>
 
 <div class="git-diff">
-  {#each rows as row}
+  {#each rows.slice(0, shown) as row}
     {#if row.kind === 'sep'}
       <div class="diff-sep">{row.header}</div>
     {:else}
@@ -53,6 +67,11 @@
       </div>
     {/if}
   {/each}
+  {#if hidden > 0}
+    <button class="diff-more" on:click={() => (shown += PAGE)}>
+      {(t('git.showMoreLines') as (n: number) => string)(hidden)}
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -108,6 +127,23 @@
     background: color-mix(in oklch, var(--danger) 10%, transparent);
   }
   .diff-remove .sign { color: var(--danger); }
+
+  .diff-more {
+    display: block;
+    width: 100%;
+    padding: 6px;
+    border: none;
+    border-top: 1px solid var(--stroke-0);
+    background: var(--bg-2);
+    color: var(--fg-3);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .diff-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
 
   .diff-sep {
     padding: 2px 10px;

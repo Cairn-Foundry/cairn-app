@@ -11,7 +11,8 @@ import { get } from 'svelte/store';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { refreshStatus as refreshGitStore } from '$lib/stores/git';
+  import { refreshStatus as refreshGitStore, stageFile as stageGitFile } from '$lib/stores/git';
+  import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
@@ -37,7 +38,6 @@ import { get } from 'svelte/store';
     flattenVisible,
     flattenToNodes,
     collectFilePaths,
-    collectDirPaths,
     pasteDestName,
     resolveDestName,
     parentPathOf,
@@ -346,17 +346,19 @@ import { get } from 'svelte/store';
     pane.saving = true;
     panes = panes;
     const wasDeleted = gitStatusMap[tab.path] === 'deleted';
+    const wasConflicted = gitStatusMap[tab.path] === 'conflicted';
+    const hadMarkers = hasConflictMarkers(tab.content);
     try {
       const writeContent = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
       await writeFile(`${worktreePath}/${tab.path}`, writeContent);
       pane.tabs[pane.activeTabIdx].content = tab.pending;
       panes = panes;
       if (wasDeleted) await loadTree(worktreePath);
-      // Reflect the new git status (clean → modified, etc.) in the tree/tabs
-      // immediately instead of waiting for the 3s poll.
+      if (wasConflicted && hadMarkers && !hasConflictMarkers(tab.pending)) {
+        await stageGitFile(tab.path).catch(() => {});
+      }
       const updatedStatus = await gitStatus(worktreePath).catch(() => null);
       if (updatedStatus !== null) { gitStatusMap = updatedStatus; tree = rawTree; }
-      // Keep the sidebar git counters live without waiting for the poll.
       void refreshGitStore(true);
       refreshDiff(i, tab);
     } catch (e) {
@@ -455,6 +457,35 @@ import { get } from 'svelte/store';
     } catch {
       // File may not exist after discard; leave tabs as-is
     }
+  }
+
+  export async function reloadOpenFiles(): Promise<void> {
+    if (!worktreePath) return;
+    const paths = new Set<string>();
+    for (const pane of panes) for (const tab of pane.tabs) paths.add(tab.path);
+    for (const path of paths) {
+      let text: string;
+      try {
+        const raw = await readFile(`${worktreePath}/${path}`) ?? '';
+        const le = detectLineEndings(raw);
+        text = normalizeLineEndings(raw, le);
+        for (const pane of panes) {
+          for (const tab of pane.tabs) {
+            if (tab.path === path && tab.content !== text) {
+              tab.content = text;
+              tab.pending = text;
+              if (le) tab.lineEndings = le;
+            }
+          }
+        }
+      } catch {
+        // File may no longer exist; leave that tab as-is
+      }
+    }
+    panes = panes;
+    await Promise.all(
+      panes.map((p, i) => loadPaneBaseFor(i, p.tabs[p.activeTabIdx] ?? null)),
+    );
   }
 
   $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
@@ -1412,12 +1443,6 @@ import { get } from 'svelte/store';
 
   function collapseAll() { expanded = new Set(); }
 
-  function expandAll() {
-    const all = new Set<string>();
-    collectDirPaths(tree, all);
-    expanded = all;
-  }
-
 </script>
 
 <div class="files-layout" class:sidebar-right={sidebarRight} class:sidebar-hidden={sidebarHidden}>
@@ -1429,7 +1454,6 @@ import { get } from 'svelte/store';
     {tooltipSearch}
     {tooltipSplit}
     onCollapseAll={collapseAll}
-    onExpandAll={expandAll}
     onNewFileTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}
     onNewFolderTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}
     onToggleSearchPanel={toggleSearchPanel}

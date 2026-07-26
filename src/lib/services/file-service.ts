@@ -73,6 +73,7 @@ export type GitFileStatus =
 	| "modified"
 	| "untracked"
 	| "deleted"
+	| "conflicted"
 	| "staged-added"
 	| "staged-deleted"
 	| "staged-renamed"

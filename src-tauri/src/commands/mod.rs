@@ -27,6 +27,8 @@ pub use git::{
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
     git_push, git_pull, git_fetch, git_remote_status,
+    git_operation_state, git_rm, git_merge, git_merge_continue, git_merge_abort,
+    git_rebase, git_rebase_continue, git_rebase_skip, git_rebase_abort,
     git_log,
     git_graph,
     git_diff_commit,

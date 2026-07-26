@@ -6,7 +6,6 @@ import type {
 import {
 	basename,
 	breadcrumbSegments,
-	collectDirPaths,
 	collectFilePaths,
 	fileIcon,
 	flattenToNodes,
@@ -82,27 +81,6 @@ describe("collectFilePaths", () => {
 	it("excludes directories", () => {
 		const paths = collectFilePaths(tree);
 		expect(paths.has("src")).toBe(false);
-	});
-});
-
-describe("collectDirPaths", () => {
-	it("collects all directory paths recursively", () => {
-		const acc = new Set<string>();
-		collectDirPaths(tree, acc);
-		expect(acc).toEqual(new Set(["src", "src/lib"]));
-	});
-
-	it("does not include file paths", () => {
-		const acc = new Set<string>();
-		collectDirPaths(tree, acc);
-		expect(acc.has("README.md")).toBe(false);
-	});
-
-	it("handles directory nodes with no children array", () => {
-		const childless: FileNode = { name: "empty", path: "empty", isDir: true };
-		const acc = new Set<string>();
-		collectDirPaths([childless], acc);
-		expect(acc).toEqual(new Set(["empty"]));
 	});
 });
 

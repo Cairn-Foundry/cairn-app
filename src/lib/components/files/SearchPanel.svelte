@@ -149,7 +149,6 @@
     return [trimmed.slice(0, s), trimmed.slice(s, e), trimmed.slice(e)];
   }
 
-  function expandAll() { groups = groups.map(g => ({ ...g, collapsed: false })); }
   function collapseAll() { groups = groups.map(g => ({ ...g, collapsed: true })); }
 
   $: resultCount = results.length;
@@ -172,9 +171,6 @@
         <Icon name="settings" size={13} />
       </button>
       {#if groups.length > 0}
-        <button type="button" class="search-icon-btn" title={t('search.expandAll') as string} on:click={expandAll} aria-label={t('search.expandAll') as string}>
-          <Icon name="chev-d" size={13} />
-        </button>
         <button type="button" class="search-icon-btn" title={t('search.collapseAll') as string} on:click={collapseAll} aria-label={t('search.collapseAll') as string}>
           <Icon name="chev-r" size={13} />
         </button>

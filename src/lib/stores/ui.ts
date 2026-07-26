@@ -7,6 +7,6 @@ export const terminalActive = writable(false);
 export const quickOpenVisible = writable(false);
 export const commandPaletteVisible = writable(false);
 export const pendingGitAction = writable<"createProfile" | null>(null);
-export const gitLeftTab = writable<"changes" | "log" | "graph" | "stash">(
-	"changes",
-);
+export const gitLeftTab = writable<
+	"changes" | "log" | "graph" | "stash" | "mergerebase"
+>("changes");

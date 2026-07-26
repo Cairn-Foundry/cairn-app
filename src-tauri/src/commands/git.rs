@@ -249,7 +249,7 @@ pub fn is_git_repo(worktree_path: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, String> {
+pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>, String> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["status", "--porcelain", "-u"])
@@ -274,7 +274,14 @@ pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, Stri
             path
         };
 
-        let category = if x == '?' && y == '?' {
+        let is_conflict = x == 'U'
+            || y == 'U'
+            || (x == 'A' && y == 'A')
+            || (x == 'D' && y == 'D');
+
+        let category = if is_conflict {
+            "conflicted"
+        } else if x == '?' && y == '?' {
             "untracked"
         } else if y == 'D' {
             "deleted"
@@ -299,7 +306,7 @@ pub fn git_status(worktree_path: String) -> Result<HashMap<String, String>, Stri
 }
 
 #[tauri::command]
-pub fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, String> {
+pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, String> {
     if paths.is_empty() {
         return Ok(Vec::new());
     }
@@ -319,21 +326,21 @@ pub fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"]))?;
     Ok(parse_diff(&raw))
 }
 
 #[tauri::command]
-pub fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, String> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"]))?;
     Ok(parse_diff(&raw))
 }
 
 #[tauri::command]
-pub fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, String> {
+pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, String> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["show", &format!("HEAD:{}", file_path)])
@@ -347,7 +354,7 @@ pub fn git_file_at_head(worktree_path: String, file_path: String) -> Result<Stri
 }
 
 #[tauri::command]
-pub fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, String> {
+pub async fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, String> {
     let expanded = expand(&worktree_path);
     let mut args = vec!["diff", "--unified=3"];
     if staged { args.push("--cached"); }
@@ -543,7 +550,7 @@ pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, String> {
+pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, String> {
     validate_ref(&branch)?;
     let expanded = expand(&worktree_path);
     let mut args = vec!["push"];
@@ -563,22 +570,18 @@ pub fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Re
 }
 
 #[tauri::command]
-pub fn git_pull(worktree_path: String) -> Result<String, String> {
+pub async fn git_pull(worktree_path: String) -> Result<GitOpResult, String> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["pull"]).output().map_err(|e| e.to_string())?;
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    if !out.status.success() {
-        return Err(combined);
-    }
-    Ok(combined)
+    let out = git_cmd(&expanded)
+        .env("GIT_EDITOR", "true")
+        .args(["pull", "--rebase"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
 }
 
 #[tauri::command]
-pub fn git_fetch(worktree_path: String) -> Result<(), String> {
+pub async fn git_fetch(worktree_path: String) -> Result<(), String> {
     let expanded = expand(&worktree_path);
     let out = git_cmd(&expanded).args(["fetch", "--prune"]).output().map_err(|e| e.to_string())?;
     if !out.status.success() {
@@ -612,6 +615,256 @@ pub fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, String> 
 }
 
 // ---------------------------------------------------------------------------
+// Rebase / Merge / Conflicts
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+pub struct GitOpResult {
+    pub ok: bool,
+    #[serde(rename = "hasConflicts")]
+    pub has_conflicts: bool,
+    #[serde(rename = "conflictedFiles")]
+    pub conflicted_files: Vec<String>,
+    pub output: String,
+}
+
+#[derive(Serialize)]
+pub struct GitOperationState {
+    pub kind: String, // "rebase" | "merge" | "none"
+    #[serde(rename = "conflictedFiles")]
+    pub conflicted_files: Vec<String>,
+    // Subset of conflictedFiles that are delete/add conflicts (no inline markers).
+    #[serde(rename = "structuralFiles")]
+    pub structural_files: Vec<String>,
+    pub head: String,
+    pub current: usize,
+    pub total: usize,
+}
+
+fn git_path(worktree: &str, name: &str) -> Option<std::path::PathBuf> {
+    let out = git_cmd(worktree).args(["rev-parse", "--git-path", name]).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if raw.is_empty() {
+        return None;
+    }
+    let path = Path::new(&raw);
+    Some(if path.is_absolute() { path.to_path_buf() } else { Path::new(worktree).join(path) })
+}
+
+fn operation_kind(worktree: &str) -> String {
+    let exists = |name: &str| git_path(worktree, name).map(|p| p.exists()).unwrap_or(false);
+    if exists("rebase-merge") || exists("rebase-apply") {
+        return "rebase".to_string();
+    }
+    if exists("MERGE_HEAD") {
+        return "merge".to_string();
+    }
+    "none".to_string()
+}
+
+fn read_git_file(worktree: &str, name: &str) -> Option<String> {
+    let path = git_path(worktree, name)?;
+    fs::read_to_string(path).ok().map(|s| s.trim().to_string())
+}
+
+fn rebase_progress(worktree: &str) -> (String, usize, usize) {
+    let head = read_git_file(worktree, "rebase-merge/head-name")
+        .map(|h| h.trim_start_matches("refs/heads/").to_string())
+        .unwrap_or_default();
+    let current = read_git_file(worktree, "rebase-merge/msgnum")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    let total = read_git_file(worktree, "rebase-merge/end")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    (head, current, total)
+}
+
+fn conflicted_files(worktree: &str) -> Vec<String> {
+    let out = git_cmd(worktree).args(["diff", "--name-only", "--diff-filter=U"]).output();
+    match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(String::from)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+// (path, is_structural). Content conflicts (UU/AA) carry inline markers; every
+// other unmerged state (delete/add) is structural and resolved by keep/remove.
+fn conflict_entries(worktree: &str) -> Vec<(String, bool)> {
+    let out = match git_cmd(worktree).args(["status", "--porcelain"]).output() {
+        Ok(o) if o.status.success() => o,
+        _ => return Vec::new(),
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut entries = Vec::new();
+    for line in text.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let x = line.chars().next().unwrap_or(' ');
+        let y = line.chars().nth(1).unwrap_or(' ');
+        let unmerged =
+            x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
+        if !unmerged {
+            continue;
+        }
+        let path = line[3..].trim_end().to_string();
+        let is_content = (x == 'U' && y == 'U') || (x == 'A' && y == 'A');
+        entries.push((path, !is_content));
+    }
+    entries
+}
+
+fn finish_op(worktree: &str, out: std::process::Output) -> Result<GitOpResult, String> {
+    let output = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    if out.status.success() {
+        return Ok(GitOpResult { ok: true, has_conflicts: false, conflicted_files: Vec::new(), output });
+    }
+    let conflicts = conflicted_files(worktree);
+    if operation_kind(worktree) != "none" || !conflicts.is_empty() {
+        return Ok(GitOpResult { ok: false, has_conflicts: true, conflicted_files: conflicts, output });
+    }
+    Err(output)
+}
+
+#[tauri::command]
+pub fn git_operation_state(worktree_path: String) -> Result<GitOperationState, String> {
+    let expanded = expand(&worktree_path);
+    let kind = operation_kind(&expanded);
+    if kind == "none" {
+        return Ok(GitOperationState {
+            kind,
+            conflicted_files: Vec::new(),
+            structural_files: Vec::new(),
+            head: String::new(),
+            current: 0,
+            total: 0,
+        });
+    }
+    let entries = conflict_entries(&expanded);
+    let conflicted_files: Vec<String> = entries.iter().map(|(p, _)| p.clone()).collect();
+    let structural_files: Vec<String> = entries
+        .iter()
+        .filter(|(_, structural)| *structural)
+        .map(|(p, _)| p.clone())
+        .collect();
+    let (head, current, total) = if kind == "rebase" {
+        rebase_progress(&expanded)
+    } else {
+        (String::new(), 0, 0)
+    };
+    Ok(GitOperationState {
+        kind,
+        conflicted_files,
+        structural_files,
+        head,
+        current,
+        total,
+    })
+}
+
+#[tauri::command]
+pub async fn git_rm(worktree_path: String, file_path: String) -> Result<(), String> {
+    validate_ref(&file_path)?;
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .args(["rm", "-f", "--", &file_path])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_merge(worktree_path: String, branch: String) -> Result<GitOpResult, String> {
+    validate_ref(&branch)?;
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .args(["merge", "--no-edit", "--", &branch])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
+}
+
+#[tauri::command]
+pub async fn git_merge_continue(worktree_path: String) -> Result<GitOpResult, String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .env("GIT_EDITOR", "true")
+        .args(["merge", "--continue"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
+}
+
+#[tauri::command]
+pub async fn git_merge_abort(worktree_path: String) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded).args(["merge", "--abort"]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_rebase(worktree_path: String, onto: String) -> Result<GitOpResult, String> {
+    validate_ref(&onto)?;
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .env("GIT_EDITOR", "true")
+        .args(["rebase", "--", &onto])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
+}
+
+#[tauri::command]
+pub async fn git_rebase_continue(worktree_path: String) -> Result<GitOpResult, String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .env("GIT_EDITOR", "true")
+        .args(["rebase", "--continue"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
+}
+
+#[tauri::command]
+pub async fn git_rebase_skip(worktree_path: String) -> Result<GitOpResult, String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .env("GIT_EDITOR", "true")
+        .args(["rebase", "--skip"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    finish_op(&expanded, out)
+}
+
+#[tauri::command]
+pub async fn git_rebase_abort(worktree_path: String) -> Result<(), String> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded).args(["rebase", "--abort"]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Graph
 // ---------------------------------------------------------------------------
 
@@ -628,7 +881,7 @@ pub struct GitGraphCommit {
 }
 
 #[tauri::command]
-pub fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, String> {
+pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, String> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
         "log", "--all", "--topo-order",
@@ -660,7 +913,7 @@ pub fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<V
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, String> {
+pub async fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec<GitFileDiff>, String> {
     validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
@@ -670,7 +923,7 @@ pub fn git_diff_commit(worktree_path: String, commit_hash: String) -> Result<Vec
 }
 
 #[tauri::command]
-pub fn git_commit_body(worktree_path: String, commit_hash: String) -> Result<String, String> {
+pub async fn git_commit_body(worktree_path: String, commit_hash: String) -> Result<String, String> {
     validate_ref(&commit_hash)?;
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
@@ -719,7 +972,7 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
 }
 
 #[tauri::command]
-pub fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
+pub async fn git_stash_list(worktree_path: String) -> Result<Vec<GitStash>, String> {
     let expanded = expand(&worktree_path);
     // %gs (reflog subject) is what native `git stash list` shows and, unlike %s
     // (commit subject), reflects a rename done via `git stash store -m`.
@@ -905,7 +1158,7 @@ pub fn git_revert_commit(worktree_path: String, commit_hash: String) -> Result<S
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, String> {
+pub async fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, String> {
     let expanded = expand(&worktree_path);
 
     let head_raw = run(git_cmd(&expanded).args(["log", "HEAD", "--format=%H"])).unwrap_or_default();

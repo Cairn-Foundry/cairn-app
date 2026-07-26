@@ -24,7 +24,7 @@
   import { instances, baseInstance, isBaseInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { gitFileCounts } from '$lib/stores/git';
+  import { gitFileCounts, gitHasConflicts } from '$lib/stores/git';
   import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
@@ -390,6 +390,9 @@
         >
           <span class="icon"><Icon name={s.icon} size={20}/></span>
           <span class="label">{s.label}</span>
+          {#if s.id === 'git' && $gitHasConflicts}
+            <span class="conflict-dot" title={t('git.conflictsToResolve') as string}></span>
+          {/if}
           {#if doneSteps.has(s.id)}
             <span class="check"><Icon name="check" size={11}/></span>
           {:else if s.id === 'git' && $gitFileCounts.total > 0}
@@ -427,7 +430,7 @@
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { activeStep.set('files'); terminalActive.set(false); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { activeStep.set('files'); terminalActive.set(false); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
       <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'cicd'}><CiCdView/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       {#if !activeInstance}

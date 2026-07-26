@@ -26,7 +26,8 @@ export type GitFileStatusValue =
 	| "staged-modified"
 	| "modified"
 	| "deleted"
-	| "untracked";
+	| "untracked"
+	| "conflicted";
 
 export type GitFileStatus = Record<string, GitFileStatusValue>;
 
@@ -44,6 +45,24 @@ export type RemoteStatus = {
 	behind: number;
 	remote: string;
 	hasUpstream: boolean;
+};
+
+export type GitOperationKind = "rebase" | "merge" | "none";
+
+export type GitOperationState = {
+	kind: GitOperationKind;
+	conflictedFiles: string[];
+	structuralFiles: string[];
+	head: string;
+	current: number;
+	total: number;
+};
+
+export type GitOpResult = {
+	ok: boolean;
+	hasConflicts: boolean;
+	conflictedFiles: string[];
+	output: string;
 };
 
 export async function isGitRepo(worktreePath: string): Promise<boolean> {
@@ -165,10 +184,6 @@ export async function getCurrentBranch(worktreePath: string): Promise<string> {
 	return invoke("git_current_branch", { worktreePath });
 }
 
-export async function listBranches(projectPath: string): Promise<string[]> {
-	return invoke("list_branches", { projectPath });
-}
-
 export async function checkoutBranch(
 	worktreePath: string,
 	branchName: string,
@@ -199,12 +214,63 @@ export async function push(
 	return invoke("git_push", { worktreePath, setUpstream, branch });
 }
 
-export async function pull(worktreePath: string): Promise<string> {
+export async function pull(worktreePath: string): Promise<GitOpResult> {
 	return invoke("git_pull", { worktreePath });
 }
 
 export async function fetch(worktreePath: string): Promise<void> {
 	return invoke("git_fetch", { worktreePath });
+}
+
+export async function getOperationState(
+	worktreePath: string,
+): Promise<GitOperationState> {
+	return invoke("git_operation_state", { worktreePath });
+}
+
+export async function merge(
+	worktreePath: string,
+	branch: string,
+): Promise<GitOpResult> {
+	return invoke("git_merge", { worktreePath, branch });
+}
+
+export async function rmFile(
+	worktreePath: string,
+	filePath: string,
+): Promise<void> {
+	return invoke("git_rm", { worktreePath, filePath });
+}
+
+export async function mergeContinue(
+	worktreePath: string,
+): Promise<GitOpResult> {
+	return invoke("git_merge_continue", { worktreePath });
+}
+
+export async function mergeAbort(worktreePath: string): Promise<void> {
+	return invoke("git_merge_abort", { worktreePath });
+}
+
+export async function rebase(
+	worktreePath: string,
+	onto: string,
+): Promise<GitOpResult> {
+	return invoke("git_rebase", { worktreePath, onto });
+}
+
+export async function rebaseContinue(
+	worktreePath: string,
+): Promise<GitOpResult> {
+	return invoke("git_rebase_continue", { worktreePath });
+}
+
+export async function rebaseSkip(worktreePath: string): Promise<GitOpResult> {
+	return invoke("git_rebase_skip", { worktreePath });
+}
+
+export async function rebaseAbort(worktreePath: string): Promise<void> {
+	return invoke("git_rebase_abort", { worktreePath });
 }
 
 export async function getRemoteStatus(

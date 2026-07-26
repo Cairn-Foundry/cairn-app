@@ -118,6 +118,19 @@ Component -> Store -> Service -> invoke() -> Rust command -> ~/.cairn/*.json
 - **Stores** (`src/lib/stores/`) hold reactive Svelte state and call services. They are the single source of truth for the UI.
 - **Rust commands** (`src-tauri/src/commands/`) are registered in `lib.rs` and organized by domain: `projects`, `instances`, `settings`, `git`, `files`, `agent`, `shell`, `ui_state`, `file_state`.
 
+### Blocking commands must be `async` (or the UI freezes)
+
+A synchronous `#[tauri::command] fn` runs on the **main thread**, which on macOS is also the
+webview/UI thread. Any command that blocks for more than a few milliseconds - shelling out to
+`git` for `fetch` / `pull` / `push` / `merge` / `rebase`, cloning a repo, creating a worktree,
+spawning a process - freezes the whole window while it runs: no repaint, and even a `Spinner` that
+was just shown cannot animate. The symptom is "freeze without loading".
+
+Declare any such command `pub async fn` (the body can stay ordinary blocking code - Tauri runs
+`async` commands on a worker thread, off the main thread). Reserve plain `fn` for genuinely fast,
+in-memory work (reading a small JSON file, string parsing). When a command feels slow in the app,
+this is the first thing to check.
+
 ### Persistent storage on disk
 
 All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/storage.rs`:

@@ -47,6 +47,7 @@
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
+  import { buildConflictResolver } from '$lib/utils/editor/editor-conflict';
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
@@ -242,6 +243,7 @@
       autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: EDITOR_DEFAULTS.autocompleteMaxRendered }),
       buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
+      buildConflictResolver(),
       minimapCompartment.of(buildMinimap(minimapEnabled)),
       themeCompartment.of(buildEditorTheme(theme)),
       fontSizeCompartment.of(buildFontSizeTheme(fontSize)),

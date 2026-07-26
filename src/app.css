@@ -447,6 +447,12 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .step .git-badge .unstaged { background: var(--warning); }
 .step .git-badge .staged { background: var(--accent); }
+.step .conflict-dot {
+  position: absolute; top: 6px; left: 6px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
 .sidebar .divider {
   height: 1px; background: var(--stroke-0);
   margin: 6px 16px;

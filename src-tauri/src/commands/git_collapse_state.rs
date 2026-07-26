@@ -8,6 +8,8 @@ pub struct GitCollapseState {
     pub collapsed_unstaged: Vec<String>,
     #[serde(rename = "collapsedStaged", default)]
     pub collapsed_staged: Vec<String>,
+    #[serde(rename = "expandedStaged", default)]
+    pub expanded_staged: Vec<String>,
 }
 
 fn read_git_collapse_state(project_id: &str, instance_id: &str) -> Result<Option<GitCollapseState>, String> {

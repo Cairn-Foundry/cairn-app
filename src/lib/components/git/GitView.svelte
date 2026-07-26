@@ -6,6 +6,8 @@
   import GitDiff from '$lib/components/git/GitDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
+  import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
+  import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import { readFile, isBinaryPath } from '$lib/services/file-service';
   import { getDiffCommit, getCommitBody, checkIgnore } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk } from '$lib/services/git-service';
@@ -46,7 +48,7 @@
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
-  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string }>();
+  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void }>();
 
   function goToGitSettings() {
     pendingGitAction.set('createProfile');
@@ -490,7 +492,7 @@
     }
   }
 
-  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash') {
+  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'mergerebase') {
     gitLeftTab.set(tab);
     if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
     if (tab === 'log') { refreshLog(); selectedStash = null; }
@@ -521,6 +523,26 @@
         isLoadingMoreLog = false;
       }
     }
+  }
+
+  const CHANGES_PAGE = 25;
+  let unstagedVisible = CHANGES_PAGE;
+  let stagedVisible = CHANGES_PAGE;
+  let prevChangesKey = '';
+  $: {
+    const key = `${instance?.id ?? ''}:${$currentProjectViewState.gitChangesSearch}`;
+    if (key !== prevChangesKey) {
+      prevChangesKey = key;
+      unstagedVisible = CHANGES_PAGE;
+      stagedVisible = CHANGES_PAGE;
+    }
+  }
+
+  function handleChangesScroll(e: Event, which: 'unstaged' | 'staged') {
+    const el = e.currentTarget as HTMLElement;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 250) return;
+    if (which === 'unstaged') unstagedVisible += CHANGES_PAGE;
+    else stagedVisible += CHANGES_PAGE;
   }
 
   $: aheadCount = state.remoteStatus?.ahead ?? 0;
@@ -613,7 +635,7 @@
 
   let showOptions = false;
   let collapsedUnstaged = new Set<string>();
-  let collapsedStaged = new Set<string>();
+  let expandedStaged = new Set<string>();
   let profileDropdownOpen = false;
 
   function toggleUnstagedCollapse(path: string) {
@@ -622,21 +644,15 @@
     collapsedUnstaged = collapsedUnstaged;
   }
   function toggleStagedCollapse(path: string) {
-    if (collapsedStaged.has(path)) collapsedStaged.delete(path);
-    else collapsedStaged.add(path);
-    collapsedStaged = collapsedStaged;
+    if (expandedStaged.has(path)) expandedStaged.delete(path);
+    else expandedStaged.add(path);
+    expandedStaged = expandedStaged;
   }
   function collapseAllUnstaged() {
     collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(c => c.filePath));
   }
-  function expandAllUnstaged() {
-    collapsedUnstaged = new Set();
-  }
   function collapseAllStaged() {
-    collapsedStaged = new Set(stagedCards.filter(c => c.hasDiff).map(c => c.filePath));
-  }
-  function expandAllStaged() {
-    collapsedStaged = new Set();
+    expandedStaged = new Set();
   }
   let profileTriggerEl: HTMLElement | null = null;
   let profileDropdownEl: HTMLElement | null = null;
@@ -690,7 +706,7 @@
       });
       getGitCollapseState(instance!.projectId, iid).then((s) => {
         collapsedUnstaged = new Set(s?.collapsedUnstaged ?? []);
-        collapsedStaged = new Set(s?.collapsedStaged ?? []);
+        expandedStaged = new Set(s?.expandedStaged ?? []);
         collapseStateLoaded = true;
       });
     }
@@ -705,7 +721,8 @@
   $: if (collapseStateLoaded && instance) {
     saveGitCollapseState(instance.projectId, instance.id, {
       collapsedUnstaged: [...collapsedUnstaged],
-      collapsedStaged: [...collapsedStaged],
+      collapsedStaged: [],
+      expandedStaged: [...expandedStaged],
     });
   }
 
@@ -786,6 +803,7 @@
   }
 }}/>
 
+<div class="git-root">
 {#if state.error}
   <div class="git-error-banner" role="alert">
     <Icon name="alert" size={13}/>
@@ -795,6 +813,8 @@
     </button>
   </div>
 {/if}
+
+<GitBranchBar on:openMergeRebase={() => setLeftTab('mergerebase')} on:filesChanged={() => dispatch('filesChanged')} />
 
 {#if state.isGitRepo}
 <div class="git-layout">
@@ -836,6 +856,16 @@
       >
         {t('git.graphTab')}
       </button>
+      <button
+        class="col-tab"
+        class:active={$gitLeftTab === 'mergerebase'}
+        on:click={() => setLeftTab('mergerebase')}
+      >
+        {t('git.mergeRebaseTab')}
+        {#if (state.operationState?.kind ?? 'none') !== 'none'}
+          <span class="col-tab-dot" title={t('git.rebaseInProgress') as string}></span>
+        {/if}
+      </button>
     </div>
 
     {#if $gitLeftTab === 'changes'}
@@ -862,9 +892,6 @@
           <button class="collapse-toggle-btn" title={t('git.collapseAll') as string} on:click={collapseAllUnstaged}>
             <Icon name="collapse-all" size={13}/>
           </button>
-          <button class="collapse-toggle-btn" title={t('git.expandAll') as string} on:click={expandAllUnstaged}>
-            <Icon name="expand-all" size={13}/>
-          </button>
         {/if}
         <div class="log-search">
           <Icon name="search" size={11}/>
@@ -879,7 +906,7 @@
           {/if}
         </div>
       </div>
-      <div class="hunks-list">
+      <div class="hunks-list" on:scroll={(e) => handleChangesScroll(e, 'unstaged')}>
         {#if unstagedCards.length === 0}
           <div class="empty-hint">
             {#if state.isLoading}
@@ -893,7 +920,7 @@
         {:else if filteredUnstagedCards.length === 0}
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
-          {#each filteredUnstagedCards as h (h.filePath)}
+          {#each filteredUnstagedCards.slice(0, unstagedVisible) as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedUnstaged.has(h.filePath)}>
               <div class="hunk-card-head">
                 {#if h.hasDiff}
@@ -942,6 +969,16 @@
               {/if}
             </div>
           {/each}
+          {#if filteredUnstagedCards.length > unstagedVisible}
+            <button
+              class="load-more-cards"
+              on:click={() => (unstagedVisible += CHANGES_PAGE)}
+            >
+              {(t('git.showMoreFiles') as (n: number) => string)(
+                filteredUnstagedCards.length - unstagedVisible,
+              )}
+            </button>
+          {/if}
         {/if}
       </div>
     {:else if $gitLeftTab === 'log'}
@@ -1025,6 +1062,11 @@
       <StashView
         selectedStashIndex={selectedStash?.index ?? null}
         on:selectStash={(e) => handleSelectStash(e.detail)}
+      />
+    {:else if $gitLeftTab === 'mergerebase'}
+      <MergeRebaseView
+        on:openFile={(e) => dispatch('openFile', e.detail)}
+        on:filesChanged={() => dispatch('filesChanged')}
       />
     {/if}
   </div>
@@ -1212,9 +1254,6 @@
           <button class="collapse-toggle-btn" title={t('git.collapseAll') as string} on:click={collapseAllStaged}>
             <Icon name="collapse-all" size={13}/>
           </button>
-          <button class="collapse-toggle-btn" title={t('git.expandAll') as string} on:click={expandAllStaged}>
-            <Icon name="expand-all" size={13}/>
-          </button>
           <div class="log-search">
             <Icon name="search" size={11}/>
             <input
@@ -1229,7 +1268,7 @@
           </div>
         </div>
       {/if}
-      <div class="hunks-list">
+      <div class="hunks-list" on:scroll={(e) => handleChangesScroll(e, 'staged')}>
         {#if stagedCards.length === 0}
           <div class="empty-hint">
             {t('git.noStagedChanges')}
@@ -1237,12 +1276,12 @@
         {:else if filteredStagedCards.length === 0}
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
-          {#each filteredStagedCards as h (h.filePath)}
-            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedStaged.has(h.filePath)}>
+          {#each filteredStagedCards.slice(0, stagedVisible) as h (h.filePath)}
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={!expandedStaged.has(h.filePath)}>
               <div class="hunk-card-head">
                 {#if h.hasDiff}
-                  <button class="card-collapse-btn" title={(collapsedStaged.has(h.filePath) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleStagedCollapse(h.filePath)}>
-                    <Icon name={collapsedStaged.has(h.filePath) ? 'chev-r' : 'chev-d'} size={12}/>
+                  <button class="card-collapse-btn" title={(expandedStaged.has(h.filePath) ? t('git.collapseFile') : t('git.expandFile')) as string} on:click={() => toggleStagedCollapse(h.filePath)}>
+                    <Icon name={expandedStaged.has(h.filePath) ? 'chev-d' : 'chev-r'} size={12}/>
                   </button>
                 {/if}
                 <input
@@ -1271,7 +1310,7 @@
                 </button>
               </div>
               {#if h.hasDiff}
-                {#if !collapsedStaged.has(h.filePath)}
+                {#if expandedStaged.has(h.filePath)}
                   <div class="card-diff">
                     <GitDiff hunks={h.hunks} />
                   </div>
@@ -1281,6 +1320,16 @@
               {/if}
             </div>
           {/each}
+          {#if filteredStagedCards.length > stagedVisible}
+            <button
+              class="load-more-cards"
+              on:click={() => (stagedVisible += CHANGES_PAGE)}
+            >
+              {(t('git.showMoreFiles') as (n: number) => string)(
+                filteredStagedCards.length - stagedVisible,
+              )}
+            </button>
+          {/if}
         {/if}
       </div>
 
@@ -1440,6 +1489,7 @@
     <p class="git-nonrepo-text">{t('git.notARepoBody')}</p>
   </div>
 {/if}
+</div>
 
 {#if discardTarget}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -1581,9 +1631,19 @@
 {/if}
 
 <style>
-  .git-layout {
+  .git-root {
+    flex: 1;
     display: flex;
-    height: 100%;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .git-layout {
+    flex: 1;
+    display: flex;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -1714,6 +1774,13 @@
     padding: 1px 5px;
     line-height: 1.4;
     font-weight: 600;
+  }
+
+  .col-tab-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--danger);
   }
 
   .count {
@@ -1888,6 +1955,21 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .load-more-cards {
+    width: 100%;
+    padding: 8px;
+    border: 1px dashed var(--stroke-0);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-3);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .load-more-cards:hover {
+    background: var(--bg-2);
+    color: var(--fg-1);
   }
 
   .empty-hint {

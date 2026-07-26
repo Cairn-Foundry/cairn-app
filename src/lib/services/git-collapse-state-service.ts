@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 export interface GitCollapseState {
 	collapsedUnstaged: string[];
 	collapsedStaged: string[];
+	expandedStaged: string[];
 }
 
 export async function getGitCollapseState(

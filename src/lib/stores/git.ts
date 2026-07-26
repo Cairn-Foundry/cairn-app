@@ -4,10 +4,13 @@ import type {
 	GitFileDiff,
 	GitFileStatus,
 	GitGraphCommit,
+	GitOperationState,
+	GitOpResult,
 	GitStash,
 	RemoteStatus,
 } from "$lib/services/git-service";
 import * as gitService from "$lib/services/git-service";
+import { listBranchesDetailed } from "$lib/services/instance-service";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 
@@ -17,10 +20,12 @@ type GitState = {
 	stagedDiffs: GitFileDiff[];
 	currentBranch: string;
 	branches: string[];
+	remoteBranches: string[];
 	log: GitCommit[];
 	graph: GitGraphCommit[];
 	stashes: GitStash[];
 	remoteStatus: RemoteStatus | null;
+	operationState: GitOperationState | null;
 	commitMessage: string;
 	commitBody: string;
 	logHasMore: boolean;
@@ -39,10 +44,12 @@ const INITIAL: GitState = {
 	stagedDiffs: [],
 	currentBranch: "",
 	branches: [],
+	remoteBranches: [],
 	log: [],
 	graph: [],
 	stashes: [],
 	remoteStatus: null,
+	operationState: null,
 	commitMessage: "",
 	commitBody: "",
 	logHasMore: false,
@@ -65,6 +72,13 @@ export const gitFileCounts = derived(git, ($g) => {
 	const all = new Set([...staged, ...unstaged]);
 	return { staged: staged.size, unstaged: unstaged.size, total: all.size };
 });
+
+export const gitHasConflicts = derived(
+	git,
+	($g) =>
+		($g.status && Object.values($g.status).some((s) => s === "conflicted")) ||
+		($g.operationState?.conflictedFiles.length ?? 0) > 0,
+);
 
 export function clearGitError(): void {
 	_git.update((s) => (s.error ? { ...s, error: null } : s));
@@ -99,6 +113,7 @@ export async function refreshStatus(silent = false): Promise<void> {
 				stagedDiffs: [],
 				currentBranch: "",
 				remoteStatus: null,
+				operationState: null,
 				log: [],
 				graph: [],
 				stashes: [],
@@ -108,14 +123,21 @@ export async function refreshStatus(silent = false): Promise<void> {
 			}));
 			return;
 		}
-		const [status, unstagedDiffs, stagedDiffs, currentBranch, remoteStatus] =
-			await Promise.all([
-				gitService.getStatus(wt),
-				gitService.getDiffUnstaged(wt),
-				gitService.getDiffStaged(wt),
-				gitService.getCurrentBranch(wt),
-				gitService.getRemoteStatus(wt).catch(() => null),
-			]);
+		const [
+			status,
+			unstagedDiffs,
+			stagedDiffs,
+			currentBranch,
+			remoteStatus,
+			operationState,
+		] = await Promise.all([
+			gitService.getStatus(wt),
+			gitService.getDiffUnstaged(wt),
+			gitService.getDiffStaged(wt),
+			gitService.getCurrentBranch(wt),
+			gitService.getRemoteStatus(wt).catch(() => null),
+			gitService.getOperationState(wt).catch(() => null),
+		]);
 		_git.update((s) => ({
 			...s,
 			status,
@@ -123,6 +145,7 @@ export async function refreshStatus(silent = false): Promise<void> {
 			stagedDiffs,
 			currentBranch,
 			remoteStatus,
+			operationState,
 			isGitRepo: true,
 			isLoading: false,
 		}));
@@ -292,17 +315,86 @@ export async function pushBranch(): Promise<void> {
 	await refreshStatus();
 }
 
-export async function pullBranch(): Promise<void> {
+export async function pullBranch(): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.pull(wt));
+	await refreshStatus();
+	return result;
+}
+
+export async function fetchRemote(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await mutate(() => gitService.pull(wt));
+	await mutate(() => gitService.fetch(wt));
+	await refreshStatus();
+}
+
+export async function mergeBranch(branch: string): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.merge(wt, branch));
+	await refreshStatus();
+	return result;
+}
+
+export async function rebaseOnto(onto: string): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.rebase(wt, onto));
+	await refreshStatus();
+	return result;
+}
+
+export async function continueRebase(): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.rebaseContinue(wt));
+	await refreshStatus();
+	return result;
+}
+
+export async function skipRebase(): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.rebaseSkip(wt));
+	await refreshStatus();
+	return result;
+}
+
+export async function abortRebase(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.rebaseAbort(wt));
+	await refreshStatus();
+}
+
+export async function removeFile(filePath: string): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.rmFile(wt, filePath));
+	await refreshStatus();
+}
+
+export async function continueMerge(): Promise<GitOpResult | null> {
+	const wt = worktree();
+	if (!wt) return null;
+	const result = await mutate(() => gitService.mergeContinue(wt));
+	await refreshStatus();
+	return result;
+}
+
+export async function abortMerge(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.mergeAbort(wt));
 	await refreshStatus();
 }
 
 export async function loadBranches(projectPath: string): Promise<void> {
 	try {
-		const branches = await gitService.listBranches(projectPath);
-		_git.update((s) => ({ ...s, branches }));
+		const { local, remote } = await listBranchesDetailed(projectPath);
+		_git.update((s) => ({ ...s, branches: local, remoteBranches: remote }));
 	} catch {
 		// Non-fatal
 	}
@@ -352,6 +444,9 @@ export function clearGitData(): void {
 		stagedDiffs: [],
 		currentBranch: "",
 		remoteStatus: null,
+		operationState: null,
+		branches: [],
+		remoteBranches: [],
 		log: [],
 		graph: [],
 		stashes: [],
