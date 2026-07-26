@@ -298,6 +298,18 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
 }
 
 #[tauri::command]
+pub fn update_instance_status(id: String, project_id: String, status: String) -> Result<Instance, String> {
+    let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut instances = read_instances(&project_id)?;
+    let instance = instances.iter_mut().find(|i| i.id == id)
+        .ok_or_else(|| format!("Instance '{}' not found", id))?;
+    instance.status = status;
+    let updated = instance.clone();
+    write_instances(&project_id, &instances)?;
+    Ok(updated.with_project(project_id))
+}
+
+#[tauri::command]
 pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
     let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
     let mut instances = read_instances(&project_id)?;

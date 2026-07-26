@@ -270,8 +270,9 @@ export async function push(
 	worktreePath: string,
 	setUpstream: boolean,
 	branch: string,
+	force = false,
 ): Promise<string> {
-	return invoke("git_push", { worktreePath, setUpstream, branch });
+	return invoke("git_push", { worktreePath, setUpstream, branch, force });
 }
 
 export async function pull(worktreePath: string): Promise<GitOpResult> {
@@ -341,6 +342,23 @@ export async function getRemoteStatus(
 	worktreePath: string,
 ): Promise<RemoteStatus> {
 	return invoke("git_remote_status", { worktreePath });
+}
+
+export async function getRemoteUrl(worktreePath: string): Promise<string> {
+	return invoke("git_remote_url", { worktreePath });
+}
+
+export type BranchDivergence = {
+	ahead: number;
+	behind: number;
+	baseRef: string;
+};
+
+export async function getBranchDivergence(
+	worktreePath: string,
+	base: string,
+): Promise<BranchDivergence> {
+	return invoke("git_branch_divergence", { worktreePath, base });
 }
 
 export async function getLog(

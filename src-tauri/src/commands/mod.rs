@@ -27,7 +27,8 @@ pub use git::{
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
-    git_push, git_pull, git_fetch, git_remote_status, git_remove_index_lock,
+    git_push, git_pull, git_fetch, git_remote_status, git_remote_url,
+    git_branch_divergence, git_remove_index_lock,
     git_operation_state, git_rm, git_merge, git_merge_continue, git_merge_abort,
     git_rebase, git_rebase_continue, git_rebase_skip, git_rebase_abort,
     git_log,
@@ -38,7 +39,7 @@ pub use git::{
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_revert_commit, git_discard_file,
 };
-pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance};
+pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, run_agent_command, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};

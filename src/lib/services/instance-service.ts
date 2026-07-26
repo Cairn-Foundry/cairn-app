@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Instance } from "$lib/types/instance";
+import type { Instance, InstanceStatus } from "$lib/types/instance";
 
 export interface CreateInstanceArgs {
 	id: string;
@@ -33,6 +33,14 @@ export async function duplicateInstance(
 	args: DuplicateInstanceArgs,
 ): Promise<Instance> {
 	return invoke<Instance>("duplicate_instance", { args });
+}
+
+export async function updateInstanceStatus(
+	id: string,
+	projectId: string,
+	status: InstanceStatus,
+): Promise<Instance> {
+	return invoke<Instance>("update_instance_status", { id, projectId, status });
 }
 
 export async function deleteInstance(

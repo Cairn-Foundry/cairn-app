@@ -6,8 +6,13 @@ import {
 	deleteInstance,
 	duplicateInstance as duplicateInstanceService,
 	listInstances,
+	updateInstanceStatus,
 } from "$lib/services/instance-service";
-import type { Instance, TimelineEvent } from "$lib/types/instance";
+import type {
+	Instance,
+	InstanceStatus,
+	TimelineEvent,
+} from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import { clearProjectAgentActivity } from "./agent-activity";
 import { activateInstance, activeProject } from "./project";
@@ -20,6 +25,14 @@ export const BASE_INSTANCE_ID = "__base__";
 
 export function isBaseInstance(id: string | null | undefined): boolean {
 	return id === BASE_INSTANCE_ID;
+}
+
+/**
+ * A finalized instance is archived: it leaves the instance selector and only
+ * shows up in the manager, from where it can be reopened.
+ */
+export function isArchivedInstance(instance: Instance): boolean {
+	return instance.status === "done";
 }
 
 export function baseInstance(project: Project): Instance {
@@ -109,6 +122,15 @@ export function getNextDuplicateTitle(source: {
 	const seq =
 		get(instances).filter((i) => i.parentInstanceId === source.id).length + 1;
 	return `${source.ticket.title} (${seq})`;
+}
+
+export async function setInstanceStatus(
+	id: string,
+	projectId: string,
+	status: InstanceStatus,
+): Promise<void> {
+	const updated = await updateInstanceStatus(id, projectId, status);
+	instances.update((list) => list.map((i) => (i.id === id ? updated : i)));
 }
 
 export async function removeInstance(

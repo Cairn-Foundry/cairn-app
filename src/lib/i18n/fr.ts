@@ -132,6 +132,8 @@ export const fr = {
 			done: "Terminé",
 		},
 		activeBadge: "Active",
+		archivedGroup: "Archivées",
+		archivedHint: "Rouvrez une instance pour y retravailler.",
 		fromBranch: "depuis",
 		actions: {
 			switch: "Basculer",
@@ -140,6 +142,7 @@ export const fr = {
 			copyPathDone: "Copié",
 			deleteInstance: "Supprimer l'instance",
 			reveal: "Révéler",
+			reopen: "Rouvrir",
 			copyPathLabel: "Copier le chemin",
 		},
 		newInstance: "Nouvelle instance",
@@ -1050,6 +1053,62 @@ export const fr = {
 		description:
 			"Cela supprimera l'instance et effacera son worktree. Vos fichiers originaux de projet ne seront pas affectés.",
 		deleteInstance: "Supprimer l'instance",
+	},
+
+	finalizeInstance: {
+		heading: "Finaliser l'instance",
+		description:
+			"Préparez le travail pour la relecture, puis abandonnez l'instance. Rien n'est fusionné ici - vos collègues relisent la branche sur la forge.",
+		recheck: "Revérifier",
+		steps: {
+			commit: {
+				title: "Changements en cours",
+				clean: "Aucun changement en attente.",
+				pending: (n: number) =>
+					`${n} fichier${n !== 1 ? "s" : ""} pas encore committé${n !== 1 ? "s" : ""}.`,
+				action: "Ouvrir Git",
+			},
+			sync: {
+				title: "À jour avec la base",
+				upToDate: (base: string) => `Branche construite sur ${base}.`,
+				behind: (n: number, base: string) =>
+					`${n} commit${n !== 1 ? "s" : ""} de retard sur ${base}.`,
+				noBase: (base: string) => `Branche de base "${base}" introuvable.`,
+				conflicts: (n: number) =>
+					`Opération en cours - ${n} fichier${n !== 1 ? "s" : ""} en conflit.`,
+				action: "Rebaser",
+				resolve: "Résoudre",
+			},
+			push: {
+				title: "Publier la branche",
+				published: "Branche publiée.",
+				noUpstream: "Branche jamais poussée.",
+				pending: (n: number) =>
+					`${n} commit${n !== 1 ? "s" : ""} pas encore poussé${n !== 1 ? "s" : ""}.`,
+				action: "Pousser",
+				forceAction: "Pousser (forcé)",
+			},
+			handoff: {
+				title: "Passer la main",
+				ready: (base: string) => `Ouvrir une merge request vers ${base}.`,
+				noRemote:
+					"Aucun dépôt distant pour ouvrir une merge request - copiez le nom de la branche.",
+				action: "Merge request",
+			},
+			close: {
+				title: "Clôturer l'instance",
+				marked:
+					"Instance marquée comme terminée - elle est passée dans les archives.",
+				reopen: "Rouvrir",
+				pending: "Marquer l'instance comme terminée.",
+				action: "Marquer terminée",
+			},
+		},
+		cleanup: {
+			title: "Supprimer le worktree",
+			description: "Optionnel - l'instance reste terminée dans tous les cas.",
+			action: "Supprimer l'instance",
+		},
 	},
 
 	settings: {

@@ -557,10 +557,14 @@ pub fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String) -> Result<String, GitError> {
+pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String, force: bool) -> Result<String, GitError> {
     validate_ref(&branch)?;
     let expanded = expand(&worktree_path);
     let mut args = vec!["push"];
+
+    if force {
+        args.push("--force-with-lease");
+    }
     if set_upstream {
         args.extend(["--set-upstream", "origin", branch.as_str()]);
     }
@@ -638,6 +642,57 @@ pub fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, GitError
     let behind = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
     Ok(RemoteStatus { ahead, behind, remote, has_upstream: true })
+}
+
+#[tauri::command]
+pub fn git_remote_url(worktree_path: String) -> Result<String, GitError> {
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded).args(["remote", "get-url", "origin"]).output()?;
+    if !out.status.success() {
+        return Ok(String::new());
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+#[derive(Serialize)]
+pub struct BranchDivergence {
+    pub ahead: usize,
+    pub behind: usize,
+    #[serde(rename = "baseRef")]
+    pub base_ref: String,
+}
+
+#[tauri::command]
+pub fn git_branch_divergence(worktree_path: String, base: String) -> Result<BranchDivergence, GitError> {
+    validate_ref(&base)?;
+    let expanded = expand(&worktree_path);
+
+    let candidates = [format!("refs/remotes/origin/{base}"), format!("refs/heads/{base}")];
+    let base_ref = candidates.iter().find(|candidate| {
+        git_cmd(&expanded)
+            .args(["rev-parse", "--verify", "--quiet", candidate])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    });
+
+    let Some(base_ref) = base_ref else {
+        return Ok(BranchDivergence { ahead: 0, behind: 0, base_ref: String::new() });
+    };
+
+    let range = format!("HEAD...{base_ref}");
+    let counts = run(git_cmd(&expanded).args(["rev-list", "--left-right", "--count", &range]))?;
+    let parts: Vec<&str> = counts.trim().split_whitespace().collect();
+    let ahead = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let behind = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+    let display = base_ref
+        .strip_prefix("refs/remotes/")
+        .or_else(|| base_ref.strip_prefix("refs/heads/"))
+        .unwrap_or(base_ref)
+        .to_string();
+
+    Ok(BranchDivergence { ahead, behind, base_ref: display })
 }
 
 // ---------------------------------------------------------------------------

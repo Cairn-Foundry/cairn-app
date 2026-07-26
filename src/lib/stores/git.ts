@@ -1,5 +1,6 @@
 import { derived, get, writable } from "svelte/store";
 import type {
+	BranchDivergence,
 	GitCommit,
 	GitError,
 	GitFileDiff,
@@ -312,13 +313,18 @@ export async function amendLastCommit(
 	await refreshLog();
 }
 
-export async function pushBranch(forceSetUpstream = false): Promise<void> {
+export async function pushBranch(
+	forceSetUpstream = false,
+	force = false,
+): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	const state = get(_git);
 	const hasUpstream = state.remoteStatus?.hasUpstream ?? false;
 	const setUpstream = forceSetUpstream || !hasUpstream;
-	await mutate(() => gitService.push(wt, setUpstream, state.currentBranch));
+	await mutate(() =>
+		gitService.push(wt, setUpstream, state.currentBranch, force),
+	);
 	await refreshStatus();
 }
 
@@ -419,6 +425,20 @@ export async function abortMerge(): Promise<void> {
 	if (!wt) return;
 	await mutate(() => gitService.mergeAbort(wt));
 	await refreshStatus();
+}
+
+export async function getRemoteUrl(): Promise<string> {
+	const wt = worktree();
+	if (!wt) return "";
+	return gitService.getRemoteUrl(wt).catch(() => "");
+}
+
+export async function getBranchDivergence(
+	base: string,
+): Promise<BranchDivergence | null> {
+	const wt = worktree();
+	if (!wt || !base) return null;
+	return gitService.getBranchDivergence(wt, base).catch(() => null);
 }
 
 export async function loadBranches(projectPath: string): Promise<void> {

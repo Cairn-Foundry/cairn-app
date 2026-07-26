@@ -5,7 +5,7 @@
   import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
   import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
-  import { instances, instancesWithBase, isBaseInstance, removeInstance, duplicateInstance, getNextDuplicateTitle } from '$lib/stores/instance';
+  import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus } from '$lib/stores/instance';
   import { agentBusy, agentDone, agentActivityKey } from '$lib/stores/agent-activity';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
@@ -23,6 +23,7 @@
   let pendingDuplicateInst: Instance | null = null;
   let pendingDeleteInst: Instance | null = null;
   let moreOpenId: string | null = null;
+  let reopeningId: string | null = null;
   let copiedId: string | null = null;
   let moreMenuPos = { top: 0, right: 0 };
 
@@ -33,9 +34,15 @@
     moreOpenId = inst.id;
   }
 
+  function matchesQuery(inst: Instance): boolean {
+    return matchesSearch(inst.ticket.id, search) || matchesSearch(inst.ticket.title, search);
+  }
+
   $: filtered = $instancesWithBase.filter(i =>
-    isBaseInstance(i.id) || matchesSearch(i.ticket.id, search) || matchesSearch(i.ticket.title, search)
+    !isArchivedInstance(i) && (isBaseInstance(i.id) || matchesQuery(i))
   );
+
+  $: archived = $instances.filter(i => isArchivedInstance(i) && matchesQuery(i));
 
   $: grouped = (() => {
     const allById = new Map($instancesWithBase.map(i => [i.id, i]));
@@ -100,6 +107,16 @@
     }
   }
 
+  async function handleReopen(inst: Instance) {
+    moreOpenId = null;
+    reopeningId = inst.id;
+    try {
+      await setInstanceStatus(inst.id, inst.projectId, 'idle');
+    } finally {
+      reopeningId = null;
+    }
+  }
+
   function handleDelete(inst: Instance) {
     moreOpenId = null;
     pendingDeleteInst = inst;
@@ -159,7 +176,7 @@
     <div class="modal-body mi-body">
       {#if $instancesWithBase.length === 0}
         <div class="mi-empty">{t('manageInstances.emptyAll')}</div>
-      {:else if filtered.length === 0}
+      {:else if filtered.length === 0 && archived.length === 0}
         <div class="mi-empty">{(t('manageInstances.emptyFiltered') as (q: string) => string)(search)}</div>
       {:else}
         <ul class="mi-list">
@@ -235,6 +252,58 @@
             </li>
           {/each}
         </ul>
+
+        {#if archived.length > 0}
+          <ul class="mi-list">
+            <li class="mi-group-row">
+              {t('manageInstances.archivedGroup')}
+              <span class="mi-group-hint">{t('manageInstances.archivedHint')}</span>
+            </li>
+            {#each archived as inst (inst.id)}
+              {@const isDeleting = deletingId === inst.id}
+              <li class="mi-row mi-row-archived" class:deleting={isDeleting}>
+                <span class="mi-dot" style="background:{STATUS_DOT.done}"></span>
+
+                <div class="mi-body-inner">
+                  <span class="mi-title">{inst.ticket.title}</span>
+                  {#if inst.branch}
+                    <span class="mi-branch">
+                      <Icon name="branch" size={10}/>
+                      {inst.branch}
+                    </span>
+                  {/if}
+                </div>
+
+                <div class="mi-actions">
+                  {#if isDeleting || duplicatingId === inst.id}
+                    <Spinner size={10}/>
+                  {:else}
+                    <button
+                      class="row-btn"
+                      disabled={reopeningId === inst.id}
+                      on:click|stopPropagation={() => handleReopen(inst)}
+                    >
+                      {#if reopeningId === inst.id}
+                        <Spinner size={10}/>
+                      {:else}
+                        <Icon name="undo" size={12}/>
+                      {/if}
+                      {t('manageInstances.actions.reopen')}
+                    </button>
+                    <button
+                      class="row-btn icon-only"
+                      class:open={moreOpenId === inst.id}
+                      aria-label="More actions"
+                      on:click|stopPropagation={(e) => openMore(inst, e.currentTarget)}
+                    >
+                      <Icon name="more" size={13}/>
+                    </button>
+                  {/if}
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       {/if}
     </div>
 
@@ -402,6 +471,18 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
+
+  .mi-group-hint {
+    margin-left: 8px;
+    padding-left: 9px;
+    border-left: 1px solid var(--stroke-1);
+    font-family: var(--font-ui);
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 10.5px;
+  }
+
+  .mi-row-archived .mi-title { color: var(--fg-2); }
 
   .mi-body-inner {
     flex: 1;

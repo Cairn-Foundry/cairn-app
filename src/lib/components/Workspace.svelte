@@ -21,12 +21,13 @@
   import { matchesSearch } from '$lib/utils/files/files-search';
 
   import type { Instance } from '$lib/types/instance';
-  import { instances, baseInstance, isBaseInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
+  import { instances, baseInstance, isBaseInstance, isArchivedInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { gitFileCounts, gitHasConflicts } from '$lib/stores/git';
   import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
+  import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
@@ -35,6 +36,7 @@
 
   let showInstanceMenu = false;
   let showManageModal = false;
+  let showFinalizeModal = false;
   let showShortcuts = false;
   let showTools = false;
   let filesView: FilesView;
@@ -194,7 +196,7 @@
   $: baseInst = $activeProject ? baseInstance($activeProject) : null;
 
   $: instanceGroups = (() => {
-    const list = $instances;
+    const list = $instances.filter(i => !isArchivedInstance(i));
     const byId = new Map(list.map(i => [i.id, i]));
     const placed = new Set<string>();
     const result: Array<{ inst: typeof list[0]; depth: number }> = [];
@@ -356,7 +358,9 @@
         {/if}
 
         <div class="instance-actions">
-          <button class="btn primary"><Icon name="check" size={13}/> {t('workspace.finalizeInstance')}</button>
+          <button class="btn primary" on:click={() => showFinalizeModal = true}>
+            <Icon name="check" size={13}/> {t('workspace.finalizeInstance')}
+          </button>
         </div>
       {/if}
     {:else}
@@ -490,6 +494,14 @@
     activeInstanceId={activeInstance?.id ?? null}
     on:close={() => showManageModal = false}
     on:newInstance={() => { showManageModal = false; dispatch('createInstance'); }}
+  />
+{/if}
+
+{#if showFinalizeModal && activeInstance && !isBaseInstance(activeInstance.id)}
+  <FinalizeInstance
+    instance={activeInstance}
+    on:close={() => showFinalizeModal = false}
+    on:openGit={() => { activeStep.set('git'); terminalActive.set(false); }}
   />
 {/if}
 

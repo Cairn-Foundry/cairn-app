@@ -82,12 +82,6 @@
       <span class="branch-name selectable">{state.currentBranch}</span>
     </div>
 
-    {#if !remote?.hasUpstream}
-      <span class="sync-clean muted">{t('git.noUpstreamShort')}</span>
-    {:else if ahead === 0 && behind === 0}
-      <span class="sync-clean" title={remote.remote}>{t('git.upToDate')}</span>
-    {/if}
-
     {#if inOperation && op}
       <button class="op-chip" on:click={() => dispatch('openMergeRebase')}>
         <Icon name="alert" size={12} />
@@ -108,6 +102,12 @@
     {/if}
 
     <div class="spacer"></div>
+
+    {#if !remote?.hasUpstream}
+      <span class="sync-clean muted">{t('git.noUpstreamShort')}</span>
+    {:else if ahead === 0 && behind === 0}
+      <span class="sync-clean" title={remote.remote}>{t('git.upToDate')}</span>
+    {/if}
 
     <button
       class="op-btn"

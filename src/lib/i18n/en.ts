@@ -130,6 +130,8 @@ export const en = {
 			done: "Done",
 		},
 		activeBadge: "Active",
+		archivedGroup: "Archived",
+		archivedHint: "Reopen an instance to work on it again.",
 		fromBranch: "from",
 		actions: {
 			switch: "Switch",
@@ -138,6 +140,7 @@ export const en = {
 			copyPathDone: "Copied",
 			deleteInstance: "Delete instance",
 			reveal: "Reveal",
+			reopen: "Reopen",
 			copyPathLabel: "Copy path",
 		},
 		newInstance: "New instance",
@@ -1022,6 +1025,61 @@ export const en = {
 		description:
 			"This will remove the instance and delete its worktree. Your original project files will not be affected.",
 		deleteInstance: "Delete instance",
+	},
+
+	finalizeInstance: {
+		heading: "Finalize instance",
+		description:
+			"Get the work ready for review, then let go of the instance. Nothing is merged from here - your colleagues review the branch on the forge.",
+		recheck: "Re-check",
+		steps: {
+			commit: {
+				title: "Pending changes",
+				clean: "Working tree clean.",
+				pending: (n: number) =>
+					`${n} file${n !== 1 ? "s" : ""} not committed yet.`,
+				action: "Open Git",
+			},
+			sync: {
+				title: "Up to date with the base",
+				upToDate: (base: string) => `Branch built on top of ${base}.`,
+				behind: (n: number, base: string) =>
+					`${n} commit${n !== 1 ? "s" : ""} behind ${base}.`,
+				noBase: (base: string) => `Base branch "${base}" not found.`,
+				conflicts: (n: number) =>
+					`Operation in progress - ${n} conflicted file${n !== 1 ? "s" : ""}.`,
+				action: "Rebase",
+				resolve: "Resolve",
+			},
+			push: {
+				title: "Publish the branch",
+				published: "Branch published.",
+				noUpstream: "Branch never pushed.",
+				pending: (n: number) =>
+					`${n} commit${n !== 1 ? "s" : ""} not pushed yet.`,
+				action: "Push",
+				forceAction: "Force push",
+			},
+			handoff: {
+				title: "Hand over",
+				ready: (base: string) => `Open a merge request against ${base}.`,
+				noRemote:
+					"No remote to open a merge request on - copy the branch name.",
+				action: "Merge request",
+			},
+			close: {
+				title: "Close the instance",
+				marked: "Instance marked as done - it moved to the archived list.",
+				reopen: "Reopen",
+				pending: "Mark the instance as done.",
+				action: "Mark as done",
+			},
+		},
+		cleanup: {
+			title: "Delete the worktree",
+			description: "Optional - the instance stays done either way.",
+			action: "Delete instance",
+		},
 	},
 
 	settings: {
