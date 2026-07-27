@@ -1,13 +1,20 @@
 import { derived, get, writable } from "svelte/store";
 import type { ProjectUiState } from "$lib/services/ui-state-service";
 import { activeProjectId } from "$lib/stores/project";
-import { activeStep, gitLeftTab, terminalActive } from "$lib/stores/ui";
+import {
+	activeStep,
+	commandsActive,
+	gitLeftTab,
+	showTool,
+	terminalActive,
+} from "$lib/stores/ui";
 import type { WorkflowStep } from "$lib/types/instance";
 
 const DEFAULT: ProjectUiState = {
 	activeStep: "files",
 	gitLeftTab: "changes",
 	terminalActive: false,
+	commandsActive: false,
 	gitChangesSearch: "",
 	gitLogSearch: "",
 	gitStagedSearch: "",
@@ -40,6 +47,7 @@ export function snapshotCurrentProject(): void {
 			activeStep: get(activeStep),
 			gitLeftTab: get(gitLeftTab),
 			terminalActive: get(terminalActive),
+			commandsActive: get(commandsActive),
 		},
 	}));
 }
@@ -48,7 +56,9 @@ export function applyProjectState(id: string): void {
 	const ps = get(_states)[id] ?? DEFAULT;
 	activeStep.set(ps.activeStep as WorkflowStep);
 	gitLeftTab.set(ps.gitLeftTab as "changes" | "log" | "graph");
-	terminalActive.set(ps.terminalActive);
+	showTool(
+		ps.terminalActive ? "terminal" : ps.commandsActive ? "commands" : null,
+	);
 }
 
 export function updateProjectViewState(

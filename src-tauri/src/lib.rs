@@ -154,6 +154,13 @@ pub fn run() {
             save_file_state,
             get_git_collapse_state,
             save_git_collapse_state,
+            get_project_commands,
+            save_project_commands,
+            get_global_commands,
+            save_global_commands,
+            get_command_state,
+            save_command_state,
+            allocate_port,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

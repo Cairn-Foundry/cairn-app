@@ -1,28 +1,52 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
+  import type { CustomCommand } from '$lib/services/custom-command-service';
   import type { ShortcutId, ShortcutBinding, ShortcutDef } from '$lib/types/shortcuts';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
   export let shortcuts: Record<ShortcutId, ShortcutBinding>;
   export let shortcutDefs: ShortcutDef[];
+  export let customCommands: CustomCommand[] = [];
   export let onClose: () => void;
   export let onAction: (id: ShortcutId) => void;
+  export let onRunCommand: (command: CustomCommand) => void = () => {};
+
+  type Entry =
+    | { kind: 'command'; label: string; description: string; command: CustomCommand }
+    | { kind: 'shortcut'; label: string; description: string; def: ShortcutDef };
 
   let query = '';
   let selectedIdx = 0;
   let inputEl: HTMLInputElement;
   let listEl: HTMLUListElement;
 
+  $: entries = [
+    ...customCommands.map((command): Entry => ({
+      kind: 'command',
+      label: command.name,
+      description: command.steps.join(' && '),
+      command,
+    })),
+    ...shortcutDefs.map((def): Entry => ({
+      kind: 'shortcut',
+      label: def.label,
+      description: def.description,
+      def,
+    })),
+  ];
+
   $: filtered = query.trim()
-    ? shortcutDefs.filter(d => matchesSearch(d.label, query) || matchesSearch(d.description, query))
-    : shortcutDefs;
+    ? entries.filter(e => matchesSearch(e.label, query) || matchesSearch(e.description, query))
+    : entries;
 
   $: { query; selectedIdx = 0; }
 
-  function commit(def: ShortcutDef) {
-    onAction(def.id);
+  function commit(entry: Entry) {
+    if (entry.kind === 'command') onRunCommand(entry.command);
+    else onAction(entry.def.id);
   }
 
   function handleKey(e: KeyboardEvent) {
@@ -37,8 +61,8 @@
       scrollToSelected();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const def = filtered[selectedIdx];
-      if (def) commit(def);
+      const entry = filtered[selectedIdx];
+      if (entry) commit(entry);
     }
   }
 
@@ -74,23 +98,30 @@
       spellcheck={false}
     />
     <ul class="cp-list" bind:this={listEl}>
-      {#each filtered as def, i}
+      {#each filtered as entry, i}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <li
           class="cp-item {i === selectedIdx ? 'cp-item-selected' : ''}"
           data-idx={i}
           on:mouseenter={() => { selectedIdx = i; }}
-          on:mousedown|preventDefault={() => commit(def)}
+          on:mousedown|preventDefault={() => commit(entry)}
         >
           <div class="cp-item-main">
-            <span class="cp-item-label">{def.label}</span>
-            <span class="cp-item-group">{SHORTCUT_GROUP_LABELS[def.group] ?? def.group}</span>
+            {#if entry.kind === 'command'}
+              <span class="cp-item-icon"><Icon name={entry.command.icon} size={13}/></span>
+            {/if}
+            <span class="cp-item-label">{entry.label}</span>
+            <span class="cp-item-group">
+              {entry.kind === 'command'
+                ? t('commands.paletteGroup')
+                : SHORTCUT_GROUP_LABELS[entry.def.group] ?? entry.def.group}
+            </span>
           </div>
           <div class="cp-item-meta">
-            <span class="cp-item-desc">{def.description}</span>
-            {#if shortcuts[def.id]}
+            <span class="cp-item-desc">{entry.description}</span>
+            {#if entry.kind === 'shortcut' && shortcuts[entry.def.id]}
               <span class="cp-item-keys">
-                {#each bindingToLabels(shortcuts[def.id]) as key}
+                {#each bindingToLabels(shortcuts[entry.def.id]) as key}
                   <kbd class="cp-kbd">{key}</kbd>
                 {/each}
               </span>
@@ -173,6 +204,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .cp-item-icon {
+    display: grid;
+    place-items: center;
+    color: var(--fg-3);
+    flex-shrink: 0;
   }
 
   .cp-item-label {

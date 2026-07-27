@@ -5,8 +5,10 @@ export async function createTerminal(
 	cwd: string | null,
 	cols: number,
 	rows: number,
+	command: string | null = null,
+	env: Record<string, string> | null = null,
 ): Promise<void> {
-	await invoke("terminal_create", { id, cwd, cols, rows });
+	await invoke("terminal_create", { id, cwd, cols, rows, command, env });
 }
 
 export async function writeToTerminal(id: string, data: string): Promise<void> {
@@ -32,6 +34,9 @@ export async function closeAllTerminals(): Promise<void> {
 export interface TerminalTab {
 	id: string;
 	title: string;
+	commandId?: string;
+	icon?: string;
+	port?: number;
 }
 
 export interface TerminalLayout {

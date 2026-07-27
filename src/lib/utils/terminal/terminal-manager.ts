@@ -73,14 +73,32 @@ function handleClipboardKey(term: Terminal, e: KeyboardEvent): boolean {
 	return true;
 }
 
+export interface TerminalExit {
+	id: string;
+	exitCode: number | null;
+}
+
+const exitHandlers = new Set<(exit: TerminalExit) => void>();
+
+export function onTerminalExit(
+	handler: (exit: TerminalExit) => void,
+): () => void {
+	exitHandlers.add(handler);
+	return () => exitHandlers.delete(handler);
+}
+
 const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	listen<{ id: string; data: string }>("terminal-output", (e) => {
 		managed.get(e.payload.id)?.term.write(e.payload.data);
 	}),
-	listen<{ id: string }>("terminal-exit", (e) => {
-		managed
-			.get(e.payload.id)
-			?.term.write("\r\n\x1b[2m[process exited]\x1b[0m\r\n");
+	listen<TerminalExit>("terminal-exit", (e) => {
+		const { exitCode } = e.payload;
+		const label =
+			exitCode === null || exitCode === 0
+				? "[process exited]"
+				: `[process exited with code ${exitCode}]`;
+		managed.get(e.payload.id)?.term.write(`\r\n\x1b[2m${label}\x1b[0m\r\n`);
+		for (const handler of exitHandlers) handler(e.payload);
 	}),
 ]);
 void listenersReady;

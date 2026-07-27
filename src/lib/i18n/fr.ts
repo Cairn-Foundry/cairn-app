@@ -434,6 +434,82 @@ export const fr = {
 		terminalName: "Terminal",
 		terminalDescription:
 			"Les shells de cette instance, ainsi que ceux partagés dans tout le projet.",
+		commandsName: "Commandes",
+		commandsDescription:
+			"Vos commandes, définies une fois pour le projet et lancées dans l'instance active.",
+	},
+
+	commands: {
+		title: "Commandes",
+		subtitle: "Définies pour le projet, lancées dans l'instance active.",
+		projectSection: "Projet",
+		globalSection: "Global",
+		projectEmpty: "Aucune commande pour ce projet pour l'instant.",
+		globalEmpty:
+			"Aucune commande partagée entre tous les projets pour l'instant.",
+		new: "Nouvelle commande",
+		import: "Importer",
+		manage: "Gérer les commandes",
+		pinnedLabel: "Commandes",
+		pinnedTitle: "Commandes épinglées",
+		pinnedSubtitle: "À lancer dans l'instance active",
+		pinnedEmpty:
+			"Aucune commande épinglée. Épinglez-en une pour la retrouver ici.",
+		run: "Lancer",
+		stop: "Arrêter",
+		relaunch: "Relancer",
+		pin: "Épingler dans la barre latérale",
+		unpin: "Désépingler de la barre latérale",
+		paletteGroup: "Commande",
+		statusRunning: "En cours",
+
+		editorHeading: "Commande",
+		editorNew: "Nouvelle commande",
+		fieldName: "Nom",
+		namePlaceholder: "start",
+		fieldIcon: "Icône",
+		fieldColor: "Couleur",
+		fieldSteps: "Étapes",
+		stepsHint:
+			"Les étapes s'enchaînent l'une après l'autre. Une étape en échec arrête les suivantes, sauf indication contraire.",
+		stepPlaceholder: "npm run dev",
+		addStep: "Ajouter une étape",
+		removeStep: "Supprimer cette étape",
+		reorderStep: "Glisser pour réordonner",
+		fieldVariables: "Variables",
+		variablesHint:
+			"Cliquez sur un jeton pour l'insérer. Les valeurs sont échappées pour le shell, et chacune est aussi exportée en variable d'environnement CAIRN_.",
+		portInvalid: (tokens: string) =>
+			`${tokens} attend un port de base, par exemple {{port:8000}}.`,
+		fieldCwd: "Répertoire de travail",
+		cwdWorktree: "Worktree de l'instance",
+		cwdProjectRoot: "Racine du projet",
+		fieldOptions: "Options",
+		optionPinned: "Afficher dans la barre latérale",
+		optionStopOnError: "Arrêter à la première étape en échec",
+		optionAutoClose: "Fermer l'onglet en cas de succès",
+		optionConfirm: "Demander avant de lancer",
+
+		promptHeading: "Valeurs pour ce lancement",
+		confirmHeading: "Lancer cette commande ?",
+
+		importHeading: "Importer des scripts",
+		importEmpty: "Aucun script package.json trouvé dans ce worktree.",
+		importAll: "Tout sélectionner",
+		importNone: "Tout désélectionner",
+		importCount: (n: number) => (n <= 1 ? "Importer" : `Importer ${n}`),
+
+		iconPicker: "Choisir une icône",
+		iconSearch: "Rechercher une icône",
+		iconNoResults: "Aucune icône ne correspond.",
+		iconGroups: {
+			run: "Lancement",
+			build: "Build",
+			infra: "Infrastructure",
+			code: "Code",
+			data: "Données",
+			signal: "Signaux",
+		},
 	},
 
 	terminal: {
@@ -442,6 +518,8 @@ export const fr = {
 		newShared: "Nouveau terminal partagé",
 		sharedEmpty: "Aucun terminal partagé dans ce projet pour l'instant.",
 		instanceEmpty: "Aucun terminal ouvert pour cette instance pour l'instant.",
+		commandsSection: "Commandes",
+		commandsEmpty: "Aucune commande en cours dans cette instance.",
 		share: "Partager avec le projet",
 		unshare: "Déplacer vers cette instance",
 		new: "Nouveau terminal",

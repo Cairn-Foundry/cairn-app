@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
@@ -85,6 +85,7 @@
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
   activeStep.subscribe(() => persistUiState());
   terminalActive.subscribe(() => persistUiState());
+  commandsActive.subscribe(() => persistUiState());
   gitLeftTab.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
   viewStates.subscribe(() => persistUiState());

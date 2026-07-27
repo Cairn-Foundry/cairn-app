@@ -322,10 +322,121 @@
     <path d="M4 8l5 4-5 4"/>
     <path d="M13 16h7"/>
   </svg>
-{:else if name === 'pin'}
+{:else if name === 'pin-off'}
   <svg {...common} {...$$restProps}>
-    <line x1="12" y1="17" x2="12" y2="22"/>
-    <path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/>
+    <path d="M12 17v5M9 3h6l-1 4 3 3-6 3-3-3 3-3-2-4z"/>
+    <path d="M4 4l16 16"/>
+  </svg>
+{:else if name === 'grip'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+    <circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/>
+    <circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/>
+    <circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>
+  </svg>
+{:else if name === 'server'}
+  <svg {...common} {...$$restProps}>
+    <rect x="3" y="4" width="18" height="7" rx="2"/>
+    <rect x="3" y="13" width="18" height="7" rx="2"/>
+    <path d="M7 7.5h0M7 16.5h0"/>
+  </svg>
+{:else if name === 'database'}
+  <svg {...common} {...$$restProps}>
+    <ellipse cx="12" cy="6" rx="8" ry="3"/>
+    <path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/>
+    <path d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>
+  </svg>
+{:else if name === 'package'}
+  <svg {...common} {...$$restProps}>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
+    <path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>
+  </svg>
+{:else if name === 'box'}
+  <svg {...common} {...$$restProps}>
+    <rect x="3" y="6" width="18" height="14" rx="2"/>
+    <path d="M3 10h18M10 6V3h4v3"/>
+  </svg>
+{:else if name === 'container'}
+  <svg {...common} {...$$restProps}>
+    <rect x="3" y="11" width="5" height="5" rx="1"/>
+    <rect x="9.5" y="11" width="5" height="5" rx="1"/>
+    <rect x="9.5" y="5" width="5" height="5" rx="1"/>
+    <path d="M3 19h18a3 3 0 003-3"/>
+  </svg>
+{:else if name === 'rocket'}
+  <svg {...common} {...$$restProps}>
+    <path d="M12 2c3.5 2.5 5 6 5 10l-2.5 4h-5L7 12c0-4 1.5-7.5 5-10z"/>
+    <circle cx="12" cy="9" r="1.8"/>
+    <path d="M9 17l-2 4 4-1.5M15 17l2 4-4-1.5"/>
+  </svg>
+{:else if name === 'bug'}
+  <svg {...common} {...$$restProps}>
+    <rect x="7" y="7" width="10" height="13" rx="5"/>
+    <path d="M9 6a3 3 0 016 0M3 11h4M17 11h4M3 18h4M17 18h4M12 10v8"/>
+  </svg>
+{:else if name === 'hammer'}
+  <svg {...common} {...$$restProps}>
+    <path d="M13 7l-8.5 8.5a2 2 0 003 3L16 10"/>
+    <path d="M11 5l6-3 5 5-3 6-4-4-4-4z"/>
+  </svg>
+{:else if name === 'layers'}
+  <svg {...common} {...$$restProps}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z"/>
+    <path d="M3 13l9 5 9-5"/>
+  </svg>
+{:else if name === 'globe'}
+  <svg {...common} {...$$restProps}>
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M3 12h18"/>
+    <path d="M12 3a14 14 0 010 18 14 14 0 010-18z"/>
+  </svg>
+{:else if name === 'beaker'}
+  <svg {...common} {...$$restProps}>
+    <path d="M10 3v6.5L4.5 18a2 2 0 001.7 3h11.6a2 2 0 001.7-3L14 9.5V3"/>
+    <path d="M8.5 3h7M7 15h10"/>
+  </svg>
+{:else if name === 'wand'}
+  <svg {...common} {...$$restProps}>
+    <path d="M4 20L15 9"/>
+    <path d="M17 3l1 2.5L20.5 6.5 18 7.5 17 10l-1-2.5L13.5 6.5 16 5.5 17 3z"/>
+    <path d="M6 4l.7 1.6L8.5 6.3 6.7 7 6 8.6 5.3 7 3.5 6.3 5.3 5.6 6 4z"/>
+  </svg>
+{:else if name === 'gauge'}
+  <svg {...common} {...$$restProps}>
+    <path d="M3.5 17a9 9 0 1117 0"/>
+    <path d="M12 14l4-4"/>
+    <circle cx="12" cy="15" r="1.3" fill="currentColor"/>
+  </svg>
+{:else if name === 'shield'}
+  <svg {...common} {...$$restProps}>
+    <path d="M12 3l8 3v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6l8-3z"/>
+  </svg>
+{:else if name === 'link'}
+  <svg {...common} {...$$restProps}>
+    <path d="M10 13a4 4 0 006 .5l2.5-2.5a4 4 0 00-5.7-5.7L11.5 6.6"/>
+    <path d="M14 11a4 4 0 00-6-.5L5.5 13a4 4 0 005.7 5.7l1.3-1.3"/>
+  </svg>
+{:else if name === 'list'}
+  <svg {...common} {...$$restProps}>
+    <path d="M9 6h11M9 12h11M9 18h11"/>
+    <path d="M4.5 6h0M4.5 12h0M4.5 18h0"/>
+  </svg>
+{:else if name === 'filter'}
+  <svg {...common} {...$$restProps}>
+    <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/>
+  </svg>
+{:else if name === 'bell'}
+  <svg {...common} {...$$restProps}>
+    <path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/>
+    <path d="M10 19a2 2 0 004 0"/>
+  </svg>
+{:else if name === 'book'}
+  <svg {...common} {...$$restProps}>
+    <path d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 004 22V4.5z"/>
+    <path d="M4 17.5A2.5 2.5 0 016.5 15H20"/>
+  </svg>
+{:else if name === 'cloud'}
+  <svg {...common} {...$$restProps}>
+    <path d="M7 18a4.5 4.5 0 01-.5-9 6 6 0 0111.4 1.5A3.75 3.75 0 0117.5 18H7z"/>
   </svg>
 {:else}
   <svg {...common} {...$$restProps}>

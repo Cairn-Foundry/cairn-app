@@ -50,9 +50,14 @@
   let scopeKey = $derived(
     projectId && activeId ? terminalScope(projectId, activeId) : null,
   );
-  let sessions = $derived(scopeKey ? ($terminalSessions[scopeKey] ?? []) : []);
+  let instanceSessions = $derived(
+    scopeKey ? ($terminalSessions[scopeKey] ?? []) : [],
+  );
+
+  let sessions = $derived(instanceSessions.filter((s) => !s.commandId));
+  let commandSessions = $derived(instanceSessions.filter((s) => s.commandId));
   let shared = $derived(projectId ? ($projectTerminals[projectId] ?? []) : []);
-  let allSessions = $derived([...shared, ...sessions]);
+  let allSessions = $derived([...shared, ...sessions, ...commandSessions]);
   let activeTid = $derived(
     scopeKey ? ($activeTerminalId[scopeKey] ?? allSessions[0]?.id ?? null) : null,
   );
@@ -75,6 +80,16 @@
 
   function sectionOf(id: string): Section {
     return shared.some((s) => s.id === id) ? 'project' : 'instance';
+  }
+
+  /**
+   * The instance section only shows the shells, so its indices are not the ones
+   * the store reorders. Translate them back to the stored list.
+   */
+  function storedIndex(filteredIndex: number): number {
+    const target = sessions[filteredIndex];
+    if (!target) return instanceSessions.length;
+    return instanceSessions.findIndex((s) => s.id === target.id);
   }
 
   async function newTerminal() {
@@ -210,11 +225,11 @@
       const { id, from, index } = drag;
       if (from === dropAt.section) {
         if (from === 'project') reorderProjectTerminal(projectId, index, dropAt.index);
-        else reorderTerminal(projectId, activeId, index, dropAt.index);
+        else reorderTerminal(projectId, activeId, storedIndex(index), storedIndex(dropAt.index));
       } else if (from === 'instance') {
         shareTerminal(projectId, activeId, id, worktreePath, dropAt.index);
       } else {
-        unshareTerminal(projectId, activeId, id, dropAt.index);
+        unshareTerminal(projectId, activeId, id, storedIndex(dropAt.index));
       }
     }
     drag = null;
@@ -343,6 +358,39 @@
         {#if showsIndicator('instance', sessions.length)}<div class="term-drop"></div>{/if}
         {#if sessions.length === 0}
           <p class="term-section-empty">{t('terminal.instanceEmpty')}</p>
+        {/if}
+      </div>
+    </div>
+
+    <div class="term-section">
+      <div class="term-list-head">
+        <span>{t('terminal.commandsSection')}</span>
+      </div>
+      <div class="term-list-body">
+        {#each commandSessions as s (s.id)}
+          <div
+            class="term-item {s.id === activeTid ? 'active' : ''}"
+            role="button"
+            tabindex="0"
+            onclick={() => selectTerminal(s.id)}
+            onkeydown={(e) => { if (e.key === 'Enter') selectTerminal(s.id); }}
+          >
+            <Icon name={s.icon ?? 'command'} size={13}/>
+            <span class="term-item-title" title={s.title}>{s.title}</span>
+            <span
+              class="term-item-close"
+              role="button"
+              tabindex="0"
+              aria-label={t('terminal.close') as string}
+              onclick={(e) => closeTerminal(s.id, 'instance', e)}
+              onkeydown={(e) => { if (e.key === 'Enter') closeTerminal(s.id, 'instance', e as unknown as MouseEvent); }}
+            >
+              <Icon name="x" size={11}/>
+            </span>
+          </div>
+        {/each}
+        {#if commandSessions.length === 0}
+          <p class="term-section-empty">{t('terminal.commandsEmpty')}</p>
         {/if}
       </div>
     </div>

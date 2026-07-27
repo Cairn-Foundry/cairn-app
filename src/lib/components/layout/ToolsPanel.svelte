@@ -9,6 +9,7 @@
 
   const TOOLS = [
     { id: 'terminal', icon: 'terminal', name: 'tools.terminalName', description: 'tools.terminalDescription' },
+    { id: 'commands', icon: 'command', name: 'tools.commandsName', description: 'tools.commandsDescription' },
   ] as const;
 </script>
 

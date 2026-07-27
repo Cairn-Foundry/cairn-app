@@ -33,6 +33,8 @@ struct TerminalOutput {
 #[derive(Clone, Serialize)]
 struct TerminalExit {
     id: String,
+    #[serde(rename = "exitCode")]
+    exit_code: Option<i32>,
 }
 
 fn drain_utf8(pending: &mut Vec<u8>) -> String {
@@ -108,6 +110,8 @@ pub fn terminal_create(
     cwd: Option<String>,
     cols: u16,
     rows: u16,
+    command: Option<String>,
+    env: Option<HashMap<String, String>>,
 ) -> Result<(), String> {
     let pty_system = native_pty_system();
     let pair = pty_system
@@ -115,6 +119,18 @@ pub fn terminal_create(
         .map_err(|e| e.to_string())?;
 
     let mut cmd = CommandBuilder::new(default_shell());
+    if let Some(script) = command.as_deref() {
+        #[cfg(windows)]
+        {
+            cmd.arg("/c");
+            cmd.arg(script);
+        }
+        #[cfg(not(windows))]
+        {
+            cmd.arg("-lc");
+            cmd.arg(script);
+        }
+    }
     if let Some(dir) = cwd {
         let expanded = shellexpand::tilde(&dir).into_owned();
         if std::path::Path::new(&expanded).is_dir() {
@@ -123,6 +139,9 @@ pub fn terminal_create(
     }
     cmd.env("TERM", "xterm-256color");
     ensure_utf8_locale(&mut cmd);
+    for (key, value) in env.unwrap_or_default() {
+        cmd.env(key, value);
+    }
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
@@ -153,12 +172,23 @@ pub fn terminal_create(
                 }
             }
         }
-        if let Ok(mut sessions) = app_out.state::<TerminalState>().sessions.lock() {
-            if let Some(mut sess) = sessions.remove(&reader_id) {
-                let _ = sess.child.kill();
-            }
-        }
-        let _ = app_out.emit("terminal-exit", TerminalExit { id: reader_id });
+        let mut ended = app_out
+            .state::<TerminalState>()
+            .sessions
+            .lock()
+            .ok()
+            .and_then(|mut sessions| sessions.remove(&reader_id));
+        let exit_code = match ended.as_mut() {
+            Some(sess) => match sess.child.try_wait() {
+                Ok(Some(status)) => Some(status.exit_code() as i32),
+                _ => {
+                    let _ = sess.child.kill();
+                    sess.child.wait().ok().map(|s| s.exit_code() as i32)
+                }
+            },
+            None => None,
+        };
+        let _ = app_out.emit("terminal-exit", TerminalExit { id: reader_id, exit_code });
     });
 
     Ok(())
@@ -219,6 +249,12 @@ pub struct TerminalLayout {
 pub struct TerminalTab {
     pub id:    String,
     pub title: String,
+    #[serde(rename = "commandId", default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon:  Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port:  Option<u16>,
 }
 
 #[tauri::command]

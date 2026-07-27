@@ -27,7 +27,7 @@
     agentActivityKey, agentBusyConversations, agentDoneConversation,
   } from '$lib/stores/agent-activity';
   import { writeFile } from '$lib/services/file-service';
-  import { activeStep, terminalActive } from '$lib/stores/ui';
+  import { activeStep, terminalActive, commandsActive } from '$lib/stores/ui';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
   import type { Instance } from '$lib/types/instance';
@@ -248,7 +248,7 @@
   }
 
   function isViewingAgent(inst: Instance): boolean {
-    return inst.id === $activeInstance?.id && $activeStep === 'agent' && !$terminalActive;
+    return inst.id === $activeInstance?.id && $activeStep === 'agent' && !$terminalActive && !$commandsActive;
   }
 
   function notifyAgentCompletion(inst: Instance, conversationId: string) {
@@ -260,7 +260,7 @@
   $effect(() => {
     const inst = $activeInstance;
     const openId = inst ? conversations[inst.id]?.id : undefined;
-    if (!inst || $activeStep !== 'agent' || $terminalActive) return;
+    if (!inst || $activeStep !== 'agent' || $terminalActive || $commandsActive) return;
     const pending = doneConversationOf(inst.projectId, inst.id);
     if (pending === null) return;
     if (pending === '' || pending === openId) {

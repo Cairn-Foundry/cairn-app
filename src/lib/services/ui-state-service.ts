@@ -4,6 +4,7 @@ export interface ProjectUiState {
 	activeStep: string;
 	gitLeftTab: string;
 	terminalActive: boolean;
+	commandsActive: boolean;
 	gitChangesSearch: string;
 	gitLogSearch: string;
 	gitStagedSearch: string;

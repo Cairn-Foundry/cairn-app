@@ -14,6 +14,9 @@ import { insertAt, moveItem } from "$lib/utils/terminal/terminal-order";
 export interface TerminalSession {
 	id: string;
 	title: string;
+	commandId?: string;
+	icon?: string;
+	port?: number;
 }
 
 export interface ProjectTerminalSession extends TerminalSession {
@@ -56,10 +59,15 @@ function persistProject(projectId: string): void {
 }
 
 // Create the xterm sink before spawning the shell so no early output is lost.
-async function spawn(id: string, cwd: string | null): Promise<void> {
+async function spawn(
+	id: string,
+	cwd: string | null,
+	command: string | null = null,
+	env: Record<string, string> | null = null,
+): Promise<void> {
 	manager.create(id);
 	const { cols, rows } = manager.size(id);
-	await createTerminal(id, cwd, cols, rows);
+	await createTerminal(id, cwd, cols, rows, command, env);
 }
 
 export async function restoreTerminals(
@@ -74,7 +82,7 @@ export async function restoreTerminals(
 	if (cleanupDone) await cleanupDone;
 
 	const saved = await getTerminalState(projectId, instanceId).catch(() => null);
-	const tabs = saved?.terminals ?? [];
+	const tabs = (saved?.terminals ?? []).filter((tab) => !tab.commandId);
 	if (tabs.length === 0) return;
 
 	for (const tab of tabs) {
@@ -125,6 +133,28 @@ export async function addTerminal(
 	}));
 	activeTerminalId.update((m) => ({ ...m, [key]: id }));
 	persist(projectId, instanceId);
+}
+
+export async function addCommandTerminal(
+	projectId: string,
+	instanceId: string,
+	cwd: string | null,
+	tab: Omit<TerminalSession, "id">,
+	script: string,
+	env: Record<string, string>,
+): Promise<string> {
+	const key = terminalScope(projectId, instanceId);
+	const id = `${instanceId}:${crypto.randomUUID()}`;
+
+	await spawn(id, cwd, script, env);
+
+	terminalSessions.update((m) => ({
+		...m,
+		[key]: [...(m[key] ?? []), { ...tab, id }],
+	}));
+	activeTerminalId.update((m) => ({ ...m, [key]: id }));
+	persist(projectId, instanceId);
+	return id;
 }
 
 export async function addProjectTerminal(

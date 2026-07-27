@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive } from '$lib/stores/ui.js';
+  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, showTool } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -11,6 +11,13 @@
   import GitView from '$lib/components/git/GitView.svelte';
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
   import TerminalView from '$lib/components/terminal/TerminalView.svelte';
+  import CommandsView from '$lib/components/commands/CommandsView.svelte';
+  import PinnedCommandsPanel from '$lib/components/commands/PinnedCommandsPanel.svelte';
+  import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
+  import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
+  import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '$lib/stores/command-run';
+  import { globalCommands, loadCommands, projectCommands } from '$lib/stores/custom-command';
+  import type { CustomCommand } from '$lib/services/custom-command-service';
   import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
@@ -39,6 +46,7 @@
   let showFinalizeModal = false;
   let showShortcuts = false;
   let showTools = false;
+  let showPinned = false;
   let filesView: FilesView;
   let instanceSearch = '';
   let instanceSearchEl: HTMLInputElement | null = null;
@@ -71,16 +79,60 @@
     : false;
 
   async function handleQuickOpenFile(path: string) {
-    activeStep.set('files');
-    terminalActive.set(false);
+    openStep('files');
     quickOpenVisible.set(false);
     await tick();
     filesView?.openFileByPath(path);
   }
 
   function selectTool(id: string) {
-    if (id === 'terminal') terminalActive.set(true);
+    showTool(id === 'terminal' ? 'terminal' : 'commands');
     showTools = false;
+    showPinned = false;
+  }
+
+  function closeSidebarPanels() {
+    showTools = false;
+    showPinned = false;
+  }
+
+  function togglePinned() {
+    showPinned = !showPinned;
+    if (showPinned) showTools = false;
+  }
+
+  function toggleTools() {
+    showTools = !showTools;
+    if (showTools) showPinned = false;
+  }
+
+  function openStep(id: string) {
+    activeStep.set(id as any);
+    showTool(null);
+  }
+
+  $: toolActive = $terminalActive || $commandsActive;
+
+  $: if (activeProjectId) void loadCommands(activeProjectId);
+
+  $: paletteCommands = [
+    ...($projectCommands[activeProjectId] ?? []),
+    ...$globalCommands,
+  ];
+
+  $: pinnedCommands = paletteCommands.filter(c => c.pinned);
+
+  $: hasRunningPinned = Object.values($commandRuns).some(
+    r =>
+      r.projectId === activeProjectId &&
+      r.instanceId === activeInstance?.id &&
+      pinnedCommands.some(c => c.id === r.commandId),
+  );
+
+  async function runCommandFromPalette(command: CustomCommand) {
+    commandPaletteVisible.set(false);
+    if (!$activeProject || !activeInstance) return;
+    await requestCommandLaunch(command, $activeProject, activeInstance);
   }
 
   async function selectInstance(id: string) {
@@ -379,18 +431,18 @@
 
   <!-- Content -->
   <div class="content-row">
-    <div class="sidebar-wrap" use:clickOutside={() => showTools = false}>
+    <div class="sidebar-wrap" use:clickOutside={closeSidebarPanels}>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
     <aside
       class="sidebar"
       class:sidebar-empty={!activeInstance}
-      on:click={(e) => { if (!(e.target as Element).closest('.tools-toggle')) showTools = false; }}
+      on:click={(e) => { if (!(e.target as Element).closest('.tools-toggle, .pinned-toggle')) closeSidebarPanels(); }}
     >
       {#each STEPS as s}
         <button
-          class="step {$activeStep === s.id && !$terminalActive ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
+          class="step {$activeStep === s.id && !toolActive ? 'active' : ''} {doneSteps.has(s.id) ? 'done' : ''}"
           disabled={!activeInstance}
-          on:click={() => { activeStep.set(s.id as any); terminalActive.set(false); }}
+          on:click={() => openStep(s.id)}
         >
           <span class="icon"><Icon name={s.icon} size={20}/></span>
           <span class="label">{s.label}</span>
@@ -410,10 +462,22 @@
       <div class="divider"></div>
       <div class="spacer"></div>
       <button
-        class="step tools-toggle {showTools || $terminalActive ? 'active' : ''}"
+        class="step pinned-toggle {showPinned ? 'active' : ''}"
+        disabled={!activeInstance}
+        aria-label={t('commands.pinnedTitle') as string}
+        on:click={togglePinned}
+      >
+        <span class="icon"><Icon name="command" size={18}/></span>
+        <span class="label">{t('commands.pinnedLabel')}</span>
+        {#if hasRunningPinned}
+          <span class="running-dot" title={t('commands.statusRunning') as string}></span>
+        {/if}
+      </button>
+      <button
+        class="step tools-toggle {showTools || toolActive ? 'active' : ''}"
         disabled={!activeInstance}
         aria-label={t('workspace.ariaTools') as string}
-        on:click={() => showTools = !showTools}
+        on:click={toggleTools}
       >
         <span class="icon"><Icon name="grid" size={18}/></span>
         <span class="label">{t('workspace.toolsLabel')}</span>
@@ -422,21 +486,30 @@
 
     {#if showTools && activeInstance}
       <ToolsPanel
-        activeTool={$terminalActive ? 'terminal' : null}
+        activeTool={$terminalActive ? 'terminal' : $commandsActive ? 'commands' : null}
         on:close={() => showTools = false}
         on:select={(e) => selectTool(e.detail)}
+      />
+    {/if}
+
+    {#if showPinned && activeInstance}
+      <PinnedCommandsPanel
+        commands={pinnedCommands}
+        on:close={() => showPinned = false}
+        on:manage={() => selectTool('commands')}
       />
     {/if}
     </div>
 
     <main class="main">
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'review'}><ReviewView/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { activeStep.set('files'); terminalActive.set(false); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
-      <div class="step-view" class:step-hidden={$terminalActive || $activeStep !== 'cicd'}><CiCdView/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'review'}><ReviewView/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'tests'}><TestsView/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'cicd'}><CiCdView/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
+      <div class="step-view" class:step-hidden={!$commandsActive}><CommandsView/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">
@@ -484,8 +557,10 @@
   <CommandPalette
     shortcuts={$shortcuts}
     shortcutDefs={SHORTCUT_DEFS}
+    customCommands={paletteCommands}
     onClose={() => commandPaletteVisible.set(false)}
     onAction={(id) => { commandPaletteVisible.set(false); filesView?.executeAction(id); }}
+    onRunCommand={runCommandFromPalette}
   />
 {/if}
 
@@ -501,8 +576,25 @@
   <FinalizeInstance
     instance={activeInstance}
     on:close={() => showFinalizeModal = false}
-    on:openGit={() => { activeStep.set('git'); terminalActive.set(false); }}
+    on:openGit={() => openStep('git')}
   />
+{/if}
+
+{#if $pendingLaunch}
+  {#if $pendingLaunch.prompts.length > 0}
+    <CommandPromptDialog
+      commandName={$pendingLaunch.command.name}
+      labels={$pendingLaunch.prompts}
+      on:submit={(e) => confirmPendingLaunch(e.detail)}
+      on:close={cancelPendingLaunch}
+    />
+  {:else}
+    <CommandConfirmDialog
+      command={$pendingLaunch.command}
+      on:confirm={() => confirmPendingLaunch()}
+      on:close={cancelPendingLaunch}
+    />
+  {/if}
 {/if}
 
 {#if showShortcuts}
@@ -725,6 +817,22 @@
   }
 
   .sidebar-wrap { display: contents; }
+
+  .step .running-dot {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-1);
+    animation: sidebar-run-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes sidebar-run-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
 
   .sidebar-empty .step {
     opacity: 0.3;

@@ -108,6 +108,7 @@ textarea,
 
 button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
 input, textarea { font-family: inherit; color: inherit; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); cursor: pointer; }
 
 [data-tauri-drag-region] {
   -webkit-app-region: drag;

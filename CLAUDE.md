@@ -172,6 +172,20 @@ Two top-level screens controlled by `screen: 'home' | 'workspace'` in `+page.sve
 - **Home** — project list, checkpoints, activity, settings. Active section tracked in `+page.svelte` via `sectionChange` events emitted by `Home.svelte`.
 - **Workspace** — per-project view with workflow tabs (files, agent, review, tests, git, cicd). Active tab is `activeStep` from `src/lib/stores/ui.ts`.
 
+**Every view must survive a restart on itself.** Whatever the user was looking at when the app was
+closed is what the app reopens on: the workflow step, but also any view that takes over the main
+area (Terminal, Commands, and whatever comes next). A new view is only finished once its "is it
+open" flag is persisted, which means the four layers, all of them:
+
+1. the store flag in `src/lib/stores/ui.ts`;
+2. the field on `ProjectUiState` in `src/lib/services/ui-state-service.ts`;
+3. the snapshot and the restore in `snapshotCurrentProject()` / `applyProjectState()`
+   (`src/lib/stores/view-state.ts`);
+4. the `#[serde(default)]` field on the Rust `ProjectUiState` (`commands/ui_state.rs`), plus a
+   `subscribe(() => persistUiState())` in `+page.svelte`.
+
+Skipping any one of them reads as "the app forgot where I was".
+
 ### Tools panel
 
 The workflow tabs occupy the top of the workspace sidebar; everything that is not a workflow step
