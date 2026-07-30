@@ -111,17 +111,40 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Build
-        run: bun run tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Enable Apple signing when the secrets are present
+        if: runner.os == 'macOS'
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            echo "No Apple certificate configured: the macOS bundle will not be signed."
+            exit 0
+          fi
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            eval "value=\${$name}"
+            if [ -z "$value" ]; then
+              echo "$name is empty while APPLE_CERTIFICATE is set: refusing a half-configured signing setup" >&2
+              exit 1
+            fi
+            {
+              echo "$name<<APPLE_ENV_EOF"
+              echo "$value"
+              echo "APPLE_ENV_EOF"
+            } >> "$GITHUB_ENV"
+          done
+
+      - name: Build
+        run: bun run tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - uses: actions/upload-artifact@v4
         with:
