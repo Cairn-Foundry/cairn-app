@@ -201,7 +201,15 @@ Details qui comptent:
   ~1,5 Go chacune vivent juste sous la limite: si des evictions apparaissent, ne garder le cache
   que sur les jobs les plus lents (macOS et les deux arm64) plutot que d'en ajouter.
 - Dependances Linux a installer: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
-  patchelf libxdo-dev libssl-dev build-essential curl wget file`.
+  patchelf libxdo-dev libssl-dev build-essential curl wget file xdg-utils`. **`xdg-utils` est
+  indispensable**: le bundler AppImage embarque `xdg-open` pour `tauri-plugin-opener`. Il est
+  preinstalle sur l'image x86_64 mais pas sur l'image arm64, d'ou un job vert et l'autre rouge sur
+  des sources identiques.
+- **`git2` doit rester en `default-features = false`.** Ses features `https` et `ssh` tirent
+  `openssl-sys`, qui ne sait pas se compiler pour `x86_64-apple-darwin` depuis un hote arm64
+  (`pkg-config` refuse la cross-compilation), ce qui casse le paquet universel. Cairn n'en a pas
+  besoin: toutes les operations reseau passent par le CLI `git`, libgit2 ne sert qu'a la plomberie
+  locale. Reactiver ces features casserait le build macOS.
 - Etapes communes: `oven-sh/setup-bun`, `dtolnay/rust-toolchain@stable` avec le(s) target(s),
   `Swatinem/rust-cache` (cle par entree), `bun install --frozen-lockfile`, `bun tauri build
   --target <t> --bundles <b>`.
