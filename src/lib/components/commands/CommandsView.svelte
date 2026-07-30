@@ -38,8 +38,8 @@
   $: projectId = $activeProject?.id ?? null;
   $: ownCommands = projectId ? ($projectCommands[projectId] ?? []) : [];
   $: sections = [
-    { scope: 'project' as CommandScope, label: t('commands.projectSection'), list: ownCommands, empty: t('commands.projectEmpty') },
     { scope: 'global' as CommandScope, label: t('commands.globalSection'), list: $globalCommands, empty: t('commands.globalEmpty') },
+    { scope: 'project' as CommandScope, label: t('commands.projectSection'), list: ownCommands, empty: t('commands.projectEmpty') },
   ];
 
   $: if (projectId) void loadCommands(projectId);

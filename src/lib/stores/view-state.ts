@@ -4,6 +4,7 @@ import { activeProjectId } from "$lib/stores/project";
 import {
 	activeStep,
 	commandsActive,
+	envActive,
 	gitLeftTab,
 	showTool,
 	terminalActive,
@@ -15,6 +16,7 @@ const DEFAULT: ProjectUiState = {
 	gitLeftTab: "changes",
 	terminalActive: false,
 	commandsActive: false,
+	envActive: false,
 	gitChangesSearch: "",
 	gitLogSearch: "",
 	gitStagedSearch: "",
@@ -48,6 +50,7 @@ export function snapshotCurrentProject(): void {
 			gitLeftTab: get(gitLeftTab),
 			terminalActive: get(terminalActive),
 			commandsActive: get(commandsActive),
+			envActive: get(envActive),
 		},
 	}));
 }
@@ -57,7 +60,13 @@ export function applyProjectState(id: string): void {
 	activeStep.set(ps.activeStep as WorkflowStep);
 	gitLeftTab.set(ps.gitLeftTab as "changes" | "log" | "graph");
 	showTool(
-		ps.terminalActive ? "terminal" : ps.commandsActive ? "commands" : null,
+		ps.terminalActive
+			? "terminal"
+			: ps.commandsActive
+				? "commands"
+				: ps.envActive
+					? "env"
+					: null,
 	);
 }
 

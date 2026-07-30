@@ -3,6 +3,7 @@ pub mod agent_activity;
 pub mod commit_state;
 pub mod conversations;
 pub mod custom_commands;
+pub mod env_vars;
 pub mod file_state;
 pub mod files;
 pub mod git;
@@ -22,6 +23,11 @@ pub use conversations::{get_conversation_index, save_conversation_index, get_con
 pub use custom_commands::{
     get_project_commands, save_project_commands, get_global_commands, save_global_commands,
     get_command_state, save_command_state, allocate_port,
+};
+pub use env_vars::{
+    get_global_env, save_global_env, get_project_env, save_project_env,
+    get_instance_env, save_instance_env,
+    env_file_status, read_env_file, write_env_file, delete_env_file, ensure_env_ignored,
 };
 pub use file_state::{get_file_state, save_file_state};
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};

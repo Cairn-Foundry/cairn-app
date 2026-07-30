@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, showTool } from '$lib/stores/ui.js';
+  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, showTool } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -12,6 +12,7 @@
   import CiCdView from '$lib/components/cicd/CiCdView.svelte';
   import TerminalView from '$lib/components/terminal/TerminalView.svelte';
   import CommandsView from '$lib/components/commands/CommandsView.svelte';
+  import EnvView from '$lib/components/env/EnvView.svelte';
   import PinnedCommandsPanel from '$lib/components/commands/PinnedCommandsPanel.svelte';
   import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
@@ -86,7 +87,7 @@
   }
 
   function selectTool(id: string) {
-    showTool(id === 'terminal' ? 'terminal' : 'commands');
+    showTool(id as 'terminal' | 'commands' | 'env');
     showTools = false;
     showPinned = false;
   }
@@ -111,16 +112,18 @@
     showTool(null);
   }
 
-  $: toolActive = $terminalActive || $commandsActive;
+  $: toolActive = $terminalActive || $commandsActive || $envActive;
 
   $: if (activeProjectId) void loadCommands(activeProjectId);
 
   $: paletteCommands = [
-    ...($projectCommands[activeProjectId] ?? []),
     ...$globalCommands,
+    ...($projectCommands[activeProjectId] ?? []),
   ];
 
-  $: pinnedCommands = paletteCommands.filter(c => c.pinned);
+  $: globalPinned = $globalCommands.filter(c => c.pinned);
+  $: projectPinned = ($projectCommands[activeProjectId] ?? []).filter(c => c.pinned);
+  $: pinnedCommands = [...globalPinned, ...projectPinned];
 
   $: hasRunningPinned = Object.values($commandRuns).some(
     r =>
@@ -486,7 +489,7 @@
 
     {#if showTools && activeInstance}
       <ToolsPanel
-        activeTool={$terminalActive ? 'terminal' : $commandsActive ? 'commands' : null}
+        activeTool={$terminalActive ? 'terminal' : $commandsActive ? 'commands' : $envActive ? 'env' : null}
         on:close={() => showTools = false}
         on:select={(e) => selectTool(e.detail)}
       />
@@ -494,7 +497,8 @@
 
     {#if showPinned && activeInstance}
       <PinnedCommandsPanel
-        commands={pinnedCommands}
+        {globalPinned}
+        {projectPinned}
         on:close={() => showPinned = false}
         on:manage={() => selectTool('commands')}
       />
@@ -510,6 +514,7 @@
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'cicd'}><CiCdView/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       <div class="step-view" class:step-hidden={!$commandsActive}><CommandsView/></div>
+      <div class="step-view" class:step-hidden={!$envActive}><EnvView/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">

@@ -15,6 +15,7 @@ impl AgentProvider for ClaudeCliProvider {
         session_id: Option<&str>,
         handle: &RunningChild,
         run_id: &str,
+        env: &std::collections::HashMap<String, String>,
     ) -> Result<AgentResponse, String> {
         let mut args: Vec<String> = vec![
             "-p".into(),
@@ -30,6 +31,7 @@ impl AgentProvider for ClaudeCliProvider {
 
         let mut child = Command::new("claude")
             .args(&args)
+            .envs(env)
             .current_dir(working_dir)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

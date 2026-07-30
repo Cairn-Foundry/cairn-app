@@ -6,6 +6,7 @@ export async function sendMessage(
 	providerId: string,
 	runId: string,
 	sessionId: string | null,
+	env: Record<string, string> = {},
 ): Promise<void> {
 	await invoke("send_message", {
 		message,
@@ -13,6 +14,7 @@ export async function sendMessage(
 		providerId,
 		runId,
 		sessionId,
+		env,
 	});
 }
 

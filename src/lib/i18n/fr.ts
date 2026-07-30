@@ -433,10 +433,13 @@ export const fr = {
 		close: "Fermer les outils",
 		terminalName: "Terminal",
 		terminalDescription:
-			"Les shells de cette instance, ainsi que ceux partagés dans tout le projet.",
+			"Les shells de cette instance et ceux partagés dans tout le projet.",
 		commandsName: "Commandes",
 		commandsDescription:
-			"Vos commandes, définies une fois pour le projet et lancées dans l'instance active.",
+			"Vos commandes habituelles, enregistrées une fois et lancées en un clic.",
+		envName: "Environnement",
+		envDescription:
+			"Gérez votre .env : un seul jeu de variables réutilisé par chaque instance.",
 	},
 
 	commands: {
@@ -510,6 +513,79 @@ export const fr = {
 			data: "Données",
 			signal: "Signaux",
 		},
+	},
+
+	env: {
+		title: "Variables d'environnement",
+		subtitle:
+			"Remplace le .env recopié d'une instance à l'autre. Cairn écrit le fichier dans chaque worktree et injecte les variables dans les terminaux, les commandes et l'agent.",
+		scope: {
+			global: "Global",
+			project: "Projet",
+			instance: "Instance",
+		},
+		instanceEmpty: "Aucune variable pour cette instance.",
+		projectEmpty: "Aucune variable pour ce projet.",
+		globalEmpty: "Aucune variable partagée entre tous les projets.",
+		resolved: "Résultat",
+		resolvedEmpty: "Rien à injecter pour l'instant.",
+		new: "Nouvelle variable",
+		import: "Importer",
+		export: "Exporter",
+		exportScope: "Exporter cette portée",
+		enable: "Activer",
+		disable: "Désactiver",
+		reveal: "Afficher",
+		hide: "Masquer",
+		badgePerInstance: "Par instance",
+		overridePlaceholder: "Valeur pour cette instance",
+		writeFile: "Générer le fichier dans le worktree",
+		writeFileHint:
+			"Garde fonctionnel un programme qui lit le fichier. Cairn n'écrase jamais un fichier qu'il n'a pas écrit.",
+		fileName: "Nom du fichier",
+		conflict: (file: string) =>
+			`Un ${file} non géré par Cairn existe déjà dans ce worktree, rien n'a été écrit.`,
+		conflictImport: "Importer et gérer",
+
+		scopeField: "Enregistrée dans",
+		scopeFieldHint:
+			"Global vaut pour tous les projets, projet pour toutes ses instances, instance pour celle-ci seulement.",
+		newVariable: "Nouvelle variable",
+		editVariable: "Variable",
+		key: "Clé",
+		value: "Valeur",
+		valueHint:
+			"Les jetons des commandes comme {{instance.branch}} sont remplacés au moment de l'injection.",
+		secret: "Secret",
+		secretHint:
+			"Masque la valeur à l'écran. Elle reste stockée en clair dans ~/.cairn.",
+		perInstance: "Une valeur par instance",
+		perInstanceHint:
+			"La clé est déclarée ici, mais chaque instance fournit sa propre valeur.",
+		enabled: "Activée",
+		enabledHint:
+			"Une variable désactivée est absente des processus et du fichier généré.",
+		errorInvalidKey:
+			"Une clé commence par une lettre ou _ et ne contient que des lettres, chiffres et _.",
+		errorReservedKey: (prefix: string) =>
+			`Les clés commençant par ${prefix} sont réservées par Cairn.`,
+
+		importHeading: "Importer des variables",
+		importPickFile: "Choisir un fichier",
+		importFromWorktree: "Lire le fichier du worktree",
+		importTarget: "Importer dans",
+		importReplace: "Remplacer les clés déjà présentes",
+		importDetected: (n: number) => (n <= 1 ? "1 variable" : `${n} variables`),
+		importExisting: "Déjà définie",
+		importAll: "Tout sélectionner",
+		importNone: "Tout désélectionner",
+		importCount: (n: number) => (n <= 1 ? "Importer" : `Importer ${n}`),
+		importInvalid: (n: number) =>
+			n <= 1 ? "1 ligne a été ignorée." : `${n} lignes ont été ignorées.`,
+		importReserved: (n: number) =>
+			n <= 1
+				? "1 clé commençant par CAIRN_ a été ignorée."
+				: `${n} clés commençant par CAIRN_ ont été ignorées.`,
 	},
 
 	terminal: {

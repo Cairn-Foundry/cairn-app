@@ -2,6 +2,8 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
+  import { activeProject } from '$lib/stores/project';
+  import { prepareInstanceEnv } from '$lib/stores/env';
   import { terminalActive } from '$lib/stores/ui';
   import {
     terminalSessions,
@@ -64,8 +66,13 @@
 
   $effect(() => {
     if (!$terminalActive || !projectId || !activeId) return;
-    void restoreProjectTerminals(projectId);
-    void restoreTerminals(projectId, activeId, $activeInstance?.worktreePath ?? null);
+    const pid = projectId;
+    const iid = activeId;
+    const cwd = $activeInstance?.worktreePath ?? null;
+    void prepareInstanceEnv($activeProject, $activeInstance).then(async (env) => {
+      await restoreProjectTerminals(pid, env);
+      await restoreTerminals(pid, iid, cwd, env);
+    });
   });
 
   $effect(() => {
@@ -94,12 +101,14 @@
 
   async function newTerminal() {
     if (!projectId || !activeId) return;
-    await addTerminal(projectId, activeId, worktreePath);
+    const env = await prepareInstanceEnv($activeProject, $activeInstance);
+    await addTerminal(projectId, activeId, worktreePath, env);
   }
 
   async function newProjectTerminal() {
     if (!projectId || !activeId) return;
-    await addProjectTerminal(projectId, activeId, worktreePath);
+    const env = await prepareInstanceEnv($activeProject, $activeInstance);
+    await addProjectTerminal(projectId, activeId, worktreePath, env);
   }
 
   function selectTerminal(id: string) {

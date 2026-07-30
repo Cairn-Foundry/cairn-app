@@ -166,6 +166,17 @@ export function substitute(text: string, resolution: Resolution): string {
 }
 
 /**
+ * Same tokens, but the value is inserted as written: environment variable values
+ * never reach a shell, so quoting them would leak the quotes into the value.
+ */
+export function substituteValues(
+	text: string,
+	values: Record<string, string>,
+): string {
+	return text.replace(TOKEN, (raw, token: string) => values[token] ?? raw);
+}
+
+/**
  * One shell invocation for the whole command: `&&` chains the steps and stops on
  * the first failure, `;` runs them all whatever happens.
  */
@@ -181,8 +192,11 @@ export function buildScript(
 		.join(stopOnError ? " && " : "; ");
 }
 
-export function buildEnv(resolution: Resolution): Record<string, string> {
-	const env: Record<string, string> = {};
+export function buildEnv(
+	resolution: Resolution,
+	userEnv: Record<string, string> = {},
+): Record<string, string> {
+	const env: Record<string, string> = { ...userEnv };
 	for (const [key, name] of Object.entries(VARIABLE_ENV_NAMES)) {
 		env[name] = resolution.values[key] ?? "";
 	}

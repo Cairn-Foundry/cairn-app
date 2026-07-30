@@ -9,9 +9,17 @@
   import { setActiveTerminal } from '$lib/stores/terminal';
   import { showTool } from '$lib/stores/ui';
 
-  export let commands: CustomCommand[] = [];
+  export let globalPinned: CustomCommand[] = [];
+  export let projectPinned: CustomCommand[] = [];
 
   const dispatch = createEventDispatcher<{ close: void; manage: void }>();
+
+  $: sections = [
+    { key: 'global', label: t('commands.globalSection'), list: globalPinned },
+    { key: 'project', label: t('commands.projectSection'), list: projectPinned },
+  ];
+
+  $: isEmpty = globalPinned.length === 0 && projectPinned.length === 0;
 
   $: runsByCommand = Object.fromEntries(
     Object.values($commandRuns)
@@ -49,34 +57,41 @@
   </div>
 
   <div class="pinned-body">
-    {#each commands as command (command.id)}
-      {@const run = runsByCommand[command.id]}
-      {@const port = run?.ports[0]?.port}
-      <div class="pinned-card" class:running={!!run}>
-        <button class="pinned-launch" disabled={!$activeInstance} on:click={() => activate(command)}>
-          <span class="pinned-icon" style={command.color ? `color: ${command.color}` : ''}>
-            <Icon name={command.icon} size={16}/>
-          </span>
-          <span class="pinned-text">
-            <span class="pinned-name">
-              {command.name}
-              {#if run}
-                <span class="pinned-dot running" title={t('commands.statusRunning') as string}></span>
-              {/if}
-            </span>
-            <span class="pinned-meta mono">{port ? `:${port}` : command.steps.join(' && ')}</span>
-          </span>
-        </button>
-        {#if run}
-          <button class="pinned-stop" title={t('commands.stop') as string} on:click={() => stop(command)}>
-            <Icon name="stop" size={11}/>
-          </button>
-        {/if}
-      </div>
-    {/each}
-
-    {#if commands.length === 0}
+    {#if isEmpty}
       <p class="pinned-empty">{t('commands.pinnedEmpty')}</p>
+    {:else}
+      {#each sections as section (section.key)}
+        {#if section.list.length > 0}
+          <div class="pinned-section">
+            <div class="pinned-section-head">{section.label}</div>
+            {#each section.list as command (command.id)}
+              {@const run = runsByCommand[command.id]}
+              {@const port = run?.ports[0]?.port}
+              <div class="pinned-card" class:running={!!run}>
+                <button class="pinned-launch" disabled={!$activeInstance} on:click={() => activate(command)}>
+                  <span class="pinned-icon" style={command.color ? `color: ${command.color}` : ''}>
+                    <Icon name={command.icon} size={16}/>
+                  </span>
+                  <span class="pinned-text">
+                    <span class="pinned-name">
+                      {command.name}
+                      {#if run}
+                        <span class="pinned-dot running" title={t('commands.statusRunning') as string}></span>
+                      {/if}
+                    </span>
+                    <span class="pinned-meta mono">{port ? `:${port}` : command.steps.join(' && ')}</span>
+                  </span>
+                </button>
+                {#if run}
+                  <button class="pinned-stop" title={t('commands.stop') as string} on:click={() => stop(command)}>
+                    <Icon name="stop" size={11}/>
+                  </button>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {/each}
     {/if}
   </div>
 
@@ -142,7 +157,18 @@
     padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 12px;
+  }
+
+  .pinned-section { display: flex; flex-direction: column; gap: 6px; }
+
+  .pinned-section-head {
+    padding: 2px 2px 0;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-3);
   }
 
   .pinned-card {

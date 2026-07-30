@@ -28,6 +28,7 @@ pub trait AgentProvider: Send + Sync {
         session_id: Option<&str>,
         handle: &RunningChild,
         run_id: &str,
+        env: &HashMap<String, String>,
     ) -> Result<AgentResponse, String>;
 }
 
@@ -95,6 +96,7 @@ pub async fn send_message(
     provider_id: String,
     run_id: String,
     session_id: Option<String>,
+    env: Option<HashMap<String, String>>,
 ) -> Result<(), String> {
     let state = app.state::<AgentState>();
 
@@ -112,6 +114,7 @@ pub async fn send_message(
         .insert(run_id.clone(), handle.clone());
 
     let app_out = app.clone();
+    let env = env.unwrap_or_default();
     std::thread::spawn(move || {
         let result = provider.send(
             &app_out,
@@ -120,6 +123,7 @@ pub async fn send_message(
             session_id.as_deref(),
             &handle,
             &run_id,
+            &env,
         );
 
         if let Ok(mut running) = app_out.state::<AgentState>().running.lock() {

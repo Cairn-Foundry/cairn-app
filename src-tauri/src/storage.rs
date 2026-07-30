@@ -68,6 +68,23 @@ pub fn instance_command_state_file(project_id: &str, instance_id: &str) -> Resul
         .join("command-state.json"))
 }
 
+pub fn global_env_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("env.json"))
+}
+
+pub fn project_env_file(project_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join(project_id).join("env.json"))
+}
+
+pub fn instance_env_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("env.json"))
+}
+
 pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
 }

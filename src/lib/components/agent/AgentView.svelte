@@ -6,6 +6,8 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { t, getLocale } from '$lib/i18n';
   import { activeInstance, instancesWithBase } from '$lib/stores/instance';
+  import { activeProject } from '$lib/stores/project';
+  import { prepareInstanceEnv } from '$lib/stores/env';
   import { settings } from '$lib/stores/settings';
   import { sendMessage, stopAgent } from '$lib/services/agent-service';
   import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
@@ -438,7 +440,8 @@
     try {
       const sessionId =
         conversationsOf(ref).find((c) => c.id === conv.id)?.sessionId ?? null;
-      await sendMessage(message, inst.worktreePath, conv.providerId, runId, sessionId);
+      const env = await prepareInstanceEnv(get(activeProject), inst);
+      await sendMessage(message, inst.worktreePath, conv.providerId, runId, sessionId, env);
     } catch (e) {
       conv.error = String(e);
       setBusy(inst, conv.id, false);

@@ -74,6 +74,7 @@ export async function restoreTerminals(
 	projectId: string,
 	instanceId: string,
 	cwd: string | null,
+	env: Record<string, string> | null = null,
 ): Promise<void> {
 	const key = terminalScope(projectId, instanceId);
 	if (restored.has(key)) return;
@@ -86,7 +87,7 @@ export async function restoreTerminals(
 	if (tabs.length === 0) return;
 
 	for (const tab of tabs) {
-		await spawn(tab.id, cwd);
+		await spawn(tab.id, cwd, null, env);
 	}
 
 	terminalSessions.update((m) => ({ ...m, [key]: tabs }));
@@ -98,6 +99,7 @@ export async function restoreTerminals(
 
 export async function restoreProjectTerminals(
 	projectId: string,
+	env: Record<string, string> | null = null,
 ): Promise<void> {
 	if (restoredProjects.has(projectId)) return;
 	restoredProjects.add(projectId);
@@ -109,7 +111,7 @@ export async function restoreProjectTerminals(
 	if (tabs.length === 0) return;
 
 	for (const tab of tabs) {
-		await spawn(tab.id, tab.cwd);
+		await spawn(tab.id, tab.cwd, null, env);
 	}
 
 	projectTerminals.update((m) => ({ ...m, [projectId]: tabs }));
@@ -119,13 +121,14 @@ export async function addTerminal(
 	projectId: string,
 	instanceId: string,
 	cwd: string | null,
+	env: Record<string, string> | null = null,
 ): Promise<void> {
 	const key = terminalScope(projectId, instanceId);
 	const id = `${instanceId}:${crypto.randomUUID()}`;
 	const list = get(terminalSessions)[key] ?? [];
 	const title = `Terminal ${list.length + 1}`;
 
-	await spawn(id, cwd);
+	await spawn(id, cwd, null, env);
 
 	terminalSessions.update((m) => ({
 		...m,
@@ -161,12 +164,13 @@ export async function addProjectTerminal(
 	projectId: string,
 	instanceId: string,
 	cwd: string | null,
+	env: Record<string, string> | null = null,
 ): Promise<void> {
 	const id = `${projectId}:${crypto.randomUUID()}`;
 	const list = get(projectTerminals)[projectId] ?? [];
 	const title = `Terminal ${list.length + 1}`;
 
-	await spawn(id, cwd);
+	await spawn(id, cwd, null, env);
 
 	projectTerminals.update((m) => ({
 		...m,

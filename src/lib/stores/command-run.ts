@@ -19,6 +19,7 @@ import {
 	type Resolution,
 } from "$lib/utils/commands/command-variables";
 import { onTerminalExit } from "$lib/utils/terminal/terminal-manager";
+import { prepareInstanceEnv } from "./env";
 import {
 	addCommandTerminal,
 	removeTerminal,
@@ -149,7 +150,10 @@ export async function launchCommand(
 	const previous = get(commandRuns)[key];
 	if (previous) await stopCommand(key);
 
-	const resolution = await buildResolution(command, project, instance, prompts);
+	const [resolution, userEnv] = await Promise.all([
+		buildResolution(command, project, instance, prompts),
+		prepareInstanceEnv(project, instance),
+	]);
 	const script = buildScript(command.steps, command.stopOnError, resolution);
 	if (!script) return;
 
@@ -168,7 +172,7 @@ export async function launchCommand(
 			port,
 		},
 		script,
-		buildEnv(resolution),
+		buildEnv(resolution, userEnv),
 	);
 
 	commandRuns.update((m) => ({

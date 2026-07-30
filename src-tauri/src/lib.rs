@@ -161,6 +161,17 @@ pub fn run() {
             get_command_state,
             save_command_state,
             allocate_port,
+            get_global_env,
+            save_global_env,
+            get_project_env,
+            save_project_env,
+            get_instance_env,
+            save_instance_env,
+            env_file_status,
+            read_env_file,
+            write_env_file,
+            delete_env_file,
+            ensure_env_ignored,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
