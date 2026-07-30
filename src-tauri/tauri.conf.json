@@ -34,6 +34,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -41,5 +42,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFERTk3MkYyOEQxMjFBMDAKUldRQUdoS044bkxwclpIelRSQm5qR0F3NkkrM0w5OXU2cW0wbXFtQngzWkhMY2d5OXhmNDNmNkIK",
+      "endpoints": [
+        "https://github.com/Cairn-Foundry/cairn-app/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

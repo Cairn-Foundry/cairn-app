@@ -17,6 +17,8 @@
     "fs:allow-home-read-recursive",
     "fs:allow-home-write-recursive",
     "fs:allow-config-read-recursive",
-    "fs:allow-config-write-recursive"
+    "fs:allow-config-write-recursive",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

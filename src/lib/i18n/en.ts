@@ -1018,6 +1018,21 @@ export const en = {
 		likelyCause: "Likely cause",
 	},
 
+	update: {
+		heading: "Update",
+		modalTitle: "A new version is available",
+		cardTitle: "Update available",
+		cardAction: "Update",
+		sidebarLabel: "Update",
+		notesTitle: "What's new",
+		install: "Update now",
+		installVersion: (version: string) => `Update to ${version}`,
+		later: "Later",
+		upToDate: "Cairn is up to date",
+		ariaInstalling: "Installing the update",
+		ariaChecking: "Checking for updates",
+	},
+
 	home: {
 		greeting: "Good morning, Benjamin.",
 		greetingTagline: "Which cairn are you following today?",
@@ -1277,6 +1292,15 @@ export const en = {
 					desc: "Auto-format before staging",
 					value: "Prettier",
 				},
+			},
+			updates: {
+				groupTitle: "Updates",
+				currentVersion: "Installed version",
+				currentVersionDesc: "The version currently running",
+				autoCheck: "Check automatically",
+				autoCheckDesc: "On launch, then every six hours",
+				check: "Check now",
+				checkDesc: "Ask the update server for a newer version",
 			},
 		},
 		appearance: {

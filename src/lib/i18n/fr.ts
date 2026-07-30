@@ -1045,6 +1045,21 @@ export const fr = {
 		likelyCause: "Cause probable",
 	},
 
+	update: {
+		heading: "Mise à jour",
+		modalTitle: "Une nouvelle version est disponible",
+		cardTitle: "Mise à jour disponible",
+		cardAction: "Mettre à jour",
+		sidebarLabel: "Mise à jour",
+		notesTitle: "Nouveautés",
+		install: "Mettre à jour maintenant",
+		installVersion: (version: string) => `Installer la ${version}`,
+		later: "Plus tard",
+		upToDate: "Cairn est à jour",
+		ariaInstalling: "Installation de la mise à jour",
+		ariaChecking: "Recherche de mises à jour",
+	},
+
 	home: {
 		greeting: "Bonjour, Benjamin.",
 		greetingTagline: "Quel cairn suivez-vous aujourd'hui ?",
@@ -1309,6 +1324,15 @@ export const fr = {
 					desc: "Formater automatiquement avant l'indexation",
 					value: "Prettier",
 				},
+			},
+			updates: {
+				groupTitle: "Mises à jour",
+				currentVersion: "Version installée",
+				currentVersionDesc: "La version actuellement lancée",
+				autoCheck: "Vérifier automatiquement",
+				autoCheckDesc: "Au lancement, puis toutes les six heures",
+				check: "Vérifier maintenant",
+				checkDesc: "Interroger le serveur de mise à jour",
 			},
 		},
 		appearance: {

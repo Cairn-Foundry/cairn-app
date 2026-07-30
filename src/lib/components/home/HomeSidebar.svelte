@@ -7,6 +7,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
+  import UpdateCard from '$lib/components/layout/UpdateCard.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
 
   export let activeSection: HomeSection;
@@ -43,6 +44,7 @@
   </button>
 
   <div style="flex: 1"></div>
+  <UpdateCard/>
   <div style="padding: 0 8px; font-size: 11px; color: var(--fg-3); font-family: var(--font-mono);">
     v{__APP_VERSION__ ?? 'dev'}
   </div>

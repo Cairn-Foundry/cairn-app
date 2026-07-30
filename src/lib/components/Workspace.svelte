@@ -20,6 +20,7 @@
   import { globalCommands, loadCommands, projectCommands } from '$lib/stores/custom-command';
   import type { CustomCommand } from '$lib/services/custom-command-service';
   import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
+  import { hasPendingUpdate, openUpdateModal } from '$lib/stores/update';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
   import { shortcuts, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -485,6 +486,17 @@
         <span class="icon"><Icon name="grid" size={18}/></span>
         <span class="label">{t('workspace.toolsLabel')}</span>
       </button>
+      {#if $hasPendingUpdate}
+        <button
+          class="step update-toggle"
+          aria-label={t('update.cardTitle') as string}
+          on:click={openUpdateModal}
+        >
+          <span class="icon"><Icon name="download" size={18}/></span>
+          <span class="label">{t('update.sidebarLabel')}</span>
+          <span class="running-dot" title={t('update.cardTitle') as string}></span>
+        </button>
+      {/if}
     </aside>
 
     {#if showTools && activeInstance}
@@ -842,6 +854,10 @@
   .sidebar-empty .step {
     opacity: 0.3;
     pointer-events: none;
+  }
+  .sidebar-empty .step.update-toggle {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   :global(.project-tab) { cursor: pointer; }

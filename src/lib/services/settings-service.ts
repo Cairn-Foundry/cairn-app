@@ -39,6 +39,7 @@ export interface CairnSettings {
 	gitProfiles: GitProfile[];
 	agentActivityWidth: number;
 	quickSearchShowGitignored: boolean;
+	autoCheckUpdates: boolean;
 }
 
 export function getSettings(): Promise<CairnSettings> {

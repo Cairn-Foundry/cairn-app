@@ -45,6 +45,18 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		group: s("settings.general.groupTitle"),
 	},
 	{
+		label: s("settings.general.updates.autoCheck"),
+		desc: s("settings.general.updates.autoCheckDesc"),
+		tab: "general",
+		group: s("settings.general.updates.groupTitle"),
+	},
+	{
+		label: s("settings.general.updates.check"),
+		desc: s("settings.general.updates.checkDesc"),
+		tab: "general",
+		group: s("settings.general.updates.groupTitle"),
+	},
+	{
 		label: s("settings.appearance.themeGroup"),
 		desc: s("settings.appearance.themeDesc"),
 		tab: "appearance",

@@ -13,6 +13,8 @@
   import Home from '$lib/components/Home.svelte';
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
+  import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
+  import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
 
   type Screen = 'home' | 'workspace';
   type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
@@ -26,7 +28,11 @@
   let mounted = false;
 
   let removeCopyHandler: (() => void) | null = null;
-  onDestroy(() => removeCopyHandler?.());
+  let stopUpdateChecks: (() => void) | null = null;
+  onDestroy(() => {
+    removeCopyHandler?.();
+    stopUpdateChecks?.();
+  });
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   function persistUiState() {
@@ -51,6 +57,7 @@
     initTerminals();
     void loadAgentActivity();
     settings.load();
+    stopUpdateChecks = startUpdateChecks();
 
     const saved = await getUiState();
     screen = saved.screen;
@@ -163,6 +170,10 @@
       on:createInstance={() => showCreate = true}
     />
   </div>
+
+  {#if $isUpdateModalOpen}
+    <UpdateModal/>
+  {/if}
 
   {#if showCreate}
     <CreateInstance

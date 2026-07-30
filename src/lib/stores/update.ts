@@ -1,0 +1,166 @@
+import { derived, get, writable } from "svelte/store";
+import {
+	checkForUpdate,
+	downloadAndInstall,
+	restartApp,
+	type Update,
+} from "$lib/services/update-service";
+import { settings } from "$lib/stores/settings";
+
+export const STARTUP_CHECK_DELAY_MS = 5_000;
+export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+
+export type UpdatePhase =
+	| "idle"
+	| "checking"
+	| "available"
+	| "downloading"
+	| "installing"
+	| "error";
+
+export interface UpdateState {
+	phase: UpdatePhase;
+	version: string | null;
+	notes: string | null;
+	downloaded: number;
+	total: number | null;
+	error: string | null;
+	lastCheckedAt: number | null;
+}
+
+const IDLE: UpdateState = {
+	phase: "idle",
+	version: null,
+	notes: null,
+	downloaded: 0,
+	total: null,
+	error: null,
+	lastCheckedAt: null,
+};
+
+const { subscribe, set, update } = writable<UpdateState>(IDLE);
+
+export const updateState = { subscribe };
+export const isUpdateModalOpen = writable(false);
+
+export const hasPendingUpdate = derived(
+	updateState,
+	(s) =>
+		s.phase === "available" ||
+		s.phase === "downloading" ||
+		s.phase === "installing",
+);
+
+let pending: Update | null = null;
+
+function toMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+/** Each check hands back a new Rust-side resource; drop the previous one. */
+async function releasePending(): Promise<void> {
+	if (!pending) return;
+	const previous = pending;
+	pending = null;
+	try {
+		await previous.close();
+	} catch {}
+}
+
+export async function checkForUpdates({ silent = false } = {}): Promise<void> {
+	const phase = get(updateState).phase;
+	if (phase === "checking" || phase === "downloading" || phase === "installing")
+		return;
+
+	update((s) => ({ ...s, phase: "checking", error: null }));
+	try {
+		const found = await checkForUpdate();
+		await releasePending();
+		pending = found;
+		if (!found) {
+			set({ ...IDLE, lastCheckedAt: Date.now() });
+			return;
+		}
+		update((s) => ({
+			...s,
+			phase: "available",
+			version: found.version,
+			notes: found.body?.trim() || null,
+			lastCheckedAt: Date.now(),
+		}));
+	} catch (error) {
+		await releasePending();
+		if (silent) {
+			set({ ...IDLE, lastCheckedAt: Date.now() });
+			return;
+		}
+		update((s) => ({
+			...s,
+			phase: "error",
+			error: toMessage(error),
+			lastCheckedAt: Date.now(),
+		}));
+	}
+}
+
+export async function installUpdate(): Promise<void> {
+	if (!pending) return;
+
+	update((s) => ({
+		...s,
+		phase: "downloading",
+		downloaded: 0,
+		total: null,
+		error: null,
+	}));
+	try {
+		await downloadAndInstall(pending, ({ downloaded, total }) =>
+			update((s) => ({ ...s, downloaded, total })),
+		);
+		update((s) => ({ ...s, phase: "installing" }));
+		await restartApp();
+	} catch (error) {
+		update((s) => ({ ...s, phase: "error", error: toMessage(error) }));
+	}
+}
+
+export function openUpdateModal(): void {
+	isUpdateModalOpen.set(true);
+}
+
+export function closeUpdateModal(): void {
+	isUpdateModalOpen.set(false);
+}
+
+export function startUpdateChecks(): () => void {
+	let startupTimer: ReturnType<typeof setTimeout> | null = null;
+	let interval: ReturnType<typeof setInterval> | null = null;
+
+	const stopSchedule = () => {
+		if (startupTimer) clearTimeout(startupTimer);
+		if (interval) clearInterval(interval);
+		startupTimer = null;
+		interval = null;
+	};
+
+	const unsubscribe = settings.subscribe((s) => {
+		if (!s.autoCheckUpdates) {
+			stopSchedule();
+			return;
+		}
+		if (interval) return;
+		startupTimer = setTimeout(
+			() => void checkForUpdates({ silent: true }),
+			STARTUP_CHECK_DELAY_MS,
+		);
+		interval = setInterval(
+			() => void checkForUpdates({ silent: true }),
+			CHECK_INTERVAL_MS,
+		);
+	});
+
+	return () => {
+		unsubscribe();
+		stopSchedule();
+	};
+}

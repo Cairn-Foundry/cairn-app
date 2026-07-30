@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, slugify } from "./format";
+import { formatBytes, formatDate, slugify } from "./format";
 
 describe("slugify", () => {
 	it("lowercases the input", () => {
@@ -33,6 +33,31 @@ describe("slugify", () => {
 
 	it("typical ticket title", () => {
 		expect(slugify("Add TOTP authentication")).toBe("add-totp-authentication");
+	});
+});
+
+describe("formatBytes", () => {
+	it("keeps bytes without a decimal", () => {
+		expect(formatBytes(0)).toBe("0 B");
+		expect(formatBytes(512)).toBe("512 B");
+	});
+
+	it("switches unit at 1024", () => {
+		expect(formatBytes(1024)).toBe("1.0 KB");
+		expect(formatBytes(1023)).toBe("1023 B");
+	});
+
+	it("formats megabytes with one decimal", () => {
+		expect(formatBytes(48 * 1024 * 1024)).toBe("48.0 MB");
+		expect(formatBytes(1_572_864)).toBe("1.5 MB");
+	});
+
+	it("caps at gigabytes", () => {
+		expect(formatBytes(5 * 1024 ** 4)).toBe("5120.0 GB");
+	});
+
+	it("clamps negative values", () => {
+		expect(formatBytes(-10)).toBe("0 B");
 	});
 });
 

@@ -24,6 +24,7 @@ const DEFAULTS: CairnSettings = {
 	gitProfiles: [],
 	agentActivityWidth: 300,
 	quickSearchShowGitignored: false,
+	autoCheckUpdates: true,
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
