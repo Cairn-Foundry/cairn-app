@@ -55,9 +55,6 @@ jobs:
             echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # The matrix is composed here rather than declared inline: a job-level `if`
-      # cannot read the `matrix` context, so `linux_only` has to filter the list
-      # before the build job exists.
       - name: Compose build matrix
         id: matrix
         env:
@@ -97,7 +94,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
-            libxdo-dev libssl-dev build-essential curl wget file
+            libxdo-dev libssl-dev build-essential curl wget file xdg-utils
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -126,8 +123,6 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      # One shared pattern list: only the bundles the target actually produced
-      # exist, and `if-no-files-found: error` still catches a job that built nothing.
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
