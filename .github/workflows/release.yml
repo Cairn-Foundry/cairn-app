@@ -28,6 +28,7 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
       notes: ${{ steps.resolve.outputs.notes }}
+      matrix: ${{ steps.matrix.outputs.value }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,58 +47,45 @@ jobs:
             echo "version mismatch: tag=$VERSION package.json=$PKG Cargo.toml=$CARGO" >&2
             exit 1
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
             echo "notes<<RELEASE_NOTES_EOF"
             git tag -l --format='%(contents)' "$TAG"
             echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
+
+      # The matrix is composed here rather than declared inline: a job-level `if`
+      # cannot read the `matrix` context, so `linux_only` has to filter the list
+      # before the build job exists.
+      - name: Compose build matrix
+        id: matrix
+        env:
+          LINUX_ONLY: ${{ github.event.inputs.linux_only }}
+        run: |
+          set -euo pipefail
+          FULL='[
+            {"artifact":"bundle-linux-x86_64","runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"appimage"},
+            {"artifact":"bundle-macos-universal","runner":"macos-latest","target":"universal-apple-darwin","bundles":"app,dmg"},
+            {"artifact":"bundle-windows-x86_64","runner":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},
+            {"artifact":"bundle-windows-aarch64","runner":"windows-11-arm","target":"aarch64-pc-windows-msvc","bundles":"nsis"},
+            {"artifact":"bundle-linux-aarch64","runner":"ubuntu-22.04-arm","target":"aarch64-unknown-linux-gnu","bundles":"appimage"}
+          ]'
+          if [ "${LINUX_ONLY:-}" = "true" ]; then
+            VALUE=$(echo "$FULL" | jq -c '[.[] | select(.artifact == "bundle-linux-x86_64")]')
+          else
+            VALUE=$(echo "$FULL" | jq -c '.')
+          fi
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+          echo "$VALUE"
 
   build:
     needs: verify
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - artifact: bundle-linux-x86_64
-            runner: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            bundles: appimage
-            paths: |
-              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
-          - artifact: bundle-macos-universal
-            runner: macos-latest
-            target: universal-apple-darwin
-            bundles: app,dmg
-            paths: |
-              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
-              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-          - artifact: bundle-windows-x86_64
-            runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundles: nsis
-            paths: |
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
-          - artifact: bundle-windows-aarch64
-            runner: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            bundles: nsis
-            paths: |
-              src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
-              src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
-          - artifact: bundle-linux-aarch64
-            runner: ubuntu-22.04-arm
-            target: aarch64-unknown-linux-gnu
-            bundles: appimage
-            paths: |
-              src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-              src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
+        include: ${{ fromJSON(needs.verify.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event.inputs.linux_only != 'true' || matrix.artifact == 'bundle-linux-x86_64' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,10 +126,19 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      # One shared pattern list: only the bundles the target actually produced
+      # exist, and `if-no-files-found: error` still catches a job that built nothing.
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.paths }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe.sig
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.sig
           if-no-files-found: error
           retention-days: 1
 

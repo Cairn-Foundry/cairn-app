@@ -161,6 +161,13 @@ Les notes de version sont le **message du tag annote** (`git tag -l --format='%(
 `git tag -a v0.12.0 -m "..."` remplit donc la modale de mise a jour, un tag leger la laisse vide et
 la modale masque simplement le bloc.
 
+La matrice elle-meme est **composee dans ce job** et exposee en sortie JSON, plutot que declaree
+en dur sous `strategy`. Raison: un `if` au niveau d'un job ne peut pas lire le contexte `matrix`,
+donc le filtrage `linux_only` doit avoir lieu avant que le job `build` n'existe. Un `if` de job
+referencant `matrix` n'est pas une erreur d'execution mais un **refus de parsing**: GitHub cree un
+run vide en echec, y compris sur les pushes de branche, ce qui se lit tres mal. Le fichier est
+verifie par `actionlint`, qui attrape exactement ce genre d'erreur de contexte.
+
 ### Job `build` (matrice, 5 entrees)
 
 | Entree | Runner | Target Rust | Bundles | Cles updater |
