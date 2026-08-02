@@ -1,31 +1,47 @@
-import type { FileNode } from "$lib/services/file-service";
+import type { FileNode, QuickSearchHit } from "$lib/services/file-service";
 
-export function flattenTreeFilePaths(nodes: FileNode[]): string[] {
-	const paths: string[] = [];
+export function flattenTreeEntries(nodes: FileNode[]): QuickSearchHit[] {
+	const entries: QuickSearchHit[] = [];
 	for (const n of nodes) {
-		if (!n.isDir) paths.push(n.path);
-		if (n.children) paths.push(...flattenTreeFilePaths(n.children));
+		entries.push({ path: n.path, isDir: n.isDir });
+		if (n.children) entries.push(...flattenTreeEntries(n.children));
 	}
-	return paths;
+	return entries;
 }
 
-export function scorePathMatch(path: string, q: string): number {
-	if (!q) return 1;
-	const lPath = path.toLowerCase();
-	const lQ = q.toLowerCase();
+/** Path separators are term separators too, so "utils/files" matches "src/utils/x/files.ts". */
+export function splitSearchTerms(q: string): string[] {
+	return q.split(/[\s/\\]+/).filter(Boolean);
+}
+
+function scoreTerm(lPath: string, term: string): number {
 	const filename = lPath.split("/").pop() ?? lPath;
 
-	if (filename.startsWith(lQ)) return 100;
-	if (filename.includes(lQ)) return 80;
-	if (lPath.includes(lQ)) return 60;
+	if (filename.startsWith(term)) return 100;
+	if (filename.includes(term)) return 80;
+	if (lPath.includes(term)) return 60;
 
 	let pi = 0;
-	for (const ch of lQ) {
+	for (const ch of term) {
 		pi = lPath.indexOf(ch, pi);
 		if (pi === -1) return -1;
 		pi++;
 	}
 	return 30;
+}
+
+export function scorePathMatch(path: string, q: string): number {
+	const terms = splitSearchTerms(q.toLowerCase());
+	if (terms.length === 0) return 1;
+
+	const lPath = path.toLowerCase();
+	let total = 0;
+	for (const term of terms) {
+		const score = scoreTerm(lPath, term);
+		if (score < 0) return -1;
+		total += score;
+	}
+	return Math.round(total / terms.length);
 }
 
 export function htmlEscape(s: string): string {
@@ -60,6 +76,8 @@ export function highlightPathMatch(path: string, q: string): string {
 }
 
 export function matchesSearch(text: string, query: string): boolean {
-	if (!query.trim()) return true;
-	return text.toLowerCase().includes(query.toLowerCase());
+	const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+	if (terms.length === 0) return true;
+	const lText = text.toLowerCase();
+	return terms.every((term) => lText.includes(term));
 }

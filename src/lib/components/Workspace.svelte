@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, showTool } from '$lib/stores/ui.js';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, showTool } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -23,10 +23,11 @@
   import { hasPendingUpdate, openUpdateModal } from '$lib/stores/update';
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
-  import { shortcuts, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+  import type { ShortcutId } from '$lib/types/shortcuts';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
-  import type { FileNode } from '$lib/services/file-service';
+  import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
   import { matchesSearch } from '$lib/utils/files/files-search';
 
   import type { Instance } from '$lib/types/instance';
@@ -80,11 +81,12 @@
     ? !!$agentDone[agentActivityKey(activeInstance.projectId, activeInstance.id)]
     : false;
 
-  async function handleQuickOpenFile(path: string) {
+  async function handleQuickOpen(hit: QuickSearchHit) {
     openStep('files');
     quickOpenVisible.set(false);
     await tick();
-    filesView?.openFileByPath(path);
+    if (hit.isDir) filesView?.revealDirectory(hit.path);
+    else filesView?.openFileByPath(hit.path);
   }
 
   function selectTool(id: string) {
@@ -111,6 +113,46 @@
   function openStep(id: string) {
     activeStep.set(id as any);
     showTool(null);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      await win.setFullscreen(!(await win.isFullscreen()));
+      await checkFullscreen();
+    } catch {}
+  }
+
+  /**
+   * Actions the workspace owns rather than the editor. Everything else is an
+   * editor action and goes down to FilesView.
+   */
+  const APP_ACTIONS: ShortcutId[] = [
+    'toggleFullscreen', 'toggleTools', 'openTerminal', 'openCommands',
+    'openEnv', 'goHome', 'reloadEditor', 'reloadProject',
+  ];
+
+  async function runAction(id: string) {
+    switch (id) {
+      case 'toggleFullscreen': await toggleFullscreen(); break;
+      case 'toggleTools':      if (activeInstance) toggleTools(); break;
+      case 'openTerminal':     if (activeInstance) selectTool('terminal'); break;
+      case 'openCommands':     if (activeInstance) selectTool('commands'); break;
+      case 'openEnv':          if (activeInstance) selectTool('env'); break;
+      case 'goHome':           dispatch('goHome'); break;
+      default:                 await filesView?.executeAction(id); break;
+    }
+  }
+
+  function handleAppKey(e: KeyboardEvent) {
+    for (const id of APP_ACTIONS) {
+      if (!matchesShortcut(e, $activeShortcuts[id])) continue;
+      if (id !== 'toggleFullscreen' && $activeScreen !== 'workspace') return;
+      e.preventDefault();
+      void runAction(id);
+      return;
+    }
   }
 
   $: toolActive = $terminalActive || $commandsActive || $envActive;
@@ -281,6 +323,8 @@
       )
     : instanceGroups;
 </script>
+
+<svelte:window on:keydown={handleAppKey}/>
 
 <div class="workspace">
   <!-- Project tabs - padding-left clears native macOS traffic lights -->
@@ -481,6 +525,7 @@
         class="step tools-toggle {showTools || toolActive ? 'active' : ''}"
         disabled={!activeInstance}
         aria-label={t('workspace.ariaTools') as string}
+        title={`${t('workspace.toolsLabel')} (${bindingToLabels($shortcuts.toggleTools).join('')})`}
         on:click={toggleTools}
       >
         <span class="icon"><Icon name="grid" size={18}/></span>
@@ -565,7 +610,7 @@
   <QuickOpen
     tree={quickOpenTree}
     worktreePath={activeInstance?.worktreePath ?? ''}
-    onOpen={handleQuickOpenFile}
+    onOpen={handleQuickOpen}
     onClose={() => quickOpenVisible.set(false)}
   />
 {/if}
@@ -576,7 +621,7 @@
     shortcutDefs={SHORTCUT_DEFS}
     customCommands={paletteCommands}
     onClose={() => commandPaletteVisible.set(false)}
-    onAction={(id) => { commandPaletteVisible.set(false); filesView?.executeAction(id); }}
+    onAction={(id) => { commandPaletteVisible.set(false); void runAction(id); }}
     onRunCommand={runCommandFromPalette}
   />
 {/if}

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { FileNode } from "../../../lib/services/file-service";
 import {
-	flattenTreeFilePaths,
+	flattenTreeEntries,
 	highlightPathMatch,
 	htmlEscape,
 	matchesSearch,
 	scorePathMatch,
+	splitSearchTerms,
 } from "./files-search";
 
 const file = (path: string): FileNode => ({
@@ -20,31 +21,32 @@ const dir = (path: string, children: FileNode[]): FileNode => ({
 	children,
 });
 
-describe("flattenTreeFilePaths", () => {
-	it("returns paths of flat file list", () => {
-		expect(flattenTreeFilePaths([file("a.ts"), file("b.ts")])).toEqual([
-			"a.ts",
-			"b.ts",
+describe("flattenTreeEntries", () => {
+	it("keeps directories alongside their files", () => {
+		expect(flattenTreeEntries([dir("src", [file("src/a.ts")])])).toEqual([
+			{ path: "src", isDir: true },
+			{ path: "src/a.ts", isDir: false },
 		]);
 	});
 
-	it("recurses into directories", () => {
-		expect(
-			flattenTreeFilePaths([dir("src", [file("src/a.ts"), file("src/b.ts")])]),
-		).toEqual(["src/a.ts", "src/b.ts"]);
+	it("keeps an empty directory", () => {
+		expect(flattenTreeEntries([dir("empty", [])])).toEqual([
+			{ path: "empty", isDir: true },
+		]);
+	});
+});
+
+describe("splitSearchTerms", () => {
+	it("splits on whitespace and path separators", () => {
+		expect(splitSearchTerms("utils/files bar")).toEqual([
+			"utils",
+			"files",
+			"bar",
+		]);
 	});
 
-	it("skips directories themselves", () => {
-		const paths = flattenTreeFilePaths([dir("src", [file("src/a.ts")])]);
-		expect(paths).not.toContain("src");
-	});
-
-	it("handles empty tree", () => {
-		expect(flattenTreeFilePaths([])).toEqual([]);
-	});
-
-	it("handles directory with no children", () => {
-		expect(flattenTreeFilePaths([dir("empty", [])])).toEqual([]);
+	it("drops empty terms", () => {
+		expect(splitSearchTerms("  //a// ")).toEqual(["a"]);
 	});
 });
 
@@ -75,6 +77,25 @@ describe("scorePathMatch", () => {
 
 	it("is case-insensitive", () => {
 		expect(scorePathMatch("src/Foo.ts", "FOO")).toBe(100);
+	});
+
+	it("matches every term of a multi-term query, wherever it sits", () => {
+		// "utils" only hits the path (60), "search" hits the filename (80)
+		expect(
+			scorePathMatch("src/utils/files/files-search.ts", "utils search"),
+		).toBe(70);
+	});
+
+	it("treats a slash as a term separator", () => {
+		expect(scorePathMatch("src/utils/files/deep/a.ts", "utils/a")).toBe(80);
+	});
+
+	it("rejects when one term is missing", () => {
+		expect(scorePathMatch("src/utils/a.ts", "utils zzz")).toBe(-1);
+	});
+
+	it("returns 1 for a separator-only query", () => {
+		expect(scorePathMatch("src/foo.ts", " / ")).toBe(1);
 	});
 });
 
@@ -141,5 +162,10 @@ describe("matchesSearch", () => {
 
 	it("returns true for whitespace-only query", () => {
 		expect(matchesSearch("anything", "   ")).toBe(true);
+	});
+
+	it("requires every term but not their order", () => {
+		expect(matchesSearch("Toggle split editor", "editor toggle")).toBe(true);
+		expect(matchesSearch("Toggle split editor", "editor zzz")).toBe(false);
 	});
 });

@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
-  import type { FileNode } from '$lib/services/file-service';
-  import { flattenTreeFilePaths, scorePathMatch } from '$lib/utils/files/files-search';
+  import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
+  import { flattenTreeEntries, scorePathMatch } from '$lib/utils/files/files-search';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
   import { quickSearch } from '$lib/services/file-service';
   import { settings } from '$lib/stores/settings';
@@ -11,7 +11,7 @@
   interface Props {
     tree: FileNode[];
     worktreePath?: string;
-    onOpen: (path: string) => void;
+    onOpen: (hit: QuickSearchHit) => void;
     onClose: () => void;
   }
 
@@ -23,7 +23,7 @@
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
 
-  let results = $state<string[]>([]);
+  let results = $state<QuickSearchHit[]>([]);
   let lastIndexKey = '';
 
   const showGitignored = $derived($settings.quickSearchShowGitignored);
@@ -33,13 +33,13 @@
     inputEl?.focus();
   }
 
-  function rankInTree(q: string): string[] {
-    return flattenTreeFilePaths(tree)
-      .map(path => ({ path, s: scorePathMatch(path, q) }))
+  function rankInTree(q: string): QuickSearchHit[] {
+    return flattenTreeEntries(tree)
+      .map(hit => ({ hit, s: scorePathMatch(hit.path, q) }))
       .filter(x => x.s >= 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, RESULT_LIMIT)
-      .map(x => x.path);
+      .map(x => x.hit);
   }
 
   $effect(() => {
@@ -68,8 +68,8 @@
     selectedIdx = 0;
   });
 
-  function commit(path: string) {
-    onOpen(path);
+  function commit(hit: QuickSearchHit) {
+    onOpen(hit);
     onClose();
   }
 
@@ -112,18 +112,18 @@
 
     {#if results.length > 0}
       <ul class="results-list" role="listbox">
-        {#each results as path, i}
+        {#each results as hit, i}
           <li
             class="result-item {i === selectedIdx ? 'selected' : ''}"
             role="option"
             aria-selected={i === selectedIdx}
-            onclick={() => commit(path)}
+            onclick={() => commit(hit)}
             onmousemove={() => { selectedIdx = i; }}
-            onkeydown={(e) => e.key === 'Enter' && commit(path)}
+            onkeydown={(e) => e.key === 'Enter' && commit(hit)}
           >
-            <Icon name="file" size={12}/>
-            <span class="result-name">{basename(path)}</span>
-            <span class="result-dir">{parentPathOf(path)}</span>
+            <Icon name={hit.isDir ? 'folder' : 'file'} size={12}/>
+            <span class="result-name">{basename(hit.path)}</span>
+            <span class="result-dir">{parentPathOf(hit.path)}</span>
           </li>
         {/each}
       </ul>

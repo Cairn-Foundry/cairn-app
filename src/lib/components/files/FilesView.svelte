@@ -438,6 +438,21 @@ import { get } from 'svelte/store';
   export function getTree(): FileNode[] { return tree; }
   export function openFileByPath(path: string) { quickOpenFile(path); }
 
+  export function revealDirectory(path: string) {
+    sidebarHidden = false;
+    const parts = path.split('/');
+    for (let i = 1; i <= parts.length; i++) expanded.add(parts.slice(0, i).join('/'));
+    expanded = expanded;
+    selectedDir = path;
+    multiSelected = new Set([path]);
+  }
+
+  export async function reloadProject(): Promise<void> {
+    if (!worktreePath) return;
+    await loadTree(worktreePath);
+    await reloadOpenFiles();
+  }
+
   export async function reloadFileByPath(path: string): Promise<void> {
     if (!worktreePath) return;
     try {
@@ -723,6 +738,7 @@ import { get } from 'svelte/store';
     'indentLess', 'expandSelection', 'goToLine', 'addCursorAbove', 'addCursorBelow',
     'duplicateLine', 'treeSelectAll', 'treeCopy', 'treeCut', 'treePaste',
     'treeDelete', 'treeRename', 'treeNewFile', 'treeNewFolder',
+    'reloadEditor', 'reloadProject',
   ]);
 
   export async function executeAction(id: string) {
@@ -744,6 +760,8 @@ import { get } from 'svelte/store';
       case 'fontSizeDown':      bumpFontSize(-1); break;
       case 'fontSizeReset':     resetFontSize(); break;
       case 'commandPalette':    commandPaletteVisible.set(true); break;
+      case 'reloadEditor':      await reloadOpenFiles(); break;
+      case 'reloadProject':     await reloadProject(); break;
       case 'treeSelectAll':
         multiSelected = new Set(flattenVisible(tree, expanded).map(n => n.path));
         break;

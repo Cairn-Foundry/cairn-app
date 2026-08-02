@@ -1,0 +1,158 @@
+[
+	{
+		"version": "0.12.0",
+		"date": "",
+		"summary": {
+			"en": "Navigation and search, everywhere and faster.",
+			"fr": "La navigation et la recherche, partout et plus vite."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "A changelog page in the home screen, with the history of every version.",
+					"fr": "Une page de nouveautés dans l'accueil, avec l'historique de chaque version."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Quick search finds folders too, and opens them in the file tree.",
+					"fr": "La recherche rapide trouve aussi les dossiers et les ouvre dans l'arborescence."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Quick search is more permissive: terms can be separated by spaces or slashes and match anywhere in the path.",
+					"fr": "La recherche rapide est plus permissive : les termes peuvent être séparés par des espaces ou des slashs et correspondre n'importe où dans le chemin."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Fullscreen toggle (F11 on Windows and Linux, Ctrl+Cmd+F on macOS).",
+					"fr": "Passage en plein écran (F11 sur Windows et Linux, Ctrl+Cmd+F sur macOS)."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "New quick commands: open the tools panel, terminal, commands, environment, go home, reload the editor and reload the project.",
+					"fr": "Nouvelles commandes rapides : ouvrir le panneau d'outils, le terminal, les commandes, l'environnement, revenir à l'accueil, recharger l'éditeur et recharger le projet."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Release builds no longer depend on OpenSSL, and Apple signing only runs when its secrets are set.",
+					"fr": "Les builds de release ne dépendent plus d'OpenSSL, et la signature Apple ne s'active que si ses secrets sont définis."
+				}
+			}
+		]
+	},
+	{
+		"version": "0.11.0",
+		"date": "2026-07-22",
+		"summary": {
+			"en": "Updates from inside the app, environment variables and the tools panel.",
+			"fr": "Les mises à jour depuis l'app, les variables d'environnement et le panneau d'outils."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "Check for new releases and install them without leaving Cairn.",
+					"fr": "Vérifier les nouvelles versions et les installer sans quitter Cairn."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Environment variables: one set of variables reused by every instance of a project.",
+					"fr": "Variables d'environnement : un jeu de variables réutilisé par chaque instance d'un projet."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Custom commands, with run management and import.",
+					"fr": "Commandes personnalisées, avec gestion des exécutions et import."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Tools panel and project-wide terminals shared across instances.",
+					"fr": "Panneau d'outils et terminaux de projet partagés entre les instances."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Merge conflict resolution in the editor, and instance finalization.",
+					"fr": "Résolution des conflits de fusion dans l'éditeur, et finalisation d'instance."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Git commands report structured errors instead of raw output.",
+					"fr": "Les commandes git renvoient des erreurs structurées au lieu de la sortie brute."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "Textual loading messages, replaced everywhere by spinners and skeletons.",
+					"fr": "Les messages de chargement textuels, remplacés partout par des spinners et des squelettes."
+				}
+			}
+		]
+	},
+	{
+		"version": "0.10.0",
+		"date": "2026-07-13",
+		"summary": {
+			"en": "The first complete workspace: editor, git and agent side by side.",
+			"fr": "Le premier espace de travail complet : éditeur, git et agent côte à côte."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "Projects and instances, each on its own git worktree.",
+					"fr": "Projets et instances, chacune sur son propre worktree git."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "File editor with tabs, split view, markdown rendering and quick open.",
+					"fr": "Éditeur de fichiers avec onglets, vue divisée, rendu markdown et ouverture rapide."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Git view: changes, log, graph, stash, merge and rebase.",
+					"fr": "Vue git : changements, historique, graphe, remises, fusion et rebase."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Agent conversations per instance and per project, with persisted history.",
+					"fr": "Conversations d'agent par instance et par projet, avec historique persisté."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Customizable keyboard shortcuts and the command palette.",
+					"fr": "Raccourcis clavier personnalisables et palette de commandes."
+				}
+			}
+		]
+	}
+]

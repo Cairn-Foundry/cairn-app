@@ -198,6 +198,7 @@ export const en = {
 			tabs: "Tabs",
 			view: "View",
 			tree: "File Tree",
+			app: "Application",
 		},
 		defs: {
 			quickOpen: {
@@ -353,6 +354,39 @@ export const en = {
 			treeNewFolder: {
 				label: "New folder",
 				description: "Create a new folder in the active directory",
+			},
+			toggleFullscreen: {
+				label: "Toggle fullscreen",
+				description: "Enter or leave fullscreen",
+			},
+			toggleTools: {
+				label: "Toggle tools panel",
+				description: "Open or close the tools panel of the sidebar",
+			},
+			openTerminal: {
+				label: "Open terminal",
+				description: "Show the terminal tool",
+			},
+			openCommands: {
+				label: "Open commands",
+				description: "Show the saved commands tool",
+			},
+			openEnv: {
+				label: "Open environment",
+				description: "Show the environment variables tool",
+			},
+			goHome: {
+				label: "Go to home",
+				description: "Leave the workspace and go back to the home screen",
+			},
+			reloadEditor: {
+				label: "Reload editor",
+				description: "Re-read every open file from disk",
+			},
+			reloadProject: {
+				label: "Reload project",
+				description:
+					"Re-read the file tree, the git status and every open file",
 			},
 		},
 	},
@@ -651,8 +685,8 @@ export const en = {
 	},
 
 	quickOpen: {
-		placeholder: "Go to file...",
-		noResults: (q: string) => `No files match "${q}"`,
+		placeholder: "Go to file or folder...",
+		noResults: (q: string) => `Nothing matches "${q}"`,
 		toggleGitignored: "Show/hide gitignored files",
 	},
 
@@ -1055,8 +1089,21 @@ export const en = {
 			savedCheckpoints: "Saved checkpoints",
 			activity: "Activity",
 			agents: "Agents",
+			changelog: "What's new",
 			account: "Account",
 			settings: "Settings",
+		},
+		changelog: {
+			title: "What's new",
+			current: "Installed",
+			unreleased: "In development",
+			timelineLabel: "Versions",
+			kinds: {
+				added: "Added",
+				changed: "Changed",
+				fixed: "Fixed",
+				removed: "Removed",
+			},
 		},
 		agents: {
 			title: "Agents",

@@ -211,6 +211,35 @@ it and is persisted so it respawns in the same place. Both lists are reorderable
 dragging across sections moves a terminal from one scope to the other without restarting its PTY
 (`shareTerminal` / `unshareTerminal` in `stores/terminal.ts`).
 
+### Changelog
+
+**Every user-visible change is logged in the changelog, in the same commit that makes it.** A new
+feature, a changed behaviour, a fixed bug, a removed capability: each one adds a change to the entry
+of the version being developed (the topmost one, the one whose `date` is still empty), in both `en`
+and `fr`. A feature is not finished until its line is there. Only work the user cannot perceive -
+refactors, internal plumbing, CI, tests, docs - stays out.
+
+The content lives in `src/lib/data/changelog.json`, pure data with no code around it;
+`src/lib/data/changelog.ts` only holds the types, `CHANGE_KINDS` and `localized()`, and re-exports the
+JSON as `CHANGELOG`. The home screen renders it in a **What's new** section
+(`home/ChangelogSection.svelte`): the left panel is a timeline of versions, the right one shows the
+selected release. Every release adds one entry at the top of the JSON, newest first, with a flat
+`changes` list; each change carries its kind (`added` / `changed` / `fixed` / `removed`) and the view
+groups them into sections following `CHANGE_KINDS` - an empty kind renders no section, so never add a
+placeholder entry to fill one. Entry text is not in `en.ts` / `fr.ts`: it
+carries its own `{ en, fr }` pair resolved by `localized()`, so a release note never leaves a dangling
+i18n key behind. Leave `date` empty while the version is still in development - the UI shows it as
+"In development", and the entry whose `version` matches `__APP_VERSION__` is flagged as installed.
+
+### Shortcuts
+
+Bindings are declared once in `SHORTCUT_DEFS` (`stores/shortcuts.ts`) and grouped. The `app` group
+holds what the *workspace* owns rather than the editor: fullscreen, the tools panel, the tools
+themselves, going home, reloading. Those ids are listed in `APP_ACTIONS` in `Workspace.svelte` and
+handled by `runAction()`, which is also what the command palette calls; anything not in that list
+falls through to `FilesView.executeAction()`. A new command therefore needs a `ShortcutId`, a def
+with its default binding, the `shortcuts.defs.*` i18n pair, and a case in one of those two switches.
+
 ### Agent system
 
 `AgentState` (Rust, `src-tauri/src/commands/agent/mod.rs`) holds a `ProviderRegistry` and a `Mutex<AgentSession>`. Claude Code CLI is the v1 provider (`providers/claude_cli.rs`). The provider runs in a spawned thread and emits `claude-output` Tauri events line-by-line to the frontend.

@@ -83,7 +83,7 @@ fn to_file_nodes(children: std::collections::BTreeMap<String, TreeBuilder>) -> V
     nodes
 }
 
-fn collect_files(root: &PathBuf, include_ignored: bool) -> Vec<String> {
+fn collect_entries(root: &PathBuf, include_ignored: bool) -> Vec<QuickSearchHit> {
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false)
@@ -94,20 +94,44 @@ fn collect_files(root: &PathBuf, include_ignored: bool) -> Vec<String> {
         .parents(!include_ignored)
         .filter_entry(|e| e.file_name() != ".git");
 
-    let mut files = Vec::new();
+    let mut entries = Vec::new();
     for entry in builder.build().flatten() {
-        if entry.file_type().is_some_and(|ft| ft.is_file()) {
-            if let Ok(rel) = entry.path().strip_prefix(root) {
-                files.push(rel.to_string_lossy().to_string());
+        let Some(ft) = entry.file_type() else { continue };
+        if !ft.is_file() && !ft.is_dir() {
+            continue;
+        }
+        if let Ok(rel) = entry.path().strip_prefix(root) {
+            let path = rel.to_string_lossy().to_string();
+            if path.is_empty() {
+                continue;
             }
+            entries.push(QuickSearchHit { path, is_dir: ft.is_dir() });
         }
     }
-    files
+    entries
+}
+
+fn parse_query(query: &str) -> Pattern {
+    let atoms = query.replace(['/', '\\'], " ");
+    Pattern::parse(&atoms, CaseMatching::Ignore, Normalization::Smart)
+}
+
+#[derive(Clone, Serialize)]
+pub struct QuickSearchHit {
+    pub path: String,
+    #[serde(rename = "isDir")]
+    pub is_dir: bool,
+}
+
+impl AsRef<str> for QuickSearchHit {
+    fn as_ref(&self) -> &str {
+        &self.path
+    }
 }
 
 pub struct QuickSearchIndex {
     key: String,
-    paths: Vec<String>,
+    entries: Vec<QuickSearchHit>,
 }
 
 #[derive(Default)]
@@ -121,7 +145,7 @@ pub fn quick_search(
     include_ignored: bool,
     refresh: bool,
     limit: usize,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<QuickSearchHit>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let key = format!("{}::{}", expanded, include_ignored);
 
@@ -130,21 +154,21 @@ pub fn quick_search(
     if stale {
         let root = PathBuf::from(&expanded);
         if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-        let paths = collect_files(&root, include_ignored);
-        *guard = Some(QuickSearchIndex { key, paths });
+        let entries = collect_entries(&root, include_ignored);
+        *guard = Some(QuickSearchIndex { key, entries });
     }
-    let paths = &guard.as_ref().unwrap().paths;
+    let entries = &guard.as_ref().unwrap().entries;
 
     let trimmed = query.trim();
     if trimmed.is_empty() {
-        return Ok(paths.iter().take(limit).cloned().collect());
+        return Ok(entries.iter().take(limit).cloned().collect());
     }
 
     let mut matcher = NucleoMatcher::new(Config::DEFAULT.match_paths());
-    let pattern = Pattern::parse(trimmed, CaseMatching::Smart, Normalization::Smart);
-    let mut matches = pattern.match_list(paths.iter(), &mut matcher);
+    let pattern = parse_query(trimmed);
+    let mut matches = pattern.match_list(entries.iter(), &mut matcher);
     matches.truncate(limit);
-    Ok(matches.into_iter().map(|(p, _)| p.clone()).collect())
+    Ok(matches.into_iter().map(|(hit, _)| hit.clone()).collect())
 }
 
 #[tauri::command]

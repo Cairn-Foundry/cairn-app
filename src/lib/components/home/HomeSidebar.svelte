@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  export type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'agents' | 'account' | 'settings';
+  export type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'agents' | 'changelog' | 'account' | 'settings';
 </script>
 
 <script lang="ts">
@@ -33,6 +33,10 @@
   </button>
   <button class="home-nav-item {activeSection === 'agents'     ? 'active' : ''}" on:click={() => dispatch('select', 'agents')}>
     <Icon name="agent" size={15}/> {t('home.sidebar.agents')}
+  </button>
+
+  <button class="home-nav-item {activeSection === 'changelog'  ? 'active' : ''}" on:click={() => dispatch('select', 'changelog')}>
+    <Icon name="sparkles" size={15}/> {t('home.sidebar.changelog')}
   </button>
 
   <div class="section">{t('home.sections.account')}</div>

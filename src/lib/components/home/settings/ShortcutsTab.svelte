@@ -87,7 +87,7 @@
     }
   }
 
-  const GROUPS: { key: string; label: string }[] = (['files','tree','tabs','view','editor'] as const)
+  const GROUPS: { key: string; label: string }[] = (['files','tree','tabs','view','app','editor'] as const)
     .map(key => ({ key, label: SHORTCUT_GROUP_LABELS[key] ?? key }));
 </script>
 

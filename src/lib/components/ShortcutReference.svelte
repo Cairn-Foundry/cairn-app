@@ -15,7 +15,7 @@
     { keys: ['Enter'], description: t('shortcuts.staticEditorTail.acceptCompletion') as string },
   ];
 
-  $: groups = (['files', 'tabs', 'view', 'editor'] as const).map(group => ({
+  $: groups = (['files', 'tabs', 'view', 'app', 'editor'] as const).map(group => ({
     label: SHORTCUT_GROUP_LABELS[group] ?? group,
     shortcuts: [
       ...SHORTCUT_DEFS

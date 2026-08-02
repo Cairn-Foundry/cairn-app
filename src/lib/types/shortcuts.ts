@@ -43,7 +43,16 @@ export type ShortcutId =
 	| "treeDelete"
 	| "treeRename"
 	| "treeNewFile"
-	| "treeNewFolder";
+	| "treeNewFolder"
+	// Application (global)
+	| "toggleFullscreen"
+	| "toggleTools"
+	| "openTerminal"
+	| "openCommands"
+	| "openEnv"
+	| "goHome"
+	| "reloadEditor"
+	| "reloadProject";
 
 export interface ShortcutBinding {
 	key: string;
@@ -57,7 +66,7 @@ export interface ShortcutDef {
 	id: ShortcutId;
 	label: string;
 	description: string;
-	group: "files" | "editor" | "tabs" | "view" | "tree";
+	group: "files" | "editor" | "tabs" | "view" | "tree" | "app";
 	default: ShortcutBinding;
 }
 

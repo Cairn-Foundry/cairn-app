@@ -313,6 +313,57 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "tree",
 		default: { key: "n", mod: true, shift: true, alt: false, ctrl: false },
 	},
+	// -- Application group ------------------------------------------------------
+	{
+		id: "toggleFullscreen",
+		...d("toggleFullscreen"),
+		group: "app",
+		default: IS_MAC
+			? { key: "f", mod: true, shift: false, alt: false, ctrl: true }
+			: { key: "F11", mod: false, shift: false, alt: false, ctrl: false },
+	},
+	{
+		id: "toggleTools",
+		...d("toggleTools"),
+		group: "app",
+		default: { key: "j", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "openTerminal",
+		...d("openTerminal"),
+		group: "app",
+		default: { key: "`", mod: false, shift: false, alt: false, ctrl: true },
+	},
+	{
+		id: "openCommands",
+		...d("openCommands"),
+		group: "app",
+		default: { key: "c", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "openEnv",
+		...d("openEnv"),
+		group: "app",
+		default: { key: "e", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "goHome",
+		...d("goHome"),
+		group: "app",
+		default: { key: "h", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "reloadEditor",
+		...d("reloadEditor"),
+		group: "app",
+		default: { key: "r", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "reloadProject",
+		...d("reloadProject"),
+		group: "app",
+		default: { key: "r", mod: true, shift: false, alt: true, ctrl: false },
+	},
 ];
 
 export const SHORTCUT_GROUP_LABELS: Record<string, string> = {
@@ -321,6 +372,7 @@ export const SHORTCUT_GROUP_LABELS: Record<string, string> = {
 	tabs: t("shortcuts.groups.tabs") as string,
 	view: t("shortcuts.groups.view") as string,
 	tree: t("shortcuts.groups.tree") as string,
+	app: t("shortcuts.groups.app") as string,
 };
 
 export const shortcuts = derived(settings, ($s) => {

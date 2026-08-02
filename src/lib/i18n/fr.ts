@@ -200,6 +200,7 @@ export const fr = {
 			tabs: "Onglets",
 			view: "Affichage",
 			tree: "Arborescence",
+			app: "Application",
 		},
 		defs: {
 			quickOpen: {
@@ -365,6 +366,40 @@ export const fr = {
 			treeNewFolder: {
 				label: "Nouveau dossier",
 				description: "Créer un nouveau dossier dans le répertoire actif",
+			},
+			toggleFullscreen: {
+				label: "Basculer en plein écran",
+				description: "Entrer ou sortir du plein écran",
+			},
+			toggleTools: {
+				label: "Basculer le panneau d'outils",
+				description:
+					"Ouvrir ou fermer le panneau d'outils de la barre latérale",
+			},
+			openTerminal: {
+				label: "Ouvrir le terminal",
+				description: "Afficher l'outil terminal",
+			},
+			openCommands: {
+				label: "Ouvrir les commandes",
+				description: "Afficher l'outil des commandes enregistrées",
+			},
+			openEnv: {
+				label: "Ouvrir l'environnement",
+				description: "Afficher l'outil des variables d'environnement",
+			},
+			goHome: {
+				label: "Revenir à l'accueil",
+				description: "Quitter l'espace de travail et revenir à l'accueil",
+			},
+			reloadEditor: {
+				label: "Recharger l'éditeur",
+				description: "Relire depuis le disque tous les fichiers ouverts",
+			},
+			reloadProject: {
+				label: "Recharger le projet",
+				description:
+					"Relire l'arborescence, le statut git et tous les fichiers ouverts",
 			},
 		},
 	},
@@ -667,8 +702,8 @@ export const fr = {
 	},
 
 	quickOpen: {
-		placeholder: "Aller au fichier...",
-		noResults: (q: string) => `Aucun fichier ne correspond à "${q}"`,
+		placeholder: "Aller au fichier ou dossier...",
+		noResults: (q: string) => `Aucun résultat pour "${q}"`,
 		toggleGitignored: "Afficher/masquer les fichiers gitignorés",
 	},
 
@@ -1083,8 +1118,21 @@ export const fr = {
 			savedCheckpoints: "Checkpoints sauvegardés",
 			activity: "Activité",
 			agents: "Agents",
+			changelog: "Nouveautés",
 			account: "Compte",
 			settings: "Paramètres",
+		},
+		changelog: {
+			title: "Nouveautés",
+			current: "Installée",
+			unreleased: "En développement",
+			timelineLabel: "Versions",
+			kinds: {
+				added: "Ajouté",
+				changed: "Modifié",
+				fixed: "Corrigé",
+				removed: "Supprimé",
+			},
 		},
 		agents: {
 			title: "Agents",

@@ -8,6 +8,7 @@
   import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
   import type { Project } from '$lib/types/project';
   import AgentsSection from '$lib/components/home/AgentsSection.svelte';
+  import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
   const dispatch = createEventDispatcher<{
@@ -79,6 +80,14 @@
       </div>
       <div style="margin-top: 24px;">
         <AgentsSection />
+      </div>
+
+    {:else if activeSection === 'changelog'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.changelog.title')}</h1>
+      </div>
+      <div style="margin-top: 24px;">
+        <ChangelogSection />
       </div>
 
     {:else if activeSection === 'account'}

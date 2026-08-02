@@ -18,14 +18,19 @@ export async function listDirNames(path: string): Promise<string[]> {
 	return invoke<string[]>("list_dir_names", { path });
 }
 
+export interface QuickSearchHit {
+	path: string;
+	isDir: boolean;
+}
+
 export async function quickSearch(
 	path: string,
 	query: string,
 	includeIgnored: boolean,
 	refresh: boolean,
 	limit = 50,
-): Promise<string[]> {
-	return invoke<string[]>("quick_search", {
+): Promise<QuickSearchHit[]> {
+	return invoke<QuickSearchHit[]>("quick_search", {
 		path,
 		query,
 		includeIgnored,
