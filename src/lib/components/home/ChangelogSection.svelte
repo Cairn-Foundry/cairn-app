@@ -14,11 +14,19 @@
 
   let selectedVersion = CHANGELOG[0]?.version ?? '';
 
-  $: release = CHANGELOG.find(r => r.version === selectedVersion) ?? CHANGELOG[0];
+  const releases = CHANGELOG.map(release => ({
+    ...release,
+    sections: CHANGE_KINDS
+      .map(kind => ({ kind, changes: release.changes.filter(c => c.kind === kind) }))
+      .filter(s => s.changes.length > 0),
+  }));
 
-  $: sections = CHANGE_KINDS
-    .map(kind => ({ kind, changes: release.changes.filter(c => c.kind === kind) }))
-    .filter(s => s.changes.length > 0);
+  function selectVersion(version: string) {
+    selectedVersion = version;
+    document
+      .getElementById(`changelog-release-${version}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function formatDate(date: string): string {
     if (!date) return t('home.changelog.unreleased') as string;
@@ -36,7 +44,7 @@
       <button
         class="node {entry.version === selectedVersion ? 'active' : ''}"
         aria-current={entry.version === selectedVersion}
-        on:click={() => selectedVersion = entry.version}
+        on:click={() => selectVersion(entry.version)}
       >
         <span class="marker" class:unreleased={!entry.date}></span>
         <span class="node-text">
@@ -50,28 +58,39 @@
     {/each}
   </nav>
 
-  <article class="release">
-    <header class="release-head">
-      <h2 class="version selectable">v{release.version}</h2>
-      <span class="date">{formatDate(release.date)}</span>
-    </header>
-    <p class="summary selectable">{localized(release.summary)}</p>
+  <div class="releases">
+    {#each releases as release}
+      <article
+        class="release"
+        class:active={release.version === selectedVersion}
+        id="changelog-release-{release.version}"
+      >
+        <header class="release-head">
+          <h2 class="version selectable">v{release.version}</h2>
+          {#if release.version === currentVersion}
+            <span class="badge">{t('home.changelog.current')}</span>
+          {/if}
+          <span class="date">{formatDate(release.date)}</span>
+        </header>
+        <p class="summary selectable">{localized(release.summary)}</p>
 
-    {#each sections as section}
-      <section class="kind-section">
-        <h3 class="kind-title {section.kind}">
-          <span class="kind-icon"><Icon name={KINDS[section.kind].icon} size={11}/></span>
-          {KINDS[section.kind].label}
-          <span class="kind-count">{section.changes.length}</span>
-        </h3>
-        <ul class="changes">
-          {#each section.changes as change}
-            <li class="change selectable">{localized(change.text)}</li>
-          {/each}
-        </ul>
-      </section>
+        {#each release.sections as section}
+          <section class="kind-section">
+            <h3 class="kind-title {section.kind}">
+              <span class="kind-icon"><Icon name={KINDS[section.kind].icon} size={11}/></span>
+              {KINDS[section.kind].label}
+              <span class="kind-count">{section.changes.length}</span>
+            </h3>
+            <ul class="changes">
+              {#each section.changes as change}
+                <li class="change selectable">{localized(change.text)}</li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
+      </article>
     {/each}
-  </article>
+  </div>
 </div>
 
 <style>
@@ -90,6 +109,8 @@
     width: 200px;
     flex-shrink: 0;
     padding-left: 6px;
+    position: sticky;
+    top: 0;
   }
   .timeline::before {
     content: '';
@@ -163,16 +184,48 @@
     border: 1px solid var(--accent-line);
   }
 
-  /* -- Selected release ---------------------------------------------------- */
-  .release {
+  /* -- Releases ------------------------------------------------------------ */
+  .releases {
     flex: 1;
     min-width: 0;
     max-width: 620px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    scroll-behavior: smooth;
+  }
+
+  .release {
+    position: relative;
+    scroll-margin-top: 8px;
     padding: 18px 20px;
     background: var(--bg-2);
     border: 1px solid var(--stroke-0);
     border-radius: var(--r-lg);
   }
+
+  .release + .release::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -29px;
+    width: 1px;
+    height: 28px;
+    background: var(--stroke-0);
+  }
+  .release + .release::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -18px;
+    width: 5px;
+    height: 5px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: var(--stroke-1);
+  }
+  .release.active { border-color: var(--accent-line); }
+  .release-head .badge { margin-left: 0; align-self: center; }
 
   .release-head {
     display: flex;

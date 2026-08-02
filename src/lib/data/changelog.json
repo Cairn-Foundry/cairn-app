@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The changelog page shows every release at once; the timeline now scrolls to the version you pick.",
+					"fr": "La page des nouveautés affiche toutes les versions à la suite ; la frise fait défiler jusqu'à celle que vous choisissez."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "A changelog page in the home screen, with the history of every version.",
