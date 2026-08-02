@@ -42,6 +42,8 @@ export interface TerminalTab {
 export interface TerminalLayout {
 	terminals: TerminalTab[];
 	activeId: string | null;
+	splitId?: string | null;
+	splitRatio?: number | null;
 }
 
 export async function getTerminalState(

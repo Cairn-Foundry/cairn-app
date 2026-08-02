@@ -4,7 +4,7 @@
   import { EditorState, Compartment, type Extension } from '@codemirror/state';
   import { EditorView, lineNumbers } from '@codemirror/view';
   import { syntaxHighlighting, bracketMatching } from '@codemirror/language';
-  import { settings } from '$lib/stores/settings';
+  import { settings, activeSyntaxTokens } from '$lib/stores/settings';
   import {
     buildEditorTheme,
     buildHighlight,
@@ -37,9 +37,8 @@
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),
       themeCompartment.of(buildEditorTheme(theme)),
-      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
       EditorView.theme({
-        // Grow with content (the card scrolls) instead of filling a fixed box.
         '&': { height: 'auto' },
         '.cm-scroller': { overflow: 'visible' },
         '.cm-activeLine': { backgroundColor: 'transparent !important' },
@@ -52,7 +51,7 @@
     const theme = $settings.theme;
     view.dispatch({ effects: [
       themeCompartment.reconfigure(buildEditorTheme(theme)),
-      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
     ]});
   }
 

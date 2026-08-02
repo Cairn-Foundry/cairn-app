@@ -25,6 +25,7 @@
   let homeSection: string = 'projects';
   let homeSettingsTab: string = 'general';
   let showCreate = false;
+  let createFromBranch = '';
   let mounted = false;
 
   let removeCopyHandler: (() => void) | null = null;
@@ -167,7 +168,7 @@
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
-      on:createInstance={() => showCreate = true}
+      on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />
   </div>
 
@@ -177,6 +178,7 @@
 
   {#if showCreate}
     <CreateInstance
+      initialBranch={createFromBranch}
       on:close={() => showCreate = false}
       on:create={() => {
         showCreate = false;

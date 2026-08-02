@@ -8,6 +8,34 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "Syntax highlighting is yours to shape: a theme editor in Appearance sets the colour, weight, italics and underline of every token category, with a live preview, named themes and JSON import and export.",
+					"fr": "La coloration syntaxique vous appartient : un éditeur de thème dans Apparence règle la couleur, la graisse, l'italique et le soulignement de chaque catégorie de token, avec aperçu en direct, thèmes nommés et import/export JSON."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Drag a file from the tree onto an editor pane to open it there, or onto the right edge to open the split view. Files dragged in from the Finder land the same way, and editor tabs move from one pane to the other.",
+					"fr": "Glissez un fichier de l'arborescence sur un pane de l'éditeur pour l'y ouvrir, ou sur le bord droit pour ouvrir la vue divisée. Les fichiers glissés depuis le Finder suivent le même chemin, et les onglets se déplacent d'un pane à l'autre."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The terminal splits in two: a second pane side by side, resizable, that comes back where you left it after a restart.",
+					"fr": "Le terminal se divise en deux : un second pane côte à côte, redimensionnable, qui revient là où vous l'aviez laissé après un redémarrage."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Clicking a branch tag in the Git graph opens the instance creation modal, prefilled with that branch and its ticket.",
+					"fr": "Cliquer sur une étiquette de branche dans le graphe Git ouvre la modal de création d'instance, préremplie avec cette branche et son ticket."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "The changelog page shows every release at once; the timeline now scrolls to the version you pick.",

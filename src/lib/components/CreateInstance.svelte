@@ -9,6 +9,8 @@
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
 
+  export let initialBranch = '';
+
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
   // step: 0 = ticket, 1 = mode, 2 = git config
@@ -53,7 +55,22 @@
     }
   }
 
-  onMount(loadBranchList);
+  const TICKET_SEGMENT = /^[a-z][a-z0-9]*-\d+$/i;
+
+  function applyInitialBranch() {
+    const match = [initialBranch, ...remoteBranches.filter(r => r.endsWith(`/${initialBranch}`))]
+      .find(b => availableBranches.includes(b) || remoteBranches.includes(b));
+    if (!match) return;
+    mode = 'existing';
+    existingBranch = match;
+    const segment = match.split('/').find(s => TICKET_SEGMENT.test(s));
+    if (segment) ticketId = segment.toUpperCase();
+  }
+
+  onMount(async () => {
+    await loadBranchList();
+    if (initialBranch) applyInitialBranch();
+  });
 
   $: if (ticketId) {
     const slug = slugify(ticketId);

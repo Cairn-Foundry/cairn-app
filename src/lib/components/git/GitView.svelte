@@ -51,7 +51,7 @@
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
 
-  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void }>();
+  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
 
   function goToGitSettings() {
     pendingGitAction.set('createProfile');
@@ -1094,6 +1094,7 @@
         on:loadMore={loadMoreGraph}
         on:searchToggle={(e) => handleGraphSearchToggle(e.detail)}
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
+        on:createInstanceFromRef={(e) => dispatch('createInstanceFromRef', e.detail)}
         on:selectCommit={(e) => selectCommit(e.detail)}
         on:refresh={() => refreshGraph()}
       />

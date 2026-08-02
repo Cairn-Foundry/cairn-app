@@ -12,7 +12,7 @@
   export let selectedHash = '';
   export let hasMore = false;
 
-  const dispatch = createEventDispatcher<{ switchInstance: Instance; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean; refresh: void }>();
+  const dispatch = createEventDispatcher<{ switchInstance: Instance; createInstanceFromRef: string; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean; refresh: void }>();
 
   let isLoadingMore = false;
   let lastCount = 0;
@@ -242,6 +242,11 @@
     return chips.sort((a, b) => order[a.kind] - order[b.kind]);
   }
 
+  function isBranchChip(chip: RefChip): boolean {
+    if (chip.kind !== 'remote' && chip.kind !== 'local' && chip.kind !== 'head-branch') return false;
+    return !chip.label.endsWith('/HEAD');
+  }
+
   function relativeTime(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const m = Math.floor(diff / 60000);
@@ -380,19 +385,29 @@
             {/each}
             {#each chips as chip}
               {@const linkedInstance = branchToInstance.get(chip.label)}
+              {@const canCreate = !linkedInstance && isBranchChip(chip)}
+              {@const activate = linkedInstance
+                ? () => dispatch('switchInstance', linkedInstance)
+                : canCreate
+                  ? () => dispatch('createInstanceFromRef', chip.label)
+                  : undefined}
               <span
                 class="ref-chip chip-{chip.kind}"
                 class:chip-linked={!!linkedInstance}
-                role={linkedInstance ? 'button' : undefined}
+                class:chip-creatable={canCreate}
+                role={activate ? 'button' : undefined}
+                title={canCreate ? t('git.createInstanceFromBranch') as string : undefined}
                 style={chip.kind === 'head-branch' || chip.kind === 'local'
                   ? `--chip-color:${row.color};`
                   : ''}
-                on:click={linkedInstance ? () => dispatch('switchInstance', linkedInstance) : undefined}
-                on:keydown={linkedInstance ? (e) => e.key === 'Enter' && dispatch('switchInstance', linkedInstance) : undefined}
+                on:click={activate}
+                on:keydown={activate ? (e) => e.key === 'Enter' && activate() : undefined}
               >
                 {chip.label}
                 {#if linkedInstance}
                   <span class="chip-ticket">{linkedInstance.ticket.id}</span>
+                {:else if canCreate}
+                  <span class="chip-create-icon"><Icon name="plus" size={9}/></span>
                 {/if}
               </span>
             {/each}
@@ -600,6 +615,24 @@
   }
   .chip-linked:hover {
     filter: brightness(1.2);
+  }
+
+  .chip-creatable {
+    cursor: pointer;
+  }
+  .chip-creatable:hover {
+    filter: brightness(1.2);
+  }
+  .chip-create-icon {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0;
+    margin-left: 1px;
+    transition: opacity 0.12s ease;
+  }
+  .chip-creatable:hover .chip-create-icon,
+  .chip-creatable:focus-visible .chip-create-icon {
+    opacity: 0.75;
   }
 
   .chip-ticket {

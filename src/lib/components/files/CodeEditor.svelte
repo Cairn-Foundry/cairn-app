@@ -38,7 +38,7 @@
     deleteLine, selectAll,
   } from '@codemirror/commands';
   import { shortcuts, activeShortcuts, bindingToLabels } from '$lib/stores/shortcuts';
-  import { settings } from '$lib/stores/settings';
+  import { settings, activeSyntaxTokens } from '$lib/stores/settings';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { lintKeymap } from '@codemirror/lint';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
@@ -227,7 +227,7 @@
       drawSelection(),
       EditorView.clickAddsSelectionRange.of((e: MouseEvent) => e.altKey),
       whitespaceCompartment.of(showWhitespace ? highlightWhitespace() : []),
-      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
       foldGutter({
         markerDOM: (open) => {
           const el = document.createElement('span');
@@ -314,7 +314,7 @@
     const theme = $settings.theme;
     view.dispatch({ effects: [
       themeCompartment.reconfigure(buildEditorTheme(theme)),
-      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
     ]});
   }
 

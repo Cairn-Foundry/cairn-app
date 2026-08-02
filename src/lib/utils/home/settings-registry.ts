@@ -75,6 +75,12 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		group: s("settings.appearance.fontGroup"),
 	},
 	{
+		label: s("settings.syntax.groupTitle"),
+		desc: s("settings.syntax.desc"),
+		tab: "appearance",
+		group: s("settings.syntax.groupTitle"),
+	},
+	{
 		label: s("settings.editor.sidebarPosition"),
 		desc: s("settings.editor.sidebarPositionDesc"),
 		tab: "editor",

@@ -195,7 +195,7 @@
     goSettings: void;
     goShortcuts: void;
     goGitSettings: void;
-    createInstance: void;
+    createInstance: { branch?: string };
     reorderTabs: string[];
   }>();
 
@@ -432,7 +432,7 @@
               {/each}
               <div class="instance-menu-divider"></div>
             {/if}
-            <button class="instance-menu-item instance-menu-new" on:click={() => { showInstanceMenu = false; dispatch('createInstance'); }}>
+            <button class="instance-menu-item instance-menu-new" on:click={() => { showInstanceMenu = false; dispatch('createInstance', {}); }}>
               <Icon name="plus" size={11}/>
               <span>{t('workspace.newInstance')}</span>
             </button>
@@ -470,7 +470,7 @@
           {t('workspace.switchInstance')}
         </button>
       {/if}
-      <button class="create-instance-btn" on:click={() => dispatch('createInstance')}>
+      <button class="create-instance-btn" on:click={() => dispatch('createInstance', {})}>
         <Icon name="plus" size={13}/>
         {t('workspace.createInstance')}
       </button>
@@ -567,7 +567,7 @@
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')}/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'cicd'}><CiCdView/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       <div class="step-view" class:step-hidden={!$commandsActive}><CommandsView/></div>
@@ -586,7 +586,7 @@
                   <Icon name="branch" size={14}/>
                   {t('workspace.switchInstance')}
                 </button>
-                <button class="btn no-instance-cta" on:click={() => dispatch('createInstance')}>
+                <button class="btn no-instance-cta" on:click={() => dispatch('createInstance', {})}>
                   <Icon name="plus" size={14}/>
                   {t('workspace.noInstanceCta')}
                 </button>
@@ -594,7 +594,7 @@
             {:else}
               <h2 class="no-instance-headline">{t('workspace.noInstanceHeadline')}</h2>
               <p class="no-instance-sub">{t('workspace.noInstanceSub')}</p>
-              <button class="btn primary no-instance-cta" on:click={() => dispatch('createInstance')}>
+              <button class="btn primary no-instance-cta" on:click={() => dispatch('createInstance', {})}>
                 <Icon name="plus" size={14}/>
                 {t('workspace.noInstanceCta')}
               </button>
@@ -630,7 +630,7 @@
   <ManageInstances
     activeInstanceId={activeInstance?.id ?? null}
     on:close={() => showManageModal = false}
-    on:newInstance={() => { showManageModal = false; dispatch('createInstance'); }}
+    on:newInstance={() => { showManageModal = false; dispatch('createInstance', {}); }}
   />
 {/if}
 

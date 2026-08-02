@@ -243,6 +243,10 @@ pub struct TerminalLayout {
     pub terminals: Vec<TerminalTab>,
     #[serde(rename = "activeId", default)]
     pub active_id: Option<String>,
+    #[serde(rename = "splitId", default)]
+    pub split_id: Option<String>,
+    #[serde(rename = "splitRatio", default)]
+    pub split_ratio: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

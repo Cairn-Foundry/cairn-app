@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { WorkflowStep } from "$lib/types/instance";
 import type { ShortcutConfig } from "$lib/types/shortcuts";
+import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
 
 export interface GitProfile {
 	id: string;
@@ -40,6 +41,8 @@ export interface CairnSettings {
 	agentActivityWidth: number;
 	quickSearchShowGitignored: boolean;
 	autoCheckUpdates: boolean;
+	syntaxThemes: SyntaxTheme[];
+	activeSyntaxThemeId: string;
 }
 
 export function getSettings(): Promise<CairnSettings> {

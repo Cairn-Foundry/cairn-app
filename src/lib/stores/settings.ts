@@ -1,9 +1,10 @@
-import { writable } from "svelte/store";
+import { derived, writable } from "svelte/store";
 import {
 	type CairnSettings,
 	getSettings,
 	updateSettings,
 } from "$lib/services/settings-service";
+import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
 import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
 
@@ -25,6 +26,8 @@ const DEFAULTS: CairnSettings = {
 	agentActivityWidth: 300,
 	quickSearchShowGitignored: false,
 	autoCheckUpdates: true,
+	syntaxThemes: [],
+	activeSyntaxThemeId: "",
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
@@ -67,3 +70,11 @@ async function save(patch: Partial<CairnSettings>) {
 }
 
 export const settings = { subscribe, load, save };
+
+/** Token styles the editor must render with: the selected theme, or the built-in one. */
+export const activeSyntaxTokens = derived({ subscribe }, ($s) =>
+	normalizeSyntaxTokens(
+		$s.syntaxThemes.find((t) => t.id === $s.activeSyntaxThemeId)?.tokens,
+		$s.theme,
+	),
+);

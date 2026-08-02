@@ -94,6 +94,29 @@ pub struct CairnSettings {
     pub quick_search_show_gitignored: bool,
     #[serde(rename = "autoCheckUpdates", default = "default_auto_check_updates")]
     pub auto_check_updates: bool,
+    #[serde(rename = "syntaxThemes", default)]
+    pub syntax_themes: Vec<SyntaxTheme>,
+    #[serde(rename = "activeSyntaxThemeId", default)]
+    pub active_syntax_theme_id: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SyntaxTokenStyle {
+    pub color: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bold: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub italic: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub underline: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SyntaxTheme {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub tokens: std::collections::HashMap<String, SyntaxTokenStyle>,
 }
 
 fn default_agent_activity_width() -> u32 { 300 }
@@ -131,6 +154,8 @@ impl Default for CairnSettings {
             agent_activity_width: default_agent_activity_width(),
             quick_search_show_gitignored: default_quick_search_show_gitignored(),
             auto_check_updates: default_auto_check_updates(),
+            syntax_themes: Vec::new(),
+            active_syntax_theme_id: String::new(),
         }
     }
 }

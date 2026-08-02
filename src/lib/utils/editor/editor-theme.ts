@@ -18,6 +18,11 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { svelte } from "codemirror-lang-svelte";
+import {
+	defaultSyntaxTokens,
+	type SyntaxTokenKey,
+	type SyntaxTokens,
+} from "$lib/utils/editor/syntax-tokens";
 
 export type EditorLanguage =
 	| "ts"
@@ -85,103 +90,66 @@ export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 
 // -- Syntax highlighting ------------------------------------------------------
 
-interface HighlightPalette {
-	kw: string;
-	fn: string;
-	def: string;
-	ty: string;
-	prop: string;
-	str: string;
-	re: string;
-	num: string;
-	cmt: string;
-	op: string;
-	punc: string;
-	br: string;
-	tag: string;
-	meta: string;
-	err: string;
-}
-
-const HIGHLIGHT_DARK: HighlightPalette = {
-	kw: "oklch(0.72 0.19 295)",
-	fn: "oklch(0.84 0.16 55)",
-	def: "oklch(0.88 0.005 80)",
-	ty: "oklch(0.78 0.13 200)",
-	prop: "oklch(0.80 0.11 225)",
-	str: "oklch(0.78 0.14 135)",
-	re: "oklch(0.76 0.14 50)",
-	num: "oklch(0.82 0.14 60)",
-	cmt: "oklch(0.50 0.010 80)",
-	op: "oklch(0.80 0.06 250)",
-	punc: "oklch(0.65 0.006 80)",
-	br: "oklch(0.72 0.08 80)",
-	tag: "oklch(0.72 0.18 15)",
-	meta: "oklch(0.56 0.010 80)",
-	err: "oklch(0.70 0.18 15)",
-};
-
-const HIGHLIGHT_LIGHT: HighlightPalette = {
-	kw: "oklch(0.42 0.18 295)",
-	fn: "oklch(0.50 0.16 55)",
-	def: "oklch(0.18 0.005 70)",
-	ty: "oklch(0.38 0.13 200)",
-	prop: "oklch(0.38 0.11 225)",
-	str: "oklch(0.38 0.14 135)",
-	re: "oklch(0.44 0.14 50)",
-	num: "oklch(0.44 0.14 60)",
-	cmt: "oklch(0.62 0.010 80)",
-	op: "oklch(0.42 0.08 250)",
-	punc: "oklch(0.46 0.006 70)",
-	br: "oklch(0.42 0.06 70)",
-	tag: "oklch(0.44 0.18 15)",
-	meta: "oklch(0.52 0.010 80)",
-	err: "oklch(0.48 0.18 15)",
-};
-
-export function buildHighlight(theme: string): HighlightStyle {
-	const p = theme === "light" ? HIGHLIGHT_LIGHT : HIGHLIGHT_DARK;
-	const italic = "italic";
+export function buildHighlight(
+	theme: string,
+	tokens?: SyntaxTokens,
+): HighlightStyle {
+	const p = tokens ?? defaultSyntaxTokens(theme);
+	const style = (key: SyntaxTokenKey, extra?: { textDecoration: string }) => {
+		const s = p[key];
+		const decorations = [
+			s.underline ? "underline" : "",
+			extra?.textDecoration ?? "",
+		]
+			.filter(Boolean)
+			.join(" ");
+		return {
+			color: s.color,
+			...(s.italic ? { fontStyle: "italic" } : {}),
+			...(s.bold ? { fontWeight: "600" } : {}),
+			...(decorations ? { textDecoration: decorations } : {}),
+		};
+	};
 	return HighlightStyle.define([
-		{ tag: t.keyword, color: p.kw, fontStyle: italic },
-		{ tag: t.controlKeyword, color: p.kw, fontStyle: italic },
-		{ tag: t.definitionKeyword, color: p.kw, fontStyle: italic },
-		{ tag: t.moduleKeyword, color: p.kw, fontStyle: italic },
-		{ tag: t.operatorKeyword, color: p.kw, fontStyle: italic },
-		{ tag: t.function(t.variableName), color: p.fn },
-		{ tag: t.function(t.definition(t.variableName)), color: p.fn },
-		{ tag: t.definition(t.variableName), color: p.def },
-		{ tag: t.variableName, color: p.def },
-		{ tag: t.typeName, color: p.ty },
-		{ tag: t.className, color: p.ty },
-		{ tag: t.definition(t.typeName), color: p.ty },
-		{ tag: t.propertyName, color: p.prop },
-		{ tag: t.definition(t.propertyName), color: p.prop },
-		{ tag: t.string, color: p.str },
-		{ tag: t.special(t.string), color: p.str },
-		{ tag: t.regexp, color: p.re },
-		{ tag: t.number, color: p.num },
-		{ tag: t.bool, color: p.kw, fontStyle: italic },
-		{ tag: t.null, color: p.kw, fontStyle: italic },
-		{ tag: t.atom, color: p.kw },
-		{ tag: t.comment, color: p.cmt, fontStyle: italic },
-		{ tag: t.lineComment, color: p.cmt, fontStyle: italic },
-		{ tag: t.blockComment, color: p.cmt, fontStyle: italic },
-		{ tag: t.operator, color: p.op },
-		{ tag: t.punctuation, color: p.punc },
-		{ tag: t.bracket, color: p.br },
-		{ tag: t.tagName, color: p.tag },
-		{ tag: t.attributeName, color: p.ty },
-		{ tag: t.attributeValue, color: p.str },
-		{ tag: t.namespace, color: p.ty },
-		{ tag: t.meta, color: p.meta },
-		{ tag: t.modifier, color: p.kw, fontStyle: italic },
-		{ tag: t.self, color: p.kw, fontStyle: italic },
-		{ tag: t.special(t.variableName), color: p.fn },
-		{ tag: t.inserted, color: p.str },
-		{ tag: t.deleted, color: p.err },
-		{ tag: t.changed, color: p.num },
-		{ tag: t.invalid, color: p.err, textDecoration: "underline wavy" },
+		{ tag: t.keyword, ...style("kw") },
+		{ tag: t.controlKeyword, ...style("kw") },
+		{ tag: t.definitionKeyword, ...style("kw") },
+		{ tag: t.moduleKeyword, ...style("kw") },
+		{ tag: t.operatorKeyword, ...style("kw") },
+		{ tag: t.function(t.variableName), ...style("fn") },
+		{ tag: t.function(t.definition(t.variableName)), ...style("fn") },
+		{ tag: t.definition(t.variableName), ...style("def") },
+		{ tag: t.variableName, ...style("def") },
+		{ tag: t.typeName, ...style("ty") },
+		{ tag: t.className, ...style("ty") },
+		{ tag: t.definition(t.typeName), ...style("ty") },
+		{ tag: t.propertyName, ...style("prop") },
+		{ tag: t.definition(t.propertyName), ...style("prop") },
+		{ tag: t.string, ...style("str") },
+		{ tag: t.special(t.string), ...style("str") },
+		{ tag: t.regexp, ...style("re") },
+		{ tag: t.number, ...style("num") },
+		{ tag: t.bool, ...style("kw") },
+		{ tag: t.null, ...style("kw") },
+		{ tag: t.atom, ...style("kw") },
+		{ tag: t.comment, ...style("cmt") },
+		{ tag: t.lineComment, ...style("cmt") },
+		{ tag: t.blockComment, ...style("cmt") },
+		{ tag: t.operator, ...style("op") },
+		{ tag: t.punctuation, ...style("punc") },
+		{ tag: t.bracket, ...style("br") },
+		{ tag: t.tagName, ...style("tag") },
+		{ tag: t.attributeName, ...style("ty") },
+		{ tag: t.attributeValue, ...style("str") },
+		{ tag: t.namespace, ...style("ty") },
+		{ tag: t.meta, ...style("meta") },
+		{ tag: t.modifier, ...style("kw") },
+		{ tag: t.self, ...style("kw") },
+		{ tag: t.special(t.variableName), ...style("fn") },
+		{ tag: t.inserted, ...style("str") },
+		{ tag: t.deleted, ...style("err") },
+		{ tag: t.changed, ...style("num") },
+		{ tag: t.invalid, ...style("err", { textDecoration: "underline wavy" }) },
 	]);
 }
 
@@ -490,8 +458,11 @@ export function buildEditorTheme(theme: string): Extension {
 	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DARK);
 }
 
-export function buildSyntaxHighlighting(theme: string): Extension {
-	return syntaxHighlighting(buildHighlight(theme));
+export function buildSyntaxHighlighting(
+	theme: string,
+	tokens?: SyntaxTokens,
+): Extension {
+	return syntaxHighlighting(buildHighlight(theme, tokens));
 }
 
 export function buildDiffGutterTheme(): Extension {

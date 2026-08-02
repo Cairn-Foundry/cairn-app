@@ -4,7 +4,7 @@
   import { EditorState, Compartment, type Extension } from '@codemirror/state';
   import { EditorView, lineNumbers } from '@codemirror/view';
   import { syntaxHighlighting, bracketMatching } from '@codemirror/language';
-  import { settings } from '$lib/stores/settings';
+  import { settings, activeSyntaxTokens } from '$lib/stores/settings';
   import {
     buildEditorTheme,
     buildHighlight,
@@ -31,7 +31,7 @@
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),
       themeCompartment.of(buildEditorTheme(theme)),
-      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
       EditorView.theme({
         '.cm-activeLine': { backgroundColor: 'transparent !important' },
         '.cm-activeLineGutter': { backgroundColor: 'transparent !important' },
@@ -43,7 +43,7 @@
     const theme = $settings.theme;
     const effects = [
       themeCompartment.reconfigure(buildEditorTheme(theme)),
-      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme))),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
     ];
     mergeView.a.dispatch({ effects });
     mergeView.b.dispatch({ effects });

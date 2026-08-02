@@ -9,6 +9,12 @@
     terminalSessions,
     projectTerminals,
     activeTerminalId,
+    splitTerminalId,
+    splitTerminalRatio,
+    openSplitTerminal,
+    closeSplitTerminal,
+    setSplitRatio,
+    DEFAULT_SPLIT_RATIO,
     addTerminal,
     addProjectTerminal,
     removeTerminal,
@@ -31,6 +37,9 @@
   type Section = 'project' | 'instance';
 
   let slotEl = $state<HTMLDivElement>();
+  let splitSlotEl = $state<HTMLDivElement>();
+  let panesEl = $state<HTMLDivElement>();
+  let focusedPane = $state<0 | 1>(0);
   let editingId = $state<string | null>(null);
   let editValue = $state('');
   let ctxMenu = $state<{ x: number; y: number; session: TerminalSession; section: Section } | null>(null);
@@ -63,6 +72,16 @@
   let activeTid = $derived(
     scopeKey ? ($activeTerminalId[scopeKey] ?? allSessions[0]?.id ?? null) : null,
   );
+  let rawSplitTid = $derived(scopeKey ? ($splitTerminalId[scopeKey] ?? null) : null);
+  let splitTid = $derived(
+    rawSplitTid && rawSplitTid !== activeTid && allSessions.some((s) => s.id === rawSplitTid)
+      ? rawSplitTid
+      : null,
+  );
+  let isSplit = $derived(splitTid !== null);
+  let splitRatio = $derived(
+    scopeKey ? ($splitTerminalRatio[scopeKey] ?? DEFAULT_SPLIT_RATIO) : DEFAULT_SPLIT_RATIO,
+  );
 
   $effect(() => {
     if (!$terminalActive || !projectId || !activeId) return;
@@ -81,8 +100,28 @@
     else slotEl.replaceChildren();
   });
 
+  $effect(() => {
+    if (!$terminalActive || !splitSlotEl) return;
+    if (splitTid) manager.attach(splitTid, splitSlotEl);
+    else splitSlotEl.replaceChildren();
+  });
+
+  $effect(() => {
+    void splitRatio;
+    void isSplit;
+    requestAnimationFrame(() => {
+      if (activeTid) manager.refit(activeTid);
+      if (splitTid) manager.refit(splitTid);
+    });
+  });
+
+  $effect(() => {
+    if (!isSplit) focusedPane = 0;
+  });
+
   function onResize() {
     if (activeTid) manager.refit(activeTid);
+    if (splitTid) manager.refit(splitTid);
   }
 
   function sectionOf(id: string): Section {
@@ -112,7 +151,55 @@
   }
 
   function selectTerminal(id: string) {
-    if (projectId && activeId) setActiveTerminal(projectId, activeId, id);
+    if (!projectId || !activeId) return;
+    if (isSplit && focusedPane === 1) {
+      if (id === activeTid) { focusedPane = 0; return; }
+      setActiveTerminal(projectId, activeId, id, 1);
+      return;
+    }
+    if (id === splitTid) { focusedPane = 1; return; }
+    setActiveTerminal(projectId, activeId, id, 0);
+  }
+
+  async function toggleSplit() {
+    if (!projectId || !activeId) return;
+    if (isSplit) {
+      closeSplitTerminal(projectId, activeId);
+      return;
+    }
+    const left = activeTid ?? (await createAndReturn());
+    if (!left) return;
+    const right = allSessions.find((s) => s.id !== left)?.id ?? (await createAndReturn());
+    if (!right) return;
+    setActiveTerminal(projectId, activeId, left, 0);
+    openSplitTerminal(projectId, activeId, right);
+    focusedPane = 1;
+  }
+
+  /** Spawns a shell and returns its id - addTerminal makes it the active one. */
+  async function createAndReturn(): Promise<string | null> {
+    await newTerminal();
+    return activeTid;
+  }
+
+  function startSplitResize(e: PointerEvent) {
+    if (!panesEl || !projectId || !activeId) return;
+    e.preventDefault();
+    const rect = panesEl.getBoundingClientRect();
+    const pid = projectId;
+    const iid = activeId;
+    const onMove = (ev: PointerEvent) => {
+      const ratio = (ev.clientX - rect.left) / rect.width;
+      setSplitRatio(pid, iid, Math.max(0.15, Math.min(0.85, ratio)));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      document.body.classList.remove('dragging');
+    };
+    document.body.classList.add('dragging');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   }
 
   async function doClose(id: string, section: Section) {
@@ -269,7 +356,7 @@
         {#each shared as s, i (s.id)}
           {#if showsIndicator('project', i)}<div class="term-drop"></div>{/if}
           <div
-            class="term-item {s.id === activeTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
+            class="term-item {s.id === activeTid || s.id === splitTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
             role="button"
             tabindex="0"
             onpointerdown={(e) => dragPointerDown(e, 'project', i, s.id)}
@@ -324,7 +411,7 @@
         {#each sessions as s, i (s.id)}
           {#if showsIndicator('instance', i)}<div class="term-drop"></div>{/if}
           <div
-            class="term-item {s.id === activeTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
+            class="term-item {s.id === activeTid || s.id === splitTid ? 'active' : ''} {dragActive && drag?.id === s.id ? 'dragging' : ''}"
             role="button"
             tabindex="0"
             onpointerdown={(e) => dragPointerDown(e, 'instance', i, s.id)}
@@ -378,7 +465,7 @@
       <div class="term-list-body">
         {#each commandSessions as s (s.id)}
           <div
-            class="term-item {s.id === activeTid ? 'active' : ''}"
+            class="term-item {s.id === activeTid || s.id === splitTid ? 'active' : ''}"
             role="button"
             tabindex="0"
             onclick={() => selectTerminal(s.id)}
@@ -406,7 +493,43 @@
   </div>
 
   <div class="term-main">
-    <div class="term-host-slot" bind:this={slotEl}></div>
+    <div class="term-toolbar">
+      <button
+        class="term-split-toggle"
+        class:on={isSplit}
+        onclick={toggleSplit}
+        disabled={!activeId}
+        title={(isSplit ? t('terminal.closeSplit') : t('terminal.split')) as string}
+        aria-label={(isSplit ? t('terminal.closeSplit') : t('terminal.split')) as string}
+      >
+        <Icon name="columns" size={13}/>
+      </button>
+    </div>
+
+    <div class="term-panes" bind:this={panesEl}>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="term-pane"
+        class:focused={isSplit && focusedPane === 0}
+        style={isSplit ? `flex: 0 0 ${splitRatio * 100}%` : ''}
+        onpointerdown={() => { focusedPane = 0; }}
+      >
+        <div class="term-host-slot" bind:this={slotEl}></div>
+      </div>
+
+      {#if isSplit}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="term-split-handle" onpointerdown={startSplitResize}></div>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="term-pane"
+          class:focused={focusedPane === 1}
+          onpointerdown={() => { focusedPane = 1; }}
+        >
+          <div class="term-host-slot" bind:this={splitSlotEl}></div>
+        </div>
+      {/if}
+
     {#if allSessions.length === 0}
       <div class="term-empty">
         <div class="term-empty-icon"><Icon name="terminal" size={40}/></div>
@@ -420,6 +543,7 @@
         {/if}
       </div>
     {/if}
+    </div>
   </div>
 </div>
 
@@ -587,10 +711,71 @@
 
   .term-main {
     position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
     background: var(--bg-0);
   }
+
+  .term-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--stroke-0);
+  }
+
+  .term-split-toggle {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .term-split-toggle :global(svg) { display: block; }
+  .term-split-toggle:hover:not(:disabled) {
+    background: var(--accent-weak);
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+  .term-split-toggle.on {
+    background: var(--accent-weak);
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+  .term-split-toggle:disabled { opacity: 0.4; cursor: default; }
+
+  .term-panes {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .term-pane {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  .term-pane.focused { box-shadow: inset 0 1px 0 0 var(--accent); }
+
+  .term-split-handle {
+    flex: 0 0 4px;
+    cursor: col-resize;
+    background: var(--stroke-0);
+    transition: background 0.12s;
+  }
+  .term-split-handle:hover { background: var(--accent); }
 
   .term-host-slot {
     position: absolute;

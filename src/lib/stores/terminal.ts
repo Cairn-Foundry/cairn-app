@@ -31,6 +31,12 @@ export const projectTerminals = writable<
 
 export const activeTerminalId = writable<Record<string, string | null>>({});
 
+export const splitTerminalId = writable<Record<string, string | null>>({});
+
+export const splitTerminalRatio = writable<Record<string, number>>({});
+
+export const DEFAULT_SPLIT_RATIO = 0.5;
+
 const restored = new Set<string>();
 const restoredProjects = new Set<string>();
 
@@ -48,9 +54,14 @@ function persist(projectId: string, instanceId: string): void {
 	const key = terminalScope(projectId, instanceId);
 	const terminals = get(terminalSessions)[key] ?? [];
 	const activeId = get(activeTerminalId)[key] ?? null;
-	void saveTerminalState(projectId, instanceId, { terminals, activeId }).catch(
-		() => {},
-	);
+	const splitId = get(splitTerminalId)[key] ?? null;
+	const splitRatio = get(splitTerminalRatio)[key] ?? DEFAULT_SPLIT_RATIO;
+	void saveTerminalState(projectId, instanceId, {
+		terminals,
+		activeId,
+		splitId,
+		splitRatio,
+	}).catch(() => {});
 }
 
 function persistProject(projectId: string): void {
@@ -84,6 +95,13 @@ export async function restoreTerminals(
 
 	const saved = await getTerminalState(projectId, instanceId).catch(() => null);
 	const tabs = (saved?.terminals ?? []).filter((tab) => !tab.commandId);
+
+	splitTerminalId.update((m) => ({ ...m, [key]: saved?.splitId ?? null }));
+	splitTerminalRatio.update((m) => ({
+		...m,
+		[key]: saved?.splitRatio ?? DEFAULT_SPLIT_RATIO,
+	}));
+
 	if (tabs.length === 0) return;
 
 	for (const tab of tabs) {
@@ -196,10 +214,13 @@ export async function removeTerminal(
 		...m,
 		[key]: (m[key] ?? []).filter((t) => t.id !== id),
 	}));
+	splitTerminalId.update((m) => (m[key] === id ? { ...m, [key]: null } : m));
 	activeTerminalId.update((m) => {
 		if (m[key] !== id) return m;
 		const list = get(terminalSessions)[key] ?? [];
-		return { ...m, [key]: list[list.length - 1]?.id ?? null };
+		const splitId = get(splitTerminalId)[key];
+		const fallback = list.filter((s) => s.id !== splitId);
+		return { ...m, [key]: fallback[fallback.length - 1]?.id ?? null };
 	});
 	persist(projectId, instanceId);
 }
@@ -216,6 +237,13 @@ export async function removeProjectTerminal(
 		[projectId]: (m[projectId] ?? []).filter((t) => t.id !== id),
 	}));
 	const fallback = get(projectTerminals)[projectId] ?? [];
+	splitTerminalId.update((m) => {
+		const next = { ...m };
+		for (const key of Object.keys(next)) {
+			if (next[key] === id) next[key] = null;
+		}
+		return next;
+	});
 	activeTerminalId.update((m) => {
 		const next = { ...m };
 		for (const key of Object.keys(next)) {
@@ -231,9 +259,43 @@ export function setActiveTerminal(
 	projectId: string,
 	instanceId: string,
 	id: string,
+	pane: 0 | 1 = 0,
 ): void {
 	const key = terminalScope(projectId, instanceId);
-	activeTerminalId.update((m) => ({ ...m, [key]: id }));
+	const store = pane === 1 ? splitTerminalId : activeTerminalId;
+	store.update((m) => ({ ...m, [key]: id }));
+	persist(projectId, instanceId);
+}
+
+export function openSplitTerminal(
+	projectId: string,
+	instanceId: string,
+	id: string,
+): void {
+	const key = terminalScope(projectId, instanceId);
+	splitTerminalId.update((m) => ({ ...m, [key]: id }));
+	if (get(splitTerminalRatio)[key] === undefined) {
+		splitTerminalRatio.update((m) => ({ ...m, [key]: DEFAULT_SPLIT_RATIO }));
+	}
+	persist(projectId, instanceId);
+}
+
+export function closeSplitTerminal(
+	projectId: string,
+	instanceId: string,
+): void {
+	const key = terminalScope(projectId, instanceId);
+	splitTerminalId.update((m) => ({ ...m, [key]: null }));
+	persist(projectId, instanceId);
+}
+
+export function setSplitRatio(
+	projectId: string,
+	instanceId: string,
+	ratio: number,
+): void {
+	const key = terminalScope(projectId, instanceId);
+	splitTerminalRatio.update((m) => ({ ...m, [key]: ratio }));
 	persist(projectId, instanceId);
 }
 
@@ -358,9 +420,12 @@ export async function removeInstanceTerminals(
 		delete next[key];
 		return next;
 	});
-	activeTerminalId.update((m) => {
+	const forget = <T>(m: Record<string, T>) => {
 		const next = { ...m };
 		delete next[key];
 		return next;
-	});
+	};
+	activeTerminalId.update(forget);
+	splitTerminalId.update(forget);
+	splitTerminalRatio.update(forget);
 }

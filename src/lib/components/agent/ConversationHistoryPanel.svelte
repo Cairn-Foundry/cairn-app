@@ -46,7 +46,7 @@
   let didDrag = false;
   let dragStartX = 0;
   let dragStartY = 0;
-  let sectionEls: Partial<Record<ConversationScope, HTMLElement>> = {};
+  let sectionEls = $state<Partial<Record<ConversationScope, HTMLElement>>>({});
 
   const DRAG_THRESHOLD = 6;
 

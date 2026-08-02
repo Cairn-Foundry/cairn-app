@@ -16,6 +16,7 @@
   export let rootEl: HTMLElement | null = null;
   export let paneClass = '';
   export let paneStyle = '';
+  export let dropHint: 'none' | 'pane' | 'split' = 'none';
   export let tabs: Tab[];
   export let activeTabIdx: number;
   export let activeTab: Tab | null;
@@ -82,6 +83,9 @@
   bind:this={rootEl}
   on:pointerdown={onPaneFocus}
 >
+  {#if dropHint !== 'none'}
+    <div class="pane-drop-overlay pane-drop-{dropHint}"></div>
+  {/if}
   {#if tabs.length > 0}
     <div class="tabs-bar" role="tablist" bind:this={tabsBarEl}>
       {#each tabs as tab, i}
@@ -229,8 +233,21 @@
 </div>
 
 <style>
-  .editor-pane { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .editor-pane { display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
   .editor-pane.pane-focused { box-shadow: inset 0 0 0 1px var(--accent-line); }
+
+  .pane-drop-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 2px solid var(--accent);
+    border-radius: var(--r-sm);
+  }
+  .pane-drop-pane { left: 0; right: 0; }
+  .pane-drop-split { right: 0; width: 28%; max-width: 220px; }
 
   .tabs-bar {
     display: flex;

@@ -173,6 +173,7 @@
       on:pointermove={onNodePointerMove}
       on:pointerup={onNodePointerUp}
       on:pointercancel={onNodePointerCancel}
+      on:dragstart|preventDefault
     >
       <Icon name={fileIconFor(node, expanded)} size={13}/>
       <span class="file-tree-name">{node.name}</span>
@@ -258,6 +259,7 @@
     color: var(--fg-2);
     font-size: 12.5px;
     font-family: var(--font-ui);
+    -webkit-user-drag: none;
   }
   .file-tree-item:hover,
   .file-tree-item.ctx-target { background: var(--bg-4); color: var(--fg-0); }

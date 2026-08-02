@@ -43,6 +43,12 @@ import { get } from 'svelte/store';
     parentPathOf,
     basename,
   } from '$lib/utils/files/files-tree';
+  import {
+    resolvePaneDrop,
+    toWorktreeRelative,
+    type PaneBox,
+    type PaneDrop,
+  } from '$lib/utils/files/files-editor-drop';
   import { loadPaneBase } from '$lib/utils/files/files-diff';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
   import { findHeadingLine } from '$lib/utils/editor/editor-markdown-wysiwyg';
@@ -162,6 +168,54 @@ import { get } from 'svelte/store';
   let dragPointerStartY = 0;
   let dragCaptureEl: HTMLElement | null = null;
   let dragJustEnded = false;
+  let dragOverPane: PaneDrop | null = null;
+  let editorWrapEl: HTMLElement | null = null;
+
+  function paneBoxes(): (PaneBox | null)[] {
+    const els = editorWrapEl
+      ? Array.from(editorWrapEl.querySelectorAll('.editor-pane'))
+      : [];
+    return [0, 1].map(i => els[i]?.getBoundingClientRect() ?? null);
+  }
+
+  function paneDropAt(x: number, y: number): PaneDrop | null {
+    return resolvePaneDrop(paneBoxes(), splitMode, x, y);
+  }
+
+  function paneDropHint(drop: PaneDrop | null, i: number): 'none' | 'pane' | 'split' {
+    if (!drop) return 'none';
+    if (drop.openSplit) return i === 0 ? 'split' : 'none';
+    return drop.pane === i ? 'pane' : 'none';
+  }
+
+  $: paneDropHints = [paneDropHint(dragOverPane, 0), paneDropHint(dragOverPane, 1)];
+
+  async function handleOsFileDrop(paths: string[], x: number, y: number) {
+    const drop = paneDropAt(x, y);
+    dragOverPane = null;
+    if (!drop) return;
+    for (const absolute of paths) {
+      const relative = toWorktreeRelative(absolute, worktreePath);
+      if (!relative) {
+        error = t('files.dropOutsideWorktree') as string;
+        continue;
+      }
+      await dropFileInPane(relative, drop);
+    }
+  }
+
+  async function dropFileInPane(path: string, drop: PaneDrop) {
+    const node = { path, name: basename(path), isDir: false };
+    if (drop.openSplit && !splitMode) {
+      splitMode = true;
+      await tick();
+    }
+    focusedPane = drop.pane;
+    await openFileInPane(drop.pane, node);
+    if (currentInstanceId && currentProjectId) {
+      saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+    }
+  }
 
   let expanded = new Set<string>();
   let recentFiles: string[] = [];
@@ -885,6 +939,19 @@ import { get } from 'svelte/store';
       }).then(unlisten => { unlistenFocus = unlisten; });
     });
 
+    let unlistenOsDrop: (() => void) | null = null;
+    import('@tauri-apps/api/webview').then(({ getCurrentWebview }) => {
+      getCurrentWebview().onDragDropEvent(({ payload }) => {
+        if ($activeStep !== 'files') return;
+        if (payload.type === 'leave') { dragOverPane = null; return; }
+        const ratio = window.devicePixelRatio || 1;
+        const x = payload.position.x / ratio;
+        const y = payload.position.y / ratio;
+        if (payload.type === 'over') { dragOverPane = paneDropAt(x, y); return; }
+        void handleOsFileDrop(payload.paths, x, y);
+      }).then(unlisten => { unlistenOsDrop = unlisten; });
+    });
+
     let prevInstId: string | null = null;
     let prevInstWtp: string | null = null;
     const unsubInst = activeInstance.subscribe(inst => {
@@ -912,6 +979,7 @@ import { get } from 'svelte/store';
     return () => {
       window.removeEventListener('keydown', handleGlobalKey, { capture: true });
       unlistenFocus?.();
+      unlistenOsDrop?.();
       if (gitPollInterval !== null) clearInterval(gitPollInterval);
       unsubInst();
       unsubProj();
@@ -1278,14 +1346,38 @@ import { get } from 'svelte/store';
       pane.dragActive = true;
       document.body.classList.add('dragging');
     }
+
+    const barBottom = pane.tabsBarEl?.getBoundingClientRect().bottom ?? 0;
+    const drop = paneDropAt(e.clientX, e.clientY);
+    const movesPane = drop && (drop.pane !== i || (drop.openSplit && e.clientY > barBottom));
+    dragOverPane = movesPane ? drop : null;
+
     pane.insertIndex = computeTabInsertIndex(pane.tabsBarEl, e.clientX);
     pane.didDrag = true;
     panes = panes;
   }
 
-  function tabPointerUp(_e: PointerEvent, i: number) {
+  async function tabPointerUp(_e: PointerEvent, i: number) {
     const pane = panes[i];
+    const paneTarget = dragOverPane;
+    dragOverPane = null;
     if (pane.dragSrcIndex === null || pane.insertIndex === null) return;
+
+    if (pane.dragActive && paneTarget) {
+      const movedIdx = pane.dragSrcIndex;
+      const moved = pane.tabs[movedIdx];
+      pane.dragSrcIndex = null;
+      pane.insertIndex = null;
+      pane.dragActive = false;
+      document.body.classList.remove('dragging');
+      panes = panes;
+      if (moved && !moved.pinned) {
+        await closeTab(i, movedIdx, null);
+        await dropFileInPane(moved.path, paneTarget);
+      }
+      return;
+    }
+
     if (pane.dragActive) {
       const result = applyTabReorder(pane.tabs, pane.activeTabIdx, pane.dragSrcIndex, pane.insertIndex);
       pane.tabs = result.tabs;
@@ -1358,6 +1450,27 @@ import { get } from 'svelte/store';
     dragPointerStartY = e.clientY;
     dragCaptureEl = e.currentTarget as HTMLElement;
     dragCaptureEl.setPointerCapture(e.pointerId);
+
+    window.addEventListener('pointermove', onNodePointerMove);
+    window.addEventListener('pointerup', onNodePointerUp);
+    window.addEventListener('pointercancel', endNodeDrag);
+  }
+
+  function detachNodeDragListeners() {
+    window.removeEventListener('pointermove', onNodePointerMove);
+    window.removeEventListener('pointerup', onNodePointerUp);
+    window.removeEventListener('pointercancel', endNodeDrag);
+  }
+
+  function endNodeDrag() {
+    detachNodeDragListeners();
+    dragSrcNode = null;
+    dragActive = false;
+    dragOverDir = null;
+    dragOverPane = null;
+    dragCaptureEl = null;
+    removeDragGhost();
+    document.body.classList.remove('dragging');
   }
 
   function onNodePointerMove(e: PointerEvent) {
@@ -1376,6 +1489,16 @@ import { get } from 'svelte/store';
     }
 
     moveGhost(e.clientX, e.clientY);
+
+    if (!dragSrcNode.isDir) {
+      const drop = paneDropAt(e.clientX, e.clientY);
+      if (drop) {
+        dragOverPane = drop;
+        dragOverDir = null;
+        return;
+      }
+    }
+    dragOverPane = null;
 
     const targetDirAttr = findDropTargetDir(e.clientX, e.clientY);
     const sources = multiSelected.size > 1 && multiSelected.has(dragSrcNode.path)
@@ -1399,16 +1522,20 @@ import { get } from 'svelte/store';
     const src = dragSrcNode;
     const wasActive = dragActive;
     const target = dragOverDir;
+    const paneTarget = dragOverPane;
 
-    dragSrcNode = null;
-    dragActive = false;
-    dragOverDir = null;
-    dragCaptureEl = null;
-    removeDragGhost();
-    document.body.classList.remove('dragging');
+    endNodeDrag();
 
     if (wasActive) dragJustEnded = true;
-    if (!wasActive || target === null || !src || !worktreePath) return;
+    if (!wasActive || !src || !worktreePath) return;
+
+    if (paneTarget) {
+      multiSelected = new Set();
+      await dropFileInPane(src.path, paneTarget);
+      return;
+    }
+
+    if (target === null) return;
 
     const sources = multiSelected.size > 1 && multiSelected.has(src.path)
       ? [...multiSelected]
@@ -1502,7 +1629,7 @@ import { get } from 'svelte/store';
     onNodePointerDown={onNodePointerDown}
     onNodePointerMove={onNodePointerMove}
     onNodePointerUp={onNodePointerUp}
-    onNodePointerCancel={() => { dragSrcNode = null; dragActive = false; dragOverDir = null; dragCaptureEl = null; removeDragGhost(); document.body.classList.remove('dragging'); }}
+    onNodePointerCancel={endNodeDrag}
     onCommitEdit={commitEdit}
     onCancelEdit={cancelEdit}
     onEditValueChange={(v) => { editValue = v; }}
@@ -1527,7 +1654,7 @@ import { get } from 'svelte/store';
     aria-orientation="vertical"
   ></div>
 
-  <div class="files-editor-wrap">
+  <div class="files-editor-wrap" bind:this={editorWrapEl}>
     {#each panes as pane, i}
       {#if i === 0 || splitMode}
         {#if i === 1}
@@ -1545,6 +1672,7 @@ import { get } from 'svelte/store';
         {/if}
         <EditorPane
           paneClass={(splitMode && focusedPane === i) ? 'pane-focused' : ''}
+          dropHint={paneDropHints[i]}
           paneStyle={i === 0 && splitMode && splitLeftWidth > 0 ? `width: ${splitLeftWidth}px; flex: none` : 'flex: 1'}
           bind:rootEl={pane.rootEl}
           bind:tabsBarEl={pane.tabsBarEl}
