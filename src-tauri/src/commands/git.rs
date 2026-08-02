@@ -230,14 +230,12 @@ pub fn validate_git_repo(path: String) -> Result<String, GitError> {
         })
 }
 
-#[tauri::command]
-pub fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
-    let expanded = expand(&worktree_path);
-    if !Path::new(&expanded).is_dir() {
+fn is_repo_root(expanded: &str) -> Result<bool, GitError> {
+    if !Path::new(expanded).is_dir() {
         return Ok(false);
     }
 
-    let output = git_cmd(&expanded)
+    let output = git_cmd(expanded)
         .args(["rev-parse", "--show-toplevel"])
         .output()?;
 
@@ -252,10 +250,15 @@ pub fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
 
     // The path is a repository only when it is the repo/worktree root itself,
     // not merely nested inside a parent repository (git walks up by default).
-    match (fs::canonicalize(&expanded), fs::canonicalize(&toplevel)) {
+    match (fs::canonicalize(expanded), fs::canonicalize(&toplevel)) {
         (Ok(a), Ok(b)) => Ok(a == b),
         _ => Ok(false),
     }
+}
+
+#[tauri::command]
+pub fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
+    is_repo_root(&expand(&worktree_path))
 }
 
 #[tauri::command]
@@ -355,7 +358,12 @@ pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Resul
         .args(["show", &format!("HEAD:{}", file_path)])
         .output()?;
     // File is new/untracked, deleted from HEAD, or the repo has no commit yet.
+    // Outside a repository there is no baseline at all: reporting an empty one
+    // would flag every line of every file as added.
     if !output.status.success() {
+        if !is_repo_root(&expanded)? {
+            return Err(GitError::from_process(&output));
+        }
         return Ok(String::new());
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())

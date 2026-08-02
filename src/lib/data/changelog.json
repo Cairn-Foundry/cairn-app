@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The diff gutter no longer appears in a project that is not a git repository, where it used to flag every line of every file as added.",
+					"fr": "La gouttière de diff n'apparaît plus dans un projet qui n'est pas un dépôt git, où elle marquait chaque ligne de chaque fichier comme ajoutée."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "A file dragged onto the editor from outside the project now opens as an external file instead of being refused: its tab is marked, the breadcrumb shows the full path with an External badge, and it stays out of the worktree - no git status, no diff gutter, and the tree does not follow it.",
