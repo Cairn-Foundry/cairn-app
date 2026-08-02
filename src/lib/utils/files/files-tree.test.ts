@@ -4,6 +4,7 @@ import type {
 	GitStatusMap,
 } from "../../../lib/services/file-service";
 import {
+	absolutePathOf,
 	basename,
 	breadcrumbSegments,
 	collectFilePaths,
@@ -11,6 +12,7 @@ import {
 	flattenToNodes,
 	flattenVisible,
 	getSiblingNames,
+	isExternalPath,
 	nodeGitStatus,
 	parentPathOf,
 	pasteDestName,
@@ -243,5 +245,19 @@ describe("basename", () => {
 
 	it("handles path with no separator", () => {
 		expect(basename("README.md")).toBe("README.md");
+	});
+});
+
+describe("isExternalPath / absolutePathOf", () => {
+	it("treats an absolute path as external and a relative one as in-worktree", () => {
+		expect(isExternalPath("/Users/me/notes.md")).toBe(true);
+		expect(isExternalPath("src/app.ts")).toBe(false);
+	});
+
+	it("joins a worktree path only for an in-worktree file", () => {
+		expect(absolutePathOf("src/app.ts", "/wt")).toBe("/wt/src/app.ts");
+		expect(absolutePathOf("/Users/me/notes.md", "/wt")).toBe(
+			"/Users/me/notes.md",
+		);
 	});
 });

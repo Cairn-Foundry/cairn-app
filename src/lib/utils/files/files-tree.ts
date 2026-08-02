@@ -150,3 +150,18 @@ export function parentPathOf(path: string): string {
 export function basename(path: string): string {
 	return path.split("/").pop() ?? path;
 }
+
+/**
+ * Tabs of files living inside the worktree are keyed by their relative path;
+ * an absolute one belongs to a file opened from outside the project.
+ */
+export function isExternalPath(path: string): boolean {
+	return path.startsWith("/");
+}
+
+export function absolutePathOf(
+	path: string,
+	worktreePath: string | null,
+): string {
+	return isExternalPath(path) ? path : `${worktreePath}/${path}`;
+}

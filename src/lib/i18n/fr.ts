@@ -654,8 +654,7 @@ export const fr = {
 
 	files: {
 		selectFileToEdit: "Sélectionner un fichier à modifier",
-		dropOutsideWorktree:
-			"Ce fichier se trouve hors du worktree de l'instance et ne peut pas être ouvert ici.",
+		externalFile: "Fichier externe",
 		binaryFilePreview: "Fichier binaire - aperçu indisponible",
 		recentLabel: "Récent",
 		notCommittedYet: "Pas encore commité",

@@ -43,6 +43,30 @@ export function resolvePaneDrop(
 	return null;
 }
 
+export interface DropPoint {
+	x: number;
+	y: number;
+}
+
+/**
+ * Where an OS drag-drop payload lands, in CSS pixels. Tauri types the position
+ * as physical, but WebKit already reports logical points: dividing those by the
+ * device ratio again lands the drop half a window up and to the left, which
+ * reads as "the file tree ignores the drag". A point that fits in the viewport
+ * is therefore taken as logical, and only a larger one is scaled down.
+ */
+export function osDropPoint(
+	position: DropPoint,
+	viewport: { width: number; height: number },
+	ratio: number,
+): DropPoint {
+	if (ratio === 1) return { x: position.x, y: position.y };
+	if (position.x <= viewport.width && position.y <= viewport.height) {
+		return { x: position.x, y: position.y };
+	}
+	return { x: position.x / ratio, y: position.y / ratio };
+}
+
 /**
  * Turns an absolute path dropped from the OS into a worktree-relative one.
  * Returns null when the file lives outside the worktree - the editor keys its

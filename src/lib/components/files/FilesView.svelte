@@ -42,8 +42,11 @@ import { get } from 'svelte/store';
     resolveDestName,
     parentPathOf,
     basename,
+    isExternalPath,
+    absolutePathOf,
   } from '$lib/utils/files/files-tree';
   import {
+    osDropPoint,
     resolvePaneDrop,
     toWorktreeRelative,
     type PaneBox,
@@ -190,17 +193,39 @@ import { get } from 'svelte/store';
 
   $: paneDropHints = [paneDropHint(dragOverPane, 0), paneDropHint(dragOverPane, 1)];
 
+  function treeDropDirAt(x: number, y: number): string | null {
+    const dir = findDropTargetDir(x, y);
+    if (dir !== null) return dir;
+    const el = document.elementFromPoint(x, y);
+    return el?.closest('.files-tree-scroll') ? '' : null;
+  }
+
+  async function importOsFiles(paths: string[], targetDir: string) {
+    if (!worktreePath) return;
+    for (const absolute of paths) {
+      const destName = resolveDestName(rawTree, absolute, targetDir);
+      const destRel = targetDir ? `${targetDir}/${destName}` : destName;
+      try {
+        await copyPath(absolute, `${worktreePath}/${destRel}`);
+      } catch (err) { error = String(err); }
+    }
+    if (targetDir) { expanded.add(targetDir); expanded = expanded; }
+    await loadTree(worktreePath);
+  }
+
   async function handleOsFileDrop(paths: string[], x: number, y: number) {
+    const treeDir = treeDropDirAt(x, y);
+    if (treeDir !== null) {
+      dragOverDir = null;
+      dragOverPane = null;
+      await importOsFiles(paths, treeDir);
+      return;
+    }
     const drop = paneDropAt(x, y);
     dragOverPane = null;
     if (!drop) return;
     for (const absolute of paths) {
-      const relative = toWorktreeRelative(absolute, worktreePath);
-      if (!relative) {
-        error = t('files.dropOutsideWorktree') as string;
-        continue;
-      }
-      await dropFileInPane(relative, drop);
+      await dropFileInPane(toWorktreeRelative(absolute, worktreePath) ?? absolute, drop);
     }
   }
 
@@ -283,7 +308,7 @@ import { get } from 'svelte/store';
 
   async function loadPaneBaseFor(i: number, tab: { path: string } | null): Promise<void> {
     const pane = panes[i];
-    if (!tab || !worktreePath) {
+    if (!tab || !worktreePath || isExternalPath(tab.path)) {
       pane.baseContent = null;
       pane.currentBlame = new Map();
       panes = panes;
@@ -355,7 +380,7 @@ import { get } from 'svelte/store';
 
     if (tab.pending !== tab.content && worktreePath) {
       const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
-      await writeFile(`${worktreePath}/${tab.path}`, wc);
+      await writeFile(absolutePathOf(tab.path, worktreePath), wc);
     }
 
     pane.editorStateCache.delete(tab.path);
@@ -404,7 +429,7 @@ import { get } from 'svelte/store';
     const hadMarkers = hasConflictMarkers(tab.content);
     try {
       const writeContent = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
-      await writeFile(`${worktreePath}/${tab.path}`, writeContent);
+      await writeFile(absolutePathOf(tab.path, worktreePath), writeContent);
       pane.tabs[pane.activeTabIdx].content = tab.pending;
       panes = panes;
       if (wasDeleted) await loadTree(worktreePath);
@@ -429,7 +454,7 @@ import { get } from 'svelte/store';
       const path = tab.path;
       const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
       tab.content = tab.pending; // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
-      writeFile(`${wtp}/${path}`, wc).catch(() => {});
+      writeFile(absolutePathOf(path, wtp), wc).catch(() => {});
     }
   }
 
@@ -462,7 +487,7 @@ import { get } from 'svelte/store';
     }
     captureEditorState(i);
     try {
-      const raw2 = await readFile(`${worktreePath}/${node.path}`) ?? '';
+      const raw2 = await readFile(absolutePathOf(node.path, worktreePath)) ?? '';
       const le2 = detectLineEndings(raw2);
       const text2 = normalizeLineEndings(raw2, le2);
       pane.tabs = [...pane.tabs, { path: node.path, content: text2, pending: text2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
@@ -510,7 +535,7 @@ import { get } from 'svelte/store';
   export async function reloadFileByPath(path: string): Promise<void> {
     if (!worktreePath) return;
     try {
-      const raw = await readFile(`${worktreePath}/${path}`) ?? '';
+      const raw = await readFile(absolutePathOf(path, worktreePath)) ?? '';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
       for (const pane of panes) {
@@ -535,7 +560,7 @@ import { get } from 'svelte/store';
     for (const path of paths) {
       let text: string;
       try {
-        const raw = await readFile(`${worktreePath}/${path}`) ?? '';
+        const raw = await readFile(absolutePathOf(path, worktreePath)) ?? '';
         const le = detectLineEndings(raw);
         text = normalizeLineEndings(raw, le);
         for (const pane of panes) {
@@ -940,16 +965,27 @@ import { get } from 'svelte/store';
     });
 
     let unlistenOsDrop: (() => void) | null = null;
+    let osDropDisposed = false;
     import('@tauri-apps/api/webview').then(({ getCurrentWebview }) => {
       getCurrentWebview().onDragDropEvent(({ payload }) => {
         if ($activeStep !== 'files') return;
-        if (payload.type === 'leave') { dragOverPane = null; return; }
-        const ratio = window.devicePixelRatio || 1;
-        const x = payload.position.x / ratio;
-        const y = payload.position.y / ratio;
-        if (payload.type === 'over') { dragOverPane = paneDropAt(x, y); return; }
+        if (payload.type === 'leave') { dragOverPane = null; dragOverDir = null; return; }
+        const { x, y } = osDropPoint(
+          payload.position,
+          { width: window.innerWidth, height: window.innerHeight },
+          window.devicePixelRatio || 1,
+        );
+        if (payload.type !== 'drop') {
+          const treeDir = treeDropDirAt(x, y);
+          dragOverDir = treeDir;
+          dragOverPane = treeDir === null ? paneDropAt(x, y) : null;
+          return;
+        }
         void handleOsFileDrop(payload.paths, x, y);
-      }).then(unlisten => { unlistenOsDrop = unlisten; });
+      }).then(unlisten => {
+        if (osDropDisposed) unlisten();
+        else unlistenOsDrop = unlisten;
+      });
     });
 
     let prevInstId: string | null = null;
@@ -979,6 +1015,7 @@ import { get } from 'svelte/store';
     return () => {
       window.removeEventListener('keydown', handleGlobalKey, { capture: true });
       unlistenFocus?.();
+      osDropDisposed = true;
       unlistenOsDrop?.();
       if (gitPollInterval !== null) clearInterval(gitPollInterval);
       unsubInst();
@@ -1046,7 +1083,7 @@ import { get } from 'svelte/store';
 
   async function copyTabPath(idx: number, paneIdx: 0 | 1, absolute: boolean) {
     const path = panes[paneIdx].tabs[idx]?.path ?? '';
-    const text = absolute && worktreePath ? `${worktreePath}/${path}` : path;
+    const text = absolute && (worktreePath || isExternalPath(path)) ? absolutePathOf(path, worktreePath) : path;
     await navigator.clipboard.writeText(text);
     closeTabCtxMenu();
   }
@@ -1188,7 +1225,7 @@ import { get } from 'svelte/store';
         if (isBinaryPath(tab.path)) continue;
         if (tab.pending !== tab.content) continue;
         try {
-          const raw = await readFile(`${worktreePath}/${tab.path}`);
+          const raw = await readFile(absolutePathOf(tab.path, worktreePath));
           if (raw === null) continue;
           const le = detectLineEndings(raw);
           const text = normalizeLineEndings(raw, le);
@@ -1255,7 +1292,7 @@ import { get } from 'svelte/store';
     loadingPaths.add(node.path);
     loadingPaths = loadingPaths;
     try {
-      const fullPath = `${worktreePath}/${node.path}`;
+      const fullPath = absolutePathOf(node.path, worktreePath);
       const raw = await readFile(fullPath) ?? '';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
@@ -1274,6 +1311,7 @@ import { get } from 'svelte/store';
 
   function syncActiveTabToTree() {
     const path = panes[0].tabs[panes[0].activeTabIdx]?.path ?? '';
+    if (isExternalPath(path)) return;
     const parts = path.split('/');
     selectedDir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
     for (let i = 1; i < parts.length; i++) expanded.add(parts.slice(0, i).join('/'));
@@ -1289,7 +1327,7 @@ import { get } from 'svelte/store';
       pane.tabs = [...pane.tabs, { ...tab }];
     } else {
       try {
-        const text = await readFile(`${worktreePath}/${tab.path}`) ?? tab.pending;
+        const text = await readFile(absolutePathOf(tab.path, worktreePath)) ?? tab.pending;
         pane.tabs = [...pane.tabs, { ...tab, content: text, pending: text }];
       } catch {
         pane.tabs = [...pane.tabs, { ...tab }];
@@ -1784,12 +1822,6 @@ import { get } from 'svelte/store';
     <button type="button" class="ctx-item" disabled={!fileClipboard} on:click={() => handleContextAction('paste')}>
       <Icon name="clipboard" size={13}/> {t('files.contextMenu.paste')}
     </button>
-    {#if multiSelected.size > 1}
-      <div class="ctx-sep"></div>
-      <button type="button" class="ctx-item ctx-item-danger" on:click={bulkDelete}>
-        <Icon name="trash" size={13}/> {(t('files.contextMenu.deleteItems') as (n: number) => string)(multiSelected.size)}
-      </button>
-    {/if}
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-path')}>
       <Icon name="copy" size={13}/> {t('files.contextMenu.copyPath')}
@@ -1805,6 +1837,11 @@ import { get } from 'svelte/store';
       <button type="button" class="ctx-item ctx-item-danger" on:click={() => handleContextAction('delete')}>
         <Icon name="trash" size={13}/> {t('common.delete')}
       </button>
+      {#if multiSelected.size > 1}
+        <button type="button" class="ctx-item ctx-item-danger" on:click={bulkDelete}>
+          <Icon name="trash" size={13}/> {(t('files.contextMenu.deleteItems') as (n: number) => string)(multiSelected.size)}
+        </button>
+      {/if}
     {/if}
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item" on:click={() => handleContextAction('reveal')}>

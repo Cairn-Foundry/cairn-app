@@ -10,6 +10,27 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A file dragged onto the editor from outside the project now opens as an external file instead of being refused: its tab is marked, the breadcrumb shows the full path with an External badge, and it stays out of the worktree - no git status, no diff gutter, and the tree does not follow it.",
+					"fr": "Un fichier glissé sur l'éditeur depuis l'extérieur du projet s'ouvre désormais comme fichier externe au lieu d'être refusé : son onglet est signalé, le fil d'Ariane affiche le chemin complet avec un badge Externe, et il reste hors du worktree - pas de statut git, pas de gouttière de diff, et l'arborescence ne le suit pas."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A file dragged in from the Finder now lands where the pointer actually is: the drop position was scaled a second time on a retina screen, which offset it by half a window and made narrow targets unreachable.",
+					"fr": "Un fichier glissé depuis le Finder atterrit désormais là où se trouve vraiment le pointeur : la position du dépôt était mise à l'échelle une seconde fois sur un écran retina, ce qui la décalait d'une demi-fenêtre et rendait les cibles étroites inatteignables."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Drop a file or a folder from the Finder onto the file tree to copy it into the project: it lands in the highlighted directory, or at the root of the worktree, with a copy name when it collides with an existing entry.",
+					"fr": "Déposez un fichier ou un dossier depuis le Finder sur l'arborescence pour le copier dans le projet : il atterrit dans le dossier surligné, ou à la racine du worktree, avec un nom de copie en cas de collision."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "Syntax highlighting is yours to shape: a theme editor in Appearance sets the colour, weight, italics and underline of every token category, with a live preview, named themes and JSON import and export.",
 					"fr": "La coloration syntaxique vous appartient : un éditeur de thème dans Apparence règle la couleur, la graisse, l'italique et le soulignement de chaque catégorie de token, avec aperçu en direct, thèmes nommés et import/export JSON."
 				}

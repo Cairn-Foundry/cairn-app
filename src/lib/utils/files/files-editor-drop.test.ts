@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	osDropPoint,
 	type PaneBox,
 	resolvePaneDrop,
 	toWorktreeRelative,
@@ -58,5 +59,30 @@ describe("toWorktreeRelative", () => {
 	it("rejects the worktree root itself and a missing worktree", () => {
 		expect(toWorktreeRelative("/wt/", "/wt")).toBeNull();
 		expect(toWorktreeRelative("/wt/app.ts", null)).toBeNull();
+	});
+});
+
+describe("osDropPoint", () => {
+	const viewport = { width: 1440, height: 900 };
+
+	it("keeps a position that already fits the viewport", () => {
+		expect(osDropPoint({ x: 133, y: 686 }, viewport, 2)).toEqual({
+			x: 133,
+			y: 686,
+		});
+	});
+
+	it("scales a position reported in physical pixels", () => {
+		expect(osDropPoint({ x: 2000, y: 1400 }, viewport, 2)).toEqual({
+			x: 1000,
+			y: 700,
+		});
+	});
+
+	it("never scales on a non-retina screen", () => {
+		expect(osDropPoint({ x: 2000, y: 1400 }, viewport, 1)).toEqual({
+			x: 2000,
+			y: 1400,
+		});
 	});
 });

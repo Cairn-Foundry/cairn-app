@@ -7,6 +7,7 @@ import {
 	saveFileState,
 } from "$lib/services/file-state-service";
 import { detectLineEndings, normalizeLineEndings } from "./files-indent";
+import { absolutePathOf } from "./files-tree";
 
 export type { PersistedPane, PersistedTab };
 
@@ -127,7 +128,7 @@ async function rehydrateTabList(
 			try {
 				return {
 					path: p.path,
-					text: (await readFile(`${wtp}/${p.path}`)) ?? "",
+					text: (await readFile(absolutePathOf(p.path, wtp))) ?? "",
 				};
 			} catch {
 				return null;

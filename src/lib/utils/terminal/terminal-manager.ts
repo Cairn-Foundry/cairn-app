@@ -4,6 +4,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
+import { osDropPoint } from "$lib/utils/files/files-editor-drop";
 import "@xterm/xterm/css/xterm.css";
 import {
 	resizeTerminal,
@@ -112,9 +113,11 @@ if (typeof window !== "undefined") {
 		if (event.payload.type !== "drop") return;
 		const { paths, position } = event.payload;
 		if (!paths.length) return;
-		const dpr = window.devicePixelRatio || 1;
-		const x = position.x / dpr;
-		const y = position.y / dpr;
+		const { x, y } = osDropPoint(
+			position,
+			{ width: window.innerWidth, height: window.innerHeight },
+			window.devicePixelRatio || 1,
+		);
 		for (const [id, m] of managed) {
 			const r = m.el.getBoundingClientRect();
 			if (r.width === 0 || r.height === 0) continue;

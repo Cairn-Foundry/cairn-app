@@ -104,7 +104,7 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn copy_path(from: String, to: String) -> Result<(), String> {
+pub async fn copy_path(from: String, to: String) -> Result<(), String> {
     let src = std::path::Path::new(&from);
     let dst = std::path::Path::new(&to);
     if src.is_dir() {

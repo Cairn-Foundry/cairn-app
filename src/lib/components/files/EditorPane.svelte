@@ -10,7 +10,7 @@
   import { settings } from '$lib/stores/settings';
   import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
-  import { breadcrumbSegments, basename, parentPathOf } from '$lib/utils/files/files-tree';
+  import { breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
   import type { Tab } from '$lib/utils/files/files-persistence';
 
   export let rootEl: HTMLElement | null = null;
@@ -97,7 +97,8 @@
         {/if}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragActive && dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''}"
+          class="file-tab {i === activeTabIdx ? 'tab-active' : ''} {dragActive && dragSrcIndex === i ? 'tab-dragging' : ''} {gitStatusMap[tab.path] === 'deleted' ? 'tab-deleted' : ''} {tab.pinned ? 'tab-pinned' : ''} {isExternalPath(tab.path) ? 'tab-external' : ''}"
+          title={isExternalPath(tab.path) ? `${t('files.externalFile')} - ${tab.path}` : undefined}
           role="tab"
           aria-selected={i === activeTabIdx}
           tabindex="0"
@@ -133,6 +134,10 @@
     <div class="editor-topbar">
       <Icon name="file" size={13}/>
       <nav class="editor-breadcrumb" aria-label={t('files.filePath') as string}>
+        {#if isExternalPath(activeTab.path)}
+          <span class="breadcrumb-external">{t('files.externalFile')}</span>
+          <span class="breadcrumb-seg breadcrumb-file selectable">{activeTab.path}</span>
+        {:else}
         {#each segs as seg, i (i)}
           {#if i > 0}<span class="breadcrumb-sep">/</span>{/if}
           {#if i < segs.length - 1}
@@ -141,6 +146,7 @@
             <span class="breadcrumb-seg breadcrumb-file">{seg.name}</span>
           {/if}
         {/each}
+        {/if}
       </nav>
     </div>
     <div class="editor-body">
@@ -382,6 +388,19 @@
     flex-shrink: 1;
   }
   .breadcrumb-seg:hover { background: var(--bg-4); color: var(--fg-1); }
+
+  .breadcrumb-external {
+    flex-shrink: 0;
+    padding: 0 5px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 3px;
+    color: var(--fg-2);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .file-tab.tab-external .tab-name { font-style: italic; }
 
   .breadcrumb-file {
     color: var(--fg-0);
