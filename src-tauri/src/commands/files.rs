@@ -138,7 +138,7 @@ pub struct QuickSearchIndex {
 pub struct QuickSearchCache(Mutex<Option<QuickSearchIndex>>);
 
 #[tauri::command]
-pub fn quick_search(
+pub async fn quick_search(
     state: tauri::State<'_, QuickSearchCache>,
     path: String,
     query: String,
@@ -172,7 +172,7 @@ pub fn quick_search(
 }
 
 #[tauri::command]
-pub fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, String> {
+pub async fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);
     if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
@@ -180,7 +180,7 @@ pub fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, 
 }
 
 #[tauri::command]
-pub fn list_dir_names(path: String) -> Result<Vec<String>, String> {
+pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if !p.exists() {
@@ -196,7 +196,7 @@ pub fn list_dir_names(path: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn read_file(path: String) -> Result<Option<String>, String> {
+pub async fn read_file(path: String) -> Result<Option<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if !p.exists() { return Err(format!("File not found: {}", path)); }
@@ -210,7 +210,7 @@ pub fn read_file(path: String) -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub fn write_file(path: String, content: String) -> Result<(), String> {
+pub async fn write_file(path: String, content: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if let Some(parent) = p.parent() {
@@ -220,7 +220,7 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn delete_path(path: String) -> Result<(), String> {
+pub async fn delete_path(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if !p.exists() { return Err(format!("Path does not exist: {}", path)); }
@@ -232,7 +232,7 @@ pub fn delete_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn rename_path(from: String, to: String) -> Result<(), String> {
+pub async fn rename_path(from: String, to: String) -> Result<(), String> {
     let from_expanded = shellexpand::tilde(&from).into_owned();
     let to_expanded = shellexpand::tilde(&to).into_owned();
     let from_p = PathBuf::from(&from_expanded);
@@ -243,7 +243,7 @@ pub fn rename_path(from: String, to: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
+pub async fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if p.exists() { return Err(format!("Already exists: {}", path)); }

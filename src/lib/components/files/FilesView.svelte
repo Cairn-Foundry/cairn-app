@@ -11,7 +11,7 @@ import { get } from 'svelte/store';
   import { activeProjectId } from '$lib/stores/project';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { refreshStatus as refreshGitStore, stageFile as stageGitFile } from '$lib/stores/git';
+  import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile } from '$lib/stores/git';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -66,7 +66,7 @@ import { get } from 'svelte/store';
     removeDragGhost,
     findDropTargetDir,
   } from '$lib/utils/files/files-drag-ghost';
-  import { EDITOR_JUMP_DELAY_MS, GIT_POLL_INTERVAL_MS } from '$lib/utils/timing';
+  import { EDITOR_JUMP_DELAY_MS } from '$lib/utils/timing';
   import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '$lib/utils/editor/editor-config';
   import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
 
@@ -796,8 +796,6 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
-  let gitPollInterval: ReturnType<typeof setInterval> | null = null;
-
   $: tooltipSearch = `Search (${bindingToLabels($shortcuts.searchFiles).join('')})`;
   $: tooltipSplit  = `Split Editor (${bindingToLabels($shortcuts.splitEditor).join('')})`;
 
@@ -942,15 +940,6 @@ import { get } from 'svelte/store';
   onMount(() => {
     window.addEventListener('keydown', handleGlobalKey, { capture: true });
 
-    gitPollInterval = setInterval(async () => {
-      if (!worktreePath) return;
-      const updated = await gitStatus(worktreePath).catch(() => null);
-      if (updated !== null) {
-        gitStatusMap = updated;
-        tree = rawTree;
-      }
-    }, GIT_POLL_INTERVAL_MS);
-
     let unlistenFocus: (() => void) | null = null;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
@@ -1017,7 +1006,6 @@ import { get } from 'svelte/store';
       unlistenFocus?.();
       osDropDisposed = true;
       unlistenOsDrop?.();
-      if (gitPollInterval !== null) clearInterval(gitPollInterval);
       unsubInst();
       unsubProj();
     };
@@ -1189,11 +1177,41 @@ import { get } from 'svelte/store';
 
   onDestroy(saveCurrentState);
 
-  $: if (worktreePath) {
+  /**
+   * Walking a repository is the slowest step of a worktree change, so the last
+   * trees stay around: coming back to a project paints from the cache at once
+   * and the walk runs silently behind it. Bounded, because a cached tree holds
+   * every path of a repository.
+   */
+  const TREE_CACHE_MAX = 8;
+  const treeCache = new Map<string, { tree: FileNode[]; status: GitStatusMap }>();
+
+  function cacheTree(root: string) {
+    treeCache.delete(root);
+    treeCache.set(root, { tree: rawTree, status: gitStatusMap });
+    for (const oldest of treeCache.keys()) {
+      if (treeCache.size <= TREE_CACHE_MAX) break;
+      treeCache.delete(oldest);
+    }
+  }
+
+  $: if (worktreePath) showWorktree(worktreePath);
+
+  function showWorktree(root: string) {
+    const cached = treeCache.get(root);
+    if (cached) {
+      rawTree = cached.tree;
+      tree = cached.tree;
+      gitStatusMap = cached.status;
+      gitStatusWorktree = root;
+      void loadTree(root, { silent: true });
+      return;
+    }
     rawTree = [];
     tree = [];
     gitStatusMap = {};
-    loadTree(worktreePath);
+    gitStatusWorktree = null;
+    void loadTree(root);
   }
 
   async function loadTree(root: string, opts?: { silent?: boolean }) {
@@ -1201,19 +1219,23 @@ import { get } from 'svelte/store';
     if (!silent) loading = true;
     error = '';
     try {
-      [rawTree, gitStatusMap] = await Promise.all([
+      const [loadedTree, loadedStatus] = await Promise.all([
         readDirTree(root, showIgnored),
         gitStatus(root).catch(() => ({} as GitStatusMap)),
       ]);
+      if (worktreePath !== root) return;
+      rawTree = loadedTree;
+      gitStatusMap = loadedStatus;
       tree = rawTree;
       gitStatusWorktree = root;
+      cacheTree(root);
       void refreshGitStore(true);
       loadPaneBaseFor(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
       loadPaneBaseFor(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
     } finally {
-      if (!silent) loading = false;
+      if (!silent && worktreePath === root) loading = false;
     }
   }
 
@@ -1242,6 +1264,17 @@ import { get } from 'svelte/store';
   }
 
   $: tree = rawTree;
+  $: adoptStoreStatus($git.statusWorktree, $git.status);
+
+  /** The tree colours follow the store's status rather than a poll of its own. */
+  function adoptStoreStatus(statusWorktree: string | null, status: GitStatusMap) {
+    if (!statusWorktree || statusWorktree !== worktreePath) return;
+    gitStatusMap = status;
+    gitStatusWorktree = statusWorktree;
+    const cached = treeCache.get(statusWorktree);
+    if (cached) cached.status = status;
+  }
+
   $: treeFilePaths = collectFilePaths(rawTree);
   $: cutPaths = fileClipboard?.op === 'cut' ? new Set(fileClipboard.nodes.map(n => n.path)) : new Set<string>();
 

@@ -10,6 +10,41 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "Switching project no longer loads everything twice. The workspace used to pass through the project root before reaching the real worktree, so the file tree, the git status and the log were all read once for nothing before being read again.",
+					"fr": "Changer de projet ne charge plus tout deux fois. Le workspace passait par la racine du projet avant d'atteindre le vrai worktree, si bien que l'arborescence, le statut git et l'historique étaient lus une fois pour rien avant d'être relus."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Coming back to a project you already opened shows its file tree straight away, from the last one loaded, while a refresh runs quietly behind it.",
+					"fr": "Revenir sur un projet déjà ouvert affiche son arborescence immédiatement, à partir de la dernière chargée, pendant qu'un rafraîchissement tourne discrètement derrière."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The app no longer rewrites its interface state to disk every 300 milliseconds. Saving the state triggered a new save, endlessly, for as long as the app was running.",
+					"fr": "L'application ne réécrit plus son état d'interface sur le disque toutes les 300 millisecondes. Enregistrer l'état déclenchait un nouvel enregistrement, sans fin, tant que l'application tournait."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The git status is now refreshed by a single background timer, which stops while the window is in the background or the home screen is showing, instead of two timers running side by side whatever was on screen.",
+					"fr": "Le statut git est désormais rafraîchi par un seul minuteur de fond, qui s'arrête quand la fenêtre est en arrière-plan ou que l'accueil est affiché, au lieu de deux minuteurs tournant en parallèle quoi qu'il y ait à l'écran."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Reading a repository, searching files and every git operation no longer run on the thread that draws the window, which used to freeze the interface for the whole duration of the work.",
+					"fr": "La lecture d'un dépôt, la recherche de fichiers et toutes les opérations git ne s'exécutent plus sur le thread qui dessine la fenêtre, ce qui figeait l'interface pendant toute la durée du traitement."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "The diff gutter no longer appears in a project that is not a git repository, where it used to flag every line of every file as added.",
 					"fr": "La gouttière de diff n'apparaît plus dans un projet qui n'est pas un dépôt git, où elle marquait chaque ligne de chaque fichier comme ajoutée."
 				}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
+  import { onMount, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
@@ -597,20 +597,12 @@
   let lastWorktreePath = '';
   let logSearchLoaded = false;
   let graphSearchActive = false;
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   onMount(() => {
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
       refreshStatus();
     }
-    pollTimer = setInterval(() => {
-      if (instance?.worktreePath) refreshStatus(true);
-    }, 5000);
-  });
-
-  onDestroy(() => {
-    if (pollTimer) clearInterval(pollTimer);
   });
 
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {

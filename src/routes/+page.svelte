@@ -73,8 +73,8 @@
 
     if (saved.activeProjectId) {
       openProject(saved.activeProjectId);
-      activeProjectId.set(saved.activeProjectId);
       await loadInstances(saved.activeProjectId);
+      activeProjectId.set(saved.activeProjectId);
       applyProjectState(saved.activeProjectId);
       if (saved.screen === 'workspace') {
         homeOpenSection = saved.homeSection as HomeSection;
@@ -98,23 +98,30 @@
   gitLeftTab.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
   viewStates.subscribe(() => persistUiState());
-  activeProjectId.subscribe(async (id) => {
-    if (id) await loadInstances(id);
-    persistUiState();
-  });
+  activeProjectId.subscribe(() => persistUiState());
 
-  function handleProjectChange(newId: string) {
+  /**
+   * The instances of the target project are loaded before it becomes active, so
+   * `activeInstance` moves straight from one worktree to the next. Switching
+   * first would leave the derived store without the instance it is looking for,
+   * and every view would reload once against the project root before reloading
+   * again against the real worktree.
+   */
+  async function switchTo(id: string) {
     snapshotCurrentProject();
-    activeProjectId.set(newId);
-    applyProjectState(newId);
+    await loadInstances(id);
+    activeProjectId.set(id);
+    applyProjectState(id);
+  }
+
+  async function handleProjectChange(newId: string) {
+    await switchTo(newId);
   }
 
   async function handleOpenProject(id: string) {
     openProject(id);
-    snapshotCurrentProject();
-    activeProjectId.set(id);
+    await switchTo(id);
     screen = 'workspace';
-    applyProjectState(id);
   }
 
   function handleCloseProject(id: string) {
@@ -124,16 +131,14 @@
       screen = 'home';
       activeProjectId.set(null);
     } else if ($activeProjectId === id) {
-      handleProjectChange(remaining[0].id);
+      void handleProjectChange(remaining[0].id);
     }
   }
 
-  function handleProjectCreated(id: string) {
+  async function handleProjectCreated(id: string) {
     openProject(id);
-    snapshotCurrentProject();
-    activeProjectId.set(id);
+    await switchTo(id);
     screen = 'workspace';
-    applyProjectState(id);
   }
 
   function handleSectionChange(e: CustomEvent<{ section: string; settingsTab: string }>) {

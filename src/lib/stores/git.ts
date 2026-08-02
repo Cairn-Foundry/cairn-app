@@ -14,11 +14,15 @@ import type {
 import * as gitService from "$lib/services/git-service";
 import { listBranchesDetailed } from "$lib/services/instance-service";
 import type { GitErrorAction } from "$lib/utils/git/git-error";
+import { GIT_REFRESH_INTERVAL_MS } from "$lib/utils/timing";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
+import { activeScreen } from "./ui";
 
 type GitState = {
 	status: GitFileStatus;
+	/** Worktree `status` was read from, so a consumer can tell it apart from a stale one. */
+	statusWorktree: string | null;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
 	currentBranch: string;
@@ -43,6 +47,7 @@ const GRAPH_PAGE = 200;
 
 const INITIAL: GitState = {
 	status: {},
+	statusWorktree: null,
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	currentBranch: "",
@@ -102,7 +107,35 @@ function worktree(): string | null {
 	return get(activeInstance)?.worktreePath ?? null;
 }
 
-export async function refreshStatus(silent = false): Promise<void> {
+let running: Promise<void> | null = null;
+let queued: Promise<void> | null = null;
+
+/**
+ * A worktree change is watched by the file tree, the git view and the workflow
+ * badges alike, so the same refresh is asked for several times at once - six git
+ * processes each. Requests that arrive during a flight collapse into a single
+ * follow-up run instead. That run starts once the current one has settled rather
+ * than joining it: a caller refreshing right after staging a file must see the
+ * repository as it is now, not as it was read a moment before the change.
+ */
+export function refreshStatus(silent = false): Promise<void> {
+	if (!worktree()) return Promise.resolve();
+	if (!running) {
+		running = runRefreshStatus(silent).finally(() => {
+			running = null;
+		});
+		return running;
+	}
+	if (!queued) {
+		queued = running.then(() => {
+			queued = null;
+			return refreshStatus(silent);
+		});
+	}
+	return queued;
+}
+
+async function runRefreshStatus(silent: boolean): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
@@ -112,6 +145,7 @@ export async function refreshStatus(silent = false): Promise<void> {
 			_git.update((s) => ({
 				...s,
 				status: {},
+				statusWorktree: wt,
 				unstagedDiffs: [],
 				stagedDiffs: [],
 				currentBranch: "",
@@ -144,6 +178,7 @@ export async function refreshStatus(silent = false): Promise<void> {
 		_git.update((s) => ({
 			...s,
 			status,
+			statusWorktree: wt,
 			unstagedDiffs,
 			stagedDiffs,
 			currentBranch,
@@ -490,6 +525,7 @@ export function clearGitData(): void {
 	_git.update((s) => ({
 		...s,
 		status: {},
+		statusWorktree: null,
 		unstagedDiffs: [],
 		stagedDiffs: [],
 		currentBranch: "",
@@ -506,6 +542,46 @@ export function clearGitData(): void {
 		isLoading: false,
 		error: null,
 	}));
+}
+
+/**
+ * The single owner of the background status refresh. Every view reads the store
+ * instead of polling on its own, and the timer only fires while the workspace is
+ * the screen on display and the window has the focus - a git process spawned for
+ * a window nobody is looking at buys nothing.
+ */
+export function startGitPolling(): () => void {
+	let visible = get(activeScreen) === "workspace";
+	let focused = typeof document === "undefined" || document.hasFocus();
+
+	const tick = () => {
+		if (!visible || !focused) return;
+		void refreshStatus(true);
+	};
+	const timer = setInterval(tick, GIT_REFRESH_INTERVAL_MS);
+
+	const unsubscribe = activeScreen.subscribe((screen) => {
+		const wasVisible = visible;
+		visible = screen === "workspace";
+		if (visible && !wasVisible) tick();
+	});
+
+	const onFocus = () => {
+		focused = true;
+		tick();
+	};
+	const onBlur = () => {
+		focused = false;
+	};
+	window.addEventListener("focus", onFocus);
+	window.addEventListener("blur", onBlur);
+
+	return () => {
+		clearInterval(timer);
+		unsubscribe();
+		window.removeEventListener("focus", onFocus);
+		window.removeEventListener("blur", onBlur);
+	};
 }
 
 let lastClearedWorktree: string | null | undefined;

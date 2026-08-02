@@ -18,8 +18,25 @@ import { clearProjectAgentActivity } from "./agent-activity";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";
 
-export const instances = writable<Instance[]>([]);
+/**
+ * Instances are held per project rather than for the active project alone: a
+ * missing key means "not loaded yet", which is what lets `activeInstance` stay
+ * silent instead of falling back to the base instance while a switch is in
+ * flight - a fallback every view would follow with a full reload.
+ */
+const instancesByProject = writable<Record<string, Instance[]>>({});
+
 export const timeline = writable<TimelineEvent[]>([]);
+
+function patchProject(
+	projectId: string,
+	patch: (list: Instance[]) => Instance[],
+): void {
+	instancesByProject.update((byProject) => ({
+		...byProject,
+		[projectId]: patch(byProject[projectId] ?? []),
+	}));
+}
 
 export const BASE_INSTANCE_ID = "__base__";
 
@@ -35,8 +52,17 @@ export function isArchivedInstance(instance: Instance): boolean {
 	return instance.status === "done";
 }
 
+/**
+ * Kept per project rather than rebuilt on demand: a fresh object on every read
+ * would make `activeInstance` look changed each time anything else moved, and
+ * every view watching it would reload for nothing.
+ */
+const baseInstances = new Map<string, Instance>();
+
 export function baseInstance(project: Project): Instance {
-	return {
+	const known = baseInstances.get(project.id);
+	if (known && known.worktreePath === project.path) return known;
+	const built: Instance = {
 		id: BASE_INSTANCE_ID,
 		projectId: project.id,
 		ticket: {
@@ -49,16 +75,47 @@ export function baseInstance(project: Project): Instance {
 		createdAt: 0,
 		baseBranch: "",
 	};
+	baseInstances.set(project.id, built);
+	return built;
 }
 
-export const activeInstance = derived(
-	[instances, activeProject],
-	([$instances, $activeProject]) => {
-		if (!$activeProject) return null;
-		const id = $activeProject.activeInstanceId;
-		if (!id || id === BASE_INSTANCE_ID) return baseInstance($activeProject);
-		return $instances.find((i) => i.id === id) ?? baseInstance($activeProject);
+export const instances = derived(
+	[instancesByProject, activeProject],
+	([$byProject, $activeProject]) =>
+		$activeProject ? ($byProject[$activeProject.id] ?? []) : [],
+);
+
+function resolveActive(
+	byProject: Record<string, Instance[]>,
+	project: Project | null,
+): Instance | null {
+	if (!project) return null;
+	const loaded = byProject[project.id];
+	if (!loaded) return null;
+	const id = project.activeInstanceId;
+	if (!id || id === BASE_INSTANCE_ID) return baseInstance(project);
+	return loaded.find((i) => i.id === id) ?? baseInstance(project);
+}
+
+let lastActive: Instance | null = null;
+
+/**
+ * A derived store republishes an object even when it is the very same one, so
+ * the resolved instance is compared before being handed out: the views below
+ * treat every emission as a worktree change.
+ */
+export const activeInstance = derived<
+	[typeof instancesByProject, typeof activeProject],
+	Instance | null
+>(
+	[instancesByProject, activeProject],
+	([$byProject, $activeProject], set) => {
+		const next = resolveActive($byProject, $activeProject);
+		if (next === lastActive) return;
+		lastActive = next;
+		set(next);
 	},
+	null,
 );
 
 export const instancesWithBase = derived(
@@ -77,14 +134,17 @@ export const activeTimeline = derived(
 
 export async function loadInstances(projectId: string): Promise<void> {
 	const data = await listInstances(projectId);
-	instances.set(data);
+	instancesByProject.update((byProject) => ({
+		...byProject,
+		[projectId]: data,
+	}));
 }
 
 export async function spawnInstance(
 	args: CreateInstanceArgs,
 ): Promise<Instance> {
 	const instance = await createInstance(args);
-	instances.update((list) => [...list, instance]);
+	patchProject(args.projectId, (list) => [...list, instance]);
 	await activateInstance(args.projectId, instance.id);
 	return instance;
 }
@@ -111,7 +171,7 @@ export async function duplicateInstance(
 		ticket,
 		copyWorkingChanges: opts.copyWorkingChanges,
 	});
-	instances.update((list) => [...list, instance]);
+	patchProject(source.projectId, (list) => [...list, instance]);
 	return instance;
 }
 
@@ -130,7 +190,9 @@ export async function setInstanceStatus(
 	status: InstanceStatus,
 ): Promise<void> {
 	const updated = await updateInstanceStatus(id, projectId, status);
-	instances.update((list) => list.map((i) => (i.id === id ? updated : i)));
+	patchProject(projectId, (list) =>
+		list.map((i) => (i.id === id ? updated : i)),
+	);
 }
 
 export async function removeInstance(
@@ -140,5 +202,5 @@ export async function removeInstance(
 	await removeInstanceTerminals(projectId, id);
 	clearProjectAgentActivity(projectId, id);
 	await deleteInstance(id, projectId);
-	instances.update((list) => list.filter((i) => i.id !== id));
+	patchProject(projectId, (list) => list.filter((i) => i.id !== id));
 }

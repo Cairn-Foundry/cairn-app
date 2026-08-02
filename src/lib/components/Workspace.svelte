@@ -34,7 +34,7 @@
   import { instances, baseInstance, isBaseInstance, isArchivedInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { gitFileCounts, gitHasConflicts } from '$lib/stores/git';
+  import { gitFileCounts, gitHasConflicts, startGitPolling } from '$lib/stores/git';
   import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
@@ -274,6 +274,9 @@
 
   let unlistenFullscreen: (() => void) | undefined;
 
+  let stopGitPolling: (() => void) | null = null;
+  onMount(() => { stopGitPolling = startGitPolling(); });
+
   onMount(async () => {
     isMac = navigator.userAgent.includes('Mac');
     if (!isMac) return;
@@ -286,6 +289,7 @@
 
   onDestroy(() => {
     unlistenFullscreen?.();
+    stopGitPolling?.();
     if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
   });
 

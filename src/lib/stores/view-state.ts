@@ -26,6 +26,24 @@ const _states = writable<Record<string, ProjectUiState>>({});
 
 export const viewStates = { subscribe: _states.subscribe };
 
+const KEYS = Object.keys(DEFAULT) as (keyof ProjectUiState)[];
+
+function isSameState(a: ProjectUiState, b: ProjectUiState): boolean {
+	return KEYS.every((k) => a[k] === b[k]);
+}
+
+/**
+ * Writing an unchanged state would notify the subscribers, which persist the ui
+ * state, which snapshots again: the store must therefore stay silent whenever
+ * the snapshot brings nothing new, or the app rewrites its state file forever.
+ */
+function commit(id: string, next: ProjectUiState): void {
+	const states = get(_states);
+	const prev = states[id] ?? DEFAULT;
+	if (states[id] && isSameState(prev, next)) return;
+	_states.set({ ...states, [id]: next });
+}
+
 export const currentProjectViewState = derived(
 	[_states, activeProjectId],
 	([$s, $pid]) => ($pid ? ($s[$pid] ?? DEFAULT) : DEFAULT),
@@ -42,17 +60,14 @@ export function initViewStates(states: Record<string, ProjectUiState>): void {
 export function snapshotCurrentProject(): void {
 	const id = get(activeProjectId);
 	if (!id) return;
-	_states.update((s) => ({
-		...s,
-		[id]: {
-			...(s[id] ?? DEFAULT),
-			activeStep: get(activeStep),
-			gitLeftTab: get(gitLeftTab),
-			terminalActive: get(terminalActive),
-			commandsActive: get(commandsActive),
-			envActive: get(envActive),
-		},
-	}));
+	commit(id, {
+		...(get(_states)[id] ?? DEFAULT),
+		activeStep: get(activeStep),
+		gitLeftTab: get(gitLeftTab),
+		terminalActive: get(terminalActive),
+		commandsActive: get(commandsActive),
+		envActive: get(envActive),
+	});
 }
 
 export function applyProjectState(id: string): void {
@@ -80,10 +95,7 @@ export function updateProjectViewState(
 ): void {
 	const id = get(activeProjectId);
 	if (!id) return;
-	_states.update((s) => ({
-		...s,
-		[id]: { ...(s[id] ?? DEFAULT), ...patch },
-	}));
+	commit(id, { ...(get(_states)[id] ?? DEFAULT), ...patch });
 }
 
 export function getAllProjectStates(): Record<string, ProjectUiState> {
