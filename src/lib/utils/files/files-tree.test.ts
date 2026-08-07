@@ -13,9 +13,11 @@ import {
 	flattenVisible,
 	getSiblingNames,
 	isExternalPath,
+	isUnder,
 	nodeGitStatus,
 	parentPathOf,
 	pasteDestName,
+	pathWithinWorktree,
 	resolveDestName,
 } from "./files-tree";
 
@@ -259,5 +261,38 @@ describe("isExternalPath / absolutePathOf", () => {
 		expect(absolutePathOf("/Users/me/notes.md", "/wt")).toBe(
 			"/Users/me/notes.md",
 		);
+	});
+});
+
+describe("isUnder", () => {
+	it("accepts a file inside the directory", () => {
+		expect(isUnder("/repo/app/src/main.rs", "/repo/app")).toBe(true);
+		expect(isUnder("/repo/app", "/repo/app")).toBe(true);
+	});
+
+	it("does not let a name prefix pass for a directory", () => {
+		expect(isUnder("/repo/app-legacy/src/main.rs", "/repo/app")).toBe(false);
+		expect(isUnder("/repo/application", "/repo/app")).toBe(false);
+	});
+
+	it("is false without a directory to compare against", () => {
+		expect(isUnder("/repo/app/main.rs", null)).toBe(false);
+	});
+});
+
+describe("pathWithinWorktree", () => {
+	it("strips the worktree from a file inside it", () => {
+		expect(pathWithinWorktree("/wt/src/app.ts", "/wt")).toBe("src/app.ts");
+	});
+
+	it("leaves a file outside the worktree absolute", () => {
+		expect(pathWithinWorktree("/elsewhere/a.rs", "/wt")).toBe(
+			"/elsewhere/a.rs",
+		);
+		expect(pathWithinWorktree("/wt-other/a.rs", "/wt")).toBe("/wt-other/a.rs");
+	});
+
+	it("leaves the path alone without a worktree", () => {
+		expect(pathWithinWorktree("/wt/src/app.ts", null)).toBe("/wt/src/app.ts");
 	});
 });

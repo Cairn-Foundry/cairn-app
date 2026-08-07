@@ -4,7 +4,7 @@ export const EDITOR_DEFAULTS = {
 	autocompleteMaxRendered: 12,
 	selectionMatchMinLength: 2,
 	contextMenuWidth: 220,
-	contextMenuHeight: 320,
+	contextMenuHeight: 440,
 	viewportPadding: 8,
 } as const;
 

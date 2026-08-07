@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
   import { loadAgentActivity } from '$lib/stores/agent-activity';
+  import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
+  import { listInstances } from '$lib/services/instance-service';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
@@ -17,7 +19,7 @@
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
 
   type Screen = 'home' | 'workspace';
-  type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'account' | 'settings';
+  type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'languageServers' | 'account' | 'settings';
 
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;
@@ -33,7 +35,16 @@
   onDestroy(() => {
     removeCopyHandler?.();
     stopUpdateChecks?.();
+    disposeLanguageServers();
   });
+
+  /** Closing a project takes its language servers down with it. */
+  async function stopProjectLanguageServers(projectId: string) {
+    const instances = await listInstances(projectId).catch(() => []);
+    for (const instance of instances) {
+      if (instance.worktreePath) await stopServersForWorktree(instance.worktreePath);
+    }
+  }
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   function persistUiState() {
@@ -56,6 +67,7 @@
     removeCopyHandler = installCopySelectionHandler();
 
     initTerminals();
+    initLanguageServers();
     void loadAgentActivity();
     settings.load();
     stopUpdateChecks = startUpdateChecks();
@@ -96,6 +108,8 @@
   commandsActive.subscribe(() => persistUiState());
   envActive.subscribe(() => persistUiState());
   gitLeftTab.subscribe(() => persistUiState());
+  referencesPanelOpen.subscribe(() => persistUiState());
+  referencesQuery.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
   viewStates.subscribe(() => persistUiState());
   activeProjectId.subscribe(() => persistUiState());
@@ -125,6 +139,7 @@
   }
 
   function handleCloseProject(id: string) {
+    void stopProjectLanguageServers(id);
     closeProjectTab(id);
     const remaining = $openProjects.filter(p => p.id !== id);
     if (remaining.length === 0) {
@@ -172,6 +187,7 @@
       on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
+      on:goLanguageServers={() => { homeOpenSection = 'languageServers'; screen = 'home'; }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
       on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />

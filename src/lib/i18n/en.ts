@@ -322,6 +322,24 @@ export const en = {
 				label: "Duplicate line",
 				description: "Duplicate the current line, cursor stays on original",
 			},
+			goToDefinition: {
+				label: "Go to definition",
+				description: "Click a symbol in the editor to jump to its definition",
+			},
+			findReferences: {
+				label: "Find references",
+				description:
+					"Click a symbol in the editor to list its definitions, implementations and usages",
+			},
+			renameSymbol: {
+				label: "Rename symbol",
+				description:
+					"Rename the symbol under the cursor across the whole project",
+			},
+			formatDocument: {
+				label: "Format document",
+				description: "Reformat the current file with its language server",
+			},
 			treeSelectAll: {
 				label: "Select all in tree",
 				description: "Select every visible file and folder in the file tree",
@@ -643,6 +661,7 @@ export const en = {
 		notCommittedYet: "Not committed yet",
 		convertLineEndings: "Convert line endings",
 		convertIndentStyle: "Convert indent style",
+		format: "Format",
 		toggleWhitespace: "Toggle whitespace rendering",
 		unpinTab: "Unpin tab",
 		unpinTabTitle: "Unpin tab",
@@ -672,6 +691,7 @@ export const en = {
 			copyAbsolutePath: "Copy Absolute Path",
 			rename: "Rename",
 			openInTerminal: "Open in Terminal",
+			formatDocument: "Format Document",
 			deleteItems: (n: number) => `Delete ${n} items`,
 			deleteConfirm: (name: string) => `Delete "${name}"?`,
 		},
@@ -697,6 +717,57 @@ export const en = {
 		placeholder: "Type a command...",
 		noResults: (q: string) => `No commands match "${q}"`,
 		ariaLabel: "Command Palette",
+	},
+
+	languageServers: {
+		title: "Language servers",
+		desc: "Real completion, diagnostics and symbol lookup, from the language servers you turn on.",
+		behaviourGroup: "Behaviour",
+		serversGroup: "Servers",
+		suggestOnOpen: "Offer a server on open",
+		suggestOnOpenDesc:
+			"When a file has no server yet, propose the one that covers it.",
+		install: "Install",
+		uninstall: "Uninstall",
+		uninstallHeading: "Uninstall",
+		uninstallTitle: (name: string) => `Uninstall ${name}?`,
+		uninstallDescription:
+			"The package manager that installed it removes it. Cairn stops the server first.",
+		uninstallAlsoRemoves: (names: string) =>
+			`This package also carries ${names}. They go with it.`,
+		uninstallNoManager:
+			"None of the package managers that could remove it are on this machine.",
+		rescan: "Rescan",
+		searchPlaceholder: "Search a server or an extension",
+		noSearchResults: (query: string) => `No server matches "${query}".`,
+		documentation: "Documentation",
+		statusRunning: "Running",
+		statusStarting: "Starting",
+		statusFailed: "Failed",
+		suggestionTitle: "Language server",
+		suggestion: (name: string) => `${name} can handle this file. Enable it?`,
+		enable: "Enable",
+		notNow: "Not now",
+		noManagerAvailable:
+			"Not installed, and none of its package managers are on this machine.",
+		installAndEnable: "Install and enable",
+		seeHowToInstall: "See how to install",
+		neverSuggest: "Never suggest",
+		renameTitle: "Rename symbol",
+		renameApply: "Rename",
+		renameFailed: (files: string) => `Could not rename in ${files}.`,
+	},
+
+	references: {
+		title: "References",
+		close: "Close references",
+		definitions: "Definitions",
+		implementations: "Implementations",
+		usages: "Usages",
+		noResults: "nothing found",
+		empty: "place the cursor on a symbol",
+		collapseFiles: "Collapse every file",
+		expandFiles: "Expand every file",
 	},
 
 	search: {
@@ -1093,6 +1164,7 @@ export const en = {
 			savedCheckpoints: "Saved checkpoints",
 			activity: "Activity",
 			agents: "Agents",
+			languageServers: "Language servers",
 			changelog: "What's new",
 			account: "Account",
 			settings: "Settings",
@@ -1505,6 +1577,7 @@ export const en = {
 			enableShortcut: "Enable shortcut",
 			customized: "Customized",
 			pressKeyCombo: "Press key combo...",
+			pressClickCombo: "Click with modifiers...",
 			conflictsWithAnother: "Conflicts with another shortcut",
 			resetToDefault: "Reset to default",
 			resetShortcut: "Reset shortcut",
@@ -1526,6 +1599,10 @@ export const en = {
 			moveLineDown: "Move Line Down",
 			duplicateLine: "Duplicate Line",
 			deleteLine: "Delete Line",
+			goToDefinition: "Go to Definition",
+			findReferences: "Find References",
+			renameSymbol: "Rename Symbol",
+			formatDocument: "Format Document",
 		},
 	},
 } as const;

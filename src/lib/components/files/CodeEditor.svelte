@@ -8,6 +8,7 @@
   const highlightCompartment = new CompartmentModule();
   const whitespaceCompartment = new CompartmentModule();
   const languageCompartment = new CompartmentModule();
+  const instanceCompartment = new CompartmentModule();
 </script>
 
 <script lang="ts">
@@ -37,10 +38,13 @@
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectAll,
   } from '@codemirror/commands';
-  import { shortcuts, activeShortcuts, bindingToLabels } from '$lib/stores/shortcuts';
+  import { shortcuts, activeShortcuts, bindingToLabels, matchesMouseShortcut } from '$lib/stores/shortcuts';
   import { settings, activeSyntaxTokens } from '$lib/stores/settings';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
-  import { lintKeymap } from '@codemirror/lint';
+  import { lintKeymap, setDiagnostics } from '@codemirror/lint';
+  import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
+  import { buildLspExtensions, buildSymbolClickAffordance, rangeToOffsets, toEditorDiagnostics } from '$lib/utils/editor/editor-lsp';
+  import type { ModifierState } from '$lib/types/shortcuts';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
   import {
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine,
@@ -67,6 +71,38 @@
   export let savedState: EditorState | null = null;
   export let docPath: string | null = null;
   export let onOpenLink: ((path: string, anchor: string | null) => void) | undefined = undefined;
+  export let lspDoc: LspDocRef | null = null;
+  export let lspDiagnostics: LspDiagnostic[] = [];
+  export let onGoToDefinition: (() => void) | undefined = undefined;
+  export let onFindReferences: (() => void) | undefined = undefined;
+  export let onRenameSymbol: (() => void) | undefined = undefined;
+  export let onFormatDocument: (() => void) | undefined = undefined;
+
+  export function getLspPosition(): { line: number; character: number } | null {
+    if (!view) return null;
+    const head = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(head);
+    return { line: line.number - 1, character: head - line.from };
+  }
+
+  export function getWordAtCursor(): string {
+    if (!view) return '';
+    const head = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(head);
+    const before = line.text.slice(0, head - line.from).match(/[\w$]+$/)?.[0] ?? '';
+    const after = line.text.slice(head - line.from).match(/^[\w$]+/)?.[0] ?? '';
+    return before + after;
+  }
+
+  export function applyTextEdits(edits: { range: { start: { line: number; character: number }; end: { line: number; character: number } }; newText: string }[]): boolean {
+    if (!view || edits.length === 0) return false;
+    const doc = view.state.doc;
+    const changes = edits
+      .map(e => ({ ...rangeToOffsets(doc, e.range), insert: e.newText }))
+      .sort((a, b) => b.from - a.from);
+    view.dispatch({ changes, userEvent: 'input' });
+    return true;
+  }
 
   export function getState(): { cursorPos: number; scrollTop: number } {
     if (!view) return { cursorPos: 0, scrollTop: 0 };
@@ -179,6 +215,37 @@
     if (e.key === 'Escape') closeContextMenu();
   }
 
+  function runLsp(action: (() => void) | undefined) {
+    closeContextMenu();
+    if (!action) return;
+    view?.focus();
+    action();
+  }
+
+  // -- Symbol click ------------------------------------------------------------
+
+  /**
+   * The LSP request reads the cursor, so the click has to move it first. A
+   * click on a markdown link is left alone: shift-click already follows it.
+   */
+  function handleSymbolClick(event: MouseEvent): boolean {
+    if (!view || !lspDoc) return false;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[data-cm-md-href]')) return false;
+
+    const goToDefinition = matchesMouseShortcut(event, $activeShortcuts.goToDefinition);
+    const findReferences = matchesMouseShortcut(event, $activeShortcuts.findReferences);
+    if (!goToDefinition && !findReferences) return false;
+
+    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos === null) return false;
+    event.preventDefault();
+    view.dispatch({ selection: EditorSelection.cursor(pos) });
+    if (findReferences) onFindReferences?.();
+    else onGoToDefinition?.();
+    return true;
+  }
+
   // -- Extensions -------------------------------------------------------------
 
   function buildLanguageExtensions(): Extension[] {
@@ -198,6 +265,32 @@
       exts.push(data.of({ autocomplete: scopeCompletionSource(globalThis) }));
     }
     return exts;
+  }
+
+  function isArmedForSymbol(mods: ModifierState): boolean {
+    if (!lspDoc) return false;
+    return (
+      matchesMouseShortcut(mods, $activeShortcuts.goToDefinition) ||
+      matchesMouseShortcut(mods, $activeShortcuts.findReferences)
+    );
+  }
+
+  /**
+   * Everything that closes over this component instance. A tab switch mounts a
+   * new editor on the *cached* state of that tab, whose extensions were built
+   * by an instance that no longer exists - so these are reconfigured on mount,
+   * or the handlers keep talking to a destroyed component.
+   */
+  function buildInstanceExtensions(): Extension[] {
+    return [
+      buildLspExtensions(() => lspDoc),
+      buildSymbolClickAffordance(isArmedForSymbol),
+      EditorView.domEventHandlers({
+        blur: () => { onBlur?.(); return false; },
+        contextmenu: (e) => { openContextMenu(e); return true; },
+        mousedown: (e) => handleSymbolClick(e),
+      }),
+    ];
   }
 
   function buildExtensions(): Extension[] {
@@ -241,6 +334,7 @@
       search({ top: true }),
       highlightSelectionMatches({ minSelectionLength: EDITOR_DEFAULTS.selectionMatchMinLength, wholeWords: false }),
       autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: EDITOR_DEFAULTS.autocompleteMaxRendered }),
+      instanceCompartment.of(buildInstanceExtensions()),
       buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
       buildConflictResolver(),
@@ -257,16 +351,13 @@
           onCursorChange?.(line.number, head - line.from + 1);
         }
       }),
-      EditorView.domEventHandlers({
-        blur: () => { onBlur?.(); return false; },
-        contextmenu: (e) => { openContextMenu(e); return true; },
-      }),
     ];
   }
 
   onMount(() => {
     const initState = savedState ?? EditorState.create({ doc: content, extensions: buildExtensions() });
     view = new EditorView({ state: initState, parent: container });
+    view.dispatch({ effects: instanceCompartment.reconfigure(buildInstanceExtensions()) });
 
     if (initialCursorPos > 0) {
       const pos = Math.min(initialCursorPos, view.state.doc.length);
@@ -326,6 +417,12 @@
 
   $: if (view) view.dispatch({ effects: whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []) });
 
+  let syncedDiagnostics: LspDiagnostic[] | undefined = undefined;
+  $: if (view && lspDiagnostics !== syncedDiagnostics) {
+    syncedDiagnostics = lspDiagnostics;
+    view.dispatch(setDiagnostics(view.state, toEditorDiagnostics(view.state.doc, lspDiagnostics)));
+  }
+
   onDestroy(() => { view?.destroy(); });
 </script>
 
@@ -358,6 +455,21 @@
     </button>
     <button role="menuitem" on:click={() => runCmd(selectAll)}>
       <span class="icon"></span>{t('editor.contextMenu.selectAll')}<span class="kbd">⌘A</span>
+    </button>
+
+    <div class="ctx-sep" role="separator"></div>
+
+    <button role="menuitem" disabled={!lspDoc} on:click={() => runLsp(onGoToDefinition)}>
+      <span class="icon"></span>{t('editor.contextMenu.goToDefinition')}<span class="kbd">{bindingToLabels($shortcuts.goToDefinition).join('')}</span>
+    </button>
+    <button role="menuitem" disabled={!lspDoc} on:click={() => runLsp(onFindReferences)}>
+      <span class="icon">⌕</span>{t('editor.contextMenu.findReferences')}<span class="kbd">{bindingToLabels($shortcuts.findReferences).join('')}</span>
+    </button>
+    <button role="menuitem" disabled={!lspDoc || readonly} on:click={() => runLsp(onRenameSymbol)}>
+      <span class="icon"></span>{t('editor.contextMenu.renameSymbol')}<span class="kbd">{bindingToLabels($shortcuts.renameSymbol).join('')}</span>
+    </button>
+    <button role="menuitem" disabled={!lspDoc || readonly} on:click={() => runLsp(onFormatDocument)}>
+      <span class="icon"></span>{t('editor.contextMenu.formatDocument')}<span class="kbd">{bindingToLabels($shortcuts.formatDocument).join('')}</span>
     </button>
 
     <div class="ctx-sep" role="separator"></div>

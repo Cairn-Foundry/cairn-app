@@ -170,11 +170,6 @@
       >
         <Icon name="settings" size={13} />
       </button>
-      {#if groups.length > 0}
-        <button type="button" class="search-icon-btn" title={t('search.collapseAll') as string} on:click={collapseAll} aria-label={t('search.collapseAll') as string}>
-          <Icon name="chev-r" size={13} />
-        </button>
-      {/if}
       <button type="button" class="search-icon-btn" on:click={onClose} aria-label={t('search.closeSearch') as string}>
         <Icon name="x" size={13} />
       </button>
@@ -241,6 +236,9 @@
         {(t('search.resultsSummary') as (count: number, files: number) => string)(capped ? 2000 : resultCount, fileCount)}{capped ? '+' : ''}
         {#if capped}<span class="summary-capped">{t('search.capped')}</span>{/if}
       </span>
+      <button type="button" class="search-icon-btn summary-collapse" title={t('search.collapseAll') as string} on:click={collapseAll} aria-label={t('search.collapseAll') as string}>
+        <Icon name="collapse-all" size={13} />
+      </button>
     {/if}
   </div>
 
@@ -395,10 +393,14 @@
 
   /* -- Summary -- */
   .search-summary {
-    padding: 5px 10px 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px 4px 10px;
     flex-shrink: 0;
     min-height: 22px;
   }
+  .summary-collapse { margin-left: auto; }
   .summary-text {
     font-size: 11px;
     font-family: var(--font-mono);

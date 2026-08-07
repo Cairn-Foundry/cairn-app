@@ -3,7 +3,7 @@
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
-  import type { ShortcutId, ShortcutBinding, ShortcutConfig } from '$lib/types/shortcuts';
+  import { MOUSE_KEY, type ShortcutId, type ShortcutBinding, type ShortcutConfig } from '$lib/types/shortcuts';
   import { MODIFIER_KEYS } from '$lib/utils/home/appearance';
   import { matchesSearch } from '$lib/utils/files/files-search';
 
@@ -34,21 +34,9 @@
 
   function startRecording(id: ShortcutId) { recordingId = id; }
 
-  function handleRecordKeydown(e: KeyboardEvent) {
-    if (!recordingId) return;
-    if (MODIFIER_KEYS.has(e.key)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === 'Escape') { recordingId = null; return; }
-    const isMac = navigator.platform.startsWith('Mac');
-    const binding: ShortcutBinding = {
-      key: e.key,
-      mod: isMac ? e.metaKey : e.ctrlKey,
-      shift: e.shiftKey,
-      alt: e.altKey,
-      ctrl: e.ctrlKey,
-    };
-    const id = recordingId;
+  $: recordingDef = recordingId ? SHORTCUT_DEFS.find(d => d.id === recordingId) ?? null : null;
+
+  function saveBinding(id: ShortcutId, binding: ShortcutBinding) {
     const existing = shortcutConfigMap.get(id) ?? { id, binding: null, enabled: true };
     const next = [
       ...($settings.shortcuts).filter(c => c.id !== id),
@@ -56,6 +44,36 @@
     ];
     settings.save({ shortcuts: next });
     recordingId = null;
+  }
+
+  function modifiersOf(e: KeyboardEvent | MouseEvent) {
+    const isMac = navigator.platform.startsWith('Mac');
+    return {
+      mod: isMac ? e.metaKey : e.ctrlKey,
+      shift: e.shiftKey,
+      alt: e.altKey,
+      ctrl: e.ctrlKey,
+    };
+  }
+
+  function handleRecordKeydown(e: KeyboardEvent) {
+    if (!recordingId) return;
+    if (MODIFIER_KEYS.has(e.key)) return;
+    if (e.key === 'Escape') { e.preventDefault(); recordingId = null; return; }
+    if (recordingDef?.mouse) return;
+    e.preventDefault();
+    e.stopPropagation();
+    saveBinding(recordingId, { key: e.key, ...modifiersOf(e) });
+  }
+
+  /** A bare click stays a click: a mouse binding without a modifier is refused. */
+  function handleRecordMousedown(e: MouseEvent) {
+    if (!recordingId || !recordingDef?.mouse) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const mods = modifiersOf(e);
+    if (!mods.mod && !mods.shift && !mods.alt && !mods.ctrl) { recordingId = null; return; }
+    saveBinding(recordingId, { key: MOUSE_KEY, ...mods });
   }
 
   function resetBinding(id: ShortcutId) {
@@ -91,7 +109,7 @@
     .map(key => ({ key, label: SHORTCUT_GROUP_LABELS[key] ?? key }));
 </script>
 
-<svelte:window on:keydown={handleRecordKeydown} />
+<svelte:window on:keydown={handleRecordKeydown} on:mousedown|capture={handleRecordMousedown} />
 
 <div class="sc-toolbar">
   <div class="sc-search-bar">
@@ -162,7 +180,7 @@
 
           <span class="sc-keys">
             {#if isRecording}
-              <span class="sc-recording-hint">{t('settings.shortcuts.pressKeyCombo')}</span>
+              <span class="sc-recording-hint">{def.mouse ? t('settings.shortcuts.pressClickCombo') : t('settings.shortcuts.pressKeyCombo')}</span>
             {:else if !isDisabled}
               {#each bindingToLabels(binding) as kLabel, i}
                 {#if i > 0}<span class="sc-plus">+</span>{/if}

@@ -331,6 +331,25 @@ export const fr = {
 				description:
 					"Dupliquer la ligne courante, le curseur reste sur l'originale",
 			},
+			goToDefinition: {
+				label: "Aller à la définition",
+				description:
+					"Cliquer sur un symbole dans l'éditeur pour sauter à sa définition",
+			},
+			findReferences: {
+				label: "Rechercher les références",
+				description:
+					"Cliquer sur un symbole dans l'éditeur pour lister ses définitions, implémentations et usages",
+			},
+			renameSymbol: {
+				label: "Renommer le symbole",
+				description: "Renommer le symbole sous le curseur dans tout le projet",
+			},
+			formatDocument: {
+				label: "Formater le document",
+				description:
+					"Reformater le fichier courant avec son serveur de langage",
+			},
 			treeSelectAll: {
 				label: "Tout sélectionner",
 				description:
@@ -660,6 +679,7 @@ export const fr = {
 		notCommittedYet: "Pas encore commité",
 		convertLineEndings: "Convertir les fins de ligne",
 		convertIndentStyle: "Convertir le style d'indentation",
+		format: "Formater",
 		toggleWhitespace: "Afficher/masquer les espaces",
 		unpinTab: "Désépingler l'onglet",
 		unpinTabTitle: "Désépingler l'onglet",
@@ -689,6 +709,7 @@ export const fr = {
 			copyAbsolutePath: "Copier le chemin absolu",
 			rename: "Renommer",
 			openInTerminal: "Ouvrir dans le terminal",
+			formatDocument: "Formater le document",
 			deleteItems: (n: number) => `Supprimer ${n} éléments`,
 			deleteConfirm: (name: string) => `Supprimer "${name}" ?`,
 		},
@@ -714,6 +735,59 @@ export const fr = {
 		placeholder: "Saisir une commande...",
 		noResults: (q: string) => `Aucune commande ne correspond à "${q}"`,
 		ariaLabel: "Palette de commandes",
+	},
+
+	languageServers: {
+		title: "Serveurs de langage",
+		desc: "Complétion réelle, diagnostics et recherche de symboles, depuis les serveurs de langage que vous activez.",
+		behaviourGroup: "Comportement",
+		serversGroup: "Serveurs",
+		suggestOnOpen: "Proposer un serveur à l'ouverture",
+		suggestOnOpenDesc:
+			"Quand un fichier n'a pas encore de serveur, proposer celui qui le couvre.",
+		install: "Installer",
+		uninstall: "Désinstaller",
+		uninstallHeading: "Désinstallation",
+		uninstallTitle: (name: string) => `Désinstaller ${name} ?`,
+		uninstallDescription:
+			"Le gestionnaire de paquets qui l'a installé le retire. Cairn arrête d'abord le serveur.",
+		uninstallAlsoRemoves: (names: string) =>
+			`Ce paquet porte aussi ${names}. Ils partent avec.`,
+		uninstallNoManager:
+			"Aucun des gestionnaires de paquets capables de le retirer n'est présent sur cette machine.",
+		rescan: "Rechercher à nouveau",
+		searchPlaceholder: "Chercher un serveur ou une extension",
+		noSearchResults: (query: string) =>
+			`Aucun serveur ne correspond à "${query}".`,
+		documentation: "Documentation",
+		statusRunning: "En marche",
+		statusStarting: "Démarrage",
+		statusFailed: "En échec",
+		suggestionTitle: "Serveur de langage",
+		suggestion: (name: string) =>
+			`${name} sait traiter ce fichier. L'activer ?`,
+		enable: "Activer",
+		notNow: "Pas maintenant",
+		noManagerAvailable:
+			"Non installé, et aucun de ses gestionnaires de paquets n'est présent sur cette machine.",
+		installAndEnable: "Installer et activer",
+		seeHowToInstall: "Voir comment l'installer",
+		neverSuggest: "Ne plus proposer",
+		renameTitle: "Renommer le symbole",
+		renameApply: "Renommer",
+		renameFailed: (files: string) => `Renommage impossible dans ${files}.`,
+	},
+
+	references: {
+		title: "Références",
+		close: "Fermer les références",
+		definitions: "Définitions",
+		implementations: "Implémentations",
+		usages: "Usages",
+		noResults: "rien trouvé",
+		empty: "placez le curseur sur un symbole",
+		collapseFiles: "Replier tous les fichiers",
+		expandFiles: "Déplier tous les fichiers",
 	},
 
 	search: {
@@ -1122,6 +1196,7 @@ export const fr = {
 			savedCheckpoints: "Checkpoints sauvegardés",
 			activity: "Activité",
 			agents: "Agents",
+			languageServers: "Serveurs de langage",
 			changelog: "Nouveautés",
 			account: "Compte",
 			settings: "Paramètres",
@@ -1544,6 +1619,7 @@ export const fr = {
 			enableShortcut: "Activer le raccourci",
 			customized: "Personnalisé",
 			pressKeyCombo: "Appuyer sur une combinaison de touches...",
+			pressClickCombo: "Cliquer avec des modificateurs...",
 			conflictsWithAnother: "Conflit avec un autre raccourci",
 			resetToDefault: "Réinitialiser par défaut",
 			resetShortcut: "Réinitialiser le raccourci",
@@ -1565,6 +1641,10 @@ export const fr = {
 			moveLineDown: "Déplacer la ligne vers le bas",
 			duplicateLine: "Dupliquer la ligne",
 			deleteLine: "Supprimer la ligne",
+			goToDefinition: "Aller à la définition",
+			findReferences: "Rechercher les références",
+			renameSymbol: "Renommer le symbole",
+			formatDocument: "Formater le document",
 		},
 	},
 } as const;

@@ -194,6 +194,7 @@
     goHome: void;
     goSettings: void;
     goShortcuts: void;
+    goLanguageServers: void;
     goGitSettings: void;
     createInstance: { branch?: string };
     reorderTabs: string[];
@@ -567,7 +568,7 @@
     </div>
 
     <main class="main">
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} /></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'review'}><ReviewView/></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'tests'}><TestsView/></div>

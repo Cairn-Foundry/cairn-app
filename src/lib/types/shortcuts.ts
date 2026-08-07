@@ -31,6 +31,11 @@ export type ShortcutId =
 	// Editing (editor)
 	| "saveFile"
 	| "duplicateLine"
+	// Language server (editor)
+	| "goToDefinition"
+	| "findReferences"
+	| "renameSymbol"
+	| "formatDocument"
 	// View (global)
 	| "toggleSidebar"
 	| "commandPalette"
@@ -54,6 +59,16 @@ export type ShortcutId =
 	| "reloadEditor"
 	| "reloadProject";
 
+export const MOUSE_KEY = "Click";
+
+/** The modifiers a binding matches on, as carried by a mouse or key event. */
+export interface ModifierState {
+	shiftKey: boolean;
+	altKey: boolean;
+	ctrlKey: boolean;
+	metaKey: boolean;
+}
+
 export interface ShortcutBinding {
 	key: string;
 	mod: boolean;
@@ -68,6 +83,10 @@ export interface ShortcutDef {
 	description: string;
 	group: "files" | "editor" | "tabs" | "view" | "tree" | "app";
 	default: ShortcutBinding;
+	/** Bound to a mouse click rather than a key: recorded and matched on a click. */
+	mouse?: boolean;
+	/** Kept out of the command palette. */
+	hidden?: boolean;
 }
 
 export interface ShortcutConfig {

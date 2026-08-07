@@ -10,6 +10,7 @@ pub mod git;
 pub mod git_collapse_state;
 pub mod git_error;
 pub mod instances;
+pub mod lsp;
 pub mod projects;
 pub mod settings;
 pub mod shell;
@@ -51,6 +52,14 @@ pub use git::{
     git_revert_commit, git_discard_file,
 };
 pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status};
+pub use lsp::{
+    LspState, list_language_servers, install_language_server, uninstall_language_server,
+    uninstall_manager_for, cancel_language_server_command,
+    start_language_server, stop_language_servers_with_id,
+    stop_language_servers_for, lsp_did_open, lsp_did_change, lsp_did_save, lsp_did_close,
+    lsp_completion, lsp_hover, lsp_signature_help, lsp_definition, lsp_implementation,
+    lsp_references, lsp_rename, lsp_format,
+};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, run_agent_command, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};

@@ -28,6 +28,9 @@ const DEFAULTS: CairnSettings = {
 	autoCheckUpdates: true,
 	syntaxThemes: [],
 	activeSyntaxThemeId: "",
+	languageServers: [],
+	suggestLanguageServers: true,
+	dismissedLanguageServers: [],
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);

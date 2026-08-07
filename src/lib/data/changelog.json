@@ -2,8 +2,124 @@
 	{
 		"version": "0.13.0",
 		"date": "",
-		"summary":{},
-		"changes": []
+		"summary": {
+			"en": "The editor learns your languages.",
+			"fr": "L'éditeur apprend vos langages."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "Go to definition, Find references, Rename symbol and Format document are now in the editor right-click menu, and Format document in the file tree menu for any file a language server covers.",
+					"fr": "Aller à la définition, Rechercher les références, Renommer le symbole et Formater le document sont désormais dans le menu contextuel de l'éditeur, et Formater le document dans le menu de l'arborescence pour tout fichier couvert par un serveur de langage."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Shift-click a symbol to go to its definition, Ctrl-Shift-click to list its references. Both clicks are rebindable in the shortcuts settings, like any other shortcut.",
+					"fr": "Maj-clic sur un symbole pour aller à sa définition, Ctrl-Maj-clic pour lister ses références. Les deux clics se réattribuent dans les réglages de raccourcis, comme n'importe quel autre raccourci."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Holding the modifiers of that click underlines the word under the pointer, so a symbol says it can be followed before the click is made.",
+					"fr": "Maintenir les modificateurs de ce clic souligne le mot sous le pointeur : un symbole annonce qu'il peut être suivi avant même le clic."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Format button in the editor status bar, next to the indent style and the encoding, for any file a language server can format.",
+					"fr": "Un bouton Formater dans la barre d'état de l'éditeur, à côté du style d'indentation et de l'encodage, pour tout fichier qu'un serveur de langage sait formater."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The References panel folds a whole section, Definitions or Usages, and folds every file of a section at once.",
+					"fr": "Le panneau Références replie une section entière, Définitions ou Usages, et replie tous les fichiers d'une section d'un coup."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The References panel reopens on the lookup it was showing, and asks it again after a reload. The file it points at does not have to be open.",
+					"fr": "Le panneau Références rouvre sur la recherche qu'il affichait, et la repose après un rechargement. Le fichier visé n'a pas besoin d'être ouvert."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A language server no longer receives the text of one file under the name of another when several tabs are open, which showed up as errors quoting a file you were not editing.",
+					"fr": "Un serveur de langage ne reçoit plus le texte d'un fichier sous le nom d'un autre quand plusieurs onglets sont ouverts, ce qui se voyait comme des erreurs citant un fichier que l'on n'éditait pas."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The editor right-click menu no longer stops appearing once a second file is open.",
+					"fr": "Le menu contextuel de l'éditeur ne cesse plus d'apparaître dès qu'un deuxième fichier est ouvert."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Go to definition and Find references left the command palette: they belong to a symbol under the pointer, not to a list of commands.",
+					"fr": "Aller à la définition et Rechercher les références quittent la palette de commandes : ils portent sur un symbole sous le pointeur, pas sur une liste de commandes."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Language servers page on the home screen: one row per server, the files it covers, and a switch. A server that is not installed shows an Install button instead, which runs the right package manager without leaving Cairn and reports what it is doing line by line, with a clock and a Cancel button for a slow connection; the raw command only appears when no manager on the machine can do it. Removing one works the same way, through the manager that installed it, and warns first when the package carries other servers with it.",
+					"fr": "Une page Serveurs de langage sur l'accueil : une ligne par serveur, les fichiers qu'il couvre, et un interrupteur. Un serveur non installé affiche un bouton Installer à la place, qui lance le bon gestionnaire de paquets sans quitter Cairn et rend compte de ce qu'il fait ligne par ligne, avec un chronomètre et un bouton Annuler pour les connexions lentes ; la commande brute n'apparaît que si aucun gestionnaire de la machine ne peut le faire. La suppression fonctionne pareil, via le gestionnaire qui l'a installé, et prévient d'abord quand le paquet emporte d'autres serveurs avec lui."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Diagnostics appear in the editor as you type. Errors and warnings come from the language server itself, under the exact code they concern.",
+					"fr": "Les diagnostics s'affichent dans l'éditeur au fil de la frappe. Erreurs et avertissements viennent du serveur de langage lui-même, sous le code exact qu'ils concernent."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Real completion, hover documentation and signature help, answered by the language server rather than guessed from the words already in the file.",
+					"fr": "Complétion réelle, documentation au survol et aide à la signature, répondues par le serveur de langage plutôt que devinées depuis les mots déjà présents dans le fichier."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Go to definition (F12) and Find references (Shift+F12). The References panel opens beside the file tree and separates definitions, implementations and usages, grouped by file, each hit showing its own line of code with the symbol picked out. A search by whole word confused a call, a definition, a comment and a string; this does not.",
+					"fr": "Aller à la définition (F12) et Rechercher les références (Maj+F12). Le panneau Références s'ouvre à côté de l'arborescence et sépare définitions, implémentations et usages, regroupés par fichier, chaque résultat montrant sa propre ligne de code avec le symbole mis en évidence. Une recherche par mot entier confondait un appel, une définition, un commentaire et une chaîne ; celle-ci non."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Language servers page has a search field. It matches the server's name, the extensions it covers with or without the leading dot, and the words you would reach for instead of the server's own name: react finds TypeScript, sass finds CSS, django finds Pyright.",
+					"fr": "La page Serveurs de langage a un champ de recherche. Il porte sur le nom du serveur, les extensions qu'il couvre avec ou sans le point, et les mots que l'on emploie à la place du nom du serveur : react trouve TypeScript, sass trouve CSS, django trouve Pyright."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Rename symbol (F2) across the whole project, and Format document, both driven by the language server. A rename only writes files no tab is showing; an open file is renamed in the editor and left unsaved, so unsaved work is never overwritten and the change can still be undone.",
+					"fr": "Renommer le symbole (F2) dans tout le projet, et Formater le document, tous deux pilotés par le serveur de langage. Un renommage n'écrit que les fichiers qu'aucun onglet ne montre ; un fichier ouvert est renommé dans l'éditeur et laissé non enregistré, si bien qu'un travail en cours n'est jamais écrasé et que le changement reste annulable."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Opening a file of a language you have not configured offers the matching server in a card in the bottom-right corner. It waits there until it is answered rather than fading on a timer. One button installs it and turns it on, with the package manager already present on the machine. The offer can be silenced for one server or turned off entirely.",
+					"fr": "Ouvrir un fichier d'un langage non configuré propose le serveur correspondant dans une carte en bas à droite. Elle attend une réponse au lieu de disparaître au bout d'un délai. Un bouton l'installe et l'active, avec le gestionnaire de paquets déjà présent sur la machine. La proposition peut être coupée pour un serveur ou désactivée entièrement."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.12.0",

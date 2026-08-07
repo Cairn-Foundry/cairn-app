@@ -9,6 +9,8 @@ export interface ProjectUiState {
 	gitChangesSearch: string;
 	gitLogSearch: string;
 	gitStagedSearch: string;
+	referencesPanelOpen: boolean;
+	referencesQuery: string;
 }
 
 export interface UiState {

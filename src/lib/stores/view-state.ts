@@ -6,6 +6,8 @@ import {
 	commandsActive,
 	envActive,
 	gitLeftTab,
+	referencesPanelOpen,
+	referencesQuery,
 	showTool,
 	terminalActive,
 } from "$lib/stores/ui";
@@ -20,6 +22,8 @@ const DEFAULT: ProjectUiState = {
 	gitChangesSearch: "",
 	gitLogSearch: "",
 	gitStagedSearch: "",
+	referencesPanelOpen: false,
+	referencesQuery: "",
 };
 
 const _states = writable<Record<string, ProjectUiState>>({});
@@ -67,6 +71,8 @@ export function snapshotCurrentProject(): void {
 		terminalActive: get(terminalActive),
 		commandsActive: get(commandsActive),
 		envActive: get(envActive),
+		referencesPanelOpen: get(referencesPanelOpen),
+		referencesQuery: get(referencesQuery),
 	});
 }
 
@@ -74,6 +80,8 @@ export function applyProjectState(id: string): void {
 	const ps = get(_states)[id] ?? DEFAULT;
 	activeStep.set(ps.activeStep as WorkflowStep);
 	gitLeftTab.set(ps.gitLeftTab as "changes" | "log" | "graph");
+	referencesPanelOpen.set(ps.referencesPanelOpen);
+	referencesQuery.set(ps.referencesQuery);
 	showTool(
 		ps.terminalActive
 			? "terminal"

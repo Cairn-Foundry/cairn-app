@@ -1,7 +1,7 @@
 pub mod storage;
 pub mod commands;
 
-use commands::{AgentState, TerminalState};
+use commands::{AgentState, LspState, TerminalState};
 use commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AgentState::new())
         .manage(TerminalState::new())
+        .manage(LspState::new())
         .manage(QuickSearchCache::default())
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -174,7 +175,32 @@ pub fn run() {
             write_env_file,
             delete_env_file,
             ensure_env_ignored,
+            list_language_servers,
+            install_language_server,
+            uninstall_language_server,
+            uninstall_manager_for,
+            cancel_language_server_command,
+            start_language_server,
+            stop_language_servers_with_id,
+            stop_language_servers_for,
+            lsp_did_open,
+            lsp_did_change,
+            lsp_did_save,
+            lsp_did_close,
+            lsp_completion,
+            lsp_hover,
+            lsp_signature_help,
+            lsp_definition,
+            lsp_implementation,
+            lsp_references,
+            lsp_rename,
+            lsp_format,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                commands::lsp::shutdown(app);
+            }
+        });
 }

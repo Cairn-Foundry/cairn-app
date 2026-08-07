@@ -53,6 +53,8 @@ export interface FilesShortcutsContext {
 	switchTab: (paneIdx: 0 | 1, idx: number) => void;
 	tabHistoryBack: () => void;
 	tabHistoryForward: () => void;
+	renameSymbol: () => void;
+	formatDocument: () => void;
 	pasteClipboard: (
 		clipboard: {
 			nodes: FileNode[];
@@ -153,6 +155,16 @@ export function makeFilesKeyHandler(ctx: FilesShortcutsContext) {
 		if (matchesShortcut(e, sc.saveFile)) {
 			e.preventDefault();
 			ctx.saveActivePane(activePane);
+		}
+
+		// Language server
+		if (matchesShortcut(e, sc.renameSymbol)) {
+			e.preventDefault();
+			ctx.renameSymbol();
+		}
+		if (matchesShortcut(e, sc.formatDocument)) {
+			e.preventDefault();
+			ctx.formatDocument();
 		}
 
 		// View

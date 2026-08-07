@@ -30,7 +30,7 @@
       description: command.steps.join(' && '),
       command,
     })),
-    ...shortcutDefs.map((def): Entry => ({
+    ...shortcutDefs.filter(def => !def.hidden).map((def): Entry => ({
       kind: 'shortcut',
       label: def.label,
       description: def.description,

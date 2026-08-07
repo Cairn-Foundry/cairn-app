@@ -303,13 +303,15 @@
   </svg>
 {:else if name === 'collapse-all'}
   <svg {...common} {...$$restProps}>
-    <path d="M6 5l6 6 6-6"/>
-    <path d="M6 19l6-6 6 6"/>
+    <path d="M8 5l4 3.5 4-3.5"/>
+    <path d="M4.5 12h15"/>
+    <path d="M8 19l4-3.5 4 3.5"/>
   </svg>
 {:else if name === 'expand-all'}
   <svg {...common} {...$$restProps}>
-    <path d="M6 9l6-6 6 6"/>
-    <path d="M6 15l6 6 6-6"/>
+    <path d="M8 8.5l4-3.5 4 3.5"/>
+    <path d="M4.5 12h15"/>
+    <path d="M8 15.5l4 3.5 4-3.5"/>
   </svg>
 {:else if name === 'help'}
   <svg {...common} {...$$restProps}>

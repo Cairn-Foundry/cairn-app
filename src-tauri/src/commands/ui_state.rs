@@ -21,6 +21,10 @@ pub struct ProjectUiState {
     pub git_log_search: String,
     #[serde(rename = "gitStagedSearch", default)]
     pub git_staged_search: String,
+    #[serde(rename = "referencesPanelOpen", default)]
+    pub references_panel_open: bool,
+    #[serde(rename = "referencesQuery", default)]
+    pub references_query: String,
 }
 
 impl Default for ProjectUiState {
@@ -34,6 +38,8 @@ impl Default for ProjectUiState {
             git_changes_search: String::new(),
             git_log_search: String::new(),
             git_staged_search: String::new(),
+            references_panel_open: false,
+            references_query: String::new(),
         }
     }
 }

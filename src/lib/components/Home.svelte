@@ -9,6 +9,7 @@
   import type { Project } from '$lib/types/project';
   import AgentsSection from '$lib/components/home/AgentsSection.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
+  import LanguageServersSection from '$lib/components/home/LanguageServersSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
   const dispatch = createEventDispatcher<{
@@ -80,6 +81,15 @@
       </div>
       <div style="margin-top: 24px;">
         <AgentsSection />
+      </div>
+
+    {:else if activeSection === 'languageServers'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('languageServers.title')}</h1>
+        <div class="sub">{t('languageServers.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <LanguageServersSection />
       </div>
 
     {:else if activeSection === 'changelog'}

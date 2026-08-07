@@ -6,6 +6,7 @@
   import CopyButton from '$lib/components/CopyButton.svelte';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
+  import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
   import HunkDiffPanel from './HunkDiffPanel.svelte';
   import { settings } from '$lib/stores/settings';
   import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
@@ -44,6 +45,9 @@
   export let treeFilePaths: Set<string> = new Set();
   export let placeholderText = 'Select a file to edit';
   export let showRecentFiles = false;
+  export let lspDoc: LspDocRef | null = null;
+  export let lspDiagnostics: LspDiagnostic[] = [];
+  export let formatting = false;
 
   export let onPaneFocus: () => void;
   export let onTabPointerDown: (e: PointerEvent, idx: number) => void;
@@ -65,6 +69,10 @@
   export let onToggleWhitespace: () => void;
   export let onOpenRecent: (node: FileNode) => void;
   export let onOpenLink: (path: string, anchor: string | null) => void;
+  export let onGoToDefinition: () => void;
+  export let onFindReferences: () => void;
+  export let onRenameSymbol: () => void;
+  export let onFormatDocument: () => void;
 
   $: scrollActiveTabIntoView(activeTabIdx);
 
@@ -174,7 +182,13 @@
             initialScrollTop={activeTab.scrollTop}
             savedState={editorState}
             docPath={activeTab.path}
+            {lspDoc}
+            {lspDiagnostics}
             {onOpenLink}
+            {onGoToDefinition}
+            {onFindReferences}
+            {onRenameSymbol}
+            {onFormatDocument}
             {baseContent}
             onChunkClick={onChunkClick}
             onChange={onChange}
@@ -201,6 +215,21 @@
       <span class="statusbar-item">UTF-8</span>
       <span class="statusbar-sep">|</span>
       <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={onToggleWhitespace} title={t('files.toggleWhitespace') as string}>¶</button>
+      {#if lspDoc}
+        <span class="statusbar-sep">|</span>
+        <button
+          class="statusbar-item statusbar-btn"
+          on:click={onFormatDocument}
+          disabled={formatting}
+          title={t('editor.contextMenu.formatDocument') as string}
+        >
+          {#if formatting}
+            <Spinner size={9} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/>
+          {:else}
+            {t('files.format')}
+          {/if}
+        </button>
+      {/if}
       {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">{t('files.unsaved')}</span>{/if}
       {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving" title={t('common.saving') as string}><Spinner size={9} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/></span>{/if}
       {#if currentLineBlame && activeTab}

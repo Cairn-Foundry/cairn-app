@@ -18,6 +18,15 @@ export interface WorkflowTabConfig {
 	order: number;
 }
 
+export interface LanguageServerSetting {
+	id: string;
+	enabled: boolean;
+	/** Empty means the binary from the catalogue. */
+	command: string;
+	/** Empty means the arguments from the catalogue. */
+	args: string[];
+}
+
 export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
@@ -43,6 +52,9 @@ export interface CairnSettings {
 	autoCheckUpdates: boolean;
 	syntaxThemes: SyntaxTheme[];
 	activeSyntaxThemeId: string;
+	languageServers: LanguageServerSetting[];
+	suggestLanguageServers: boolean;
+	dismissedLanguageServers: string[];
 }
 
 export function getSettings(): Promise<CairnSettings> {

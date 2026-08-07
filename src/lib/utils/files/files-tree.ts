@@ -165,3 +165,25 @@ export function absolutePathOf(
 ): string {
 	return isExternalPath(path) ? path : `${worktreePath}/${path}`;
 }
+
+/**
+ * Whether an absolute path sits inside a directory. Compared on the separator
+ * rather than as raw text, so `/repo/app` never swallows `/repo/app-legacy`.
+ */
+export function isUnder(path: string, directory: string | null): boolean {
+	if (!directory) return false;
+	return path === directory || path.startsWith(`${directory}/`);
+}
+
+/**
+ * The path as the tabs key it: relative to the worktree when it lives inside
+ * one, absolute when it comes from anywhere else.
+ */
+export function pathWithinWorktree(
+	path: string,
+	worktreePath: string | null,
+): string {
+	return worktreePath && path.startsWith(`${worktreePath}/`)
+		? path.slice(worktreePath.length + 1)
+		: path;
+}

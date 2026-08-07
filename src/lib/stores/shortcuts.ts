@@ -1,10 +1,12 @@
 import { derived } from "svelte/store";
 import { t } from "$lib/i18n";
 import { settings } from "$lib/stores/settings";
-import type {
-	ShortcutBinding,
-	ShortcutDef,
-	ShortcutId,
+import {
+	MOUSE_KEY,
+	type ModifierState,
+	type ShortcutBinding,
+	type ShortcutDef,
+	type ShortcutId,
 } from "$lib/types/shortcuts";
 import { IS_MAC } from "$lib/utils/platform";
 
@@ -183,6 +185,46 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		...d("duplicateLine"),
 		group: "editor",
 		default: { key: "d", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "goToDefinition",
+		...d("goToDefinition"),
+		group: "editor",
+		default: {
+			key: MOUSE_KEY,
+			mod: false,
+			shift: true,
+			alt: false,
+			ctrl: false,
+		},
+		mouse: true,
+		hidden: true,
+	},
+	{
+		id: "findReferences",
+		...d("findReferences"),
+		group: "editor",
+		default: {
+			key: MOUSE_KEY,
+			mod: false,
+			shift: true,
+			alt: false,
+			ctrl: true,
+		},
+		mouse: true,
+		hidden: true,
+	},
+	{
+		id: "renameSymbol",
+		...d("renameSymbol"),
+		group: "editor",
+		default: { key: "F2", mod: false, shift: false, alt: false, ctrl: false },
+	},
+	{
+		id: "formatDocument",
+		...d("formatDocument"),
+		group: "editor",
+		default: { key: "f", mod: true, shift: true, alt: true, ctrl: false },
 	},
 	// -- Tabs group -------------------------------------------------------------
 	{
@@ -411,6 +453,21 @@ export function matchesShortcut(
 	return e.ctrlKey === (b.mod || b.ctrl);
 }
 
+/**
+ * Same modifier rules as `matchesShortcut`, on a click instead of a key. A
+ * binding without a modifier is refused: a bare click has to stay a click.
+ */
+export function matchesMouseShortcut(
+	e: ModifierState,
+	b: ShortcutBinding | null,
+): boolean {
+	if (!b || b.key !== MOUSE_KEY) return false;
+	if (!b.mod && !b.shift && !b.alt && !b.ctrl) return false;
+	if (e.shiftKey !== b.shift || e.altKey !== b.alt) return false;
+	if (IS_MAC) return e.metaKey === b.mod && e.ctrlKey === b.ctrl;
+	return e.ctrlKey === (b.mod || b.ctrl);
+}
+
 export function toCmKey(b: ShortcutBinding): string {
 	const parts: string[] = [];
 	if (b.mod) parts.push("Mod");
@@ -432,6 +489,7 @@ const KEY_LABELS: Record<string, string> = {
 	Enter: "↩",
 	Tab: "⇥",
 	" ": "Space",
+	[MOUSE_KEY]: "Click",
 };
 
 export function bindingToLabels(b: ShortcutBinding, mac = IS_MAC): string[] {

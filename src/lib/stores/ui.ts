@@ -17,6 +17,19 @@ export function showTool(tool: "terminal" | "commands" | "env" | null): void {
 	commandsActive.set(tool === "commands");
 	envActive.set(tool === "env");
 }
+/**
+ * The References panel sits beside the file tree rather than over the editor,
+ * so it is not a tool: it stays open across steps and survives a restart on its
+ * own flag.
+ */
+export const referencesPanelOpen = writable(false);
+
+/**
+ * The lookup the panel is showing, as JSON, so a reload can ask it again. A
+ * flat string on purpose: the persisted project state is compared key by key
+ * with `===`, and an object would never look equal to itself.
+ */
+export const referencesQuery = writable("");
 export const quickOpenVisible = writable(false);
 export const commandPaletteVisible = writable(false);
 export const pendingGitAction = writable<"createProfile" | null>(null);

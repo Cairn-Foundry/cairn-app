@@ -98,6 +98,24 @@ pub struct CairnSettings {
     pub syntax_themes: Vec<SyntaxTheme>,
     #[serde(rename = "activeSyntaxThemeId", default)]
     pub active_syntax_theme_id: String,
+    #[serde(rename = "languageServers", default)]
+    pub language_servers: Vec<LanguageServerSetting>,
+    #[serde(rename = "suggestLanguageServers", default = "default_suggest_language_servers")]
+    pub suggest_language_servers: bool,
+    #[serde(rename = "dismissedLanguageServers", default)]
+    pub dismissed_language_servers: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LanguageServerSetting {
+    pub id: String,
+    pub enabled: bool,
+    /// Empty means the binary from the catalogue.
+    #[serde(default)]
+    pub command: String,
+    /// Empty means the arguments from the catalogue.
+    #[serde(default)]
+    pub args: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -120,6 +138,7 @@ pub struct SyntaxTheme {
 }
 
 fn default_agent_activity_width() -> u32 { 300 }
+fn default_suggest_language_servers() -> bool { true }
 fn default_auto_check_updates() -> bool { true }
 fn default_quick_search_show_gitignored() -> bool { false }
 fn default_sidebar_position() -> String { "left".to_string() }
@@ -156,6 +175,9 @@ impl Default for CairnSettings {
             auto_check_updates: default_auto_check_updates(),
             syntax_themes: Vec::new(),
             active_syntax_theme_id: String::new(),
+            language_servers: Vec::new(),
+            suggest_language_servers: default_suggest_language_servers(),
+            dismissed_language_servers: Vec::new(),
         }
     }
 }

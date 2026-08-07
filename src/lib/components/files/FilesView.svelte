@@ -5,11 +5,27 @@ import { get } from 'svelte/store';
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import SearchPanel from './SearchPanel.svelte';
+  import ReferencesPanel, { type ReferencesResult } from './ReferencesPanel.svelte';
   import EditorPane from './EditorPane.svelte';
   import FileTreeView from './FileTreeView.svelte';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
-  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible } from '$lib/stores/ui';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, referencesPanelOpen, referencesQuery } from '$lib/stores/ui';
+  import {
+    type LspDiagnostic, type LspDocRef, type LspTextEdit,
+    lspDefinition, lspDidChange, lspDidClose, lspDidOpen, lspDidSave,
+    lspFormat, lspImplementation, lspReferences, lspRename,
+  } from '$lib/services/lsp-service';
+  import InstallProgress from '$lib/components/InstallProgress.svelte';
+  import { cancelLanguageServerCommand, installLanguageServer, COMMAND_CANCELLED } from '$lib/services/lsp-service';
+  import {
+    clearDiagnosticsFor, clearManagerOutput, ensureDocument, managerOutput, languageServerInfos,
+    lspDiagnostics, refreshLanguageServers, setServerEnabled, shouldSuggestFor,
+    dismissServerSuggestion,
+  } from '$lib/stores/language-server';
+  import { languageIdForPath, serverForPath } from '$lib/utils/languages/servers';
+  import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
+  import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
   import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile } from '$lib/stores/git';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
@@ -44,6 +60,7 @@ import { get } from 'svelte/store';
     basename,
     isExternalPath,
     absolutePathOf,
+    pathWithinWorktree,
   } from '$lib/utils/files/files-tree';
   import {
     osDropPoint,
@@ -71,6 +88,7 @@ import { get } from 'svelte/store';
   import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
 
   export let onGoSettings: (() => void) | undefined = undefined;
+  export let onGoLanguageServers: (() => void) | undefined = undefined;
 
   interface PaneState {
     tabs: Tab[];
@@ -401,6 +419,7 @@ import { get } from 'svelte/store';
       pane.activeTabIdx = pane.activeTabIdx - 1;
     }
     panes = panes;
+    notifyLspClosed(tab.path);
   }
 
   function handleChange(i: number, value: string) {
@@ -408,6 +427,7 @@ import { get } from 'svelte/store';
     if (pane.activeTabIdx === -1) return;
     const changedPath = pane.tabs[pane.activeTabIdx].path;
     pane.tabs[pane.activeTabIdx].pending = value;
+    scheduleLspChange(changedPath, value);
     for (let j = 0; j < panes.length; j++) {
       if (j === i) continue;
       for (const tab of panes[j].tabs) {
@@ -432,6 +452,7 @@ import { get } from 'svelte/store';
       await writeFile(absolutePathOf(tab.path, worktreePath), writeContent);
       pane.tabs[pane.activeTabIdx].content = tab.pending;
       panes = panes;
+      notifyLspSaved(tab.path, tab.pending);
       if (wasDeleted) await loadTree(worktreePath);
       if (wasConflicted && hadMarkers && !hasConflictMarkers(tab.pending)) {
         await stageGitFile(tab.path).catch(() => {});
@@ -496,6 +517,338 @@ import { get } from 'svelte/store';
       if (i === 0) pushRecentFile(node.path);
       refreshDiff(i, { path: node.path });
     } catch (e) { error = String(e); }
+  }
+
+  // -- Language servers ----------------------------------------------------------
+
+  const NO_DIAGNOSTICS: LspDiagnostic[] = [];
+
+  let lspDocs: (LspDocRef | null)[] = [null, null];
+  const lspChangeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const openLspDocs = new Map<string, LspDocRef>();
+
+  function absoluteOf(path: string): string | null {
+    return worktreePath && !isExternalPath(path) ? absolutePathOf(path, worktreePath) : null;
+  }
+
+  /**
+   * Lazy start plus `didOpen`, run whenever a pane shows another file. The
+   * whole chain is a no-op for a file no enabled server covers.
+   */
+  async function syncLspDoc(i: number) {
+    const tab = panes[i].tabs[panes[i].activeTabIdx] ?? null;
+    const wtp = worktreePath;
+    const absolute = tab ? absoluteOf(tab.path) : null;
+    // Dropped before the await: starting a server takes seconds, and until it
+    // answers the pane must not still point at the file it stopped showing.
+    lspDocs[i] = null;
+    lspDocs = lspDocs;
+    if (!tab || !wtp || !absolute) return;
+    const doc = await ensureDocument(wtp, absolute);
+    if (panes[i].tabs[panes[i].activeTabIdx]?.path !== tab.path) return;
+    lspDocs[i] = doc;
+    lspDocs = lspDocs;
+    if (!doc) return;
+    openLspDocs.set(absolute, doc);
+    await lspDidOpen(doc, languageIdForPath(absolute) ?? 'plaintext', tab.pending).catch(() => {});
+  }
+
+  /**
+   * Keyed by the file the text comes from, never by the pane that showed it:
+   * a pane changes document while a server is still starting, and a change
+   * attributed to the slot rather than to the file lands in the wrong buffer.
+   */
+  function scheduleLspChange(path: string, text: string) {
+    const absolute = absoluteOf(path);
+    const doc = absolute ? openLspDocs.get(absolute) : null;
+    if (!doc) return;
+    const timer = lspChangeTimers.get(doc.path);
+    if (timer) clearTimeout(timer);
+    lspChangeTimers.set(doc.path, setTimeout(() => {
+      lspChangeTimers.delete(doc.path);
+      lspDidChange(doc, text).catch(() => {});
+    }, LSP_CHANGE_DEBOUNCE_MS));
+  }
+
+  function notifyLspSaved(path: string, text: string) {
+    const absolute = absoluteOf(path);
+    const doc = absolute ? openLspDocs.get(absolute) : null;
+    if (doc) lspDidSave(doc, text).catch(() => {});
+  }
+
+  function notifyLspClosed(path: string) {
+    const absolute = absoluteOf(path);
+    if (!absolute) return;
+    if (panes.some(p => p.tabs.some(t => t.path === path))) return;
+    const doc = openLspDocs.get(absolute);
+    if (!doc) return;
+    const timer = lspChangeTimers.get(doc.path);
+    if (timer) { clearTimeout(timer); lspChangeTimers.delete(doc.path); }
+    openLspDocs.delete(absolute);
+    clearDiagnosticsFor(absolute);
+    lspDidClose(doc).catch(() => {});
+  }
+
+  $: activeAbsolutePaths = panes.map(p => {
+    const tab = p.tabs[p.activeTabIdx];
+    return tab ? absoluteOf(tab.path) : null;
+  });
+  $: paneDiagnostics = activeAbsolutePaths.map(
+    path => (path ? ($lspDiagnostics[path] ?? NO_DIAGNOSTICS) : NO_DIAGNOSTICS),
+  );
+
+  async function syncLspDocs() {
+    await Promise.all([syncLspDoc(0), syncLspDoc(1)]);
+  }
+
+  /**
+   * `panes` is reassigned on every keystroke, so the sync has to key on the
+   * paths themselves: reacting to the array would restart a server per letter.
+   */
+  let syncedLspPaths = '';
+  $: if (activeAbsolutePaths.join('|') !== syncedLspPaths) {
+    syncedLspPaths = activeAbsolutePaths.join('|');
+    void syncLspDocs();
+  }
+
+  // -- Suggestion bar -------------------------------------------------------------
+
+  let sessionDismissed = new Set<string>();
+
+  $: suggestedServer = (() => {
+    const tab = activeTabs[0];
+    if (!tab || $activeStep !== 'files') return null;
+    const def = shouldSuggestFor(tab.path, $settings);
+    return def && !sessionDismissed.has(def.id) ? def : null;
+  })();
+
+  let suggestionBusy = false;
+  let suggestionBusySince = 0;
+  let suggestionError = '';
+
+  $: suggestedInfo = suggestedServer
+    ? ($languageServerInfos.find(s => s.id === suggestedServer.id) ?? null)
+    : null;
+  $: suggestedInstaller = suggestedInfo?.installOptions.find(o => o.available) ?? null;
+
+  /**
+   * The binary is already there: turning the server on is all it takes. When it
+   * is missing, the same button installs it first - on this click, never before.
+   */
+  async function enableSuggestedServer(id: string) {
+    suggestionError = '';
+    if (suggestedInfo && suggestedInfo.binaryPath === null) {
+      if (!suggestedInstaller) { onGoLanguageServers?.(); return; }
+      suggestionBusy = true;
+      suggestionBusySince = Date.now();
+      clearManagerOutput(id);
+      try {
+        await installLanguageServer(id, suggestedInstaller.manager);
+        await refreshLanguageServers(worktreePath);
+      } catch (e) {
+        if (String(e) !== COMMAND_CANCELLED) suggestionError = String(e);
+        return;
+      } finally {
+        suggestionBusy = false;
+        clearManagerOutput(id);
+      }
+    }
+    setServerEnabled(id, true);
+  }
+
+  function dismissForNow(id: string) {
+    sessionDismissed = new Set([...sessionDismissed, id]);
+  }
+
+  // -- References panel -----------------------------------------------------------
+
+  let referencesResult: ReferencesResult | null = null;
+  let referencesLoading = false;
+  let referencesError = '';
+  let referencesToken = 0;
+
+  function focusedDoc(): { doc: LspDocRef; pane: PaneState } | null {
+    const pane = panes[focusedPane];
+    const doc = lspDocs[focusedPane];
+    return doc ? { doc, pane } : null;
+  }
+
+  interface ReferencesQuery { path: string; line: number; character: number; symbol: string }
+
+  function parseReferencesQuery(raw: string): ReferencesQuery | null {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as ReferencesQuery;
+      return typeof parsed?.path === 'string' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function lookupReferences(doc: LspDocRef, query: ReferencesQuery) {
+    const position = { line: query.line, character: query.character };
+    const token = ++referencesToken;
+    $referencesPanelOpen = true;
+    referencesLoading = true;
+    referencesError = '';
+    referencesResult = { symbol: query.symbol, definitions: [], implementations: [], references: [] };
+
+    const [definitions, implementations, references] = await Promise.all([
+      lspDefinition(doc, position).catch(() => []),
+      lspImplementation(doc, position).catch(() => []),
+      lspReferences(doc, position, false).catch((e) => { referencesError = String(e); return []; }),
+    ]);
+    if (token !== referencesToken) return;
+    referencesResult = { symbol: query.symbol, definitions, implementations, references };
+    referencesLoading = false;
+  }
+
+  async function runFindReferences() {
+    const target = focusedDoc();
+    if (!target) return;
+    const position = target.pane.editorRef?.getLspPosition();
+    if (!position) return;
+
+    const query: ReferencesQuery = {
+      path: pathWithinWorktree(target.doc.path, worktreePath),
+      line: position.line,
+      character: position.character,
+      symbol: target.pane.editorRef?.getWordAtCursor() ?? '',
+    };
+    $referencesQuery = JSON.stringify(query);
+    await lookupReferences(target.doc, query);
+  }
+
+  /**
+   * The panel reopens on the lookup it was showing. The file it points at does
+   * not have to be open: the document is ensured from its path, so a restart
+   * that restores an empty editor still answers the same question.
+   */
+  async function replayReferences() {
+    const query = parseReferencesQuery($referencesQuery);
+    if (!query || !worktreePath || isExternalPath(query.path)) return;
+    const doc = await ensureDocument(worktreePath, absolutePathOf(query.path, worktreePath));
+    if (!doc) return;
+    await lookupReferences(doc, query);
+  }
+
+  let replayedReferencesFor = '';
+  $: if (worktreePath && $referencesPanelOpen && replayedReferencesFor !== worktreePath) {
+    replayedReferencesFor = worktreePath;
+    if (!referencesResult) void replayReferences();
+  }
+
+  async function runGoToDefinition() {
+    const target = focusedDoc();
+    if (!target) return;
+    const position = target.pane.editorRef?.getLspPosition();
+    if (!position) return;
+    const [first] = await lspDefinition(target.doc, position).catch(() => []);
+    if (!first) return;
+    await openFileAtLine(
+      pathWithinWorktree(first.path, worktreePath),
+      first.line + 1,
+      first.character + 1,
+    );
+  }
+
+  // -- Rename & format ------------------------------------------------------------
+
+  let renamePrompt: { doc: LspDocRef; position: { line: number; character: number }; value: string } | null = null;
+
+  function startRenameSymbol() {
+    const target = focusedDoc();
+    if (!target) return;
+    const position = target.pane.editorRef?.getLspPosition();
+    if (!position) return;
+    renamePrompt = { doc: target.doc, position, value: target.pane.editorRef?.getWordAtCursor() ?? '' };
+  }
+
+  /** The tabs showing a file, whichever pane they sit in. */
+  function tabsForAbsolute(absolute: string): Tab[] {
+    const relative = pathWithinWorktree(absolute, worktreePath);
+    return panes.flatMap(p => p.tabs.filter(t => t.path === relative || t.path === absolute));
+  }
+
+  /** Applies edits to a file no tab is showing. Null when it cannot be read. */
+  async function editOnDisk(path: string, edits: LspTextEdit[]): Promise<string | null> {
+    const current = await readFile(path);
+    if (current === null) return null;
+    const updated = applyEditsToText(current, edits);
+    await writeFile(path, updated);
+    return updated;
+  }
+
+  /**
+   * A rename lands on the text the server computed its edits against, which is
+   * the buffer - not what is on disk. Reading the file back for a tab with
+   * unsaved changes would apply those offsets to the wrong text, write the
+   * result, and then lose the unsaved work to the reload. So an open tab is
+   * edited in place and left dirty for the user to save or undo, and only a
+   * file nobody has open goes through the disk.
+   */
+  async function commitRename() {
+    if (!renamePrompt || !renamePrompt.value.trim() || !worktreePath) return;
+    const { doc, position, value } = renamePrompt;
+    renamePrompt = null;
+
+    let fileEdits: Awaited<ReturnType<typeof lspRename>>;
+    try {
+      fileEdits = await lspRename(doc, position, value.trim());
+    } catch (e) {
+      error = String(e);
+      return;
+    }
+    if (fileEdits.length === 0) return;
+
+    const failed: string[] = [];
+    let touchedDisk = false;
+    for (const fileEdit of fileEdits) {
+      const tabs = tabsForAbsolute(fileEdit.path);
+      try {
+        const updated = tabs.length > 0
+          ? applyEditsToText(tabs[0].pending, fileEdit.edits)
+          : await editOnDisk(fileEdit.path, fileEdit.edits);
+        if (updated === null) continue;
+        for (const tab of tabs) tab.pending = updated;
+        touchedDisk ||= tabs.length === 0;
+
+        const openDoc = openLspDocs.get(fileEdit.path);
+        if (openDoc) await lspDidChange(openDoc, updated).catch(() => {});
+      } catch {
+        failed.push(pathWithinWorktree(fileEdit.path, worktreePath));
+      }
+    }
+
+    panes = panes;
+    if (touchedDisk) await loadTree(worktreePath);
+    if (failed.length > 0) {
+      error = (t('languageServers.renameFailed') as (files: string) => string)(failed.join(', '));
+    }
+  }
+
+  let formattingPanes = [false, false];
+
+  async function runFormatDocument() {
+    const target = focusedDoc();
+    if (!target) return;
+    const tab = target.pane.tabs[target.pane.activeTabIdx];
+    if (!tab) return;
+    const i = focusedPane;
+    const style = detectIndentStyle(tab.pending);
+    formattingPanes[i] = true;
+    formattingPanes = formattingPanes;
+    try {
+      const edits = await lspFormat(
+        target.doc,
+        style === 'spaces' ? detectSpaceSize(tab.pending) : 2,
+        style !== 'tabs',
+      ).catch(() => null);
+      if (edits && edits.length > 0) target.pane.editorRef?.applyTextEdits(edits);
+    } finally {
+      formattingPanes[i] = false;
+      formattingPanes = formattingPanes;
+    }
   }
 
   let searchPanelByProject = new Map<string, boolean>();
@@ -580,6 +933,7 @@ import { get } from 'svelte/store';
     await Promise.all(
       panes.map((p, i) => loadPaneBaseFor(i, p.tabs[p.activeTabIdx] ?? null)),
     );
+    if ($referencesPanelOpen) await replayReferences();
   }
 
   $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
@@ -641,7 +995,7 @@ import { get } from 'svelte/store';
 
   function closeContextMenu() { contextMenu = null; }
 
-  type ContextAction = 'new-file' | 'new-dir' | 'cut' | 'copy' | 'paste' | 'rename' | 'delete' | 'copy-path' | 'copy-rel-path' | 'reveal' | 'open-terminal';
+  type ContextAction = 'new-file' | 'new-dir' | 'cut' | 'copy' | 'paste' | 'rename' | 'delete' | 'copy-path' | 'copy-rel-path' | 'reveal' | 'open-terminal' | 'format';
 
   function isEditorFocused(): boolean {
     const el = document.activeElement;
@@ -704,6 +1058,13 @@ import { get } from 'svelte/store';
       'copy-path': async () => { await navigator.clipboard.writeText(absOf(node)); },
       'copy-rel-path': async () => { await navigator.clipboard.writeText(node?.path ?? ''); },
       'open-terminal': async () => { await openInTerminal(absOf(node)); },
+      'format': async () => {
+        if (!node || node.isDir) return;
+        await openFile(node);
+        await tick();
+        await syncLspDocs();
+        await runFormatDocument();
+      },
       'delete': async () => {
         if (!node) return;
         if (!confirm((t('files.contextMenu.deleteConfirm') as (name: string) => string)(node.name))) return;
@@ -816,6 +1177,7 @@ import { get } from 'svelte/store';
     'duplicateLine', 'treeSelectAll', 'treeCopy', 'treeCut', 'treePaste',
     'treeDelete', 'treeRename', 'treeNewFile', 'treeNewFolder',
     'reloadEditor', 'reloadProject',
+    'renameSymbol', 'formatDocument',
   ]);
 
   export async function executeAction(id: string) {
@@ -837,6 +1199,8 @@ import { get } from 'svelte/store';
       case 'fontSizeDown':      bumpFontSize(-1); break;
       case 'fontSizeReset':     resetFontSize(); break;
       case 'commandPalette':    commandPaletteVisible.set(true); break;
+      case 'renameSymbol':      startRenameSymbol(); break;
+      case 'formatDocument':    await runFormatDocument(); break;
       case 'reloadEditor':      await reloadOpenFiles(); break;
       case 'reloadProject':     await reloadProject(); break;
       case 'treeSelectAll':
@@ -919,6 +1283,8 @@ import { get } from 'svelte/store';
     switchTab,
     tabHistoryBack,
     tabHistoryForward,
+    renameSymbol: startRenameSymbol,
+    formatDocument: () => { void runFormatDocument(); },
     pasteClipboard,
     deleteAtPaths: async (paths: string[]) => {
       if (!worktreePath) return;
@@ -1714,6 +2080,16 @@ import { get } from 'svelte/store';
     onClose={closeSearchPanel}
   />
 
+  <ReferencesPanel
+    {worktreePath}
+    hidden={!$referencesPanelOpen}
+    loading={referencesLoading}
+    error={referencesError}
+    result={referencesResult}
+    onOpen={openFileAtLine}
+    onClose={() => { $referencesPanelOpen = false; }}
+  />
+
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="resize-handle"
@@ -1785,6 +2161,10 @@ import { get } from 'svelte/store';
           onChange={(value) => handleChange(i, value)}
           onBlur={($settings.saveOn) === 'blur' ? () => flushSave(i) : undefined}
           onCursorChange={(l, c) => handleCursorChange(i, l, c)}
+          onGoToDefinition={() => { focusedPane = i as 0 | 1; void runGoToDefinition(); }}
+          onFindReferences={() => { focusedPane = i as 0 | 1; void runFindReferences(); }}
+          onRenameSymbol={() => { focusedPane = i as 0 | 1; startRenameSymbol(); }}
+          onFormatDocument={() => { focusedPane = i as 0 | 1; void runFormatDocument(); }}
           onChunkClick={(chunk) => handleChunkClick(i, chunk)}
           onRevertChunk={() => revertActiveChunk(i)}
           onCloseHunk={() => { panes[i].activeChunk = null; panes = panes; }}
@@ -1793,11 +2173,84 @@ import { get } from 'svelte/store';
           onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace) })}
           onOpenRecent={(node) => openFileInPane(i, node)}
           onOpenLink={(path, anchor) => openMarkdownLink(i, path, anchor)}
+          lspDoc={lspDocs[i]}
+          formatting={formattingPanes[i]}
+          lspDiagnostics={paneDiagnostics[i]}
         />
       {/if}
     {/each}
   </div>
 </div>
+
+{#if suggestedServer}
+  {@const needsInstall = suggestedInfo?.binaryPath === null}
+  <div class="lsp-toast" role="status">
+    <div class="head">
+      <Icon name="server" size={13}/>
+      <span class="title">{t('languageServers.suggestionTitle')}</span>
+    </div>
+    <div class="text">
+      {(t('languageServers.suggestion') as (name: string) => string)(suggestedServer.name)}
+    </div>
+    {#if suggestionError}
+      <div class="detail danger selectable">{suggestionError}</div>
+    {:else if needsInstall}
+      <div class="detail selectable">
+        {suggestedInstaller ? suggestedInstaller.command : t('languageServers.noManagerAvailable')}
+      </div>
+    {/if}
+    {#if suggestionBusy}
+      <div class="lsp-toast-progress">
+        <InstallProgress
+          line={$managerOutput[suggestedServer.id] ?? ''}
+          startedAt={suggestionBusySince}
+          onCancel={() => cancelLanguageServerCommand(suggestedServer.id)}
+        />
+      </div>
+    {:else}
+      <button
+        type="button"
+        class="btn primary lsp-toast-primary"
+        on:click={() => enableSuggestedServer(suggestedServer.id)}
+      >
+        {needsInstall
+          ? (suggestedInstaller ? t('languageServers.installAndEnable') : t('languageServers.seeHowToInstall'))
+          : t('languageServers.enable')}
+      </button>
+      <div class="lsp-toast-dismiss">
+        <button type="button" class="btn ghost" on:click={() => dismissForNow(suggestedServer.id)}>
+          {t('languageServers.notNow')}
+        </button>
+        <button type="button" class="btn ghost" on:click={() => dismissServerSuggestion(suggestedServer.id)}>
+          {t('languageServers.neverSuggest')}
+        </button>
+      </div>
+    {/if}
+  </div>
+{/if}
+
+{#if renamePrompt}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="ctx-backdrop" on:mousedown={() => { renamePrompt = null; }}></div>
+  <div class="rename-dialog">
+    <div class="rename-title">{t('languageServers.renameTitle')}</div>
+    <!-- svelte-ignore a11y_autofocus -->
+    <input
+      class="rename-input selectable"
+      autofocus
+      spellcheck="false"
+      bind:value={renamePrompt.value}
+      on:keydown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); void commitRename(); }
+        if (e.key === 'Escape') { e.preventDefault(); renamePrompt = null; }
+      }}
+    />
+    <div class="rename-actions">
+      <button type="button" class="btn" on:click={() => { renamePrompt = null; }}>{t('common.cancel')}</button>
+      <button type="button" class="btn primary" on:click={() => void commitRename()}>{t('languageServers.renameApply')}</button>
+    </div>
+  </div>
+{/if}
 
 
 {#if tabCtxMenu}
@@ -1863,6 +2316,12 @@ import { get } from 'svelte/store';
       <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-rel-path')}>
         <Icon name="copy" size={13}/> {t('files.contextMenu.copyRelativePath')}
       </button>
+      {#if !contextMenu.node.isDir && serverForPath(contextMenu.node.path)}
+        <div class="ctx-sep"></div>
+        <button type="button" class="ctx-item" on:click={() => handleContextAction('format')}>
+          <Icon name="edit" size={13}/> {t('files.contextMenu.formatDocument')}
+        </button>
+      {/if}
       <div class="ctx-sep"></div>
       <button type="button" class="ctx-item" on:click={() => handleContextAction('rename')}>
         <Icon name="edit" size={13}/> {t('files.contextMenu.rename')}
@@ -1909,6 +2368,94 @@ import { get } from 'svelte/store';
   /* -- Editor wrap ----------------------------------------------- */
 
   .files-editor-wrap { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
+
+  /* -- Language server toast ------------------------------------------ */
+
+  /* Stays until it is answered: a suggestion that vanishes on a timer is a
+     suggestion the user never had a chance to take. */
+  .lsp-toast {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 500;
+    width: 300px;
+    padding: 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-md);
+    box-shadow: 0 20px 60px oklch(0 0 0 / 0.5);
+    animation: pop .2s;
+  }
+  .lsp-toast .head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+  }
+  .lsp-toast .title {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .lsp-toast .text {
+    margin-top: 5px;
+    font-size: 12.5px;
+    color: var(--fg-0);
+    line-height: 1.45;
+  }
+  .lsp-toast .detail {
+    margin-top: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+    overflow-wrap: anywhere;
+  }
+  .lsp-toast .detail.danger { color: var(--danger); }
+  .lsp-toast-primary {
+    width: 100%;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .lsp-toast-progress { margin-top: 10px; }
+  .lsp-toast-dismiss {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  /* -- Rename dialog --------------------------------------------------- */
+
+  .rename-dialog {
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-md);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  }
+  .rename-title { font-size: 12px; color: var(--fg-3); }
+  .rename-input {
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    background: var(--bg-1);
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    outline: none;
+  }
+  .rename-input:focus { border-color: var(--accent); }
+  .rename-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
   .split-resize-handle {
     width: 3px;
