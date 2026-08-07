@@ -11,7 +11,9 @@
   import { settings } from '$lib/stores/settings';
   import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
-  import { breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
+  import BinaryPreview from './BinaryPreview.svelte';
+  import { previewKindFromPath } from '$lib/utils/files/files-preview';
+  import { absolutePathOf, breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
   import type { Tab } from '$lib/utils/files/files-persistence';
 
   export let rootEl: HTMLElement | null = null;
@@ -48,6 +50,12 @@
   export let lspDoc: LspDocRef | null = null;
   export let lspDiagnostics: LspDiagnostic[] = [];
   export let formatting = false;
+  export let worktreePath: string | null = null;
+
+  let svgPreview = true;
+
+  $: isSvgTab = activeTab !== null && previewKindFromPath(activeTab.path) === 'svg';
+  $: activeAbsPath = activeTab ? absolutePathOf(activeTab.path, worktreePath) : '';
 
   export let onPaneFocus: () => void;
   export let onTabPointerDown: (e: PointerEvent, idx: number) => void;
@@ -163,11 +171,7 @@
           <Skeleton lines={12} height={12} gap={12}/>
         </div>
       {:else if isBinaryPath(activeTab.path)}
-        <div class="editor-placeholder">
-          <Icon name="file" size={32}/>
-          <div>{t('files.binaryFilePreview')}</div>
-          <div class="editor-placeholder-path">{activeTab.path}</div>
-        </div>
+        <BinaryPreview path={activeAbsPath} kind={previewKindFromPath(activeTab.path)} />
       {:else}
         {#key activeTab.path}
           <CodeEditor
@@ -197,11 +201,25 @@
           />
         {/key}
       {/if}
+      {#if isSvgTab && svgPreview}
+        <div class="editor-preview-overlay">
+          <BinaryPreview path={activeAbsPath} kind="svg" source={activeTab.pending} />
+        </div>
+      {/if}
     </div>
     {#if activeChunk}
       <HunkDiffPanel chunk={activeChunk} {activeLang} onRevert={onRevertChunk} onDismiss={onCloseHunk} />
     {/if}
     <div class="editor-statusbar">
+      {#if isBinaryPath(activeTab.path)}
+        <span class="statusbar-item">{previewKindFromPath(activeTab.path).toUpperCase()}</span>
+      {:else}
+      {#if isSvgTab}
+        <button class="statusbar-item statusbar-btn {svgPreview ? 'statusbar-active' : ''}" on:click={() => { svgPreview = !svgPreview; }} title={t('files.preview.toggle') as string}>
+          <Icon name="eye" size={11}/>
+        </button>
+        <span class="statusbar-sep">|</span>
+      {/if}
       <span class="statusbar-item">{cursorLine}:{cursorCol}</span>
       <span class="statusbar-sep">|</span>
       <span class="statusbar-item">{activeLang.toUpperCase()}</span>
@@ -229,6 +247,7 @@
             {t('files.format')}
           {/if}
         </button>
+      {/if}
       {/if}
       {#if isDirty}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-dirty">{t('files.unsaved')}</span>{/if}
       {#if saving}<span class="statusbar-sep">|</span><span class="statusbar-item statusbar-saving" title={t('common.saving') as string}><Spinner size={9} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/></span>{/if}
@@ -442,6 +461,7 @@
     flex-shrink: 0;
   }
   .editor-body { flex: 1; overflow: hidden; position: relative; }
+  .editor-preview-overlay { position: absolute; inset: 0; z-index: 2; background: var(--bg-1); }
 
 
   .editor-statusbar {

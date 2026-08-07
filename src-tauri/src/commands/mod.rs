@@ -42,7 +42,7 @@ pub use formatting::{
     uninstall_manager_for_formatter, update_manager_for_formatter,
 };
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
-pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
+pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file, read_file_preview, read_file_base64, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{
     list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_check_ignore,
     git_diff_unstaged, git_diff_staged, git_diff_file, git_file_at_head,

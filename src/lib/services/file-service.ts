@@ -43,6 +43,19 @@ export async function readFile(path: string): Promise<string | null> {
 	return invoke<string | null>("read_file", { path });
 }
 
+export interface FilePreview {
+	size: number;
+	headHex: string;
+}
+
+export async function readFilePreview(path: string): Promise<FilePreview> {
+	return invoke<FilePreview>("read_file_preview", { path });
+}
+
+export async function readFileBase64(path: string): Promise<string> {
+	return invoke<string>("read_file_base64", { path });
+}
+
 export async function writeFile(path: string, content: string): Promise<void> {
 	return invoke<void>("write_file", { path, content });
 }
@@ -439,6 +452,9 @@ const BINARY_EXT = new Set([
 	"ico",
 	"bmp",
 	"tiff",
+	"avif",
+	"apng",
+	"heic",
 	"pdf",
 	"doc",
 	"docx",

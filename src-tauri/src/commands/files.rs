@@ -209,6 +209,49 @@ pub async fn read_file(path: String) -> Result<Option<String>, String> {
     }
 }
 
+const PREVIEW_HEAD_BYTES: usize = 1024;
+
+#[derive(Serialize)]
+pub struct FilePreview {
+    pub size: u64,
+    #[serde(rename = "headHex")]
+    pub head_hex: String,
+}
+
+#[tauri::command]
+pub async fn read_file_preview(path: String) -> Result<FilePreview, String> {
+    use std::io::Read;
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let p = PathBuf::from(&expanded);
+    let meta = fs::metadata(&p).map_err(|e| e.to_string())?;
+    let mut head = vec![0u8; PREVIEW_HEAD_BYTES];
+    let mut file = fs::File::open(&p).map_err(|e| e.to_string())?;
+    let mut read = 0usize;
+    while read < head.len() {
+        match file.read(&mut head[read..]).map_err(|e| e.to_string())? {
+            0 => break,
+            n => read += n,
+        }
+    }
+    let head_hex = head[..read].iter().map(|b| format!("{:02x}", b)).collect();
+    Ok(FilePreview { size: meta.len(), head_hex })
+}
+
+const MAX_INLINE_PREVIEW_BYTES: u64 = 64 * 1024 * 1024;
+
+#[tauri::command]
+pub async fn read_file_base64(path: String) -> Result<String, String> {
+    use base64::Engine;
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let p = PathBuf::from(&expanded);
+    let meta = fs::metadata(&p).map_err(|e| e.to_string())?;
+    if meta.len() > MAX_INLINE_PREVIEW_BYTES {
+        return Err(format!("File too large to inline: {} bytes", meta.len()));
+    }
+    let bytes = fs::read(&p).map_err(|e| e.to_string())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();

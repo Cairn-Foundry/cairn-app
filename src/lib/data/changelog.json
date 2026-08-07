@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Binary files open in the editor instead of a dead tab: images and PDFs are rendered, an SVG can switch between its rendering and its source, and any other binary shows its size and its first bytes with a button to open it in the system app.",
+					"fr": "Les fichiers binaires s'ouvrent dans l'éditeur au lieu d'un onglet vide : les images et les PDF sont rendus, un SVG bascule entre son rendu et sa source, et tout autre binaire affiche sa taille et ses premiers octets avec un bouton pour l'ouvrir dans l'application système."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A command can change scope: drag it between the Global and Project sections, or pick its scope in the creation and edit modal.",
 					"fr": "Une commande peut changer de portée : glissez-la entre les sections Global et Projet, ou choisissez sa portée dans la fenêtre de création et d'édition."
 				}

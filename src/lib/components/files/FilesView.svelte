@@ -2212,6 +2212,7 @@ import { get } from 'svelte/store';
           activeChunk={pane.activeChunk}
           recentFiles={recentFiles}
           treeFilePaths={treeFilePaths}
+          worktreePath={worktreePath}
           placeholderText={t('files.selectFileToEdit') as string}
           showRecentFiles={true}
           onPaneFocus={() => { focusedPane = i as 0 | 1; }}

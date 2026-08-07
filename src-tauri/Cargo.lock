@@ -385,6 +385,7 @@ dependencies = [
 name = "cairn"
 version = "0.13.0"
 dependencies = [
+ "base64 0.22.1",
  "dirs",
  "git2",
  "grep-matcher",
