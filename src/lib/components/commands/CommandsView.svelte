@@ -13,6 +13,7 @@
     duplicateCommand,
     globalCommands,
     loadCommands,
+    moveCommandToScope,
     newCommand,
     projectCommands,
     removeCommand,
@@ -58,10 +59,16 @@
     editing = { scope, command, isNew: false };
   }
 
-  function saveEdited(command: CustomCommand) {
+  function saveEdited(command: CustomCommand, scope: CommandScope) {
     if (!editing || !projectId) return;
-    if (editing.isNew) addCommand(editing.scope, projectId, command);
-    else updateCommand(editing.scope, projectId, command);
+    if (editing.isNew) addCommand(scope, projectId, command);
+    else {
+      updateCommand(editing.scope, projectId, command);
+      if (scope !== editing.scope) {
+        const target = sections.find(s => s.scope === scope);
+        moveCommandToScope(editing.scope, scope, projectId, command.id, target?.list.length ?? 0);
+      }
+    }
     editing = null;
   }
 
@@ -102,15 +109,32 @@
       document.body.classList.add('dragging');
     }
     didDrag = true;
+    const scope = scopeAt(e.clientY) ?? drag.scope;
     dropAt = {
-      scope: drag.scope,
-      index: computeTabInsertIndex(bodyEls[drag.scope] ?? null, e.clientY, { selector: '.cmd-row', axis: 'y' }),
+      scope,
+      index: computeTabInsertIndex(bodyEls[scope] ?? null, e.clientY, { selector: '.cmd-row', axis: 'y' }),
     };
+  }
+
+  function scopeAt(clientY: number): CommandScope | null {
+    let closest: { scope: CommandScope; distance: number } | null = null;
+    for (const section of sections) {
+      const el = bodyEls[section.scope];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const distance = clientY < rect.top ? rect.top - clientY : clientY > rect.bottom ? clientY - rect.bottom : 0;
+      if (!closest || distance < closest.distance) closest = { scope: section.scope, distance };
+    }
+    return closest?.scope ?? null;
   }
 
   function dragPointerUp() {
     if (drag && dropAt && dragActive && projectId) {
-      reorderCommand(drag.scope, projectId, drag.index, dropAt.index);
+      if (dropAt.scope === drag.scope) reorderCommand(drag.scope, projectId, drag.index, dropAt.index);
+      else {
+        const command = sections.find(s => s.scope === drag?.scope)?.list[drag.index];
+        if (command) moveCommandToScope(drag.scope, dropAt.scope, projectId, command.id, dropAt.index);
+      }
     }
     drag = null;
     dropAt = null;
@@ -119,8 +143,9 @@
   }
 
   $: dropIndicator =
-    dragActive && drag && dropAt && dropAt.scope === drag.scope &&
-    dropAt.index !== drag.index && dropAt.index !== drag.index + 1
+    dragActive && drag && dropAt &&
+    (dropAt.scope !== drag.scope ||
+      (dropAt.index !== drag.index && dropAt.index !== drag.index + 1))
       ? dropAt
       : null;
 </script>
@@ -221,7 +246,8 @@
 {#if editing}
   <CommandEditor
     command={editing.command}
-    on:save={(e) => saveEdited(e.detail)}
+    scope={editing.scope}
+    on:save={(e) => saveEdited(e.detail.command, e.detail.scope)}
     on:close={() => editing = null}
   />
 {/if}

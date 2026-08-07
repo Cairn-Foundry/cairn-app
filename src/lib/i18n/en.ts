@@ -605,6 +605,11 @@ export const en = {
 		fieldName: "Name",
 		namePlaceholder: "start",
 		fieldIcon: "Icon",
+		fieldScope: "Scope",
+		scopeHint:
+			"A project command belongs to this project only, a global one is available in every project.",
+		scopeProject: "This project",
+		scopeGlobal: "Every project",
 		fieldColor: "Color",
 		fieldSteps: "Steps",
 		stepsHint:

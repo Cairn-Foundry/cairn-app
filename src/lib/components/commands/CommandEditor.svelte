@@ -4,16 +4,21 @@
   import IconPicker from '$lib/components/IconPicker.svelte';
   import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
   import { t } from '$lib/i18n';
-  import type { CommandCwd, CustomCommand } from '$lib/services/custom-command-service';
+  import type { CommandCwd, CommandScope, CustomCommand } from '$lib/services/custom-command-service';
   import { findInvalidPortTokens, VARIABLE_KEYS } from '$lib/utils/commands/command-variables';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { PROJECT_COLORS } from '$lib/utils/home/appearance';
   import { moveItem } from '$lib/utils/terminal/terminal-order';
 
   export let command: CustomCommand;
+  export let scope: CommandScope;
 
-  const dispatch = createEventDispatcher<{ save: CustomCommand; close: void }>();
+  const dispatch = createEventDispatcher<{
+    save: { command: CustomCommand; scope: CommandScope };
+    close: void;
+  }>();
 
+  let selectedScope: CommandScope = scope;
   let name = command.name;
   let icon = command.icon;
   let color = command.color ?? PROJECT_COLORS[0];
@@ -111,16 +116,19 @@
   function save() {
     if (!canSave) return;
     dispatch('save', {
-      ...command,
-      name: name.trim(),
-      icon,
-      color,
-      steps: steps.map(s => s.trim()).filter(s => s.length > 0),
-      stopOnError,
-      cwd,
-      pinned,
-      autoClose,
-      confirm,
+      scope: selectedScope,
+      command: {
+        ...command,
+        name: name.trim(),
+        icon,
+        color,
+        steps: steps.map(s => s.trim()).filter(s => s.length > 0),
+        stopOnError,
+        cwd,
+        pinned,
+        autoClose,
+        confirm,
+      },
     });
   }
 </script>
@@ -155,6 +163,21 @@
         <div class="ce-field ce-grow">
           <label class="ce-label" for="command-name">{t('commands.fieldName')}</label>
           <input id="command-name" class="ce-input" bind:value={name} autocomplete="off" placeholder={t('commands.namePlaceholder') as string}/>
+        </div>
+      </div>
+
+      <div class="ce-field">
+        <span class="ce-label">{t('commands.fieldScope')}</span>
+        <p class="ce-hint">{t('commands.scopeHint')}</p>
+        <div class="ce-choices">
+          <label class="ce-choice">
+            <input type="radio" bind:group={selectedScope} value="project"/>
+            <span>{t('commands.scopeProject')}</span>
+          </label>
+          <label class="ce-choice">
+            <input type="radio" bind:group={selectedScope} value="global"/>
+            <span>{t('commands.scopeGlobal')}</span>
+          </label>
         </div>
       </div>
 

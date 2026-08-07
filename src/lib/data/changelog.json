@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "A command can change scope: drag it between the Global and Project sections, or pick its scope in the creation and edit modal.",
+					"fr": "Une commande peut changer de portée : glissez-la entre les sections Global et Projet, ou choisissez sa portée dans la fenêtre de création et d'édition."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "The formatting import preview shows the value each setting will be imported with, next to the option it maps to, so the file can be read before it is applied.",

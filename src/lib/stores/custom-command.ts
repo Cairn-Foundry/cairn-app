@@ -123,6 +123,27 @@ export function toggleCommandPinned(
 	);
 }
 
+export function moveCommandToScope(
+	from: CommandScope,
+	to: CommandScope,
+	projectId: string,
+	id: string,
+	insertIndex: number,
+): void {
+	if (from === to) return;
+	const source = (
+		from === "global"
+			? get(globalCommands)
+			: (get(projectCommands)[projectId] ?? [])
+	).find((c) => c.id === id);
+	if (!source) return;
+	updateScope(from, projectId, (list) => list.filter((c) => c.id !== id));
+	updateScope(to, projectId, (list) => {
+		const index = Math.max(0, Math.min(insertIndex, list.length));
+		return [...list.slice(0, index), source, ...list.slice(index)];
+	});
+}
+
 export function reorderCommand(
 	scope: CommandScope,
 	projectId: string,

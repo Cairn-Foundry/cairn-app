@@ -623,6 +623,11 @@ export const fr = {
 		fieldName: "Nom",
 		namePlaceholder: "start",
 		fieldIcon: "Icône",
+		fieldScope: "Portée",
+		scopeHint:
+			"Une commande de projet n'appartient qu'à ce projet, une commande globale est disponible dans tous les projets.",
+		scopeProject: "Ce projet",
+		scopeGlobal: "Tous les projets",
 		fieldColor: "Couleur",
 		fieldSteps: "Étapes",
 		stepsHint:
