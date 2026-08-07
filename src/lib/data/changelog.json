@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The completion menu scrolls with the mouse wheel: the whole list is rendered instead of a window of twelve entries around the selected one, and the wheel now moves the list rather than the document under it.",
+					"fr": "Le menu de complétion se parcourt à la molette : la liste entière est rendue au lieu d'une fenêtre de douze entrées autour de l'élément sélectionné, et la molette fait défiler la liste et non le document en dessous."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Go to definition, Find references, Rename symbol and Format document are now in the editor right-click menu, and Format document in the file tree menu for any file a language server covers.",

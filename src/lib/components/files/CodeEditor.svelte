@@ -24,9 +24,10 @@
   } from '$lib/utils/editor/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
   import {
-    autocompletion, completionKeymap, acceptCompletion,
+    completionKeymap, acceptCompletion,
     closeBrackets, closeBracketsKeymap, completeFromList,
   } from '@codemirror/autocomplete';
+  import { buildCompletion } from '$lib/utils/editor/editor-completion';
   import {
     syntaxHighlighting,
     bracketMatching, foldGutter, foldKeymap, indentOnInput,
@@ -333,7 +334,7 @@
       codeFolding(),
       search({ top: true }),
       highlightSelectionMatches({ minSelectionLength: EDITOR_DEFAULTS.selectionMatchMinLength, wholeWords: false }),
-      autocompletion({ activateOnTyping: true, closeOnBlur: false, maxRenderedOptions: EDITOR_DEFAULTS.autocompleteMaxRendered }),
+      buildCompletion(),
       instanceCompartment.of(buildInstanceExtensions()),
       buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
