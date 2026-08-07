@@ -118,6 +118,41 @@
 					"en": "Opening a file of a language you have not configured offers the matching server in a card in the bottom-right corner. It waits there until it is answered rather than fading on a timer. One button installs it and turns it on, with the package manager already present on the machine. The offer can be silenced for one server or turned off entirely.",
 					"fr": "Ouvrir un fichier d'un langage non configuré propose le serveur correspondant dans une carte en bas à droite. Elle attend une réponse au lieu de disparaître au bout d'un délai. Un bouton l'installe et l'active, avec le gestionnaire de paquets déjà présent sur la machine. La proposition peut être coupée pour un serveur ou désactivée entièrement."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Twelve more language servers in the catalogue: C/C++ (clangd), Vue (Volar), PHP (Intelephense), Ruby (Solargraph), Java (Eclipse JDT), Lua, Zig (zls), TOML (Taplo), Terraform, Markdown (Marksman) and GraphQL.",
+					"fr": "Douze serveurs de langage de plus au catalogue : C/C++ (clangd), Vue (Volar), PHP (Intelephense), Ruby (Solargraph), Java (Eclipse JDT), Lua, Zig (zls), TOML (Taplo), Terraform, Markdown (Marksman) et GraphQL."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Add your own language server from the Language servers page: a command, its arguments and the extensions it covers are enough. Cairn runs it like any other, and never installs or removes it. A server you declare for an extension the catalogue already covers takes it over.",
+					"fr": "Ajoutez votre propre serveur de langage depuis la page Serveurs de langage : une commande, ses arguments et les extensions couvertes suffisent. Cairn le lance comme les autres, et ne l'installe ni ne le supprime jamais. Un serveur déclaré pour une extension déjà couverte par le catalogue la reprend à son compte."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An installed language server can be updated from its card, through the package manager that put it there, and Check for updates asks each manager whether a newer version exists: a card then reads Up to date, or offers the version it would move to. Nothing is checked until you ask, and a state that could not be established is never shown as up to date.",
+					"fr": "Un serveur de langage installé peut être mis à jour depuis sa carte, par le gestionnaire de paquets qui l'a posé, et Chercher les mises à jour demande à chaque gestionnaire s'il existe une version plus récente : la carte affiche alors À jour, ou propose la version vers laquelle elle irait. Rien n'est vérifié tant que vous ne le demandez pas, et un état qui n'a pas pu être établi n'est jamais présenté comme à jour."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "On Windows, every server installed through npm read as missing: a command is looked up with the suffixes of PATHEXT, so `typescript-language-server.cmd` is found from its bare name, and the npm, winget and scoop directories are searched too. A package manager that cannot exist on your system - Homebrew on Windows - is no longer offered as a way to install anything.",
+					"fr": "Sous Windows, tout serveur installé par npm apparaissait comme absent : une commande est désormais cherchée avec les suffixes de PATHEXT, si bien que `typescript-language-server.cmd` est trouvé depuis son nom nu, et les répertoires de npm, winget et scoop sont également parcourus. Un gestionnaire de paquets qui ne peut pas exister sur votre système - Homebrew sous Windows - n'est plus proposé pour installer quoi que ce soit."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Servers that cannot answer `--version` - Pyright, and the JSON, CSS and HTML ones, which either refuse to start or crash when asked - reported an unknown update state. Their version is now read from the package they ship in, and the manager that owns a binary is found by following the link it is reached through, so a globally installed npm server is no longer attributed to whoever owns the directory it sits in.",
+					"fr": "Les serveurs incapables de répondre à `--version` - Pyright, et ceux de JSON, CSS et HTML, qui refusent de démarrer ou plantent quand on le leur demande - affichaient un état de mise à jour inconnu. Leur version est désormais lue dans le paquet qui les embarque, et le gestionnaire propriétaire d'un binaire est trouvé en suivant le lien par lequel on l'atteint : un serveur npm installé globalement n'est plus attribué au propriétaire du répertoire où il se trouve."
+				}
 			}
 		]
 	},

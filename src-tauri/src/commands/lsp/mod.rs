@@ -13,8 +13,8 @@ pub mod registry;
 pub mod server;
 
 use registry::{
-    detect_version, find_def, manager_options, owning_manager, resolve_command, resolve_root,
-    shares_removal_with, BinaryCache, ManagerCommands, CATALOG,
+    catalog, detect_version, find_def, manager_options, owning_manager, resolve_command,
+    resolve_root, shares_removal_with, BinaryCache, LanguageServerDef, ManagerCommands,
 };
 use server::{emit_status, path_to_uri, uri_to_path, ServerHandle, ServerStatus};
 
@@ -91,15 +91,21 @@ where
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LanguageServerInfo {
-    pub id:                &'static str,
-    pub name:              &'static str,
-    pub binary:            &'static str,
-    pub extensions:        &'static [&'static str],
+    pub id:                String,
+    pub name:              String,
+    pub binary:            String,
+    pub args:              Vec<String>,
+    pub extensions:        Vec<String>,
+    pub language_ids:      Vec<String>,
+    pub root_markers:      Vec<String>,
+    /// A server the user declared: Cairn runs it but never installs or removes it.
+    pub custom:            bool,
     pub install_options:   Vec<registry::ManagerOption>,
     pub uninstall_options: Vec<registry::ManagerOption>,
+    pub update_options:    Vec<registry::ManagerOption>,
     /// Other servers the removal command would take down with this one.
-    pub also_removes:      Vec<&'static str>,
-    pub doc_url:           &'static str,
+    pub also_removes:      Vec<String>,
+    pub doc_url:           String,
     pub binary_path:       Option<String>,
     pub version:           Option<String>,
     pub status:            ServerStatus,
@@ -244,10 +250,11 @@ pub async fn list_language_servers(
     blocking(move || {
         let lookup_root = root.as_deref().map(Path::new);
         let mut cache = BinaryCache::default();
+        let catalog = catalog();
 
-        let binaries: Vec<Option<PathBuf>> = CATALOG
+        let binaries: Vec<Option<PathBuf>> = catalog
             .iter()
-            .map(|def| cache.resolve(def.binary, lookup_root))
+            .map(|def| cache.resolve(&def.binary, lookup_root))
             .collect();
 
         // Each `--version` is a process spawn, so ten servers asked one after
@@ -260,38 +267,43 @@ pub async fn list_language_servers(
             probes.into_iter().map(|probe| probe.join().unwrap_or(None)).collect()
         });
 
-        let live_servers: HashMap<&'static str, (ServerStatus, String)> = state(&app)
+        let live_servers: HashMap<String, (ServerStatus, String)> = state(&app)
             .servers
             .lock()
             .map(|servers| {
-                CATALOG
+                catalog
                     .iter()
                     .filter_map(|def| {
                         let (key, handle) = servers
                             .iter()
                             .find(|(key, handle)| key.server_id == def.id && handle.is_alive())?;
                         let status = handle.status.lock().map(|s| *s).unwrap_or(ServerStatus::Stopped);
-                        Some((def.id, (status, key.root.to_string_lossy().to_string())))
+                        Some((def.id.clone(), (status, key.root.to_string_lossy().to_string())))
                     })
                     .collect()
             })
             .unwrap_or_default();
 
-        let out = CATALOG
+        let out = catalog
             .iter()
             .zip(binaries)
             .zip(versions)
             .map(|((def, binary_path), version)| {
-                let live = live_servers.get(def.id);
+                let live = live_servers.get(&def.id);
                 LanguageServerInfo {
-                    id:                def.id,
-                    name:              def.name,
-                    binary:            def.binary,
-                    extensions:        def.extensions,
+                    id:                def.id.clone(),
+                    name:              def.name.clone(),
+                    binary:            def.binary.clone(),
+                    args:              def.args.clone(),
+                    extensions:        def.extensions.clone(),
+                    language_ids:      def.language_ids.clone(),
+                    root_markers:      def.root_markers.clone(),
+                    custom:            def.custom,
                     install_options:   manager_options(&def.install, &mut cache),
                     uninstall_options: manager_options(&def.uninstall, &mut cache),
-                    also_removes:      shares_removal_with(def),
-                    doc_url:           def.doc_url,
+                    update_options:    manager_options(&def.update, &mut cache),
+                    also_removes:      shares_removal_with(def, &catalog),
+                    doc_url:           def.doc_url.clone(),
                     binary_path:       binary_path.map(|p| p.to_string_lossy().to_string()),
                     version,
                     status:            live.map(|(s, _)| *s).unwrap_or(ServerStatus::Stopped),
@@ -392,6 +404,179 @@ pub async fn install_language_server(
     Ok(output)
 }
 
+/// A registry can be slow, and a manager waiting on a network that will never
+/// answer must not hold the check open for ever.
+const CHECK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheck {
+    pub server_id: String,
+    /// `true` outdated, `false` up to date, `None` when nothing could be
+    /// established - no manager to ask, no answer, or a version neither side
+    /// could parse. An unknown state is reported as unknown, never as up to date.
+    pub outdated:  Option<bool>,
+    /// The version the manager would install, when it names one. Homebrew only
+    /// says whether a formula is outdated, so this stays empty for it.
+    pub latest:    Option<String>,
+    pub manager:   Option<String>,
+}
+
+/// Runs a check command and hands back what it printed on stdout, plus whether
+/// it succeeded. `None` when it could not be run at all or outran the timeout.
+fn run_check(command: &str) -> Option<(bool, String)> {
+    let mut child = registry::spawn_shell(command).ok()?;
+    let deadline = std::time::Instant::now() + CHECK_TIMEOUT;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if std::time::Instant::now() >= deadline => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+            Err(_) => return None,
+        }
+    };
+
+    let mut out = String::new();
+    if let Some(mut stdout) = child.stdout.take() {
+        let _ = stdout.read_to_string(&mut out);
+    }
+    Some((status.success(), out))
+}
+
+/// Asks every installed server's manager whether a newer version exists. Never
+/// runs on its own: it is one process and one network round-trip per server, so
+/// it happens when the user asks for it and the answer holds until they ask again.
+#[tauri::command]
+pub async fn check_language_server_updates(
+    app: tauri::AppHandle,
+    root: Option<String>,
+) -> Result<Vec<UpdateCheck>, String> {
+    let _ = app;
+    blocking(move || {
+        let lookup_root = root.as_deref().map(Path::new);
+        let mut cache = BinaryCache::default();
+        let catalog = catalog();
+
+        // Everything the check needs is gathered first, on one thread: probing
+        // binaries and reading versions is filesystem work, and the network
+        // calls are what deserve to run in parallel.
+        type Job = (String, Option<(String, &'static str)>, Option<String>);
+        let jobs: Vec<Job> = catalog
+            .iter()
+            .filter(|def| !def.custom)
+            .filter_map(|def| {
+                // An entry is made for every installed server, even one nothing
+                // can be asked about: the page has to tell "checked, and it
+                // could not be established" apart from "never checked".
+                let binary = cache.resolve(&def.binary, lookup_root)?;
+                let options = manager_options(&def.check, &mut cache);
+                // Only the manager that put the binary there can speak for it.
+                // A rust-analyzer installed by rustup is not a Homebrew formula,
+                // and asking Homebrew about it answers about something else.
+                let chosen = match owning_manager(&binary) {
+                    Some(owner) => options.iter().find(|o| o.manager == owner && o.available),
+                    None => options.iter().find(|o| o.available),
+                };
+                Some((
+                    def.id.clone(),
+                    chosen.map(|o| (o.manager.to_string(), o.command)),
+                    detect_version(&binary),
+                ))
+            })
+            .collect();
+
+        let checks = std::thread::scope(|scope| {
+            let probes: Vec<_> = jobs
+                .iter()
+                .map(|(id, chosen, installed)| {
+                    scope.spawn(move || {
+                        let answer = chosen.as_ref().and_then(|(_, command)| run_check(command));
+                        let manager = chosen.as_ref().map(|(manager, _)| manager.clone());
+                        decide(id.clone(), manager, installed.as_deref(), answer)
+                    })
+                })
+                .collect();
+            probes
+                .into_iter()
+                .filter_map(|probe| probe.join().ok())
+                .collect::<Vec<UpdateCheck>>()
+        });
+
+        Ok(checks)
+    })
+    .await
+}
+
+/// Turns what a manager printed into a verdict. Kept apart from the process
+/// handling so every branch of it can be tested without spawning anything.
+fn decide(
+    server_id: String,
+    manager: Option<String>,
+    installed: Option<&str>,
+    answer: Option<(bool, String)>,
+) -> UpdateCheck {
+    let unknown = |manager: Option<String>| UpdateCheck {
+        server_id: server_id.clone(),
+        outdated: None,
+        latest: None,
+        manager,
+    };
+
+    // Nothing to ask: the manager that installed this binary publishes no
+    // version to compare against - rustup hands out whatever the toolchain
+    // carries - or none of its managers is on this machine.
+    let Some(manager) = manager else { return unknown(None) };
+    let Some((succeeded, output)) = answer else { return unknown(Some(manager)) };
+
+    if registry::answers_with_a_flag(&manager) {
+        // The formula name on stdout means there is something to upgrade;
+        // nothing on stdout and a clean exit means there is not. Nothing on
+        // stdout after a failure is an error, not an answer.
+        let outdated = match (output.trim().is_empty(), succeeded) {
+            (false, _) => Some(true),
+            (true, true) => Some(false),
+            (true, false) => None,
+        };
+        return UpdateCheck { server_id, outdated, latest: None, manager: Some(manager) };
+    }
+
+    if !succeeded {
+        return unknown(Some(manager));
+    }
+    let Some(latest) = registry::parse_version(&output) else { return unknown(Some(manager)) };
+    let latest = latest.iter().map(u64::to_string).collect::<Vec<_>>().join(".");
+    let outdated = installed.and_then(|installed| registry::is_newer(installed, &latest));
+    UpdateCheck { server_id, outdated, latest: Some(latest), manager: Some(manager) }
+}
+
+/// Brings an installed server up to date with one of its managers. The server
+/// is stopped first: the update replaces the binary a running process is
+/// executing, and what it goes on serving afterwards is anyone's guess. The
+/// next file to be opened starts the new one.
+#[tauri::command]
+pub async fn update_language_server(
+    app: tauri::AppHandle,
+    server_id: String,
+    manager: String,
+) -> Result<String, String> {
+    {
+        let app = app.clone();
+        let server_id = server_id.clone();
+        blocking(move || stop_servers_with_id(&app, &server_id)).await?;
+    }
+    let output =
+        run_manager_command(app.clone(), server_id.clone(), manager, "update", |def| &def.update)
+            .await?;
+    if let Ok(mut attempts) = state(&app).attempts.lock() {
+        attempts.retain(|key, _| key.server_id != server_id);
+    }
+    Ok(output)
+}
+
 /// Removes a server with the package manager that put it there. Any instance
 /// still running is stopped first, so nothing keeps talking to a binary that is
 /// about to disappear.
@@ -414,10 +599,10 @@ async fn run_manager_command(
     server_id: String,
     manager: String,
     kind: &'static str,
-    pick: fn(&'static registry::LanguageServerDef) -> &'static ManagerCommands,
+    pick: fn(&LanguageServerDef) -> &ManagerCommands,
 ) -> Result<String, String> {
     let def = find_def(&server_id).ok_or_else(|| format!("unknown language server: {server_id}"))?;
-    let command = resolve_command(pick(def), &manager)
+    let command = resolve_command(pick(&def), &manager)
         .ok_or_else(|| format!("{} has no {manager} command", def.name))?;
 
     let key = CommandKey { server_id: server_id.clone(), kind };
@@ -428,21 +613,33 @@ async fn run_manager_command(
 /// installed binary carries, or failing that the first one available.
 #[tauri::command]
 pub async fn uninstall_manager_for(server_id: String) -> Result<Option<String>, String> {
-    blocking(move || {
-        let def = find_def(&server_id).ok_or_else(|| format!("unknown language server: {server_id}"))?;
-        let mut cache = BinaryCache::default();
-        let options = manager_options(&def.uninstall, &mut cache);
-        let owner = cache
-            .resolve(def.binary, None)
-            .as_deref()
-            .and_then(owning_manager);
+    blocking(move || manager_for(&server_id, |def| &def.uninstall)).await
+}
 
-        let chosen = owner
-            .and_then(|owner| options.iter().find(|o| o.manager == owner && o.available))
-            .or_else(|| options.iter().find(|o| o.available));
-        Ok(chosen.map(|o| o.manager.to_string()))
-    })
-    .await
+/// The manager an update should go through, chosen the same way: a server put
+/// there by Homebrew is updated by Homebrew, not by whichever manager happens
+/// to be installed alongside it.
+#[tauri::command]
+pub async fn update_manager_for(server_id: String) -> Result<Option<String>, String> {
+    blocking(move || manager_for(&server_id, |def| &def.update)).await
+}
+
+fn manager_for(
+    server_id: &str,
+    pick: fn(&LanguageServerDef) -> &ManagerCommands,
+) -> Result<Option<String>, String> {
+    let def = find_def(server_id).ok_or_else(|| format!("unknown language server: {server_id}"))?;
+    let mut cache = BinaryCache::default();
+    let options = manager_options(pick(&def), &mut cache);
+    let owner = cache
+        .resolve(&def.binary, None)
+        .as_deref()
+        .and_then(owning_manager);
+
+    let chosen = owner
+        .and_then(|owner| options.iter().find(|o| o.manager == owner && o.available))
+        .or_else(|| options.iter().find(|o| o.available));
+    Ok(chosen.map(|o| o.manager.to_string()))
 }
 
 fn stop_servers_with_id(app: &tauri::AppHandle, server_id: &str) -> Result<(), String> {
@@ -570,7 +767,7 @@ pub async fn start_language_server(
 ) -> Result<String, String> {
     blocking(move || {
         let def = find_def(&server_id).ok_or_else(|| format!("unknown language server: {server_id}"))?;
-        let root = resolve_root(def, Path::new(&worktree), Path::new(&file_path));
+        let root = resolve_root(&def, Path::new(&worktree), Path::new(&file_path));
         let key = ServerKey { server_id: server_id.clone(), root: root.clone() };
         let lsp = state(&app);
 
@@ -594,7 +791,7 @@ pub async fn start_language_server(
 
         emit_status(&app, &server_id, &root, ServerStatus::Starting, None);
 
-        match server::start(&app, def, &root, &command, &args) {
+        match server::start(&app, &def, &root, &command, &args) {
             Ok(handle) => {
                 lsp.servers.lock().map_err(|e| e.to_string())?.insert(key.clone(), handle);
                 lsp.attempts.lock().map_err(|e| e.to_string())?.remove(&key);
@@ -1037,6 +1234,69 @@ mod tests {
         }]);
         assert_eq!(located[0].text.as_deref().map(str::len), Some(SOURCE_LINE_MAX));
         let _ = std::fs::remove_file(&file);
+    }
+
+    fn verdict(manager: &str, installed: Option<&str>, answer: Option<(bool, &str)>) -> UpdateCheck {
+        decide(
+            "test".into(),
+            Some(manager.to_string()),
+            installed,
+            answer.map(|(ok, out)| (ok, out.to_string())),
+        )
+    }
+
+    #[test]
+    fn reads_the_version_a_registry_printed() {
+        let check = verdict("npm", Some("pyright 1.1.403"), Some((true, "1.1.444\n")));
+        assert_eq!(check.latest.as_deref(), Some("1.1.444"));
+        assert_eq!(check.outdated, Some(true));
+    }
+
+    #[test]
+    fn calls_the_same_version_up_to_date() {
+        let check = verdict("npm", Some("4.3.3"), Some((true, "4.3.3\n")));
+        assert_eq!(check.outdated, Some(false));
+    }
+
+    #[test]
+    fn pulls_the_version_out_of_what_a_registry_pads_it_with() {
+        // `gem list -r -e` and `cargo search` both answer with the package name.
+        assert_eq!(verdict("gem", Some("0.50.0"), Some((true, "solargraph (0.53.4)"))).latest.as_deref(), Some("0.53.4"));
+        assert_eq!(
+            verdict("cargo", Some("0.9.0"), Some((true, "taplo-cli = \"0.9.3\"    # A TOML toolkit"))).latest.as_deref(),
+            Some("0.9.3"),
+        );
+    }
+
+    #[test]
+    fn homebrew_naming_the_formula_means_it_is_outdated() {
+        assert_eq!(verdict("brew", Some("1.78.0"), Some((false, "rust-analyzer\n"))).outdated, Some(true));
+        assert_eq!(verdict("brew", Some("1.78.0"), Some((true, ""))).outdated, Some(false));
+    }
+
+    #[test]
+    fn a_server_nothing_can_be_asked_about_is_still_answered_for() {
+        // rust-analyzer handed out by rustup: no registry publishes a version to
+        // compare it against. The check must say so rather than stay silent, or
+        // the page cannot tell it apart from a server nobody has checked.
+        let check = decide("rust".into(), None, Some("1.78.0"), None);
+        assert_eq!(check.outdated, None);
+        assert_eq!(check.manager, None);
+        assert_eq!(check.latest, None);
+    }
+
+    #[test]
+    fn an_unknown_state_is_never_reported_as_up_to_date() {
+        // A manager that failed with nothing on stdout - an unknown formula,
+        // a network that did not answer - knows nothing about this server.
+        assert_eq!(verdict("brew", Some("1.0"), Some((false, ""))).outdated, None);
+        assert_eq!(verdict("npm", Some("1.0"), None).outdated, None);
+        assert_eq!(verdict("npm", Some("1.0"), Some((false, "1.2.0"))).outdated, None);
+        assert_eq!(verdict("npm", Some("1.0"), Some((true, "not a version"))).outdated, None);
+        // The registry answered, but the binary never said which version it is.
+        let unreadable = verdict("npm", None, Some((true, "1.2.0")));
+        assert_eq!(unreadable.outdated, None);
+        assert_eq!(unreadable.latest.as_deref(), Some("1.2.0"), "the answer is still worth showing");
     }
 
     fn pump(input: &str) -> Vec<String> {

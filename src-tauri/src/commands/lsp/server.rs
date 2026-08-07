@@ -186,12 +186,12 @@ pub fn start(
     command_override: &str,
     args_override: &[String],
 ) -> Result<Arc<ServerHandle>, String> {
-    let binary = if command_override.trim().is_empty() { def.binary } else { command_override.trim() };
+    let binary = if command_override.trim().is_empty() { def.binary.as_str() } else { command_override.trim() };
     let resolved = resolve_binary(binary, Some(root))
         .ok_or_else(|| format!("{binary} was not found"))?;
 
     let args: Vec<String> = if args_override.is_empty() {
-        def.args.iter().map(|a| a.to_string()).collect()
+        def.args.clone()
     } else {
         args_override.to_vec()
     };
@@ -221,7 +221,7 @@ pub fn start(
     }
 
     let app_events = app.clone();
-    let server_id = def.id.to_string();
+    let server_id = def.id.clone();
     let event_root = root.to_path_buf();
     let client = LspClient::new(stdin, stdout, move |method, params| {
         if method != "textDocument/publishDiagnostics" {
@@ -238,7 +238,7 @@ pub fn start(
     });
 
     let handle = Arc::new(ServerHandle {
-        server_id:    def.id.to_string(),
+        server_id:    def.id.clone(),
         root:         root.to_path_buf(),
         command:      resolved.to_string_lossy().to_string(),
         client:       Arc::clone(&client),

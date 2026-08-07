@@ -104,6 +104,28 @@ pub struct CairnSettings {
     pub suggest_language_servers: bool,
     #[serde(rename = "dismissedLanguageServers", default)]
     pub dismissed_language_servers: Vec<String>,
+    #[serde(rename = "customLanguageServers", default)]
+    pub custom_language_servers: Vec<CustomLanguageServer>,
+}
+
+/// A language server the user brought themselves. Cairn runs it exactly as it
+/// runs a catalogue one, but never installs, updates or removes it: it did not
+/// put it there.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CustomLanguageServer {
+    pub id:     String,
+    pub name:   String,
+    pub binary: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(rename = "languageIds", default)]
+    pub language_ids: Vec<String>,
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    #[serde(rename = "rootMarkers", default)]
+    pub root_markers: Vec<String>,
+    #[serde(rename = "docUrl", default)]
+    pub doc_url: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -178,11 +200,12 @@ impl Default for CairnSettings {
             language_servers: Vec::new(),
             suggest_language_servers: default_suggest_language_servers(),
             dismissed_language_servers: Vec::new(),
+            custom_language_servers: Vec::new(),
         }
     }
 }
 
-fn read_settings() -> Result<CairnSettings, String> {
+pub fn read_settings() -> Result<CairnSettings, String> {
     let path = settings_file()?;
     if !path.exists() { return Ok(CairnSettings::default()); }
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;

@@ -8,6 +8,8 @@ export interface LanguageServerDef {
 	 * searching for it has to land somewhere rather than on an empty list.
 	 */
 	aliases?: string[];
+	/** Only carried by user servers: the catalogue ones map extension by extension. */
+	languageIds?: string[];
 }
 
 /**
@@ -75,7 +77,104 @@ export const LANGUAGE_SERVERS: LanguageServerDef[] = [
 		extensions: [".sh", ".bash", ".zsh"],
 		aliases: ["shell", "sh", "zsh", "script"],
 	},
+	{
+		id: "cpp",
+		name: "C / C++ (clangd)",
+		extensions: [
+			".c",
+			".h",
+			".cc",
+			".cpp",
+			".cxx",
+			".hh",
+			".hpp",
+			".hxx",
+			".m",
+			".mm",
+		],
+		aliases: ["clangd", "clang", "objective-c", "cmake"],
+	},
+	{
+		id: "vue",
+		name: "Vue (Volar)",
+		extensions: [".vue"],
+		aliases: ["volar", "nuxt"],
+	},
+	{
+		id: "php",
+		name: "PHP (Intelephense)",
+		extensions: [".php", ".phtml"],
+		aliases: ["intelephense", "laravel", "symfony", "composer"],
+	},
+	{
+		id: "ruby",
+		name: "Ruby (Solargraph)",
+		extensions: [".rb", ".rake", ".gemspec"],
+		aliases: ["solargraph", "rails", "gem"],
+	},
+	{
+		id: "java",
+		name: "Java (Eclipse JDT)",
+		extensions: [".java"],
+		aliases: ["jdtls", "maven", "gradle", "spring"],
+	},
+	{
+		id: "lua",
+		name: "Lua",
+		extensions: [".lua"],
+		aliases: ["luals", "neovim"],
+	},
+	{
+		id: "zig",
+		name: "Zig (zls)",
+		extensions: [".zig", ".zon"],
+		aliases: ["zls"],
+	},
+	{
+		id: "toml",
+		name: "TOML (Taplo)",
+		extensions: [".toml"],
+		aliases: ["taplo", "cargo"],
+	},
+	{
+		id: "terraform",
+		name: "Terraform",
+		extensions: [".tf", ".tfvars"],
+		aliases: ["hcl", "opentofu", "infrastructure"],
+	},
+	{
+		id: "markdown",
+		name: "Markdown (Marksman)",
+		extensions: [".md", ".markdown"],
+		aliases: ["marksman", "md", "notes", "docs"],
+	},
+	{
+		id: "graphql",
+		name: "GraphQL",
+		extensions: [".graphql", ".gql"],
+		aliases: ["gql", "apollo", "schema"],
+	},
 ];
+
+/**
+ * The servers the user declared themselves, kept alongside the catalogue so
+ * every lookup answers for them too. Fed by the settings store, because a file
+ * can be opened before the Language servers page has ever been shown.
+ */
+let customServers: LanguageServerDef[] = [];
+
+export function setCustomServers(servers: LanguageServerDef[]): void {
+	// An id the catalogue already uses is dropped rather than shadowing it, the
+	// same way the backend drops it: a server nobody can start is worse than one
+	// that was never added.
+	const known = new Set(LANGUAGE_SERVERS.map((s) => s.id));
+	customServers = servers.filter((s) => !known.has(s.id));
+}
+
+/** The catalogue and the user's own servers, in that order. */
+export function allServers(): LanguageServerDef[] {
+	return [...LANGUAGE_SERVERS, ...customServers];
+}
 
 function extensionOf(path: string): string {
 	const name = path.split("/").pop() ?? path;
@@ -83,11 +182,19 @@ function extensionOf(path: string): string {
 	return dot <= 0 ? "" : name.slice(dot).toLowerCase();
 }
 
-/** The catalogue entry covering a file, or null when no server handles it. */
+/**
+ * The server covering a file, or null when none does. The user's own servers
+ * are asked first: declaring one for an extension the catalogue already claims
+ * is how someone replaces a server they do not want.
+ */
 export function serverForPath(path: string): LanguageServerDef | null {
 	const ext = extensionOf(path);
 	if (!ext) return null;
-	return LANGUAGE_SERVERS.find((s) => s.extensions.includes(ext)) ?? null;
+	return (
+		customServers.find((s) => s.extensions.includes(ext)) ??
+		LANGUAGE_SERVERS.find((s) => s.extensions.includes(ext)) ??
+		null
+	);
 }
 
 /**
@@ -95,6 +202,33 @@ export function serverForPath(path: string): LanguageServerDef | null {
  * on it, so `.tsx` has to say `typescriptreact` and not just `typescript`.
  */
 const LANGUAGE_ID_BY_EXT: Record<string, string> = {
+	".c": "c",
+	".h": "c",
+	".cc": "cpp",
+	".cpp": "cpp",
+	".cxx": "cpp",
+	".hh": "cpp",
+	".hpp": "cpp",
+	".hxx": "cpp",
+	".m": "objective-c",
+	".mm": "objective-cpp",
+	".vue": "vue",
+	".php": "php",
+	".phtml": "php",
+	".rb": "ruby",
+	".rake": "ruby",
+	".gemspec": "ruby",
+	".java": "java",
+	".lua": "lua",
+	".zig": "zig",
+	".zon": "zig",
+	".toml": "toml",
+	".tf": "terraform",
+	".tfvars": "terraform",
+	".md": "markdown",
+	".markdown": "markdown",
+	".graphql": "graphql",
+	".gql": "graphql",
 	".ts": "typescript",
 	".mts": "typescript",
 	".cts": "typescript",
@@ -122,9 +256,19 @@ const LANGUAGE_ID_BY_EXT: Record<string, string> = {
 	".zsh": "shellscript",
 };
 
+/**
+ * A user server says which language id its files carry; without one, the
+ * extension decides, and failing that the extension itself is the id - a server
+ * that was told nothing still has to be told something.
+ */
 export function languageIdForPath(path: string): string | null {
 	const ext = extensionOf(path);
 	if (!ext) return null;
+
+	const custom = customServers.find((s) => s.extensions.includes(ext));
+	if (custom) {
+		return custom.languageIds?.[0] ?? LANGUAGE_ID_BY_EXT[ext] ?? ext.slice(1);
+	}
 	return LANGUAGE_ID_BY_EXT[ext] ?? null;
 }
 
@@ -157,8 +301,7 @@ export function matchesServerQuery(
 		return true;
 	}
 
-	const aliases =
-		LANGUAGE_SERVERS.find((s) => s.id === server.id)?.aliases ?? [];
+	const aliases = allServers().find((s) => s.id === server.id)?.aliases ?? [];
 	return aliases.some((alias) => alias.includes(needle));
 }
 

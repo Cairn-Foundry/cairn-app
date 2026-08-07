@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { get, writable } from "svelte/store";
 import {
+	checkLanguageServerUpdates,
 	type LanguageServerInfo,
 	type LanguageServerStatus,
 	type LspDiagnostic,
@@ -12,15 +13,17 @@ import {
 	startLanguageServer,
 	stopLanguageServersFor,
 	stopLanguageServersWithId,
+	type UpdateCheck,
 } from "$lib/services/lsp-service";
 import type {
 	CairnSettings,
+	CustomLanguageServer,
 	LanguageServerSetting,
 } from "$lib/services/settings-service";
 import { settings } from "$lib/stores/settings";
 import { isUnder } from "$lib/utils/files/files-tree";
 import {
-	LANGUAGE_SERVERS,
+	allServers,
 	type LanguageServerDef,
 	serverForPath,
 } from "$lib/utils/languages/servers";
@@ -29,11 +32,13 @@ const _infos = writable<LanguageServerInfo[]>([]);
 const _statuses = writable<Record<string, LanguageServerStatus>>({});
 const _diagnostics = writable<Record<string, LspDiagnostic[]>>({});
 const _managerOutput = writable<Record<string, string>>({});
+const _updateChecks = writable<Record<string, UpdateCheck>>({});
 
 export const languageServerInfos = { subscribe: _infos.subscribe };
 export const languageServerStatuses = { subscribe: _statuses.subscribe };
 export const lspDiagnostics = { subscribe: _diagnostics.subscribe };
 export const managerOutput = { subscribe: _managerOutput.subscribe };
+export const updateChecks = { subscribe: _updateChecks.subscribe };
 
 function statusKey(serverId: string, root: string): string {
 	return `${serverId}:${root}`;
@@ -59,6 +64,23 @@ export async function refreshLanguageServers(
 	try {
 		_infos.set(await listLanguageServers(root));
 	} catch {}
+}
+
+/**
+ * What the last check found, by server id. Held in memory only: a verdict read
+ * from disk would be a claim about a registry nobody has asked since, and the
+ * page must never say "up to date" on the strength of yesterday's answer.
+ */
+export async function checkForUpdates(root: string | null): Promise<void> {
+	try {
+		const checks = await checkLanguageServerUpdates(root);
+		_updateChecks.set(Object.fromEntries(checks.map((c) => [c.serverId, c])));
+	} catch {}
+}
+
+/** Drops what the check knew about one server, once it has been acted on. */
+export function clearUpdateCheck(id: string): void {
+	_updateChecks.update(({ [id]: _dropped, ...rest }) => rest);
 }
 
 let unlisten: (() => void)[] = [];
@@ -119,9 +141,58 @@ export function setServerEnabled(id: string, enabled: boolean): void {
 	}
 }
 
+/**
+ * A user server is stored as a definition of its own, plus the same enabled
+ * flag every catalogue server has. Its id is derived from its name so it reads
+ * as something in `settings.json`, and kept unique against everything already
+ * there - a duplicate id would be dropped by the backend without a word.
+ */
+export function customServerId(name: string, taken: string[]): string {
+	const base =
+		name
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "") || "server";
+	let id = base;
+	for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`;
+	return id;
+}
+
+/**
+ * Adds or replaces a user server, matched on its id. Awaits the write: the
+ * backend builds its catalogue from `settings.json`, so listing before the file
+ * lands would answer without the server that was just declared.
+ */
+export async function saveCustomServer(
+	server: CustomLanguageServer,
+): Promise<void> {
+	const current = get(settings).customLanguageServers;
+	const next = current.some((s) => s.id === server.id)
+		? current.map((s) => (s.id === server.id ? server : s))
+		: [...current, server];
+	await settings.save({ customLanguageServers: next });
+}
+
+/**
+ * Removes a user server: the process goes down, its diagnostics with it, and
+ * the enabled flag it left behind goes too, so re-adding the same id later does
+ * not come back mysteriously switched on.
+ */
+export async function removeCustomServer(id: string): Promise<void> {
+	const config = get(settings);
+	clearDiagnosticsOf(id);
+	void stopLanguageServersWithId(id).catch(() => {});
+	await settings.save({
+		customLanguageServers: config.customLanguageServers.filter(
+			(s) => s.id !== id,
+		),
+		languageServers: config.languageServers.filter((s) => s.id !== id),
+	});
+}
+
 /** Drops the diagnostics of every file the server covers. */
 function clearDiagnosticsOf(id: string): void {
-	const def = LANGUAGE_SERVERS.find((s) => s.id === id);
+	const def = allServers().find((s) => s.id === id);
 	if (!def) return;
 	_diagnostics.update((current) =>
 		Object.fromEntries(

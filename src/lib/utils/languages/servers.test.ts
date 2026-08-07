@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+	allServers,
 	LANGUAGE_SERVERS,
 	languageIdForPath,
 	matchesServerQuery,
 	serverForPath,
+	setCustomServers,
 	shortVersion,
 	summarizeExtensions,
 } from "./servers";
@@ -20,7 +22,7 @@ describe("serverForPath", () => {
 	});
 
 	it("returns null when nothing covers the file", () => {
-		expect(serverForPath("notes.md")).toBeNull();
+		expect(serverForPath("notes.txt")).toBeNull();
 		expect(serverForPath("Makefile")).toBeNull();
 		expect(serverForPath(".gitignore")).toBeNull();
 	});
@@ -39,8 +41,52 @@ describe("languageIdForPath", () => {
 	});
 
 	it("returns null for an uncovered file", () => {
-		expect(languageIdForPath("a.md")).toBeNull();
+		expect(languageIdForPath("a.txt")).toBeNull();
 		expect(languageIdForPath("Makefile")).toBeNull();
+	});
+});
+
+describe("user servers", () => {
+	afterEach(() => setCustomServers([]));
+
+	it("answers for an extension the catalogue does not cover", () => {
+		setCustomServers([
+			{
+				id: "elixir",
+				name: "Elixir",
+				extensions: [".ex"],
+				languageIds: ["elixir"],
+			},
+		]);
+		expect(serverForPath("lib/app.ex")?.id).toBe("elixir");
+		expect(languageIdForPath("lib/app.ex")).toBe("elixir");
+	});
+
+	it("wins over the catalogue on an extension both claim", () => {
+		setCustomServers([
+			{
+				id: "deno",
+				name: "Deno",
+				extensions: [".ts"],
+				languageIds: ["typescript"],
+			},
+		]);
+		expect(serverForPath("src/main.ts")?.id).toBe("deno");
+	});
+
+	it("falls back to the extension when it declares no language id", () => {
+		setCustomServers([{ id: "nim", name: "Nim", extensions: [".nim"] }]);
+		expect(languageIdForPath("a.nim")).toBe("nim");
+	});
+
+	it("is listed after the catalogue, and never duplicates an id", () => {
+		setCustomServers([
+			{ id: "rust", name: "Mine", extensions: [".rs"] },
+			{ id: "nim", name: "Nim", extensions: [".nim"] },
+		]);
+		const ids = allServers().map((s) => s.id);
+		expect(ids.filter((id) => id === "rust")).toEqual(["rust"]);
+		expect(ids.at(-1)).toBe("nim");
 	});
 });
 

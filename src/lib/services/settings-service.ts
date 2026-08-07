@@ -27,6 +27,21 @@ export interface LanguageServerSetting {
 	args: string[];
 }
 
+/**
+ * A language server the user brought themselves. Cairn runs it exactly as it
+ * runs a catalogue one, but never installs, updates or removes it.
+ */
+export interface CustomLanguageServer {
+	id: string;
+	name: string;
+	binary: string;
+	args: string[];
+	languageIds: string[];
+	extensions: string[];
+	rootMarkers: string[];
+	docUrl: string;
+}
+
 export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
@@ -55,6 +70,7 @@ export interface CairnSettings {
 	languageServers: LanguageServerSetting[];
 	suggestLanguageServers: boolean;
 	dismissedLanguageServers: string[];
+	customLanguageServers: CustomLanguageServer[];
 }
 
 export function getSettings(): Promise<CairnSettings> {

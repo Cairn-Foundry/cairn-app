@@ -14,11 +14,12 @@ pub struct ManagerCommands {
     pub cargo: Option<&'static str>,
     pub pip:   Option<&'static str>,
     pub go:    Option<&'static str>,
+    pub gem:   Option<&'static str>,
 }
 
-/// Keep this catalogue in sync with LANGUAGE_SERVERS in
+/// One entry of the built-in catalogue. Keep it in sync with LANGUAGE_SERVERS in
 /// src/lib/utils/languages/servers.ts (same ids, names and extensions).
-pub struct LanguageServerDef {
+pub struct BuiltinDef {
     pub id:           &'static str,
     pub name:         &'static str,
     pub binary:       &'static str,
@@ -28,11 +29,40 @@ pub struct LanguageServerDef {
     pub root_markers: &'static [&'static str],
     pub install:      ManagerCommands,
     pub uninstall:    ManagerCommands,
+    /// What brings an already installed server up to date. Separate from
+    /// installing because most managers refuse to install over themselves:
+    /// `brew install` on an outdated formula reports it is already there.
+    pub update:       ManagerCommands,
+    /// What answers whether a newer version exists, without installing it.
+    /// Empty for a manager that publishes no version to ask for - rustup hands
+    /// out whatever the toolchain carries, and there is nothing to compare to.
+    pub check:        ManagerCommands,
     pub doc_url:      &'static str,
 }
 
-pub const CATALOG: &[LanguageServerDef] = &[
-    LanguageServerDef {
+/// A server the rest of the code works with, whether it came from the built-in
+/// catalogue or from what the user declared in their settings. Owned rather than
+/// borrowed for exactly that reason: a user server exists only at runtime.
+#[derive(Clone)]
+pub struct LanguageServerDef {
+    pub id:           String,
+    pub name:         String,
+    pub binary:       String,
+    pub args:         Vec<String>,
+    pub language_ids: Vec<String>,
+    pub extensions:   Vec<String>,
+    pub root_markers: Vec<String>,
+    pub install:      ManagerCommands,
+    pub uninstall:    ManagerCommands,
+    pub update:       ManagerCommands,
+    pub check:        ManagerCommands,
+    pub doc_url:      String,
+    /// A server Cairn neither installs nor removes: the user brought it.
+    pub custom:       bool,
+}
+
+pub const BUILTIN: &[BuiltinDef] = &[
+    BuiltinDef {
         id:           "typescript",
         name:         "TypeScript / JavaScript",
         binary:       "typescript-language-server",
@@ -48,9 +78,17 @@ pub const CATALOG: &[LanguageServerDef] = &[
             npm: Some("npm uninstall -g typescript typescript-language-server"),
             ..EMPTY
         },
+        update: ManagerCommands {
+            npm: Some("npm install -g typescript@latest typescript-language-server@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view typescript-language-server version"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/typescript-language-server/typescript-language-server",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "python",
         name:         "Python (Pyright)",
         binary:       "pyright-langserver",
@@ -68,9 +106,19 @@ pub const CATALOG: &[LanguageServerDef] = &[
             pip: Some("pip uninstall -y pyright"),
             ..EMPTY
         },
+        update: ManagerCommands {
+            npm: Some("npm install -g pyright@latest"),
+            pip: Some("pip install --upgrade pyright"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view pyright version"),
+            pip: Some("pip index versions pyright"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/microsoft/pyright",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "rust",
         name:         "Rust (rust-analyzer)",
         binary:       "rust-analyzer",
@@ -88,9 +136,15 @@ pub const CATALOG: &[LanguageServerDef] = &[
             cargo: Some("rustup component remove rust-analyzer"),
             ..EMPTY
         },
+        update: ManagerCommands {
+            brew:  Some("brew upgrade rust-analyzer"),
+            cargo: Some("rustup component add rust-analyzer"),
+            ..EMPTY
+        },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet rust-analyzer"), ..EMPTY },
         doc_url: "https://rust-analyzer.github.io",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "go",
         name:         "Go (gopls)",
         binary:       "gopls",
@@ -105,9 +159,19 @@ pub const CATALOG: &[LanguageServerDef] = &[
         },
         // `go install` has no counterpart: it only drops a binary in GOBIN.
         uninstall: ManagerCommands { brew: Some("brew uninstall gopls"), ..EMPTY },
+        update: ManagerCommands {
+            brew: Some("brew upgrade gopls"),
+            go:   Some("go install golang.org/x/tools/gopls@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            brew: Some("brew outdated --quiet gopls"),
+            go:   Some("go list -m -f {{.Version}} golang.org/x/tools/gopls@latest"),
+            ..EMPTY
+        },
         doc_url: "https://pkg.go.dev/golang.org/x/tools/gopls",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "svelte",
         name:         "Svelte",
         binary:       "svelteserver",
@@ -117,9 +181,17 @@ pub const CATALOG: &[LanguageServerDef] = &[
         root_markers: &["svelte.config.js", "svelte.config.ts", "package.json"],
         install:   ManagerCommands { npm: Some("npm install -g svelte-language-server"), ..EMPTY },
         uninstall: ManagerCommands { npm: Some("npm uninstall -g svelte-language-server"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g svelte-language-server@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view svelte-language-server version"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/sveltejs/language-tools",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "json",
         name:         "JSON",
         binary:       "vscode-json-language-server",
@@ -129,9 +201,17 @@ pub const CATALOG: &[LanguageServerDef] = &[
         root_markers: &["package.json"],
         install:   ManagerCommands { npm: Some("npm install -g vscode-langservers-extracted"), ..EMPTY },
         uninstall: ManagerCommands { npm: Some("npm uninstall -g vscode-langservers-extracted"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g vscode-langservers-extracted@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view vscode-langservers-extracted version"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/hrsh7th/vscode-langservers-extracted",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "css",
         name:         "CSS / SCSS / Less",
         binary:       "vscode-css-language-server",
@@ -141,9 +221,17 @@ pub const CATALOG: &[LanguageServerDef] = &[
         root_markers: &["package.json"],
         install:   ManagerCommands { npm: Some("npm install -g vscode-langservers-extracted"), ..EMPTY },
         uninstall: ManagerCommands { npm: Some("npm uninstall -g vscode-langservers-extracted"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g vscode-langservers-extracted@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view vscode-langservers-extracted version"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/hrsh7th/vscode-langservers-extracted",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "html",
         name:         "HTML",
         binary:       "vscode-html-language-server",
@@ -153,9 +241,17 @@ pub const CATALOG: &[LanguageServerDef] = &[
         root_markers: &["package.json"],
         install:   ManagerCommands { npm: Some("npm install -g vscode-langservers-extracted"), ..EMPTY },
         uninstall: ManagerCommands { npm: Some("npm uninstall -g vscode-langservers-extracted"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g vscode-langservers-extracted@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view vscode-langservers-extracted version"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/hrsh7th/vscode-langservers-extracted",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "yaml",
         name:         "YAML",
         binary:       "yaml-language-server",
@@ -165,9 +261,14 @@ pub const CATALOG: &[LanguageServerDef] = &[
         root_markers: &[],
         install:   ManagerCommands { npm: Some("npm install -g yaml-language-server"), ..EMPTY },
         uninstall: ManagerCommands { npm: Some("npm uninstall -g yaml-language-server"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g yaml-language-server@latest"),
+            ..EMPTY
+        },
+        check:     ManagerCommands { npm: Some("npm view yaml-language-server version"), ..EMPTY },
         doc_url: "https://github.com/redhat-developer/yaml-language-server",
     },
-    LanguageServerDef {
+    BuiltinDef {
         id:           "bash",
         name:         "Bash",
         binary:       "bash-language-server",
@@ -185,16 +286,285 @@ pub const CATALOG: &[LanguageServerDef] = &[
             brew: Some("brew uninstall bash-language-server"),
             ..EMPTY
         },
+        update: ManagerCommands {
+            npm:  Some("npm install -g bash-language-server@latest"),
+            brew: Some("brew upgrade bash-language-server"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm:  Some("npm view bash-language-server version"),
+            brew: Some("brew outdated --quiet bash-language-server"),
+            ..EMPTY
+        },
         doc_url: "https://github.com/bash-lsp/bash-language-server",
+    },
+    BuiltinDef {
+        id:           "cpp",
+        name:         "C / C++ (clangd)",
+        binary:       "clangd",
+        args:         &[],
+        language_ids: &["c", "cpp", "objective-c", "objective-cpp"],
+        extensions:   &[".c", ".h", ".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx", ".m", ".mm"],
+        root_markers: &["compile_commands.json", "compile_flags.txt", "CMakeLists.txt", "Makefile"],
+        install: ManagerCommands {
+            brew: Some("brew install llvm"),
+            ..EMPTY
+        },
+        uninstall: ManagerCommands { brew: Some("brew uninstall llvm"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade llvm"), ..EMPTY },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet llvm"), ..EMPTY },
+        doc_url: "https://clangd.llvm.org",
+    },
+    BuiltinDef {
+        id:           "vue",
+        name:         "Vue (Volar)",
+        binary:       "vue-language-server",
+        args:         &["--stdio"],
+        language_ids: &["vue"],
+        extensions:   &[".vue"],
+        root_markers: &["vite.config.ts", "nuxt.config.ts", "package.json"],
+        install:   ManagerCommands { npm: Some("npm install -g @vue/language-server"), ..EMPTY },
+        uninstall: ManagerCommands { npm: Some("npm uninstall -g @vue/language-server"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g @vue/language-server@latest"),
+            ..EMPTY
+        },
+        check:     ManagerCommands { npm: Some("npm view @vue/language-server version"), ..EMPTY },
+        doc_url: "https://github.com/vuejs/language-tools",
+    },
+    BuiltinDef {
+        id:           "php",
+        name:         "PHP (Intelephense)",
+        binary:       "intelephense",
+        args:         &["--stdio"],
+        language_ids: &["php"],
+        extensions:   &[".php", ".phtml"],
+        root_markers: &["composer.json"],
+        install:   ManagerCommands { npm: Some("npm install -g intelephense"), ..EMPTY },
+        uninstall: ManagerCommands { npm: Some("npm uninstall -g intelephense"), ..EMPTY },
+        update:    ManagerCommands { npm: Some("npm install -g intelephense@latest"), ..EMPTY },
+        check:     ManagerCommands { npm: Some("npm view intelephense version"), ..EMPTY },
+        doc_url: "https://intelephense.com",
+    },
+    BuiltinDef {
+        id:           "ruby",
+        name:         "Ruby (Solargraph)",
+        binary:       "solargraph",
+        args:         &["stdio"],
+        language_ids: &["ruby"],
+        extensions:   &[".rb", ".rake", ".gemspec"],
+        root_markers: &["Gemfile", ".solargraph.yml"],
+        install:   ManagerCommands { gem: Some("gem install solargraph"), ..EMPTY },
+        uninstall: ManagerCommands { gem: Some("gem uninstall -x solargraph"), ..EMPTY },
+        update:    ManagerCommands { gem: Some("gem update solargraph"), ..EMPTY },
+        check:     ManagerCommands { gem: Some("gem list -r -e solargraph"), ..EMPTY },
+        doc_url: "https://solargraph.org",
+    },
+    BuiltinDef {
+        id:           "java",
+        name:         "Java (Eclipse JDT)",
+        binary:       "jdtls",
+        args:         &[],
+        language_ids: &["java"],
+        extensions:   &[".java"],
+        root_markers: &["pom.xml", "build.gradle", "build.gradle.kts", ".project"],
+        install:   ManagerCommands { brew: Some("brew install jdtls"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall jdtls"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade jdtls"), ..EMPTY },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet jdtls"), ..EMPTY },
+        doc_url: "https://github.com/eclipse-jdtls/eclipse.jdt.ls",
+    },
+    BuiltinDef {
+        id:           "lua",
+        name:         "Lua",
+        binary:       "lua-language-server",
+        args:         &[],
+        language_ids: &["lua"],
+        extensions:   &[".lua"],
+        root_markers: &[".luarc.json", ".luarc.jsonc"],
+        install:   ManagerCommands { brew: Some("brew install lua-language-server"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall lua-language-server"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade lua-language-server"), ..EMPTY },
+        check: ManagerCommands {
+            brew: Some("brew outdated --quiet lua-language-server"),
+            ..EMPTY
+        },
+        doc_url: "https://luals.github.io",
+    },
+    BuiltinDef {
+        id:           "zig",
+        name:         "Zig (zls)",
+        binary:       "zls",
+        args:         &[],
+        language_ids: &["zig"],
+        extensions:   &[".zig", ".zon"],
+        root_markers: &["build.zig"],
+        install:   ManagerCommands { brew: Some("brew install zls"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall zls"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade zls"), ..EMPTY },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet zls"), ..EMPTY },
+        doc_url: "https://github.com/zigtools/zls",
+    },
+    BuiltinDef {
+        id:           "toml",
+        name:         "TOML (Taplo)",
+        binary:       "taplo",
+        args:         &["lsp", "stdio"],
+        language_ids: &["toml"],
+        extensions:   &[".toml"],
+        root_markers: &[],
+        install: ManagerCommands {
+            brew:  Some("brew install taplo"),
+            cargo: Some("cargo install taplo-cli --locked --features lsp"),
+            ..EMPTY
+        },
+        uninstall: ManagerCommands {
+            brew:  Some("brew uninstall taplo"),
+            cargo: Some("cargo uninstall taplo-cli"),
+            ..EMPTY
+        },
+        update: ManagerCommands {
+            brew:  Some("brew upgrade taplo"),
+            cargo: Some("cargo install taplo-cli --locked --features lsp --force"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            brew:  Some("brew outdated --quiet taplo"),
+            cargo: Some("cargo search taplo-cli --limit 1"),
+            ..EMPTY
+        },
+        doc_url: "https://taplo.tamasfe.dev",
+    },
+    BuiltinDef {
+        id:           "terraform",
+        name:         "Terraform",
+        binary:       "terraform-ls",
+        args:         &["serve"],
+        language_ids: &["terraform"],
+        extensions:   &[".tf", ".tfvars"],
+        root_markers: &[".terraform", "main.tf"],
+        install:   ManagerCommands { brew: Some("brew install terraform-ls"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall terraform-ls"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade terraform-ls"), ..EMPTY },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet terraform-ls"), ..EMPTY },
+        doc_url: "https://github.com/hashicorp/terraform-ls",
+    },
+    BuiltinDef {
+        id:           "markdown",
+        name:         "Markdown (Marksman)",
+        binary:       "marksman",
+        args:         &["server"],
+        language_ids: &["markdown"],
+        extensions:   &[".md", ".markdown"],
+        root_markers: &[],
+        install:   ManagerCommands { brew: Some("brew install marksman"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall marksman"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade marksman"), ..EMPTY },
+        check:     ManagerCommands { brew: Some("brew outdated --quiet marksman"), ..EMPTY },
+        doc_url: "https://github.com/artempyanykh/marksman",
+    },
+    BuiltinDef {
+        id:           "graphql",
+        name:         "GraphQL",
+        binary:       "graphql-lsp",
+        args:         &["server", "--method", "stream"],
+        language_ids: &["graphql"],
+        extensions:   &[".graphql", ".gql"],
+        root_markers: &["graphql.config.yml", "graphql.config.js", ".graphqlrc"],
+        install:   ManagerCommands { npm: Some("npm install -g graphql-language-service-cli"), ..EMPTY },
+        uninstall: ManagerCommands { npm: Some("npm uninstall -g graphql-language-service-cli"), ..EMPTY },
+        update: ManagerCommands {
+            npm: Some("npm install -g graphql-language-service-cli@latest"),
+            ..EMPTY
+        },
+        check: ManagerCommands {
+            npm: Some("npm view graphql-language-service-cli version"),
+            ..EMPTY
+        },
+        doc_url: "https://github.com/graphql/graphiql/tree/main/packages/graphql-language-service-cli",
     },
 ];
 
 const EMPTY: ManagerCommands = ManagerCommands {
-    npm: None, brew: None, cargo: None, pip: None, go: None,
+    npm: None, brew: None, cargo: None, pip: None, go: None, gem: None,
 };
 
-pub fn find_def(id: &str) -> Option<&'static LanguageServerDef> {
-    CATALOG.iter().find(|d| d.id == id)
+impl From<&BuiltinDef> for LanguageServerDef {
+    fn from(def: &BuiltinDef) -> Self {
+        let owned = |list: &[&'static str]| list.iter().map(|s| s.to_string()).collect();
+        LanguageServerDef {
+            id:           def.id.to_string(),
+            name:         def.name.to_string(),
+            binary:       def.binary.to_string(),
+            args:         owned(def.args),
+            language_ids: owned(def.language_ids),
+            extensions:   owned(def.extensions),
+            root_markers: owned(def.root_markers),
+            install:      def.install.clone(),
+            uninstall:    def.uninstall.clone(),
+            update:       def.update.clone(),
+            check:        def.check.clone(),
+            doc_url:      def.doc_url.to_string(),
+            custom:       false,
+        }
+    }
+}
+
+impl From<crate::commands::settings::CustomLanguageServer> for LanguageServerDef {
+    fn from(server: crate::commands::settings::CustomLanguageServer) -> Self {
+        LanguageServerDef {
+            id:           server.id,
+            name:         server.name,
+            binary:       server.binary,
+            args:         server.args,
+            language_ids: server.language_ids,
+            extensions:   server.extensions,
+            root_markers: server.root_markers,
+            install:      EMPTY,
+            uninstall:    EMPTY,
+            update:       EMPTY,
+            check:        EMPTY,
+            doc_url:      server.doc_url,
+            custom:       true,
+        }
+    }
+}
+
+/// Whatever the user declared, minus what it could not describe: a server
+/// without an id, a binary or an extension answers for no file, and an id the
+/// built-in catalogue already uses would silently shadow a real server.
+pub fn custom_defs() -> Vec<LanguageServerDef> {
+    let servers = crate::commands::settings::read_settings()
+        .map(|settings| settings.custom_language_servers)
+        .unwrap_or_default();
+
+    let mut seen: Vec<String> = BUILTIN.iter().map(|d| d.id.to_string()).collect();
+    let mut out = Vec::new();
+    for server in servers {
+        let usable = !server.id.trim().is_empty()
+            && !server.binary.trim().is_empty()
+            && !server.extensions.is_empty()
+            && !seen.contains(&server.id);
+        if !usable {
+            continue;
+        }
+        seen.push(server.id.clone());
+        out.push(LanguageServerDef::from(server));
+    }
+    out
+}
+
+/// Every server this machine knows about: the catalogue shipped with the app,
+/// then the ones the user brought. Read fresh each time - a server added in the
+/// settings has to answer on the next scan, not after a restart.
+pub fn catalog() -> Vec<LanguageServerDef> {
+    let mut all: Vec<LanguageServerDef> = BUILTIN.iter().map(LanguageServerDef::from).collect();
+    all.extend(custom_defs());
+    all
+}
+
+pub fn find_def(id: &str) -> Option<LanguageServerDef> {
+    catalog().into_iter().find(|d| d.id == id)
 }
 
 #[derive(Serialize, Clone)]
@@ -216,18 +586,31 @@ pub fn manager_commands(commands: &ManagerCommands) -> Vec<(&'static str, &'stat
         ("cargo", commands.cargo),
         ("pip", commands.pip),
         ("go", commands.go),
+        ("gem", commands.gem),
     ]
     .into_iter()
     .filter_map(|(manager, command)| command.map(|command| (manager, command)))
     .collect()
 }
 
-/// The same list, plus whether the tool each command starts with is on this
-/// machine. The manager is probed from the command's own first word, so a
-/// command and its tool can never drift apart.
+/// Whether a manager could exist on this platform at all. Being installed is a
+/// separate question, answered by probing; this one keeps a command nobody here
+/// could ever run off the card. `brew install clangd` shown to a Windows user is
+/// not a missing tool, it is an instruction that leads nowhere.
+fn runs_here(manager: &str) -> bool {
+    match manager {
+        "brew" => cfg!(any(target_os = "macos", target_os = "linux")),
+        _ => true,
+    }
+}
+
+/// The commands worth showing here: the platform filter, then whether the tool
+/// each one starts with is on this machine. The manager is probed from the
+/// command's own first word, so a command and its tool can never drift apart.
 pub fn manager_options(commands: &ManagerCommands, cache: &mut BinaryCache) -> Vec<ManagerOption> {
     manager_commands(commands)
         .into_iter()
+        .filter(|(manager, _)| runs_here(manager))
         .map(|(manager, command)| ManagerOption {
             manager,
             command,
@@ -242,6 +625,7 @@ pub fn manager_options(commands: &ManagerCommands, cache: &mut BinaryCache) -> V
 pub fn resolve_command(commands: &ManagerCommands, manager: &str) -> Option<&'static str> {
     manager_commands(commands)
         .into_iter()
+        .filter(|(name, _)| runs_here(name))
         .find(|(name, _)| *name == manager)
         .map(|(_, command)| command)
 }
@@ -249,9 +633,9 @@ pub fn resolve_command(commands: &ManagerCommands, manager: &str) -> Option<&'st
 /// Several servers ship in one package - the JSON, CSS and HTML ones all come
 /// from `vscode-langservers-extracted`. Removing one removes the others, and
 /// the user has to be told before, not after.
-pub fn shares_removal_with(def: &LanguageServerDef) -> Vec<&'static str> {
+pub fn shares_removal_with(def: &LanguageServerDef, catalog: &[LanguageServerDef]) -> Vec<String> {
     let own = manager_commands(&def.uninstall);
-    CATALOG
+    catalog
         .iter()
         .filter(|other| other.id != def.id)
         .filter(|other| {
@@ -259,16 +643,32 @@ pub fn shares_removal_with(def: &LanguageServerDef) -> Vec<&'static str> {
                 .iter()
                 .any(|(_, command)| own.iter().any(|(_, mine)| mine == command))
         })
-        .map(|other| other.name)
+        .map(|other| other.name.clone())
         .collect()
 }
 
 /// The manager a binary looks like it came from, so removing it reaches for the
 /// same one that put it there rather than the first that happens to be around.
 pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
-    let path = binary_path.to_string_lossy();
-    if path.contains("/Cellar/") || path.contains("/homebrew/") {
+    // The link is followed first. What npm installs globally is a link in a
+    // `bin` directory pointing into `lib/node_modules`, and so is what Homebrew
+    // installs into `Cellar`: the link itself sits in the same directory for
+    // both and says nothing about who put it there.
+    let resolved = std::fs::canonicalize(binary_path).unwrap_or_else(|_| binary_path.to_path_buf());
+    let path = format!("{} {}", binary_path.to_string_lossy(), resolved.to_string_lossy());
+
+    // Checked first: a gem's bin directory can sit inside a Homebrew prefix, and
+    // the manager that put a binary there is the one that must take it away.
+    if path.contains("/gems/") || path.contains("/.gem/") {
+        return Some("gem");
+    }
+    // Before node_modules: a Homebrew formula whose payload happens to be a node
+    // package lands in both, and inside its own cellar Homebrew is the owner.
+    if path.contains("/Cellar/") {
         return Some("brew");
+    }
+    if path.contains("/node_modules/") {
+        return Some("npm");
     }
     if path.contains("/.cargo/") || path.contains("/.rustup/") {
         return Some("cargo");
@@ -276,8 +676,8 @@ pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
     if path.contains("/go/bin/") {
         return Some("go");
     }
-    if path.contains("/node_modules/") {
-        return Some("npm");
+    if path.contains("/homebrew/") {
+        return Some("brew");
     }
     None
 }
@@ -332,14 +732,55 @@ fn extra_lookup_dirs(root: Option<&Path>) -> Vec<PathBuf> {
     }
     if let Some(home) = dirs::home_dir() {
         dirs.push(home.join(".cargo").join("bin"));
-        dirs.push(home.join(".local").join("bin"));
         dirs.push(home.join("go").join("bin"));
-        dirs.push(home.join(".bun").join("bin"));
-        dirs.push(home.join(".volta").join("bin"));
+        #[cfg(not(windows))]
+        {
+            dirs.push(home.join(".local").join("bin"));
+            dirs.push(home.join(".bun").join("bin"));
+            dirs.push(home.join(".volta").join("bin"));
+        }
+        // Where npm, winget and scoop put a per-user install on Windows. None of
+        // them is on the PATH of a process started from the Start menu until the
+        // session is signed out and back in.
+        #[cfg(windows)]
+        {
+            dirs.push(home.join("AppData").join("Roaming").join("npm"));
+            dirs.push(home.join("AppData").join("Local").join("Microsoft").join("WinGet").join("Links"));
+            dirs.push(home.join("scoop").join("shims"));
+        }
     }
-    dirs.push(PathBuf::from("/opt/homebrew/bin"));
-    dirs.push(PathBuf::from("/usr/local/bin"));
+    #[cfg(not(windows))]
+    {
+        dirs.push(PathBuf::from("/opt/homebrew/bin"));
+        dirs.push(PathBuf::from("/usr/local/bin"));
+        dirs.push(PathBuf::from("/home/linuxbrew/.linuxbrew/bin"));
+    }
     dirs
+}
+
+/// The names a bare command can wear here. On Windows the suffix is neither
+/// typed nor part of what a package manager installs - `npm` on disk is
+/// `npm.cmd`, `typescript-language-server` is `typescript-language-server.cmd` -
+/// so joining the bare name to a directory finds nothing, and every server
+/// installed through npm reads as missing. Each PATHEXT suffix is tried in turn.
+fn candidate_names(binary: &str) -> Vec<String> {
+    #[cfg(not(windows))]
+    {
+        vec![binary.to_string()]
+    }
+    #[cfg(windows)]
+    {
+        let mut names = vec![binary.to_string()];
+        if Path::new(binary).extension().is_some() {
+            return names;
+        }
+        let pathext =
+            std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+        for suffix in pathext.split(';').filter(|s| !s.is_empty()) {
+            names.push(format!("{binary}{}", suffix.to_lowercase()));
+        }
+        names
+    }
 }
 
 /// Memo for one listing pass. Resolving a binary walks every PATH entry and
@@ -367,23 +808,23 @@ impl BinaryCache {
 /// Where a binary actually lives, or None when nothing was found. A missing
 /// binary is a normal state: it must never be reported as an error.
 pub fn resolve_binary(binary: &str, root: Option<&Path>) -> Option<PathBuf> {
-    let direct = Path::new(binary);
-    if direct.is_absolute() {
-        return is_executable(direct).then(|| direct.to_path_buf());
+    let names = candidate_names(binary);
+
+    if Path::new(binary).is_absolute() {
+        return names
+            .into_iter()
+            .map(PathBuf::from)
+            .find(|candidate| is_executable(candidate));
     }
 
-    if let Ok(path) = std::env::var("PATH") {
-        for dir in std::env::split_paths(&path) {
-            let candidate = dir.join(binary);
-            if is_executable(&candidate) {
-                return Some(candidate);
-            }
-        }
-    }
+    let path_dirs = std::env::var("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<PathBuf>>())
+        .unwrap_or_default();
 
-    extra_lookup_dirs(root)
+    path_dirs
         .into_iter()
-        .map(|dir| dir.join(binary))
+        .chain(extra_lookup_dirs(root))
+        .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
         .find(|candidate| is_executable(candidate))
 }
 
@@ -397,9 +838,84 @@ fn version_stamp(path: &Path) -> Option<(PathBuf, SystemTime)> {
     Some((path.to_path_buf(), modified))
 }
 
-/// First line of `<binary> --version`, when the binary answers at all.
+/// The version buried in whatever a tool printed: the first run of digits and
+/// dots holding at least one dot. Servers pad their answer with their own name,
+/// a commit hash and a date, and a registry with the package name.
+pub fn parse_version(text: &str) -> Option<Vec<u64>> {
+    let bytes: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < bytes.len() {
+        if !bytes[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == '.') {
+            i += 1;
+        }
+        let run: String = bytes[start..i].iter().collect();
+        let run = run.trim_end_matches('.');
+        if run.contains('.') {
+            let parts: Option<Vec<u64>> = run.split('.').map(|p| p.parse().ok()).collect();
+            if let Some(parts) = parts {
+                return Some(parts);
+            }
+        }
+    }
+    None
+}
+
+/// Whether `latest` is newer than `installed`. Only the numeric core is
+/// compared: a pre-release suffix says nothing that can be ordered here, and
+/// calling an update available on the strength of one would be a guess.
+pub fn is_newer(installed: &str, latest: &str) -> Option<bool> {
+    let (installed, latest) = (parse_version(installed)?, parse_version(latest)?);
+    let len = installed.len().max(latest.len());
+    for i in 0..len {
+        let (a, b) = (installed.get(i).copied().unwrap_or(0), latest.get(i).copied().unwrap_or(0));
+        if a != b {
+            return Some(b > a);
+        }
+    }
+    Some(false)
+}
+
+/// Homebrew answers whether a formula is outdated rather than with a version:
+/// `brew outdated --quiet <formula>` prints the name when there is something to
+/// upgrade, and nothing when there is not.
+pub fn answers_with_a_flag(manager: &str) -> bool {
+    manager == "brew"
+}
+
+/// The version of the npm package a binary belongs to, read from the
+/// `package.json` next to it. Several servers cannot be asked directly -
+/// `pyright-langserver --version` refuses to start without a transport, the
+/// `vscode-*` ones crash - and their package knows the answer anyway, without
+/// spawning anything.
+fn package_version(resolved: &Path) -> Option<String> {
+    if !resolved.to_string_lossy().contains("/node_modules/") {
+        return None;
+    }
+    for dir in resolved.ancestors().skip(1) {
+        if !dir.to_string_lossy().contains("/node_modules/") {
+            break;
+        }
+        let Ok(text) = std::fs::read_to_string(dir.join("package.json")) else { continue };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else { continue };
+        if let Some(version) = json.get("version").and_then(|v| v.as_str()) {
+            return Some(version.to_string());
+        }
+    }
+    None
+}
+
+/// What version a binary is: its package's, when it belongs to one, otherwise
+/// the first line of `<binary> --version`.
 pub fn detect_version(path: &Path) -> Option<String> {
-    let stamp = version_stamp(path);
+    let resolved = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    // Stamped on the target rather than the link: updating a package rewrites
+    // the files, and may well leave the link it was reached through untouched.
+    let stamp = version_stamp(&resolved);
     if let Some(stamp) = stamp.as_ref() {
         let cached = VERSIONS
             .lock()
@@ -410,7 +926,7 @@ pub fn detect_version(path: &Path) -> Option<String> {
         }
     }
 
-    let version = read_version(path)?;
+    let version = package_version(&resolved).or_else(|| read_version(path))?;
     if let Some(stamp) = stamp {
         if let Ok(mut cache) = VERSIONS.lock() {
             cache.get_or_insert_with(HashMap::new).insert(stamp, version.clone());
@@ -461,18 +977,21 @@ pub fn resolve_root(def: &LanguageServerDef, worktree: &Path, file: &Path) -> Pa
 mod tests {
     use super::*;
 
-    fn def_with(markers: &'static [&'static str]) -> LanguageServerDef {
+    fn def_with(markers: &[&str]) -> LanguageServerDef {
         LanguageServerDef {
-            id: "test",
-            name: "Test",
-            binary: "test-ls",
-            args: &[],
-            language_ids: &[],
-            extensions: &[],
-            root_markers: markers,
+            id: "test".into(),
+            name: "Test".into(),
+            binary: "test-ls".into(),
+            args: Vec::new(),
+            language_ids: Vec::new(),
+            extensions: Vec::new(),
+            root_markers: markers.iter().map(|m| m.to_string()).collect(),
             install: EMPTY,
             uninstall: EMPTY,
-            doc_url: "",
+            update: EMPTY,
+            check: EMPTY,
+            doc_url: String::new(),
+            custom: false,
         }
     }
 
@@ -547,24 +1066,110 @@ mod tests {
 
     #[test]
     fn resolve_command_refuses_a_manager_the_catalogue_does_not_offer() {
-        let def = find_def("rust").unwrap();
+        let def = builtin("rust");
         assert_eq!(resolve_command(&def.install, "npm"), None);
         assert_eq!(resolve_command(&def.install, "brew"), Some("brew install rust-analyzer"));
         assert_eq!(resolve_command(&def.uninstall, "brew"), Some("brew uninstall rust-analyzer"));
     }
 
+    fn builtins() -> Vec<LanguageServerDef> {
+        BUILTIN.iter().map(LanguageServerDef::from).collect()
+    }
+
+    fn builtin(id: &str) -> LanguageServerDef {
+        builtins().into_iter().find(|d| d.id == id).unwrap()
+    }
+
     #[test]
     fn warns_that_one_package_carries_several_servers() {
-        let json = find_def("json").unwrap();
-        let shared = shares_removal_with(json);
-        assert!(shared.contains(&"CSS / SCSS / Less"), "{shared:?}");
-        assert!(shared.contains(&"HTML"), "{shared:?}");
+        let shared = shares_removal_with(&builtin("json"), &builtins());
+        assert!(shared.iter().any(|n| n == "CSS / SCSS / Less"), "{shared:?}");
+        assert!(shared.iter().any(|n| n == "HTML"), "{shared:?}");
     }
 
     #[test]
     fn a_server_with_its_own_package_shares_nothing() {
-        assert!(shares_removal_with(find_def("rust").unwrap()).is_empty());
-        assert!(shares_removal_with(find_def("yaml").unwrap()).is_empty());
+        assert!(shares_removal_with(&builtin("rust"), &builtins()).is_empty());
+        assert!(shares_removal_with(&builtin("yaml"), &builtins()).is_empty());
+    }
+
+    #[test]
+    fn a_user_server_is_neither_installed_nor_removed() {
+        let mine = LanguageServerDef::from(crate::commands::settings::CustomLanguageServer {
+            id:           "mine".into(),
+            name:         "Mine".into(),
+            binary:       "my-ls".into(),
+            args:         vec!["--stdio".into()],
+            language_ids: vec!["mine".into()],
+            extensions:   vec![".mine".into()],
+            root_markers: Vec::new(),
+            doc_url:      String::new(),
+        });
+        assert!(mine.custom);
+        assert!(manager_commands(&mine.install).is_empty());
+        assert!(manager_commands(&mine.uninstall).is_empty());
+        assert!(shares_removal_with(&mine, &builtins()).is_empty());
+    }
+
+    #[test]
+    fn reads_the_version_off_the_package_a_binary_belongs_to() {
+        // pyright-langserver refuses to answer `--version`, and the vscode ones
+        // crash: the package they ship in is the only thing that knows.
+        let root = temp_dir("package-version");
+        let package = root.join("lib/node_modules/pyright");
+        std::fs::create_dir_all(&package).unwrap();
+        std::fs::write(package.join("package.json"), r#"{"name":"pyright","version":"1.1.411"}"#)
+            .unwrap();
+        let binary = package.join("langserver.index.js");
+        std::fs::write(&binary, "").unwrap();
+
+        assert_eq!(detect_version(&binary).as_deref(), Some("1.1.411"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn takes_the_package_a_binary_sits_in_not_one_of_its_dependencies() {
+        let root = temp_dir("package-nested");
+        let outer = root.join("lib/node_modules/vscode-langservers-extracted");
+        let inner = outer.join("node_modules/vscode-languageserver");
+        std::fs::create_dir_all(inner.join("lib")).unwrap();
+        std::fs::create_dir_all(outer.join("bin")).unwrap();
+        std::fs::write(outer.join("package.json"), r#"{"version":"4.10.0"}"#).unwrap();
+        std::fs::write(inner.join("package.json"), r#"{"version":"9.0.1"}"#).unwrap();
+        let binary = outer.join("bin/vscode-json-language-server");
+        std::fs::write(&binary, "").unwrap();
+
+        assert_eq!(detect_version(&binary).as_deref(), Some("4.10.0"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_binary_outside_a_package_is_left_to_answer_for_itself() {
+        let root = temp_dir("no-package");
+        std::fs::create_dir_all(&root).unwrap();
+        let binary = root.join("thing");
+        std::fs::write(&binary, "").unwrap();
+        assert_eq!(package_version(&binary), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn follows_the_link_to_find_who_installed_a_binary() {
+        // What npm installs globally is a link in a `bin` directory pointing
+        // into `lib/node_modules` - the link alone names no manager, which read
+        // as "nobody owns this" and had the wrong manager asked about it.
+        let root = temp_dir("owner-link");
+        let package = root.join("lib/node_modules/pyright");
+        std::fs::create_dir_all(&package).unwrap();
+        std::fs::create_dir_all(root.join("bin")).unwrap();
+        let target = package.join("langserver.index.js");
+        std::fs::write(&target, "").unwrap();
+        let link = root.join("bin/pyright-langserver");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        assert_eq!(owning_manager(&link), Some("npm"));
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -574,13 +1179,18 @@ mod tests {
         assert_eq!(owning_manager(Path::new("/Users/me/.cargo/bin/rust-analyzer")), Some("cargo"));
         assert_eq!(owning_manager(Path::new("/Users/me/go/bin/gopls")), Some("go"));
         assert_eq!(owning_manager(Path::new("/x/node_modules/.bin/tsserver")), Some("npm"));
+        // A Homebrew formula whose payload is a node package is Homebrew's.
+        assert_eq!(
+            owning_manager(Path::new("/opt/homebrew/Cellar/x/1/libexec/lib/node_modules/x/bin/x")),
+            Some("brew"),
+        );
         assert_eq!(owning_manager(Path::new("/usr/local/bin/whatever")), None);
     }
 
     #[test]
     fn catalogue_never_claims_an_extension_twice() {
         let mut seen = std::collections::HashSet::new();
-        for def in CATALOG {
+        for def in BUILTIN {
             for extension in def.extensions {
                 assert!(seen.insert(*extension), "{extension} claimed twice");
             }
@@ -588,11 +1198,100 @@ mod tests {
     }
 
     #[test]
-    fn every_installable_server_can_also_be_removed() {
-        for def in CATALOG {
+    fn every_builtin_server_declares_what_it_needs() {
+        for def in BUILTIN {
+            assert!(!def.binary.is_empty(), "{} has no binary", def.id);
+            assert!(!def.extensions.is_empty(), "{} covers no file", def.id);
+            assert!(!def.language_ids.is_empty(), "{} has no language id", def.id);
+            assert!(def.doc_url.starts_with("https://"), "{} has no documentation", def.id);
+        }
+    }
+
+    #[test]
+    fn every_installable_server_can_also_be_removed_and_updated() {
+        for def in BUILTIN {
             assert!(!manager_commands(&def.install).is_empty(), "{} cannot be installed", def.id);
             assert!(!manager_commands(&def.uninstall).is_empty(), "{} cannot be removed", def.id);
+            assert!(!manager_commands(&def.update).is_empty(), "{} cannot be updated", def.id);
         }
+    }
+
+    /// A manager that installs a server has to be able to update it too, or the
+    /// card offers an update through a tool the user does not have.
+    #[test]
+    fn a_server_is_updated_by_the_managers_that_installed_it() {
+        for def in BUILTIN {
+            let installers: Vec<&str> =
+                manager_commands(&def.install).into_iter().map(|(m, _)| m).collect();
+            let updaters: Vec<&str> =
+                manager_commands(&def.update).into_iter().map(|(m, _)| m).collect();
+            assert_eq!(installers, updaters, "{} installs and updates differently", def.id);
+        }
+    }
+
+    /// Installing over an existing Homebrew formula reports it is already there
+    /// and changes nothing, so an update must ask for an upgrade.
+    #[test]
+    fn homebrew_upgrades_rather_than_reinstalls() {
+        for def in BUILTIN {
+            let Some(command) = def.update.brew else { continue };
+            assert!(command.starts_with("brew upgrade "), "{}: {command}", def.id);
+        }
+    }
+
+    #[test]
+    fn finds_the_version_inside_what_a_tool_prints() {
+        assert_eq!(parse_version("rust-analyzer 1.78.0 (a1b2c3 2026-01-01)"), Some(vec![1, 78, 0]));
+        assert_eq!(parse_version("solargraph (0.53.4)"), Some(vec![0, 53, 4]));
+        assert_eq!(parse_version("v0.16.2\n"), Some(vec![0, 16, 2]));
+        assert_eq!(parse_version("1.1.444"), Some(vec![1, 1, 444]));
+        assert_eq!(parse_version("clangd version 17.0.6"), Some(vec![17, 0, 6]));
+        assert_eq!(parse_version("no version here"), None);
+        assert_eq!(parse_version("2026"), None, "a bare number is a year as easily as a version");
+    }
+
+    #[test]
+    fn compares_versions_number_by_number() {
+        assert_eq!(is_newer("1.1.403", "1.1.444"), Some(true));
+        assert_eq!(is_newer("4.3.3", "4.3.3"), Some(false));
+        assert_eq!(is_newer("1.10.0", "1.9.0"), Some(false), "10 is above 9, not below it");
+        assert_eq!(is_newer("1.2", "1.2.1"), Some(true));
+        assert_eq!(is_newer("1.2.0", "1.2"), Some(false));
+        assert_eq!(is_newer("unknown", "1.2.0"), None);
+    }
+
+    #[test]
+    fn every_checkable_server_is_checked_by_a_manager_that_installs_it() {
+        for def in BUILTIN {
+            let installers: Vec<&str> =
+                manager_commands(&def.install).into_iter().map(|(m, _)| m).collect();
+            for (manager, _) in manager_commands(&def.check) {
+                assert!(installers.contains(&manager), "{} is checked by {manager}", def.id);
+            }
+        }
+    }
+
+    #[test]
+    fn a_manager_that_cannot_exist_here_is_never_offered() {
+        let commands = ManagerCommands { brew: Some("brew install thing"), ..EMPTY };
+        let offered = manager_options(&commands, &mut BinaryCache::default());
+        if cfg!(target_os = "windows") {
+            assert!(offered.is_empty(), "Homebrew has no Windows to run on");
+            assert_eq!(resolve_command(&commands, "brew"), None);
+        } else {
+            assert_eq!(offered.len(), 1);
+            assert_eq!(resolve_command(&commands, "brew"), Some("brew install thing"));
+        }
+    }
+
+    #[test]
+    fn resolves_a_command_whatever_suffix_the_platform_gives_it() {
+        // /bin/sh on Unix, cmd.exe reached as `cmd` on Windows: both are the
+        // case that matters - a name typed without the suffix it has on disk.
+        #[cfg(unix)]
+        assert_eq!(resolve_binary("sh", None), Some(PathBuf::from("/bin/sh")));
+        #[cfg(windows)]
+        assert!(resolve_binary("cmd", None).is_some(), "cmd.exe must resolve from `cmd`");
     }
 
     #[test]
@@ -608,8 +1307,8 @@ mod tests {
     fn a_shared_package_is_found_without_touching_the_filesystem() {
         // shares_removal_with compares commands, so it must hold whether or not
         // any package manager is installed on the machine running the tests.
-        let css = shares_removal_with(find_def("css").unwrap());
-        assert!(css.contains(&"JSON"), "{css:?}");
-        assert!(css.contains(&"HTML"), "{css:?}");
+        let css = shares_removal_with(&builtin("css"), &builtins());
+        assert!(css.iter().any(|n| n == "JSON"), "{css:?}");
+        assert!(css.iter().any(|n| n == "HTML"), "{css:?}");
     }
 }

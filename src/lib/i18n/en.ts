@@ -753,6 +753,45 @@ export const en = {
 		installAndEnable: "Install and enable",
 		seeHowToInstall: "See how to install",
 		neverSuggest: "Never suggest",
+		checkUpdates: "Check for updates",
+		checkUpdatesDesc:
+			"Asks each installed server's package manager whether a newer version exists.",
+		updateUnknown: "Unknown",
+		updateUnknownManager: (manager: string) =>
+			`${manager} could not say whether a newer version exists. Updating is still possible.`,
+		updateUnknownNoManager:
+			"The manager that installed this server publishes no version to compare against.",
+		upToDate: "Up to date",
+		upToDateDesc: "The manager that installed it has nothing newer.",
+		updateAvailable: "Update",
+		updateTitle: (name: string) => `Update ${name}`,
+		customHeading: "Your server",
+		customTag: "yours",
+		customAdd: "Add a server",
+		customAddTitle: "Add a language server",
+		customEditTitle: "Edit the server",
+		customEditLabel: (name: string) => `Edit ${name}`,
+		customRemoveTitle: (name: string) => `Remove ${name}?`,
+		customRemoveDescription:
+			"Cairn forgets the declaration and stops the server. The binary itself stays where it is - Cairn never installed it.",
+		customDescription:
+			"Any server speaking LSP over stdio. Cairn runs it and never installs, updates or removes it.",
+		customName: "Name",
+		customBinary: "Command",
+		customBinaryHint:
+			"A name looked up in the PATH, or an absolute path to the binary.",
+		customArgs: "Arguments",
+		customExtensions: "Extensions",
+		customExtensionsHint:
+			"The files it answers for, separated by a space. An extension the catalogue already covers goes to your server.",
+		customLanguageIds: "Language ids",
+		customLanguageIdsHint:
+			"What the server calls the language. Left empty, the extension decides.",
+		customRootMarkers: "Workspace markers",
+		customRootMarkersHint:
+			"The files that mark the root of a project. Left empty, the worktree is the root.",
+		customDocUrl: "Documentation",
+		customMissing: "Command not found",
 		renameTitle: "Rename symbol",
 		renameApply: "Rename",
 		renameFailed: (files: string) => `Could not rename in ${files}.`,

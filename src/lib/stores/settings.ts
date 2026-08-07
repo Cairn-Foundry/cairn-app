@@ -7,6 +7,7 @@ import {
 import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
 import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
+import { setCustomServers } from "$lib/utils/languages/servers";
 
 const DEFAULTS: CairnSettings = {
 	treePanelWidth: 220,
@@ -31,6 +32,7 @@ const DEFAULTS: CairnSettings = {
 	languageServers: [],
 	suggestLanguageServers: true,
 	dismissedLanguageServers: [],
+	customLanguageServers: [],
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
@@ -60,19 +62,42 @@ async function load() {
 	} catch {}
 }
 
-async function save(patch: Partial<CairnSettings>) {
+/**
+ * Answers once the settings are on disk. Callers that only change the UI can
+ * ignore it; anything the backend re-reads from `settings.json` afterwards -
+ * the language server catalogue, for one - has to wait for the write.
+ */
+async function save(patch: Partial<CairnSettings>): Promise<void> {
+	let written: Promise<void> = Promise.resolve();
 	update((s) => {
 		const next = { ...s, ...patch };
-		updateSettings(next)
+		written = updateSettings(next)
 			.then((returned) => {
 				update((current) => mergeWithDefaults(current, returned));
 			})
 			.catch(() => {});
 		return next;
 	});
+	await written;
 }
 
 export const settings = { subscribe, load, save };
+
+/**
+ * The lookups that decide which server covers a file are plain functions, so
+ * the servers the user declared are pushed to them from here - a file can be
+ * opened long before the Language servers page has ever been shown.
+ */
+subscribe(($s) =>
+	setCustomServers(
+		$s.customLanguageServers.map((server) => ({
+			id: server.id,
+			name: server.name,
+			extensions: server.extensions,
+			languageIds: server.languageIds,
+		})),
+	),
+);
 
 /** Token styles the editor must render with: the selected theme, or the built-in one. */
 export const activeSyntaxTokens = derived({ subscribe }, ($s) =>

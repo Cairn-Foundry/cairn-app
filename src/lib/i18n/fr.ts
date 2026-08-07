@@ -773,6 +773,45 @@ export const fr = {
 		installAndEnable: "Installer et activer",
 		seeHowToInstall: "Voir comment l'installer",
 		neverSuggest: "Ne plus proposer",
+		checkUpdates: "Chercher les mises à jour",
+		checkUpdatesDesc:
+			"Demande au gestionnaire de paquets de chaque serveur installé s'il existe une version plus récente.",
+		updateUnknown: "Inconnu",
+		updateUnknownManager: (manager: string) =>
+			`${manager} n'a pas pu dire s'il existe une version plus récente. La mise à jour reste possible.`,
+		updateUnknownNoManager:
+			"Le gestionnaire qui a installé ce serveur ne publie aucune version à laquelle se comparer.",
+		upToDate: "À jour",
+		upToDateDesc: "Le gestionnaire qui l'a installé n'a rien de plus récent.",
+		updateAvailable: "Mise à jour",
+		updateTitle: (name: string) => `Mettre à jour ${name}`,
+		customHeading: "Votre serveur",
+		customTag: "perso",
+		customAdd: "Ajouter un serveur",
+		customAddTitle: "Ajouter un serveur de langage",
+		customEditTitle: "Modifier le serveur",
+		customEditLabel: (name: string) => `Modifier ${name}`,
+		customRemoveTitle: (name: string) => `Retirer ${name} ?`,
+		customRemoveDescription:
+			"Cairn oublie la déclaration et arrête le serveur. Le binaire, lui, reste où il est : Cairn ne l'a jamais installé.",
+		customDescription:
+			"N'importe quel serveur parlant LSP sur stdio. Cairn le lance et ne l'installe, ne le met à jour ni ne le supprime jamais.",
+		customName: "Nom",
+		customBinary: "Commande",
+		customBinaryHint:
+			"Un nom cherché dans le PATH, ou un chemin absolu vers le binaire.",
+		customArgs: "Arguments",
+		customExtensions: "Extensions",
+		customExtensionsHint:
+			"Les fichiers dont il répond, séparés par une espace. Une extension déjà couverte par le catalogue revient à votre serveur.",
+		customLanguageIds: "Identifiants de langage",
+		customLanguageIdsHint:
+			"Le nom que le serveur donne au langage. Laissé vide, l'extension décide.",
+		customRootMarkers: "Marqueurs de racine",
+		customRootMarkersHint:
+			"Les fichiers qui marquent la racine d'un projet. Laissé vide, le worktree fait office de racine.",
+		customDocUrl: "Documentation",
+		customMissing: "Commande introuvable",
 		renameTitle: "Renommer le symbole",
 		renameApply: "Renommer",
 		renameFailed: (files: string) => `Renommage impossible dans ${files}.`,

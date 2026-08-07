@@ -12,9 +12,15 @@ export interface LanguageServerInfo {
 	id: string;
 	name: string;
 	binary: string;
+	args: string[];
 	extensions: string[];
+	languageIds: string[];
+	rootMarkers: string[];
+	/** A server the user declared: Cairn runs it but never installs or removes it. */
+	custom: boolean;
 	installOptions: ManagerOption[];
 	uninstallOptions: ManagerOption[];
+	updateOptions: ManagerOption[];
 	alsoRemoves: string[];
 	docUrl: string;
 	binaryPath: string | null;
@@ -139,6 +145,45 @@ export function uninstallLanguageServer(
 	manager: string,
 ): Promise<string> {
 	return invoke<string>("uninstall_language_server", { serverId, manager });
+}
+
+export interface UpdateCheck {
+	serverId: string;
+	/**
+	 * `true` outdated, `false` up to date, `null` when nothing could be
+	 * established. An unknown state is never shown as up to date.
+	 */
+	outdated: boolean | null;
+	/** The version the manager would install, when it names one. */
+	latest: string | null;
+	manager: string | null;
+}
+
+/**
+ * Asks every installed server's manager whether a newer version exists. One
+ * process and one network round-trip per server, so it only ever runs when the
+ * user asks for it.
+ */
+export function checkLanguageServerUpdates(
+	root: string | null,
+): Promise<UpdateCheck[]> {
+	return invoke<UpdateCheck[]>("check_language_server_updates", { root });
+}
+
+/**
+ * Brings an installed server up to date. The server is stopped first, and the
+ * next file of its language starts the new binary.
+ */
+export function updateLanguageServer(
+	serverId: string,
+	manager: string,
+): Promise<string> {
+	return invoke<string>("update_language_server", { serverId, manager });
+}
+
+/** Which manager should update this server, or null when none can. */
+export function updateManagerFor(serverId: string): Promise<string | null> {
+	return invoke<string | null>("update_manager_for", { serverId });
 }
 
 /** Which manager should remove this server, or null when none can. */
