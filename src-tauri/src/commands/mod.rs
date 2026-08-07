@@ -6,6 +6,7 @@ pub mod custom_commands;
 pub mod env_vars;
 pub mod file_state;
 pub mod files;
+pub mod formatting;
 pub mod git;
 pub mod git_collapse_state;
 pub mod git_error;
@@ -15,6 +16,7 @@ pub mod projects;
 pub mod settings;
 pub mod shell;
 pub mod terminal;
+pub mod toolchain;
 pub mod ui_state;
 
 pub use agent::{AgentState, send_message, stop_agent};
@@ -31,6 +33,14 @@ pub use env_vars::{
     env_file_status, read_env_file, write_env_file, delete_env_file, ensure_env_ignored,
 };
 pub use file_state::{get_file_state, save_file_state};
+pub use formatting::{
+    get_project_formatting, save_project_formatting,
+    list_formatters, list_style_options, list_formattable_languages,
+    format_document, detect_repo_formatters,
+    import_formatting_config, export_formatting_config,
+    install_formatter, uninstall_formatter, update_formatter,
+    uninstall_manager_for_formatter, update_manager_for_formatter,
+};
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{

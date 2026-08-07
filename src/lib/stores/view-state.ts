@@ -5,6 +5,7 @@ import {
 	activeStep,
 	commandsActive,
 	envActive,
+	formattingActive,
 	gitLeftTab,
 	referencesPanelOpen,
 	referencesQuery,
@@ -19,6 +20,7 @@ const DEFAULT: ProjectUiState = {
 	terminalActive: false,
 	commandsActive: false,
 	envActive: false,
+	formattingActive: false,
 	gitChangesSearch: "",
 	gitLogSearch: "",
 	gitStagedSearch: "",
@@ -71,6 +73,7 @@ export function snapshotCurrentProject(): void {
 		terminalActive: get(terminalActive),
 		commandsActive: get(commandsActive),
 		envActive: get(envActive),
+		formattingActive: get(formattingActive),
 		referencesPanelOpen: get(referencesPanelOpen),
 		referencesQuery: get(referencesQuery),
 	});
@@ -89,7 +92,9 @@ export function applyProjectState(id: string): void {
 				? "commands"
 				: ps.envActive
 					? "env"
-					: null,
+					: ps.formattingActive
+						? "formatting"
+						: null,
 	);
 }
 

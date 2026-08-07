@@ -335,6 +335,10 @@
     <circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/>
     <circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>
   </svg>
+{:else if name === 'format'}
+  <svg {...common} {...$$restProps}>
+    <path d="M4 6h16M4 10h10M4 14h13M4 18h7"/>
+  </svg>
 {:else if name === 'server'}
   <svg {...common} {...$$restProps}>
     <rect x="3" y="4" width="18" height="7" rx="2"/>

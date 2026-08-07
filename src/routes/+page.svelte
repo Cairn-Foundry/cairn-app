@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
   import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
@@ -107,6 +107,7 @@
   terminalActive.subscribe(() => persistUiState());
   commandsActive.subscribe(() => persistUiState());
   envActive.subscribe(() => persistUiState());
+  formattingActive.subscribe(() => persistUiState());
   gitLeftTab.subscribe(() => persistUiState());
   referencesPanelOpen.subscribe(() => persistUiState());
   referencesQuery.subscribe(() => persistUiState());

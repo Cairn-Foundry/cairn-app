@@ -1,0 +1,98 @@
+import { derived, get, writable } from "svelte/store";
+import {
+	DEFAULT_FORMATTING,
+	type FormatterStatus,
+	type FormattingConfig,
+	getProjectFormatting,
+	listFormatters,
+	listStyleOptions,
+	type StyleOptionInfo,
+	saveProjectFormatting,
+} from "$lib/services/formatting-service";
+
+const projectConfigs = writable<Record<string, FormattingConfig>>({});
+const styleOptions = writable<StyleOptionInfo[]>([]);
+const formatters = writable<FormatterStatus[]>([]);
+const scanning = writable(false);
+
+async function loadStyleOptions() {
+	if (get(styleOptions).length > 0) return;
+	try {
+		styleOptions.set(await listStyleOptions());
+	} catch {}
+}
+
+/**
+ * Rescans the formatters. `root` is the worktree, so a binary the project ships
+ * in its own toolchain is found - and reported as the project's, not as a
+ * global install that could be updated out from under the repository.
+ */
+async function scan(root?: string) {
+	scanning.set(true);
+	try {
+		formatters.set(await listFormatters(root));
+	} catch {
+		formatters.set([]);
+	} finally {
+		scanning.set(false);
+	}
+}
+
+/** Projects whose config was actually read from disk. */
+const loaded = new Set<string>();
+
+async function loadProject(projectId: string) {
+	try {
+		const config = await getProjectFormatting(projectId);
+		projectConfigs.update((all) => ({ ...all, [projectId]: config }));
+		loaded.add(projectId);
+	} catch {}
+}
+
+/**
+ * A patch is merged onto the config that is on disk, never onto the defaults.
+ * Saving before the project was read would write the catalogue answer over
+ * everything the project had set - the one edit survives and the rest is lost.
+ */
+async function saveProject(
+	projectId: string,
+	patch: Partial<FormattingConfig>,
+) {
+	if (!loaded.has(projectId)) await loadProject(projectId);
+	if (!loaded.has(projectId)) return;
+	const current = get(projectConfigs)[projectId] ?? DEFAULT_FORMATTING;
+	const next = { ...current, ...patch };
+	projectConfigs.update((all) => ({ ...all, [projectId]: next }));
+	await saveProjectFormatting(projectId, next).catch(() => {});
+}
+
+/** The project's config, or null when the project has never been configured. */
+function projectConfig(projectId: string | null): FormattingConfig | null {
+	if (!projectId) return null;
+	return get(projectConfigs)[projectId] ?? null;
+}
+
+export const formatting = {
+	projects: { subscribe: projectConfigs.subscribe },
+	options: { subscribe: styleOptions.subscribe },
+	formatters: { subscribe: formatters.subscribe },
+	scanning: { subscribe: scanning.subscribe },
+	loadStyleOptions,
+	loadProject,
+	saveProject,
+	scan,
+	projectConfig,
+};
+
+/**
+ * Whether format-on-save is on for a project. Formatting belongs to a project,
+ * so a document opened outside one is never reformatted behind the user's back.
+ */
+export const formatOnSave = derived(
+	projectConfigs,
+	($projects) => (projectId: string | null) => {
+		const config = projectId ? $projects[projectId] : null;
+		if (!config?.enabled) return false;
+		return config.formatOnSave;
+	},
+);

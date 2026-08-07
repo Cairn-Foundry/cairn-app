@@ -105,6 +105,38 @@
     return true;
   }
 
+  /**
+   * Replaces the document with formatted text, as one transaction covering only
+   * the region that actually differs. Replacing the whole document instead would
+   * throw the cursor to the top and make the undo swallow the entire file;
+   * CodeMirror maps the selection through a narrow change on its own.
+   */
+  export function applyFormattedText(text: string): boolean {
+    if (!view) return false;
+    const current = view.state.doc.toString();
+    if (current === text) return false;
+
+    let start = 0;
+    const max = Math.min(current.length, text.length);
+    while (start < max && current[start] === text[start]) start++;
+
+    let end = 0;
+    while (
+      end < max - start &&
+      current[current.length - 1 - end] === text[text.length - 1 - end]
+    ) end++;
+
+    view.dispatch({
+      changes: {
+        from: start,
+        to: current.length - end,
+        insert: text.slice(start, text.length - end),
+      },
+      userEvent: 'input',
+    });
+    return true;
+  }
+
   export function getState(): { cursorPos: number; scrollTop: number } {
     if (!view) return { cursorPos: 0, scrollTop: 0 };
     return { cursorPos: view.state.selection.main.head, scrollTop: view.scrollDOM.scrollTop };
@@ -469,7 +501,7 @@
     <button role="menuitem" disabled={!lspDoc || readonly} on:click={() => runLsp(onRenameSymbol)}>
       <span class="icon"></span>{t('editor.contextMenu.renameSymbol')}<span class="kbd">{bindingToLabels($shortcuts.renameSymbol).join('')}</span>
     </button>
-    <button role="menuitem" disabled={!lspDoc || readonly} on:click={() => runLsp(onFormatDocument)}>
+    <button role="menuitem" disabled={readonly} on:click={() => runLsp(onFormatDocument)}>
       <span class="icon"></span>{t('editor.contextMenu.formatDocument')}<span class="kbd">{bindingToLabels($shortcuts.formatDocument).join('')}</span>
     </button>
 

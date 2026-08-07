@@ -15,6 +15,8 @@ pub struct ProjectUiState {
     pub commands_active: bool,
     #[serde(rename = "envActive", default)]
     pub env_active: bool,
+    #[serde(rename = "formattingActive", default)]
+    pub formatting_active: bool,
     #[serde(rename = "gitChangesSearch", default)]
     pub git_changes_search: String,
     #[serde(rename = "gitLogSearch", default)]
@@ -35,6 +37,7 @@ impl Default for ProjectUiState {
             terminal_active: false,
             commands_active: false,
             env_active: false,
+            formatting_active: false,
             git_changes_search: String::new(),
             git_log_search: String::new(),
             git_staged_search: String::new(),

@@ -389,6 +389,12 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		default: { key: "e", mod: true, shift: true, alt: false, ctrl: false },
 	},
 	{
+		id: "openFormatting",
+		...d("openFormatting"),
+		group: "app",
+		default: { key: "k", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
 		id: "goHome",
 		...d("goHome"),
 		group: "app",

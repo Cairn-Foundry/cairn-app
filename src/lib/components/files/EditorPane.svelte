@@ -215,7 +215,7 @@
       <span class="statusbar-item">UTF-8</span>
       <span class="statusbar-sep">|</span>
       <button class="statusbar-item statusbar-btn {$settings.showWhitespace ? 'statusbar-active' : ''}" on:click={onToggleWhitespace} title={t('files.toggleWhitespace') as string}>¶</button>
-      {#if lspDoc}
+      {#if activeTab}
         <span class="statusbar-sep">|</span>
         <button
           class="statusbar-item statusbar-btn"

@@ -198,6 +198,20 @@ pub fn run() {
             lsp_references,
             lsp_rename,
             lsp_format,
+            get_project_formatting,
+            save_project_formatting,
+            list_formatters,
+            list_style_options,
+            list_formattable_languages,
+            format_document,
+            detect_repo_formatters,
+            import_formatting_config,
+            export_formatting_config,
+            install_formatter,
+            uninstall_formatter,
+            update_formatter,
+            uninstall_manager_for_formatter,
+            update_manager_for_formatter,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

@@ -55,6 +55,7 @@ export type ShortcutId =
 	| "openTerminal"
 	| "openCommands"
 	| "openEnv"
+	| "openFormatting"
 	| "goHome"
 	| "reloadEditor"
 	| "reloadProject";

@@ -8,6 +8,62 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The formatting import preview shows the value each setting will be imported with, next to the option it maps to, so the file can be read before it is applied.",
+					"fr": "L'aperçu d'import de formatage affiche la valeur avec laquelle chaque réglage sera importé, à côté de l'option correspondante, pour lire le fichier avant de l'appliquer."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Format document works on every file, from the command palette, the status bar, the editor menu and the file tree. The command asked the language server for the document before doing anything, so a file no server had attached to could not be formatted at all - even by a formatter installed and ready to do it. The formatter now works from the open document, and the server is consulted only as the fallback it is.",
+					"fr": "Formater le document fonctionne sur tous les fichiers, depuis la palette de commandes, la barre d'état, le menu de l'éditeur et l'arborescence. La commande demandait le document au serveur de langage avant toute chose : un fichier auquel aucun serveur n'était attaché ne pouvait pas être formaté du tout, même par un formateur installé et prêt à le faire. Le formateur part désormais du document ouvert, et le serveur n'est consulté que comme le recours qu'il est."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Choosing Language server as the formatter of a language now takes effect. It was saved as \"no choice\", which both sides read as \"whatever the catalogue picks\", so the catalogue formatter kept running and the picker went back to showing its name. The language server is now a choice of its own, and picking it hands the document to the server instead of to a tool the project turned down.",
+					"fr": "Choisir Serveur de langage comme formateur d'un langage prend désormais effet. Ce choix était enregistré comme \"aucun choix\", que les deux côtés lisaient comme \"ce que le catalogue choisit\" : le formateur du catalogue continuait de tourner et le sélecteur revenait à son nom. Le serveur de langage est maintenant un choix à part entière, et le sélectionner confie le document au serveur plutôt qu'à un outil que le projet a écarté."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A formatter row updates itself once the install finishes: the binary path, the version and the Uninstall action appear immediately, instead of the Install button coming back until the app was reloaded.",
+					"fr": "La ligne d'un formateur se met à jour dès la fin de l'installation : le chemin du binaire, la version et l'action Désinstaller apparaissent immédiatement, au lieu de voir revenir le bouton Installer jusqu'au rechargement de l'application."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Formatting settings are kept. The view read the project's configuration once at mount, so opening it before the active project was resolved showed the catalogue defaults - and the first change written from that form replaced the project's whole configuration with them. The project is now followed rather than read once, and a save is merged onto what is on disk instead of onto the defaults.",
+					"fr": "Les réglages de formatage sont conservés. La vue lisait la configuration du projet une seule fois au montage : l'ouvrir avant que le projet actif soit résolu affichait les valeurs par défaut du catalogue, et la première modification faite depuis ce formulaire remplaçait toute la configuration du projet par celles-ci. Le projet est désormais suivi au lieu d'être lu une fois, et une sauvegarde est fusionnée sur ce qui est sur le disque plutôt que sur les valeurs par défaut."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Formatters and language servers installed by a version manager (nvm, fnm, asdf) or by pip are found again. Cairn now looks at the PATH the user's own login shell builds, plus every runtime directory those managers keep, so a tool that was installed no longer reads as missing - and an install that just succeeded no longer leaves the button saying Install.",
+					"fr": "Les formateurs et serveurs de langage installés par un gestionnaire de versions (nvm, fnm, asdf) ou par pip sont de nouveau trouvés. Cairn regarde désormais le PATH que construit le shell de connexion de l'utilisateur, ainsi que chaque dossier de runtime tenu par ces gestionnaires : un outil installé n'est plus vu comme absent, et une installation qui vient de réussir ne laisse plus le bouton sur Installer."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "An install that reports success but leaves the binary unreachable now says so, instead of leaving a row that looks unchanged.",
+					"fr": "Une installation qui s'annonce réussie mais laisse le binaire introuvable le dit désormais, au lieu de laisser une ligne qui semble inchangée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Format document honours the project's indentation when it falls back to the language server: the configured indent size and style are used rather than the ones guessed from the file. When no formatter and no language server can answer, the command says so instead of doing nothing silently.",
+					"fr": "Formater le document respecte l'indentation du projet lorsqu'il se rabat sur le serveur de langage : la taille et le style d'indentation configurés sont utilisés plutôt que ceux devinés depuis le fichier. Quand aucun formateur ni serveur de langage ne peut répondre, la commande le dit au lieu de ne rien faire en silence."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The completion menu scrolls with the mouse wheel: the whole list is rendered instead of a window of twelve entries around the selected one, and the wheel now moves the list rather than the document under it.",
@@ -159,6 +215,41 @@
 				"text": {
 					"en": "Servers that cannot answer `--version` - Pyright, and the JSON, CSS and HTML ones, which either refuse to start or crash when asked - reported an unknown update state. Their version is now read from the package they ship in, and the manager that owns a binary is found by following the link it is reached through, so a globally installed npm server is no longer attributed to whoever owns the directory it sits in.",
 					"fr": "Les serveurs incapables de répondre à `--version` - Pyright, et ceux de JSON, CSS et HTML, qui refusent de démarrer ou plantent quand on le leur demande - affichaient un état de mise à jour inconnu. Leur version est désormais lue dans le paquet qui les embarque, et le gestionnaire propriétaire d'un binaire est trouvé en suivant le lien par lequel on l'atteint : un serveur npm installé globalement n'est plus attribué au propriétaire du répertoire où il se trouve."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn formats your code natively, for every supported language: define one style - indentation, line width, quotes, semicolons, trailing commas - globally or per project, and Cairn drives the real formatter of each language (Prettier, Biome, rustfmt, gofmt, Ruff, Black, clang-format, PHP CS Fixer, ktlint, shfmt, Taplo) so the result matches what your repository produces.",
+					"fr": "Cairn formate votre code nativement, pour chaque langage supporté : définissez un style unique - indentation, largeur de ligne, guillemets, points-virgules, virgules finales - globalement ou par projet, et Cairn pilote le vrai formateur de chaque langage (Prettier, Biome, rustfmt, gofmt, Ruff, Black, clang-format, PHP CS Fixer, ktlint, shfmt, Taplo) pour que le résultat corresponde à ce que produit votre dépôt."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Formatting tool in the Tools panel holds the code style of the open project: a common style shared by every language, and per-language overrides on top. Each language row carries the formatter that runs it, a switch to leave that language alone, and a one-click install when its binary is missing.",
+					"fr": "Un outil Formatage dans le panneau Outils porte le style de code du projet ouvert : un style commun partagé par tous les langages, et des surcharges par langage par-dessus. Chaque ligne de langage porte le formateur qui l'applique, un interrupteur pour laisser ce langage tranquille, et une installation en un clic quand son binaire manque."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Import the formatting configuration a project already uses - .prettierrc, .editorconfig, biome.json, rustfmt.toml, pyproject.toml, .clang-format - and export yours, either as Cairn's own .cairnformat or as the native file of a tool so your editor and your CI agree. An import always reports what it mapped, what it understood without an equivalent, and what it did not recognize, before anything is applied.",
+					"fr": "Importez la configuration de formatage qu'un projet utilise déjà - .prettierrc, .editorconfig, biome.json, rustfmt.toml, pyproject.toml, .clang-format - et exportez la vôtre, sous forme du .cairnformat de Cairn ou du fichier natif d'un outil pour que votre éditeur et votre CI soient d'accord. Un import indique toujours ce qu'il a repris, ce qu'il a compris sans équivalent et ce qu'il n'a pas reconnu, avant que quoi que ce soit ne soit appliqué."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Formatters install from the Formatting page, the same way language servers do, with the manager that fits your machine. A formatter that ships with its toolchain (rustfmt, gofmt) points at the toolchain instead, and one your project already carries in its own dependencies is used as is rather than installed a second time globally.",
+					"fr": "Les formateurs s'installent depuis la page Formatage, comme les serveurs de langage, avec le gestionnaire adapté à votre machine. Un formateur fourni avec sa toolchain (rustfmt, gofmt) renvoie vers celle-ci, et celui que votre projet embarque déjà dans ses dépendances est utilisé tel quel plutôt que réinstallé globalement."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Formatting a document (and format on save, when you turn it on) now goes through your configured formatter first, and falls back to the language server only when no binary can be reached.",
+					"fr": "Le formatage d'un document (et le formatage à l'enregistrement, si vous l'activez) passe désormais d'abord par votre formateur configuré, et ne retombe sur le serveur de langage que si aucun binaire n'est accessible."
 				}
 			}
 		]

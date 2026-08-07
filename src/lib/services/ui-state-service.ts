@@ -6,6 +6,7 @@ export interface ProjectUiState {
 	terminalActive: boolean;
 	commandsActive: boolean;
 	envActive: boolean;
+	formattingActive: boolean;
 	gitChangesSearch: string;
 	gitLogSearch: string;
 	gitStagedSearch: string;

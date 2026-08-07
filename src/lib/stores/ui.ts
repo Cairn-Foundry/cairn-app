@@ -6,16 +6,20 @@ export const activeScreen = writable<"home" | "workspace">("home");
 export const terminalActive = writable(false);
 export const commandsActive = writable(false);
 export const envActive = writable(false);
+export const formattingActive = writable(false);
 
 /**
  * Tools take over the main area, so exactly one of them can be open at a time.
  * Always go through here rather than setting the flags by hand: two flags left
  * on at once stack two views on top of each other.
  */
-export function showTool(tool: "terminal" | "commands" | "env" | null): void {
+export function showTool(
+	tool: "terminal" | "commands" | "env" | "formatting" | null,
+): void {
 	terminalActive.set(tool === "terminal");
 	commandsActive.set(tool === "commands");
 	envActive.set(tool === "env");
+	formattingActive.set(tool === "formatting");
 }
 /**
  * The References panel sits beside the file tree rather than over the editor,

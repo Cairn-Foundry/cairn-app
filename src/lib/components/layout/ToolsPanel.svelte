@@ -11,6 +11,7 @@
     { id: 'terminal', icon: 'terminal', name: 'tools.terminalName', description: 'tools.terminalDescription' },
     { id: 'commands', icon: 'command', name: 'tools.commandsName', description: 'tools.commandsDescription' },
     { id: 'env', icon: 'key', name: 'tools.envName', description: 'tools.envDescription' },
+    { id: 'formatting', icon: 'format', name: 'tools.formattingName', description: 'tools.formattingDescription' },
   ] as const;
 </script>
 

@@ -16,6 +16,9 @@ import { get } from 'svelte/store';
     lspDefinition, lspDidChange, lspDidClose, lspDidOpen, lspDidSave,
     lspFormat, lspImplementation, lspReferences, lspRename,
   } from '$lib/services/lsp-service';
+  import { formatDocument, type StyleSet } from '$lib/services/formatting-service';
+  import { LSP_FORMATTER_ID } from '$lib/utils/formatting/resolve';
+  import { formatOnSave } from '$lib/stores/formatting';
   import InstallProgress from '$lib/components/InstallProgress.svelte';
   import { cancelLanguageServerCommand, installLanguageServer, COMMAND_CANCELLED } from '$lib/services/lsp-service';
   import {
@@ -23,7 +26,7 @@ import { get } from 'svelte/store';
     lspDiagnostics, refreshLanguageServers, setServerEnabled, shouldSuggestFor,
     dismissServerSuggestion,
   } from '$lib/stores/language-server';
-  import { languageIdForPath, serverForPath } from '$lib/utils/languages/servers';
+  import { languageIdForPath } from '$lib/utils/languages/servers';
   import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
   import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
@@ -448,13 +451,24 @@ import { get } from 'svelte/store';
     const wasConflicted = gitStatusMap[tab.path] === 'conflicted';
     const hadMarkers = hasConflictMarkers(tab.content);
     try {
-      const writeContent = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
+      // Formatting happens before the write, so what lands on disk and what the
+      // editor shows are the same text. A formatter that fails leaves the
+      // document alone: a save must never be lost to a broken config.
+      // Split view: only the focused pane is formatted, because that is the one
+      // `runFormatDocument` acts on. Formatting the other pane's document here
+      // would apply one pane's text to the other.
+      if (i === focusedPane && $formatOnSave($activeProjectId ?? null)) {
+        await runFormatDocument(true).catch(() => {});
+        await tick();
+      }
+      const current = pane.tabs[pane.activeTabIdx] ?? tab;
+      const writeContent = denormalizeLineEndings(current.pending, current.lineEndings ?? 'LF');
       await writeFile(absolutePathOf(tab.path, worktreePath), writeContent);
-      pane.tabs[pane.activeTabIdx].content = tab.pending;
+      pane.tabs[pane.activeTabIdx].content = current.pending;
       panes = panes;
-      notifyLspSaved(tab.path, tab.pending);
+      notifyLspSaved(tab.path, current.pending);
       if (wasDeleted) await loadTree(worktreePath);
-      if (wasConflicted && hadMarkers && !hasConflictMarkers(tab.pending)) {
+      if (wasConflicted && hadMarkers && !hasConflictMarkers(current.pending)) {
         await stageGitFile(tab.path).catch(() => {});
       }
       const updatedStatus = await gitStatus(worktreePath).catch(() => null);
@@ -829,22 +843,73 @@ import { get } from 'svelte/store';
 
   let formattingPanes = [false, false];
 
-  async function runFormatDocument() {
-    const target = focusedDoc();
-    if (!target) return;
-    const tab = target.pane.tabs[target.pane.activeTabIdx];
+  /**
+   * The project's own formatter first, so the result matches what the repository
+   * produces; the language server only when no binary could be reached. A
+   * formatter that errors is reported rather than silently falling through -
+   * a broken config the user can see is worth more than a silent no-op.
+   */
+  async function runFormatDocument(quiet = false) {
+    // The open document is what is formatted, not the language server's view of
+    // it. Asking `focusedDoc()` first made the whole command depend on a server
+    // having attached, so a file no server claims could not be formatted at all
+    // - even by a formatter installed and ready to do it.
+    const pane = panes[focusedPane];
+    const tab = pane?.tabs[pane.activeTabIdx];
     if (!tab) return;
+    const doc = lspDocs[focusedPane];
     const i = focusedPane;
-    const style = detectIndentStyle(tab.pending);
     formattingPanes[i] = true;
     formattingPanes = formattingPanes;
     try {
-      const edits = await lspFormat(
-        target.doc,
-        style === 'spaces' ? detectSpaceSize(tab.pending) : 2,
-        style !== 'tabs',
-      ).catch(() => null);
-      if (edits && edits.length > 0) target.pane.editorRef?.applyTextEdits(edits);
+      let configured: StyleSet | null = null;
+      if (worktreePath) {
+        try {
+          const outcome = await formatDocument({
+            projectId: $activeProjectId ?? null,
+            worktree: worktreePath,
+            path: `${worktreePath}/${tab.path}`,
+            content: tab.pending,
+          });
+          if (outcome.formatterId && outcome.formatterId !== LSP_FORMATTER_ID) {
+            if (outcome.changed) pane.editorRef?.applyFormattedText(outcome.text);
+            return;
+          }
+          configured = outcome.style;
+        } catch (e) {
+          error = String(e);
+          return;
+        }
+      }
+
+      // No binary could be reached. The language server is asked next, and it is
+      // held to the project's own indentation rather than to whatever the file
+      // happens to use - a document formatted against the wrong setting is what
+      // reads as "the setting does nothing".
+      const detected = detectIndentStyle(tab.pending);
+      const size = Number(configured?.indentSize);
+      const edits = doc
+        ? await lspFormat(
+            doc,
+            Number.isFinite(size) && size > 0
+              ? size
+              : detected === 'spaces'
+                ? detectSpaceSize(tab.pending)
+                : 2,
+            configured
+              ? configured.indentStyle !== 'tab'
+              : detected !== 'tabs',
+          ).catch(() => null)
+        : null;
+      if (edits && edits.length > 0) {
+        pane.editorRef?.applyTextEdits(edits);
+      } else if (edits === null && worktreePath && !quiet) {
+        // No formatter binary and no language server: nothing formatted this
+        // document. Silence here reads as "the command is broken", so the
+        // reason is named instead - but only when the user asked for it, never
+        // on every save of a file nothing can format.
+        error = t('files.noFormatter') as string;
+      }
     } finally {
       formattingPanes[i] = false;
       formattingPanes = formattingPanes;
@@ -2316,7 +2381,7 @@ import { get } from 'svelte/store';
       <button type="button" class="ctx-item" on:click={() => handleContextAction('copy-rel-path')}>
         <Icon name="copy" size={13}/> {t('files.contextMenu.copyRelativePath')}
       </button>
-      {#if !contextMenu.node.isDir && serverForPath(contextMenu.node.path)}
+      {#if !contextMenu.node.isDir}
         <div class="ctx-sep"></div>
         <button type="button" class="ctx-item" on:click={() => handleContextAction('format')}>
           <Icon name="edit" size={13}/> {t('files.contextMenu.formatDocument')}

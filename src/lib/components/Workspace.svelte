@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, showTool } from '$lib/stores/ui.js';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -13,6 +13,7 @@
   import TerminalView from '$lib/components/terminal/TerminalView.svelte';
   import CommandsView from '$lib/components/commands/CommandsView.svelte';
   import EnvView from '$lib/components/env/EnvView.svelte';
+  import FormattingView from '$lib/components/formatting/FormattingView.svelte';
   import PinnedCommandsPanel from '$lib/components/commands/PinnedCommandsPanel.svelte';
   import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
@@ -90,7 +91,7 @@
   }
 
   function selectTool(id: string) {
-    showTool(id as 'terminal' | 'commands' | 'env');
+    showTool(id as 'terminal' | 'commands' | 'env' | 'formatting');
     showTools = false;
     showPinned = false;
   }
@@ -130,7 +131,7 @@
    */
   const APP_ACTIONS: ShortcutId[] = [
     'toggleFullscreen', 'toggleTools', 'openTerminal', 'openCommands',
-    'openEnv', 'goHome', 'reloadEditor', 'reloadProject',
+    'openEnv', 'openFormatting', 'goHome', 'reloadEditor', 'reloadProject',
   ];
 
   async function runAction(id: string) {
@@ -140,6 +141,7 @@
       case 'openTerminal':     if (activeInstance) selectTool('terminal'); break;
       case 'openCommands':     if (activeInstance) selectTool('commands'); break;
       case 'openEnv':          if (activeInstance) selectTool('env'); break;
+      case 'openFormatting':   if (activeInstance) selectTool('formatting'); break;
       case 'goHome':           dispatch('goHome'); break;
       default:                 await filesView?.executeAction(id); break;
     }
@@ -155,7 +157,7 @@
     }
   }
 
-  $: toolActive = $terminalActive || $commandsActive || $envActive;
+  $: toolActive = $terminalActive || $commandsActive || $envActive || $formattingActive;
 
   $: if (activeProjectId) void loadCommands(activeProjectId);
 
@@ -551,7 +553,7 @@
 
     {#if showTools && activeInstance}
       <ToolsPanel
-        activeTool={$terminalActive ? 'terminal' : $commandsActive ? 'commands' : $envActive ? 'env' : null}
+        activeTool={$terminalActive ? 'terminal' : $commandsActive ? 'commands' : $envActive ? 'env' : $formattingActive ? 'formatting' : null}
         on:close={() => showTools = false}
         on:select={(e) => selectTool(e.detail)}
       />
@@ -577,6 +579,7 @@
       <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
       <div class="step-view" class:step-hidden={!$commandsActive}><CommandsView/></div>
       <div class="step-view" class:step-hidden={!$envActive}><EnvView/></div>
+      <div class="step-view" class:step-hidden={!$formattingActive}><FormattingView/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">

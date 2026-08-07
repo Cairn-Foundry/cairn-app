@@ -51,6 +51,10 @@ pub fn instance_conversations_dir(project_id: &str, instance_id: &str) -> Result
         .join("conversations"))
 }
 
+pub fn project_formatting_file(project_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join(project_id).join("formatting.json"))
+}
+
 pub fn global_commands_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("commands.json"))
 }
