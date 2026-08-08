@@ -142,7 +142,7 @@
 
   async function removeKey() {
     await deleteProviderApiKey(selectedId);
-    apiKeyStatus.update((m) => ({ ...m, [selectedId]: { set: false, fallback: false } }));
+    apiKeyStatus.update((m) => ({ ...m, [selectedId]: { set: false } }));
     void runProbe(selectedId);
   }
 
@@ -311,8 +311,6 @@
                       </button>
                     {/if}
                   </div>
-                {:else if keyState.fallback}
-                  <span class="ag-hint warn">{t('home.agents.probe.keyFallbackWarning')}</span>
                 {/if}
               </div>
             </div>

@@ -193,7 +193,7 @@ fn default_true() -> bool { true }
 
 // Keep in sync with RESPONSE_STAT_FIELDS in src/lib/utils/agent/response-stats.ts.
 fn default_response_stats() -> Vec<String> {
-    ["model", "duration", "tokens", "cost", "turns"].iter().map(|s| s.to_string()).collect()
+    ["duration", "tokens", "cost", "turns"].iter().map(|s| s.to_string()).collect()
 }
 fn default_agent_activity_width() -> u32 { 300 }
 fn default_suggest_language_servers() -> bool { true }

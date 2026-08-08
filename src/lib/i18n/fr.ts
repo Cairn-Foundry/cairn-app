@@ -453,6 +453,7 @@ export const fr = {
 		thinking: "Réflexion",
 		contextWindow: "Fenêtre de contexte",
 		composer: {
+			clearAgent: "Ne plus utiliser cet agent",
 			provider: "Provider",
 			model: "Modèle",
 			modelDefault: "modèle",
@@ -492,6 +493,7 @@ export const fr = {
 		liveActivity: "Activité en direct",
 		liveActivitySub: "- ce que fait l'agent, en ce moment",
 		instanceStarted: "Instance démarrée",
+		providerSwitched: (provider: string) => `Passage à ${provider}`,
 		noActiveInstance: "Aucune instance active",
 		waitingResponse: "En attente de réponse...",
 		waitingAgent: "En attente de l'agent...",
@@ -1447,8 +1449,6 @@ export const fr = {
 				replaceKey: "Remplacer",
 				removeKey: "Supprimer",
 				saveKey: "Enregistrer la clé",
-				keyFallbackWarning:
-					"Aucun trousseau système disponible - la clé est stockée dans un fichier restreint dans ~/.cairn.",
 				makeDefault: "Définir par défaut",
 				defaultProvider: "Provider par défaut",
 			},
@@ -1528,6 +1528,15 @@ export const fr = {
 				sections: {
 					appearance: "Apparence",
 					tools: "Outils",
+				},
+				rows: {
+					title: "Fournisseurs",
+					add: "Ajouter un fournisseur",
+					remove: "Retirer ce fournisseur",
+					inherit: "Hériter",
+					anyProvider: "N'importe quel fournisseur",
+					anyProviderHint:
+						"Cet agent s'exécute sur le fournisseur utilisé par la conversation, avec son modèle et ses réglages. Ajoutez un fournisseur pour lui donner un modèle qui lui est propre.",
 				},
 				tools: {
 					allowed: "Outils autorisés",
@@ -1744,7 +1753,6 @@ export const fr = {
 			showMessageCopy: "Bouton de copie",
 			showMessageCopyDesc: "Afficher le bouton de copie sur chaque message",
 			stat: {
-				model: "Modèle",
 				duration: "Durée",
 				tokens: "Tokens",
 				cost: "Coût",

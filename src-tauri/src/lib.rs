@@ -139,7 +139,7 @@ pub fn run() {
             get_ai_providers_config,
             save_ai_providers_config,
             set_provider_api_key,
-            has_provider_api_key,
+            get_api_key_statuses,
             delete_provider_api_key,
             get_custom_agents,
             save_custom_agents,

@@ -144,6 +144,9 @@ All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/stora
 ~/.cairn/
   settings.json                           # global app settings (CairnSettings)
   ui-state.json                           # navigation state (screen, active project, tabs, home section...)
+  ai-providers.json                       # provider configuration (no secrets)
+  ai-keys.enc                             # provider API keys, encrypted (0600)
+  ai-keys.secret                          # the key ai-keys.enc is encrypted with (0600)
   projects/
     projects.json                         # all registered projects
     listing.json                          # project order + folder groupings
@@ -160,7 +163,16 @@ All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/stora
           terminal-state.json             # terminals of this instance (order + active one)
 ```
 
-Path helpers for every location are centralized in `storage.rs`. Always add new paths there, never inline. The only remaining `localStorage` use is in `src/lib/i18n/index.ts` for the locale preference (`cairn:locale`).
+Path helpers for every location are centralized in `storage.rs`. Always add new paths there, never inline.
+
+**API keys never go through the OS keychain.** A keychain read prompts for authorisation on every
+launch of an unsigned or rebuilt binary, once per stored item, which turned opening the Providers
+screen into a wall of dialogs. Keys live in `ai-keys.enc`, encrypted with ChaCha20-Poly1305 using
+the secret in `ai-keys.secret`; both files are `0600`. The secret sits next to the ciphertext, so
+this protects against a key leaking through a backup, a synced folder or a stray `grep` - not
+against someone who already reads the home directory. Nothing stored locally could. The frontend
+only ever learns whether a key exists (`get_api_key_statuses`, one call for every provider), never
+the key itself. The only remaining `localStorage` use is in `src/lib/i18n/index.ts` for the locale preference (`cairn:locale`).
 
 ### Adding a new persisted field
 

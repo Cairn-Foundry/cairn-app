@@ -15,10 +15,9 @@
     customAgents, effortsOf, loadAiProviders, modelsOf, permissionModesOf,
     providerCapabilities, refreshProviderModels, setCustomAgents, type CustomAgent,
   } from '$lib/stores/ai-providers';
-  import type { DiscoveredAgent } from '$lib/services/ai-provider-service';
+  import type { AgentProviderRow, DiscoveredAgent } from '$lib/services/ai-provider-service';
 
   const SELECTABLE_PROVIDERS = PROVIDERS.filter((p) => p.status !== 'coming-soon');
-  const PROVIDER_OPTIONS = SELECTABLE_PROVIDERS.map((p) => ({ value: p.id, label: p.name }));
   const CLAUDE_CLI_ID = 'claude-code-cli';
 
   function makeId(): string {
@@ -32,17 +31,18 @@
       description: '',
       color: ACCENT_PRESETS[0].color,
       icon: '',
-      providerId: SELECTABLE_PROVIDERS[0]?.id ?? '',
-      model: '',
       systemPrompt: '',
-      effort: '',
-      permissionMode: '',
+      rows: [],
       allowedTools: [],
       disallowedTools: [],
       overrideParams: false,
       temperature: 1.0,
       maxTokens: 8192,
     };
+  }
+
+  function newRow(providerId: string): AgentProviderRow {
+    return { providerId, model: '', effort: '', permissionMode: '' };
   }
 
   let agents: CustomAgent[] = [];
@@ -70,37 +70,52 @@
   $: visibleAgents = query
     ? agents.filter((a) =>
         a.id === selectedAgentId
-        || `${a.name} ${a.description} ${providerLabel(a.providerId)} ${a.model}`
-          .toLowerCase()
-          .includes(query))
+        || `${a.name} ${a.description} ${providerSummary(a)}`.toLowerCase().includes(query))
     : agents;
 
   $: selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? null;
-  $: selectedProviderDef = selectedAgent
-    ? SELECTABLE_PROVIDERS.find((p) => p.id === selectedAgent!.providerId)
-    : null;
-  $: modelSelectOptions = selectedProviderDef
-    ? modelsOf(selectedProviderDef.id, $providerCapabilities).map((m) => ({ value: m.id, label: m.label }))
-    : [];
   $: colorIsPreset = selectedAgent ? ACCENT_PRESETS.some((p) => p.color === selectedAgent!.color) : true;
 
-  $: effortOptions = selectedAgent && selectedProviderDef?.supportsEffort
-    ? [
-        { value: '', label: t('home.agents.fields.modelDefault') as string },
-        ...effortsOf(selectedAgent.providerId, $providerCapabilities, selectedAgent.effort)
-          .map((level) => ({ value: level, label: effortLabel(level) })),
-      ]
-    : [];
-  $: permissionOptions = selectedAgent && selectedProviderDef?.supportsPermissionMode
-    ? [
-        { value: '', label: t('home.agents.fields.modelDefault') as string },
-        ...permissionModesOf(selectedAgent.providerId, $providerCapabilities, selectedAgent.permissionMode)
-          .map((mode) => ({ value: mode, label: permissionModeLabel(mode) })),
-      ]
+  /** A provider already given a row is not offered a second time. */
+  $: unusedProviders = selectedAgent
+    ? SELECTABLE_PROVIDERS.filter((p) => !selectedAgent!.rows.some((r) => r.providerId === p.id))
     : [];
 
-  /** Tools are passed as CLI flags, so they mean nothing to a plain chat API. */
-  $: supportsTools = selectedProviderDef?.kind === 'cli';
+  /**
+   * Tools are passed as CLI flags, so they only bite when the agent is tuned
+   * for at least one agentic CLI - or for no provider at all, in which case it
+   * may end up running on one.
+   */
+  $: supportsTools = selectedAgent !== null
+    && (selectedAgent.rows.length === 0
+      || selectedAgent.rows.some((r) =>
+        SELECTABLE_PROVIDERS.find((p) => p.id === r.providerId)?.kind === 'cli'));
+
+  function defOf(providerId: string) {
+    return SELECTABLE_PROVIDERS.find((p) => p.id === providerId);
+  }
+
+  function modelOptionsFor(providerId: string) {
+    return modelsOf(providerId, $providerCapabilities).map((m) => ({ value: m.id, label: m.label }));
+  }
+
+  function effortOptionsFor(row: AgentProviderRow) {
+    if (!defOf(row.providerId)?.supportsEffort) return [];
+    return [
+      { value: '', label: t('home.agents.customAgents.rows.inherit') as string },
+      ...effortsOf(row.providerId, $providerCapabilities, row.effort)
+        .map((level) => ({ value: level, label: effortLabel(level) })),
+    ];
+  }
+
+  function permissionOptionsFor(row: AgentProviderRow) {
+    if (!defOf(row.providerId)?.supportsPermissionMode) return [];
+    return [
+      { value: '', label: t('home.agents.customAgents.rows.inherit') as string },
+      ...permissionModesOf(row.providerId, $providerCapabilities, row.permissionMode)
+        .map((mode) => ({ value: mode, label: permissionModeLabel(mode) })),
+    ];
+  }
 
   /**
    * Two agents whose names collapse to the same `@token` are indistinguishable
@@ -152,14 +167,31 @@
     confirmDeleteId = null;
   }
 
-  function onProviderChange(agent: CustomAgent, providerId: string) {
-    const def = SELECTABLE_PROVIDERS.find((p) => p.id === providerId);
-    agent.providerId = providerId;
-    agent.model = '';
-    if (!def?.supportsEffort) agent.effort = '';
-    if (!def?.supportsPermissionMode) agent.permissionMode = '';
+  function addRow(agent: CustomAgent) {
+    const next = unusedProviders[0];
+    if (!next) return;
+    agent.rows = [...agent.rows, newRow(next.id)];
+    touch();
+    void refreshProviderModels(next.id);
+  }
+
+  function removeRow(agent: CustomAgent, index: number) {
+    agent.rows = agent.rows.filter((_, i) => i !== index);
+    touch();
+  }
+
+  /** Model, effort and permission belong to a provider; none survives a swap. */
+  function changeRowProvider(agent: CustomAgent, index: number, providerId: string) {
+    agent.rows[index] = newRow(providerId);
     touch();
     void refreshProviderModels(providerId);
+  }
+
+  function providerOptionsFor(agent: CustomAgent, index: number) {
+    const own = agent.rows[index].providerId;
+    return SELECTABLE_PROVIDERS
+      .filter((p) => p.id === own || !agent.rows.some((r) => r.providerId === p.id))
+      .map((p) => ({ value: p.id, label: p.name }));
   }
 
   function addTool(agent: CustomAgent, list: 'allowedTools' | 'disallowedTools', raw: string) {
@@ -185,10 +217,12 @@
       id: makeId(),
       name: a.name,
       description: a.description,
-      providerId: CLAUDE_CLI_ID,
-      model: a.model,
-      effort: a.effort,
-      permissionMode: a.permissionMode,
+      rows: [{
+        providerId: CLAUDE_CLI_ID,
+        model: a.model,
+        effort: a.effort,
+        permissionMode: a.permissionMode,
+      }],
       systemPrompt: a.systemPrompt,
       allowedTools: normalizeToolList(a.tools),
       color: a.color
@@ -216,6 +250,17 @@
       modelsOf(providerId, $providerCapabilities).find((m) => m.id === modelId)?.label
       ?? prettyModelName(modelId)
     );
+  }
+
+  /** What the list row says under the name: where this agent is tuned to run. */
+  function providerSummary(agent: CustomAgent): string {
+    if (agent.rows.length === 0) return t('home.agents.customAgents.rows.anyProvider') as string;
+    if (agent.rows.length === 1) {
+      const row = agent.rows[0];
+      return providerLabel(row.providerId)
+        + (row.model ? ` - ${modelLabel(row.providerId, row.model)}` : '');
+    }
+    return agent.rows.map((r) => providerLabel(r.providerId)).join(', ');
   }
 </script>
 
@@ -282,9 +327,7 @@
               <span class="ag-item-name">
                 {agent.name || t('home.agents.customAgents.untitled')}
               </span>
-              <span class="ag-item-sub">
-                {providerLabel(agent.providerId)}{agent.model ? ` - ${modelLabel(agent.providerId, agent.model)}` : ''}
-              </span>
+              <span class="ag-item-sub">{providerSummary(agent)}</span>
             </span>
           </button>
 
@@ -384,79 +427,99 @@
       </div>
 
       <div class="ag-group">
-        <div class="ag-group-title">{t('home.agents.sections.model')}</div>
+        <div class="ag-group-title">{t('home.agents.customAgents.rows.title')}</div>
 
-        <div class="ag-cols">
+        {#if selectedAgent.rows.length === 0}
           <div class="ag-card">
-            <div class="ag-field">
-              <span class="ag-label">{t('home.agents.customAgents.fields.provider')}</span>
-              <Select
-                value={selectedAgent.providerId}
-                options={PROVIDER_OPTIONS}
-                ariaLabel={t('home.agents.customAgents.fields.provider') as string}
-                on:change={(e) => onProviderChange(selectedAgent, e.detail)}
-              />
+            <div class="ag-card-head">
+              <div class="ag-card-info">
+                <span class="ag-label">{t('home.agents.customAgents.rows.anyProvider')}</span>
+                <span class="ag-hint">{t('home.agents.customAgents.rows.anyProviderHint')}</span>
+              </div>
             </div>
           </div>
-          <div class="ag-card">
-            <div class="ag-field">
-              <span class="ag-label">{t('home.agents.customAgents.fields.model')}</span>
-              {#if modelSelectOptions.length > 0}
+        {/if}
+
+        {#each selectedAgent.rows as row, i (i)}
+          {@const modelOptions = modelOptionsFor(row.providerId)}
+          {@const efforts = effortOptionsFor(row)}
+          {@const permissions = permissionOptionsFor(row)}
+          <div class="ag-card row-card">
+            <div class="row-head">
+              <span class="row-provider">
                 <Select
-                  value={selectedAgent.model}
-                  options={modelSelectOptions}
-                  ariaLabel={t('home.agents.customAgents.fields.model') as string}
-                  on:change={(e) => { selectedAgent.model = e.detail; touch(); }}
+                  value={row.providerId}
+                  options={providerOptionsFor(selectedAgent, i)}
+                  ariaLabel={t('home.agents.customAgents.fields.provider') as string}
+                  on:change={(e) => changeRowProvider(selectedAgent, i, e.detail)}
                 />
-              {:else}
-                <input
-                  class="ag-input"
-                  type="text"
-                  aria-label={t('home.agents.customAgents.fields.model') as string}
-                  placeholder="model-name"
-                  bind:value={selectedAgent.model}
-                  on:input={touch}
-                />
+              </span>
+              <button
+                class="icon-btn delete"
+                on:click={() => removeRow(selectedAgent, i)}
+                title={t('home.agents.customAgents.rows.remove') as string}
+              >
+                <Icon name="trash" size={12}/>
+              </button>
+            </div>
+
+            <div class="row-fields">
+              <div class="ag-field">
+                <span class="ag-hint">{t('home.agents.customAgents.fields.model')}</span>
+                {#if modelOptions.length > 0}
+                  <Select
+                    value={row.model}
+                    options={[{ value: '', label: t('home.agents.customAgents.rows.inherit') as string }, ...modelOptions]}
+                    ariaLabel={t('home.agents.customAgents.fields.model') as string}
+                    on:change={(e) => { row.model = e.detail; touch(); }}
+                  />
+                {:else}
+                  <input
+                    class="ag-input"
+                    type="text"
+                    aria-label={t('home.agents.customAgents.fields.model') as string}
+                    placeholder="model-name"
+                    bind:value={row.model}
+                    on:input={touch}
+                  />
+                {/if}
+              </div>
+
+              {#if efforts.length > 0}
+                <div class="ag-field">
+                  <span class="ag-hint">{t('home.agents.fields.effort')}</span>
+                  <Select
+                    value={row.effort}
+                    options={efforts}
+                    ariaLabel={t('home.agents.fields.effort') as string}
+                    on:change={(e) => { row.effort = e.detail; touch(); }}
+                  />
+                </div>
+              {/if}
+
+              {#if permissions.length > 0}
+                <div class="ag-field">
+                  <span class="ag-hint">{t('home.agents.fields.permissionMode')}</span>
+                  <Select
+                    value={row.permissionMode}
+                    options={permissions}
+                    ariaLabel={t('home.agents.fields.permissionMode') as string}
+                    on:change={(e) => { row.permissionMode = e.detail; touch(); }}
+                  />
+                </div>
               {/if}
             </div>
-          </div>
-        </div>
 
-        {#if effortOptions.length > 0 || permissionOptions.length > 0}
-          <div class="ag-cols">
-            {#if effortOptions.length > 0}
-              <div class="ag-card">
-                <div class="ag-field">
-                  <span class="ag-label">{t('home.agents.fields.effort')}</span>
-                  <Select
-                    value={selectedAgent.effort}
-                    options={effortOptions}
-                    ariaLabel={t('home.agents.fields.effort') as string}
-                    on:change={(e) => { selectedAgent.effort = e.detail; touch(); }}
-                  />
-                  <span class="ag-hint">{t('home.agents.customAgents.fields.effortHint')}</span>
-                </div>
-              </div>
-            {/if}
-            {#if permissionOptions.length > 0}
-              <div class="ag-card">
-                <div class="ag-field">
-                  <span class="ag-label">{t('home.agents.fields.permissionMode')}</span>
-                  <Select
-                    value={selectedAgent.permissionMode}
-                    options={permissionOptions}
-                    ariaLabel={t('home.agents.fields.permissionMode') as string}
-                    on:change={(e) => { selectedAgent.permissionMode = e.detail; touch(); }}
-                  />
-                  {#if selectedAgent.permissionMode === 'bypassPermissions'}
-                    <span class="ag-hint warn">{t('home.agents.fields.bypassWarning')}</span>
-                  {:else}
-                    <span class="ag-hint">{t('home.agents.customAgents.fields.permissionModeHint')}</span>
-                  {/if}
-                </div>
-              </div>
+            {#if row.permissionMode === 'bypassPermissions'}
+              <span class="ag-hint warn">{t('home.agents.fields.bypassWarning')}</span>
             {/if}
           </div>
+        {/each}
+
+        {#if unusedProviders.length > 0}
+          <button class="btn add-row" on:click={() => addRow(selectedAgent)}>
+            <Icon name="plus" size={12}/> {t('home.agents.customAgents.rows.add')}
+          </button>
         {/if}
       </div>
 
@@ -765,6 +828,24 @@
   .master-actions .icon-btn { opacity: 1; }
 
   .empty-actions { display: flex; align-items: center; gap: 8px; }
+
+  .row-card { display: flex; flex-direction: column; gap: 10px; }
+
+  .row-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .row-provider { flex: 1; min-width: 0; }
+  .row-head .icon-btn { opacity: 1; }
+
+  .row-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .add-row { align-self: flex-start; margin-top: 2px; }
 
   .name-input {
     font-size: 14px;

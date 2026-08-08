@@ -43,15 +43,8 @@ toml = "0.8"
 base64 = "0.22"
 which = "7"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-keyring = { version = "3", features = ["apple-native"] }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-keyring = { version = "3", features = ["windows-native"] }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3", features = ["sync-secret-service"] }
+chacha20poly1305 = "0.10"
+getrandom = "0.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

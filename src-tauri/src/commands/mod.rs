@@ -22,7 +22,7 @@ pub mod ui_state;
 pub use agent::{AgentState, send_message, stop_agent, respond_permission};
 pub use agent::config::{
     get_ai_providers_config, save_ai_providers_config,
-    set_provider_api_key, has_provider_api_key, delete_provider_api_key,
+    set_provider_api_key, get_api_key_statuses, delete_provider_api_key,
     get_custom_agents, save_custom_agents,
     probe_provider, list_agent_commands, list_claude_agents, discover_provider,
 };

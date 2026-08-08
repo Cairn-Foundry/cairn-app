@@ -39,7 +39,18 @@ export interface ConversationMeta {
 	providerId: string;
 	pinned: boolean;
 	archived: boolean;
-	sessionId: string | null;
+	/**
+	 * One session per provider: a session id only means something to the
+	 * provider that minted it, and a conversation may talk to several.
+	 */
+	sessions: Record<string, string>;
+	/**
+	 * The provider that answered last here. A chat API never mints a session, so
+	 * `sessions` alone cannot tell whether a provider has already spoken.
+	 */
+	lastProviderId: string;
+	/** The agent answering here, until it is cleared or replaced. One at a time. */
+	agentId: string;
 	messageCount: number;
 	preview: string;
 	modelId?: string | null;

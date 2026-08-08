@@ -5,35 +5,30 @@ import {
 } from "$lib/components/home/agents/providers-data";
 import { responseStats } from "./response-stats";
 
-const identity = (id: string) => id;
-
 describe("responseStats", () => {
 	it("keeps only the fields the user enabled, in catalogue order", () => {
-		const stats = responseStats(
-			{ model: "opus", durationMs: 2400, costUsd: 0.5 },
-			["cost", "model"],
-			identity,
-		);
-		expect(stats.map((s) => s.id)).toEqual(["model", "cost"]);
+		const stats = responseStats({ durationMs: 2400, costUsd: 0.5 }, [
+			"cost",
+			"duration",
+		]);
+		expect(stats.map((s) => s.id)).toEqual(["duration", "cost"]);
 	});
 
 	it("drops what the provider did not report", () => {
-		const stats = responseStats({ model: "opus" }, ["model", "cost"], identity);
-		expect(stats.map((s) => s.id)).toEqual(["model"]);
+		const stats = responseStats({ durationMs: 2400 }, ["duration", "cost"]);
+		expect(stats.map((s) => s.id)).toEqual(["duration"]);
 	});
 
 	it("sums input and cache-read tokens", () => {
 		const [tokens] = responseStats(
 			{ inputTokens: 100, cacheReadTokens: 50, outputTokens: 20 },
 			["tokens"],
-			identity,
 		);
 		expect(tokens.value).toBe("150 in / 20 out");
 	});
 
-	it("names the model through the resolver", () => {
-		const [model] = responseStats({ model: "opus" }, ["model"], () => "Opus");
-		expect(model.value).toBe("Opus");
+	it("never offers the model, which the answer already names", () => {
+		expect(responseStats({ model: "opus" }, ["model"])).toEqual([]);
 	});
 });
 

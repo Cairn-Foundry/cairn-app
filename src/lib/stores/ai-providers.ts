@@ -13,8 +13,8 @@ import {
 	type DiscoveredModel,
 	discoverProvider,
 	getAiProvidersConfig,
+	getApiKeyStatuses,
 	getCustomAgents,
-	hasProviderApiKey,
 	type ProbeResult,
 	type ProviderCapabilities,
 	type ProviderSettings,
@@ -165,14 +165,20 @@ export async function loadAiProviders(): Promise<void> {
 		if (def.status !== "coming-soon" && providerSettingsOf(def.id).enabled) {
 			void refreshProviderModels(def.id);
 		}
-		if (def.hasApiKey) {
-			void hasProviderApiKey(def.id)
-				.then((status) => {
-					apiKeyStatus.update((m) => ({ ...m, [def.id]: status }));
-				})
-				.catch(() => {});
-		}
 	}
+
+	void getApiKeyStatuses()
+		.then((stored) => {
+			apiKeyStatus.set(
+				Object.fromEntries(
+					PROVIDERS.filter((p) => p.hasApiKey).map((p) => [
+						p.id,
+						{ set: stored[p.id] === true },
+					]),
+				),
+			);
+		})
+		.catch(() => {});
 }
 
 function persist(): void {

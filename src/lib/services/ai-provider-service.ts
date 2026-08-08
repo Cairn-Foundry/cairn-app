@@ -24,7 +24,6 @@ export interface AiProvidersConfig {
 
 export interface ApiKeyStatus {
 	set: boolean;
-	fallback: boolean;
 }
 
 export interface ProbeResult {
@@ -34,17 +33,30 @@ export interface ProbeResult {
 	models: string[];
 }
 
+/**
+ * What an agent uses on one given provider. Everything else about the agent -
+ * prompt, tools, params - is the same wherever it runs.
+ */
+export interface AgentProviderRow {
+	providerId: string;
+	/** Empty defers to the model the conversation is already using. */
+	model: string;
+	effort: string;
+	permissionMode: string;
+}
+
 export interface CustomAgent {
 	id: string;
 	name: string;
 	description: string;
 	color: string;
 	icon: string;
-	providerId: string;
-	model: string;
 	systemPrompt: string;
-	effort: string;
-	permissionMode: string;
+	/**
+	 * One entry per provider the agent is tuned for. Empty is valid: the agent
+	 * then runs anywhere on whatever the conversation is already using.
+	 */
+	rows: AgentProviderRow[];
 	/** Tool names the agent may use. Empty means "whatever the provider allows". */
 	allowedTools: string[];
 	/** Tool names the agent may never use. Applied on top of `allowedTools`. */
@@ -92,10 +104,9 @@ export async function setProviderApiKey(
 	return await invoke("set_provider_api_key", { providerId, key });
 }
 
-export async function hasProviderApiKey(
-	providerId: string,
-): Promise<ApiKeyStatus> {
-	return await invoke("has_provider_api_key", { providerId });
+/** Whether a key is stored, for every provider, in one call. */
+export async function getApiKeyStatuses(): Promise<Record<string, boolean>> {
+	return await invoke("get_api_key_statuses");
 }
 
 export async function deleteProviderApiKey(providerId: string): Promise<void> {

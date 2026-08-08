@@ -12,6 +12,8 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { respondPermission, sendMessage, stopAgent, type PermissionResponse, type RunOptions } from '$lib/services/agent-service';
   import { mentionToken } from '$lib/utils/agent/mention';
+  import { resolveAgentRun } from '$lib/utils/agent/agent-resolution';
+  import { buildHandoffTranscript, priorTurns, withHandoffContext } from '$lib/utils/agent/handoff';
   import { quickSearch, type QuickSearchHit } from '$lib/services/file-service';
   import { listAgentCommands, type AgentSlashCommand } from '$lib/services/ai-provider-service';
   import {
@@ -31,7 +33,9 @@
     restoreConversations, selectConversation, deleteConversation, duplicateConversation,
     loadConversationBody,
     createConversation as createStoredConversation, updateConversationContent,
-    setConversationProvider, setConversationRunOptions, setConversationSession, renameConversation,
+    setConversationProvider, setConversationRunOptions, setConversationSession, conversationSession,
+    lastProviderOf, setLastProvider, setConversationAgent,
+    renameConversation,
     togglePinned, toggleArchived, moveConversationToScope,
     type ConversationRef,
   } from '$lib/stores/conversation';
@@ -79,6 +83,8 @@
     streaming?: boolean;
     thinking?: string;
     usage?: MessageUsage;
+    /** The agent that answered, kept as written so a later rename cannot rewrite history. */
+    agentName?: string;
   }
 
   interface ActivityEntry {
@@ -102,6 +108,8 @@
     modelId: string;
     effort: string;
     permissionMode: string;
+    /** The agent answering here, until it is cleared or replaced. */
+    agentId: string;
   }
 
   interface Run {
@@ -110,13 +118,8 @@
     scope: ConversationScope;
     messages: Message[];
     activity: ActivityEntry[];
-    /**
-     * True when a mentioned agent sent this run to a provider other than the
-     * conversation's. Such a run neither resumes nor overwrites the
-     * conversation's session: a session id only means something to the CLI
-     * that minted it.
-     */
-    foreignProvider: boolean;
+    /** Whose session this run belongs to, when it reports one back. */
+    providerId: string;
   }
 
   interface PermissionRequest {
@@ -189,6 +192,10 @@
     currentProvider ? modelsOf(currentProvider.id, $providerCapabilities) : [],
   );
 
+  function providerLabel(providerId: string): string {
+    return PROVIDERS.find((p) => p.id === providerId)?.name ?? providerId;
+  }
+
   /**
    * What the agent answered with, as the user names it: the model's own display
    * name when the provider gave one, a readable form of its id otherwise.
@@ -208,10 +215,16 @@
       : [],
   );
 
+  /**
+   * Who answered, and with what: "codd (Sonnet 4.6)". Without an agent the
+   * model stands alone, and without a model the provider does.
+   */
   function answerLabel(m: Message): string {
     const modelId = m.usage?.model || current?.modelId || '';
-    if (!modelId) return currentProvider?.name ?? (t('agent.agentRole') as string);
-    return modelLabel(currentProvider?.id ?? '', modelId);
+    const model = modelId
+      ? modelLabel(currentProvider?.id ?? '', modelId)
+      : (currentProvider?.name ?? (t('agent.agentRole') as string));
+    return m.agentName ? `${m.agentName} (${model})` : model;
   }
   let effortOptions = $derived(
     effortsOf(currentProvider?.id ?? '', $providerCapabilities, current?.effort ?? ''),
@@ -296,6 +309,10 @@
       .catch(() => { fileHits = []; });
   });
 
+  /**
+   * The first agent named in the text. Only the first: one agent answers at a
+   * time, and the composer shows which, so a second mention is just words.
+   */
   function mentionedAgent(text: string): CustomAgent | undefined {
     const matches = text.match(/@([\w-]+)/g) ?? [];
     for (const raw of matches) {
@@ -304,6 +321,25 @@
       if (agent) return agent;
     }
     return undefined;
+  }
+
+  /** The agent answering this conversation, whether or not this message names it. */
+  let activeAgent = $derived(
+    current ? $customAgents.find((a) => a.id === current.agentId) : undefined,
+  );
+
+  function activateAgent(agentId: string) {
+    const inst = $activeInstance;
+    if (!inst || !current || current.agentId === agentId) return;
+    current.agentId = agentId;
+    setConversationAgent(refOf(inst, current.scope), current.id, agentId);
+  }
+
+  /** Naming an agent in the draft is how it is put in charge of the thread. */
+  function syncAgentFromDraft() {
+    if (!current) return;
+    const named = mentionedAgent(current.draft);
+    if (named) activateAgent(named.id);
   }
 
   function refOf(inst: Instance, scope: ConversationScope): ConversationRef {
@@ -339,6 +375,7 @@
       modelId: '',
       effort: '',
       permissionMode: '',
+      agentId: '',
     };
     conversations[inst.id] = conv;
     syncLive(inst);
@@ -398,6 +435,7 @@
       modelId: found.meta.modelId ?? '',
       effort: found.meta.effort ?? '',
       permissionMode: found.meta.permissionMode ?? '',
+      agentId: found.meta.agentId ?? '',
     };
     selectConversation(inst.projectId, inst.id, id);
     await autoscroll();
@@ -731,8 +769,8 @@
         const pending = run.activity.find((a) => a.source === 'tool' && !a.done);
         if (pending) pending.done = true;
         run.activity.push({ time: now(), icon: iconForTool(summary), label: line, source: 'tool' });
-      } else if (source === 'session' && !run.foreignProvider) {
-        setConversationSession(refOf(inst, run.scope), run.conversationId, line);
+      } else if (source === 'session') {
+        setConversationSession(refOf(inst, run.scope), run.conversationId, run.providerId, line);
       }
 
       persistRun(inst, run);
@@ -746,34 +784,22 @@
     unlisten?.();
   });
 
-  /**
-   * The provider an agent runs on: its own when it pins one, otherwise the
-   * conversation's. A model belongs to the provider that serves it, so the two
-   * are resolved together - never a model from one provider on another.
-   */
-  function resolveAgentProvider(conv: Conversation, agent: CustomAgent | undefined): string {
-    const own = agent?.providerId;
-    if (own && selectableProviders.some((p) => p.id === own)) return own;
-    return currentProvider?.id ?? conv.providerId;
-  }
-
   function buildRunOptions(
     conv: Conversation,
     agent: CustomAgent | undefined,
     providerId: string,
-    switchedProvider: boolean,
   ): RunOptions {
     const options: RunOptions = {};
-    // A model picked in the composer belongs to the conversation's provider, so
-    // it only survives when the agent did not send the run somewhere else.
-    if (conv.modelId && !switchedProvider) options.model = conv.modelId;
-    if (conv.effort) options.effort = conv.effort;
-    if (conv.permissionMode) options.permissionMode = conv.permissionMode;
+    const resolved = resolveAgentRun(agent, providerId, {
+      modelId: conv.modelId,
+      effort: conv.effort,
+      permissionMode: conv.permissionMode,
+    });
+    if (resolved.model) options.model = resolved.model;
+    if (resolved.effort) options.effort = resolved.effort;
+    if (resolved.permissionMode) options.permissionMode = resolved.permissionMode;
 
     if (agent?.systemPrompt) options.systemPrompt = agent.systemPrompt;
-    if (agent?.model && (switchedProvider || !conv.modelId)) options.model = agent.model;
-    if (agent?.effort) options.effort = agent.effort;
-    if (agent?.permissionMode) options.permissionMode = agent.permissionMode;
     if (agent?.allowedTools?.length) options.allowedTools = agent.allowedTools;
     if (agent?.disallowedTools?.length) options.disallowedTools = agent.disallowedTools;
     if (agent?.overrideParams) {
@@ -781,11 +807,11 @@
       options.maxTokens = agent.maxTokens;
     }
 
+    // A chat API keeps nothing between calls, so every prior turn is resent.
+    // `conv.messages` holds only what was already exchanged here - the prompt
+    // being sent now is pushed after this, and travels as the message itself.
     if (PROVIDERS.find((p) => p.id === providerId)?.kind === 'api') {
-      options.history = conv.messages
-        .filter((m) => (m.role === 'user' || m.role === 'agent') && m.content)
-        .slice(0, -2)
-        .slice(-20)
+      options.history = priorTurns(conv.messages)
         .map((m) => ({ role: m.role, content: m.content }));
     }
     return options;
@@ -870,14 +896,32 @@
 
   async function sendPrompt(inst: Instance, conv: Conversation, message: string) {
 
-    const agent = mentionedAgent(message);
-    const runProviderId = resolveAgentProvider(conv, agent);
-    const switchedProvider = runProviderId !== (currentProvider?.id ?? conv.providerId);
-    const options = buildRunOptions(conv, agent, runProviderId, switchedProvider);
+    // The agent in charge of the thread, not whoever this message happens to
+    // name: an answer must not silently change persona mid-conversation.
+    const agent = activeAgent;
+    const runProviderId = currentProvider?.id ?? conv.providerId;
+    const ref0 = refOf(inst, conv.scope);
+    const sessionId = conversationSession(ref0, conv.id, runProviderId);
+    // The provider changing is the signal, not the absence of a session: a chat
+    // API never mints one, so "no session" would fire on every single message.
+    const previousProvider = lastProviderOf(ref0, conv.id);
+    const takingOver = previousProvider !== '' && previousProvider !== runProviderId;
+    setLastProvider(ref0, conv.id, runProviderId);
+    const options = buildRunOptions(conv, agent, runProviderId);
 
     const t_now = now();
+    if (takingOver) {
+      conv.messages.push({
+        role: 'system',
+        content: (t('agent.providerSwitched') as (p: string) => string)(providerLabel(runProviderId)),
+        time: t_now,
+      });
+    }
     conv.messages.push({ role: 'user', content: message, time: t_now });
-    conv.messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
+    conv.messages.push({
+      role: 'agent', content: '', time: t_now, streaming: true,
+      agentName: agent?.name || undefined,
+    });
     conv.activity.push({ time: t_now, icon: 'send', label: message.slice(0, 160) + (message.length > 160 ? '...' : ''), source: 'stdin' });
 
     const runId = crypto.randomUUID();
@@ -887,7 +931,7 @@
       scope: conv.scope,
       messages: conv.messages,
       activity: conv.activity,
-      foreignProvider: switchedProvider,
+      providerId: runProviderId,
     };
     runs[runId] = run;
     setBusy(inst, conv.id, true);
@@ -900,11 +944,14 @@
     await autoscroll();
 
     try {
-      const sessionId = switchedProvider
-        ? null
-        : (conversationsOf(ref).find((c) => c.id === conv.id)?.sessionId ?? null);
       const env = await prepareInstanceEnv(get(activeProject), inst);
-      await sendMessage(message, inst.worktreePath, runProviderId, runId, sessionId, env, options);
+      // Chat APIs already receive the exchange as `history`; a CLI has no
+      // channel for it other than the prompt itself.
+      const isCli = PROVIDERS.find((p) => p.id === runProviderId)?.kind === 'cli';
+      const prompt = takingOver && isCli
+        ? withHandoffContext(message, buildHandoffTranscript(conv.messages.slice(0, -2)))
+        : message;
+      await sendMessage(prompt, inst.worktreePath, runProviderId, runId, sessionId, env, options);
     } catch (e) {
       conv.error = String(e);
       setBusy(inst, conv.id, false);
@@ -1011,6 +1058,7 @@
   function onInput() {
     resizeTextarea();
     updatePopup();
+    syncAgentFromDraft();
   }
 
   function withInstance<A extends unknown[]>(fn: (inst: Instance, ...args: A) => void) {
@@ -1248,7 +1296,7 @@
               {/if}
             </div>
             {#if m.role === 'agent' && m.usage && $settings.agentShowResponseStats}
-              {@const stats = responseStats(m.usage, $settings.agentResponseStats, (id) => modelLabel(currentProvider?.id ?? '', id))}
+              {@const stats = responseStats(m.usage, $settings.agentResponseStats)}
               {#if stats.length > 0}
                 <div class="usage-line">
                   {#each stats as stat}
@@ -1312,7 +1360,25 @@
     </div>
 
     <div class="chat-input-wrap">
-      <div class="chat-input">
+      <div class="chat-input" class:agent-active={activeAgent} style={activeAgent ? `--agent: ${activeAgent.color}` : ''}>
+        {#if activeAgent}
+          <div class="agent-banner">
+            {#if activeAgent.icon}
+              <Icon name={activeAgent.icon} size={11}/>
+            {:else}
+              <span class="agent-banner-dot"></span>
+            {/if}
+            <span class="agent-banner-name">{activeAgent.name || t('home.agents.customAgents.untitled')}</span>
+            <button
+              class="agent-banner-clear"
+              title={t('agent.composer.clearAgent') as string}
+              aria-label={t('agent.composer.clearAgent') as string}
+              onclick={() => activateAgent('')}
+            >
+              <Icon name="x" size={10}/>
+            </button>
+          </div>
+        {/if}
         {#if popupOpen && popupItems.length > 0}
           <div class="mention-popup">
             {#each popupItems as item, i}
@@ -2166,6 +2232,54 @@
 
 
   .chat-input { position: relative; }
+
+  /* The composer takes the colour of whoever is answering, so the agent in
+     charge is visible without reading the draft. */
+  :global(.chat-input.agent-active) {
+    border-color: color-mix(in srgb, var(--agent) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent) 12%, transparent);
+  }
+  :global(.chat-input.agent-active:focus-within) {
+    border-color: var(--agent);
+  }
+
+  .agent-banner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
+    color: var(--agent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .agent-banner-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--agent);
+  }
+
+  .agent-banner-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agent-banner-clear {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--fg-3);
+    cursor: pointer;
+  }
+  .agent-banner-clear:hover { color: var(--agent); background: color-mix(in srgb, var(--agent) 15%, transparent); }
 
   .mention-popup {
     position: absolute;

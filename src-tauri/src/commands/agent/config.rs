@@ -2,8 +2,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use serde::{Deserialize, Serialize};
-use crate::storage::{ai_providers_file, api_key_fallback_file, custom_agents_file, write_json_atomic};
+use crate::storage::{ai_providers_file, api_keys_file, api_keys_secret_file, custom_agents_file, legacy_api_key_file, write_json_atomic};
+use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::ChaCha20Poly1305;
 use super::platform;
+
+const NONCE_LEN: usize = 12;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -91,98 +95,162 @@ pub fn save_ai_providers_config(config: AiProvidersConfig) -> Result<(), String>
 }
 
 // ---------------------------------------------------------------------------
-// API keys: OS keychain first, restricted-permission file as a last resort
-// (headless Linux without a secret service). The UI only learns whether a key
-// exists and where it lives, never the key itself.
+// API keys: encrypted in ~/.cairn, never in the OS keychain. A keychain read
+// prompts for authorisation on every launch of an unsigned or rebuilt binary,
+// once per stored item, which made simply opening the Providers screen a wall
+// of dialogs. The UI only ever learns whether a key exists, never the key.
 // ---------------------------------------------------------------------------
 
-const KEYRING_SERVICE: &str = "cairn";
-
-fn keyring_entry(provider_id: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new(KEYRING_SERVICE, provider_id).map_err(|e| e.to_string())
+/// Restrict a file to its owner. A no-op on Windows, where the user profile
+/// directory is already the boundary.
+fn restrict_to_owner(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = path;
 }
 
-fn read_fallback_keys() -> HashMap<String, String> {
-    api_key_fallback_file()
+/// The secret the key file is encrypted with, created on first use.
+///
+/// It lives next to the ciphertext, so this is not protection against someone
+/// who already reads your home directory - nothing stored locally could be.
+/// What it does buy: an API key never sits in a plaintext file, so it cannot
+/// leak through a backup, a synced folder, a screen share or a stray grep.
+fn encryption_secret() -> Result<[u8; 32], String> {
+    let path = api_keys_secret_file()?;
+    if let Ok(existing) = fs::read(&path) {
+        if existing.len() == 32 {
+            let mut secret = [0u8; 32];
+            secret.copy_from_slice(&existing);
+            return Ok(secret);
+        }
+    }
+    let mut secret = [0u8; 32];
+    getrandom::getrandom(&mut secret).map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(&path, secret).map_err(|e| e.to_string())?;
+    restrict_to_owner(&path);
+    Ok(secret)
+}
+
+fn cipher() -> Result<ChaCha20Poly1305, String> {
+    Ok(ChaCha20Poly1305::new(&encryption_secret()?.into()))
+}
+
+fn read_stored_keys() -> HashMap<String, String> {
+    let Ok(path) = api_keys_file() else { return HashMap::new() };
+    let Ok(raw) = fs::read(&path) else { return migrate_legacy_keys() };
+    if raw.len() < NONCE_LEN {
+        return HashMap::new();
+    }
+    let (nonce, ciphertext) = raw.split_at(NONCE_LEN);
+    let Ok(cipher) = cipher() else { return HashMap::new() };
+    cipher
+        .decrypt(nonce.into(), ciphertext)
         .ok()
-        .filter(|p| p.exists())
-        .and_then(|p| fs::read_to_string(p).ok())
-        .and_then(|c| serde_json::from_str(&c).ok())
+        .and_then(|plain| serde_json::from_slice(&plain).ok())
         .unwrap_or_default()
 }
 
-fn write_fallback_keys(keys: &HashMap<String, String>) -> Result<(), String> {
-    let path = api_key_fallback_file()?;
+fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
+    let path = api_keys_file()?;
     if keys.is_empty() {
         let _ = fs::remove_file(&path);
         return Ok(());
     }
-    write_json_atomic(&path, keys)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+    let plain = serde_json::to_vec(keys).map_err(|e| e.to_string())?;
+    let mut nonce = [0u8; NONCE_LEN];
+    getrandom::getrandom(&mut nonce).map_err(|e| e.to_string())?;
+    let ciphertext = cipher()?
+        .encrypt(&nonce.into(), plain.as_slice())
+        .map_err(|e| e.to_string())?;
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    let mut blob = nonce.to_vec();
+    blob.extend_from_slice(&ciphertext);
+    fs::write(&path, blob).map_err(|e| e.to_string())?;
+    restrict_to_owner(&path);
     Ok(())
+}
+
+/// Keys written in plaintext by an earlier version move into the encrypted
+/// file, and the plaintext one is removed.
+fn migrate_legacy_keys() -> HashMap<String, String> {
+    let Ok(legacy) = legacy_api_key_file() else { return HashMap::new() };
+    let Ok(content) = fs::read_to_string(&legacy) else { return HashMap::new() };
+    let keys: HashMap<String, String> = serde_json::from_str(&content).unwrap_or_default();
+    if keys.is_empty() {
+        let _ = fs::remove_file(&legacy);
+        return HashMap::new();
+    }
+    if write_stored_keys(&keys).is_ok() {
+        let _ = fs::remove_file(&legacy);
+    }
+    keys
 }
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyStatus {
     pub set: bool,
-    pub fallback: bool,
 }
 
 #[tauri::command]
 pub async fn set_provider_api_key(provider_id: String, key: String) -> Result<ApiKeyStatus, String> {
-    match keyring_entry(&provider_id).and_then(|e| e.set_password(&key).map_err(|e| e.to_string())) {
-        Ok(()) => {
-            let mut keys = read_fallback_keys();
-            if keys.remove(&provider_id).is_some() { write_fallback_keys(&keys)?; }
-            Ok(ApiKeyStatus { set: true, fallback: false })
-        }
-        Err(_) => {
-            let mut keys = read_fallback_keys();
-            keys.insert(provider_id, key);
-            write_fallback_keys(&keys)?;
-            Ok(ApiKeyStatus { set: true, fallback: true })
-        }
-    }
+    let mut keys = read_stored_keys();
+    keys.insert(provider_id, key);
+    write_stored_keys(&keys)?;
+    Ok(ApiKeyStatus { set: true })
 }
 
+/// Every provider's key state in one call: the UI asks about all of them at
+/// once, and asking one command per provider is what made this expensive.
 #[tauri::command]
-pub async fn has_provider_api_key(provider_id: String) -> Result<ApiKeyStatus, String> {
-    if let Ok(entry) = keyring_entry(&provider_id) {
-        if entry.get_password().is_ok() {
-            return Ok(ApiKeyStatus { set: true, fallback: false });
-        }
-    }
-    let fallback = read_fallback_keys().contains_key(&provider_id);
-    Ok(ApiKeyStatus { set: fallback, fallback })
+pub async fn get_api_key_statuses() -> Result<HashMap<String, bool>, String> {
+    Ok(read_stored_keys()
+        .into_iter()
+        .map(|(provider, key)| (provider, !key.is_empty()))
+        .collect())
 }
 
 #[tauri::command]
 pub async fn delete_provider_api_key(provider_id: String) -> Result<(), String> {
-    if let Ok(entry) = keyring_entry(&provider_id) {
-        let _ = entry.delete_credential();
+    let mut keys = read_stored_keys();
+    if keys.remove(&provider_id).is_some() {
+        write_stored_keys(&keys)?;
     }
-    let mut keys = read_fallback_keys();
-    if keys.remove(&provider_id).is_some() { write_fallback_keys(&keys)?; }
     Ok(())
 }
 
 pub fn get_api_key(provider_id: &str) -> Option<String> {
-    if let Ok(entry) = keyring_entry(provider_id) {
-        if let Ok(key) = entry.get_password() {
-            return Some(key);
-        }
-    }
-    read_fallback_keys().remove(provider_id)
+    read_stored_keys().remove(provider_id).filter(|k| !k.is_empty())
 }
 
 // ---------------------------------------------------------------------------
 // Custom agents
 // ---------------------------------------------------------------------------
+
+/// What an agent uses on one given provider. Everything else about the agent -
+/// prompt, tools, params - is the same wherever it runs.
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentProviderRow {
+    #[serde(default)]
+    pub provider_id: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub effort: String,
+    #[serde(default)]
+    pub permission_mode: String,
+}
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -197,15 +265,11 @@ pub struct CustomAgent {
     #[serde(default)]
     pub icon: String,
     #[serde(default)]
-    pub provider_id: String,
-    #[serde(default)]
-    pub model: String,
-    #[serde(default)]
     pub system_prompt: String,
+    /// One entry per provider the agent is tuned for. Empty is valid: the agent
+    /// then runs anywhere on whatever the conversation is already using.
     #[serde(default)]
-    pub effort: String,
-    #[serde(default)]
-    pub permission_mode: String,
+    pub rows: Vec<AgentProviderRow>,
     #[serde(default)]
     pub allowed_tools: Vec<String>,
     #[serde(default)]
@@ -216,6 +280,34 @@ pub struct CustomAgent {
     pub temperature: f64,
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+
+    // Superseded by `rows`; still read so an agent saved before the split keeps
+    // its provider, and no longer written.
+    #[serde(default, skip_serializing)]
+    pub provider_id: String,
+    #[serde(default, skip_serializing)]
+    pub model: String,
+    #[serde(default, skip_serializing)]
+    pub effort: String,
+    #[serde(default, skip_serializing)]
+    pub permission_mode: String,
+}
+
+/// An agent saved as a single provider binding becomes an agent with one row.
+fn migrate_agent(mut agent: CustomAgent) -> CustomAgent {
+    if agent.rows.is_empty() && !agent.provider_id.is_empty() {
+        agent.rows.push(AgentProviderRow {
+            provider_id: std::mem::take(&mut agent.provider_id),
+            model: std::mem::take(&mut agent.model),
+            effort: std::mem::take(&mut agent.effort),
+            permission_mode: std::mem::take(&mut agent.permission_mode),
+        });
+    }
+    agent.provider_id.clear();
+    agent.model.clear();
+    agent.effort.clear();
+    agent.permission_mode.clear();
+    agent
 }
 
 #[tauri::command]
@@ -223,7 +315,8 @@ pub fn get_custom_agents() -> Result<Vec<CustomAgent>, String> {
     let path = custom_agents_file()?;
     if !path.exists() { return Ok(Vec::new()); }
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    let agents: Vec<CustomAgent> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(agents.into_iter().map(migrate_agent).collect())
 }
 
 #[tauri::command]
@@ -282,16 +375,12 @@ pub async fn probe_provider(
             .filter(|u| !u.trim().is_empty())
             .unwrap_or_else(|| "http://localhost:11434".to_string());
         let url = format!("{}/api/tags", base.trim_end_matches('/'));
-        let response = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .map_err(|e| e.to_string())?
-            .get(&url)
-            .send();
+        let response = http_client(5)?.get(&url).send().await;
         return Ok(match response {
             Ok(resp) if resp.status().is_success() => {
                 let models = resp
                     .json::<serde_json::Value>()
+                    .await
                     .ok()
                     .and_then(|v| v.get("models").and_then(|m| m.as_array()).map(|arr| {
                         arr.iter()
@@ -325,14 +414,20 @@ pub struct DiscoveredModel {
     pub label: String,
 }
 
-fn http_client(timeout_secs: u64) -> Result<reqwest::blocking::Client, String> {
-    reqwest::blocking::Client::builder()
+/// Async on purpose: every caller here runs inside a `#[tauri::command] async
+/// fn`, and `reqwest::blocking` builds a tokio runtime of its own whose drop
+/// panics in an async context ("Cannot drop a runtime in a context where
+/// blocking is not allowed"). Tauri does not catch that panic, so the command
+/// never answers and the UI spins forever. The blocking client is still the
+/// right one in `providers/api_chat.rs`, which runs on a plain thread.
+fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .map_err(|e| e.to_string())
 }
 
-fn json_get(
+async fn json_get(
     url: &str,
     headers: &[(&str, String)],
 ) -> Result<serde_json::Value, String> {
@@ -340,11 +435,11 @@ fn json_get(
     for (name, value) in headers {
         request = request.header(*name, value);
     }
-    let response = request.send().map_err(|e| e.to_string())?;
+    let response = request.send().await.map_err(|e| e.to_string())?;
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()));
     }
-    response.json::<serde_json::Value>().map_err(|e| e.to_string())
+    response.json::<serde_json::Value>().await.map_err(|e| e.to_string())
 }
 
 fn array_of<'a>(value: &'a serde_json::Value, key: &str) -> &'a [serde_json::Value] {
@@ -493,7 +588,8 @@ async fn list_provider_models(
             let body = json_get(
                 &format!("{base}/v1/models?limit=100"),
                 &[("x-api-key", key), ("anthropic-version", "2023-06-01".into())],
-            )?;
+            )
+            .await?;
             Ok(array_of(&body, "data")
                 .iter()
                 .filter_map(|m| {
@@ -514,7 +610,8 @@ async fn list_provider_models(
             let body = json_get(
                 &format!("{base}/models"),
                 &[("Authorization", format!("Bearer {key}"))],
-            )?;
+            )
+            .await?;
             let mut models: Vec<DiscoveredModel> = array_of(&body, "data")
                 .iter()
                 .filter_map(|m| {
@@ -531,7 +628,8 @@ async fn list_provider_models(
             let body = json_get(
                 &format!("https://generativelanguage.googleapis.com/v1beta/models?key={key}&pageSize=200"),
                 &[],
-            )?;
+            )
+            .await?;
             Ok(array_of(&body, "models")
                 .iter()
                 .filter(|m| {
@@ -552,7 +650,7 @@ async fn list_provider_models(
             let base = if base.is_empty() { "http://localhost:11434".to_string() } else { base };
             // The model list lives on the native API, next to the OpenAI-compatible /v1.
             let base = base.strip_suffix("/v1").unwrap_or(&base).to_string();
-            let body = json_get(&format!("{base}/api/tags"), &[])?;
+            let body = json_get(&format!("{base}/api/tags"), &[]).await?;
             Ok(array_of(&body, "models")
                 .iter()
                 .filter_map(|m| {
@@ -699,6 +797,110 @@ mod tests {
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0], ("name".to_string(), "argus".to_string()));
         assert_eq!(body, "You are Argus.");
+    }
+
+    /// Round-trips through the real cipher without touching the user's files.
+    fn seal(secret: &[u8; 32], keys: &HashMap<String, String>) -> Vec<u8> {
+        let cipher = ChaCha20Poly1305::new(secret.into());
+        let nonce = [7u8; NONCE_LEN];
+        let plain = serde_json::to_vec(keys).unwrap();
+        let mut blob = nonce.to_vec();
+        blob.extend_from_slice(&cipher.encrypt(&nonce.into(), plain.as_slice()).unwrap());
+        blob
+    }
+
+    fn open(secret: &[u8; 32], blob: &[u8]) -> Option<HashMap<String, String>> {
+        let (nonce, ciphertext) = blob.split_at(NONCE_LEN);
+        ChaCha20Poly1305::new(secret.into())
+            .decrypt(nonce.into(), ciphertext)
+            .ok()
+            .and_then(|plain| serde_json::from_slice(&plain).ok())
+    }
+
+    #[test]
+    fn a_stored_key_survives_the_round_trip() {
+        let secret = [3u8; 32];
+        let mut keys = HashMap::new();
+        keys.insert("mistral".to_string(), "sk-secret-value".to_string());
+        assert_eq!(open(&secret, &seal(&secret, &keys)), Some(keys));
+    }
+
+    #[test]
+    fn the_key_never_appears_in_the_bytes_written_to_disk() {
+        let mut keys = HashMap::new();
+        keys.insert("mistral".to_string(), "sk-secret-value".to_string());
+        let blob = seal(&[3u8; 32], &keys);
+        let haystack = String::from_utf8_lossy(&blob);
+        assert!(!haystack.contains("sk-secret-value"));
+        assert!(!haystack.contains("mistral"));
+    }
+
+    #[test]
+    fn another_secret_cannot_read_the_file() {
+        let mut keys = HashMap::new();
+        keys.insert("openai".to_string(), "sk-1".to_string());
+        let blob = seal(&[3u8; 32], &keys);
+        assert!(open(&[4u8; 32], &blob).is_none());
+    }
+
+    #[test]
+    fn a_tampered_file_is_rejected_rather_than_half_read() {
+        let secret = [3u8; 32];
+        let mut keys = HashMap::new();
+        keys.insert("openai".to_string(), "sk-1".to_string());
+        let mut blob = seal(&secret, &keys);
+        let last = blob.len() - 1;
+        blob[last] ^= 0xff;
+        assert!(open(&secret, &blob).is_none());
+    }
+
+    #[test]
+    fn a_legacy_agent_binding_becomes_one_row() {
+        let agent: CustomAgent = serde_json::from_str(
+            r#"{"id":"a","name":"reviewer","providerId":"openai","model":"gpt-5.1",
+                "effort":"high","permissionMode":"plan"}"#,
+        )
+        .unwrap();
+        let agent = migrate_agent(agent);
+        assert_eq!(agent.rows.len(), 1);
+        assert_eq!(
+            agent.rows[0],
+            AgentProviderRow {
+                provider_id: "openai".into(),
+                model: "gpt-5.1".into(),
+                effort: "high".into(),
+                permission_mode: "plan".into(),
+            },
+        );
+    }
+
+    #[test]
+    fn an_agent_that_already_has_rows_keeps_them() {
+        let agent: CustomAgent = serde_json::from_str(
+            r#"{"id":"a","providerId":"openai","rows":[{"providerId":"anthropic"}]}"#,
+        )
+        .unwrap();
+        let agent = migrate_agent(agent);
+        assert_eq!(agent.rows.len(), 1);
+        assert_eq!(agent.rows[0].provider_id, "anthropic");
+    }
+
+    #[test]
+    fn an_agent_bound_to_nothing_stays_row_less() {
+        let agent: CustomAgent = serde_json::from_str(r#"{"id":"a","name":"free"}"#).unwrap();
+        assert!(migrate_agent(agent).rows.is_empty());
+    }
+
+    #[test]
+    fn the_legacy_agent_fields_are_no_longer_written_back() {
+        let agent: CustomAgent =
+            serde_json::from_str(r#"{"id":"a","providerId":"openai","model":"gpt-5.1"}"#).unwrap();
+        let value = serde_json::to_value(migrate_agent(agent)).unwrap();
+        let root = value.as_object().unwrap();
+        for legacy in ["providerId", "model", "effort", "permissionMode"] {
+            assert!(!root.contains_key(legacy), "{legacy} still written");
+        }
+        assert_eq!(root["rows"][0]["providerId"], "openai");
     }
 
     #[test]

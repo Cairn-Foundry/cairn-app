@@ -1,9 +1,4 @@
-export type ResponseStatField =
-	| "model"
-	| "duration"
-	| "tokens"
-	| "cost"
-	| "turns";
+export type ResponseStatField = "duration" | "tokens" | "cost" | "turns";
 
 export interface ResponseStatDef {
 	id: ResponseStatField;
@@ -11,8 +6,8 @@ export interface ResponseStatDef {
 }
 
 // Keep in sync with default_response_stats() in src-tauri/src/commands/settings.rs.
+// The model is deliberately absent: the answer already carries it in its header.
 export const RESPONSE_STAT_FIELDS: ResponseStatDef[] = [
-	{ id: "model", icon: "sparkles" },
 	{ id: "duration", icon: "clock" },
 	{ id: "tokens", icon: "layers" },
 	{ id: "cost", icon: "gauge" },
@@ -42,10 +37,8 @@ export interface ResponseStat {
 export function responseStats(
 	usage: ResponseUsage,
 	enabled: readonly string[],
-	modelName: (id: string) => string,
 ): ResponseStat[] {
 	const values: Record<ResponseStatField, string | null> = {
-		model: usage.model ? modelName(usage.model) : null,
 		duration:
 			usage.durationMs != null
 				? `${(usage.durationMs / 1000).toFixed(1)}s`

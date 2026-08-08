@@ -26,8 +26,19 @@ pub fn custom_agents_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("agents.json"))
 }
 
-pub fn api_key_fallback_file() -> Result<PathBuf, String> {
+/// Plaintext key file written by earlier versions, read once and deleted.
+pub fn legacy_api_key_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ai-keys.json"))
+}
+
+/// Provider API keys, encrypted with the secret next to it.
+pub fn api_keys_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("ai-keys.enc"))
+}
+
+/// The per-install secret the key file is encrypted with.
+pub fn api_keys_secret_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("ai-keys.secret"))
 }
 
 pub fn projects_file() -> Result<PathBuf, String> {

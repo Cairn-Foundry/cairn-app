@@ -8,10 +8,73 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "An agent is now put in charge of a conversation instead of applying only to the message that names it. Mentioning one activates it, the composer takes its colour and shows its name above the input, and it keeps answering until you clear it or call another - one agent at a time. A reply is signed with the agent name and the model it used, like \"codd (Sonnet 4.6)\".",
+					"fr": "Un agent prend désormais la main sur une conversation au lieu de ne s'appliquer qu'au message qui le nomme. Le mentionner l'active, la zone de saisie prend sa couleur et affiche son nom au-dessus, et il continue de répondre jusqu'à ce que vous l'enleviez ou en appeliez un autre - un seul agent à la fois. Une réponse est signée du nom de l'agent et du modèle utilisé, par exemple « codd (Sonnet 4.6) »."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
-					"en": "An agent that pins its own provider now actually runs on it. The provider was saved but ignored at send time, so the agent ran on the conversation's provider while being handed a model id belonging to another one.",
-					"fr": "Un agent qui fixe son propre fournisseur s'exécute désormais réellement dessus. Le fournisseur était enregistré mais ignoré à l'envoi : l'agent tournait sur le fournisseur de la conversation tout en recevant l'identifiant de modèle d'un autre."
+					"en": "A chat API now receives the whole conversation, including the last question and the last answer. Two turns were dropped from the history on every call, so the provider was always one exchange behind and could not see what had just been said.",
+					"fr": "Une API de chat reçoit désormais toute la conversation, y compris la dernière question et la dernière réponse. Deux tours étaient retirés de l'historique à chaque appel : le fournisseur avait donc toujours un échange de retard et ne voyait pas ce qui venait d'être dit."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The \"Switched to\" line no longer appears on every message when talking to a chat API. It keyed off the provider having no session, and a chat API never opens one, so it announced a switch that had not happened. It now follows the provider that actually answered last.",
+					"fr": "La ligne « Passage à » n'apparaît plus à chaque message avec une API de chat. Elle se basait sur l'absence de session du fournisseur, or une API de chat n'en ouvre jamais : elle annonçait donc un changement qui n'avait pas eu lieu. Elle suit désormais le fournisseur qui a réellement répondu en dernier."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The provider switch line in a conversation is now just \"Switched to <provider>\".",
+					"fr": "La ligne de changement de fournisseur dans une conversation indique désormais simplement « Passage à <fournisseur> »."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The model name is no longer offered among the per-message response stats, and its setting is gone: the answer already carries the model in its header.",
+					"fr": "Le nom du modèle n'est plus proposé parmi les statistiques affichées sous chaque message, et son réglage a disparu : la réponse porte déjà le modèle dans son en-tête."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "API keys no longer go through the system keychain, which asked for authorisation on every launch, once per provider, just to open the Providers screen. They are now encrypted in ~/.cairn and read in a single call. Keys saved before this change have to be entered again once.",
+					"fr": "Les clés API ne passent plus par le trousseau du système, qui demandait une autorisation à chaque lancement, une fois par fournisseur, juste pour ouvrir l'écran Fournisseurs. Elles sont désormais chiffrées dans ~/.cairn et lues en un seul appel. Les clés enregistrées avant ce changement doivent être saisies à nouveau."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Testing an API provider or refreshing its model list no longer spins forever. Both asked the network through a client that cannot be used from an asynchronous command, which crashed the call before it could answer, leaving the request pending with no error to show.",
+					"fr": "Tester un fournisseur API ou rafraîchir sa liste de modèles ne tourne plus indéfiniment. Les deux interrogeaient le réseau via un client inutilisable depuis une commande asynchrone, ce qui interrompait l'appel avant sa réponse et laissait la requête en attente, sans erreur à afficher."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "An agent is now a persona rather than a provider binding: its prompt, tools and settings travel with it, and it carries one row per provider holding the model, reasoning effort and permission mode to use there. Mentioning an agent no longer moves the conversation to another provider - it runs on whichever one is already answering, and an agent with no row for it simply keeps its prompt and tools.",
+					"fr": "Un agent est désormais un persona plutôt qu'un lien vers un fournisseur : son prompt, ses outils et ses réglages le suivent, et il porte une ligne par fournisseur indiquant le modèle, l'effort de raisonnement et le mode de permission à y utiliser. Mentionner un agent ne déplace plus la conversation vers un autre fournisseur - il s'exécute sur celui qui répond déjà, et un agent sans ligne pour celui-ci conserve simplement son prompt et ses outils."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Changing the provider of a conversation no longer resumes the previous provider's session on the new one. A conversation now keeps one session per provider, so switching back and forth picks each thread up where it was left.",
+					"fr": "Changer le fournisseur d'une conversation ne reprend plus la session du fournisseur précédent sur le nouveau. Une conversation conserve désormais une session par fournisseur : passer de l'un à l'autre reprend chaque fil là où il s'était arrêté."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "When a provider answers a conversation it has never seen, the recent exchange is handed over to it and a line in the transcript says the switch happened - so a cold answer is never a surprise.",
+					"fr": "Lorsqu'un fournisseur répond à une conversation qu'il n'a jamais vue, les échanges récents lui sont transmis et une ligne dans la discussion signale le changement - une réponse sans mémoire n'est donc jamais une surprise."
 				}
 			},
 			{

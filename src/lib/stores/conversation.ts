@@ -144,7 +144,9 @@ export function createConversation(
 		providerId,
 		pinned: false,
 		archived: false,
-		sessionId: null,
+		sessions: {},
+		lastProviderId: "",
+		agentId: "",
 		messageCount: 0,
 		preview: "",
 	};
@@ -219,9 +221,47 @@ export function setConversationRunOptions(
 export function setConversationSession(
 	ref: ConversationRef,
 	id: string,
-	sessionId: string | null,
+	providerId: string,
+	sessionId: string,
 ): void {
-	patch(ref, id, { sessionId });
+	const target = conversationsOf(ref).find((c) => c.id === id);
+	if (!target) return;
+	patch(ref, id, {
+		sessions: { ...(target.sessions ?? {}), [providerId]: sessionId },
+	});
+}
+
+/** The session that provider holds in this conversation, if it started one. */
+export function conversationSession(
+	ref: ConversationRef,
+	id: string,
+	providerId: string,
+): string | null {
+	const target = conversationsOf(ref).find((c) => c.id === id);
+	return target?.sessions?.[providerId] ?? null;
+}
+
+/** Empty until something has answered here, so the first run marks no switch. */
+export function lastProviderOf(ref: ConversationRef, id: string): string {
+	return conversationsOf(ref).find((c) => c.id === id)?.lastProviderId ?? "";
+}
+
+/** One agent at a time: setting a new one replaces whoever was answering. */
+export function setConversationAgent(
+	ref: ConversationRef,
+	id: string,
+	agentId: string,
+): void {
+	patch(ref, id, { agentId });
+}
+
+export function setLastProvider(
+	ref: ConversationRef,
+	id: string,
+	providerId: string,
+): void {
+	if (lastProviderOf(ref, id) === providerId) return;
+	patch(ref, id, { lastProviderId: providerId });
 }
 
 export function togglePinned(ref: ConversationRef, id: string): void {
@@ -328,7 +368,9 @@ export async function duplicateConversation(
 		updatedAt: now,
 		lastMessageAt: now,
 		pinned: false,
-		sessionId: null,
+		sessions: {},
+		lastProviderId: "",
+		agentId: "",
 	};
 	updateList(ref, (list) => [copy, ...list]);
 	await saveConversationBody(

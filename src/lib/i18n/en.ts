@@ -438,6 +438,7 @@ export const en = {
 		thinking: "Thinking",
 		contextWindow: "Context window",
 		composer: {
+			clearAgent: "Stop using this agent",
 			provider: "Provider",
 			model: "Model",
 			modelDefault: "model",
@@ -477,6 +478,7 @@ export const en = {
 		liveActivity: "Live activity",
 		liveActivitySub: "- what the agent is doing, right now",
 		instanceStarted: "Instance started",
+		providerSwitched: (provider: string) => `Switched to ${provider}`,
 		noActiveInstance: "No active instance",
 		waitingResponse: "Waiting for response...",
 		waitingAgent: "Waiting for the agent...",
@@ -1414,8 +1416,6 @@ export const en = {
 				replaceKey: "Replace",
 				removeKey: "Remove",
 				saveKey: "Save key",
-				keyFallbackWarning:
-					"No system keychain available - the key is stored in a restricted file in ~/.cairn.",
 				makeDefault: "Set as default",
 				defaultProvider: "Default provider",
 			},
@@ -1491,6 +1491,15 @@ export const en = {
 				sections: {
 					appearance: "Appearance",
 					tools: "Tools",
+				},
+				rows: {
+					title: "Providers",
+					add: "Add a provider",
+					remove: "Remove this provider",
+					inherit: "Inherit",
+					anyProvider: "Any provider",
+					anyProviderHint:
+						"This agent runs on whichever provider the conversation is using, with its own model and settings. Add a provider to give it a model of its own there.",
 				},
 				tools: {
 					allowed: "Allowed tools",
@@ -1701,7 +1710,6 @@ export const en = {
 			showMessageCopy: "Copy button",
 			showMessageCopyDesc: "Show the copy button on every message",
 			stat: {
-				model: "Model",
 				duration: "Duration",
 				tokens: "Tokens",
 				cost: "Cost",
