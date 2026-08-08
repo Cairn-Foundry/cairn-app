@@ -15,6 +15,8 @@
   import { previewKindFromPath } from '$lib/utils/files/files-preview';
   import { absolutePathOf, breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
   import type { Tab } from '$lib/utils/files/files-persistence';
+  import LineHistoryPanel from './LineHistoryPanel.svelte';
+  import { clickOutside } from '$lib/utils/click-outside';
 
   export let rootEl: HTMLElement | null = null;
   export let paneClass = '';
@@ -53,6 +55,13 @@
   export let worktreePath: string | null = null;
 
   let svgPreview = true;
+  let showLineHistory = false;
+
+  $: closeLineHistory(activeTab?.path);
+
+  function closeLineHistory(_path: string | undefined) {
+    showLineHistory = false;
+  }
 
   $: isSvgTab = activeTab !== null && previewKindFromPath(activeTab.path) === 'svg';
   $: activeAbsPath = activeTab ? absolutePathOf(activeTab.path, worktreePath) : '';
@@ -256,7 +265,24 @@
         {#if currentLineBlame.hash === '0000000'}
           <span class="statusbar-item statusbar-blame statusbar-blame-uncommitted">{t('files.notCommittedYet')}</span>
         {:else}
-          <span class="statusbar-item statusbar-blame"><span class="selectable">{currentLineBlame.hash}</span> ({currentLineBlame.author})</span>
+          <span class="statusbar-blame-wrap" use:clickOutside={() => { showLineHistory = false; }}>
+            <button
+              type="button"
+              class="statusbar-item statusbar-btn statusbar-blame {showLineHistory ? 'statusbar-active' : ''}"
+              on:click={() => { showLineHistory = !showLineHistory; }}
+              title="{currentLineBlame.summary} - {currentLineBlame.date} - {t('files.lineHistory.open')}"
+            >
+              {currentLineBlame.hash} ({currentLineBlame.author})
+            </button>
+            {#if showLineHistory}
+              <LineHistoryPanel
+                worktreePath={worktreePath}
+                relPath={activeTab.path}
+                line={cursorLine}
+                onClose={() => { showLineHistory = false; }}
+              />
+            {/if}
+          </span>
           <CopyButton value={currentLineBlame.hash} size={10}/>
         {/if}
       {/if}
@@ -497,6 +523,8 @@
   .statusbar-active { color: var(--accent); }
 
   .statusbar-blame-spacer { flex: 1; }
+
+  .statusbar-blame-wrap { display: contents; }
 
   .statusbar-blame {
     color: var(--fg-3);

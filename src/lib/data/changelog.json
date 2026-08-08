@@ -8,6 +8,20 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "The blame in the editor status bar opens the full history of the current line: every commit that touched it, with its hash, author, date, message and the change itself.",
+					"fr": "Le blame de la barre d'état de l'éditeur ouvre l'historique complet de la ligne courante : chaque commit qui l'a touchée, avec son hash, son auteur, sa date, son message et la modification elle-même."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The editor status bar follows the caret again: the position and the blame were snapping back to the first line after every cursor move.",
+					"fr": "La barre d'état de l'éditeur suit à nouveau le curseur : la position et le blame revenaient à la première ligne après chaque déplacement."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "The whole empty area of the top bar moves the window, not only the gap next to the actions.",

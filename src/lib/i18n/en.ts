@@ -772,6 +772,12 @@ export const en = {
 		},
 		recentLabel: "Recent",
 		notCommittedYet: "Not committed yet",
+		lineHistory: {
+			title: "Line history",
+			open: "Show the history of this line",
+			empty: "No commit touched this line",
+			moreLines: (count: number) => `${count} more lines`,
+		},
 		convertLineEndings: "Convert line endings",
 		convertIndentStyle: "Convert indent style",
 		format: "Format",

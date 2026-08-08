@@ -369,6 +369,83 @@ function parseBlame(output: string): Map<number, BlameEntry> {
 	return map;
 }
 
+export interface LineHistoryChange {
+	type: "+" | "-";
+	content: string;
+}
+
+export interface LineHistoryEntry {
+	hash: string;
+	shortHash: string;
+	author: string;
+	email: string;
+	timestamp: number;
+	subject: string;
+	changes: LineHistoryChange[];
+}
+
+const LINE_HISTORY_LIMIT = 30;
+const SOH = "\u0001";
+const US = "\u001f";
+
+export async function gitLineHistory(
+	worktreePath: string,
+	relPath: string,
+	line: number,
+): Promise<LineHistoryEntry[]> {
+	const result = await invoke<{
+		stdout: string;
+		stderr: string;
+		success: boolean;
+	}>("run_shell_command", {
+		program: "git",
+		args: [
+			"log",
+			`-L${line},${line}:${relPath}`,
+			"--no-color",
+			`-n${LINE_HISTORY_LIMIT}`,
+			"--format=%x01%H%x1f%an%x1f%ae%x1f%at%x1f%s",
+		],
+		cwd: worktreePath,
+	});
+	if (!result.success) throw new Error(result.stderr || "git log -L failed");
+	return parseLineHistory(result.stdout);
+}
+
+function parseLineHistory(output: string): LineHistoryEntry[] {
+	const entries: LineHistoryEntry[] = [];
+	let current: LineHistoryEntry | null = null;
+	for (const line of output.split("\n")) {
+		if (line.startsWith(SOH)) {
+			const [hash, author, email, at, ...rest] = line.slice(1).split(US);
+			if (!hash) continue;
+			const timestamp = parseInt(at ?? "", 10);
+			current = {
+				hash,
+				shortHash: hash.slice(0, 7),
+				author: author || "(unknown author)",
+				email: email ?? "",
+				timestamp: Number.isNaN(timestamp) ? 0 : timestamp * 1000,
+				subject: rest.join(US) || "(no subject)",
+				changes: [],
+			};
+			entries.push(current);
+			continue;
+		}
+		if (!current) continue;
+		// The diff body of `-L` is a single hunk; only its +/- lines carry the
+		// state of the tracked line, and "---" / "+++" are file headers.
+		if (line.startsWith("+++") || line.startsWith("---")) continue;
+		if (line.startsWith("+") || line.startsWith("-")) {
+			current.changes.push({
+				type: line[0] as "+" | "-",
+				content: line.slice(1),
+			});
+		}
+	}
+	return entries;
+}
+
 export function hunkToPatch(relPath: string, hunk: DiffHunk): string {
 	const addCount = hunk.lines.filter((l) => l.type === "+").length;
 	const delCount = hunk.lines.filter((l) => l.type === "-").length;

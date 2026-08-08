@@ -791,6 +791,12 @@ export const fr = {
 		},
 		recentLabel: "Récent",
 		notCommittedYet: "Pas encore commité",
+		lineHistory: {
+			title: "Historique de la ligne",
+			open: "Afficher l'historique de cette ligne",
+			empty: "Aucun commit n'a touché cette ligne",
+			moreLines: (count: number) => `${count} lignes de plus`,
+		},
 		convertLineEndings: "Convertir les fins de ligne",
 		convertIndentStyle: "Convertir le style d'indentation",
 		format: "Formater",

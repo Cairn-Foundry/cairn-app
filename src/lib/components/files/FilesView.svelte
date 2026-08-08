@@ -1538,7 +1538,19 @@ import { get } from 'svelte/store';
   $: sidebarRight = $settings.sidebarPosition === 'right';
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
-  $: { if (activeTabs[0]) { cursorLines[0] = 1; cursorCols[0] = 1; } }
+  // Guarded on the path: the statement also re-runs on every cursor move (the
+  // move touches `panes`, which rebuilds `activeTabs`), and an unguarded reset
+  // would drag the caret position back to 1:1 right after each move.
+  let lastCursorResetPath: string | null = null;
+  $: resetCursorOnTabChange(activeTabs[0]?.path ?? null);
+
+  function resetCursorOnTabChange(path: string | null) {
+    if (path === lastCursorResetPath) return;
+    lastCursorResetPath = path;
+    if (path === null) return;
+    cursorLines[0] = 1;
+    cursorCols[0] = 1;
+  }
 
   function saveCurrentState() {
     if (currentInstanceId === null || currentProjectId === null) return;
