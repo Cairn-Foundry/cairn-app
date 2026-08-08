@@ -442,11 +442,53 @@ export const fr = {
 		interrupt: "Arrêter",
 		restart: "Nouvelle session",
 		you: "Vous",
+		agentRole: "Agent",
+		activityJump: "Aller au message correspondant",
 		streaming: "en cours",
 		inputPlaceholder:
 			"Rediriger l'agent, poser une question ou ajouter du contexte...",
 		sendBtn: "Envoyer",
 		mentionFile: "mentionner un fichier",
+		retry: "Réessayer",
+		thinking: "Réflexion",
+		contextWindow: "Fenêtre de contexte",
+		composer: {
+			provider: "Provider",
+			model: "Modèle",
+			modelDefault: "modèle",
+			effort: "Effort",
+			effortDefault: "effort",
+			permissionMode: "Mode de permissions",
+			permissionDefault: "permissions",
+			defaultOption: "Défaut",
+			context: "contexte",
+			customModels: "Personnalisés",
+			noProvider: "Aucun provider",
+			noProviderHint: "Activez un provider dans Paramètres > Agents.",
+		},
+		permission: {
+			title: "Permission requise",
+			allow: "Autoriser",
+			alwaysAllow: "Toujours autoriser",
+			deny: "Refuser",
+			denied: "Refusé depuis Cairn",
+			planTitle: "L'agent propose un plan",
+			approvePlan: "Approuver le plan",
+			keepPlanning: "Continuer à planifier",
+		},
+		stats: {
+			title: "Consommation de la session",
+			input: "Entrée",
+			output: "Sortie",
+			cost: "Coût",
+			total: "Total",
+		},
+		quota: {
+			fiveHour: "Fenêtre 5h",
+			weekly: "Fenêtre hebdomadaire",
+			resets: (time: string) => `réinitialisée à ${time}`,
+			limited: "Limite atteinte",
+		},
 		liveActivity: "Activité en direct",
 		liveActivitySub: "- ce que fait l'agent, en ce moment",
 		instanceStarted: "Instance démarrée",
@@ -1354,6 +1396,7 @@ export const fr = {
 			projects: "Projets",
 			savedCheckpoints: "Checkpoints sauvegardés",
 			activity: "Activité",
+			providers: "Fournisseurs",
 			agents: "Agents",
 			languageServers: "Serveurs de langage",
 			changelog: "Nouveautés",
@@ -1372,20 +1415,58 @@ export const fr = {
 				removed: "Supprimé",
 			},
 		},
+		providers: {
+			title: "Fournisseurs",
+			desc: "Connectez les fournisseurs IA sur lesquels Cairn exécute les agents.",
+		},
 		agents: {
 			title: "Agents",
-			desc: "Configurez les fournisseurs IA et gérez les profils d'agents personnalisés.",
-			tabs: {
-				providers: "Fournisseurs",
-				agents: "Agents",
-			},
+			desc: "Créez des profils d'agents avec leur modèle, leur prompt et leurs réglages.",
 			providerList: "Fournisseurs",
+			searchProviders: "Rechercher un fournisseur...",
+			searchAgents: "Rechercher un agent...",
+			searchNoResults: "Aucun résultat.",
+			clearSearch: "Effacer la recherche",
 			noProviderSelected: "Sélectionnez un fournisseur pour le configurer.",
 			enabled: "Activé",
 			disabled: "Désactivé",
 			comingSoon: "Bientôt disponible",
 			active: "Actif",
 			configTitle: "Configuration",
+			sections: {
+				connection: "Connexion",
+				model: "Modèle",
+				generation: "Génération",
+			},
+			probe: {
+				test: "Tester",
+				available: "Disponible",
+				unavailable: "Indisponible",
+				chatOnly: "Chat uniquement",
+				keySet: "Clé API enregistrée",
+				replaceKey: "Remplacer",
+				removeKey: "Supprimer",
+				saveKey: "Enregistrer la clé",
+				keyFallbackWarning:
+					"Aucun trousseau système disponible - la clé est stockée dans un fichier restreint dans ~/.cairn.",
+				makeDefault: "Définir par défaut",
+				defaultProvider: "Provider par défaut",
+			},
+			effortLevels: {
+				low: "Faible",
+				medium: "Moyen",
+				high: "Élevé",
+				xhigh: "Très élevé",
+				max: "Max",
+			},
+			permissionModes: {
+				auto: "Auto",
+				acceptEdits: "Accepter les modifications",
+				plan: "Mode plan",
+				manual: "Manuel",
+				dontAsk: "Ne pas demander",
+				bypassPermissions: "Ignorer les permissions",
+			},
 			fields: {
 				apiKey: "Clé API",
 				apiKeyPlaceholder: "sk-...",
@@ -1395,8 +1476,17 @@ export const fr = {
 				baseUrlHint: "Remplace l'endpoint par défaut (utile pour les proxies).",
 				model: "Modèle",
 				modelPlaceholder: "Sélectionner un modèle",
-				customModel: "ID de modèle personnalisé",
-				customModelPlaceholder: "nom-du-modèle",
+				customModels: "Modèles personnalisés",
+				customModelPlaceholder: "ex. claude-opus-4-8",
+				addCustomModel: "Ajouter",
+				removeCustomModel: (m: string) => `Retirer ${m}`,
+				customModelsHint:
+					"Des noms que le provider accepte mais ne liste pas - une version antérieure, par exemple. Ils apparaissent dans les sélecteurs de modèle à côté des familles.",
+				refreshModels: "Actualiser",
+				modelsLive: "Modèles annoncés par le provider.",
+				modelsFallback:
+					"Liste embarquée - actualisez pour interroger le provider.",
+				modelsFailed: "Le provider n'a pas répondu : liste embarquée affichée.",
 				temperature: "Température",
 				temperatureHint:
 					"Contrôle l'aléatoire. 0 = déterministe, 2 = très créatif.",
@@ -1409,6 +1499,19 @@ export const fr = {
 				streamingHint:
 					"Diffuse les tokens au fur et à mesure de leur génération.",
 				contextWindow: "Fenêtre de contexte",
+				modelDefault: "Défaut",
+				binaryPath: "Chemin du binaire",
+				binaryPathPlaceholder: "Détecté automatiquement depuis le PATH",
+				binaryPathHint:
+					"Remplace l'emplacement du binaire CLI. Laisser vide pour la détection automatique.",
+				effort: "Effort de raisonnement",
+				effortHint:
+					"Effort de raisonnement par défaut transmis au CLI pour les nouvelles conversations.",
+				permissionMode: "Mode de permissions",
+				permissionModeHint:
+					"Comportement par défaut des permissions pour les exécutions de l'agent.",
+				bypassWarning:
+					"L'agent exécutera chaque outil sans demander. À utiliser avec précaution.",
 			},
 			customAgents: {
 				newAgent: "Nouvel agent",
@@ -1417,8 +1520,49 @@ export const fr = {
 					"Créez un profil d'agent personnalisé pour définir un comportement, un persona ou un focus de tâche spécifique.",
 				createFirst: "Créer votre premier agent",
 				deleteConfirm: "Supprimer cet agent ?",
+				duplicate: "Dupliquer cet agent",
+				copyOf: (name: string) => `${name} (copie)`,
+				mentionHint: (token: string) => `Appelé avec ${token} dans le prompt.`,
+				mentionClash: (token: string) =>
+					`Un autre agent répond déjà à ${token} - seul le premier sera exécuté.`,
+				sections: {
+					appearance: "Apparence",
+					tools: "Outils",
+				},
+				tools: {
+					allowed: "Outils autorisés",
+					allowedHint:
+						"Limite l'agent à ces outils. Laissez vide pour autoriser tout ce que propose le fournisseur.",
+					allowedEmpty:
+						"Aucune restriction : tous les outils sont disponibles.",
+					disallowed: "Outils interdits",
+					disallowedHint:
+						"Jamais disponibles pour cet agent, même s'ils sont listés comme autorisés.",
+					placeholder: "ex. Read, ou mcp__serveur__outil",
+					remove: (tool: string) => `Retirer ${tool}`,
+					cliOnly:
+						"Les accès aux outils concernent les fournisseurs CLI agentiques. Celui-ci ne répond qu'en texte.",
+				},
+				import: {
+					heading: "Claude Code",
+					title: "Importer des sous-agents",
+					lead: "Définitions de sous-agents trouvées dans vos projets et dans votre dossier personnel.",
+					empty: "Aucune définition .claude/agents trouvée.",
+					confirm: (n: number) =>
+						n === 1 ? "Importer 1 agent" : `Importer ${n} agents`,
+					scopeProject: "projet",
+					scopeGlobal: "global",
+					alreadyExists: "déjà importé",
+				},
 				fields: {
 					name: "Nom",
+					icon: "Icône",
+					iconHint:
+						"Affichée dans la liste des agents. À défaut, les initiales.",
+					useInitials: "Utiliser les initiales",
+					effortHint: "Effort de raisonnement utilisé par cet agent.",
+					permissionModeHint:
+						"Comment cet agent demande avant d'utiliser un outil.",
 					namePlaceholder: "ex. Relecteur de code",
 					description: "Description",
 					descriptionPlaceholder: "Courte description de ce que fait cet agent",
@@ -1586,6 +1730,56 @@ export const fr = {
 			shortcuts: "Raccourcis",
 			languages: "Langues",
 			git: "Git",
+			agent: "Agent",
+		},
+		agent: {
+			messagesGroup: "Messages",
+			composerGroup: "Zone de saisie et statut",
+			activityGroup: "Activité en direct",
+			showMessageTime: "Horodatage des messages",
+			showMessageTimeDesc: "Afficher l'heure d'envoi de chaque message",
+			showThinking: "Bloc de raisonnement",
+			showThinkingDesc:
+				"Afficher le raisonnement repliable renvoyé par l'agent",
+			showMessageCopy: "Bouton de copie",
+			showMessageCopyDesc: "Afficher le bouton de copie sur chaque message",
+			stat: {
+				model: "Modèle",
+				duration: "Durée",
+				tokens: "Tokens",
+				cost: "Coût",
+				turns: "Tours de l'agent",
+			},
+			showResponseStats: "Statistiques de réponse",
+			showResponseStatsDesc:
+				"Afficher le modèle, la durée, les tokens et le coût sous chaque réponse",
+			showContextWindow: "Fenêtre de contexte",
+			showContextWindowDesc:
+				"Afficher la part de contexte du modèle déjà utilisée",
+			showConversationCost: "Consommation de la discussion",
+			showConversationCostDesc:
+				"Afficher les tokens et le coût de toute la discussion",
+			showRateLimit: "Limite d'usage",
+			showRateLimitDesc: "Prévenir quand le quota du fournisseur est atteint",
+			showModelChip: "Sélecteur de modèle",
+			showModelChipDesc: "Afficher le choix du modèle dans la zone de saisie",
+			showEffortChip: "Sélecteur d'effort",
+			showEffortChipDesc:
+				"Afficher le choix de l'effort de raisonnement dans la zone de saisie",
+			showPermissionChip: "Sélecteur de permissions",
+			showPermissionChipDesc:
+				"Afficher le choix du mode de permission dans la zone de saisie",
+			showLiveActivity: "Panneau d'activité en direct",
+			showLiveActivityDesc:
+				"Afficher le panneau d'activité à droite de l'agent",
+			activityShowTime: "Horodatage de l'activité",
+			activityShowTimeDesc: "Afficher l'heure de chaque entrée d'activité",
+			activityShowToolArgs: "Arguments des outils",
+			activityShowToolArgsDesc:
+				"Afficher le fichier ou l'argument utilisé par chaque outil",
+			activityAutoScroll: "Suivre la dernière entrée",
+			activityAutoScrollDesc:
+				"Faire défiler le panneau à mesure que les entrées arrivent",
 		},
 		general: {
 			groupTitle: "Général",

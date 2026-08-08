@@ -25,6 +25,12 @@ pub struct ConversationMeta {
     pub session_id: Option<String>,
     #[serde(rename = "messageCount", default)]
     pub message_count: u32,
+    #[serde(rename = "modelId", default)]
+    pub model_id: Option<String>,
+    #[serde(default)]
+    pub effort: Option<String>,
+    #[serde(rename = "permissionMode", default)]
+    pub permission_mode: Option<String>,
     #[serde(default)]
     pub preview: String,
 }

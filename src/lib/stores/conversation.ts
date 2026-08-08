@@ -204,6 +204,18 @@ export function setConversationProvider(
 	patch(ref, id, { providerId });
 }
 
+export function setConversationRunOptions(
+	ref: ConversationRef,
+	id: string,
+	fields: {
+		modelId?: string | null;
+		effort?: string | null;
+		permissionMode?: string | null;
+	},
+): void {
+	patch(ref, id, fields);
+}
+
 export function setConversationSession(
 	ref: ConversationRef,
 	id: string,
@@ -248,7 +260,11 @@ export function updateConversationContent(
 ): void {
 	const timerKey = `${listKey(ref)}:${id}`;
 	const preview = conversationPreview(messages);
-	const signature = `${messages.length}\u001f${activity.length}\u001f${preview}`;
+	// Usage and resolved-activity counts are part of the signature so late
+	// telemetry (arriving after the text stopped changing) still gets saved.
+	const usageCount = messages.filter((m) => m.usage).length;
+	const doneCount = activity.filter((a) => a.done).length;
+	const signature = `${messages.length}\u001f${usageCount}\u001f${activity.length}\u001f${doneCount}\u001f${preview}`;
 
 	if (lastSync.get(timerKey) === signature) return;
 	lastSync.set(timerKey, signature);

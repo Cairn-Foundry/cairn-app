@@ -18,6 +18,18 @@ pub fn settings_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("settings.json"))
 }
 
+pub fn ai_providers_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("ai-providers.json"))
+}
+
+pub fn custom_agents_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("agents.json"))
+}
+
+pub fn api_key_fallback_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("ai-keys.json"))
+}
+
 pub fn projects_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("projects.json"))
 }

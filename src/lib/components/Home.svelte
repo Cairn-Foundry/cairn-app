@@ -7,7 +7,8 @@
   import ProjectsSection from '$lib/components/home/ProjectsSection.svelte';
   import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
   import type { Project } from '$lib/types/project';
-  import AgentsSection from '$lib/components/home/AgentsSection.svelte';
+  import AgentsTab from '$lib/components/home/agents/AgentsTab.svelte';
+  import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import LanguageServersSection from '$lib/components/home/LanguageServersSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
@@ -74,13 +75,22 @@
         {t('home.sections.activityEmpty')}
       </div>
 
+    {:else if activeSection === 'providers'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.providers.title')}</h1>
+        <div class="sub">{t('home.providers.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <ProvidersTab />
+      </div>
+
     {:else if activeSection === 'agents'}
       <div class="home-hero" style="padding-bottom: 0">
         <h1 style="font-size: 22px">{t('home.agents.title')}</h1>
         <div class="sub">{t('home.agents.desc')}</div>
       </div>
       <div style="margin-top: 24px;">
-        <AgentsSection />
+        <AgentsTab />
       </div>
 
     {:else if activeSection === 'languageServers'}

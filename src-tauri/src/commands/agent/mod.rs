@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tauri::{Emitter, Manager};
 
+pub mod config;
+pub mod platform;
 pub mod providers;
 pub use providers::{ClaudeCliProvider, ProviderRegistry};
 
@@ -14,21 +17,76 @@ pub struct AgentResponse {
 
 pub struct RunningAgent {
     pub child: Mutex<Option<Child>>,
+    pub stdin: Mutex<Option<std::process::ChildStdin>>,
     pub cancelled: AtomicBool,
 }
 
 pub type RunningChild = Arc<RunningAgent>;
 
+#[derive(Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RunOptions {
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub effort: Option<String>,
+    #[serde(default)]
+    pub permission_mode: Option<String>,
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    #[serde(default)]
+    pub temperature: Option<f64>,
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+    #[serde(default)]
+    pub history: Option<Vec<HistoryMessage>>,
+    #[serde(default)]
+    pub allowed_tools: Option<Vec<String>>,
+    #[serde(default)]
+    pub disallowed_tools: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct HistoryMessage {
+    pub role: String,
+    pub content: String,
+}
+
+/// Persisted provider settings merged with the per-send overrides.
+#[derive(Clone, Default)]
+pub struct ResolvedOptions {
+    pub model: String,
+    pub effort: String,
+    pub permission_mode: String,
+    pub system_prompt: String,
+    pub temperature: f64,
+    pub max_tokens: u32,
+    pub timeout: u32,
+    pub streaming: bool,
+    pub base_url: String,
+    pub binary_path: String,
+    pub extra_args: Vec<String>,
+    pub api_key: Option<String>,
+    pub history: Vec<HistoryMessage>,
+    pub allowed_tools: Vec<String>,
+    pub disallowed_tools: Vec<String>,
+}
+
+pub struct SendRequest<'a> {
+    pub message: &'a str,
+    pub working_dir: &'a str,
+    pub session_id: Option<&'a str>,
+    pub run_id: &'a str,
+    pub env: &'a HashMap<String, String>,
+    pub options: &'a ResolvedOptions,
+}
+
 pub trait AgentProvider: Send + Sync {
     fn send(
         &self,
         app: &tauri::AppHandle,
-        message: &str,
-        working_dir: &str,
-        session_id: Option<&str>,
+        request: &SendRequest,
         handle: &RunningChild,
-        run_id: &str,
-        env: &HashMap<String, String>,
     ) -> Result<AgentResponse, String>;
 }
 
@@ -54,6 +112,7 @@ struct AgentOutputEvent {
     summary:     Option<String>,
     working_dir: Option<String>,
     run_id:      Option<String>,
+    data:        Option<Value>,
 }
 
 pub fn emit_agent(
@@ -69,6 +128,7 @@ pub fn emit_agent(
         summary: None,
         working_dir,
         run_id,
+        data: None,
     });
 }
 
@@ -85,10 +145,67 @@ pub fn emit_agent_tool(
         summary: Some(tool.to_string()),
         working_dir,
         run_id,
+        data: None,
     });
 }
 
+/// Structured payloads: usage, cost, error, thinking, tool_result, init.
+pub fn emit_agent_data(
+    app: &tauri::AppHandle,
+    source: &str,
+    data: Value,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+) {
+    let _ = app.emit("claude-output", AgentOutputEvent {
+        line: String::new(),
+        source: source.to_string(),
+        summary: None,
+        working_dir,
+        run_id,
+        data: Some(data),
+    });
+}
+
+fn resolve_options(provider_id: &str, overrides: Option<RunOptions>) -> ResolvedOptions {
+    let stored = config::read_ai_providers_config()
+        .ok()
+        .and_then(|c| c.providers.get(provider_id).cloned())
+        .unwrap_or_default();
+
+    let overrides = overrides.unwrap_or_default();
+    // A custom model is just another entry in the picker, so the selected model
+    // is authoritative; the legacy single pin still applies when nothing is set.
+    let stored_model = if stored.model.is_empty() {
+        stored.custom_model.clone()
+    } else {
+        stored.model.clone()
+    };
+
+    ResolvedOptions {
+        model: overrides.model.filter(|m| !m.is_empty()).unwrap_or(stored_model),
+        effort: overrides.effort.filter(|e| !e.is_empty()).unwrap_or(stored.effort),
+        permission_mode: overrides
+            .permission_mode
+            .filter(|p| !p.is_empty())
+            .unwrap_or(stored.permission_mode),
+        system_prompt: overrides.system_prompt.unwrap_or_default(),
+        temperature: overrides.temperature.unwrap_or(stored.temperature),
+        max_tokens: overrides.max_tokens.unwrap_or(stored.max_tokens),
+        timeout: stored.timeout,
+        streaming: stored.streaming,
+        base_url: stored.base_url,
+        binary_path: stored.binary_path,
+        extra_args: stored.extra_args,
+        api_key: config::get_api_key(provider_id),
+        history: overrides.history.unwrap_or_default(),
+        allowed_tools: overrides.allowed_tools.unwrap_or_default(),
+        disallowed_tools: overrides.disallowed_tools.unwrap_or_default(),
+    }
+}
+
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn send_message(
     app: tauri::AppHandle,
     message: String,
@@ -97,6 +214,7 @@ pub async fn send_message(
     run_id: String,
     session_id: Option<String>,
     env: Option<HashMap<String, String>>,
+    options: Option<RunOptions>,
 ) -> Result<(), String> {
     let state = app.state::<AgentState>();
 
@@ -108,6 +226,7 @@ pub async fn send_message(
 
     let handle: RunningChild = Arc::new(RunningAgent {
         child: Mutex::new(None),
+        stdin: Mutex::new(None),
         cancelled: AtomicBool::new(false),
     });
     state.running.lock().map_err(|e| e.to_string())?
@@ -115,16 +234,17 @@ pub async fn send_message(
 
     let app_out = app.clone();
     let env = env.unwrap_or_default();
+    let resolved = resolve_options(&provider_id, options);
     std::thread::spawn(move || {
-        let result = provider.send(
-            &app_out,
-            &message,
-            &working_dir,
-            session_id.as_deref(),
-            &handle,
-            &run_id,
-            &env,
-        );
+        let request = SendRequest {
+            message: &message,
+            working_dir: &working_dir,
+            session_id: session_id.as_deref(),
+            run_id: &run_id,
+            env: &env,
+            options: &resolved,
+        };
+        let result = provider.send(&app_out, &request, &handle);
 
         if let Ok(mut running) = app_out.state::<AgentState>().running.lock() {
             running.remove(&run_id);
@@ -142,12 +262,55 @@ pub async fn send_message(
                     emit_agent(&app_out, id, "session", wd.clone(), rid.clone());
                 }
             }
-            Err(e) => emit_agent(&app_out, format!("[error: {e}]"), "system", wd.clone(), rid.clone()),
+            Err(e) => {
+                emit_agent_data(
+                    &app_out,
+                    "error",
+                    serde_json::json!({ "message": e }),
+                    wd.clone(),
+                    rid.clone(),
+                );
+            }
         }
         emit_agent(&app_out, "[done]".into(), "system", wd, rid);
     });
 
     Ok(())
+}
+
+/// Answer a pending can_use_tool control request of a running CLI session.
+/// `response` is the inner payload: {"behavior":"allow","updatedInput":...,
+/// "updatedPermissions":...} or {"behavior":"deny","message":"..."}.
+#[tauri::command]
+pub async fn respond_permission(
+    app: tauri::AppHandle,
+    run_id: String,
+    request_id: String,
+    response: Value,
+) -> Result<(), String> {
+    use std::io::Write;
+
+    let state = app.state::<AgentState>();
+    let handle = state
+        .running
+        .lock()
+        .map_err(|e| e.to_string())?
+        .get(&run_id)
+        .cloned()
+        .ok_or("No running agent for this run")?;
+
+    let envelope = serde_json::json!({
+        "type": "control_response",
+        "response": {
+            "subtype": "success",
+            "request_id": request_id,
+            "response": response,
+        },
+    });
+
+    let mut slot = handle.stdin.lock().map_err(|e| e.to_string())?;
+    let stdin = slot.as_mut().ok_or("Agent input is closed")?;
+    writeln!(stdin, "{envelope}").map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -159,7 +322,7 @@ pub async fn stop_agent(app: tauri::AppHandle, run_id: String) -> Result<(), Str
         handle.cancelled.store(true, Ordering::SeqCst);
         if let Ok(mut slot) = handle.child.lock() {
             if let Some(mut child) = slot.take() {
-                let _ = child.kill();
+                platform::kill_tree(&mut child);
             }
         }
     }

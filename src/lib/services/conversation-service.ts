@@ -2,11 +2,23 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type ConversationScope = "instance" | "project";
 
+export interface MessageUsage {
+	model?: string;
+	inputTokens?: number;
+	outputTokens?: number;
+	cacheReadTokens?: number;
+	costUsd?: number;
+	durationMs?: number;
+	numTurns?: number;
+}
+
 export interface ConversationMessage {
 	role: "system" | "user" | "agent";
 	content: string;
 	time: string;
 	streaming?: boolean;
+	thinking?: string;
+	usage?: MessageUsage;
 }
 
 export interface ConversationActivity {
@@ -14,6 +26,8 @@ export interface ConversationActivity {
 	icon: string;
 	label: string;
 	source: "stdin" | "tool" | "system";
+	done?: boolean;
+	failed?: boolean;
 }
 
 export interface ConversationMeta {
@@ -28,6 +42,9 @@ export interface ConversationMeta {
 	sessionId: string | null;
 	messageCount: number;
 	preview: string;
+	modelId?: string | null;
+	effort?: string | null;
+	permissionMode?: string | null;
 }
 
 export interface ConversationIndex {

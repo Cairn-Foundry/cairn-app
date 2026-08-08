@@ -8,7 +8,8 @@ export type SettingsTab =
 	| "shortcuts"
 	| "project"
 	| "languages"
-	| "git";
+	| "git"
+	| "agent";
 
 export interface SettingEntry {
 	label: string;
@@ -110,6 +111,29 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		tab: "project",
 		group: s("settings.project.workflowTabsGroup"),
 	},
+	...(
+		[
+			["messagesGroup", "showMessageTime"],
+			["messagesGroup", "showThinking"],
+			["messagesGroup", "showMessageCopy"],
+			["messagesGroup", "showResponseStats"],
+			["composerGroup", "showModelChip"],
+			["composerGroup", "showEffortChip"],
+			["composerGroup", "showPermissionChip"],
+			["composerGroup", "showContextWindow"],
+			["composerGroup", "showConversationCost"],
+			["composerGroup", "showRateLimit"],
+			["activityGroup", "showLiveActivity"],
+			["activityGroup", "activityShowTime"],
+			["activityGroup", "activityShowToolArgs"],
+			["activityGroup", "activityAutoScroll"],
+		] as const
+	).map(([group, key]) => ({
+		label: s(`settings.agent.${key}`),
+		desc: s(`settings.agent.${key}Desc`),
+		tab: "agent" as SettingsTab,
+		group: s(`settings.agent.${group}`),
+	})),
 	{
 		label: s("settings.languages.groupTitle"),
 		desc: s("settings.languages.desc"),

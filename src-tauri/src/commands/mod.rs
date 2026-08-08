@@ -19,7 +19,13 @@ pub mod terminal;
 pub mod toolchain;
 pub mod ui_state;
 
-pub use agent::{AgentState, send_message, stop_agent};
+pub use agent::{AgentState, send_message, stop_agent, respond_permission};
+pub use agent::config::{
+    get_ai_providers_config, save_ai_providers_config,
+    set_provider_api_key, has_provider_api_key, delete_provider_api_key,
+    get_custom_agents, save_custom_agents,
+    probe_provider, list_agent_commands, list_claude_agents, discover_provider,
+};
 pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use conversations::{get_conversation_index, save_conversation_index, get_conversation_body, save_conversation_body, delete_conversation_body};

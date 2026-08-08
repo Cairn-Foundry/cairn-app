@@ -2,8 +2,250 @@
 	{
 		"version": "0.14.0",
 		"date": "",
-		"summary": {},
-		"changes": []
+		"summary": {
+			"en": "AI providers become real: configuration, models, and richer conversations.",
+			"fr": "Les providers IA deviennent réels : configuration, modèles et conversations enrichies."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An agent that pins its own provider now actually runs on it. The provider was saved but ignored at send time, so the agent ran on the conversation's provider while being handed a model id belonging to another one.",
+					"fr": "Un agent qui fixe son propre fournisseur s'exécute désormais réellement dessus. Le fournisseur était enregistré mais ignoré à l'envoi : l'agent tournait sur le fournisseur de la conversation tout en recevant l'identifiant de modèle d'un autre."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Agents can now be imported from your Claude Code subagent definitions: Cairn reads the .claude/agents folders of your projects and of your home directory, and turns their frontmatter and body into ready-made agents - name, description, model, reasoning effort, permission mode, tools and colour included.",
+					"fr": "Les agents peuvent désormais être importés depuis vos définitions de sous-agents Claude Code : Cairn lit les dossiers .claude/agents de vos projets et de votre dossier personnel, et transforme leur frontmatter et leur corps en agents prêts à l'emploi - nom, description, modèle, effort de raisonnement, mode de permission, outils et couleur compris."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent can now restrict the tools it is allowed to use, with an allow list and a deny list, and choose its own reasoning effort and permission mode instead of inheriting the provider's.",
+					"fr": "Un agent peut désormais restreindre les outils qu'il a le droit d'utiliser, via une liste d'autorisation et une liste d'interdiction, et choisir son propre effort de raisonnement et mode de permission au lieu d'hériter de ceux du fournisseur."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Agents can carry an icon instead of their initials, be duplicated in one click, and warn you when two of them would answer to the same @mention.",
+					"fr": "Les agents peuvent porter une icône à la place de leurs initiales, être dupliqués en un clic, et vous avertir lorsque deux d'entre eux répondraient à la même @mention."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Providers now have their own entry in the home menu, separate from Agents: one screen to connect the models, one to build the agent profiles that use them.",
+					"fr": "Les fournisseurs ont désormais leur propre entrée dans le menu de l'accueil, séparée des Agents : un écran pour connecter les modèles, un autre pour construire les profils d'agents qui les utilisent."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Agents screen has been redesigned to match the rest of Cairn: segmented tabs, provider and agent lists as searchable side panels, settings grouped into cards, and the app's own dropdowns everywhere. Statuses now use the theme colours, so they stay readable in light mode.",
+					"fr": "L'écran Agents a été redessiné pour s'accorder au reste de Cairn : onglets segmentés, listes des providers et des agents en panneau latéral avec recherche, réglages regroupés en cartes et menus déroulants de l'application partout. Les statuts utilisent désormais les couleurs du thème et restent donc lisibles en mode clair."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "New Agent tab in the settings: choose what the agent view shows - response stats, conversation usage, context window, live activity, composer selectors and more.",
+					"fr": "Nouvel onglet Agent dans les paramètres : choisissez ce qu'affiche la vue agent - statistiques de réponse, consommation de la discussion, fenêtre de contexte, activité en direct, sélecteurs de la zone de saisie et plus encore."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Models, effort levels and permission modes are now asked to the provider itself instead of being shipped with Cairn, so a newly released model or a new CLI option shows up without waiting for a Cairn update. A Refresh button sits next to the model field, and the built-in lists are only a fallback.",
+					"fr": "Les modèles, niveaux d'effort et modes de permission sont désormais demandés au provider lui-même au lieu d'être livrés avec Cairn : un modèle qui vient de sortir ou une nouvelle option du CLI apparaît sans attendre une mise à jour de Cairn. Un bouton Actualiser accompagne le champ modèle, et les listes embarquées ne sont plus qu'un repli."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The model picker now lists model families rather than every release, and each provider gained a \"Custom models\" list: add as many exact model names as you need - an older Opus, Sonnet or Fable release, for instance - and they appear in the pickers next to the families. Families are derived from what the provider reports, never from a list shipped with Cairn.",
+					"fr": "Le sélecteur de modèle liste désormais les familles plutôt que chaque version, et chaque provider gagne une liste \"Modèles personnalisés\" : ajoutez autant de noms exacts que nécessaire - une version antérieure d'Opus, Sonnet ou Fable, par exemple - et ils apparaissent dans les sélecteurs à côté des familles. Les familles sont déduites de ce que le provider annonce, jamais d'une liste livrée avec Cairn."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "An answer is now signed with the model that wrote it (Claude Opus, Claude Haiku...) instead of a generic \"Agent\".",
+					"fr": "Une réponse est désormais signée par le modèle qui l'a écrite (Claude Opus, Claude Haiku...) au lieu d'un \"Agent\" générique."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Response stats are now individual chips with an icon, and each one - model, duration, tokens, cost, turns - can be shown or hidden separately.",
+					"fr": "Les statistiques de réponse sont désormais des puces avec icône, et chacune - modèle, durée, tokens, coût, tours - s'affiche ou se masque séparément."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The provider and model selectors now only offer the providers enabled in Settings > Agents.",
+					"fr": "Les sélecteurs de provider et de modèle ne proposent plus que les providers activés dans Paramètres > Agents."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The live activity panel was redesigned as a timeline, with clearer running, done and failed states and a count of the tools still in flight. Clicking an entry now jumps to the message it belongs to and highlights it.",
+					"fr": "Le panneau d'activité en direct a été repensé en timeline, avec des états en cours, terminé et échoué plus lisibles et un compteur des outils encore en cours. Cliquer une entrée saute désormais au message auquel elle appartient et le met en évidence."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Provider settings are now persisted: enable providers, pick models, tune generation parameters, and set a default provider for new conversations.",
+					"fr": "Les réglages des providers sont désormais persistés : activation, choix du modèle, paramètres de génération et provider par défaut pour les nouvelles conversations."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "API keys are stored securely in the system keychain (Keychain, Credential Manager, or Secret Service), with a restricted-file fallback.",
+					"fr": "Les clés API sont stockées de façon sécurisée dans le trousseau système (Keychain, Credential Manager ou Secret Service), avec un repli sur un fichier restreint."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Direct API providers: Anthropic, OpenAI, Mistral, Gemini and Ollama can now answer in conversations (chat only, without tools).",
+					"fr": "Providers API directs : Anthropic, OpenAI, Mistral, Gemini et Ollama peuvent désormais répondre dans les conversations (chat uniquement, sans outils)."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Each provider shows its live status: CLI detected with its version, API key present, or Ollama models actually installed.",
+					"fr": "Chaque provider affiche son état en direct : CLI détecté avec sa version, clé API présente, ou modèles Ollama réellement installés."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The conversation composer gains model, reasoning effort and permission mode pickers, remembered per conversation.",
+					"fr": "Le compositeur de conversation gagne des sélecteurs de modèle, d'effort de raisonnement et de mode de permissions, mémorisés par conversation."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Type @ to mention a custom agent (its system prompt and model apply to the message) or / to autocomplete a Claude command of the project.",
+					"fr": "Tapez @ pour mentionner un agent personnalisé (son prompt système et son modèle s'appliquent au message) ou / pour autocompléter une commande Claude du projet."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Each answer shows its telemetry: model, duration, tokens in and out, and cost when known; a context window gauge tracks the conversation.",
+					"fr": "Chaque réponse affiche sa télémétrie : modèle, durée, tokens entrants et sortants, et coût quand il est connu ; une jauge de fenêtre de contexte suit la conversation."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Custom agents are now saved on disk and usable from the Agent view.",
+					"fr": "Les agents personnalisés sont désormais enregistrés sur disque et utilisables depuis la vue Agent."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Tool permissions are now interactive in-app: when the agent needs an approval, Cairn shows the exact tool and input with Allow, Always allow and Deny - the same flow as the CLI.",
+					"fr": "Les permissions d'outils sont désormais interactives dans l'app : quand l'agent demande une approbation, Cairn affiche l'outil et l'entrée exacte avec Autoriser, Toujours autoriser et Refuser - le même flux que le CLI."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "In plan mode, the proposed plan is shown in the conversation and can be approved or sent back for more planning.",
+					"fr": "En mode plan, le plan proposé s'affiche dans la conversation et peut être approuvé ou renvoyé en planification."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Typing @ also completes files of the worktree, so the agent can be pointed at a precise file.",
+					"fr": "Taper @ complète aussi les fichiers du worktree, pour pointer l'agent vers un fichier précis."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "When the subscription rate limit is reached, the conversation shows it with the reset time.",
+					"fr": "Quand la limite de l'abonnement est atteinte, la conversation l'affiche avec l'heure de réinitialisation."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Reasoning effort and permission modes now mirror the CLI exactly (low to max, acceptEdits to bypassPermissions).",
+					"fr": "L'effort de raisonnement et les modes de permissions reflètent désormais exactement le CLI (low à max, acceptEdits à bypassPermissions)."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The conversation composer was streamlined: discreet chips instead of selectors, telemetry as a single muted line, and the context gauge next to the input.",
+					"fr": "Le compositeur de conversation a été épuré : des chips discrets à la place des sélecteurs, la télémétrie sur une seule ligne sobre, et la jauge de contexte près de la saisie."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A session usage popover next to the composer sums input and output tokens per model and the total cost of the conversation, persisted with it.",
+					"fr": "Un popover de consommation près du compositeur cumule les tokens entrants et sortants par modèle et le coût total de la conversation, persisté avec elle."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The provider is picked from a chip next to the model, all composer chips carry an icon, and the context usage renders as a small progress bar.",
+					"fr": "Le provider se choisit depuis un chip à côté du modèle, tous les chips du compositeur portent une icône, et l'usage du contexte s'affiche en petite barre de progression."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Live activity is easier to read: the tool name stands out from its argument, and each step resolves when the next one starts.",
+					"fr": "L'activité en direct est plus lisible : le nom de l'outil se distingue de son argument, et chaque étape se résout quand la suivante démarre."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Per-answer telemetry (model, duration, tokens, cost) now survives an app restart.",
+					"fr": "La télémétrie par réponse (modèle, durée, tokens, coût) survit désormais à un redémarrage de l'app."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The agent's thinking is shown as a collapsible block, and tool activity rows resolve with a check or an error mark.",
+					"fr": "La réflexion de l'agent apparaît dans un bloc repliable, et les lignes d'activité des outils se résolvent avec une coche ou une marque d'erreur."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Agent errors now show the real message from the CLI or the API, with a Retry button.",
+					"fr": "Les erreurs de l'agent affichent désormais le vrai message du CLI ou de l'API, avec un bouton Réessayer."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Stopping the agent now terminates every process it spawned, on every platform.",
+					"fr": "Arrêter l'agent termine désormais tous les processus qu'il a lancés, sur toutes les plateformes."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.13.0",

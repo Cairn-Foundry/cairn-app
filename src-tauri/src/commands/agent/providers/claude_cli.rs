@@ -1,56 +1,114 @@
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader, Read, Write};
+use std::process::Stdio;
 use std::sync::atomic::Ordering;
-use serde_json::Value;
-use super::super::{emit_agent, emit_agent_tool, AgentProvider, AgentResponse, RunningChild};
+use serde_json::{json, Value};
+use super::super::{
+    emit_agent, emit_agent_data, emit_agent_tool, platform,
+    AgentProvider, AgentResponse, RunningChild, SendRequest,
+};
 
 pub struct ClaudeCliProvider;
 
+/// Drives the CLI through its stream-json control protocol: the user message
+/// goes in on stdin, permission requests come back as control_request events
+/// and are answered through the same stdin (see respond_permission).
 impl AgentProvider for ClaudeCliProvider {
     fn send(
         &self,
         app: &tauri::AppHandle,
-        message: &str,
-        working_dir: &str,
-        session_id: Option<&str>,
+        request: &SendRequest,
         handle: &RunningChild,
-        run_id: &str,
-        env: &std::collections::HashMap<String, String>,
     ) -> Result<AgentResponse, String> {
+        let opts = request.options;
+        let binary_override = (!opts.binary_path.is_empty()).then_some(opts.binary_path.as_str());
+        let binary = platform::resolve_binary("claude", binary_override)
+            .ok_or("Claude Code CLI not found. Install it or set its path in the provider settings.")?;
+
         let mut args: Vec<String> = vec![
             "-p".into(),
-            message.into(),
             "--output-format".into(),
             "stream-json".into(),
+            "--input-format".into(),
+            "stream-json".into(),
             "--verbose".into(),
+            "--permission-prompt-tool".into(),
+            "stdio".into(),
         ];
-        if let Some(id) = session_id {
+        if let Some(id) = request.session_id {
             args.push("--resume".into());
             args.push(id.to_string());
         }
+        if !opts.model.is_empty() {
+            args.push("--model".into());
+            args.push(opts.model.clone());
+        }
+        if !opts.effort.is_empty() {
+            args.push("--effort".into());
+            args.push(opts.effort.clone());
+        }
+        if !opts.permission_mode.is_empty() {
+            args.push("--permission-mode".into());
+            args.push(opts.permission_mode.clone());
+        }
+        if !opts.system_prompt.is_empty() {
+            args.push("--append-system-prompt".into());
+            args.push(opts.system_prompt.clone());
+        }
+        if !opts.allowed_tools.is_empty() {
+            args.push("--allowedTools".into());
+            args.push(opts.allowed_tools.join(","));
+        }
+        if !opts.disallowed_tools.is_empty() {
+            args.push("--disallowedTools".into());
+            args.push(opts.disallowed_tools.join(","));
+        }
+        args.extend(opts.extra_args.iter().cloned());
 
-        let mut child = Command::new("claude")
-            .args(&args)
-            .envs(env)
-            .current_dir(working_dir)
-            .stdin(Stdio::null())
+        let mut cmd = platform::new_command(&binary);
+        cmd.args(&args)
+            .envs(request.env)
+            .current_dir(request.working_dir)
+            .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn claude: {e}"))?;
+            .stderr(Stdio::piped());
+
+        let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn claude: {e}"))?;
 
         let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let mut stdin = child.stdin.take();
+
+        if let Some(input) = stdin.as_mut() {
+            let user_message = json!({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{ "type": "text", "text": request.message }],
+                },
+            });
+            writeln!(input, "{user_message}").map_err(|e| format!("Failed to send prompt: {e}"))?;
+        }
+        *handle.stdin.lock().map_err(|e| e.to_string())? = stdin;
         *handle.child.lock().map_err(|e| e.to_string())? = Some(child);
 
         if handle.cancelled.load(Ordering::SeqCst) {
             if let Ok(mut slot) = handle.child.lock() {
-                if let Some(mut c) = slot.take() { let _ = c.kill(); }
+                if let Some(mut c) = slot.take() { platform::kill_tree(&mut c); }
             }
         }
 
-        let wd = Some(working_dir.to_string());
-        let rid = Some(run_id.to_string());
+        let stderr_thread = stderr.map(|mut err| {
+            std::thread::spawn(move || {
+                let mut buf = String::new();
+                let _ = err.read_to_string(&mut buf);
+                buf
+            })
+        });
+
+        let wd = Some(request.working_dir.to_string());
+        let rid = Some(request.run_id.to_string());
         let mut session_id_out: Option<String> = None;
+        let mut model_seen: Option<String> = None;
 
         if let Some(out) = stdout {
             for line in BufReader::new(out).lines() {
@@ -63,7 +121,40 @@ impl AgentProvider for ClaudeCliProvider {
                 }
 
                 match event.get("type").and_then(Value::as_str) {
+                    Some("control_request") => {
+                        let request_body = event.get("request");
+                        if request_body.and_then(|r| r.get("subtype")).and_then(Value::as_str)
+                            == Some("can_use_tool")
+                        {
+                            emit_agent_data(app, "permission_request", json!({
+                                "requestId": event.get("request_id"),
+                                "toolName": request_body.and_then(|r| r.get("tool_name")),
+                                "displayName": request_body.and_then(|r| r.get("display_name")),
+                                "input": request_body.and_then(|r| r.get("input")),
+                                "description": request_body.and_then(|r| r.get("description")),
+                                "suggestions": request_body.and_then(|r| r.get("permission_suggestions")),
+                                "toolUseId": request_body.and_then(|r| r.get("tool_use_id")),
+                            }), wd.clone(), rid.clone());
+                        }
+                    }
+                    Some("rate_limit_event") => {
+                        if let Some(info) = event.get("rate_limit_info") {
+                            emit_agent_data(app, "rate_limit", info.clone(), wd.clone(), rid.clone());
+                        }
+                    }
+                    Some("system") if event.get("subtype").and_then(Value::as_str) == Some("init") => {
+                        model_seen = event.get("model").and_then(Value::as_str).map(String::from);
+                        emit_agent_data(app, "init", json!({
+                            "model": event.get("model"),
+                            "tools": event.get("tools"),
+                            "agents": event.get("agents"),
+                            "permissionMode": event.get("permissionMode"),
+                        }), wd.clone(), rid.clone());
+                    }
                     Some("assistant") => {
+                        if let Some(model) = event.pointer("/message/model").and_then(Value::as_str) {
+                            model_seen = Some(model.to_string());
+                        }
                         let blocks = event
                             .get("message")
                             .and_then(|m| m.get("content"))
@@ -78,6 +169,13 @@ impl AgentProvider for ClaudeCliProvider {
                                             }
                                         }
                                     }
+                                    Some("thinking") => {
+                                        if let Some(text) = block.get("thinking").and_then(Value::as_str) {
+                                            if !text.is_empty() {
+                                                emit_agent_data(app, "thinking", json!({ "text": text }), wd.clone(), rid.clone());
+                                            }
+                                        }
+                                    }
                                     Some("tool_use") => {
                                         let name = block.get("name").and_then(Value::as_str).unwrap_or("tool");
                                         let label = tool_label(name, block.get("input"));
@@ -88,13 +186,64 @@ impl AgentProvider for ClaudeCliProvider {
                             }
                         }
                     }
+                    Some("user") => {
+                        let blocks = event
+                            .get("message")
+                            .and_then(|m| m.get("content"))
+                            .and_then(Value::as_array);
+                        if let Some(blocks) = blocks {
+                            for block in blocks {
+                                if block.get("type").and_then(Value::as_str) == Some("tool_result") {
+                                    emit_agent_data(app, "tool_result", json!({
+                                        "isError": block.get("is_error").and_then(Value::as_bool).unwrap_or(false),
+                                    }), wd.clone(), rid.clone());
+                                }
+                            }
+                        }
+                    }
+                    Some("result") => {
+                        emit_agent_data(app, "usage", json!({
+                            "model": model_seen,
+                            "usage": event.get("usage"),
+                            "totalCostUsd": event.get("total_cost_usd"),
+                            "durationMs": event.get("duration_ms").or_else(|| event.get("duration_api_ms")),
+                            "numTurns": event.get("num_turns"),
+                        }), wd.clone(), rid.clone());
+                        if event.get("is_error").and_then(Value::as_bool) == Some(true) {
+                            if let Some(text) = event.get("result").and_then(Value::as_str) {
+                                emit_agent_data(app, "error", json!({ "message": text }), wd.clone(), rid.clone());
+                            }
+                        }
+                        // Closing stdin ends the streaming session; the CLI exits.
+                        if let Ok(mut slot) = handle.stdin.lock() {
+                            slot.take();
+                        }
+                    }
                     _ => {}
                 }
             }
         }
 
-        if let Ok(mut slot) = handle.child.lock() {
-            if let Some(mut c) = slot.take() { let _ = c.wait(); }
+        if let Ok(mut slot) = handle.stdin.lock() {
+            slot.take();
+        }
+        let status = handle.child.lock().ok().and_then(|mut slot| {
+            slot.take().and_then(|mut c| c.wait().ok())
+        });
+        let stderr_text = stderr_thread
+            .and_then(|t| t.join().ok())
+            .unwrap_or_default();
+
+        if let Some(status) = status {
+            if !status.success() && !handle.cancelled.load(Ordering::SeqCst) {
+                let detail = stderr_text.trim();
+                let message = if detail.is_empty() {
+                    format!("claude exited with {status}")
+                } else {
+                    detail.to_string()
+                };
+                return Err(message);
+            }
         }
 
         Ok(AgentResponse { session_id: session_id_out })

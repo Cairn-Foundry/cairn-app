@@ -9,6 +9,7 @@
   import ProjectTab from './settings/ProjectTab.svelte';
   import LanguagesTab from './settings/LanguagesTab.svelte';
   import GitTab from './settings/GitTab.svelte';
+  import AgentTab from './settings/AgentTab.svelte';
   import { writeFile } from '$lib/services/file-service';
   import { searchSettings, type SettingsTab, type SettingEntry } from '$lib/utils/home/settings-registry';
 
@@ -114,6 +115,7 @@
     <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>{t('settings.tabs.general')}</button>
     <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>{t('settings.tabs.appearance')}</button>
     <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>{t('settings.tabs.project')}</button>
+    <button class="settings-tab {settingsTab === 'agent'      ? 'active' : ''}" on:click={() => settingsTab = 'agent'}>{t('settings.tabs.agent')}</button>
     <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
     <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
     <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
@@ -124,6 +126,8 @@
     <GeneralTab/>
   {:else if settingsTab === 'appearance'}
     <AppearanceTab/>
+  {:else if settingsTab === 'agent'}
+    <AgentTab/>
   {:else if settingsTab === 'editor'}
     <EditorTab/>
   {:else if settingsTab === 'shortcuts'}

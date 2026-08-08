@@ -71,6 +71,21 @@ export interface CairnSettings {
 	suggestLanguageServers: boolean;
 	dismissedLanguageServers: string[];
 	customLanguageServers: CustomLanguageServer[];
+	agentShowLiveActivity: boolean;
+	agentActivityShowTime: boolean;
+	agentActivityShowToolArgs: boolean;
+	agentActivityAutoScroll: boolean;
+	agentShowMessageTime: boolean;
+	agentShowThinking: boolean;
+	agentShowMessageCopy: boolean;
+	agentShowResponseStats: boolean;
+	agentResponseStats: string[];
+	agentShowContextWindow: boolean;
+	agentShowConversationCost: boolean;
+	agentShowRateLimit: boolean;
+	agentShowModelChip: boolean;
+	agentShowEffortChip: boolean;
+	agentShowPermissionChip: boolean;
 }
 
 export function getSettings(): Promise<CairnSettings> {
