@@ -19,7 +19,7 @@
   import { EditorState, EditorSelection, Prec, type Extension } from '@codemirror/state';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import {
-    buildEditorTheme, buildHighlight, buildDiffGutterTheme,
+    buildEditorTheme, buildHighlight, buildDiffGutterTheme, diffColors,
     resolveLanguageExtension, type EditorLanguage,
   } from '$lib/utils/editor/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
@@ -48,7 +48,7 @@
   import type { ModifierState } from '$lib/types/shortcuts';
   import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
   import {
-    buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine,
+    buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
@@ -371,13 +371,16 @@
       buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
       buildConflictResolver(),
-      minimapCompartment.of(buildMinimap(minimapEnabled)),
+      minimapCompartment.of(buildMinimap(minimapEnabled, minimapDiffGutter)),
       themeCompartment.of(buildEditorTheme(theme)),
       fontSizeCompartment.of(buildFontSizeTheme(fontSize)),
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) onChange?.(update.state.doc.toString());
+        if (update.docChanged || update.transactions.some(tr => tr.effects.length > 0)) {
+          queueMicrotask(() => syncMinimap($settings.theme, minimapEnabled));
+        }
         if (update.docChanged || update.selectionSet) {
           const head = update.state.selection.main.head;
           const line = update.state.doc.lineAt(head);
@@ -404,6 +407,8 @@
   // -- Reactive sync ----------------------------------------------------------
 
   let syncedBase: string | null | undefined = undefined;
+  let minimapDiffGutter: Record<number, string> = {};
+  let minimapDiffKey = '';
 
   $: if (view) syncDocAndBase(content, baseContent);
 
@@ -428,7 +433,23 @@
     view.dispatch({ effects: setMarkdownDocPath.of(docPath) });
   }
 
-  $: if (view) view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(minimapEnabled)) });
+  $: if (view) syncMinimap($settings.theme, minimapEnabled, true);
+
+  /** Mirrors the git gutter into the minimap so changes stay locatable in long files. */
+  function syncMinimap(themeName: string, enabled: boolean, force = false) {
+    if (!view) return;
+    const colors = diffColors(themeName);
+    const next: Record<number, string> = {};
+    let key = '';
+    for (const [line, kind] of diffLineKinds(view.state)) {
+      next[line] = colors[kind];
+      key += `${line}${kind}`;
+    }
+    if (!force && key === minimapDiffKey) return;
+    minimapDiffKey = key;
+    minimapDiffGutter = next;
+    view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(enabled, minimapDiffGutter)) });
+  }
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });
 

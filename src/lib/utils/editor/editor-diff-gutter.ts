@@ -1,5 +1,6 @@
 import { Chunk } from "@codemirror/merge";
 import {
+	type EditorState,
 	type Extension,
 	StateEffect,
 	StateField,
@@ -122,6 +123,10 @@ const diffField = StateField.define<DiffState>({
 		};
 	},
 });
+
+export function diffLineKinds(state: EditorState): Map<number, DiffKind> {
+	return state.field(diffField, false)?.lineKinds ?? new Map();
+}
 
 class DiffMarker extends GutterMarker {
 	constructor(readonly kind: DiffKind) {

@@ -8,6 +8,34 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The whole empty area of the top bar moves the window, not only the gap next to the actions.",
+					"fr": "Toute la zone vide de la barre du haut déplace la fenêtre, et plus seulement l'espace à côté des actions."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The file explorer can no longer be narrowed past its action buttons, which used to end up cramped.",
+					"fr": "L'explorateur de fichiers ne peut plus être réduit en deçà de ses boutons d'action, qui se retrouvaient à l'étroit."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A middle click on a file in the explorer opens it in a new tab without leaving the file you are reading.",
+					"fr": "Un clic molette sur un fichier dans l'explorateur l'ouvre dans un nouvel onglet sans quitter le fichier en cours de lecture."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The git change markers of the editor are mirrored in the minimap, so modified areas stay locatable in long files.",
+					"fr": "Les marqueurs de modification git de l'éditeur sont repris dans la minimap, ce qui garde les zones modifiées repérables dans les gros fichiers."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Binary files open in the editor instead of a dead tab: images and PDFs are rendered, an SVG can switch between its rendering and its source, and any other binary shows its size and its first bytes with a button to open it in the system app.",

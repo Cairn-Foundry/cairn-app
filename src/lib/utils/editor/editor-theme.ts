@@ -23,6 +23,7 @@ import {
 	type SyntaxTokenKey,
 	type SyntaxTokens,
 } from "$lib/utils/editor/syntax-tokens";
+import type { DiffKind } from "./editor-diff-gutter";
 
 export type EditorLanguage =
 	| "ts"
@@ -453,6 +454,15 @@ const PALETTES: Record<ThemeName, EditorPalette> = {
 	light: PALETTE_LIGHT,
 	"high-contrast": PALETTE_HIGH_CONTRAST,
 };
+
+export function diffColors(theme: string): Record<DiffKind, string> {
+	const p = PALETTES[theme as ThemeName] ?? PALETTE_DARK;
+	return {
+		added: p.diffAdded,
+		modified: p.diffModified,
+		deleted: p.diffDeleted,
+	};
+}
 
 export function buildEditorTheme(theme: string): Extension {
 	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DARK);

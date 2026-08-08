@@ -28,6 +28,7 @@
   import type { ShortcutId } from '$lib/types/shortcuts';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
+  import { draggableRegion } from '$lib/utils/window-drag.js';
   import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
   import { matchesSearch } from '$lib/utils/files/files-search';
 
@@ -335,7 +336,13 @@
 
 <div class="workspace">
   <!-- Project tabs - padding-left clears native macOS traffic lights -->
-  <div class="tabs-row" style="padding-left: {tabsPadding};" bind:this={tabsRowEl}>
+  <div
+    class="tabs-row"
+    style="padding-left: {tabsPadding};"
+    bind:this={tabsRowEl}
+    data-tauri-drag-region
+    use:draggableRegion
+  >
     <button class="brand-chip" on:click={() => dispatch('goHome')} title={t('workspace.homeTitle') as string}>
       <CairnLogo size={18}/>
       <span>Cairn</span>
@@ -348,6 +355,7 @@
       {/if}
       <div
         class="project-tab {p.id === activeProjectId ? 'active' : ''} {dragActive && dragSrcIndex === i ? 'dragging' : ''}"
+        data-no-drag
         role="tab"
         tabindex="0"
         on:pointerdown={(e) => tabPointerDown(e, i)}
@@ -370,7 +378,7 @@
       <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
     </div>
-    <div class="spacer" data-tauri-drag-region></div>
+    <div class="spacer"></div>
     <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string} on:click={() => quickOpenVisible.set(true)}><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaKeyboardShortcuts') as string} on:click={() => showShortcuts = true}><Icon name="help" size={14}/></button>

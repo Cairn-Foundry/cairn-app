@@ -307,7 +307,7 @@ import { get } from 'svelte/store';
     const totalW = panes[0].rootEl?.parentElement?.getBoundingClientRect().width ?? 800;
     const minW = 120;
     const maxW = totalW - 120 - 3;
-    splitLeftWidth = Math.max(minW, Math.min(maxW, splitResizeStartWidth + (e.clientX - splitResizeStartX)));
+    splitLeftWidth = Math.round(Math.max(minW, Math.min(maxW, splitResizeStartWidth + (e.clientX - splitResizeStartX))));
   }
 
   function stopSplitResize() {
@@ -1193,6 +1193,7 @@ import { get } from 'svelte/store';
   })();
 
   let treeWidth = 220;
+  let treeMinWidth = 140;
   let isResizing = false;
   let resizeStartX = 0;
   let resizeStartWidth = 0;
@@ -1207,7 +1208,7 @@ import { get } from 'svelte/store';
   function onResizeMove(e: PointerEvent) {
     if (!isResizing) return;
     const delta = sidebarRight ? resizeStartX - e.clientX : e.clientX - resizeStartX;
-    treeWidth = Math.max(140, Math.min(480, resizeStartWidth + delta));
+    treeWidth = Math.round(Math.max(treeMinWidth, Math.min(480, resizeStartWidth + delta)));
   }
 
   function stopResize() {
@@ -1773,6 +1774,39 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Middle click: the tab is appended but the editor stays on the file being read. */
+  async function openFileInBackground(node: FileNode) {
+    const i = splitMode && focusedPane === 1 ? 1 : 0;
+    const pane = panes[i];
+    if (pane.activeTabIdx === -1) { await openFileInPane(i, node); return; }
+    if (gitStatusMap[node.path] === 'deleted') return;
+    if (pane.tabs.some(t => t.path === node.path)) return;
+    if (loadingPaths.has(node.path)) return;
+
+    if (isBinaryPath(node.path)) {
+      pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
+      panes = panes;
+      if (i === 0) pushRecentFile(node.path);
+      return;
+    }
+
+    loadingPaths.add(node.path);
+    loadingPaths = loadingPaths;
+    try {
+      const raw = await readFile(absolutePathOf(node.path, worktreePath)) ?? '';
+      const le = detectLineEndings(raw);
+      const text = normalizeLineEndings(raw, le);
+      pane.tabs = [...pane.tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0, lineEndings: le }];
+      panes = panes;
+      if (i === 0) pushRecentFile(node.path);
+    } catch (e) {
+      error = String(e);
+    } finally {
+      loadingPaths.delete(node.path);
+      loadingPaths = loadingPaths;
+    }
+  }
+
   function syncActiveTabToTree() {
     const path = panes[0].tabs[panes[0].activeTabIdx]?.path ?? '';
     if (isExternalPath(path)) return;
@@ -1922,6 +1956,12 @@ import { get } from 'svelte/store';
   }
 
   // -- Multi-select --------------------------------------------------------------
+
+  function handleTreeNodeAuxClick(e: MouseEvent, node: FileNode) {
+    if (e.button !== 1 || node.isDir) return;
+    e.preventDefault();
+    openFileInBackground(node);
+  }
 
   function handleTreeNodeClick(e: MouseEvent, node: FileNode) {
     if (dragJustEnded) { dragJustEnded = false; return; }
@@ -2095,11 +2135,13 @@ import { get } from 'svelte/store';
 <div class="files-layout" class:sidebar-right={sidebarRight} class:sidebar-hidden={sidebarHidden}>
   <FileTreeView
     {treeWidth}
+    {treeMinWidth}
     {searchPanelOpen}
     {splitMode}
     {showIgnored}
     {tooltipSearch}
     {tooltipSplit}
+    onMinWidthChange={(w) => { treeMinWidth = w; }}
     onCollapseAll={collapseAll}
     onNewFileTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}
     onNewFolderTopLevel={() => { if (selectedDir) { expanded.add(selectedDir); expanded = expanded; } startEdit({ type: 'new-dir', node: null, parentPath: selectedDir, value: '' }); }}
@@ -2127,6 +2169,7 @@ import { get } from 'svelte/store';
     {dirtyTabPaths}
     onRootClick={() => { selectedDir = ''; multiSelected = new Set(); }}
     onNodeClick={handleTreeNodeClick}
+    onNodeAuxClick={handleTreeNodeAuxClick}
     onContextMenu={openContextMenu}
     onNodePointerDown={onNodePointerDown}
     onNodePointerMove={onNodePointerMove}

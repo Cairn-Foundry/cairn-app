@@ -30,12 +30,16 @@ export function buildFontSizeTheme(size: number): Extension {
 	});
 }
 
-export function buildMinimap(enabled: boolean): Extension {
+export function buildMinimap(
+	enabled: boolean,
+	diffGutter?: Record<number, string>,
+): Extension {
 	if (!enabled) return [];
 	return showMinimap.of({
 		create: () => ({ dom: document.createElement("div") }),
 		displayText: "blocks",
 		showOverlay: "always",
+		gutters: diffGutter ? [diffGutter] : undefined,
 	});
 }
 

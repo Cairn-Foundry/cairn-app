@@ -11,6 +11,7 @@
 
   // -- Sidebar header state/actions -----------------------------------------
   export let treeWidth: number;
+  export let treeMinWidth: number;
   export let searchPanelOpen: boolean;
   export let splitMode: boolean;
   export let showIgnored: boolean;
@@ -24,6 +25,7 @@
   export let onRefresh: () => void;
   export let onToggleSplit: () => void;
   export let onToggleIgnored: () => void;
+  export let onMinWidthChange: (width: number) => void;
 
   // -- Tree state -----------------------------------------------------------
   export let loading: boolean;
@@ -48,6 +50,7 @@
   // -- Tree callbacks -------------------------------------------------------
   export let onRootClick: () => void;
   export let onNodeClick: (e: MouseEvent, node: FileNode) => void;
+  export let onNodeAuxClick: (e: MouseEvent, node: FileNode) => void;
   export let onContextMenu: (e: MouseEvent, node: FileNode | null) => void;
   export let onNodePointerDown: (e: PointerEvent, node: FileNode) => void;
   export let onNodePointerMove: (e: PointerEvent) => void;
@@ -59,6 +62,24 @@
   export let onEmptyAreaClick: () => void;
 
   let scrollEl: HTMLElement | null = null;
+
+  function measureActions(node: HTMLElement): { destroy: () => void } {
+    const measure = (): void => {
+      const header = node.parentElement;
+      if (!header) return;
+      const headerStyle = getComputedStyle(header);
+      const padding =
+        Number.parseFloat(headerStyle.paddingLeft) + Number.parseFloat(headerStyle.paddingRight);
+      const gap = Number.parseFloat(getComputedStyle(node).columnGap) || 0;
+      const children = Array.from(node.children) as HTMLElement[];
+      const content = children.reduce((sum, child) => sum + child.offsetWidth, 0);
+      if (content === 0) return;
+      onMinWidthChange(Math.ceil(content + gap * Math.max(children.length - 1, 0) + padding));
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(node);
+    return { destroy: () => observer?.disconnect() };
+  }
 
   function focusOnMount(el: HTMLInputElement) {
     tick().then(() => { el.focus(); el.select(); });
@@ -81,10 +102,10 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<aside class="files-tree" style="width: {treeWidth}px" on:contextmenu={(e) => onContextMenu(e, null)}>
+<aside class="files-tree" style="width: {treeWidth}px; min-width: {treeMinWidth}px" on:contextmenu={(e) => onContextMenu(e, null)}>
   {#if worktreePath}
   <div class="files-tree-header">
-    <div class="tree-header-actions">
+    <div class="tree-header-actions" use:measureActions>
       <button type="button" class="tree-action-btn" data-tooltip={t('files.treeTooltips.collapseAll') as string} on:click={(e) => { e.stopPropagation(); onCollapseAll(); }}>
         <Icon name="collapse-all" size={12}/>
       </button>
@@ -168,6 +189,7 @@
       data-tree-dir={node.isDir ? node.path : undefined}
       data-tree-parent={!node.isDir ? parentPathOf(node.path) : undefined}
       on:click={(e) => onNodeClick(e, node)}
+      on:auxclick={(e) => onNodeAuxClick(e, node)}
       on:contextmenu={(e) => onContextMenu(e, node)}
       on:pointerdown={(e) => onNodePointerDown(e, node)}
       on:pointermove={onNodePointerMove}
@@ -303,6 +325,7 @@
     color: var(--fg-3);
     padding: 0;
     position: relative;
+    flex-shrink: 0;
   }
   .tree-action-btn:hover { background: var(--bg-4); color: var(--fg-0); }
   .tree-action-btn.active { color: var(--accent); }
