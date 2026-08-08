@@ -995,6 +995,60 @@ mod tests {
         let content = "# Do the thing\n\nMore text";
         assert_eq!(extract_description(content).as_deref(), Some("Do the thing"));
     }
+
+    #[test]
+    fn agent_slug_is_a_file_name() {
+        assert_eq!(agent_slug("Code Reviewer"), "code-reviewer");
+        assert_eq!(agent_slug("  DB / SQL  "), "db-sql");
+        assert_eq!(agent_slug("!!!"), "");
+    }
+
+    #[test]
+    fn rendered_agent_reads_back_the_same() {
+        let agent = ExportedAgent {
+            name: "Code Reviewer".to_string(),
+            description: "Reviews a diff: bugs first, style after".to_string(),
+            model: "opus".to_string(),
+            effort: "high".to_string(),
+            permission_mode: "plan".to_string(),
+            color: "#22c55e".to_string(),
+            tools: vec!["Read".to_string(), "Grep".to_string()],
+            system_prompt: "You review code.".to_string(),
+        };
+        let (fields, body) = split_frontmatter(&render_claude_agent(&agent));
+        let field = |key: &str| {
+            fields
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(field("name"), "code-reviewer");
+        assert_eq!(
+            field("description"),
+            "Reviews a diff: bugs first, style after"
+        );
+        assert_eq!(field("model"), "opus");
+        assert_eq!(field("effort"), "high");
+        assert_eq!(field("permissionmode"), "plan");
+        assert_eq!(field("color"), "green");
+        assert_eq!(parse_tool_list(&field("tools")), vec!["Read", "Grep"]);
+        assert_eq!(body, "You review code.");
+    }
+
+    #[test]
+    fn rendered_agent_omits_what_it_has_not_got() {
+        let agent = ExportedAgent {
+            name: "Scout".to_string(),
+            system_prompt: "Look around.".to_string(),
+            ..Default::default()
+        };
+        let rendered = render_claude_agent(&agent);
+        assert!(!rendered.contains("model:"));
+        assert!(!rendered.contains("color:"));
+        assert!(!rendered.contains("tools:"));
+        assert_eq!(split_frontmatter(&rendered).1, "Look around.");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1170,6 +1224,149 @@ pub async fn list_claude_agents(working_dirs: Vec<String>) -> Result<Vec<Discove
     }
     out.sort_by(|a, b| a.name.cmp(&b.name).then(a.path.cmp(&b.path)));
     out.dedup_by(|a, b| a.path == b.path);
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Cairn agents written back as Claude Code subagent definitions
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedAgent {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub effort: String,
+    #[serde(default)]
+    pub permission_mode: String,
+    #[serde(default)]
+    pub color: String,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    #[serde(default)]
+    pub system_prompt: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportOutcome {
+    pub name: String,
+    pub path: String,
+    /// Set when nothing was written; the file was already there, or unwritable.
+    pub skipped: String,
+}
+
+/// The reverse of `hex_for_color_name`. A hex Claude Code cannot name is left
+/// out of the frontmatter rather than written as something it would reject.
+fn color_name_for_hex(hex: &str) -> String {
+    match hex.trim().to_lowercase().as_str() {
+        "#ef4444" => "red",
+        "#f97316" => "orange",
+        "#eab308" => "yellow",
+        "#22c55e" => "green",
+        "#06b6d4" => "cyan",
+        "#6c8eff" => "blue",
+        "#a855f7" => "purple",
+        "#ec4899" => "pink",
+        _ => "",
+    }
+    .to_string()
+}
+
+/// `Code reviewer` -> `code-reviewer`, the shape Claude Code expects of a file
+/// name and of the `name` field it falls back to.
+fn agent_slug(name: &str) -> String {
+    let mut slug = String::new();
+    for ch in name.trim().to_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch);
+        } else if !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    slug.trim_matches('-').to_string()
+}
+
+/// Frontmatter is one value per line, so a value carrying a newline, a colon or
+/// a leading marker is folded and quoted rather than left to break the block.
+fn frontmatter_value(raw: &str) -> String {
+    let flat = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+    let needs_quotes = flat.contains(": ")
+        || flat.ends_with(':')
+        || flat.starts_with(['>', '|', '"', '\'', '#', '[', '{', '-', '*', '&', '!', '%', '@']);
+    if needs_quotes {
+        format!("\"{}\"", flat.replace('\\', "\\\\").replace('"', "\\\""))
+    } else {
+        flat
+    }
+}
+
+fn render_claude_agent(agent: &ExportedAgent) -> String {
+    let mut head = String::from("---\n");
+    let mut field = |key: &str, value: &str| {
+        if !value.is_empty() {
+            head.push_str(&format!("{key}: {}\n", frontmatter_value(value)));
+        }
+    };
+    field("name", &agent_slug(&agent.name));
+    field("description", &agent.description);
+    field("model", &agent.model);
+    field("effort", &agent.effort);
+    field("permissionMode", &agent.permission_mode);
+    field("color", &color_name_for_hex(&agent.color));
+    field("tools", &agent.tools.join(", "));
+    head.push_str("---\n\n");
+    head.push_str(agent.system_prompt.trim());
+    head.push('\n');
+    head
+}
+
+/// Writes each agent as a `.claude/agents/{slug}.md` definition, in the given
+/// project when `working_dir` is set and in the user's home otherwise. An agent
+/// whose file already exists is reported back untouched unless `overwrite`.
+#[tauri::command]
+pub async fn export_claude_agents(
+    agents: Vec<ExportedAgent>,
+    working_dir: Option<String>,
+    overwrite: bool,
+) -> Result<Vec<ExportOutcome>, String> {
+    let base = match working_dir.as_deref().filter(|d| !d.is_empty()) {
+        Some(dir) => Path::new(dir).to_path_buf(),
+        None => dirs::home_dir().ok_or("home directory not found")?,
+    };
+    let dir = base.join(".claude").join("agents");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let mut out = Vec::new();
+    for agent in &agents {
+        let slug = agent_slug(&agent.name);
+        if slug.is_empty() {
+            continue;
+        }
+        let path = dir.join(format!("{slug}.md"));
+        let display = path.to_string_lossy().to_string();
+        if path.exists() && !overwrite {
+            out.push(ExportOutcome {
+                name: agent.name.clone(),
+                path: display,
+                skipped: "exists".to_string(),
+            });
+            continue;
+        }
+        let skipped = match fs::write(&path, render_claude_agent(agent)) {
+            Ok(()) => String::new(),
+            Err(e) => e.to_string(),
+        };
+        out.push(ExportOutcome {
+            name: agent.name.clone(),
+            path: display,
+            skipped,
+        });
+    }
     Ok(out)
 }
 

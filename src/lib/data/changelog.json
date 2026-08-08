@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "Custom agents can now be exported, next to the existing import. Pick the agents from a list, then write them either as Claude Code subagent definitions - one .claude/agents/{name}.md per agent, in a project or in your home directory, existing files left untouched unless you ask for them to be replaced - or as a single JSON file holding them exactly as Cairn stores them.",
+					"fr": "Les agents personnalisés peuvent désormais être exportés, à côté de l'import existant. Choisissez les agents dans une liste, puis écrivez-les soit en définitions de sous-agents Claude Code - un fichier .claude/agents/{nom}.md par agent, dans un projet ou dans votre dossier personnel, les fichiers existants étant laissés tels quels sauf si vous demandez leur remplacement - soit en un seul fichier JSON qui les contient tels que Cairn les stocke."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "An agent is now put in charge of a conversation instead of applying only to the message that names it. Mentioning one activates it, the composer takes its colour and shows its name above the input, and it keeps answering until you clear it or call another - one agent at a time. A reply is signed with the agent name and the model it used, like \"codd (Sonnet 4.6)\".",

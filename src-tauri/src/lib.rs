@@ -147,6 +147,7 @@ pub fn run() {
             discover_provider,
             list_agent_commands,
             list_claude_agents,
+            export_claude_agents,
             terminal_create,
             terminal_write,
             terminal_resize,

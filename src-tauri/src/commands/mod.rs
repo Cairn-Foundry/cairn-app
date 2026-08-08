@@ -24,7 +24,7 @@ pub use agent::config::{
     get_ai_providers_config, save_ai_providers_config,
     set_provider_api_key, get_api_key_statuses, delete_provider_api_key,
     get_custom_agents, save_custom_agents,
-    probe_provider, list_agent_commands, list_claude_agents, discover_provider,
+    probe_provider, list_agent_commands, list_claude_agents, export_claude_agents, discover_provider,
 };
 pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use commit_state::{get_commit_state, save_commit_state};

@@ -6,6 +6,7 @@
   import IconPicker from '$lib/components/IconPicker.svelte';
   import Select from '$lib/components/Select.svelte';
   import ImportAgentsModal from './ImportAgentsModal.svelte';
+  import ExportAgentsModal from './ExportAgentsModal.svelte';
   import { PROVIDERS, prettyModelName } from './providers-data';
   import { ACCENT_PRESETS } from '$lib/utils/home/appearance';
   import { KNOWN_TOOLS, normalizeToolList } from '$lib/utils/agent/tools';
@@ -50,6 +51,7 @@
   let selectedAgentId: string | null = null;
   let confirmDeleteId: string | null = null;
   let importOpen = false;
+  let exportOpen = false;
   let hydrated = false;
 
   let allowedDraft = '';
@@ -275,6 +277,14 @@
           title={t('home.agents.customAgents.import.title') as string}
         >
           <Icon name="download" size={13}/>
+        </button>
+        <button
+          class="icon-btn"
+          on:click={() => exportOpen = true}
+          disabled={agents.length === 0}
+          title={t('home.agents.customAgents.export.title') as string}
+        >
+          <Icon name="upload" size={13}/>
         </button>
         <button
           class="icon-btn"
@@ -787,6 +797,10 @@
     on:close={() => importOpen = false}
     on:confirm={(e) => importAgents(e.detail)}
   />
+{/if}
+
+{#if exportOpen}
+  <ExportAgentsModal {agents} on:close={() => exportOpen = false}/>
 {/if}
 
 <style>

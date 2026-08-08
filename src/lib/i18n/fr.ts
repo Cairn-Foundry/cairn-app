@@ -1563,6 +1563,32 @@ export const fr = {
 					scopeGlobal: "global",
 					alreadyExists: "déjà importé",
 				},
+				export: {
+					heading: "Export",
+					title: "Exporter des agents",
+					lead: "Choisissez les agents à écrire, et leur destination.",
+					empty: "Aucun agent à exporter pour l'instant.",
+					destination: "Destination",
+					destClaude: "Sous-agents Claude Code (.md)",
+					destJson: "Fichier d'agents Cairn (.json)",
+					destClaudeHint:
+						"Un fichier .claude/agents/{nom}.md par agent, utilisable par le CLI Claude Code. Seul ce qu'une définition peut porter est écrit : prompt, description, outils, modèle, effort et mode de permission.",
+					destJsonHint:
+						"Un seul fichier JSON contenant les agents tels que Cairn les stocke, prêt à être partagé ou restauré.",
+					scope: "Écrire dans",
+					scopeGlobal: "Dossier personnel (~/.claude/agents)",
+					overwrite: "Remplacer les définitions déjà présentes",
+					unnamed: "sans nom",
+					unnamedSkipped: "Un agent sans nom ne peut pas être exporté.",
+					confirm: (n: number) =>
+						n === 1 ? "Exporter 1 agent" : `Exporter ${n} agents`,
+					done: (n: number) =>
+						n === 1 ? "1 agent exporté" : `${n} agents exportés`,
+					skippedExists: (n: number) =>
+						n === 1
+							? "1 agent laissé tel quel : son fichier existe déjà."
+							: `${n} agents laissés tels quels : leurs fichiers existent déjà.`,
+				},
 				fields: {
 					name: "Nom",
 					icon: "Icône",

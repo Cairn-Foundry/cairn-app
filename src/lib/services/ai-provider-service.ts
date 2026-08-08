@@ -164,3 +164,38 @@ export async function listClaudeAgents(
 ): Promise<DiscoveredAgent[]> {
 	return await invoke("list_claude_agents", { workingDirs });
 }
+
+/** One agent flattened into what a Claude Code definition can carry. */
+export interface ExportedAgent {
+	name: string;
+	description: string;
+	model: string;
+	effort: string;
+	permissionMode: string;
+	color: string;
+	tools: string[];
+	systemPrompt: string;
+}
+
+export interface ExportOutcome {
+	name: string;
+	path: string;
+	/** Empty when the file was written; otherwise why it was not. */
+	skipped: string;
+}
+
+/**
+ * Writes the agents as `.claude/agents/*.md`, in `workingDir` when given and in
+ * the user's home otherwise.
+ */
+export async function exportClaudeAgents(
+	agents: ExportedAgent[],
+	workingDir: string | null,
+	overwrite: boolean,
+): Promise<ExportOutcome[]> {
+	return await invoke("export_claude_agents", {
+		agents,
+		workingDir,
+		overwrite,
+	});
+}
