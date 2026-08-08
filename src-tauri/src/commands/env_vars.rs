@@ -179,8 +179,9 @@ pub async fn ensure_env_ignored(worktree_path: String, file_name: String) -> Res
     let already = Command::new("git")
         .current_dir(&dir)
         .args(["check-ignore", "-q", "--", &file_name])
-        .status()
+        .output()
         .map_err(|e| e.to_string())?
+        .status
         .success();
     if already { return Ok(false); }
 
