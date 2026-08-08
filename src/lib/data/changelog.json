@@ -1,7 +1,13 @@
 [
 	{
-		"version": "0.13.0",
+		"version": "0.14.0",
 		"date": "",
+		"summary": {},
+		"changes": []
+	},
+	{
+		"version": "0.13.0",
+		"date": "2026-08-08",
 		"summary": {
 			"en": "The editor learns your languages.",
 			"fr": "L'éditeur apprend vos langages."
