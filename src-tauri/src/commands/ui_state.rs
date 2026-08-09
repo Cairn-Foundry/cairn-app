@@ -17,6 +17,10 @@ pub struct ProjectUiState {
     pub env_active: bool,
     #[serde(rename = "formattingActive", default)]
     pub formatting_active: bool,
+    /// The agent whose thread is open in the Agent view, empty when the
+    /// conversation shows.
+    #[serde(rename = "openAgentId", default)]
+    pub open_agent_id: String,
     #[serde(rename = "gitChangesSearch", default)]
     pub git_changes_search: String,
     #[serde(rename = "gitLogSearch", default)]
@@ -38,6 +42,7 @@ impl Default for ProjectUiState {
             commands_active: false,
             env_active: false,
             formatting_active: false,
+            open_agent_id: String::new(),
             git_changes_search: String::new(),
             git_log_search: String::new(),
             git_staged_search: String::new(),

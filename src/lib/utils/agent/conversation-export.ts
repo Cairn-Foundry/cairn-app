@@ -16,8 +16,12 @@ export function conversationToMarkdown(
 	const lines = [`# ${title}`, ""];
 
 	for (const message of messages) {
+		// A message with nothing in it is a marker, not a turn: an agent being
+		// launched, a run that was stopped before it said anything.
+		const content = message.content.trim();
+		if (!content) continue;
 		lines.push(`## ${ROLE_HEADING[message.role]} - ${message.time}`, "");
-		lines.push(message.content.trim(), "");
+		lines.push(content, "");
 	}
 
 	return `${lines.join("\n").trimEnd()}\n`;

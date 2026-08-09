@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import SearchInput from '$lib/components/SearchInput.svelte';
   import { t } from '$lib/i18n';
   import type { ConversationMeta, ConversationScope } from '$lib/services/conversation-service';
   import { conversationMatches, sortConversations } from '$lib/utils/agent/conversation-export';
@@ -12,7 +13,9 @@
     runningIds: string[];
     doneId: string | null;
     onSelect: (id: string, scope: ConversationScope) => void;
-    onCreate: (scope: ConversationScope) => void;
+    onNewSession: () => void;
+    /** True while the view is on a session that has not been written down yet. */
+    newSessionActive: boolean;
     onRename: (id: string, scope: ConversationScope, title: string) => void;
     onDelete: (id: string, scope: ConversationScope) => void;
     onDuplicate: (id: string, scope: ConversationScope) => void;
@@ -24,7 +27,7 @@
 
   const {
     instanceConversations, projectConversations, activeId, runningIds, doneId,
-    onSelect, onCreate, onRename, onDelete, onDuplicate,
+    onSelect, onNewSession, newSessionActive, onRename, onDelete, onDuplicate,
     onTogglePin, onToggleArchive, onDownload, onMoveScope,
   }: Props = $props();
 
@@ -61,7 +64,6 @@
     {
       scope: 'project' as ConversationScope,
       label: t('terminal.projectSection'),
-      newLabel: t('agent.history.newShared'),
       emptyLabel: t(showArchived ? 'agent.history.archivedEmpty' : 'agent.history.sharedEmpty'),
       rows: rowsOf(projectConversations, 'project'),
       total: projectConversations.length,
@@ -69,7 +71,6 @@
     {
       scope: 'instance' as ConversationScope,
       label: t('terminal.instanceSection'),
-      newLabel: t('agent.history.new'),
       emptyLabel: t(showArchived ? 'agent.history.archivedEmpty' : 'agent.history.instanceEmpty'),
       rows: rowsOf(instanceConversations, 'instance'),
       total: instanceConversations.length,
@@ -241,22 +242,18 @@
     </button>
   </div>
 
-  <div class="history-search">
-    <Icon name="search" size={12}/>
-    <input
-      class="selectable"
-      type="text"
-      bind:value={query}
-      placeholder={t('agent.history.searchPlaceholder') as string}
-    />
-    {#if query}
-      <button class="icon-btn" title={t('agent.history.clearSearch') as string} onclick={() => { query = ''; }}>
-        <Icon name="x" size={11}/>
-      </button>
-    {/if}
-  </div>
+  <SearchInput
+    bind:value={query}
+    placeholder={t('agent.history.searchPlaceholder') as string}
+  />
 
   <div class="history-list">
+    {#if !showArchived}
+      <button class="new-session" class:active={newSessionActive} onclick={onNewSession}>
+        <Icon name="plus" size={12}/>
+        {t('agent.newSession')}
+      </button>
+    {/if}
     {#each sections as section (section.scope)}
       <div
         class="section"
@@ -273,11 +270,6 @@
             {section.label}
             <span class="section-count">{section.rows.length}</span>
           </button>
-          {#if !showArchived}
-            <button class="icon-btn" title={section.newLabel as string} onclick={() => onCreate(section.scope)}>
-              <Icon name="plus" size={12}/>
-            </button>
-          {/if}
         </div>
 
         {#if !collapsed[section.scope]}
@@ -361,33 +353,43 @@
     color: var(--fg-3);
   }
 
-  .history-search {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px 6px 12px;
-    color: var(--fg-3);
-    border-bottom: 1px solid var(--stroke-0);
-  }
-
-  .history-search input {
-    flex: 1;
-    min-width: 0;
-    padding: 2px 0;
-    font-size: 12px;
-    font-family: inherit;
-    color: var(--fg-1);
-    background: transparent;
-    border: none;
-    outline: none;
-  }
-
   .history-list {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--stroke-1) transparent;
+  }
+
+  .new-session {
+    align-items: center;
+    background: none;
+    border: 1px dashed var(--stroke-0);
+    border-radius: 6px;
+    color: var(--fg-2);
+    cursor: pointer;
+    box-sizing: border-box;
+    display: flex;
+    font-size: 12px;
+    gap: 6px;
+    /* A form control sizes to its content even as a flex container, so the
+       width is stated. The section below already pads its head by 8px, which
+       is the gap under the row - hence no bottom margin of its own. */
+    margin: 8px 8px 0;
+    padding: 8px 9px;
+    text-align: left;
+    width: calc(100% - 16px);
+  }
+
+  .new-session:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+
+  .new-session.active {
+    background: var(--bg-3);
+    border-style: solid;
+    color: var(--fg-0);
   }
 
   .section-head {

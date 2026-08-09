@@ -185,7 +185,7 @@
   </svg>
 {:else if name === 'sparkles'}
   <svg {...common} {...$$restProps}>
-    <path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z"/>
+    <path d="M12 4l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z"/>
   </svg>
 {:else if name === 'user'}
   <svg {...common} {...$$restProps}>

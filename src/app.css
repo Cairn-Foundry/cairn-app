@@ -516,7 +516,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   font-weight: 400;
   font-size: 12px;
 }
-.pane-actions { margin-left: auto; display: flex; gap: 4px; }
 
 /* Scrollbars */
 *::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -539,6 +538,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   min-height: 0;
   min-width: 0;
 }
+.btn-stop {
+  background: var(--danger-weak, rgba(255, 80, 80, 0.08));
+  border-color: var(--danger-line, rgba(255, 80, 80, 0.3));
+  color: #ff8080;
+}
+
+.btn-stop:hover {
+  background: rgba(255, 80, 80, 0.15);
+  border-color: rgba(255, 80, 80, 0.5);
+  color: #ffaaaa;
+}
+
 .chat-scroll {
   flex: 1;
   overflow-y: auto;

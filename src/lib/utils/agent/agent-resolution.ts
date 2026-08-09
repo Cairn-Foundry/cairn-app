@@ -1,51 +1,49 @@
-import type {
-	AgentProviderRow,
-	CustomAgent,
-} from "$lib/services/ai-provider-service";
+import type { CustomAgent } from "$lib/services/ai-provider-service";
 
 export interface ConversationRunSettings {
+	providerId: string;
 	modelId: string;
 	effort: string;
 	permissionMode: string;
 }
 
 export interface ResolvedAgentRun {
+	providerId: string;
 	model: string;
 	effort: string;
 	permissionMode: string;
 }
 
-/** The settings an agent declared for that provider, if it declared any. */
-export function rowFor(
-	agent: CustomAgent | undefined,
-	providerId: string,
-): AgentProviderRow | undefined {
-	return agent?.rows?.find((r) => r.providerId === providerId);
+/** An agent with no provider of its own runs on whoever the conversation uses. */
+export function isInheriting(agent: CustomAgent | undefined): boolean {
+	return !agent?.providerId;
 }
 
 /**
- * What a run uses once the agent has had its say. The provider is never part of
- * this: an agent runs on whoever the conversation is already talking to.
+ * What an agent run uses. Two cases, and the difference matters:
  *
- * A row wins over the conversation because filling one in is an explicit
- * statement about that provider; a row that leaves a field empty defers to
- * whatever the conversation picked, and an agent with no row for this provider
- * changes nothing but the prompt, tools and params it carries everywhere.
+ * - inheriting: everything comes from the conversation, at every call, so the
+ *   agent follows it when it switches provider;
+ * - pinned: the provider is the agent's, and an empty model, effort or
+ *   permission falls back to that provider's own default - never to the
+ *   conversation's, which names settings of a backend this run is not on.
  */
 export function resolveAgentRun(
 	agent: CustomAgent | undefined,
-	providerId: string,
 	conversation: ConversationRunSettings,
 ): ResolvedAgentRun {
-	const row = rowFor(agent, providerId);
+	if (isInheriting(agent)) {
+		return {
+			providerId: conversation.providerId,
+			model: conversation.modelId || "",
+			effort: conversation.effort || "",
+			permissionMode: conversation.permissionMode || "",
+		};
+	}
 	return {
-		model: row?.model || conversation.modelId || "",
-		effort: row?.effort || conversation.effort || "",
-		permissionMode: row?.permissionMode || conversation.permissionMode || "",
+		providerId: agent?.providerId ?? "",
+		model: agent?.model || "",
+		effort: agent?.effort || "",
+		permissionMode: agent?.permissionMode || "",
 	};
-}
-
-/** The providers an agent is tuned for, in the order they were added. */
-export function agentProviderIds(agent: CustomAgent): string[] {
-	return (agent.rows ?? []).map((r) => r.providerId).filter(Boolean);
 }

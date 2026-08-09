@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CustomAgent } from "$lib/services/ai-provider-service";
-import { agentProviderIds, resolveAgentRun, rowFor } from "./agent-resolution";
+import { isInheriting, resolveAgentRun } from "./agent-resolution";
 
-function agent(rows: CustomAgent["rows"]): CustomAgent {
+function agent(binding: Partial<CustomAgent>): CustomAgent {
 	return {
 		id: "a",
 		name: "reviewer",
@@ -10,111 +10,84 @@ function agent(rows: CustomAgent["rows"]): CustomAgent {
 		color: "#fff",
 		icon: "",
 		systemPrompt: "You review.",
-		rows,
+		providerId: "",
+		model: "",
+		effort: "",
+		permissionMode: "",
 		allowedTools: [],
 		disallowedTools: [],
 		overrideParams: false,
 		temperature: 1,
 		maxTokens: 8192,
+		...binding,
 	};
 }
 
-const CONV = { modelId: "conv-model", effort: "low", permissionMode: "auto" };
-const EMPTY_CONV = { modelId: "", effort: "", permissionMode: "" };
+const CONV = {
+	providerId: "claude-code-cli",
+	modelId: "conv-model",
+	effort: "low",
+	permissionMode: "auto",
+};
 
-describe("rowFor", () => {
-	it("finds the row of that provider", () => {
-		const a = agent([
-			{
-				providerId: "openai",
-				model: "gpt-5.1",
-				effort: "",
-				permissionMode: "",
-			},
-		]);
-		expect(rowFor(a, "openai")?.model).toBe("gpt-5.1");
+describe("isInheriting", () => {
+	it("is true for an agent bound to no provider", () => {
+		expect(isInheriting(agent({}))).toBe(true);
+		expect(isInheriting(undefined)).toBe(true);
 	});
 
-	it("returns nothing for a provider the agent says nothing about", () => {
-		expect(rowFor(agent([]), "openai")).toBeUndefined();
-		expect(rowFor(undefined, "openai")).toBeUndefined();
+	it("is false once a provider is chosen", () => {
+		expect(isInheriting(agent({ providerId: "openai" }))).toBe(false);
 	});
 });
 
 describe("resolveAgentRun", () => {
-	it("lets a row override what the conversation picked", () => {
-		const a = agent([
-			{
-				providerId: "openai",
-				model: "gpt-5.1",
-				effort: "high",
-				permissionMode: "plan",
-			},
-		]);
-		expect(resolveAgentRun(a, "openai", CONV)).toEqual({
+	it("takes everything from the conversation when it inherits", () => {
+		expect(resolveAgentRun(agent({}), CONV)).toEqual({
+			providerId: "claude-code-cli",
+			model: "conv-model",
+			effort: "low",
+			permissionMode: "auto",
+		});
+	});
+
+	it("follows the conversation to its new provider", () => {
+		const moved = { ...CONV, providerId: "openai", modelId: "gpt-5.1" };
+		expect(resolveAgentRun(agent({}), moved).providerId).toBe("openai");
+		expect(resolveAgentRun(agent({}), moved).model).toBe("gpt-5.1");
+	});
+
+	it("uses its own settings when it is pinned", () => {
+		const a = agent({
+			providerId: "openai",
+			model: "gpt-5.1",
+			effort: "high",
+			permissionMode: "plan",
+		});
+		expect(resolveAgentRun(a, CONV)).toEqual({
+			providerId: "openai",
 			model: "gpt-5.1",
 			effort: "high",
 			permissionMode: "plan",
 		});
 	});
 
-	it("falls back to the conversation for each field the row leaves empty", () => {
-		const a = agent([
-			{ providerId: "openai", model: "", effort: "high", permissionMode: "" },
-		]);
-		expect(resolveAgentRun(a, "openai", CONV)).toEqual({
-			model: "conv-model",
-			effort: "high",
-			permissionMode: "auto",
-		});
-	});
-
-	it("changes nothing when the agent has no row for this provider", () => {
-		const a = agent([
-			{
-				providerId: "openai",
-				model: "gpt-5.1",
-				effort: "",
-				permissionMode: "",
-			},
-		]);
-		expect(resolveAgentRun(a, "claude-code-cli", CONV)).toEqual({
-			model: "conv-model",
-			effort: "low",
-			permissionMode: "auto",
-		});
-	});
-
-	it("resolves to nothing when neither side has an opinion", () => {
-		expect(resolveAgentRun(undefined, "openai", EMPTY_CONV)).toEqual({
+	it("never borrows the conversation's model for another provider", () => {
+		const a = agent({ providerId: "openai" });
+		expect(resolveAgentRun(a, CONV)).toEqual({
+			providerId: "openai",
 			model: "",
 			effort: "",
 			permissionMode: "",
 		});
 	});
 
-	it("keeps the conversation's own settings when no agent was mentioned", () => {
-		expect(resolveAgentRun(undefined, "openai", CONV)).toEqual({
+	it("resolves to the conversation when no agent was mentioned", () => {
+		expect(resolveAgentRun(undefined, CONV)).toEqual({
+			providerId: "claude-code-cli",
 			model: "conv-model",
 			effort: "low",
 			permissionMode: "auto",
 		});
-	});
-});
-
-describe("agentProviderIds", () => {
-	it("lists the providers in the order they were added", () => {
-		const a = agent([
-			{ providerId: "openai", model: "", effort: "", permissionMode: "" },
-			{ providerId: "anthropic", model: "", effort: "", permissionMode: "" },
-		]);
-		expect(agentProviderIds(a)).toEqual(["openai", "anthropic"]);
-	});
-
-	it("skips a row whose provider was never chosen", () => {
-		const a = agent([
-			{ providerId: "", model: "", effort: "", permissionMode: "" },
-		]);
-		expect(agentProviderIds(a)).toEqual([]);
 	});
 });

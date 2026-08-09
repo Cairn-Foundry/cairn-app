@@ -10,6 +10,146 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "A prompt addressed to an agent now looks like the composer that sent it: the agent's colour on the message and its name beside yours. The agent's answer quotes that prompt above it, so the pair reads as a question and its reply.",
+					"fr": "Une demande adressée à un agent ressemble désormais au composeur qui l'a envoyée : la couleur de l'agent sur le message et son nom à côté du vôtre. La réponse de l'agent cite cette demande au-dessus d'elle, de sorte que les deux se lisent comme une question et sa réponse."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Calling an agent is answered in the conversation right away by a line saying it started, and its reply lands later attached to the prompt that called it. In Live Activity, the line for a launch goes to that prompt and the line for an answer goes to the answer - neither leaves the conversation any more.",
+					"fr": "Appeler un agent reçoit immédiatement une réponse dans la conversation - une ligne indiquant qu'il a démarré - et sa réponse arrive plus tard, rattachée à la demande qui l'a appelé. Dans Live Activity, la ligne d'un lancement mène à cette demande et celle d'une réponse mène à la réponse : ni l'une ni l'autre ne quitte plus la conversation."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A turn now writes into its own message, found by its place in the conversation rather than by being the last agent message: an agent answering in between could take its place, which left the answer empty. A tool the run was in the middle of is closed when the run stops, instead of spinning for ever.",
+					"fr": "Un tour écrit désormais dans son propre message, repéré par sa place dans la conversation plutôt qu'en étant le dernier message d'agent : un agent répondant entre-temps pouvait prendre sa place, ce qui laissait la réponse vide. Un outil en cours au moment de l'arrêt est refermé, au lieu de tourner indéfiniment."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The conversation search field is the same one as everywhere else in Cairn, with its clear button.",
+					"fr": "Le champ de recherche des conversations est le même que partout ailleurs dans Cairn, avec son bouton d'effacement."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "An agent's answer reads as a reply: the prompt that called it is attached above it, and the answer hangs off it in the agent's colour. When an agent needs a permission, the conversation says which one is waiting and offers to open its details, where the request is shown in full - tool, description, command, and the same allow, always allow and deny choices as the conversation's own.",
+					"fr": "La réponse d'un agent se lit comme une réponse : la demande qui l'a appelé est attachée au-dessus, et la réponse s'y rattache à la couleur de l'agent. Quand un agent attend une autorisation, la conversation indique lequel et propose d'ouvrir son détail, où la demande est présentée en entier - outil, description, commande, et les mêmes choix autoriser, toujours autoriser et refuser que dans la conversation."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Naming an agent with @ now selects it instead of leaving text behind: the mention disappears from the field, the agent shows above it with its colour, and what stays in the input is the message itself. It applies whether the agent is picked from the list or typed by hand, and the selection can be cleared without touching the text.",
+					"fr": "Nommer un agent avec @ le sélectionne au lieu de laisser du texte : la mention disparaît du champ, l'agent s'affiche au-dessus avec sa couleur, et ce qui reste dans la saisie est le message lui-même. Cela vaut que l'agent soit choisi dans la liste ou tapé à la main, et la sélection peut être retirée sans toucher au texte."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Tool lines, in a conversation as in Live Activity, no longer spend their width on the path of the worktree they are already in: a file written there now reads as index.html. A path outside it is shortened to a tilde, and the full one is still there on hover. A tool line also shows its state - running, done, failed - and the notes a turn writes between two tool calls are set apart from the answer it lands on.",
+					"fr": "Les lignes d'outils, dans une conversation comme dans Live Activity, ne dépensent plus leur largeur sur le chemin du worktree où l'on se trouve déjà : un fichier qui y est écrit s'affiche index.html. Un chemin en dehors est raccourci sous un tilde, et le chemin complet reste au survol. Une ligne d'outil montre aussi son état - en cours, terminé, échoué - et les notes écrites entre deux appels d'outils se distinguent de la réponse finale."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A new session is now a New session row at the top of the conversation history, and it stays a draft: nothing is written until the first message, which is what files it under Instance and opens it. The header of the Agent view names the session it is on rather than repeating the view's name, and the button that used to create sessions from there is gone.",
+					"fr": "Une nouvelle session s'ouvre depuis une ligne Nouvelle session en haut de l'historique des conversations, et reste un brouillon : rien n'est écrit avant le premier message, qui la range dans la section Instance et l'ouvre. L'en-tête de la vue Agent nomme la session ouverte au lieu de répéter le nom de la vue, et le bouton qui créait les sessions depuis là a disparu."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Clicking an agent's line in Live Activity opens that agent instead of jumping to another conversation's answer: launching an agent added a message without its matching activity line, which shifted every later line onto the wrong turn. Stopping an agent is now done from its input field, where sending happens, and a model whose context window is unknown shows the same gauge with a question mark rather than a raw token count.",
+					"fr": "Cliquer la ligne d'un agent dans Live Activity ouvre cet agent au lieu de sauter à la réponse d'une autre conversation : lancer un agent ajoutait un message sans la ligne d'activité correspondante, ce qui décalait toutes les lignes suivantes sur le mauvais tour. L'arrêt d'un agent se fait désormais depuis son champ de saisie, là où l'on envoie, et un modèle dont la fenêtre de contexte est inconnue affiche la même jauge avec un point d'interrogation plutôt qu'un nombre de tokens."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent can be removed, from the panel or from inside its thread: its thread, its context and its place in the list go, while what it already answered stays in the conversation. Calling it again starts a new agent from nothing.",
+					"fr": "Un agent peut être retiré, depuis le panneau ou depuis son fil : son fil, son contexte et sa place dans la liste disparaissent, tandis que ce qu'il a déjà répondu reste dans la conversation. Le rappeler démarre un nouvel agent parti de zéro."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The context window chip tells the truth: Claude Code reports the real window of the model it used, which is what separates a 200k model from its 1M variant, and the tokens written to the cache are counted in - without them a first turn read as almost empty. When no window is known, the chip shows the token count instead of a percentage measured against a guess. An agent's answer is now titled in the agent's own colour, and resetting an agent's context shows its divider straight away.",
+					"fr": "La pastille de fenêtre de contexte dit la vérité : Claude Code rapporte la fenêtre réelle du modèle utilisé, seule chose qui distingue un modèle 200k de sa variante 1M, et les tokens écrits dans le cache sont comptés - sans eux, un premier tour paraissait presque vide. Quand aucune fenêtre n'est connue, la pastille affiche le nombre de tokens au lieu d'un pourcentage calculé sur une supposition. Le titre d'une réponse d'agent prend la couleur de l'agent, et réinitialiser son contexte affiche son trait de séparation immédiatement."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A conversation and its agents now run at the same time. A message sent while an agent is working no longer waits for it to finish, and two agents can work at once.",
+					"fr": "Une conversation et ses agents s'exécutent désormais en même temps. Un message envoyé pendant qu'un agent travaille n'attend plus qu'il ait fini, et deux agents peuvent travailler en parallèle."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An agent is no longer handed its own answer back as context on its next turn, and the answer it returns to the conversation is its final text rather than every note it wrote along the way.",
+					"fr": "Un agent ne reçoit plus sa propre réponse en contexte au tour suivant, et la réponse qu'il rend à la conversation est son texte final plutôt que l'ensemble des notes écrites en chemin."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Token counts are grouped for reading - 1 000 rather than 1000 - and a duration past a minute is written 2min2s instead of 122s. The loading spinner turns cleanly at small sizes.",
+					"fr": "Les nombres de tokens sont groupés pour la lecture - 1 000 plutôt que 1000 - et une durée dépassant la minute s'écrit 2min2s au lieu de 122s. L'animation de chargement tourne proprement en petite taille."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent named with @ now runs in the background, in its own process and with its own context, instead of answering in place of the conversation's provider. The conversation is not blocked while it works, and its answer comes back as its own message, in the persona's colour, with a link to the work behind it. Mentioning the same agent again continues its own thread: it remembers what it did there, and is told what was said in the conversation since its last turn.",
+					"fr": "Un agent nommé avec @ s'exécute désormais en arrière-plan, dans son propre processus et avec son propre contexte, au lieu de répondre à la place du provider de la conversation. La conversation n'est pas bloquée pendant son travail, et sa réponse revient comme un message qui lui est propre, à la couleur de la persona, avec un lien vers le travail qui la précède. Mentionner à nouveau le même agent poursuit son fil : il se souvient de ce qu'il y a fait, et reçoit ce qui a été dit dans la conversation depuis son dernier tour."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent belongs to the conversation that called it. The Agent view carries an Agents panel above Live Activity listing the agents of the open conversation - one entry per agent, whatever the number of times it was called. Opening one enters its own conversation in place of the main one: its whole thread, with its reasoning, its tools, its answers and their cost, and a composer to ask it something else. Coming back is one button. Its thread shows what it did in the order it did it - the notes it wrote between two tool calls stay where they happened.",
+					"fr": "Un agent appartient à la conversation qui l'a appelé. La vue Agent porte un panneau Agents au-dessus de Live Activity, listant les agents de la conversation ouverte - une entrée par agent, quel que soit le nombre d'appels. En ouvrir un fait entrer dans sa conversation à la place de la principale : tout son fil, avec son raisonnement, ses outils, ses réponses et leur coût, et un champ pour lui demander autre chose. Un bouton suffit pour revenir. Son fil montre ce qu'il a fait dans l'ordre où il l'a fait : les notes écrites entre deux appels d'outils restent à leur place."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent's answer now carries the same footer as any other turn - duration, cost, tokens and turns - and the conversation cost menu lists what each agent spent, under its own name, next to the per-model breakdown.",
+					"fr": "La réponse d'un agent porte désormais le même pied de message que n'importe quel tour - durée, coût, tokens et tours - et le menu de coût de la conversation détaille ce qu'a dépensé chaque agent, sous son nom, à côté de la répartition par modèle."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent can be made to forget: Reset context, from inside its thread, drops what it remembers of the conversation so its next prompt starts from nothing. It asks for confirmation first, and everything it already answered stays - in the conversation, and in its thread above a line marking the break.",
+					"fr": "Un agent peut être amené à oublier : Réinitialiser le contexte, depuis son fil, efface ce qu'il retient de la conversation pour que sa prochaine demande reparte de zéro. Une confirmation est demandée, et tout ce qu'il a déjà répondu reste - dans la conversation, et dans son fil au-dessus d'un trait qui marque la coupure."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Live Activity now shows the agents a conversation called: one line when an agent is launched, another when its answer comes back.",
+					"fr": "Live Activity affiche désormais les agents appelés par une conversation : une ligne au lancement, une autre au retour de sa réponse."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "An agent is now configured for a single provider, or set to inherit the conversation's. An inheriting agent takes its provider, model, effort and permission mode from the conversation, and follows it when it switches provider - its own past turns are handed to the new one, so it picks the thread up instead of starting over. A pinned agent keeps its own settings and never borrows a model that belongs to another backend. Agents saved for several providers keep the first one.",
+					"fr": "Un agent se configure désormais sur un seul provider, ou hérite de celui de la conversation. Un agent en héritage prend le provider, le modèle, l'effort et le mode de permission de la conversation, et la suit quand elle change de provider : ses propres tours passés sont transmis au nouveau, qui reprend le fil au lieu de repartir de zéro. Un agent épinglé garde ses réglages et n'emprunte jamais un modèle appartenant à un autre backend. Les agents enregistrés pour plusieurs providers conservent le premier."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "Providers now show their own logo instead of two initials, in the list and in the header of the selected provider. The mark takes the provider accent colour, and a provider without a known logo keeps its initials.",
 					"fr": "Les providers affichent désormais leur propre logo au lieu de deux initiales, dans la liste comme dans l'en-tête du provider sélectionné. Le logo prend la couleur d'accent du provider, et un provider sans logo connu conserve ses initiales."
 				}

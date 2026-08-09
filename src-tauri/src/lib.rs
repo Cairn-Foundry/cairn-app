@@ -161,6 +161,8 @@ pub fn run() {
             save_ui_state,
             get_agent_activity,
             save_agent_activity,
+            get_agent_runs,
+            save_agent_runs,
             get_commit_state,
             save_commit_state,
             get_conversation_index,

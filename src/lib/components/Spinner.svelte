@@ -3,23 +3,53 @@
   export let stroke: number = 2;
   export let trackColor: string = 'oklch(1 0 0 / 0.3)';
   export let color: string = 'currentColor';
+
+  // Drawn as a circle rather than a rotating border box: a bordered element of
+  // an odd pixel size has its centre on a half pixel, and the rounding makes
+  // the arc wobble instead of turning cleanly. An SVG rotates about its own
+  // viewBox, whatever the rendered size.
+  const VIEW = 24;
+  $: radius = (VIEW - stroke * (VIEW / size)) / 2;
+  $: width = stroke * (VIEW / size);
+  $: circumference = 2 * Math.PI * radius;
 </script>
 
-<span
+<svg
   class="spinner"
-  style="width: {size}px; height: {size}px; border-width: {stroke}px; border-color: {trackColor}; border-top-color: {color};"
+  width={size}
+  height={size}
+  viewBox="0 0 {VIEW} {VIEW}"
+  fill="none"
   aria-hidden="true"
-></span>
+>
+  <circle
+    cx={VIEW / 2}
+    cy={VIEW / 2}
+    r={radius}
+    stroke={trackColor}
+    stroke-width={width}
+  />
+  <circle
+    cx={VIEW / 2}
+    cy={VIEW / 2}
+    r={radius}
+    stroke={color}
+    stroke-width={width}
+    stroke-linecap="round"
+    stroke-dasharray="{circumference * 0.25} {circumference}"
+  />
+</svg>
 
 <style>
   .spinner {
-    display: inline-block;
-    border-style: solid;
-    border-radius: 50%;
     animation: spinner-rotate 0.6s linear infinite;
+    display: inline-block;
     flex-shrink: 0;
+    transform-origin: 50% 50%;
     vertical-align: middle;
-    box-sizing: border-box;
   }
-  @keyframes spinner-rotate { to { transform: rotate(360deg); } }
+
+  @keyframes spinner-rotate {
+    to { transform: rotate(360deg); }
+  }
 </style>

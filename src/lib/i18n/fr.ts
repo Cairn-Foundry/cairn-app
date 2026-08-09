@@ -1,6 +1,7 @@
 export const fr = {
 	common: {
 		close: "Fermer",
+		clear: "Effacer",
 		cancel: "Annuler",
 		save: "Enregistrer",
 		back: "Retour",
@@ -440,20 +441,35 @@ export const fr = {
 		title: "Agent",
 		subtitle: "supervision - Claude Code",
 		interrupt: "Arrêter",
-		restart: "Nouvelle session",
+		empty: {
+			title: "Nouvelle session",
+			subtitle:
+				"Demandez ce que vous voulez sur cette instance. L'agent travaille dans son worktree, et ce qu'il fait s'affiche à droite.",
+			mention: "appeler un agent",
+			command: "lancer une commande",
+			send: "+ Entrée pour envoyer",
+		},
+		newSession: "Nouvelle session",
+		newSessionTitle: "Agent - Nouvelle session",
 		you: "Vous",
 		agentRole: "Agent",
+		replyJump: "Aller au message auquel ceci répond",
 		activityJump: "Aller au message correspondant",
 		streaming: "en cours",
+		agentStarted: (name: string) => `${name} a démarré`,
+		seeAgentWork: "voir le détail",
+		waitingWorktree: "En attente d'un agent qui écrit dans ce worktree",
 		inputPlaceholder:
-			"Rediriger l'agent, poser une question ou ajouter du contexte...",
+			"Mentionner un agent, poser une question ou ajouter du contexte...",
 		sendBtn: "Envoyer",
 		mentionFile: "mentionner un fichier",
 		retry: "Réessayer",
 		thinking: "Réflexion",
 		contextWindow: "Fenêtre de contexte",
+		contextWindowUnknown: "fenêtre inconnue pour ce modèle",
 		composer: {
-			clearAgent: "Ne plus utiliser cet agent",
+			clearAgent: "Ne pas appeler cet agent",
+			willRunInBackground: "s'exécute en arrière-plan",
 			provider: "Provider",
 			model: "Modèle",
 			modelDefault: "modèle",
@@ -470,6 +486,7 @@ export const fr = {
 		permission: {
 			title: "Permission requise",
 			allow: "Autoriser",
+			agentWaiting: (names: string) => `${names} attend une autorisation`,
 			alwaysAllow: "Toujours autoriser",
 			deny: "Refuser",
 			denied: "Refusé depuis Cairn",
@@ -478,6 +495,8 @@ export const fr = {
 			keepPlanning: "Continuer à planifier",
 		},
 		stats: {
+			models: "Modèles",
+			agents: "Agents",
 			title: "Consommation de la session",
 			input: "Entrée",
 			output: "Sortie",
@@ -492,7 +511,6 @@ export const fr = {
 		},
 		liveActivity: "Activité en direct",
 		liveActivitySub: "- ce que fait l'agent, en ce moment",
-		instanceStarted: "Instance démarrée",
 		providerSwitched: (provider: string) => `Passage à ${provider}`,
 		noActiveInstance: "Aucune instance active",
 		waitingResponse: "En attente de réponse...",
@@ -501,9 +519,6 @@ export const fr = {
 			title: "Historique",
 			toggle: "Historique des conversations",
 			searchPlaceholder: "Rechercher une conversation...",
-			clearSearch: "Effacer la recherche",
-			new: "Nouvelle conversation",
-			newShared: "Nouvelle conversation partagee",
 			instanceEmpty: "Aucune conversation pour cette instance.",
 			sharedEmpty: "Aucune conversation partagee dans ce projet.",
 			actions: "Actions de la conversation",
@@ -543,6 +558,45 @@ export const fr = {
 			"Gérez votre .env avec des variables réutilisées par chaque instance.",
 		formattingName: "Formatage",
 		formattingDescription: "Le style de code appliqué à ce projet.",
+	},
+
+	agents: {
+		title: "Agents",
+		enter: "Ouvrir cet agent",
+		viewDetails: "Voir le détail de l'agent",
+		empty: "Aucun agent appelé ici",
+		promptPlaceholder: (name: string) => `Demandez autre chose à ${name}...`,
+		ownContext: "Son propre contexte, dans son propre processus",
+		stop: "Arrêter",
+		resetContext: "Réinitialiser le contexte",
+		resetContextHint:
+			"Fait oublier à cet agent ce qu'il sait ici. Ce qu'il a déjà répondu reste.",
+		contextResetMark: "Contexte réinitialisé",
+		deleteThread: "Retirer du panneau",
+		deleteModal: {
+			heading: "Agent",
+			title: (name: string) => `Retirer ${name} de cette conversation ?`,
+			description:
+				"Son fil disparaît : ce qu'il a fait, son contexte, sa place dans le panneau. Le rappeler démarre un nouvel agent parti de zéro.",
+			keeps: "Ce qu'il a déjà répondu reste dans la conversation.",
+		},
+		resetModal: {
+			heading: "Contexte de l'agent",
+			title: (name: string) => `Réinitialiser le contexte de ${name} ?`,
+			description:
+				"Cet agent oubliera tout ce qu'il sait de cette conversation. Sa prochaine demande repartira de zéro.",
+			keeps: "Ce qu'il a déjà répondu reste, ici comme dans la conversation.",
+		},
+		handedOver:
+			"Repris par un autre fournisseur, avec son propre travail précédent.",
+		status: {
+			running: "En cours",
+			awaitingPermission: "En attente de vous",
+			done: "Terminé",
+			stopped: "Arrêté",
+			error: "Échec",
+			interrupted: "Interrompu par un redémarrage",
+		},
 	},
 
 	formatting: {
@@ -1536,14 +1590,12 @@ export const fr = {
 					appearance: "Apparence",
 					tools: "Outils",
 				},
-				rows: {
-					title: "Fournisseurs",
-					add: "Ajouter un fournisseur",
-					remove: "Retirer ce fournisseur",
-					inherit: "Hériter",
-					anyProvider: "N'importe quel fournisseur",
-					anyProviderHint:
-						"Cet agent s'exécute sur le fournisseur utilisé par la conversation, avec son modèle et ses réglages. Ajoutez un fournisseur pour lui donner un modèle qui lui est propre.",
+				binding: {
+					title: "Où il s'exécute",
+					inheritProvider: "Hériter de la conversation",
+					providerDefault: "Défaut du fournisseur",
+					inheritHint:
+						"Cet agent s'exécute sur le fournisseur utilisé par la conversation, avec son modèle et ses réglages, et le suit quand la conversation change de fournisseur.",
 				},
 				tools: {
 					allowed: "Outils autorisés",

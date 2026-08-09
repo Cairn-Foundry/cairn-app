@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod agent_activity;
+pub mod agent_runs;
 pub mod commit_state;
 pub mod conversations;
 pub mod custom_commands;
@@ -27,6 +28,7 @@ pub use agent::config::{
     probe_provider, list_agent_commands, list_claude_agents, export_claude_agents, discover_provider,
 };
 pub use agent_activity::{get_agent_activity, save_agent_activity};
+pub use agent_runs::{get_agent_runs, save_agent_runs};
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use conversations::{get_conversation_index, save_conversation_index, get_conversation_body, save_conversation_body, delete_conversation_body};
 pub use custom_commands::{

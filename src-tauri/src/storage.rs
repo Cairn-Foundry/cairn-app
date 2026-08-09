@@ -61,6 +61,10 @@ pub fn project_terminal_state_file(project_id: &str) -> Result<PathBuf, String> 
     Ok(cairn_dir()?.join("projects").join(project_id).join("terminal-state.json"))
 }
 
+pub fn project_agent_runs_file(project_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join(project_id).join("agent-runs.json"))
+}
+
 pub fn project_conversations_dir(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("conversations"))
 }

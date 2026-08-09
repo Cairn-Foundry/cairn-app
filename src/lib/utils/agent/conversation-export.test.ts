@@ -30,7 +30,7 @@ function makeMeta(overrides: Partial<ConversationMeta> = {}): ConversationMeta {
 		archived: false,
 		sessions: {},
 		lastProviderId: "",
-		agentId: "",
+		agentThreads: {},
 		messageCount: 3,
 		preview: "Fix the lexer",
 		...overrides,
@@ -180,5 +180,17 @@ describe("sortConversations", () => {
 		const list = [at("a", 100), at("b", 200)];
 		sortConversations(list);
 		expect(list.map((c) => c.id)).toEqual(["a", "b"]);
+	});
+});
+
+describe("conversationToMarkdown, empty turns", () => {
+	it("leaves out a message that says nothing", () => {
+		const markdown = conversationToMarkdown("T", [
+			{ role: "user", content: "go", time: "10:00" },
+			{ role: "agent", content: "", time: "10:00" },
+			{ role: "agent", content: "done", time: "10:01" },
+		]);
+		expect(markdown).toContain("done");
+		expect(markdown.match(/## Agent/g)?.length).toBe(1);
 	});
 });

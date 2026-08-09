@@ -9,6 +9,13 @@ export const envActive = writable(false);
 export const formattingActive = writable(false);
 
 /**
+ * The agent whose thread is open in the Agent view. An agent's thread takes over
+ * the main area exactly like a conversation does, so which one is open is view
+ * state and survives a restart.
+ */
+export const openAgentId = writable("");
+
+/**
  * Tools take over the main area, so exactly one of them can be open at a time.
  * Always go through here rather than setting the flags by hand: two flags left
  * on at once stack two views on top of each other.

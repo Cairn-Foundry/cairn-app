@@ -237,8 +237,8 @@ pub fn get_api_key(provider_id: &str) -> Option<String> {
 // Custom agents
 // ---------------------------------------------------------------------------
 
-/// What an agent uses on one given provider. Everything else about the agent -
-/// prompt, tools, params - is the same wherever it runs.
+/// What an agent uses on one given provider. Kept only to read agents saved
+/// while an agent could be tuned for several providers at once.
 #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentProviderRow {
@@ -266,10 +266,18 @@ pub struct CustomAgent {
     pub icon: String,
     #[serde(default)]
     pub system_prompt: String,
-    /// One entry per provider the agent is tuned for. Empty is valid: the agent
-    /// then runs anywhere on whatever the conversation is already using.
+    /// The provider the agent runs on. Empty means it inherits the calling
+    /// conversation's provider, model, effort and permission mode.
     #[serde(default)]
-    pub rows: Vec<AgentProviderRow>,
+    pub provider_id: String,
+    /// Empty falls back to the provider's own default, never to the
+    /// conversation's model - that one belongs to another backend.
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub effort: String,
+    #[serde(default)]
+    pub permission_mode: String,
     #[serde(default)]
     pub allowed_tools: Vec<String>,
     #[serde(default)]
@@ -281,32 +289,26 @@ pub struct CustomAgent {
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
 
-    // Superseded by `rows`; still read so an agent saved before the split keeps
-    // its provider, and no longer written.
+    // Superseded by the single binding above; still read so an agent saved with
+    // several provider rows keeps the first one, and no longer written.
     #[serde(default, skip_serializing)]
-    pub provider_id: String,
-    #[serde(default, skip_serializing)]
-    pub model: String,
-    #[serde(default, skip_serializing)]
-    pub effort: String,
-    #[serde(default, skip_serializing)]
-    pub permission_mode: String,
+    pub rows: Vec<AgentProviderRow>,
 }
 
-/// An agent saved as a single provider binding becomes an agent with one row.
+/// An agent runs in its own process with its own context, so it answers to one
+/// provider - or to whoever the conversation is talking to. An agent saved with
+/// several rows keeps the first: the others described providers it can no
+/// longer be on at the same time.
 fn migrate_agent(mut agent: CustomAgent) -> CustomAgent {
-    if agent.rows.is_empty() && !agent.provider_id.is_empty() {
-        agent.rows.push(AgentProviderRow {
-            provider_id: std::mem::take(&mut agent.provider_id),
-            model: std::mem::take(&mut agent.model),
-            effort: std::mem::take(&mut agent.effort),
-            permission_mode: std::mem::take(&mut agent.permission_mode),
-        });
+    if agent.provider_id.is_empty() {
+        if let Some(row) = agent.rows.first() {
+            agent.provider_id = row.provider_id.clone();
+            agent.model = row.model.clone();
+            agent.effort = row.effort.clone();
+            agent.permission_mode = row.permission_mode.clone();
+        }
     }
-    agent.provider_id.clear();
-    agent.model.clear();
-    agent.effort.clear();
-    agent.permission_mode.clear();
+    agent.rows.clear();
     agent
 }
 
@@ -855,52 +857,47 @@ mod tests {
     }
 
     #[test]
-    fn a_legacy_agent_binding_becomes_one_row() {
+    fn the_first_row_becomes_the_agents_provider() {
         let agent: CustomAgent = serde_json::from_str(
-            r#"{"id":"a","name":"reviewer","providerId":"openai","model":"gpt-5.1",
-                "effort":"high","permissionMode":"plan"}"#,
+            r#"{"id":"a","name":"reviewer","rows":[
+                {"providerId":"openai","model":"gpt-5.1","effort":"high","permissionMode":"plan"},
+                {"providerId":"anthropic","model":"claude-opus-5"}]}"#,
         )
         .unwrap();
         let agent = migrate_agent(agent);
-        assert_eq!(agent.rows.len(), 1);
-        assert_eq!(
-            agent.rows[0],
-            AgentProviderRow {
-                provider_id: "openai".into(),
-                model: "gpt-5.1".into(),
-                effort: "high".into(),
-                permission_mode: "plan".into(),
-            },
-        );
+        assert_eq!(agent.provider_id, "openai");
+        assert_eq!(agent.model, "gpt-5.1");
+        assert_eq!(agent.effort, "high");
+        assert_eq!(agent.permission_mode, "plan");
     }
 
     #[test]
-    fn an_agent_that_already_has_rows_keeps_them() {
-        let agent: CustomAgent = serde_json::from_str(
-            r#"{"id":"a","providerId":"openai","rows":[{"providerId":"anthropic"}]}"#,
-        )
-        .unwrap();
-        let agent = migrate_agent(agent);
-        assert_eq!(agent.rows.len(), 1);
-        assert_eq!(agent.rows[0].provider_id, "anthropic");
-    }
-
-    #[test]
-    fn an_agent_bound_to_nothing_stays_row_less() {
+    fn an_agent_bound_to_nothing_inherits() {
         let agent: CustomAgent = serde_json::from_str(r#"{"id":"a","name":"free"}"#).unwrap();
-        assert!(migrate_agent(agent).rows.is_empty());
+        let agent = migrate_agent(agent);
+        assert!(agent.provider_id.is_empty());
+        assert!(agent.rows.is_empty());
     }
 
     #[test]
-    fn the_legacy_agent_fields_are_no_longer_written_back() {
+    fn a_row_less_agent_that_never_had_rows_keeps_its_binding() {
+        let agent: CustomAgent = serde_json::from_str(
+            r#"{"id":"a","providerId":"anthropic","model":"claude-opus-5"}"#,
+        )
+        .unwrap();
+        let agent = migrate_agent(agent);
+        assert_eq!(agent.provider_id, "anthropic");
+        assert_eq!(agent.model, "claude-opus-5");
+    }
+
+    #[test]
+    fn the_legacy_rows_are_no_longer_written_back() {
         let agent: CustomAgent =
-            serde_json::from_str(r#"{"id":"a","providerId":"openai","model":"gpt-5.1"}"#).unwrap();
+            serde_json::from_str(r#"{"id":"a","rows":[{"providerId":"openai"}]}"#).unwrap();
         let value = serde_json::to_value(migrate_agent(agent)).unwrap();
         let root = value.as_object().unwrap();
-        for legacy in ["providerId", "model", "effort", "permissionMode"] {
-            assert!(!root.contains_key(legacy), "{legacy} still written");
-        }
-        assert_eq!(root["rows"][0]["providerId"], "openai");
+        assert!(!root.contains_key("rows"), "rows still written");
+        assert_eq!(root["providerId"], "openai");
     }
 
     #[test]

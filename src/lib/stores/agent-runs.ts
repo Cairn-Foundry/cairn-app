@@ -1,0 +1,265 @@
+import { get, writable } from "svelte/store";
+import {
+	type AgentBlock,
+	type AgentRun,
+	type AgentRunStatus,
+	getAgentRuns,
+	saveAgentRuns,
+} from "$lib/services/agent-runs-service";
+import type { PendingPermission } from "$lib/utils/agent/permission-response";
+
+export type { AgentBlock, AgentRun, AgentRunStatus };
+
+/** Runs by project id, newest first. */
+export const agentRuns = writable<Record<string, AgentRun[]>>({});
+
+/**
+ * Requests raised by a run nobody is watching, keyed by run. They are answered
+ * from the Agents view, and mirrored inline when the conversation that called
+ * the agent happens to be open.
+ */
+export const agentPermissionRequests = writable<
+	Record<string, PendingPermission>
+>({});
+
+export function setAgentPermission(
+	runId: string,
+	request: PendingPermission,
+): void {
+	agentPermissionRequests.update((m) => ({ ...m, [runId]: request }));
+}
+
+export function clearAgentPermission(runId: string): void {
+	agentPermissionRequests.update((m) => {
+		const { [runId]: _answered, ...rest } = m;
+		return rest;
+	});
+}
+
+const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const PERSIST_DELAY_MS = 250;
+
+export function isInFlight(status: AgentRunStatus): boolean {
+	return status === "running" || status === "awaiting-permission";
+}
+
+export function runsOf(projectId: string): AgentRun[] {
+	return get(agentRuns)[projectId] ?? [];
+}
+
+export function findAgentRun(runId: string): AgentRun | null {
+	for (const list of Object.values(get(agentRuns))) {
+		const run = list.find((r) => r.id === runId);
+		if (run) return run;
+	}
+	return null;
+}
+
+function persist(projectId: string): void {
+	const existing = persistTimers.get(projectId);
+	if (existing) clearTimeout(existing);
+	persistTimers.set(
+		projectId,
+		setTimeout(() => {
+			persistTimers.delete(projectId);
+			void saveAgentRuns(projectId, runsOf(projectId)).catch(() => {});
+		}, PERSIST_DELAY_MS),
+	);
+}
+
+/**
+ * A run in flight when the app went down comes back `interrupted` - its process
+ * died with the window. Nothing holds a lease at that point, so the map starts
+ * clean.
+ */
+export async function restoreAgentRuns(projectId: string): Promise<void> {
+	if (get(agentRuns)[projectId]) return;
+	const runs = await getAgentRuns(projectId).catch(() => []);
+	agentRuns.update((m) => ({ ...m, [projectId]: runs }));
+}
+
+export function addAgentRun(projectId: string, run: AgentRun): void {
+	agentRuns.update((m) => ({
+		...m,
+		[projectId]: [run, ...(m[projectId] ?? [])],
+	}));
+	persist(projectId);
+}
+
+export function patchAgentRun(
+	projectId: string,
+	runId: string,
+	fields: Partial<AgentRun>,
+): void {
+	agentRuns.update((m) => ({
+		...m,
+		[projectId]: (m[projectId] ?? []).map((run) =>
+			run.id === runId ? { ...run, ...fields } : run,
+		),
+	}));
+	persist(projectId);
+}
+
+/** Runs of that conversation whose answer the provider has not been told about. */
+export function undeliveredResults(
+	projectId: string,
+	conversationId: string,
+): AgentRun[] {
+	return runsOf(projectId).filter(
+		(run) =>
+			run.conversationId === conversationId &&
+			run.status === "done" &&
+			!run.delivered &&
+			run.result.trim() !== "",
+	);
+}
+
+export function markDelivered(projectId: string, runIds: string[]): void {
+	if (!runIds.length) return;
+	agentRuns.update((m) => ({
+		...m,
+		[projectId]: (m[projectId] ?? []).map((run) =>
+			runIds.includes(run.id) ? { ...run, delivered: true } : run,
+		),
+	}));
+	persist(projectId);
+}
+
+/**
+ * Forgets one agent's work in one conversation. Only its runs go: what it
+ * already answered lives in the conversation as messages, and stays there.
+ */
+export function deleteAgentThread(
+	projectId: string,
+	conversationId: string,
+	agentId: string,
+): void {
+	agentRuns.update((m) => ({
+		...m,
+		[projectId]: (m[projectId] ?? []).filter(
+			(run) => run.conversationId !== conversationId || run.agentId !== agentId,
+		),
+	}));
+	persist(projectId);
+}
+
+/**
+ * Adds what just arrived to the run's list, in arrival order. Consecutive text
+ * or reasoning joins the block it continues; a tool call always opens its own,
+ * so the order the agent worked in is the order it reads in.
+ */
+export function appendAgentBlock(
+	projectId: string,
+	runId: string,
+	block: AgentBlock,
+): void {
+	const run = findAgentRun(runId);
+	if (!run) return;
+	const blocks = [...run.blocks];
+	const last = blocks[blocks.length - 1];
+	if (block.kind !== "tool" && last?.kind === block.kind) {
+		blocks[blocks.length - 1] = { ...last, text: last.text + block.text };
+	} else {
+		blocks.push(block);
+	}
+	patchAgentRun(projectId, runId, {
+		blocks,
+		...(block.kind === "text" ? { result: lastTextOf(blocks) } : {}),
+		...(block.kind === "thinking" ? { thinking: lastThinkingOf(blocks) } : {}),
+	});
+}
+
+/** Closes the tool call that was still open, when its result comes back. */
+export function finishAgentToolBlock(
+	projectId: string,
+	runId: string,
+	failed: boolean,
+): void {
+	const run = findAgentRun(runId);
+	if (!run) return;
+	const blocks = [...run.blocks];
+	for (let i = blocks.length - 1; i >= 0; i--) {
+		if (blocks[i].kind !== "tool" || blocks[i].done) continue;
+		blocks[i] = { ...blocks[i], done: true, failed };
+		patchAgentRun(projectId, runId, { blocks });
+		return;
+	}
+}
+
+/**
+ * Closes every tool the run left open. A run that is stopped mid-tool never
+ * gets its result back, and the line would spin for ever.
+ */
+export function closeAgentToolBlocks(projectId: string, runId: string): void {
+	const run = findAgentRun(runId);
+	if (!run?.blocks.some((b) => b.kind === "tool" && !b.done)) return;
+	patchAgentRun(projectId, runId, {
+		blocks: run.blocks.map((b) =>
+			b.kind === "tool" && !b.done ? { ...b, done: true } : b,
+		),
+	});
+}
+
+/**
+ * The answer is the last thing the agent wrote, not everything it wrote: the
+ * texts before it are working notes between tool calls, and gluing them all
+ * together turns the reply into a wall.
+ */
+export function lastTextOf(blocks: AgentBlock[]): string {
+	return [...blocks].reverse().find((b) => b.kind === "text")?.text ?? "";
+}
+
+export function lastThinkingOf(blocks: AgentBlock[]): string {
+	return [...blocks].reverse().find((b) => b.kind === "thinking")?.text ?? "";
+}
+
+/**
+ * Every run of one agent in one conversation, oldest first - the agent's thread.
+ * An agent is scoped to the conversation that called it, so this is what
+ * entering it shows and what its next prompt continues.
+ */
+export function agentThreadRuns(
+	projectId: string,
+	conversationId: string,
+	agentId: string,
+): AgentRun[] {
+	return runsOf(projectId)
+		.filter(
+			(run) => run.conversationId === conversationId && run.agentId === agentId,
+		)
+		.slice()
+		.reverse();
+}
+
+/**
+ * The agents that have a thread in this conversation, most recently started
+ * first, with the run that says what each is doing now.
+ */
+export function agentThreadsOf(
+	projectId: string,
+	conversationId: string,
+): { agentId: string; latest: AgentRun; runs: AgentRun[] }[] {
+	const byAgent = new Map<string, AgentRun[]>();
+	for (const run of runsOf(projectId)) {
+		if (run.conversationId !== conversationId) continue;
+		const list = byAgent.get(run.agentId);
+		if (list) list.push(run);
+		else byAgent.set(run.agentId, [run]);
+	}
+	return [...byAgent.entries()].map(([agentId, runs]) => ({
+		agentId,
+		latest: runs[0],
+		runs: runs.slice().reverse(),
+	}));
+}
+
+/** The agent's past exchanges here, oldest first, for a provider taking over. */
+export function agentTurnsOf(
+	projectId: string,
+	conversationId: string,
+	agentId: string,
+): { prompt: string; result: string }[] {
+	return agentThreadRuns(projectId, conversationId, agentId)
+		.filter((run) => run.result.trim() !== "")
+		.map((run) => ({ prompt: run.prompt, result: run.result }));
+}

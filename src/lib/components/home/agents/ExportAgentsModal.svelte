@@ -53,17 +53,18 @@
   }
 
   /**
-   * A Claude Code definition holds one provider's settings, so the Claude Code
-   * row is the one that survives - and any row at all is better than none.
+   * A Claude Code definition holds one provider's settings. An agent pinned
+   * elsewhere would name a model this file cannot use, so only Claude Code's
+   * settings are carried over - an inheriting agent simply exports none.
    */
   function flatten(agent: CustomAgent): ExportedAgent {
-    const row = agent.rows.find((r) => r.providerId === CLAUDE_CLI_ID) ?? agent.rows[0];
+    const own = agent.providerId === CLAUDE_CLI_ID;
     return {
       name: agent.name,
       description: agent.description,
-      model: row?.model ?? '',
-      effort: row?.effort ?? '',
-      permissionMode: row?.permissionMode ?? '',
+      model: own ? agent.model : '',
+      effort: own ? agent.effort : '',
+      permissionMode: own ? agent.permissionMode : '',
       color: agent.color,
       tools: agent.allowedTools,
       systemPrompt: agent.systemPrompt,

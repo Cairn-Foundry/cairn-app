@@ -7,6 +7,7 @@ import {
 	envActive,
 	formattingActive,
 	gitLeftTab,
+	openAgentId,
 	referencesPanelOpen,
 	referencesQuery,
 	showTool,
@@ -21,6 +22,7 @@ const DEFAULT: ProjectUiState = {
 	commandsActive: false,
 	envActive: false,
 	formattingActive: false,
+	openAgentId: "",
 	gitChangesSearch: "",
 	gitLogSearch: "",
 	gitStagedSearch: "",
@@ -74,6 +76,7 @@ export function snapshotCurrentProject(): void {
 		commandsActive: get(commandsActive),
 		envActive: get(envActive),
 		formattingActive: get(formattingActive),
+		openAgentId: get(openAgentId),
 		referencesPanelOpen: get(referencesPanelOpen),
 		referencesQuery: get(referencesQuery),
 	});
@@ -85,6 +88,7 @@ export function applyProjectState(id: string): void {
 	gitLeftTab.set(ps.gitLeftTab as "changes" | "log" | "graph");
 	referencesPanelOpen.set(ps.referencesPanelOpen);
 	referencesQuery.set(ps.referencesQuery);
+	openAgentId.set(ps.openAgentId);
 	showTool(
 		ps.terminalActive
 			? "terminal"

@@ -37,14 +37,6 @@ export interface ProbeResult {
  * What an agent uses on one given provider. Everything else about the agent -
  * prompt, tools, params - is the same wherever it runs.
  */
-export interface AgentProviderRow {
-	providerId: string;
-	/** Empty defers to the model the conversation is already using. */
-	model: string;
-	effort: string;
-	permissionMode: string;
-}
-
 export interface CustomAgent {
 	id: string;
 	name: string;
@@ -53,10 +45,18 @@ export interface CustomAgent {
 	icon: string;
 	systemPrompt: string;
 	/**
-	 * One entry per provider the agent is tuned for. Empty is valid: the agent
-	 * then runs anywhere on whatever the conversation is already using.
+	 * The provider the agent runs on. Empty means it inherits the calling
+	 * conversation's provider, model, effort and permission mode - and follows
+	 * it when the conversation switches backend.
 	 */
-	rows: AgentProviderRow[];
+	providerId: string;
+	/**
+	 * Empty falls back to the provider's own default, never to the
+	 * conversation's model: that one names a model of another backend.
+	 */
+	model: string;
+	effort: string;
+	permissionMode: string;
 	/** Tool names the agent may use. Empty means "whatever the provider allows". */
 	allowedTools: string[];
 	/** Tool names the agent may never use. Applied on top of `allowedTools`. */

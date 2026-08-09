@@ -1,6 +1,7 @@
 export const en = {
 	common: {
 		close: "Close",
+		clear: "Clear",
 		cancel: "Cancel",
 		save: "Save",
 		back: "Back",
@@ -426,19 +427,33 @@ export const en = {
 		title: "Agent",
 		subtitle: "supervising - Claude Code",
 		interrupt: "Stop",
-		restart: "New session",
+		empty: {
+			title: "New session",
+			subtitle:
+				"Ask for anything about this instance. The agent works in its worktree, and what it does shows up on the right.",
+			mention: "call an agent",
+			command: "run a command",
+			send: "+ Enter to send",
+		},
+		newSession: "New session",
+		newSessionTitle: "Agent - New session",
 		you: "You",
 		agentRole: "Agent",
+		replyJump: "Go to the message this answers",
 		activityJump: "Go to the matching message",
 		streaming: "streaming",
-		inputPlaceholder: "Redirect the agent, ask a question, or add context...",
+		agentStarted: (name: string) => `${name} started`,
+		seeAgentWork: "see details",
+		inputPlaceholder: "Mention an agent, ask a question, or add context...",
 		sendBtn: "Send",
 		mentionFile: "mention file",
 		retry: "Retry",
 		thinking: "Thinking",
 		contextWindow: "Context window",
+		contextWindowUnknown: "window unknown for this model",
 		composer: {
-			clearAgent: "Stop using this agent",
+			clearAgent: "Do not call this agent",
+			willRunInBackground: "runs in the background",
 			provider: "Provider",
 			model: "Model",
 			modelDefault: "model",
@@ -455,6 +470,7 @@ export const en = {
 		permission: {
 			title: "Permission required",
 			allow: "Allow",
+			agentWaiting: (names: string) => `${names} is waiting for a permission`,
 			alwaysAllow: "Always allow",
 			deny: "Deny",
 			denied: "Denied from Cairn",
@@ -463,6 +479,8 @@ export const en = {
 			keepPlanning: "Keep planning",
 		},
 		stats: {
+			models: "Models",
+			agents: "Agents",
 			title: "Session usage",
 			input: "In",
 			output: "Out",
@@ -477,7 +495,6 @@ export const en = {
 		},
 		liveActivity: "Live activity",
 		liveActivitySub: "- what the agent is doing, right now",
-		instanceStarted: "Instance started",
 		providerSwitched: (provider: string) => `Switched to ${provider}`,
 		noActiveInstance: "No active instance",
 		waitingResponse: "Waiting for response...",
@@ -486,9 +503,6 @@ export const en = {
 			title: "History",
 			toggle: "Conversation history",
 			searchPlaceholder: "Search conversations...",
-			clearSearch: "Clear search",
-			new: "New conversation",
-			newShared: "New shared conversation",
 			instanceEmpty: "No conversation for this instance yet.",
 			sharedEmpty: "No conversation shared across this project yet.",
 			actions: "Conversation actions",
@@ -527,6 +541,45 @@ export const en = {
 		envDescription: "Manage your .env with variables reused by every instance.",
 		formattingName: "Formatting",
 		formattingDescription: "The code style this project is formatted with.",
+	},
+
+	agents: {
+		title: "Agents",
+		enter: "Open this agent",
+		viewDetails: "View agent details",
+		empty: "No agent called here yet",
+		promptPlaceholder: (name: string) => `Ask ${name} something else...`,
+		ownContext: "Its own context, in its own process",
+		stop: "Stop",
+		resetContext: "Reset context",
+		resetContextHint:
+			"Makes this agent forget what it knows here. What it already answered stays.",
+		contextResetMark: "Context reset",
+		deleteThread: "Remove from the panel",
+		deleteModal: {
+			heading: "Agent",
+			title: (name: string) => `Remove ${name} from this conversation?`,
+			description:
+				"Its thread goes: what it did, its context, its place in the panel. Calling it again starts a new agent from nothing.",
+			keeps: "What it already answered stays in the conversation.",
+		},
+		resetModal: {
+			heading: "Agent context",
+			title: (name: string) => `Reset ${name}'s context?`,
+			description:
+				"This agent will forget everything it knows about this conversation. Its next prompt starts from nothing.",
+			keeps: "What it already answered stays, here and in the conversation.",
+		},
+		handedOver:
+			"Picked up by another provider, and given its own earlier work.",
+		status: {
+			running: "Running",
+			awaitingPermission: "Waiting for you",
+			done: "Finished",
+			stopped: "Stopped",
+			error: "Failed",
+			interrupted: "Interrupted by a restart",
+		},
 	},
 
 	formatting: {
@@ -1499,14 +1552,12 @@ export const en = {
 					appearance: "Appearance",
 					tools: "Tools",
 				},
-				rows: {
-					title: "Providers",
-					add: "Add a provider",
-					remove: "Remove this provider",
-					inherit: "Inherit",
-					anyProvider: "Any provider",
-					anyProviderHint:
-						"This agent runs on whichever provider the conversation is using, with its own model and settings. Add a provider to give it a model of its own there.",
+				binding: {
+					title: "Where it runs",
+					inheritProvider: "Inherit from the conversation",
+					providerDefault: "Provider default",
+					inheritHint:
+						"This agent runs on whichever provider the conversation is using, with its model and settings, and follows it when the conversation switches provider.",
 				},
 				tools: {
 					allowed: "Allowed tools",

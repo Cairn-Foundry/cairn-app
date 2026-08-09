@@ -202,9 +202,24 @@ impl AgentProvider for ClaudeCliProvider {
                         }
                     }
                     Some("result") => {
+                        // The CLI reports the real context window of the model
+                        // it used, under `modelUsage`. It is the only reliable
+                        // source: a model id alone does not say how big its
+                        // window is, and the 1M variants share their base name.
+                        let context_window = model_seen
+                            .as_deref()
+                            .and_then(|model| {
+                                event
+                                    .get("modelUsage")
+                                    .and_then(|m| m.get(model))
+                                    .and_then(|m| m.get("contextWindow"))
+                                    .cloned()
+                            })
+                            .unwrap_or(Value::Null);
                         emit_agent_data(app, "usage", json!({
                             "model": model_seen,
                             "usage": event.get("usage"),
+                            "contextWindow": context_window,
                             "totalCostUsd": event.get("total_cost_usd"),
                             "durationMs": event.get("duration_ms").or_else(|| event.get("duration_api_ms")),
                             "numTurns": event.get("num_turns"),

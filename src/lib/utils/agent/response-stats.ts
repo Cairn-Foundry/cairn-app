@@ -1,3 +1,5 @@
+import { formatCount, formatDuration } from "$lib/utils/format";
+
 export type ResponseStatField = "duration" | "tokens" | "cost" | "turns";
 
 export interface ResponseStatDef {
@@ -40,12 +42,10 @@ export function responseStats(
 ): ResponseStat[] {
 	const values: Record<ResponseStatField, string | null> = {
 		duration:
-			usage.durationMs != null
-				? `${(usage.durationMs / 1000).toFixed(1)}s`
-				: null,
+			usage.durationMs != null ? formatDuration(usage.durationMs) : null,
 		tokens:
 			usage.inputTokens != null || usage.outputTokens != null
-				? `${(usage.inputTokens ?? 0) + (usage.cacheReadTokens ?? 0)} in / ${usage.outputTokens ?? 0} out`
+				? `${formatCount((usage.inputTokens ?? 0) + (usage.cacheReadTokens ?? 0))} in / ${formatCount(usage.outputTokens ?? 0)} out`
 				: null,
 		cost: usage.costUsd != null ? `$${usage.costUsd.toFixed(4)}` : null,
 		turns: usage.numTurns != null ? String(usage.numTurns) : null,

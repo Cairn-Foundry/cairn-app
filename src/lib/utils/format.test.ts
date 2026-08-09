@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatDate, slugify } from "./format";
+import {
+	formatBytes,
+	formatCount,
+	formatDate,
+	formatDuration,
+	slugify,
+} from "./format";
 
 describe("slugify", () => {
 	it("lowercases the input", () => {
@@ -68,5 +74,43 @@ describe("formatDate", () => {
 
 	it("formats a known timestamp without throwing", () => {
 		expect(() => formatDate(0)).not.toThrow();
+	});
+});
+
+describe("formatCount", () => {
+	it("leaves a small number alone", () => {
+		expect(formatCount(999)).toBe("999");
+	});
+
+	it("groups thousands with a space", () => {
+		expect(formatCount(1000)).toBe("1 000");
+		expect(formatCount(1234567)).toBe("1 234 567");
+	});
+
+	it("keeps the sign in front of the groups", () => {
+		expect(formatCount(-12345)).toBe("-12 345");
+	});
+});
+
+describe("formatDuration", () => {
+	it("keeps a tenth of a second under ten seconds", () => {
+		expect(formatDuration(2400)).toBe("2.4s");
+	});
+
+	it("rounds to the second below a minute", () => {
+		expect(formatDuration(45400)).toBe("45s");
+	});
+
+	it("splits minutes and seconds past a minute", () => {
+		expect(formatDuration(122000)).toBe("2min2s");
+	});
+
+	it("drops the seconds when there are none", () => {
+		expect(formatDuration(120000)).toBe("2min");
+	});
+
+	it("goes to hours and minutes past an hour", () => {
+		expect(formatDuration(3600000)).toBe("1h");
+		expect(formatDuration(3900000)).toBe("1h5min");
 	});
 });
