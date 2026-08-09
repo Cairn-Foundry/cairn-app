@@ -4,6 +4,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';
+  import ProviderLogo from './ProviderLogo.svelte';
   import { PROVIDERS, contextWindowOf, type ModelOption, type ProviderDef } from './providers-data';
   import { groupModelFamilies } from '$lib/utils/agent/model-families';
   import { effortLabel, permissionModeLabel } from '$lib/utils/agent/run-options';
@@ -186,7 +187,7 @@
         on:click={() => selectProvider(p.id)}
         disabled={p.status === 'coming-soon'}
       >
-        <span class="ag-tile">{p.logo}</span>
+        <span class="ag-tile"><ProviderLogo id={p.id} size={16} fallback={p.logo}/></span>
         <span class="ag-item-info">
           <span class="ag-item-name">
             <span class="truncate">{p.name}</span>
@@ -210,7 +211,9 @@
   <section class="ag-detail">
     {#if selected && config && ready}
       <div class="ag-head" style="--tile: {selected.accentColor}">
-        <span class="ag-tile ag-tile-lg">{selected.logo}</span>
+        <span class="ag-tile ag-tile-lg">
+          <ProviderLogo id={selected.id} size={24} fallback={selected.logo}/>
+        </span>
         <div class="ag-head-text">
           <h2 class="ag-head-title">
             {selected.name}

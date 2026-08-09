@@ -27,6 +27,12 @@
   /** An agent without a name has no file name, so it cannot be written out. */
   const exportable = agents.filter((a) => a.name.trim() !== '');
   let selected = new Set(exportable.map((a) => a.id));
+  let search = '';
+
+  $: query = search.trim().toLowerCase();
+  $: visible = query
+    ? exportable.filter((a) => `${a.name} ${a.description}`.toLowerCase().includes(query))
+    : exportable;
 
   $: picked = exportable.filter((a) => selected.has(a.id));
   $: skippedUnnamed = agents.length - exportable.length;
@@ -146,8 +152,29 @@
           </label>
         {/if}
 
+        <div class="ag-search">
+          <Icon name="search" size={12}/>
+          <input
+            bind:value={search}
+            placeholder={t('home.agents.searchAgents') as string}
+            aria-label={t('home.agents.searchAgents') as string}
+            spellcheck="false"
+          />
+          {#if search}
+            <button
+              class="ag-search-clear"
+              on:click={() => search = ''}
+              aria-label={t('home.agents.clearSearch') as string}
+            >
+              <Icon name="x" size={11}/>
+            </button>
+          {/if}
+        </div>
+        {#if visible.length === 0}
+          <p class="export-empty">{t('home.agents.searchNoResults')}</p>
+        {/if}
         <div class="export-list">
-          {#each exportable as agent (agent.id)}
+          {#each visible as agent (agent.id)}
             <label class="export-row">
               <input type="checkbox" checked={selected.has(agent.id)} on:change={() => toggle(agent.id)}/>
               <span class="export-info">

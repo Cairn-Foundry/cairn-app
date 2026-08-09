@@ -1520,6 +1520,13 @@ export const fr = {
 					"Créez un profil d'agent personnalisé pour définir un comportement, un persona ou un focus de tâche spécifique.",
 				createFirst: "Créer votre premier agent",
 				deleteConfirm: "Supprimer cet agent ?",
+				deleteModal: {
+					heading: "Supprimer l'agent",
+					title: (name: string) => `Supprimer "${name}" ?`,
+					description:
+						"Le profil de l'agent et ses réglages sont supprimés. Les agents déjà exportés sur le disque ne sont pas touchés.",
+					confirm: "Supprimer l'agent",
+				},
 				duplicate: "Dupliquer cet agent",
 				copyOf: (name: string) => `${name} (copie)`,
 				mentionHint: (token: string) => `Appelé avec ${token} dans le prompt.`,

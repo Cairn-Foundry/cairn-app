@@ -8,6 +8,27 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Providers now show their own logo instead of two initials, in the list and in the header of the selected provider. The mark takes the provider accent colour, and a provider without a known logo keeps its initials.",
+					"fr": "Les providers affichent désormais leur propre logo au lieu de deux initiales, dans la liste comme dans l'en-tête du provider sélectionné. Le logo prend la couleur d'accent du provider, et un provider sans logo connu conserve ses initiales."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The agents configuration list is easier to scan: the search field is always shown, each row now says what the agent is for - the start of its description - instead of its provider and model, and the delete button no longer waits for a hover. Deleting asks for confirmation in a modal rather than turning the row into two small buttons, and the import and export dialogs gained a search field to find an agent by name or description.",
+					"fr": "La liste de configuration des agents se parcourt plus facilement : le champ de recherche est toujours affiché, chaque ligne indique désormais à quoi sert l'agent - le début de sa description - au lieu de son provider et de son modèle, et le bouton de suppression n'attend plus le survol. La suppression demande confirmation dans une fenêtre plutôt que de transformer la ligne en deux petits boutons, et les fenêtres d'import et d'export gagnent un champ de recherche pour retrouver un agent par nom ou description."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The icon field of a custom agent no longer shows an icon when none is set: it stays empty until you pick one, and the agent keeps falling back to its initials.",
+					"fr": "Le champ icône d'un agent personnalisé n'affiche plus d'icône quand aucune n'est définie : il reste vide tant que vous n'en choisissez pas une, et l'agent continue de se replier sur ses initiales."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Custom agents can now be exported, next to the existing import. Pick the agents from a list, then write them either as Claude Code subagent definitions - one .claude/agents/{name}.md per agent, in a project or in your home directory, existing files left untouched unless you ask for them to be replaced - or as a single JSON file holding them exactly as Cairn stores them.",

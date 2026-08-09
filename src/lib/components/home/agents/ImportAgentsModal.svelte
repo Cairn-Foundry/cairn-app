@@ -16,6 +16,12 @@
   let selected = new Set<string>();
   let loading = true;
   let failed = '';
+  let search = '';
+
+  $: query = search.trim().toLowerCase();
+  $: visible = query
+    ? found.filter((a) => `${a.name} ${a.description}`.toLowerCase().includes(query))
+    : found;
 
   $: taken = new Set(existingNames.map((n) => n.trim().toLowerCase()));
   $: importable = found.filter((a) => !taken.has(a.name.trim().toLowerCase()));
@@ -76,8 +82,29 @@
         <p class="import-empty">{t('home.agents.customAgents.import.empty')}</p>
       {:else}
         <p class="import-lead">{t('home.agents.customAgents.import.lead')}</p>
+        <div class="ag-search">
+          <Icon name="search" size={12}/>
+          <input
+            bind:value={search}
+            placeholder={t('home.agents.searchAgents') as string}
+            aria-label={t('home.agents.searchAgents') as string}
+            spellcheck="false"
+          />
+          {#if search}
+            <button
+              class="ag-search-clear"
+              on:click={() => search = ''}
+              aria-label={t('home.agents.clearSearch') as string}
+            >
+              <Icon name="x" size={11}/>
+            </button>
+          {/if}
+        </div>
+        {#if visible.length === 0}
+          <p class="import-empty">{t('home.agents.searchNoResults')}</p>
+        {/if}
         <div class="import-list">
-          {#each found as agent (agent.path)}
+          {#each visible as agent (agent.path)}
             {@const isTaken = taken.has(agent.name.trim().toLowerCase())}
             <label class="import-row {isTaken ? 'taken' : ''}">
               <input

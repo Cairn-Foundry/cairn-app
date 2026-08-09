@@ -66,7 +66,11 @@
 
 <div class="icon-picker" use:clickOutside={() => open = false}>
   <button type="button" class="icon-trigger" bind:this={triggerEl} on:click={toggle} aria-label={t('commands.iconPicker') as string}>
-    <Icon name={value} size={16}/>
+    {#if value}
+      <Icon name={value} size={16}/>
+    {:else}
+      <span class="icon-none"></span>
+    {/if}
     <Icon name="chev-d" size={10}/>
   </button>
 
@@ -125,6 +129,13 @@
     cursor: pointer;
   }
   .icon-trigger:hover { border-color: var(--stroke-1); color: var(--fg-0); }
+
+  .icon-none {
+    width: 16px;
+    height: 16px;
+    border: 1px dashed var(--stroke-1);
+    border-radius: var(--r-xs);
+  }
 
   .icon-panel {
     position: fixed;

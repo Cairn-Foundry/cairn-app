@@ -5,9 +5,10 @@
   import Icon from '$lib/components/Icon.svelte';
   import IconPicker from '$lib/components/IconPicker.svelte';
   import Select from '$lib/components/Select.svelte';
+  import DeleteAgentModal from './DeleteAgentModal.svelte';
   import ImportAgentsModal from './ImportAgentsModal.svelte';
   import ExportAgentsModal from './ExportAgentsModal.svelte';
-  import { PROVIDERS, prettyModelName } from './providers-data';
+  import { PROVIDERS } from './providers-data';
   import { ACCENT_PRESETS } from '$lib/utils/home/appearance';
   import { KNOWN_TOOLS, normalizeToolList } from '$lib/utils/agent/tools';
   import { effortLabel, permissionModeLabel } from '$lib/utils/agent/run-options';
@@ -49,7 +50,7 @@
   let agents: CustomAgent[] = [];
   let search = '';
   let selectedAgentId: string | null = null;
-  let confirmDeleteId: string | null = null;
+  let deleteTargetId: string | null = null;
   let importOpen = false;
   let exportOpen = false;
   let hydrated = false;
@@ -72,10 +73,11 @@
   $: visibleAgents = query
     ? agents.filter((a) =>
         a.id === selectedAgentId
-        || `${a.name} ${a.description} ${providerSummary(a)}`.toLowerCase().includes(query))
+        || `${a.name} ${a.description}`.toLowerCase().includes(query))
     : agents;
 
   $: selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? null;
+  $: deleteTarget = agents.find((a) => a.id === deleteTargetId) ?? null;
   $: colorIsPreset = selectedAgent ? ACCENT_PRESETS.some((p) => p.color === selectedAgent!.color) : true;
 
   /** A provider already given a row is not offered a second time. */
@@ -136,7 +138,7 @@
 
   function selectAgent(id: string) {
     selectedAgentId = id;
-    confirmDeleteId = null;
+    deleteTargetId = null;
     allowedDraft = '';
     disallowedDraft = '';
   }
@@ -166,7 +168,7 @@
   function deleteAgent(id: string) {
     agents = agents.filter((a) => a.id !== id);
     if (selectedAgentId === id) selectedAgentId = agents[0]?.id ?? null;
-    confirmDeleteId = null;
+    deleteTargetId = null;
   }
 
   function addRow(agent: CustomAgent) {
@@ -243,27 +245,6 @@
     return (words[0][0] + words[1][0]).toUpperCase();
   }
 
-  function providerLabel(providerId: string): string {
-    return SELECTABLE_PROVIDERS.find((p) => p.id === providerId)?.name ?? providerId;
-  }
-
-  function modelLabel(providerId: string, modelId: string): string {
-    return (
-      modelsOf(providerId, $providerCapabilities).find((m) => m.id === modelId)?.label
-      ?? prettyModelName(modelId)
-    );
-  }
-
-  /** What the list row says under the name: where this agent is tuned to run. */
-  function providerSummary(agent: CustomAgent): string {
-    if (agent.rows.length === 0) return t('home.agents.customAgents.rows.anyProvider') as string;
-    if (agent.rows.length === 1) {
-      const row = agent.rows[0];
-      return providerLabel(row.providerId)
-        + (row.model ? ` - ${modelLabel(row.providerId, row.model)}` : '');
-    }
-    return agent.rows.map((r) => providerLabel(r.providerId)).join(', ');
-  }
 </script>
 
 <div class="ag-layout">
@@ -296,22 +277,20 @@
       </span>
     </div>
 
-    {#if agents.length > 1}
-      <div class="ag-search">
-        <Icon name="search" size={12}/>
-        <input
-          bind:value={search}
-          placeholder={t('home.agents.searchAgents') as string}
-          aria-label={t('home.agents.searchAgents') as string}
-          spellcheck="false"
-        />
-        {#if search}
-          <button class="ag-search-clear" on:click={() => search = ''} aria-label={t('home.agents.clearSearch') as string}>
-            <Icon name="x" size={11}/>
-          </button>
-        {/if}
-      </div>
-    {/if}
+    <div class="ag-search">
+      <Icon name="search" size={12}/>
+      <input
+        bind:value={search}
+        placeholder={t('home.agents.searchAgents') as string}
+        aria-label={t('home.agents.searchAgents') as string}
+        spellcheck="false"
+      />
+      {#if search}
+        <button class="ag-search-clear" on:click={() => search = ''} aria-label={t('home.agents.clearSearch') as string}>
+          <Icon name="x" size={11}/>
+        </button>
+      {/if}
+    </div>
 
     {#if agents.length === 0}
       <p class="ag-master-empty">{t('home.agents.customAgents.emptyTitle')}</p>
@@ -337,34 +316,19 @@
               <span class="ag-item-name">
                 {agent.name || t('home.agents.customAgents.untitled')}
               </span>
-              <span class="ag-item-sub">{providerSummary(agent)}</span>
+              {#if agent.description.trim()}
+                <span class="ag-item-sub">{agent.description}</span>
+              {/if}
             </span>
           </button>
 
-          {#if confirmDeleteId === agent.id}
-            <button
-              class="icon-btn confirm"
-              on:click={() => deleteAgent(agent.id)}
-              title={t('home.agents.customAgents.deleteConfirm') as string}
-            >
-              <Icon name="check" size={12}/>
-            </button>
-            <button
-              class="icon-btn"
-              aria-label={t('common.cancel') as string}
-              on:click={() => confirmDeleteId = null}
-            >
-              <Icon name="x" size={12}/>
-            </button>
-          {:else}
-            <button
-              class="icon-btn delete"
-              on:click={() => confirmDeleteId = agent.id}
-              title={t('home.agents.customAgents.deleteConfirm') as string}
-            >
-              <Icon name="trash" size={12}/>
-            </button>
-          {/if}
+          <button
+            class="icon-btn delete"
+            on:click={() => deleteTargetId = agent.id}
+            title={t('home.agents.customAgents.deleteConfirm') as string}
+          >
+            <Icon name="trash" size={12}/>
+          </button>
         </div>
       {/each}
     {/if}
@@ -552,7 +516,7 @@
                 </button>
               {/if}
               <IconPicker
-                value={selectedAgent.icon || 'agent'}
+                value={selectedAgent.icon}
                 on:select={(e) => { selectedAgent.icon = e.detail; touch(); }}
               />
             </div>
@@ -803,6 +767,14 @@
   <ExportAgentsModal {agents} on:close={() => exportOpen = false}/>
 {/if}
 
+{#if deleteTarget}
+  <DeleteAgentModal
+    name={deleteTarget.name || t('home.agents.customAgents.untitled') as string}
+    on:close={() => deleteTargetId = null}
+    on:confirm={() => deleteTargetId && deleteAgent(deleteTargetId)}
+  />
+{/if}
+
 <style>
   .master-actions { display: flex; align-items: center; gap: 2px; }
 
@@ -813,9 +785,6 @@
     border-radius: var(--r-md);
   }
   .agent-row :global(.ag-item) { min-width: 0; }
-  .agent-row .icon-btn { opacity: 0; }
-  .agent-row:hover .icon-btn,
-  .agent-row.active .icon-btn { opacity: 1; }
 
   .icon-btn {
     display: grid;
@@ -833,13 +802,6 @@
   }
   .icon-btn:hover { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-0); }
   .icon-btn.delete:hover { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
-  .icon-btn.confirm {
-    opacity: 1;
-    background: var(--danger-weak);
-    color: var(--danger);
-  }
-
-  .master-actions .icon-btn { opacity: 1; }
 
   .empty-actions { display: flex; align-items: center; gap: 8px; }
 
