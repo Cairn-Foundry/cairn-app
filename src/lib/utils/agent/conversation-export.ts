@@ -2,6 +2,7 @@ import type {
 	ConversationMessage,
 	ConversationMeta,
 } from "$lib/services/conversation-service";
+import { messageDate } from "./message-time";
 
 const ROLE_HEADING: Record<ConversationMessage["role"], string> = {
 	system: "System",
@@ -20,7 +21,12 @@ export function conversationToMarkdown(
 		// launched, a run that was stopped before it said anything.
 		const content = message.content.trim();
 		if (!content) continue;
-		lines.push(`## ${ROLE_HEADING[message.role]} - ${message.time}`, "");
+		// The full date, not the clock the app shows: an exported file is read
+		// away from the conversation it came from.
+		lines.push(
+			`## ${ROLE_HEADING[message.role]} - ${messageDate(message)}`,
+			"",
+		);
 		lines.push(content, "");
 	}
 

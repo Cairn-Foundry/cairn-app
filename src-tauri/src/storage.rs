@@ -124,6 +124,10 @@ pub fn agent_activity_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("agent-activity.json"))
 }
 
+pub fn usage_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("usage.json"))
+}
+
 pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")

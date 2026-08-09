@@ -4,6 +4,8 @@ import {
 	formatCount,
 	formatDate,
 	formatDuration,
+	formatTokens,
+	formatUsd,
 	slugify,
 } from "./format";
 
@@ -112,5 +114,38 @@ describe("formatDuration", () => {
 	it("goes to hours and minutes past an hour", () => {
 		expect(formatDuration(3600000)).toBe("1h");
 		expect(formatDuration(3900000)).toBe("1h5min");
+	});
+});
+
+describe("formatUsd", () => {
+	it("keeps enough decimals for a single cheap turn", () => {
+		expect(formatUsd(0.0032)).toBe("$0.0032");
+	});
+
+	it("reads as money at the scale of a day of work", () => {
+		expect(formatUsd(4.5)).toBe("$4.50");
+	});
+
+	it("drops the decimals once the amount is large", () => {
+		expect(formatUsd(1234.56)).toBe("$1 235");
+	});
+
+	it("says nothing rather than $0.0000 when nothing was spent", () => {
+		expect(formatUsd(0)).toBe("$0");
+	});
+});
+
+describe("formatTokens", () => {
+	it("groups small counts the ordinary way", () => {
+		expect(formatTokens(9999)).toBe("9 999");
+	});
+
+	it("abbreviates thousands past ten thousand", () => {
+		expect(formatTokens(12480)).toBe("12k");
+	});
+
+	it("abbreviates millions with a decimal until ten million", () => {
+		expect(formatTokens(1_250_000)).toBe("1.3M");
+		expect(formatTokens(12_500_000)).toBe("13M");
 	});
 });

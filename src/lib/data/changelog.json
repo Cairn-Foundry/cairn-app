@@ -8,6 +8,20 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "A new Usage and stats section on the home screen shows what your agents actually consume. Every answer is now recorded with its tokens, its cost, its duration and the model that produced it, and the section reads that ledger over 7, 30 or 90 days or over your whole history: spend, tokens, turns, agent time and cache hit rate with their trend against the previous period, a daily chart switchable between cost, tokens and turns, breakdowns by model, provider, project, agent and conversation, when in the day the work happens, and the last turns in detail. A Recover history button reconstructs what your existing conversations already know, and the range can be exported to CSV.",
+					"fr": "Une nouvelle section Consommation et statistiques sur l'écran d'accueil montre ce que vos agents consomment réellement. Chaque réponse est désormais enregistrée avec ses tokens, son coût, sa durée et le modèle qui l'a produite, et la section relit ce journal sur 7, 30 ou 90 jours ou sur tout votre historique : dépense, tokens, tours, temps agent et taux de cache avec leur tendance face à la période précédente, un graphique par jour basculable entre coût, tokens et tours, des répartitions par modèle, fournisseur, projet, agent et conversation, les heures de la journée où le travail se fait, et le détail des derniers tours. Un bouton Récupérer l'historique reconstruit ce que vos conversations existantes savent déjà, et la période peut être exportée en CSV."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Messages and activity lines now record a real date rather than the clock face they were stamped with. Conversations still show the hour and minute they always did, with the full date on hover, but a turn can now be placed on a day - which is what lets the usage statistics chart your own conversations exactly rather than approximately. An exported conversation carries the full date in its headings, since it is read away from the app. Turns written before this change keep showing the time they recorded, as no day can be recovered from it.",
+					"fr": "Les messages et les lignes d'activité enregistrent désormais une vraie date, et non plus la seule heure dont ils étaient horodatés. Les conversations affichent toujours l'heure et la minute, avec la date complète au survol, mais un tour peut maintenant être situé dans un jour - ce qui permet aux statistiques de consommation de placer vos conversations exactement plutôt qu'approximativement. Une conversation exportée porte la date complète dans ses titres, puisqu'elle se lit hors de l'application. Les tours écrits avant ce changement continuent d'afficher l'heure qu'ils avaient enregistrée, aucun jour ne pouvant en être déduit."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Typing a slash in the composer opens the same completion list as an agent or a file mention, anywhere in the message and no longer only at its very start. The list now covers everything the agent can actually be asked to run: the commands of the project and of your home directory, including the ones filed in a subdirectory, your skills, and the commands and skills of every installed plugin, all of them offered at once rather than a first few.",

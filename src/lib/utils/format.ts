@@ -24,6 +24,14 @@ export function formatDate(ts: number): string {
 	}).format(new Date(ts));
 }
 
+/** The time of day of a timestamp, as the clock a message is stamped with. */
+export function formatClock(ts: number, locale?: string): string {
+	return new Intl.DateTimeFormat(locale, {
+		hour: "2-digit",
+		minute: "2-digit",
+	}).format(new Date(ts));
+}
+
 /**
  * Groups thousands with a space, so a token count reads at a glance: 1000
  * becomes "1 000". A plain space, not a narrow one, because the codebase stays
@@ -39,6 +47,31 @@ export function formatCount(value: number): string {
 		grouped += digits[i];
 	}
 	return sign + grouped;
+}
+
+/**
+ * An amount in dollars, kept readable at both ends of the scale: a single turn
+ * costs fractions of a cent and must not round to "$0.00", while a month of
+ * work must not drag four decimals behind it.
+ */
+export function formatUsd(value: number): string {
+	const abs = Math.abs(value);
+	if (abs === 0) return "$0";
+	if (abs < 0.01) return `$${value.toFixed(4)}`;
+	if (abs < 100) return `$${value.toFixed(2)}`;
+	return `$${formatCount(value)}`;
+}
+
+/**
+ * A token count at a glance: thousands and millions are abbreviated, because a
+ * chart axis reading "12 480 000" says less than "12.5M".
+ */
+export function formatTokens(value: number): string {
+	const abs = Math.abs(value);
+	if (abs >= 1_000_000)
+		return `${(value / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+	if (abs >= 10_000) return `${Math.round(value / 1000)}k`;
+	return formatCount(value);
 }
 
 /**

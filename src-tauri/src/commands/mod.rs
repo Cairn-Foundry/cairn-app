@@ -19,6 +19,7 @@ pub mod shell;
 pub mod terminal;
 pub mod toolchain;
 pub mod ui_state;
+pub mod usage;
 
 pub use agent::{AgentState, send_message, stop_agent, respond_permission};
 pub use agent::config::{
@@ -84,3 +85,4 @@ pub use settings::{get_settings, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, run_agent_command, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};
 pub use terminal::{TerminalState, terminal_create, terminal_write, terminal_resize, terminal_close, terminal_close_all, get_terminal_state, save_terminal_state, get_project_terminal_state, save_project_terminal_state};
 pub use ui_state::{get_ui_state, save_ui_state};
+pub use usage::{get_usage_entries, append_usage_entries, backfill_usage_entries, clear_usage_entries};

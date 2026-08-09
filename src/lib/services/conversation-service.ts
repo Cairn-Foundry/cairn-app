@@ -27,7 +27,14 @@ export interface ConversationMessage {
 	role: "system" | "user" | "agent";
 	/** The answer itself: the last text the turn produced. */
 	content: string;
-	time: string;
+	/** When the turn happened, in milliseconds. */
+	ts: number;
+	/**
+	 * The clock face messages were stamped with before they carried a date.
+	 * Read for what is already on disk, never written: "10:02" cannot be turned
+	 * back into a day, so such a message keeps showing what it recorded.
+	 */
+	time?: string;
 	streaming?: boolean;
 	thinking?: string;
 	/**
@@ -45,7 +52,10 @@ export interface ConversationMessage {
 }
 
 export interface ConversationActivity {
-	time: string;
+	/** When the line happened, in milliseconds. */
+	ts: number;
+	/** Legacy clock face, read for what is already on disk, never written. */
+	time?: string;
 	icon: string;
 	label: string;
 	source: "stdin" | "tool" | "system";

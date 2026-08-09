@@ -10,6 +10,7 @@
   import AgentsTab from '$lib/components/home/agents/AgentsTab.svelte';
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
+  import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
   import LanguageServersSection from '$lib/components/home/LanguageServersSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
@@ -91,6 +92,15 @@
       </div>
       <div style="margin-top: 24px;">
         <AgentsTab />
+      </div>
+
+    {:else if activeSection === 'usage'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.usage.title')}</h1>
+        <div class="sub">{t('home.usage.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <UsageSection />
       </div>
 
     {:else if activeSection === 'languageServers'}

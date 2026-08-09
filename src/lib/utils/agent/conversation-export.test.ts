@@ -3,6 +3,7 @@ import type {
 	ConversationMessage,
 	ConversationMeta,
 } from "$lib/services/conversation-service";
+import { formatDate } from "$lib/utils/format";
 import {
 	conversationMatches,
 	conversationPreview,
@@ -12,10 +13,13 @@ import {
 	sortConversations,
 } from "./conversation-export";
 
+const T0 = new Date(2026, 0, 15, 10, 0, 0).getTime();
+const MIN = 60_000;
+
 const MESSAGES: ConversationMessage[] = [
-	{ role: "system", content: "Instance started", time: "10:00" },
-	{ role: "user", content: "Fix the lexer", time: "10:01" },
-	{ role: "agent", content: "Done, see **lexer.ts**", time: "10:02" },
+	{ role: "system", content: "Instance started", ts: T0 + 0 * MIN },
+	{ role: "user", content: "Fix the lexer", ts: T0 + 1 * MIN },
+	{ role: "agent", content: "Done, see **lexer.ts**", ts: T0 + 2 * MIN },
 ];
 
 function makeMeta(overrides: Partial<ConversationMeta> = {}): ConversationMeta {
@@ -38,20 +42,27 @@ function makeMeta(overrides: Partial<ConversationMeta> = {}): ConversationMeta {
 }
 
 describe("conversationToMarkdown", () => {
-	it("renders a heading per message with its role and time", () => {
+	it("dates a message written before turns carried one exactly as it was written", () => {
+		const markdown = conversationToMarkdown("T", [
+			{ role: "user", content: "go", ts: 0, time: "10:00" },
+		]);
+		expect(markdown).toContain("## You - 10:00");
+	});
+
+	it("renders a heading per message with its role and date", () => {
 		expect(conversationToMarkdown("Fix the parser", MESSAGES)).toBe(
 			[
 				"# Fix the parser",
 				"",
-				"## System - 10:00",
+				`## System - ${formatDate(T0)}`,
 				"",
 				"Instance started",
 				"",
-				"## You - 10:01",
+				`## You - ${formatDate(T0 + MIN)}`,
 				"",
 				"Fix the lexer",
 				"",
-				"## Agent - 10:02",
+				`## Agent - ${formatDate(T0 + 2 * MIN)}`,
 				"",
 				"Done, see **lexer.ts**",
 				"",
@@ -88,8 +99,12 @@ describe("conversationPreview", () => {
 	it("takes the last message and collapses whitespace", () => {
 		expect(
 			conversationPreview([
-				{ role: "user", content: "Fix the lexer", time: "10:01" },
-				{ role: "agent", content: "  Done,\n  see   lexer.ts ", time: "10:02" },
+				{ role: "user", content: "Fix the lexer", ts: T0 + 1 * MIN },
+				{
+					role: "agent",
+					content: "  Done,\n  see   lexer.ts ",
+					ts: T0 + 2 * MIN,
+				},
 			]),
 		).toBe("Done, see lexer.ts");
 	});
@@ -97,7 +112,7 @@ describe("conversationPreview", () => {
 	it("ignores system banners, so a fresh conversation has no preview", () => {
 		expect(
 			conversationPreview([
-				{ role: "system", content: "Instance started", time: "10:00" },
+				{ role: "system", content: "Instance started", ts: T0 + 0 * MIN },
 			]),
 		).toBe("");
 	});
@@ -105,8 +120,8 @@ describe("conversationPreview", () => {
 	it("skips a trailing message with no content yet", () => {
 		expect(
 			conversationPreview([
-				{ role: "user", content: "Fix the lexer", time: "10:01" },
-				{ role: "agent", content: "", time: "10:02", streaming: true },
+				{ role: "user", content: "Fix the lexer", ts: T0 + 1 * MIN },
+				{ role: "agent", content: "", ts: T0 + 2 * MIN, streaming: true },
 			]),
 		).toBe("Fix the lexer");
 	});
@@ -186,9 +201,9 @@ describe("sortConversations", () => {
 describe("conversationToMarkdown, empty turns", () => {
 	it("leaves out a message that says nothing", () => {
 		const markdown = conversationToMarkdown("T", [
-			{ role: "user", content: "go", time: "10:00" },
-			{ role: "agent", content: "", time: "10:00" },
-			{ role: "agent", content: "done", time: "10:01" },
+			{ role: "user", content: "go", ts: T0 + 0 * MIN },
+			{ role: "agent", content: "", ts: T0 + 0 * MIN },
+			{ role: "agent", content: "done", ts: T0 + 1 * MIN },
 		]);
 		expect(markdown).toContain("done");
 		expect(markdown.match(/## Agent/g)?.length).toBe(1);

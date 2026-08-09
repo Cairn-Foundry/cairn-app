@@ -25,7 +25,7 @@ const ref: ConversationRef = {
 const banner: ConversationMessage = {
 	role: "system",
 	content: "Instance started",
-	time: "10:00",
+	ts: new Date(2026, 0, 15, 10, 0).getTime(),
 };
 
 function metaOf(id: string) {
@@ -48,7 +48,14 @@ describe("updateConversationContent", () => {
 		updateConversationContent(
 			ref,
 			id,
-			[banner, { role: "user", content: "hi", time: "10:01" }],
+			[
+				banner,
+				{
+					role: "user",
+					content: "hi",
+					ts: new Date(2026, 0, 15, 10, 1).getTime(),
+				},
+			],
 			[],
 		);
 
@@ -60,7 +67,11 @@ describe("updateConversationContent", () => {
 		const { id } = createConversation(ref, "claude-code", "New");
 		const messages = [
 			banner,
-			{ role: "user" as const, content: "hi", time: "10:01" },
+			{
+				role: "user" as const,
+				content: "hi",
+				ts: new Date(2026, 0, 15, 10, 1).getTime(),
+			},
 		];
 		updateConversationContent(ref, id, messages, []);
 		const after = metaOf(id).lastMessageAt;
@@ -75,14 +86,23 @@ describe("updateConversationContent", () => {
 		const { id } = createConversation(ref, "claude-code", "New");
 		const messages = [
 			banner,
-			{ role: "user" as const, content: "hi", time: "10:01" },
+			{
+				role: "user" as const,
+				content: "hi",
+				ts: new Date(2026, 0, 15, 10, 1).getTime(),
+			},
 		];
 		updateConversationContent(ref, id, messages, []);
 		const after = metaOf(id).lastMessageAt;
 
 		vi.advanceTimersByTime(5000);
 		updateConversationContent(ref, id, messages, [
-			{ time: "10:02", icon: "file", label: "Read: a.ts", source: "tool" },
+			{
+				ts: new Date(2026, 0, 15, 10, 2).getTime(),
+				icon: "file",
+				label: "Read: a.ts",
+				source: "tool",
+			},
 		]);
 
 		expect(metaOf(id).lastMessageAt).toBe(after);

@@ -6,12 +6,14 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { t, getLocale } from '$lib/i18n';
   import { activeInstance, instancesWithBase } from '$lib/stores/instance';
-  import { activeProject } from '$lib/stores/project';
+  import { activeProject, projects } from '$lib/stores/project';
+  import { recordUsage } from '$lib/stores/usage';
   import { prepareInstanceEnv } from '$lib/stores/env';
   import { settings } from '$lib/stores/settings';
   import Spinner from '$lib/components/Spinner.svelte';
   import { respondPermission, sendMessage, stopAgent, type PermissionResponse, type RunOptions } from '$lib/services/agent-service';
   import { mentionToken } from '$lib/utils/agent/mention';
+  import { messageClock, messageDate } from '$lib/utils/agent/message-time';
   import { resolveAgentRun } from '$lib/utils/agent/agent-resolution';
   import { buildHandoffTranscript, priorTurns, withHandoffContext } from '$lib/utils/agent/handoff';
   import { quickSearch, type QuickSearchHit } from '$lib/services/file-service';
@@ -105,7 +107,10 @@
   interface Message {
     role: 'system' | 'user' | 'agent';
     content: string;
-    time: string;
+    /** When the turn happened, in milliseconds. */
+    ts: number;
+    /** Legacy clock face, read for what is already on disk, never written. */
+    time?: string;
     streaming?: boolean;
     thinking?: string;
     usage?: MessageUsage;
@@ -124,7 +129,10 @@
   }
 
   interface ActivityEntry {
-    time: string;
+    /** When the line happened, in milliseconds. */
+    ts: number;
+    /** Legacy clock face, read for what is already on disk, never written. */
+    time?: string;
     icon: string;
     label: string;
     source: 'stdin' | 'tool' | 'system';
@@ -640,7 +648,7 @@
    */
   function commitAnswer(run: Run, fields: Partial<Message> = {}) {
     if (run.answerIndex < 0 || !run.messages[run.answerIndex]) {
-      run.messages.push({ role: 'agent', content: '', time: now(), streaming: true });
+      run.messages.push({ role: 'agent', content: '', ts: now(), streaming: true });
       run.answerIndex = run.messages.length - 1;
     }
     run.messages[run.answerIndex] = {
@@ -694,8 +702,10 @@
     textareaEl.style.height = textareaEl.scrollHeight + 'px';
   }
 
-  function now(): string {
-    return new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
+  const locale = getLocale();
+
+  function now(): number {
+    return Date.now();
   }
 
   function iconForTool(tool?: string): string {
@@ -967,6 +977,7 @@
           numTurns: payload?.numTurns,
         };
         commitAnswer(run, { usage });
+        recordTurnUsage(inst, run, runId, usage);
         // An agent run costs what any other turn costs, and is counted the
         // same way - so it carries its usage back with its answer.
         if (run.agentId) patchAgentRun(inst.projectId, runId, { usage });
@@ -1023,7 +1034,7 @@
         // Tools run sequentially: a new tool means the previous one finished.
         const pending = run.activity.find((a) => a.source === 'tool' && !a.done);
         if (pending) pending.done = true;
-        run.activity.push({ time: now(), icon: iconForTool(summary), label: line, source: 'tool' });
+        run.activity.push({ ts: now(), icon: iconForTool(summary), label: line, source: 'tool' });
         pushBlock(run, { kind: 'tool', text: line, icon: iconForTool(summary), done: false });
         if (run.agentId) {
           appendAgentBlock(inst.projectId, runId, {
@@ -1114,7 +1125,7 @@
     );
 
     const entry: ActivityEntry = {
-      time: now(),
+      ts: now(),
       icon: 'shield',
       label: `${req.displayName ?? req.toolName}: ${decision === 'deny' ? (t('agent.permission.deny') as string) : (t('agent.permission.allow') as string)}`,
       source: 'system',
@@ -1212,13 +1223,13 @@
       conv.messages.push({
         role: 'system',
         content: (t('agent.providerSwitched') as (p: string) => string)(providerLabel(runProviderId)),
-        time: t_now,
+        ts: t_now,
       });
     }
-    conv.messages.push({ role: 'user', content: message, time: t_now });
-    conv.messages.push({ role: 'agent', content: '', time: t_now, streaming: true });
+    conv.messages.push({ role: 'user', content: message, ts: t_now });
+    conv.messages.push({ role: 'agent', content: '', ts: t_now, streaming: true });
     const answerIndex = conv.messages.length - 1;
-    conv.activity.push({ time: t_now, icon: 'send', label: message.slice(0, 160) + (message.length > 160 ? '...' : ''), source: 'stdin' });
+    conv.activity.push({ ts: t_now, icon: 'send', label: message.slice(0, 160) + (message.length > 160 ? '...' : ''), source: 'stdin' });
 
     const runId = crypto.randomUUID();
     const run: Run = {
@@ -1305,7 +1316,7 @@
     conv.messages.push({
       role: 'user',
       content: message,
-      time: t_now,
+      ts: t_now,
       agentName: agent.name,
       agentRunId: runId,
     });
@@ -1315,7 +1326,7 @@
     conv.messages.push({
       role: 'agent',
       content: '',
-      time: t_now,
+      ts: t_now,
       agentStarted: true,
       agentName: agent.name,
       agentRunId: runId,
@@ -1325,7 +1336,7 @@
     // a prompt line like any other: one per user message, or every later entry
     // would point at the wrong turn.
     conv.activity.push({
-      time: t_now,
+      ts: t_now,
       icon: agent.icon || 'sparkles',
       label: `${agent.name}: ${truncate(message)}`,
       source: 'stdin',
@@ -1558,6 +1569,39 @@
     return line.length > max ? `${line.slice(0, max)}...` : line;
   }
 
+  /**
+   * Hands a finished turn to the usage ledger. This is the one place every
+   * provider reports what it consumed, so it is the only place that has to know
+   * the ledger exists; the entry carries its own labels because the stats page
+   * has to keep reading correctly after a project or a conversation is gone.
+   */
+  function recordTurnUsage(inst: Instance, run: Run, runId: string, usage: MessageUsage) {
+    const agentRun = run.agentId ? findAgentRun(runId) : undefined;
+    recordUsage({
+      id: runId,
+      ts: Date.now(),
+      projectId: inst.projectId,
+      projectName: get(projects).find((p) => p.id === inst.projectId)?.name ?? '',
+      instanceId: inst.id,
+      instanceName: inst.ticket.title,
+      conversationId: run.conversationId,
+      conversationTitle: conversationTitleOf(inst, run.conversationId),
+      scope: run.scope,
+      providerId: run.providerId,
+      model: usage.model ?? '',
+      agentId: run.agentId,
+      agentName: agentRun?.agentName ?? '',
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      cacheReadTokens: usage.cacheReadTokens ?? 0,
+      cacheCreationTokens: usage.cacheCreationTokens ?? 0,
+      costUsd: usage.costUsd ?? 0,
+      durationMs: usage.durationMs ?? 0,
+      numTurns: usage.numTurns ?? 0,
+      backfilled: false,
+    });
+  }
+
   function conversationTitleOf(inst: Instance, conversationId: string): string {
     const found = findConversation(inst.projectId, inst.id, conversationId);
     return found?.meta.title ?? '';
@@ -1583,7 +1627,7 @@
     const message: Message = {
       role: 'agent',
       content,
-      time: now(),
+      ts: now(),
       thinking: stored?.thinking || undefined,
       replyTo: stored?.prompt || undefined,
       replyToIndex: run.askedIndex >= 0 ? run.askedIndex : undefined,
@@ -1593,7 +1637,7 @@
     };
 
     const answered: ActivityEntry = {
-      time: message.time,
+      ts: message.ts,
       icon: 'check',
       label: `${stored?.agentName ?? ''}: ${truncate(content)}`,
       source: 'tool',
@@ -1646,7 +1690,7 @@
     message: string,
     live: Conversation | undefined,
   ) {
-    run.activity.push({ time: now(), icon: 'alert', label: message, source: 'system' });
+    run.activity.push({ ts: now(), icon: 'alert', label: message, source: 'system' });
     if (run.agentId) {
       patchAgentRun(inst.projectId, runId, { status: 'error', error: message });
       return;
@@ -1999,12 +2043,12 @@
             <span class="started-text">
               {(t('agent.agentStarted') as (n: string) => string)(m.agentName ?? '')}
             </span>
-            <span class="started-time">{m.time}</span>
+            <span class="started-time">{messageClock(m, locale)}</span>
           </div>
         {:else if m.role === 'system'}
             <div style="font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); text-align: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke-0); margin-bottom: 6px;">
               <Icon name="flag" size={11} style="margin-right: 6px; vertical-align: -1px;"/>
-              {m.content} · {m.time}
+              {m.content} · {messageClock(m, locale)}
             </div>
           {:else}
             <div class="answer-group">
@@ -2049,7 +2093,7 @@
                   </button>
                 {/if}
                 <span>·</span>
-                <span class:meta-hidden={!$settings.agentShowMessageTime}>{m.time}</span>
+                <span class:meta-hidden={!$settings.agentShowMessageTime} title={messageDate(m)}>{messageClock(m, locale)}</span>
                 {#if m.streaming}
                   <span>·</span>
                   <span style="color: var(--accent)">{t('agent.streaming')}</span>
@@ -2469,7 +2513,7 @@
                         : shortenPaths(entry.label, pathRoots)}
                     </span>
                     {#if $settings.agentActivityShowTime}
-                      <span class="la-time selectable">{entry.time}</span>
+                      <span class="la-time selectable" title={messageDate(entry)}>{messageClock(entry, locale)}</span>
                     {/if}
                   </div>
                   {#if entry.source === 'tool' && sep > -1 && $settings.agentActivityShowToolArgs}
