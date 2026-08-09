@@ -123,7 +123,11 @@ export function effortsOf(
 	found: Record<string, ProviderCapabilities>,
 	selected = "",
 ): string[] {
-	return optionsOf(found[providerId]?.efforts, EFFORT_LEVELS, selected);
+	return optionsOf(
+		found[providerId]?.efforts,
+		providerById(providerId)?.efforts ?? EFFORT_LEVELS,
+		selected,
+	);
 }
 
 export function permissionModesOf(
@@ -133,7 +137,7 @@ export function permissionModesOf(
 ): string[] {
 	return optionsOf(
 		found[providerId]?.permissionModes,
-		PERMISSION_MODES,
+		providerById(providerId)?.permissionModes ?? PERMISSION_MODES,
 		selected,
 	);
 }

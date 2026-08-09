@@ -7,6 +7,7 @@ use super::super::{
     platform,
     AgentProvider, AgentResponse, RunningChild, SendRequest,
 };
+use super::cli_common::tool_label;
 
 pub struct ClaudeCliProvider;
 
@@ -332,22 +333,6 @@ impl AgentProvider for ClaudeCliProvider {
         }
 
         Ok(AgentResponse { session_id: session_id_out })
-    }
-}
-
-fn tool_label(name: &str, input: Option<&Value>) -> String {
-    let arg = input.and_then(|i| {
-        i.get("file_path")
-            .or_else(|| i.get("path"))
-            .or_else(|| i.get("command"))
-            .or_else(|| i.get("pattern"))
-            .or_else(|| i.get("url"))
-            .or_else(|| i.get("description"))
-            .and_then(Value::as_str)
-    });
-    match arg {
-        Some(a) => format!("{name}: {a}"),
-        None => name.to_string(),
     }
 }
 

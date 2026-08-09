@@ -1141,10 +1141,12 @@
     if (conv.effort) options.effort = conv.effort;
     if (conv.permissionMode) options.permissionMode = conv.permissionMode;
 
-    // A chat API keeps nothing between calls, so every prior turn is resent.
-    // `conv.messages` holds only what was already exchanged here - the prompt
-    // being sent now is pushed after this, and travels as the message itself.
-    if (PROVIDERS.find((p) => p.id === providerId)?.kind === 'api') {
+    // A chat API keeps nothing between calls, and neither does a CLI with no
+    // session to resume, so every prior turn is resent. `conv.messages` holds
+    // only what was already exchanged here - the prompt being sent now is
+    // pushed after this, and travels as the message itself.
+    const def = PROVIDERS.find((p) => p.id === providerId);
+    if (def?.kind === 'api' || def?.keepsSession === false) {
       options.history = priorTurns(conv.messages)
         .map((m) => ({ role: m.role, content: m.content }));
     }
@@ -1382,10 +1384,11 @@
 
     try {
       const env = await prepareInstanceEnv(get(activeProject), inst);
-      // Chat APIs already receive the exchange as `history`; a CLI has no
-      // channel for it other than the prompt itself.
-      const isCli = PROVIDERS.find((p) => p.id === runProviderId)?.kind === 'cli';
-      const prompt = takingOver && isCli
+      // Whoever receives the exchange as `history` already has it; the CLIs
+      // that resume their own session have no channel for it but the prompt.
+      const def = PROVIDERS.find((p) => p.id === runProviderId);
+      const needsHandoff = def?.kind === 'cli' && def.keepsSession !== false;
+      const prompt = takingOver && needsHandoff
         ? withHandoffContext(message, buildHandoffTranscript(conv.messages.slice(0, -2)))
         : message;
 

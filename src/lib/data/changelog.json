@@ -10,6 +10,20 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Four more coding agents can now hold a conversation: OpenAI Codex, GitHub Copilot, Google Antigravity and Mistral Vibe, alongside Claude Code. Each is driven through its own CLI, with the reasoning levels and the permission modes that CLI actually accepts - Codex states them as the sandbox its tools run in, Vibe as the agent profile a run adopts - and each keeps its own session, so a conversation continues where it left off whichever agent is answering. Enable the ones installed on the machine in Settings > Agents > Providers; the provider chip under the input switches between them mid-conversation, handing over what was said so far.",
+					"fr": "Quatre agents de code de plus peuvent tenir une conversation : OpenAI Codex, GitHub Copilot, Google Antigravity et Mistral Vibe, aux côtés de Claude Code. Chacun est piloté via son propre CLI, avec les niveaux de raisonnement et les modes de permission que ce CLI accepte réellement - Codex les exprime comme le bac à sable dans lequel ses outils s'exécutent, Vibe comme le profil d'agent adopté par une exécution - et chacun conserve sa session, de sorte qu'une conversation reprend là où elle s'est arrêtée quel que soit l'agent qui répond. Activez ceux installés sur la machine dans Réglages > Agents > Providers ; la pastille de fournisseur sous le champ de saisie permet de passer de l'un à l'autre en cours de conversation, en lui transmettant ce qui a été dit."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Google Antigravity is detected again wherever it is installed: Cairn looked for a binary named antigravity, while the CLI installs itself as agy, so skills and MCP servers written for it were written for an agent Cairn believed absent.",
+					"fr": "Google Antigravity est de nouveau détecté là où il est installé : Cairn cherchait un binaire nommé antigravity, alors que le CLI s'installe sous le nom agy, si bien que les skills et serveurs MCP écrits pour lui l'étaient pour un agent que Cairn croyait absent."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "The input field stays open while an answer is coming. What you write there is queued and leaves on its own as soon as that answer lands, so a follow-up can be written the moment it is thought of. What is waiting is listed above the field and can be taken back with a click. Interrupting the run, or a run that fails, puts what was waiting back in the field rather than sending it - and a queue survives switching conversation, leaving when that conversation is opened again.",
 					"fr": "Le champ de saisie reste ouvert pendant qu'une réponse arrive. Ce qui y est écrit est mis en file et part tout seul dès que cette réponse arrive, de sorte qu'une suite peut être écrite au moment où on y pense. Ce qui attend est listé au-dessus du champ et peut être repris d'un clic. Interrompre l'exécution, ou une exécution qui échoue, replace ce qui attendait dans le champ au lieu de l'envoyer - et une file survit à un changement de conversation, pour partir quand cette conversation est rouverte."
 				}

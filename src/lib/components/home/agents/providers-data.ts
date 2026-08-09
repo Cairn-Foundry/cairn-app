@@ -21,6 +21,19 @@ export interface ProviderDef {
 	supportsEffort?: boolean;
 	supportsPermissionMode?: boolean;
 	/**
+	 * Whether the agent can be handed back its own session. The ones that cannot
+	 * are resent the conversation with every prompt, so they still answer in
+	 * context instead of meeting each message as if it were the first.
+	 */
+	keepsSession?: boolean;
+	/**
+	 * What this CLI calls its reasoning levels and its permission modes. Each
+	 * agent has its own vocabulary; a provider that reports its own choices
+	 * (Claude Code reads them out of its `--help`) overrides these.
+	 */
+	efforts?: readonly string[];
+	permissionModes?: readonly string[];
+	/**
 	 * Fallback catalogue, used only until the provider answers `listProviderModels`.
 	 * Never treat it as the list of models a provider serves: it goes stale on
 	 * every release.
@@ -64,6 +77,34 @@ export const PERMISSION_MODES = [
 	"bypassPermissions",
 ] as const;
 
+// Codex states permissions as the sandbox its tools run in (--sandbox).
+export const CODEX_SANDBOXES = [
+	"read-only",
+	"workspace-write",
+	"danger-full-access",
+] as const;
+
+export const CODEX_EFFORTS = ["minimal", "low", "medium", "high"] as const;
+
+// The Copilot CLI cannot stop to ask when it is driven without a terminal, so
+// the only real choice is whether its tools run at all.
+export const COPILOT_PERMISSION_MODES = ["allow-all", "ask"] as const;
+
+export const ANTIGRAVITY_EFFORTS = ["low", "medium", "high"] as const;
+
+export const ANTIGRAVITY_PERMISSION_MODES = [
+	"request-review",
+	"always-proceed",
+] as const;
+
+// Vibe states permissions as the agent profile a run adopts (--agent).
+export const VIBE_PERMISSION_MODES = [
+	"default",
+	"plan",
+	"accept-edits",
+	"auto-approve",
+] as const;
+
 /**
  * Ordered the way the list reads: the agentic CLIs first, the working one
  * leading, then the hosted APIs, then what runs on the machine. Alphabetical
@@ -82,6 +123,9 @@ export const PROVIDERS: ProviderDef[] = [
 		hasBaseUrl: false,
 		supportsEffort: true,
 		supportsPermissionMode: true,
+		keepsSession: true,
+		efforts: EFFORT_LEVELS,
+		permissionModes: PERMISSION_MODES,
 		models: [
 			{ id: "fable", label: "Fable" },
 			{ id: "opus", label: "Opus" },
@@ -95,11 +139,15 @@ export const PROVIDERS: ProviderDef[] = [
 		id: "copilot-cli",
 		name: "GitHub Copilot",
 		desc: "GitHub Copilot agent via the official CLI.",
-		status: "coming-soon",
+		note: "Answers in plain text: no tool activity, and no session to resume - each prompt is sent with the conversation so far.",
+		status: "available",
 		kind: "cli",
 		binaryName: "copilot",
 		hasApiKey: false,
 		hasBaseUrl: false,
+		supportsPermissionMode: true,
+		keepsSession: false,
+		permissionModes: COPILOT_PERMISSION_MODES,
 		models: [],
 		accentColor: "#7B93A8",
 		logo: "GH",
@@ -108,11 +156,16 @@ export const PROVIDERS: ProviderDef[] = [
 		id: "antigravity-cli",
 		name: "Google Antigravity",
 		desc: "Google's agentic coding CLI, powered by Gemini.",
-		status: "coming-soon",
+		status: "available",
 		kind: "cli",
-		binaryName: "antigravity",
+		binaryName: "agy",
 		hasApiKey: false,
 		hasBaseUrl: false,
+		supportsEffort: true,
+		supportsPermissionMode: true,
+		keepsSession: true,
+		efforts: ANTIGRAVITY_EFFORTS,
+		permissionModes: ANTIGRAVITY_PERMISSION_MODES,
 		models: [],
 		accentColor: "#4285F4",
 		logo: "AG",
@@ -121,11 +174,14 @@ export const PROVIDERS: ProviderDef[] = [
 		id: "mistral-vibe",
 		name: "Mistral Vibe",
 		desc: "Mistral's agentic coding CLI, powered by Codestral.",
-		status: "coming-soon",
+		status: "available",
 		kind: "cli",
 		binaryName: "vibe",
 		hasApiKey: false,
 		hasBaseUrl: false,
+		supportsPermissionMode: true,
+		keepsSession: true,
+		permissionModes: VIBE_PERMISSION_MODES,
 		models: [],
 		accentColor: "#FF7000",
 		logo: "MV",
@@ -134,11 +190,16 @@ export const PROVIDERS: ProviderDef[] = [
 		id: "codex-cli",
 		name: "OpenAI Codex",
 		desc: "OpenAI Codex agent via the official CLI.",
-		status: "coming-soon",
+		status: "available",
 		kind: "cli",
 		binaryName: "codex",
 		hasApiKey: false,
 		hasBaseUrl: false,
+		supportsEffort: true,
+		supportsPermissionMode: true,
+		keepsSession: true,
+		efforts: CODEX_EFFORTS,
+		permissionModes: CODEX_SANDBOXES,
 		models: [],
 		accentColor: "#10A37F",
 		logo: "CX",

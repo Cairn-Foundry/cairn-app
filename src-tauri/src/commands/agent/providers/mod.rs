@@ -1,8 +1,17 @@
+pub mod antigravity_cli;
 pub mod api_chat;
 pub mod claude_cli;
+pub mod cli_common;
+pub mod codex_cli;
+pub mod copilot_cli;
+pub mod vibe_cli;
 
+pub use antigravity_cli::AntigravityCliProvider;
 pub use api_chat::{ApiChatProvider, ApiFlavor};
 pub use claude_cli::ClaudeCliProvider;
+pub use codex_cli::CodexCliProvider;
+pub use copilot_cli::CopilotCliProvider;
+pub use vibe_cli::VibeCliProvider;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,6 +25,10 @@ impl ProviderRegistry {
     pub fn new() -> Self {
         let mut map: HashMap<String, Arc<dyn AgentProvider>> = HashMap::new();
         map.insert("claude-code-cli".into(), Arc::new(ClaudeCliProvider));
+        map.insert("codex-cli".into(), Arc::new(CodexCliProvider));
+        map.insert("copilot-cli".into(), Arc::new(CopilotCliProvider));
+        map.insert("antigravity-cli".into(), Arc::new(AntigravityCliProvider));
+        map.insert("mistral-vibe".into(), Arc::new(VibeCliProvider));
         map.insert("anthropic".into(), Arc::new(ApiChatProvider {
             flavor: ApiFlavor::Anthropic,
             default_base_url: "https://api.anthropic.com",

@@ -28,7 +28,11 @@ fn fallback_dirs() -> Vec<PathBuf> {
         dirs_list.push(home.join(".local").join("bin"));
         dirs_list.push(home.join(".claude").join("local"));
         #[cfg(target_os = "windows")]
-        dirs_list.push(home.join("AppData").join("Roaming").join("npm"));
+        {
+            dirs_list.push(home.join("AppData").join("Roaming").join("npm"));
+            // Antigravity installs itself here rather than through npm.
+            dirs_list.push(home.join("AppData").join("Local").join("agy").join("bin"));
+        }
     }
     #[cfg(target_os = "macos")]
     {

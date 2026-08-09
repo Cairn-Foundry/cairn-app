@@ -29,15 +29,46 @@ the installed CLI (2.1.226):
   telemetry is a single muted line, the context gauge is a chip next to the
   input.
 
+The remaining CLI agents landed after it (2026-08-10): Codex CLI, Copilot CLI,
+Antigravity CLI and Mistral Vibe each have a provider in the registry, so all
+five agentic CLIs are drivable. They are shipped `available` rather than
+`active`: enabling one is a deliberate act in Settings > Agents > Providers,
+since offering an agent that is not installed would only produce a "not found"
+the first time it is picked.
+
+Each is driven through its own headless protocol, and the differences are real:
+
+| | resume | stream | effort | permissions |
+|---|---|---|---|---|
+| Claude Code | `--resume <id>` | stream-json + control protocol | `--effort` | `--permission-mode`, answered in-app |
+| Codex | `exec resume <id>` | `--json` thread items | `-c model_reasoning_effort` | `--sandbox` |
+| Antigravity | `--conversation <id>` | `--output-format stream-json` | `--effort` | `--dangerously-skip-permissions` |
+| Mistral Vibe | `--resume <id>` | `--output streaming` | none | `--agent` profile |
+| GitHub Copilot | none | plain text | none | `--allow-all-tools` / tool lists |
+
+Consequences that shaped the code:
+
+- Only Claude Code can be asked mid-run whether a tool may proceed, so the
+  permission card stays its own. The others are told up front what they may do.
+- Copilot exposes no session id and no structured output: its conversation is
+  replayed into the prompt (`keepsSession: false` in the catalogue, and
+  `cli_common::with_transcript` in Rust), and its answer streams as plain text
+  with no tool activity.
+- Vibe prints no session id in programmatic mode, so the id is read back from
+  the session directory the run created under `~/.vibe/logs/session`.
+- The new CLIs ship no model list. The ids move faster than Cairn releases and a
+  wrong one is a failed run, so `--model` is only passed once the user pins a
+  model - by hand, or from whatever the provider reports.
+
 Remaining deviations:
 
 - The Linux no-secret-service fallback stores the key in `~/.cairn/ai-keys.json`
   with 0600 permissions, not encrypted; the UI shows a warning when the fallback
   is in use.
-- Codex CLI, Copilot CLI and Mistral Vibe remain `coming-soon` (disabled in the
-  UI, no fake toggles), as planned.
 - `init` events (tool and agent inventory of a run) are emitted by the backend
   but not yet surfaced in the UI (reserved).
+- `@`-agent mentions and `/`-command completion still resolve against
+  `.claude/` only, so they stay a Claude Code affordance.
 
 ## Current state (audit)
 

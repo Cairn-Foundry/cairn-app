@@ -67,7 +67,7 @@ fn binary_name(id: &str) -> &'static str {
         CLAUDE_CODE => "claude",
         CODEX => "codex",
         COPILOT => "copilot",
-        ANTIGRAVITY => "antigravity",
+        ANTIGRAVITY => "agy",
         VIBE => "vibe",
         _ => "",
     }
