@@ -84,7 +84,7 @@ export interface DiscoveredAgent {
 export interface AgentSlashCommand {
 	name: string;
 	description: string;
-	scope: "project" | "global";
+	scope: "project" | "global" | "plugin";
 }
 
 export async function getAiProvidersConfig(): Promise<AiProvidersConfig> {

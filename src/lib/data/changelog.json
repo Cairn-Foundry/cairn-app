@@ -10,6 +10,13 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "Typing a slash in the composer opens the same completion list as an agent or a file mention, anywhere in the message and no longer only at its very start. The list now covers everything the agent can actually be asked to run: the commands of the project and of your home directory, including the ones filed in a subdirectory, your skills, and the commands and skills of every installed plugin, all of them offered at once rather than a first few.",
+					"fr": "Taper une barre oblique dans le composeur ouvre la même liste de complétion qu'une mention d'agent ou de fichier, n'importe où dans le message et non plus seulement tout au début. La liste couvre maintenant tout ce que l'agent peut réellement exécuter : les commandes du projet et de votre dossier personnel, y compris celles rangées dans un sous-dossier, vos skills, ainsi que les commandes et skills de chaque plugin installé, tous proposés d'un coup plutôt que les premiers seulement."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "A prompt addressed to an agent now looks like the composer that sent it: the agent's colour on the message and its name beside yours. The agent's answer quotes that prompt above it, so the pair reads as a question and its reply.",
 					"fr": "Une demande adressée à un agent ressemble désormais au composeur qui l'a envoyée : la couleur de l'agent sur le message et son nom à côté du vôtre. La réponse de l'agent cite cette demande au-dessus d'elle, de sorte que les deux se lisent comme une question et sa réponse."
 				}

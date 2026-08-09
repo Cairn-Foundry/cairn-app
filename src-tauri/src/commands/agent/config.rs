@@ -667,7 +667,8 @@ async fn list_provider_models(
 }
 
 // ---------------------------------------------------------------------------
-// Slash commands available to the agent (project + global Claude commands)
+// Slash commands available to the agent: commands, skills and plugins, in the
+// project and in the user's home
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize, Clone)]
@@ -678,21 +679,76 @@ pub struct AgentSlashCommand {
     pub scope: String,
 }
 
-fn collect_commands(dir: &Path, scope: &str, out: &mut Vec<AgentSlashCommand>) {
+fn describe(path: &Path) -> String {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|c| extract_description(&c))
+        .unwrap_or_default()
+}
+
+/// `.md` files of a commands directory. A subdirectory is a namespace, which
+/// Claude Code invokes as `/dir:name`, so the nesting is kept in the name.
+fn collect_commands(dir: &Path, prefix: &str, scope: &str, plugin: &str, out: &mut Vec<AgentSlashCommand>) {
     let Ok(entries) = fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
+        if path.is_dir() {
+            let Some(sub) = path.file_name().and_then(|s| s.to_str()) else { continue };
+            collect_commands(&path, &format!("{prefix}{sub}:"), scope, plugin, out);
+            continue;
+        }
         if path.extension().is_none_or(|e| e != "md") { continue; }
         let Some(name) = path.file_stem().and_then(|s| s.to_str()) else { continue };
-        let description = fs::read_to_string(&path)
-            .ok()
-            .and_then(|c| extract_description(&c))
-            .unwrap_or_default();
         out.push(AgentSlashCommand {
-            name: name.to_string(),
-            description,
+            name: format!("{prefix}{name}"),
+            description: describe(&path),
             scope: scope.to_string(),
         });
+    }
+}
+
+/// A skills directory holds one directory per skill, each with a `SKILL.md`.
+/// A user-invocable skill is reached by its own name, `/name`.
+fn collect_skills(dir: &Path, scope: &str, plugin: &str, out: &mut Vec<AgentSlashCommand>) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let manifest = path.join("SKILL.md");
+        if !manifest.is_file() { continue; }
+        let Some(name) = path.file_name().and_then(|s| s.to_str()) else { continue };
+        out.push(AgentSlashCommand {
+            name: if plugin.is_empty() { name.to_string() } else { format!("{plugin}:{name}") },
+            description: describe(&manifest),
+            scope: scope.to_string(),
+        });
+    }
+}
+
+#[derive(Deserialize)]
+struct InstalledPlugin {
+    #[serde(rename = "installPath")]
+    install_path: String,
+}
+
+#[derive(Deserialize)]
+struct InstalledPlugins {
+    #[serde(default)]
+    plugins: HashMap<String, Vec<InstalledPlugin>>,
+}
+
+/// Every installed plugin contributes its own commands and skills, namespaced
+/// by the plugin name (`/plugin:command`).
+fn collect_plugins(home: &Path, out: &mut Vec<AgentSlashCommand>) {
+    let manifest = home.join(".claude").join("plugins").join("installed_plugins.json");
+    let Ok(raw) = fs::read_to_string(&manifest) else { return };
+    let Ok(installed) = serde_json::from_str::<InstalledPlugins>(&raw) else { return };
+    for (key, entries) in &installed.plugins {
+        let plugin = key.split('@').next().unwrap_or(key);
+        for entry in entries {
+            let root = Path::new(&entry.install_path);
+            collect_commands(&root.join("commands"), &format!("{plugin}:"), "plugin", plugin, out);
+            collect_skills(&root.join("skills"), "plugin", plugin, out);
+        }
     }
 }
 
@@ -717,6 +773,47 @@ fn extract_description(content: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("cairn-cmds-{}-{}", name, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn nests_a_command_directory_into_a_namespace() {
+        let dir = scratch("nested");
+        fs::create_dir_all(dir.join("git")).unwrap();
+        fs::write(dir.join("review.md"), "---\ndescription: Review\n---\n").unwrap();
+        fs::write(dir.join("git/sync.md"), "# Sync the branch\n").unwrap();
+        let mut out = Vec::new();
+        collect_commands(&dir, "", "project", "", &mut out);
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].name, "git:sync");
+        assert_eq!(out[0].description, "Sync the branch");
+        assert_eq!(out[1].name, "review");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_skills_and_namespaces_the_ones_of_a_plugin() {
+        let dir = scratch("skills");
+        fs::create_dir_all(dir.join("commit")).unwrap();
+        fs::create_dir_all(dir.join("empty")).unwrap();
+        fs::write(dir.join("commit/SKILL.md"), "---\nname: commit\ndescription: Commit work\n---\n").unwrap();
+        let mut out = Vec::new();
+        collect_skills(&dir, "global", "", &mut out);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].name, "commit");
+        assert_eq!(out[0].description, "Commit work");
+
+        let mut plugged = Vec::new();
+        collect_skills(&dir, "plugin", "caveman", &mut plugged);
+        assert_eq!(plugged[0].name, "caveman:commit");
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     const HELP: &str = concat!(
         "  --effort <level>                      Effort level for the current session\n",
@@ -1370,11 +1467,23 @@ pub async fn export_claude_agents(
 #[tauri::command]
 pub async fn list_agent_commands(working_dir: String) -> Result<Vec<AgentSlashCommand>, String> {
     let mut out = Vec::new();
-    collect_commands(&Path::new(&working_dir).join(".claude").join("commands"), "project", &mut out);
+    let project = Path::new(&working_dir).join(".claude");
+    collect_commands(&project.join("commands"), "", "project", "", &mut out);
+    collect_skills(&project.join("skills"), "project", "", &mut out);
     if let Some(home) = dirs::home_dir() {
-        collect_commands(&home.join(".claude").join("commands"), "global", &mut out);
+        let global = home.join(".claude");
+        collect_commands(&global.join("commands"), "", "global", "", &mut out);
+        collect_skills(&global.join("skills"), "global", "", &mut out);
+        collect_plugins(&home, &mut out);
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
+    // A project entry shadows the same name defined globally, which in turn
+    // shadows a plugin's.
+    let rank = |c: &AgentSlashCommand| match c.scope.as_str() {
+        "project" => 0,
+        "global" => 1,
+        _ => 2,
+    };
+    out.sort_by(|a, b| a.name.cmp(&b.name).then(rank(a).cmp(&rank(b))));
     out.dedup_by(|a, b| a.name == b.name);
     Ok(out)
 }

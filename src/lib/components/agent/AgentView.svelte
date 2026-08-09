@@ -350,13 +350,20 @@
   let popupOpen = $state(false);
   let popupKind = $state<'agent' | 'command'>('agent');
   let popupIndex = $state(0);
+  let popupEl = $state<HTMLElement | null>(null);
   let popupQuery = $state('');
   let popupItems = $derived.by((): PopupEntry[] => {
     const q = popupQuery.toLowerCase();
     if (popupKind === 'command') {
+      // A namespaced entry (`plugin:name`, `dir:name`) is also reachable by the
+      // part the user actually remembers, the one after the colon.
+      // Every match, like the agent roster: a list cut short hides the command
+      // the user opened it to find.
       return slashCommands
-        .filter((c) => c.name.toLowerCase().startsWith(q))
-        .slice(0, 8)
+        .filter((c) => {
+          const name = c.name.toLowerCase();
+          return name.startsWith(q) || name.split(':').some((part) => part.startsWith(q));
+        })
         .map((c) => ({
           kind: 'command' as const,
           label: `/${c.name}`,
@@ -1691,12 +1698,16 @@
     setConversationRunOptions(refOf(inst, current.scope), current.id, { [field]: value });
   }
 
-  $effect(() => {
+  function loadSlashCommands() {
     const inst = $activeInstance;
     if (!inst) return;
     void listAgentCommands(inst.worktreePath)
       .then((cmds) => { slashCommands = cmds; })
       .catch(() => { slashCommands = []; });
+  }
+
+  $effect(() => {
+    if ($activeInstance) loadSlashCommands();
   });
 
   function updatePopup() {
@@ -1704,8 +1715,10 @@
     const caret = textareaEl.selectionStart ?? 0;
     const before = current.draft.slice(0, caret);
 
-    const slash = before.match(/^\/([\w-]*)$/);
+    const slash = before.match(/(?:^|\s)\/([\w:-]*)$/);
     if (slash) {
+      // A command file written while the app was open must show up here.
+      if (!popupOpen || popupKind !== 'command') loadSlashCommands();
       popupKind = 'command';
       popupQuery = slash[1];
       popupIndex = 0;
@@ -1732,7 +1745,7 @@
     const caret = textareaEl.selectionStart ?? 0;
     const before = current.draft.slice(0, caret);
     const after = current.draft.slice(caret);
-    const start = popupKind === 'command' ? 0 : before.lastIndexOf('@');
+    const start = popupKind === 'command' ? before.lastIndexOf('/') : before.lastIndexOf('@');
 
     // An agent is chosen, not written: the mention leaves the field and the
     // agent shows above it instead.
@@ -1834,6 +1847,12 @@
     if (conversations[inst.id]?.id === id) {
       conversations[inst.id].scope = from === 'instance' ? 'project' : 'instance';
     }
+  });
+
+  $effect(() => {
+    const index = popupIndex;
+    if (!popupOpen || !popupEl) return;
+    popupEl.children[index]?.scrollIntoView({ block: 'nearest' });
   });
 
   function onKeydown(e: KeyboardEvent) {
@@ -2136,7 +2155,7 @@
             </div>
           {/if}
           {#if popupOpen && popupItems.length > 0}
-            <div class="mention-popup">
+            <div class="mention-popup" bind:this={popupEl}>
               {#each popupItems as item, i}
                 <button
                   class="mention-item"
@@ -2148,8 +2167,6 @@
                     <span class="mention-dot" style="background: {item.color}"></span>
                   {:else if item.kind === 'file'}
                     <Icon name="file" size={11}/>
-                  {:else}
-                    <Icon name="command" size={11}/>
                   {/if}
                   <span class="mention-name">{item.label}</span>
                   {#if item.detail}
@@ -3303,6 +3320,8 @@
     z-index: 60;
     min-width: 260px;
     max-width: 420px;
+    max-height: 280px;
+    overflow-y: auto;
     background: var(--bg-2);
     border: 1px solid var(--stroke-1);
     border-radius: var(--r-md);
