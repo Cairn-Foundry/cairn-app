@@ -3,11 +3,23 @@ use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use serde_json::{json, Value};
 use super::super::{
-    emit_agent, emit_agent_data, emit_agent_tool, platform,
+    emit_agent_data, emit_agent_data_for, emit_agent_for, emit_agent_tool_for,
+    platform,
     AgentProvider, AgentResponse, RunningChild, SendRequest,
 };
 
 pub struct ClaudeCliProvider;
+
+/// The delegation an event was produced inside, if any. `--forward-subagent-text`
+/// sets `parent_tool_use_id` at the top level of the event, not inside
+/// `message`, and leaves it null on everything the main thread produced.
+fn parent_agent(event: &Value) -> Option<String> {
+    event
+        .get("parent_tool_use_id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .map(String::from)
+}
 
 /// Drives the CLI through its stream-json control protocol: the user message
 /// goes in on stdin, permission requests come back as control_request events
@@ -31,6 +43,11 @@ impl AgentProvider for ClaudeCliProvider {
             "--input-format".into(),
             "stream-json".into(),
             "--verbose".into(),
+            // Without it a subagent's text and thinking never leave the CLI:
+            // the delegation shows up as one opaque tool call and its work is
+            // invisible. With it, those blocks arrive tagged with the
+            // `parent_tool_use_id` of the `Agent` call that started them.
+            "--forward-subagent-text".into(),
             "--permission-prompt-tool".into(),
             "stdio".into(),
         ];
@@ -120,6 +137,8 @@ impl AgentProvider for ClaudeCliProvider {
                     session_id_out = Some(id.to_string());
                 }
 
+                let agent = parent_agent(&event);
+
                 match event.get("type").and_then(Value::as_str) {
                     Some("control_request") => {
                         let request_body = event.get("request");
@@ -141,6 +160,36 @@ impl AgentProvider for ClaudeCliProvider {
                         if let Some(info) = event.get("rate_limit_info") {
                             emit_agent_data(app, "rate_limit", info.clone(), wd.clone(), rid.clone());
                         }
+                    }
+                    // A subagent the CLI started on its own. The lifecycle is
+                    // reported through these three, which carry the status, the
+                    // summary and the usage - so nothing has to be inferred
+                    // from the tool call itself.
+                    Some("system") if event.get("subtype").and_then(Value::as_str) == Some("task_started") => {
+                        emit_agent_data(app, "agent_start", json!({
+                            "taskId": event.get("task_id"),
+                            "toolUseId": event.get("tool_use_id"),
+                            "subagentType": event.get("subagent_type"),
+                            "description": event.get("description"),
+                            "prompt": event.get("prompt"),
+                            "background": event.get("task_type").and_then(Value::as_str)
+                                == Some("background_agent"),
+                        }), wd.clone(), rid.clone());
+                    }
+                    Some("system") if event.get("subtype").and_then(Value::as_str) == Some("task_updated") => {
+                        emit_agent_data(app, "agent_status", json!({
+                            "taskId": event.get("task_id"),
+                            "status": event.pointer("/patch/status"),
+                        }), wd.clone(), rid.clone());
+                    }
+                    Some("system") if event.get("subtype").and_then(Value::as_str) == Some("task_notification") => {
+                        emit_agent_data(app, "agent_result", json!({
+                            "taskId": event.get("task_id"),
+                            "toolUseId": event.get("tool_use_id"),
+                            "status": event.get("status"),
+                            "summary": event.get("summary"),
+                            "usage": event.get("usage"),
+                        }), wd.clone(), rid.clone());
                     }
                     Some("system") if event.get("subtype").and_then(Value::as_str) == Some("init") => {
                         model_seen = event.get("model").and_then(Value::as_str).map(String::from);
@@ -165,21 +214,29 @@ impl AgentProvider for ClaudeCliProvider {
                                     Some("text") => {
                                         if let Some(text) = block.get("text").and_then(Value::as_str) {
                                             if !text.is_empty() {
-                                                emit_agent(app, text.to_string(), "assistant", wd.clone(), rid.clone());
+                                                emit_agent_for(app, text.to_string(), "assistant", wd.clone(), rid.clone(), agent.clone());
                                             }
                                         }
                                     }
                                     Some("thinking") => {
                                         if let Some(text) = block.get("thinking").and_then(Value::as_str) {
                                             if !text.is_empty() {
-                                                emit_agent_data(app, "thinking", json!({ "text": text }), wd.clone(), rid.clone());
+                                                emit_agent_data_for(app, "thinking", json!({ "text": text }), wd.clone(), rid.clone(), agent.clone());
                                             }
                                         }
                                     }
                                     Some("tool_use") => {
                                         let name = block.get("name").and_then(Value::as_str).unwrap_or("tool");
                                         let label = tool_label(name, block.get("input"));
-                                        emit_agent_tool(app, label, name, wd.clone(), rid.clone());
+                                        emit_agent_tool_for(
+                                            app,
+                                            label,
+                                            name,
+                                            wd.clone(),
+                                            rid.clone(),
+                                            agent.clone(),
+                                            block.get("id").and_then(Value::as_str).map(String::from),
+                                        );
                                     }
                                     _ => {}
                                 }
@@ -194,9 +251,22 @@ impl AgentProvider for ClaudeCliProvider {
                         if let Some(blocks) = blocks {
                             for block in blocks {
                                 if block.get("type").and_then(Value::as_str) == Some("tool_result") {
-                                    emit_agent_data(app, "tool_result", json!({
+                                    emit_agent_data_for(app, "tool_result", json!({
                                         "isError": block.get("is_error").and_then(Value::as_bool).unwrap_or(false),
-                                    }), wd.clone(), rid.clone());
+                                        "toolUseId": block.get("tool_use_id"),
+                                    }), wd.clone(), rid.clone(), agent.clone());
+                                }
+                                // The prompt the subagent was handed, forwarded
+                                // as its first user turn. It opens the thread
+                                // rather than landing in the conversation.
+                                if agent.is_some()
+                                    && block.get("type").and_then(Value::as_str) == Some("text")
+                                {
+                                    if let Some(text) = block.get("text").and_then(Value::as_str) {
+                                        if !text.is_empty() {
+                                            emit_agent_data_for(app, "agent_prompt", json!({ "text": text }), wd.clone(), rid.clone(), agent.clone());
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -278,5 +348,41 @@ fn tool_label(name: &str, input: Option<&Value>) -> String {
     match arg {
         Some(a) => format!("{name}: {a}"),
         None => name.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_event_of_the_main_thread_belongs_to_no_agent() {
+        let event = json!({
+            "type": "assistant",
+            "parent_tool_use_id": Value::Null,
+            "message": { "content": [{ "type": "text", "text": "hi" }] },
+        });
+
+        assert_eq!(parent_agent(&event), None);
+        assert_eq!(parent_agent(&json!({ "type": "result" })), None);
+    }
+
+    #[test]
+    fn an_event_produced_inside_a_subagent_carries_its_delegation() {
+        let event = json!({
+            "type": "assistant",
+            "parent_tool_use_id": "toolu_01N1iTtycTciKopJPQvaqpkQ",
+            "message": { "content": [{ "type": "text", "text": "HELLO" }] },
+        });
+
+        assert_eq!(
+            parent_agent(&event).as_deref(),
+            Some("toolu_01N1iTtycTciKopJPQvaqpkQ"),
+        );
+    }
+
+    #[test]
+    fn an_empty_attribution_is_the_main_thread_rather_than_an_agent_named_nothing() {
+        assert_eq!(parent_agent(&json!({ "parent_tool_use_id": "" })), None);
     }
 }

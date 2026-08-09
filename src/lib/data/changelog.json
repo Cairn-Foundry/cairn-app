@@ -10,6 +10,76 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "The input field stays open while an answer is coming. What you write there is queued and leaves on its own as soon as that answer lands, so a follow-up can be written the moment it is thought of. What is waiting is listed above the field and can be taken back with a click. Interrupting the run, or a run that fails, puts what was waiting back in the field rather than sending it - and a queue survives switching conversation, leaving when that conversation is opened again.",
+					"fr": "Le champ de saisie reste ouvert pendant qu'une réponse arrive. Ce qui y est écrit est mis en file et part tout seul dès que cette réponse arrive, de sorte qu'une suite peut être écrite au moment où on y pense. Ce qui attend est listé au-dessus du champ et peut être repris d'un clic. Interrompre l'exécution, ou une exécution qui échoue, replace ce qui attendait dans le champ au lieu de l'envoyer - et une file survit à un changement de conversation, pour partir quand cette conversation est rouverte."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Everything an agent writes in a turn now reads the same. The lines written between two tool calls were dimmed and set behind a rule to keep them from competing with the reply, which made a turn look like a draft followed by an answer rather than one continuous piece of work.",
+					"fr": "Tout ce qu'un agent écrit dans un tour se lit désormais de la même façon. Les lignes écrites entre deux appels d'outils étaient grisées et placées derrière un filet pour ne pas concurrencer la réponse, ce qui faisait ressembler un tour à un brouillon suivi d'une réponse plutôt qu'à un travail continu."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A subagent's answer no longer arrives as a message of its own in the conversation. Starting one and finishing it are two entries inside the turn that delegated - \"Agent - Start name\" where it was launched, then \"Agent - name finished\" after whatever the provider wrote while waiting, with the answer behind a disclosure and a link to its full thread. The answer used to be added as a message while the provider was still writing, so it landed above the reply commenting on it, said everything twice, and the reply went missing on reload.",
+					"fr": "La réponse d'un sous-agent n'arrive plus comme un message à part dans la conversation. Son démarrage et sa fin sont deux entrées du tour qui a délégué - \"Agent - Démarrage de nom\" là où il a été lancé, puis \"Agent - nom a terminé\" après ce que le fournisseur a écrit pendant l'attente, avec la réponse repliée et un lien vers son fil complet. La réponse était auparavant ajoutée comme un message pendant que le fournisseur écrivait encore, si bien qu'elle se plaçait au-dessus de la réponse qui la commentait, disait tout en double, et cette réponse disparaissait au rechargement."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A tool result now closes the call it names rather than the last one still open. A delegation finishes long after it started, so anything running alongside it could be marked done in its place.",
+					"fr": "Le résultat d'un outil ferme désormais l'appel qu'il nomme plutôt que le dernier resté ouvert. Une délégation se termine longtemps après son démarrage, si bien que ce qui tournait en parallèle pouvait être marqué terminé à sa place."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "An agent definition now carries everything the CLI reads from it: model, reasoning effort, permission mode, memory and the skills it loads, on top of its prompt, tools and colour. Model, effort and permission mode are picked from what the targeted agents report they accept rather than typed, so a value that would be rejected is not offered. Anything Cairn does not model is still written back exactly as it was.",
+					"fr": "Une définition d'agent porte désormais tout ce que le CLI y lit : modèle, effort de raisonnement, mode de permission, mémoire et skills chargés, en plus de son prompt, ses outils et sa couleur. Le modèle, l'effort et le mode de permission se choisissent parmi ce que les agents visés déclarent accepter au lieu d'être saisis, donc une valeur qui serait refusée n'est pas proposée. Ce que Cairn ne modélise pas est toujours réécrit tel quel."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The permission mode of an agent definition was not read: the CLI writes it as permissionMode, and Cairn only looked for the hyphenated spelling, so every real definition lost it on save. Both spellings are read now, and the one the CLI writes is the one written back.",
+					"fr": "Le mode de permission d'une définition d'agent n'était pas lu : le CLI l'écrit sous la forme permissionMode et Cairn ne cherchait que l'orthographe avec un tiret, si bien que chaque définition réelle le perdait à l'enregistrement. Les deux orthographes sont désormais lues, et celle qu'écrit le CLI est celle réécrite."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Agents are no longer kept by Cairn: they are the subagent definitions your coding CLI already reads, edited where it already looks. The Agents section works like Skills and MCP servers - one entry per agent, the providers that read it, the scope it lives in - and every field the CLIs understand but Cairn does not is written back untouched. The agents you had are migrated to ~/.claude/agents on first launch, and the section says what moved.",
+					"fr": "Les agents ne sont plus conservés par Cairn : ce sont les définitions de sous-agents que votre CLI de code lit déjà, modifiées là où il les cherche. La section Agents fonctionne comme Skills et serveurs MCP - une entrée par agent, les fournisseurs qui la lisent, la portée où elle vit - et chaque champ que les CLI comprennent mais que Cairn ne modélise pas est réécrit tel quel. Vos agents existants sont migrés vers ~/.claude/agents au premier lancement, et la section indique ce qui a bougé."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Naming an agent with @ now completes it into the prompt instead of routing the message to it. Delegation belongs to the provider, so a prompt can name several agents at once and each one that starts gets its own thread. The completion does not open on a conversation talking to an API provider, which has nothing to delegate with.",
+					"fr": "Nommer un agent avec @ le complète désormais dans la demande au lieu de lui adresser le message. La délégation appartient au fournisseur, donc une demande peut nommer plusieurs agents à la fois et chacun qui démarre obtient son propre fil. La complétion ne s'ouvre pas dans une conversation adressée à un fournisseur API, qui n'a rien pour déléguer."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Subagents started by the agent itself are followed live. Each one gets its own thread with its tools, its reasoning and its permission requests instead of a single opaque line, and what it hands back appears in the conversation as its own answer, in its own colour. The thread is read-only: the provider owns the subagent, so there is no channel to send it a follow-up.",
+					"fr": "Les sous-agents lancés par l'agent lui-même sont suivis en direct. Chacun obtient son propre fil avec ses outils, son raisonnement et ses demandes de permission au lieu d'une seule ligne opaque, et ce qu'il renvoie apparaît dans la conversation comme sa propre réponse, dans sa couleur. Le fil est en lecture seule : le sous-agent appartient au fournisseur, il n'y a donc aucun canal pour lui écrire."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "Agent temperature and token limits are gone, along with the import and export of agents. A definition cannot carry generation parameters - the provider decides - and reading the files is the import, so there was nothing left to export to.",
+					"fr": "La température et les limites de jetons des agents disparaissent, ainsi que l'import et l'export d'agents. Une définition ne peut pas porter de paramètres de génération - c'est le fournisseur qui décide - et lire les fichiers est l'import, il ne restait donc rien vers quoi exporter."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A new Skills section on the home screen manages the know-how your agents pick up on their own. It gathers every skill your agents can see - Claude Code, OpenAI Codex, GitHub Copilot, Google Antigravity and Mistral Vibe all read the same SKILL.md format, each in its own directories - and edits them where the CLI already reads them: the description that decides when a skill loads, with a warning when it is missing or too long to be read whole, the optional when-to-use sentence, the file patterns that trigger it, the tools it holds the agent to, and the markdown body itself. A skill can be created, renamed - which moves its folder, since the folder name is what /name invokes - duplicated, moved between your home and a project, and deleted with everything it ships. Files bundled next to a SKILL.md are listed and can be added or removed, and any frontmatter field Cairn does not model is written back exactly as it was found. Skills installed by a plugin are shown read-only.",
 					"fr": "Une nouvelle section Compétences sur l'écran d'accueil gère le savoir-faire que vos agents mobilisent d'eux-mêmes. Elle rassemble toutes les compétences que vos agents peuvent voir - Claude Code, OpenAI Codex, GitHub Copilot, Google Antigravity et Mistral Vibe lisent tous le même format SKILL.md, chacun dans ses propres dossiers - et les modifie là où le CLI les lit déjà : la description qui décide du chargement, avec un avertissement quand elle manque ou dépasse ce qui sera lu, la phrase facultative qui précise le moment, les motifs de fichiers qui la déclenchent, les outils auxquels elle tient l'agent, et le corps markdown lui-même. Une compétence se crée, se renomme - ce qui déplace son dossier, puisque c'est le nom du dossier qu'invoque /nom -, se duplique, se déplace entre votre dossier personnel et un projet, et se supprime avec tout ce qu'elle embarque. Les fichiers embarqués à côté du SKILL.md sont listés et peuvent être ajoutés ou retirés, et tout champ d'en-tête que Cairn ne modélise pas est réécrit tel qu'il a été trouvé. Les compétences venant d'un plugin sont affichées en lecture seule."
 				}

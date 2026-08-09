@@ -49,10 +49,6 @@ pub struct AgentRun {
     /// the same thing the conversation shows for its own turns.
     #[serde(default)]
     pub thinking: String,
-    /// Whether the result has already been handed to the conversation's own
-    /// provider, which never saw the agent answer.
-    #[serde(default)]
-    pub delivered: bool,
     /// What the agent did, in the order it did it: text, reasoning and tool
     /// calls in one list, because they interleave.
     #[serde(default)]
@@ -63,9 +59,6 @@ pub struct AgentRun {
     pub usage: Option<Value>,
     #[serde(default)]
     pub error: String,
-    /// Set when the run took over from another provider mid-thread.
-    #[serde(default)]
-    pub handed_over_from: String,
 }
 
 /// A run that was in flight when the app went down. Its process died with the

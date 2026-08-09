@@ -7,7 +7,7 @@
   import ProjectsSection from '$lib/components/home/ProjectsSection.svelte';
   import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
   import type { Project } from '$lib/types/project';
-  import AgentsTab from '$lib/components/home/agents/AgentsTab.svelte';
+  import AgentsSection from '$lib/components/home/agents/AgentsSection.svelte';
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
@@ -93,7 +93,7 @@
         <div class="sub">{t('home.agents.desc')}</div>
       </div>
       <div style="margin-top: 24px;">
-        <AgentsTab />
+        <AgentsSection />
       </div>
 
     {:else if activeSection === 'skills'}

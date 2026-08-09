@@ -10,18 +10,16 @@
   import { recordUsage } from '$lib/stores/usage';
   import { prepareInstanceEnv } from '$lib/stores/env';
   import { settings } from '$lib/stores/settings';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { respondPermission, sendMessage, stopAgent, type PermissionResponse, type RunOptions } from '$lib/services/agent-service';
+  import { respondPermission, sendMessage, stopAgent, type RunOptions } from '$lib/services/agent-service';
   import { mentionToken } from '$lib/utils/agent/mention';
   import { messageClock, messageDate } from '$lib/utils/agent/message-time';
-  import { resolveAgentRun } from '$lib/utils/agent/agent-resolution';
   import { buildHandoffTranscript, priorTurns, withHandoffContext } from '$lib/utils/agent/handoff';
   import { quickSearch, type QuickSearchHit } from '$lib/services/file-service';
   import { getFileState } from '$lib/services/file-state-service';
   import { listAgentCommands, type AgentSlashCommand } from '$lib/services/ai-provider-service';
   import {
-    aiProviders, customAgents, effortsOf, loadAiProviders, modelsOf, permissionModesOf,
-    providerCapabilities, refreshProviderModels, type CustomAgent,
+    aiProviders, effortsOf, loadAiProviders, modelsOf, permissionModesOf,
+    providerCapabilities, refreshProviderModels,
   } from '$lib/stores/ai-providers';
   import { contextWindowOf, prettyModelName, providerById } from '$lib/components/home/agents/providers-data';
   import { effortLabel, permissionModeLabel } from '$lib/utils/agent/run-options';
@@ -43,8 +41,6 @@
     createConversation as createStoredConversation, updateConversationContent,
     setConversationProvider, setConversationRunOptions, setConversationSession, conversationSession,
     lastProviderOf, setLastProvider,
-    agentThreadOf, agentThreadSession, removeAgentThread, setAgentThreadSession,
-    updateAgentThread,
     renameConversation,
     togglePinned, toggleArchived, moveConversationToScope,
     type ConversationRef,
@@ -52,16 +48,16 @@
   import {
     addAgentRun, agentTurnsOf, clearAgentPermission, findAgentRun,
     agentPermissionRequests, appendAgentBlock, closeAgentToolBlocks,
-    deleteAgentThread, finishAgentToolBlock, markDelivered,
+    deleteAgentThread, finishAgentToolBlock,
     patchAgentRun,
-    restoreAgentRuns, setAgentPermission, undeliveredResults,
+    isInFlight, restoreAgentRuns, setAgentPermission,
     agentRuns, agentThreadRuns, agentThreadsOf, lastTextOf, type AgentRun,
   } from '$lib/stores/agent-runs';
   import { buildPermissionResponse } from '$lib/utils/agent/permission-response';
+  import { closeDelegation, closeToolBlock, openDelegation } from '$lib/utils/agent/delegation';
+  import { mergeIntoDraft } from '$lib/utils/agent/prompt-queue';
+  import { loadNativeAgents, nativeAgents } from '$lib/stores/native-agents';
   import type { AgentBlock } from '$lib/services/conversation-service';
-  import {
-    agentThreadTranscript, buildAgentPrompt, buildAgentResultBlock, conversationDelta,
-  } from '$lib/utils/agent/agent-context';
   import {
     setAgentBusy, setAgentDone, pingAgentCompletion, doneConversationOf,
     agentActivityKey, agentBusyConversations, agentDoneConversation,
@@ -148,8 +144,6 @@
     scope: ConversationScope;
     /** Not written down yet: a new session exists on screen until it is used. */
     pending: boolean;
-    /** The agent this message will be sent to, once its mention is consumed. */
-    draftAgentId: string;
     messages: Message[];
     activity: ActivityEntry[];
     draft: string;
@@ -169,12 +163,6 @@
     activity: ActivityEntry[];
     /** Whose session this run belongs to, when it reports one back. */
     providerId: string;
-    /**
-     * Set when this run is an agent working in its own process. Its output goes
-     * to its own arrays and to the Agents view, never into the conversation -
-     * only its final answer comes back.
-     */
-    agentId: string;
     projectId: string;
     workingDir: string;
     /**
@@ -186,8 +174,12 @@
     answerIndex: number;
     blocks: AgentBlock[];
     thinking: string;
-    /** Where the prompt that started this run sits, for an agent run. */
-    askedIndex: number;
+    /**
+     * The subagents this run started, by the `tool_use_id` of the delegation
+     * that started them. Their output is attributed to that id, so this is how
+     * an attributed event finds the thread it belongs to.
+     */
+    subagents: Record<string, string>;
   }
 
   interface PermissionRequest {
@@ -211,22 +203,19 @@
   let permissions = $state<Record<string, PermissionRequest>>({});
   let rateLimit = $state<RateLimitInfo | null>(null);
 
-  /**
-   * The conversation's own run, never an agent's. An agent works in its own
-   * process, so the conversation stays free to send while it does - and
-   * interrupting the conversation must not kill the agent it just launched.
-   */
   function runOfConversation(conversationId: string): [string, Run] | undefined {
-    return Object.entries(runs).find(
-      ([, run]) => run.conversationId === conversationId && !run.agentId,
-    );
+    return Object.entries(runs).find(([, run]) => run.conversationId === conversationId);
   }
   let historyOpen = $state(true);
   let loadingConversation = $state(false);
   let drafts = $state<Record<string, string>>({});
-  /** The agent picked for each conversation's unsent message, kept while switching. */
-  let draftAgents = $state<Record<string, string>>({});
-  /** Absent while an agent run has taken the pane over, so every use guards. */
+  /**
+   * Prompts written while an answer was still coming, by conversation. They
+   * leave in order as soon as that answer lands, so a follow-up can be written
+   * the moment it is thought of instead of being held until the agent is free.
+   */
+  let queued = $state<Record<string, string[]>>({});
+  /** Absent while an agent thread has taken the pane over, so every use guards. */
   let scrollEl = $state<HTMLElement | undefined>();
   let activityEl: HTMLElement;
   let textareaEl = $state<HTMLTextAreaElement>();
@@ -346,8 +335,6 @@
     detail?: string;
     color?: string;
     insert: string;
-    /** Set on an agent entry: picking it selects the agent instead of typing it. */
-    agentId?: string;
   }
 
   let slashCommands = $state<AgentSlashCommand[]>([]);
@@ -381,15 +368,14 @@
     }
     // Every agent, not a first few: `@` is where the user goes to see who they
     // can call, and a roster cut short hides the one they were looking for.
-    const agents = $customAgents
+    const agents = agentRoster
       .filter((a) => a.name && mentionToken(a.name).toLowerCase().startsWith(q))
       .map((a) => ({
         kind: 'agent' as const,
         label: `@${mentionToken(a.name)}`,
         detail: a.description,
         color: a.color,
-        insert: `@${mentionToken(a.name)} `,
-        agentId: a.id,
+        insert: mentionInsert(a.name),
       }));
     // With nothing typed yet there is nothing to search for, so the files on
     // offer are the ones just worked on.
@@ -423,58 +409,29 @@
   });
 
   /**
-   * The first agent named in the text. Only the first: a message launches one
-   * agent, and the composer shows which, so a second mention is just words.
+   * The definitions this conversation can name: the ones of the project it
+   * works in, plus the ones defined for the home directory.
+   *
+   * Empty on an API provider - a name in the prompt reaches nothing there,
+   * since delegation is the CLI's, so the popup does not open at all rather
+   * than completing something nobody consumes.
    */
-  function mentionedAgent(text: string): CustomAgent | undefined {
-    const matches = text.match(/@([\w-]+)/g) ?? [];
-    for (const raw of matches) {
-      const token = raw.slice(1).toLowerCase();
-      const agent = $customAgents.find((a) => mentionToken(a.name).toLowerCase() === token);
-      if (agent) return agent;
-    }
-    return undefined;
-  }
-
-  /**
-   * The agent this message will be sent to. Naming one consumes the mention:
-   * the text goes, the agent is shown above the input, and what stays in the
-   * field is the message itself. It is per message, not per thread - an agent
-   * answers a prompt, it does not take the conversation over.
-   */
-  let draftAgent = $derived(
-    current?.draftAgentId
-      ? $customAgents.find((a) => a.id === current?.draftAgentId)
-      : undefined,
-  );
-
-  function selectDraftAgent(agentId: string) {
-    if (!current) return;
-    current.draftAgentId = agentId;
-    draftAgents[current.id] = agentId;
-  }
-
-  function clearAgentMention() {
-    selectDraftAgent('');
-  }
-
-  /**
-   * A mention typed by hand becomes a selection as soon as it is finished - the
-   * user typed a delimiter after a name that matches - so both ways of naming
-   * an agent leave the same thing behind.
-   */
-  function consumeTypedMention() {
-    if (!current) return;
-    const match = current.draft.match(/@([\w-]+)(\s)/);
-    if (!match) return;
-    const agent = $customAgents.find(
-      (a) => a.name && mentionToken(a.name).toLowerCase() === match[1].toLowerCase(),
+  let agentRoster = $derived.by(() => {
+    if (PROVIDERS.find((p) => p.id === current?.providerId)?.kind !== 'cli') return [];
+    const inst = $activeInstance;
+    return $nativeAgents.filter(
+      (a) => a.scope === 'global' || (inst && a.projectId === inst.projectId),
     );
-    if (!agent) return;
-    selectDraftAgent(agent.id);
-    current.draft = (current.draft.slice(0, match.index) +
-      current.draft.slice((match.index ?? 0) + match[0].length)).trimStart();
-    tick().then(resizeTextarea);
+  });
+
+  /**
+   * What naming an agent leaves in the prompt. The CLI reads a bare `@name` as
+   * a request for that subagent, so the mention is the text - it is not
+   * consumed, not turned into a chip, and several of them in one prompt are
+   * several agents asked for.
+   */
+  function mentionInsert(name: string): string {
+    return `@${mentionToken(name)} `;
   }
 
   function refOf(inst: Instance, scope: ConversationScope): ConversationRef {
@@ -498,7 +455,6 @@
       id: crypto.randomUUID(),
       scope,
       pending: true,
-      draftAgentId: '',
       messages: [],
       activity: [],
       draft: '',
@@ -572,7 +528,6 @@
       effort: found.meta.effort ?? '',
       permissionMode: found.meta.permissionMode ?? '',
       pending: false,
-      draftAgentId: draftAgents[found.meta.id] ?? '',
     };
     selectConversation(inst.projectId, inst.id, id);
     await autoscroll();
@@ -631,12 +586,8 @@
     commitAnswer(run);
   }
 
-  /** Closes the tool call still open, when its result comes back. */
-  function closeTool(run: Run, failed: boolean) {
-    const open = run.blocks.findLast((b) => b.kind === 'tool' && !b.done);
-    if (!open) return;
-    open.done = true;
-    open.failed = failed;
+  function closeTool(run: Run, failed: boolean, toolUseId = '') {
+    closeToolBlock(run.blocks, failed, toolUseId);
     commitAnswer(run);
   }
 
@@ -669,8 +620,9 @@
   function endStreaming(run: Run) {
     if (run.answerIndex < 0) return;
     // A run stopped mid-tool never gets its result, and the line would spin on.
+    // A delegation left open is the same: the provider died with it.
     for (const block of run.blocks) {
-      if (block.kind === 'tool' && !block.done) block.done = true;
+      if ((block.kind === 'tool' || block.kind === 'agent') && !block.done) block.done = true;
     }
     commitAnswer(run, { streaming: false });
   }
@@ -902,8 +854,141 @@
     numTurns?: number;
   }
 
+  /**
+   * A subagent the provider just started. It becomes a run of its own, of the
+   * same kind the panel and the thread view already draw, and is reachable by
+   * both the ids the stream uses: `tool_use_id` tags the events it produces,
+   * `task_id` tags its status and its result.
+   */
+  function openThread(
+    inst: Instance,
+    run: Run,
+    runId: string,
+    data: Record<string, unknown> | undefined,
+  ) {
+    const toolUseId = String(data?.toolUseId ?? '');
+    const taskId = String(data?.taskId ?? '');
+    if (!toolUseId && !taskId) return;
+
+    const name = String(data?.subagentType ?? '') || (t('agents.unnamedSubagent') as string);
+    const threadId = `${runId}:${taskId || toolUseId}`;
+    // A subagent the model invented for one task has no definition on disk. It
+    // still gets a thread, in a neutral colour rather than none.
+    const known = $nativeAgents.find((a) => mentionToken(a.name) === mentionToken(name));
+
+    if (toolUseId) run.subagents[toolUseId] = threadId;
+    if (taskId) run.subagents[taskId] = threadId;
+
+    openDelegation(run.blocks, {
+      toolUseId,
+      name,
+      color: known?.color || 'var(--accent)',
+      agentRunId: threadId,
+    });
+    commitAnswer(run);
+
+    addAgentRun(inst.projectId, {
+      id: threadId,
+      agentId: name,
+      agentName: name,
+      color: known?.color || 'var(--accent)',
+      icon: 'sparkles',
+      instanceId: inst.id,
+      instanceName: inst.ticket.title,
+      conversationId: run.conversationId,
+      conversationTitle: conversationTitleOf(inst, run.conversationId),
+      scope: run.scope,
+      providerId: run.providerId,
+      model: '',
+      workingDir: run.workingDir,
+      prompt: String(data?.prompt ?? data?.description ?? ''),
+      startedAt: Date.now(),
+      endedAt: null,
+      status: 'running',
+      result: '',
+      thinking: '',
+      blocks: [],
+      usage: null,
+      error: '',
+    });
+  }
+
+  /** What a subagent produced, on its own thread rather than in the conversation. */
+  function routeToThread(
+    inst: Instance,
+    threadId: string,
+    source: string,
+    line: string,
+    summary: string | undefined,
+    data: Record<string, unknown> | undefined,
+  ) {
+    if (source === 'assistant') {
+      appendAgentBlock(inst.projectId, threadId, { kind: 'text', text: line });
+    } else if (source === 'thinking') {
+      appendAgentBlock(inst.projectId, threadId, {
+        kind: 'thinking',
+        text: String(data?.text ?? ''),
+      });
+    } else if (source === 'tool') {
+      appendAgentBlock(inst.projectId, threadId, {
+        kind: 'tool',
+        text: line,
+        icon: iconForTool(summary),
+        done: false,
+      });
+    } else if (source === 'tool_result') {
+      finishAgentToolBlock(inst.projectId, threadId, data?.isError === true);
+    }
+  }
+
+  /**
+   * The delegation returned. `task_notification` carries the summary and the
+   * usage, so the thread is closed from it rather than from the tool result -
+   * the answer and what it cost arrive together.
+   */
+  function finishThread(inst: Instance, run: Run, data: Record<string, unknown> | undefined) {
+    const threadId = run.subagents[String(data?.taskId ?? '')];
+    if (!threadId) return;
+    closeAgentToolBlocks(inst.projectId, threadId);
+    clearAgentPermission(threadId);
+
+    const usage = data?.usage as { total_tokens?: number; duration_ms?: number } | undefined;
+    const failed = String(data?.status ?? '') !== 'completed';
+    const result = String(data?.summary ?? '');
+    patchAgentRun(inst.projectId, threadId, {
+      status: failed ? 'error' : 'done',
+      endedAt: Date.now(),
+      result,
+      usage: usage
+        ? { outputTokens: usage.total_tokens, durationMs: usage.duration_ms }
+        : null,
+    });
+
+    if (closeDelegation(run.blocks, threadId, { result, failed })) commitAnswer(run);
+  }
+
+  /**
+   * A run ending takes its subagents with it: the provider owns their
+   * lifetime, so one that never reported a result never will.
+   */
+  function closeOpenThreads(inst: Instance, run: Run, reason: 'done' | 'stopped') {
+    for (const threadId of new Set(Object.values(run.subagents))) {
+      const thread = findAgentRun(threadId);
+      if (!thread || !isInFlight(thread.status)) continue;
+      closeAgentToolBlocks(inst.projectId, threadId);
+      clearAgentPermission(threadId);
+      patchAgentRun(inst.projectId, threadId, {
+        status: reason === 'stopped' ? 'stopped' : 'interrupted',
+        endedAt: Date.now(),
+      });
+    }
+  }
+
   onMount(async () => {
     void loadAiProviders();
+    // The composer completes from these, so they cannot wait for the Agents
+    // section to be opened first.
+    void loadNativeAgents();
     unlisten = await listen<{
       line: string;
       source: string;
@@ -911,8 +996,10 @@
       workingDir?: string;
       runId?: string;
       data?: Record<string, unknown>;
+      agent?: string;
+      toolId?: string;
     }>('claude-output', (e) => {
-      const { source, line, summary, runId, data } = e.payload;
+      const { source, line, summary, runId, data, agent, toolId } = e.payload;
       if (!runId) return;
 
       const run = runs[runId];
@@ -924,37 +1011,39 @@
       const live = conversations[inst.id];
       const isLive = live?.id === run.conversationId;
 
+      // Produced inside a subagent the provider started: it belongs to that
+      // thread, not to the conversation, which only ever sees the answer the
+      // subagent hands back.
+      const threadId = agent ? run.subagents[agent] : undefined;
+      if (threadId) {
+        routeToThread(inst, threadId, source, line, summary, data);
+        return;
+      }
+
       if (source === 'system') {
         if (line === '[done]') {
           clearRunPermission(run, runId);
           endStreaming(run);
-          if (run.agentId) closeAgentToolBlocks(inst.projectId, runId);
-          if (run.agentId) {
-            void deliverAgentResult(inst, run, runId).then(() =>
-              notifyAgentCompletion(inst, run.conversationId),
-            );
-          } else {
-            setBusy(inst, run.conversationId, false);
-            notifyAgentCompletion(inst, run.conversationId);
-            persistRun(inst, run);
-          }
+          closeOpenThreads(inst, run, 'done');
+          setBusy(inst, run.conversationId, false);
+          notifyAgentCompletion(inst, run.conversationId);
+          persistRun(inst, run);
           delete runs[runId];
+          void flushQueued(inst, run.conversationId);
           return;
         }
         if (line === '[session stopped]') {
           clearRunPermission(run, runId);
           endStreaming(run);
-          if (run.agentId) closeAgentToolBlocks(inst.projectId, runId);
-          if (run.agentId) {
-            patchAgentRun(inst.projectId, runId, {
-              status: 'stopped',
-              endedAt: Date.now(),
-            });
-          } else {
-            setBusy(inst, run.conversationId, false);
-            persistRun(inst, run);
-          }
+          // The provider owns a subagent's lifetime: killing the run kills
+          // whatever it had started, so their threads stop with it.
+          closeOpenThreads(inst, run, 'stopped');
+          setBusy(inst, run.conversationId, false);
+          persistRun(inst, run);
           delete runs[runId];
+          // Interrupting is a decision about what comes next, so what was
+          // waiting goes back to the composer instead of leaving on its own.
+          returnQueued(inst, run.conversationId);
           return;
         }
         if (line.startsWith('[error:')) {
@@ -978,29 +1067,15 @@
         };
         commitAnswer(run, { usage });
         recordTurnUsage(inst, run, runId, usage);
-        // An agent run costs what any other turn costs, and is counted the
-        // same way - so it carries its usage back with its answer.
-        if (run.agentId) patchAgentRun(inst.projectId, runId, { usage });
       } else if (source === 'thinking') {
         pushBlock(run, { kind: 'thinking', text: String(data?.text ?? '') });
-        // An agent's thread is a conversation of its own, so it streams like
-        // one: what it thinks and what it answers land on the run as they come.
-        if (run.agentId) {
-          appendAgentBlock(inst.projectId, runId, {
-            kind: 'thinking',
-            text: String(data?.text ?? ''),
-          });
-        }
       } else if (source === 'tool_result') {
         const pending = run.activity.find((a) => a.source === 'tool' && !a.done);
         if (pending) {
           pending.done = true;
           pending.failed = data?.isError === true;
         }
-        closeTool(run, data?.isError === true);
-        if (run.agentId) {
-          finishAgentToolBlock(inst.projectId, runId, data?.isError === true);
-        }
+        closeTool(run, data?.isError === true, String(data?.toolUseId ?? ''));
       } else if (source === 'permission_request') {
         const request: PermissionRequest = {
           runId,
@@ -1011,54 +1086,46 @@
           description: data?.description ? String(data.description) : undefined,
           suggestions: Array.isArray(data?.suggestions) ? data.suggestions : undefined,
         };
-        // An agent runs where nobody is watching. Its request is answered from
-        // its own thread - the conversation only learns that one is waiting,
-        // since the card there could not say who was asking.
-        if (run.agentId) {
-          setAgentPermission(runId, request);
-          patchAgentRun(inst.projectId, runId, { status: 'awaiting-permission' });
+        // A request raised inside a subagent is answered from its own thread:
+        // the card in the conversation could not say who was asking.
+        const askingThread = data?.toolUseId ? run.subagents[String(data.toolUseId)] : undefined;
+        if (askingThread) {
+          setAgentPermission(askingThread, request);
+          patchAgentRun(inst.projectId, askingThread, { status: 'awaiting-permission' });
         } else {
           permissions[run.conversationId] = request;
         }
       } else if (source === 'rate_limit') {
         rateLimit = data as RateLimitInfo;
         return;
+      } else if (source === 'agent_start') {
+        openThread(inst, run, runId, data);
+        return;
+      } else if (source === 'agent_status') {
+        const thread = run.subagents[String(data?.taskId ?? '')];
+        if (thread && String(data?.status ?? '') === 'in_progress') {
+          patchAgentRun(inst.projectId, thread, { status: 'running' });
+        }
+        return;
+      } else if (source === 'agent_result') {
+        finishThread(inst, run, data);
+        return;
       } else if (source === 'init') {
         // reserved: model and tool inventory of the run
       } else if (source === 'assistant') {
         pushBlock(run, { kind: 'text', text: line });
-        if (run.agentId) {
-          appendAgentBlock(inst.projectId, runId, { kind: 'text', text: line });
-        }
       } else if (source === 'tool') {
         // Tools run sequentially: a new tool means the previous one finished.
         const pending = run.activity.find((a) => a.source === 'tool' && !a.done);
         if (pending) pending.done = true;
         run.activity.push({ ts: now(), icon: iconForTool(summary), label: line, source: 'tool' });
-        pushBlock(run, { kind: 'tool', text: line, icon: iconForTool(summary), done: false });
-        if (run.agentId) {
-          appendAgentBlock(inst.projectId, runId, {
-            kind: 'tool',
-            text: line,
-            icon: iconForTool(summary),
-            done: false,
-          });
-        }
+        pushBlock(run, { kind: 'tool', text: line, icon: iconForTool(summary), done: false, toolId });
       } else if (source === 'session') {
-        const ref = refOf(inst, run.scope);
-        // An agent's session belongs to its own thread. Writing it to the
-        // conversation would make the next message resume the agent instead.
-        if (run.agentId) {
-          setAgentThreadSession(ref, run.conversationId, run.agentId, run.providerId, line);
-        } else {
-          setConversationSession(ref, run.conversationId, run.providerId, line);
-        }
+        setConversationSession(refOf(inst, run.scope), run.conversationId, run.providerId, line);
       }
 
-      if (!run.agentId) {
-        persistRun(inst, run);
-        if (isLive) autoscroll();
-      }
+      persistRun(inst, run);
+      if (isLive) autoscroll();
     });
 
     await autoscroll();
@@ -1136,10 +1203,7 @@
       run.activity.push(entry);
       // The decision belongs to the turn it unblocked, so it reads in place.
       const block = { kind: 'tool' as const, text: entry.label, icon: 'shield', done: true };
-      if (run.agentId) {
-        patchAgentRun(run.projectId, req.runId, { status: 'running' });
-        appendAgentBlock(run.projectId, req.runId, block);
-      } else pushBlock(run, block);
+      pushBlock(run, block);
     } else current?.activity.push(entry);
 
     try {
@@ -1147,6 +1211,68 @@
     } catch (e) {
       if (current) current.error = String(e);
     }
+  }
+
+  /**
+   * Sends what was written while the last answer was still coming. One at a
+   * time: each takes the place of the run that just ended, and the next leaves
+   * when that one lands.
+   */
+  async function flushQueued(inst: Instance, conversationId: string) {
+    const waiting = queued[conversationId] ?? [];
+    if (waiting.length === 0 || runOfConversation(conversationId)) return;
+
+    // Not the conversation on screen: it has no live state to send through, so
+    // what was written for it waits there until it is opened again rather than
+    // being dropped or sent into whatever took its place.
+    const conv = conversations[inst.id];
+    if (conv?.id !== conversationId) return;
+
+    // The run that just ended failed. Sending the next one into it would bury
+    // the error under another answer, so what was waiting goes back instead.
+    if (conv.error) {
+      returnQueued(inst, conversationId);
+      return;
+    }
+
+    const [next, ...rest] = waiting;
+    queued[conversationId] = rest;
+    await sendPrompt(inst, conv, next);
+  }
+
+  /**
+   * A conversation reopened, or one that has just gone quiet, sends what was
+   * left waiting for it. This is what carries a queue across a switch away and
+   * back, since nothing else runs for a conversation nobody is looking at.
+   */
+  $effect(() => {
+    const inst = $activeInstance;
+    const conv = inst ? conversations[inst.id] : undefined;
+    if (!inst || !conv || conversationBusy) return;
+    if ((queued[conv.id]?.length ?? 0) > 0) void flushQueued(inst, conv.id);
+  });
+
+  /** Puts what was waiting back where it was written, newest last. */
+  function returnQueued(inst: Instance, conversationId: string) {
+    const waiting = queued[conversationId] ?? [];
+    if (waiting.length === 0) return;
+    delete queued[conversationId];
+    const conv = conversations[inst.id];
+    if (!conv || conv.id !== conversationId) return;
+    conv.draft = mergeIntoDraft(waiting, conv.draft);
+    drafts[conv.id] = conv.draft;
+    void tick().then(resizeTextarea);
+  }
+
+  function unqueue(conversationId: string, index: number) {
+    const waiting = [...(queued[conversationId] ?? [])];
+    const [removed] = waiting.splice(index, 1);
+    queued[conversationId] = waiting;
+    const conv = conversations[$activeInstance?.id ?? ''];
+    if (!conv || conv.id !== conversationId || !removed) return;
+    conv.draft = mergeIntoDraft([removed], conv.draft);
+    drafts[conv.id] = conv.draft;
+    void tick().then(resizeTextarea);
   }
 
   async function retry() {
@@ -1163,27 +1289,25 @@
     if (!inst) return;
     const conv = ensureConversation(inst);
 
-    if (!conv.draft.trim() || runOfConversation(conv.id)) return;
-
-    // A mention left in the text was never consumed - typed and sent without a
-    // delimiter - so it still counts, and it goes with the rest of the prompt.
-    const typed = mentionedAgent(conv.draft);
-    const agent = draftAgent ?? typed;
-    const message = (typed
-      ? conv.draft.replace(`@${mentionToken(typed.name)}`, '')
-      : conv.draft
-    ).trim();
+    const message = conv.draft.trim();
     if (!message) return;
 
     conv.draft = '';
     drafts[conv.id] = '';
-    selectDraftAgent('');
     popupOpen = false;
     await tick();
     resizeTextarea();
+
+    // This conversation is still answering. The prompt waits its turn rather
+    // than being refused - a conversation that is busy is not a conversation
+    // with nothing to say to it.
+    if (runOfConversation(conv.id)) {
+      queued[conv.id] = [...(queued[conv.id] ?? []), message];
+      return;
+    }
+
     conv.error = '';
-    if (agent) await launchAgentRun(inst, conv, agent, message);
-    else await sendPrompt(inst, conv, message);
+    await sendPrompt(inst, conv, message);
   }
 
   /**
@@ -1239,13 +1363,12 @@
       messages: conv.messages,
       activity: conv.activity,
       providerId: runProviderId,
-      agentId: '',
       projectId: inst.projectId,
       workingDir: inst.worktreePath,
       answerIndex,
       blocks: [],
       thinking: '',
-      askedIndex: -1,
+      subagents: {},
     };
     runs[runId] = run;
     setBusy(inst, conv.id, true);
@@ -1262,18 +1385,9 @@
       // Chat APIs already receive the exchange as `history`; a CLI has no
       // channel for it other than the prompt itself.
       const isCli = PROVIDERS.find((p) => p.id === runProviderId)?.kind === 'cli';
-      // An agent answered in its own process, so this provider never saw that
-      // turn. A chat API gets it through `history`, which already carries the
-      // agent message; a CLI has to be told once, here.
-      const pending = undeliveredResults(inst.projectId, conv.id);
-      const results = isCli
-        ? buildAgentResultBlock(pending.map((r) => ({ agentName: r.agentName, result: r.result })))
-        : '';
-      const handedOver = takingOver && isCli
+      const prompt = takingOver && isCli
         ? withHandoffContext(message, buildHandoffTranscript(conv.messages.slice(0, -2)))
         : message;
-      const prompt = results ? `${results}\n${handedOver}` : handedOver;
-      markDelivered(inst.projectId, pending.map((r) => r.id));
 
       await sendMessage(prompt, inst.worktreePath, runProviderId, runId, sessionId, env, options);
     } catch (e) {
@@ -1286,167 +1400,17 @@
   }
 
   /**
-   * Launches an agent in its own process, with its own context. The
-   * conversation is not blocked and keeps its own provider: only the agent's
-   * final answer comes back, once it has one.
+   * A subagent's answer must not read like the provider's own. It carries the
+   * agent's colour and name, and a way back to the thread behind it.
    */
-  async function launchAgentRun(
-    inst: Instance,
-    conv: Conversation,
-    agent: CustomAgent,
-    message: string,
-  ) {
-    materialise(inst, conv);
-    const ref = refOf(inst, conv.scope);
-    const resolved = resolveAgentRun(agent, {
-      providerId: currentProvider?.id ?? conv.providerId,
-      modelId: conv.modelId,
-      effort: conv.effort,
-      permissionMode: conv.permissionMode,
-    });
-    const runProviderId = resolved.providerId;
-    const thread = agentThreadOf(ref, conv.id, agent.id);
-    const sessionId = agentThreadSession(ref, conv.id, agent.id, runProviderId);
-    // The agent follows the conversation when it switches provider, so the new
-    // one has to be handed the agent's own past turns - it has never seen them.
-    const takingOver = !!thread?.lastProviderId && thread.lastProviderId !== runProviderId;
-
-    const runId = crypto.randomUUID();
-    const t_now = now();
-    conv.messages.push({
-      role: 'user',
-      content: message,
-      ts: t_now,
-      agentName: agent.name,
-      agentRunId: runId,
-    });
-    const askedIndex = conv.messages.length - 1;
-    // The conversation answers at once - work was handed over - and the agent's
-    // reply lands later, as a reply to this same prompt.
-    conv.messages.push({
-      role: 'agent',
-      content: '',
-      ts: t_now,
-      agentStarted: true,
-      agentName: agent.name,
-      agentRunId: runId,
-    });
-    // Live Activity is what the conversation is doing, and handing work to an
-    // agent is one of those things - as is getting its answer back. The line is
-    // a prompt line like any other: one per user message, or every later entry
-    // would point at the wrong turn.
-    conv.activity.push({
-      ts: t_now,
-      icon: agent.icon || 'sparkles',
-      label: `${agent.name}: ${truncate(message)}`,
-      source: 'stdin',
-      agentRunId: runId,
-      messageIndex: askedIndex,
-    });
-    syncLive(inst);
-
-    const options: RunOptions = {};
-    if (resolved.model) options.model = resolved.model;
-    if (resolved.effort) options.effort = resolved.effort;
-    if (resolved.permissionMode) options.permissionMode = resolved.permissionMode;
-    if (agent.systemPrompt) options.systemPrompt = agent.systemPrompt;
-    if (agent.allowedTools?.length) options.allowedTools = agent.allowedTools;
-    if (agent.disallowedTools?.length) options.disallowedTools = agent.disallowedTools;
-    if (agent.overrideParams) {
-      options.temperature = agent.temperature;
-      options.maxTokens = agent.maxTokens;
-    }
-
-    const run: Run = {
-      instanceId: inst.id,
-      conversationId: conv.id,
-      scope: conv.scope,
-      messages: [],
-      activity: [],
-      providerId: runProviderId,
-      agentId: agent.id,
-      projectId: inst.projectId,
-      workingDir: inst.worktreePath,
-      answerIndex: -1,
-      blocks: [],
-      thinking: '',
-      askedIndex,
-    };
-    runs[runId] = run;
-
-    addAgentRun(inst.projectId, {
-      id: runId,
-      agentId: agent.id,
-      agentName: agent.name || (t('home.agents.customAgents.untitled') as string),
-      color: agent.color,
-      icon: agent.icon,
-      instanceId: inst.id,
-      instanceName: inst.ticket.title,
-      conversationId: conv.id,
-      conversationTitle: conversationTitleOf(inst, conv.id),
-      scope: conv.scope,
-      providerId: runProviderId,
-      model: resolved.model,
-      workingDir: inst.worktreePath,
-      prompt: message,
-      startedAt: Date.now(),
-      endedAt: null,
-      status: 'running',
-      result: '',
-      thinking: '',
-      delivered: false,
-      blocks: [],
-      usage: null,
-      error: '',
-      handedOverFrom: takingOver ? (thread?.lastProviderId ?? '') : '',
-    });
-
-    updateAgentThread(ref, conv.id, agent.id, {
-      lastProviderId: runProviderId,
-      // Everything up to and including this prompt is now the agent's to know.
-      syncedMessages: conv.messages.length,
-      lastRunId: runId,
-    });
-
-    await autoscroll();
-
-    try {
-      const env = await prepareInstanceEnv(get(activeProject), inst);
-      const delta = conversationDelta(
-        conv.messages.slice(0, -1),
-        thread?.syncedMessages ?? 0,
-      );
-      const transcript = takingOver
-        ? agentThreadTranscript(agentTurnsOf(inst.projectId, conv.id, agent.id))
-        : '';
-      const prompt = buildAgentPrompt(message, delta, transcript);
-      await sendMessage(prompt, inst.worktreePath, runProviderId, runId, sessionId, env, options);
-    } catch (e) {
-      conv.error = String(e);
-      patchAgentRun(inst.projectId, runId, {
-        status: 'error',
-        error: String(e),
-        endedAt: Date.now(),
-      });
-      delete runs[runId];
-    }
-  }
-
-  /**
-   * An agent's answer must not read like the provider's own. It carries the
-   * persona's colour and icon, and a way back to the work behind it.
-   */
-  function agentOf(m: Message): CustomAgent | undefined {
-    if (!m.agentRunId) return undefined;
-    const runAgentId = findAgentRun(m.agentRunId)?.agentId;
-    return runAgentId ? $customAgents.find((a) => a.id === runAgentId) : undefined;
+  function agentOf(m: Message): AgentRun | undefined {
+    return m.agentRunId ? (findAgentRun(m.agentRunId) ?? undefined) : undefined;
   }
 
   /** The colour of the agent an activity line belongs to. */
   function activityColorOf(entry: ActivityEntry): string {
-    const runAgentId = entry.agentRunId ? findAgentRun(entry.agentRunId)?.agentId : undefined;
-    const agent = runAgentId ? $customAgents.find((a) => a.id === runAgentId) : undefined;
-    return agent?.color ?? 'var(--accent)';
+    const run = entry.agentRunId ? findAgentRun(entry.agentRunId) : undefined;
+    return run?.color || 'var(--accent)';
   }
 
   function agentColorOf(m: Message): string {
@@ -1463,15 +1427,21 @@
     if (agentId) enterAgent(agentId);
   }
 
+  /** Entering an agent from the block that delegated to it. */
+  function openThreadOf(agentRunId: string) {
+    const run = findAgentRun(agentRunId);
+    if (run) openAgentId.set(run.agentId);
+  }
+
   /** Entering an agent from its answer: the same gesture as opening it in the list. */
   function enterAgent(agentId: string) {
     openAgentId.set(agentId);
   }
 
   /**
-   * An agent belongs to the conversation that called it, so the panel lists the
-   * agents of *this* conversation - one entry per agent, not one per run, since
-   * a persona called twice is one interlocutor with one thread.
+   * A subagent belongs to the conversation whose run started it, so the panel
+   * lists the agents of *this* conversation - one entry per agent, not one per
+   * run, since the same agent delegated to twice is one thread.
    */
   let conversationThreads = $derived(
     $activeInstance && current && $agentRuns
@@ -1496,53 +1466,27 @@
    * Reading the conversation list through the stores, not just once: the reset
    * mark has to appear the moment the thread is reset, not on the next visit.
    */
-  let openThreadReset = $derived(
-    $activeInstance && current && $openAgentId && ($instanceConversationsStore || $projectConversationsStore)
-      ? (agentThreadOf(refOf($activeInstance, current.scope), current.id, $openAgentId)?.contextResetAt ?? 0)
-      : 0,
-  );
-
   /**
    * Making an agent forget: its sessions go, and the conversation is resynced
    * from now on, so its next prompt starts from nothing. What it already
    * answered stays - in the conversation, and in its own thread above the mark.
    */
-  function resetOpenAgentContext() {
-    const inst = $activeInstance;
-    if (!inst || !current || !$openAgentId) return;
-    updateAgentThread(refOf(inst, current.scope), current.id, $openAgentId, {
-      sessions: {},
-      lastProviderId: '',
-      syncedMessages: current.messages.length,
-      contextResetAt: Date.now(),
-    });
-  }
-
   let deletingAgentId = $state('');
   let deletingAgentName = $derived(
     conversationThreads.find((th) => th.agentId === deletingAgentId)?.latest.agentName ?? '',
   );
 
   /**
-   * Removing an agent from the panel: its runs and its thread go, so calling it
-   * again starts from nothing. Its answers stay where they were delivered - in
-   * the conversation, which is the record the user reads.
+   * Removing an agent from the panel: the runs it did here go. What it answered
+   * stays in the conversation, which is the record the user reads.
    */
   function deleteAgentFromPanel(agentId: string) {
     const inst = $activeInstance;
     if (!inst || !current) return;
     if ($openAgentId === agentId) openAgentId.set('');
     deleteAgentThread(inst.projectId, current.id, agentId);
-    removeAgentThread(refOf(inst, current.scope), current.id, agentId);
   }
 
-  /** Sending again from inside an agent continues its own thread, never the conversation's. */
-  async function sendToOpenAgent(message: string) {
-    const inst = $activeInstance;
-    const agent = $customAgents.find((a) => a.id === $openAgentId);
-    if (!inst || !current || !agent) return;
-    await launchAgentRun(inst, current, agent, message);
-  }
 
   /**
    * Leaving an agent whose thread is not in this conversation: an agent is
@@ -1552,17 +1496,6 @@
     if ($openAgentId && openThreadRuns.length === 0) openAgentId.set('');
   });
 
-  /**
-   * An agent's own answer lands in the conversation after it was told what to
-   * know, so without this it would be handed its own reply back as context on
-   * its next turn - which its session already holds.
-   */
-  function markAgentUpToDate(ref: ConversationRef, run: Run, messageCount: number) {
-    if (!run.agentId) return;
-    updateAgentThread(ref, run.conversationId, run.agentId, {
-      syncedMessages: messageCount,
-    });
-  }
 
   function truncate(text: string, max = 160): string {
     const line = text.trim().split('\n')[0];
@@ -1576,7 +1509,6 @@
    * has to keep reading correctly after a project or a conversation is gone.
    */
   function recordTurnUsage(inst: Instance, run: Run, runId: string, usage: MessageUsage) {
-    const agentRun = run.agentId ? findAgentRun(runId) : undefined;
     recordUsage({
       id: runId,
       ts: Date.now(),
@@ -1589,8 +1521,11 @@
       scope: run.scope,
       providerId: run.providerId,
       model: usage.model ?? '',
-      agentId: run.agentId,
-      agentName: agentRun?.agentName ?? '',
+      // Never set any more: a turn is the conversation talking to its provider,
+      // and a subagent's cost is reported on its own run. The fields stay so the
+      // entries written when Cairn ran agents itself keep their label.
+      agentId: '',
+      agentName: '',
       inputTokens: usage.inputTokens ?? 0,
       outputTokens: usage.outputTokens ?? 0,
       cacheReadTokens: usage.cacheReadTokens ?? 0,
@@ -1605,66 +1540,6 @@
   function conversationTitleOf(inst: Instance, conversationId: string): string {
     const found = findConversation(inst.projectId, inst.id, conversationId);
     return found?.meta.title ?? '';
-  }
-
-  /**
-   * Puts an agent's answer in the conversation that called it, open or not. It
-   * reads as its own message - a different persona, in its own process - never
-   * as something the conversation's provider said.
-   */
-  async function deliverAgentResult(inst: Instance, run: Run, runId: string) {
-    const stored = findAgentRun(runId);
-    // `result` is the agent's last text block: the notes it wrote between tool
-    // calls belong to its thread, not to the conversation.
-    const content = (stored?.result ?? '').trim();
-    patchAgentRun(inst.projectId, runId, {
-      result: content,
-      status: 'done',
-      endedAt: Date.now(),
-    });
-    if (!content) return;
-
-    const message: Message = {
-      role: 'agent',
-      content,
-      ts: now(),
-      thinking: stored?.thinking || undefined,
-      replyTo: stored?.prompt || undefined,
-      replyToIndex: run.askedIndex >= 0 ? run.askedIndex : undefined,
-      agentName: stored?.agentName || undefined,
-      agentRunId: runId,
-      usage: stored?.usage ?? undefined,
-    };
-
-    const answered: ActivityEntry = {
-      ts: message.ts,
-      icon: 'check',
-      label: `${stored?.agentName ?? ''}: ${truncate(content)}`,
-      source: 'tool',
-      done: true,
-      agentRunId: runId,
-    };
-
-    const ref = refOf(inst, run.scope);
-    const live = conversations[inst.id];
-    if (live?.id === run.conversationId) {
-      live.messages.push(message);
-      answered.messageIndex = live.messages.length - 1;
-      live.activity.push(answered);
-      markAgentUpToDate(ref, run, live.messages.length);
-      syncLive(inst);
-      await autoscroll();
-      return;
-    }
-    const body = await loadConversationBody(ref, run.conversationId);
-    answered.messageIndex = body.messages.length;
-    updateConversationContent(
-      ref,
-      run.conversationId,
-      [...body.messages, message],
-      [...body.activity, answered],
-    );
-    markAgentUpToDate(ref, run, body.messages.length + 1);
   }
 
   /**
@@ -1691,10 +1566,6 @@
     live: Conversation | undefined,
   ) {
     run.activity.push({ ts: now(), icon: 'alert', label: message, source: 'system' });
-    if (run.agentId) {
-      patchAgentRun(inst.projectId, runId, { status: 'error', error: message });
-      return;
-    }
     if (live) live.error = message.startsWith('[error:') ? message.slice(8, -1) : message;
     setBusy(inst, run.conversationId, false);
     notifyAgentCompletion(inst, run.conversationId);
@@ -1791,20 +1662,6 @@
     const after = current.draft.slice(caret);
     const start = popupKind === 'command' ? before.lastIndexOf('/') : before.lastIndexOf('@');
 
-    // An agent is chosen, not written: the mention leaves the field and the
-    // agent shows above it instead.
-    if (item.agentId) {
-      selectDraftAgent(item.agentId);
-      current.draft = (before.slice(0, start) + after).trimStart();
-      popupOpen = false;
-      tick().then(() => {
-        textareaEl?.focus();
-        textareaEl?.setSelectionRange(start, start);
-        resizeTextarea();
-      });
-      return;
-    }
-
     const token = item.insert;
     current.draft = before.slice(0, start) + token + after;
     popupOpen = false;
@@ -1817,7 +1674,6 @@
   }
 
   function onInput() {
-    consumeTypedMention();
     resizeTextarea();
     updatePopup();
   }
@@ -1991,10 +1847,7 @@
         projectId={$activeInstance?.projectId ?? ""}
         renderMarkdown={renderMarkdown}
         onBack={() => openAgentId.set("")}
-        onSend={sendToOpenAgent}
-        onResetContext={resetOpenAgentContext}
         onDelete={() => deleteAgentFromPanel($openAgentId)}
-        contextResetAt={openThreadReset}
       />
     {:else}
       {#if current?.error}
@@ -2115,6 +1968,7 @@
                     showThinking={$settings.agentShowThinking}
                     roots={pathRoots}
                     {renderMarkdown}
+                    onOpenAgent={openThreadOf}
                   />
                 </div>
               {:else}
@@ -2178,24 +2032,23 @@
       </div>
 
       <div class="chat-input-wrap">
-        <div class="chat-input" class:agent-active={draftAgent} style={draftAgent ? `--agent: ${draftAgent.color}` : ''}>
-          {#if draftAgent}
-            <div class="agent-banner">
-              {#if draftAgent.icon}
-                <Icon name={draftAgent.icon} size={11}/>
-              {:else}
-                <span class="agent-banner-dot"></span>
-              {/if}
-              <span class="agent-banner-name">{draftAgent.name || t('home.agents.customAgents.untitled')}</span>
-              <span class="agent-banner-hint">{t('agent.composer.willRunInBackground')}</span>
-              <button
-                class="agent-banner-clear"
-                title={t('agent.composer.clearAgent') as string}
-                aria-label={t('agent.composer.clearAgent') as string}
-                onclick={clearAgentMention}
-              >
-                <Icon name="x" size={10}/>
-              </button>
+        <div class="chat-input">
+          {#if current && (queued[current.id]?.length ?? 0) > 0}
+            <div class="queued">
+              {#each queued[current.id] as prompt, i (i)}
+                <div class="queued-row">
+                  <Icon name="clock" size={11}/>
+                  <span class="queued-text selectable">{prompt}</span>
+                  <button
+                    class="queued-drop"
+                    onclick={() => current && unqueue(current.id, i)}
+                    title={t('agent.queueCancel') as string}
+                    aria-label={t('agent.queueCancel') as string}
+                  >
+                    <Icon name="x" size={10}/>
+                  </button>
+                </div>
+              {/each}
             </div>
           {/if}
           {#if popupOpen && popupItems.length > 0}
@@ -2223,12 +2076,13 @@
           {#if current}
             <textarea
               bind:this={textareaEl}
-              placeholder={conversationBusy ? (t('agent.waitingResponse') as string) : (t('agent.inputPlaceholder') as string)}
+              placeholder={conversationBusy
+                ? (t('agent.queuePlaceholder') as string)
+                : (t('agent.inputPlaceholder') as string)}
               bind:value={current.draft}
               oninput={onInput}
               onkeydown={onKeydown}
               onclick={updatePopup}
-              disabled={conversationBusy}
             ></textarea>
           {:else}
             <textarea
@@ -2431,6 +2285,14 @@
               <button class="btn btn-stop" onclick={interrupt}>
                 <Icon name="stop" size={12}/> {t('agent.interrupt')}<span class="kbd">{MOD_LABEL}.</span>
               </button>
+              <button
+                class="btn"
+                onclick={send}
+                disabled={!current || !current.draft.trim()}
+                title={t('agent.queueHint') as string}
+              >
+                <Icon name="send" size={12}/> {t('agent.queueBtn')}<span class="kbd">{MOD_LABEL}↵</span>
+              </button>
             {:else}
               <button
                 class="btn"
@@ -2534,7 +2396,6 @@
 
 {#if deletingAgentId}
   <AgentThreadConfirmModal
-    kind="delete"
     name={deletingAgentName}
     on:close={() => { deletingAgentId = ''; }}
     on:confirm={() => { deleteAgentFromPanel(deletingAgentId); deletingAgentId = ''; }}
@@ -3170,37 +3031,9 @@
 
   /* The composer takes the colour of whoever is answering, so the agent in
      charge is visible without reading the draft. */
-  :global(.chat-input.agent-active) {
-    border-color: color-mix(in srgb, var(--agent) 55%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent) 12%, transparent);
-  }
-  :global(.chat-input.agent-active:focus-within) {
-    border-color: var(--agent);
-  }
 
-  .agent-banner {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 6px;
-    color: var(--agent);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-  }
 
-  .agent-banner-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--agent);
-  }
 
-  .agent-banner-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   /* An agent's answer is a reply: it hangs off the message that called it. */
   .msg.from-agent {
@@ -3335,27 +3168,48 @@
 
   .agent-link:hover { text-decoration: underline; }
 
-  .agent-banner-hint {
+
+
+  .queued {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 0 0 6px;
+  }
+
+  .queued-row {
+    align-items: center;
+    background: var(--bg-2);
+    border: 1px dashed var(--stroke-0);
+    border-radius: 6px;
     color: var(--fg-2);
-    font-size: 10px;
+    display: flex;
+    font-size: 11px;
+    gap: 6px;
+    min-width: 0;
+    padding: 4px 6px;
+  }
+
+  .queued-text {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .agent-banner-clear {
-    display: grid;
-    place-items: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
+  .queued-drop {
     background: none;
+    border: none;
+    border-radius: 4px;
     color: var(--fg-3);
     cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 auto;
+    padding: 2px;
   }
-  .agent-banner-clear:hover { color: var(--agent); background: color-mix(in srgb, var(--agent) 15%, transparent); }
+
+  .queued-drop:hover { background: var(--bg-3); color: var(--fg-0); }
 
   .mention-popup {
     position: absolute;

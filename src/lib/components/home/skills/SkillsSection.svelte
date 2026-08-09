@@ -22,7 +22,7 @@
   import { slugifySkill, MAX_DESCRIPTION } from '$lib/utils/home/skills';
   import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
   import { reachedProviders } from '$lib/services/cli-provider-service';
-  import { markIdOf, sortProviders } from '$lib/utils/home/cli-providers';
+  import { catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';
   import type { CliProviderId } from '$lib/services/cli-provider-service';
 
   /** The editor's own copy: a file is only touched when Save is pressed. */
@@ -388,7 +388,7 @@
             title={provider.label}
             on:click={() => providerFilter = provider.id}
           >
-            <ProviderLogo id={markIdOf(provider.id)} size={12} fallback={provider.label.slice(0, 1)}/>
+            <ProviderLogo id={catalogueIdOf(provider.id)} size={12} fallback={provider.label.slice(0, 1)}/>
             <span class="chip-count">{count}</span>
           </button>
         {/if}

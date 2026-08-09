@@ -30,13 +30,8 @@ export interface AgentRun {
 	endedAt: number | null;
 	status: AgentRunStatus;
 	result: string;
-	/** The agent's reasoning, handed to the conversation with its answer. */
+	/** The agent's reasoning, kept with its thread. */
 	thinking: string;
-	/**
-	 * Whether the result has already been handed to the conversation's own
-	 * provider, which never saw the agent answer.
-	 */
-	delivered: boolean;
 	/**
 	 * What the agent did, in the order it did it. Text, reasoning and tool calls
 	 * share one list because they interleave: an answer written before three
@@ -46,8 +41,6 @@ export interface AgentRun {
 	/** Tokens, cost, duration and turns, so an agent run is costed like a turn. */
 	usage: MessageUsage | null;
 	error: string;
-	/** Set when the run took over from another provider mid-thread. */
-	handedOverFrom: string;
 }
 
 export async function getAgentRuns(projectId: string): Promise<AgentRun[]> {

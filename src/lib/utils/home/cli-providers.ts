@@ -1,11 +1,12 @@
 import type { CliProviderId } from "$lib/services/cli-provider-service";
 
 /**
- * The agent ids used by the skills and MCP registry are not the ones the
- * provider catalogue uses, so the brand marks are reached through this map
- * rather than duplicated.
+ * The agent ids used by the skills, MCP and agents registry are not the ones the
+ * provider catalogue uses. Brand marks and provider capabilities - which models,
+ * efforts and permission modes an agent accepts - are both reached through this
+ * map rather than duplicated.
  */
-const MARK_IDS: Record<CliProviderId, string> = {
+const CATALOGUE_IDS: Record<CliProviderId, string> = {
 	"claude-code": "claude-code-cli",
 	codex: "codex-cli",
 	copilot: "copilot-cli",
@@ -13,8 +14,8 @@ const MARK_IDS: Record<CliProviderId, string> = {
 	vibe: "mistral-vibe",
 };
 
-export function markIdOf(provider: CliProviderId): string {
-	return MARK_IDS[provider] ?? provider;
+export function catalogueIdOf(provider: CliProviderId): string {
+	return CATALOGUE_IDS[provider] ?? provider;
 }
 
 /**

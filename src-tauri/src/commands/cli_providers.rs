@@ -142,6 +142,62 @@ pub fn skill_roots(provider: &str, scope: &str, project_path: &str) -> Vec<PathB
     }
 }
 
+/// Every directory a provider reads its subagent definitions from, most
+/// specific first. Index 0 is where Cairn writes.
+///
+/// Only Claude Code has a roster. Vibe's `--agent` looks like one and is not:
+/// it selects a permission profile from `~/.vibe/agents/*.toml` - how the one
+/// agent asks for approval - not an agent to delegate to. The other three are
+/// left out until a roster is confirmed to exist; an empty vector keeps them
+/// out of the picker without any special case elsewhere.
+pub fn agent_roots(provider: &str, scope: &str, project_path: &str) -> Vec<PathBuf> {
+    match (provider, scope) {
+        (CLAUDE_CODE, "global") => home()
+            .map(|h| vec![h.join(".claude").join("agents")])
+            .unwrap_or_default(),
+        (CLAUDE_CODE, "project") => vec![Path::new(project_path).join(".claude").join("agents")],
+        _ => Vec::new(),
+    }
+}
+
+/// The providers that read a given directory, so a root two agents share is
+/// reported as belonging to both rather than duplicated.
+pub fn agent_providers_at(path: &Path, scope: &str, project_path: &str) -> Vec<String> {
+    CLI_PROVIDERS
+        .iter()
+        .filter(|p| agent_roots(p.id, scope, project_path).iter().any(|root| root == path))
+        .map(|p| p.id.to_string())
+        .collect()
+}
+
+pub fn agent_reach(scope: &str, project_path: &str, targets: &[String]) -> Vec<String> {
+    let written: Vec<PathBuf> = targets
+        .iter()
+        .filter_map(|t| agent_roots(t, scope, project_path).into_iter().next())
+        .collect();
+    unique_providers(
+        CLI_PROVIDERS
+            .iter()
+            .filter(|p| {
+                agent_roots(p.id, scope, project_path)
+                    .iter()
+                    .any(|root| written.contains(root))
+            })
+            .map(|p| p.id.to_string()),
+    )
+}
+
+/// The providers that have a roster at all. The Agents section says so rather
+/// than showing four tiles that can never be ticked.
+#[tauri::command]
+pub async fn agent_capable_providers() -> Vec<String> {
+    CLI_PROVIDERS
+        .iter()
+        .filter(|p| !agent_roots(p.id, "global", "").is_empty() || !agent_roots(p.id, "project", "/x").is_empty())
+        .map(|p| p.id.to_string())
+        .collect()
+}
+
 /// How a config file holds its servers. The shape decides how an entry is read
 /// and written back; the dialect decides what its keys are called.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -312,10 +368,10 @@ pub async fn reached_providers(
     project_path: String,
     targets: Vec<String>,
 ) -> Vec<String> {
-    if kind == "skill" {
-        skill_reach(&scope, &project_path, &targets)
-    } else {
-        mcp_reach(&scope, &project_path, &targets)
+    match kind.as_str() {
+        "skill" => skill_reach(&scope, &project_path, &targets),
+        "agent" => agent_reach(&scope, &project_path, &targets),
+        _ => mcp_reach(&scope, &project_path, &targets),
     }
 }
 
@@ -416,6 +472,25 @@ mod tests {
                 assert!(!marker.ends_with("skills"), "{id} keys off a Cairn-made directory");
             }
         }
+    }
+
+    #[test]
+    fn only_claude_has_a_subagent_roster() {
+        assert!(!agent_roots(CLAUDE_CODE, "project", "/repo").is_empty());
+        // Vibe's `--agent` is a permission profile, not a roster to delegate to.
+        for id in [CODEX, COPILOT, ANTIGRAVITY, VIBE] {
+            assert!(agent_roots(id, "global", "").is_empty(), "{id} claims a roster");
+            assert!(agent_roots(id, "project", "/repo").is_empty(), "{id} claims a roster");
+        }
+    }
+
+    #[test]
+    fn an_agent_root_reaches_only_the_provider_that_reads_it() {
+        assert_eq!(
+            agent_reach("project", "/repo", &[CLAUDE_CODE.to_string()]),
+            vec![CLAUDE_CODE.to_string()],
+        );
+        assert!(agent_reach("project", "/repo", &[CODEX.to_string()]).is_empty());
     }
 
     #[test]

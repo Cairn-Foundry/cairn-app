@@ -33,10 +33,6 @@ pub struct ConversationMeta {
     /// so its presence in `sessions` cannot tell us whether it has spoken.
     #[serde(rename = "lastProviderId", default)]
     pub last_provider_id: String,
-    /// One thread per agent called here, keyed by agent id. An agent runs in
-    /// its own process with its own context, so it never touches `sessions`.
-    #[serde(rename = "agentThreads", default)]
-    pub agent_threads: HashMap<String, AgentThread>,
     #[serde(rename = "messageCount", default)]
     pub message_count: u32,
     #[serde(rename = "modelId", default)]
@@ -49,26 +45,6 @@ pub struct ConversationMeta {
     pub preview: String,
 }
 
-/// What one agent remembers of one conversation. Its sessions are per provider
-/// for the same reason the conversation's are: an agent left on `inherit`
-/// follows the conversation when it switches backend.
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct AgentThread {
-    #[serde(default)]
-    pub sessions: HashMap<String, String>,
-    #[serde(rename = "lastProviderId", default)]
-    pub last_provider_id: String,
-    /// How many of the conversation's messages this agent has already been
-    /// told about. A message carries a display time, not a timestamp, so the
-    /// delta can only be counted, not dated.
-    #[serde(rename = "syncedMessages", default)]
-    pub synced_messages: usize,
-    #[serde(rename = "lastRunId", default)]
-    pub last_run_id: String,
-    /// When the agent was last made to forget, so its thread can show the break.
-    #[serde(rename = "contextResetAt", default)]
-    pub context_reset_at: i64,
-}
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ConversationIndex {

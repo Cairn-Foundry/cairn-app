@@ -451,6 +451,17 @@ export const en = {
 		sendBtn: "Send",
 		mentionFile: "mention file",
 		retry: "Retry",
+		subagent: {
+			started: (name: string) => `Agent - Start ${name}`,
+			finished: (name: string) => `Agent - ${name} finished`,
+			noAnswer: "Finished without answering.",
+			openThread: "See what it did",
+		},
+		queuePlaceholder:
+			"Write the next one - it leaves when this answer lands...",
+		queueBtn: "Queue",
+		queueHint: "Sent as soon as the current answer lands",
+		queueCancel: "Take it back",
 		thinking: "Thinking",
 		contextWindow: "Context window",
 		contextWindowUnknown: "window unknown for this model",
@@ -546,18 +557,122 @@ export const en = {
 		formattingDescription: "The code style this project is formatted with.",
 	},
 
+	agentDefs: {
+		title: "Agents",
+		refresh: "Rescan",
+		new: "New agent",
+		searchPlaceholder: "Search agents...",
+		noResults: "No match.",
+		emptyTitle: "No agent defined",
+		emptyDesc:
+			"An agent is a definition your coding CLI reads on its own. Cairn edits it where the CLI already looks, so a change here is a change it sees on its next run.",
+		duplicate: "Duplicate",
+		reveal: "Show in the file manager",
+		copyOf: (name: string) => `${name}-copy`,
+		invokeHint: "Name it in a prompt to ask the agent to delegate to it.",
+		nameClash: "An agent of that name is already defined there.",
+		nameRequired: "An agent needs a name.",
+		willCreate: (slug: string) => `Will be written as ${slug}.md`,
+		unsaved: "Unsaved changes",
+		divergent:
+			"The copies of this agent differ. Saving realigns them on what is shown here.",
+		noRoster: "This agent has no subagents of its own.",
+		providersHint:
+			"The agents that will read this definition. One file can be read by several.",
+		promptStats: (words: number, lines: number) =>
+			`${words} words, ${lines} lines`,
+		newPromptPlaceholder: "You are a specialist in...",
+		filter: { all: "All" },
+		groups: {
+			identity: "Identity",
+			instructions: "Instructions",
+			tools: "Tools",
+			location: "Where it lives",
+			advanced: "Advanced",
+		},
+		scope: {
+			global: "Home directory",
+			project: "Project",
+			globalHint: "Available in every project.",
+			projectHint: "Committed with the repository, so the team gets it too.",
+			needsProject: "Pick a project first",
+		},
+		fields: {
+			name: "Name",
+			namePlaceholder: "code-reviewer",
+			description: "Description",
+			descriptionHint:
+				"What this agent is for. The provider reads it to decide when to delegate.",
+			descriptionPlaceholder: "Reviews a diff for correctness and style",
+			descriptionMissing:
+				"Without a description the provider cannot tell when to use it.",
+			descriptionTooLong: "Longer than the CLIs will read.",
+			color: "Colour",
+			colorHint: "Marks this agent in the prompt list and on its thread.",
+			systemPrompt: "System prompt",
+			systemPromptHint:
+				"The instructions the agent runs with, in its own context.",
+			systemPromptPlaceholder: "You are a specialist in...",
+			tools: "Tools",
+			toolsHint: "Leave empty to let it use everything the session has.",
+			toolsEmpty: "Every tool of the session.",
+			toolsPlaceholder: "Read, Grep, Bash(git diff)",
+			scope: "Scope",
+			project: "Project",
+			inherit: "Inherited from the session",
+			pickProviderFirst:
+				"Pick the agents this definition is for: what it may hold depends on what they accept.",
+			capabilitiesHint:
+				"Offered by the agents this definition is for, read from what they report themselves.",
+			effort: "Reasoning effort",
+			memory: "Memory",
+			memoryHint:
+				"What the agent keeps between runs. The CLI documents no fixed list, so anything it accepts can be typed here.",
+			skills: "Skills",
+			skillsHint: "Loaded on top of the ones the session already has.",
+			skillsEmpty: "Only the skills of the session.",
+			skillsPlaceholder: "pixel-art-textures",
+			model: "Model",
+			permissionMode: "Permission mode",
+			extraFrontmatter: "Other frontmatter",
+			extraFrontmatterHint:
+				"Keys Cairn does not model, kept exactly as they are on disk.",
+		},
+		permissionModes: {
+			default: "Ask as usual",
+			acceptEdits: "Accept edits",
+			plan: "Plan mode",
+			bypassPermissions: "Bypass permissions",
+		},
+		locations: {
+			title: "Files",
+			hint: "Every copy of this definition, and the agents that read it.",
+		},
+		delete: {
+			heading: "Delete",
+			title: (name: string) => `Delete ${name}?`,
+			description:
+				"Every copy of the definition is removed, so the agents that read it lose it too.",
+		},
+		migration: {
+			done: (n: number) =>
+				n === 1
+					? "1 agent Cairn used to keep has been written to ~/.claude/agents."
+					: `${n} agents Cairn used to keep have been written to ~/.claude/agents.`,
+			skipped: (names: string) =>
+				`Left alone, a definition of that name already existed: ${names}.`,
+			droppedParams:
+				"Temperature and token limits were dropped: a definition cannot carry them, the provider decides.",
+		},
+	},
 	agents: {
 		title: "Agents",
 		enter: "Open this agent",
 		viewDetails: "View agent details",
 		empty: "No agent called here yet",
-		promptPlaceholder: (name: string) => `Ask ${name} something else...`,
-		ownContext: "Its own context, in its own process",
+		readOnly: "Started by the agent, in its own process",
+		unnamedSubagent: "Subagent",
 		stop: "Stop",
-		resetContext: "Reset context",
-		resetContextHint:
-			"Makes this agent forget what it knows here. What it already answered stays.",
-		contextResetMark: "Context reset",
 		deleteThread: "Remove from the panel",
 		deleteModal: {
 			heading: "Agent",
@@ -566,15 +681,6 @@ export const en = {
 				"Its thread goes: what it did, its context, its place in the panel. Calling it again starts a new agent from nothing.",
 			keeps: "What it already answered stays in the conversation.",
 		},
-		resetModal: {
-			heading: "Agent context",
-			title: (name: string) => `Reset ${name}'s context?`,
-			description:
-				"This agent will forget everything it knows about this conversation. Its next prompt starts from nothing.",
-			keeps: "What it already answered stays, here and in the conversation.",
-		},
-		handedOver:
-			"Picked up by another provider, and given its own earlier work.",
 		status: {
 			running: "Running",
 			awaitingPermission: "Waiting for you",
@@ -1828,114 +1934,6 @@ export const en = {
 				permissionModeHint: "Default permission behaviour for agent runs.",
 				bypassWarning:
 					"The agent will run every tool without asking. Use with care.",
-			},
-			customAgents: {
-				newAgent: "New agent",
-				emptyTitle: "No agents yet",
-				emptyDesc:
-					"Create a custom agent profile to define a specific behavior, persona, or task focus.",
-				createFirst: "Create your first agent",
-				deleteConfirm: "Delete this agent?",
-				deleteModal: {
-					heading: "Delete agent",
-					title: (name: string) => `Delete "${name}"?`,
-					description:
-						"The agent profile and its settings are removed. Agents already exported to disk are left untouched.",
-					confirm: "Delete agent",
-				},
-				duplicate: "Duplicate this agent",
-				copyOf: (name: string) => `${name} copy`,
-				mentionHint: (token: string) => `Called with ${token} in the prompt.`,
-				mentionClash: (token: string) =>
-					`Another agent already answers to ${token} - only the first one will run.`,
-				sections: {
-					appearance: "Appearance",
-					tools: "Tools",
-				},
-				binding: {
-					title: "Where it runs",
-					inheritProvider: "Inherit from the conversation",
-					providerDefault: "Provider default",
-					inheritHint:
-						"This agent runs on whichever provider the conversation is using, with its model and settings, and follows it when the conversation switches provider.",
-				},
-				tools: {
-					allowed: "Allowed tools",
-					allowedHint:
-						"Restrict the agent to these tools. Leave empty to allow everything the provider offers.",
-					allowedEmpty: "No restriction: every tool is available.",
-					disallowed: "Denied tools",
-					disallowedHint:
-						"Never available to this agent, even when listed as allowed.",
-					placeholder: "e.g. Read, or mcp__server__tool",
-					remove: (tool: string) => `Remove ${tool}`,
-					cliOnly:
-						"Tool access applies to agentic CLI providers. This provider only answers with text.",
-				},
-				import: {
-					heading: "Claude Code",
-					title: "Import subagents",
-					lead: "Subagent definitions found in your projects and in your home directory.",
-					empty: "No .claude/agents definition found.",
-					confirm: (n: number) =>
-						n === 1 ? "Import 1 agent" : `Import ${n} agents`,
-					scopeProject: "project",
-					scopeGlobal: "global",
-					alreadyExists: "already imported",
-				},
-				export: {
-					heading: "Export",
-					title: "Export agents",
-					lead: "Pick the agents to write out, and where they should go.",
-					empty: "No agent to export yet.",
-					destination: "Destination",
-					destClaude: "Claude Code subagents (.md)",
-					destJson: "Cairn agents file (.json)",
-					destClaudeHint:
-						"One .claude/agents/{name}.md per agent, usable by the Claude Code CLI. Only what a definition can carry is written: prompt, description, tools, model, effort and permission mode.",
-					destJsonHint:
-						"A single JSON file holding the agents exactly as Cairn stores them, ready to be shared or restored.",
-					scope: "Write to",
-					scopeGlobal: "Home directory (~/.claude/agents)",
-					overwrite: "Replace definitions that already exist",
-					unnamed: "unnamed",
-					unnamedSkipped: "An agent without a name cannot be exported.",
-					confirm: (n: number) =>
-						n === 1 ? "Export 1 agent" : `Export ${n} agents`,
-					done: (n: number) =>
-						n === 1 ? "1 agent exported" : `${n} agents exported`,
-					skippedExists: (n: number) =>
-						n === 1
-							? "1 agent left untouched: its file already exists."
-							: `${n} agents left untouched: their files already exist.`,
-				},
-				fields: {
-					name: "Name",
-					icon: "Icon",
-					iconHint: "Shown in the agent list. Falls back to the initials.",
-					useInitials: "Use initials",
-					effortHint: "Reasoning effort this agent runs at.",
-					permissionModeHint: "How this agent asks before using a tool.",
-					namePlaceholder: "e.g. Code Reviewer",
-					description: "Description",
-					descriptionPlaceholder: "Short description of what this agent does",
-					provider: "Provider",
-					providerPlaceholder: "Select a provider",
-					model: "Model",
-					systemPrompt: "System prompt",
-					systemPromptPlaceholder:
-						"You are a ...\n\nDescribe the agent's role, tone, constraints, and any specific instructions.",
-					systemPromptHint:
-						"Injected before every conversation. Keep it focused.",
-					overrideParams: "Override provider defaults",
-					overrideParamsHint:
-						"Leave off to inherit temperature and max tokens from the provider config.",
-					temperature: "Temperature",
-					maxTokens: "Max tokens",
-				},
-				noProviderWarning:
-					"Enable at least one provider in the Providers tab to assign it to an agent.",
-				untitled: "Untitled agent",
 			},
 		},
 		projects: {

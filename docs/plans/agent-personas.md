@@ -1,5 +1,9 @@
 # Agents as personas, and providers that change mid-conversation
 
+> Superseded by `native-agents.md`, which removes the persona model. The
+> per-provider sessions and the handoff transcript described here are not
+> affected and stay in place.
+
 ## Implementation status
 
 Implemented (2026-08-08): all four phases.

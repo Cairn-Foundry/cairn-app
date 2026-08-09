@@ -34,7 +34,6 @@ function makeMeta(overrides: Partial<ConversationMeta> = {}): ConversationMeta {
 		archived: false,
 		sessions: {},
 		lastProviderId: "",
-		agentThreads: {},
 		messageCount: 3,
 		preview: "Fix the lexer",
 		...overrides,

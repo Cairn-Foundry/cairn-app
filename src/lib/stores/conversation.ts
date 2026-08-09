@@ -1,6 +1,5 @@
 import { get, type Writable, writable } from "svelte/store";
 import {
-	type AgentThread,
 	type ConversationActivity,
 	type ConversationBody,
 	type ConversationMessage,
@@ -153,7 +152,6 @@ export function createConversation(
 		archived: false,
 		sessions: {},
 		lastProviderId: "",
-		agentThreads: {},
 		messageCount: 0,
 		preview: "",
 	};
@@ -251,72 +249,6 @@ export function conversationSession(
 /** Empty until something has answered here, so the first run marks no switch. */
 export function lastProviderOf(ref: ConversationRef, id: string): string {
 	return conversationsOf(ref).find((c) => c.id === id)?.lastProviderId ?? "";
-}
-
-/** What that agent already knows of this conversation, if it ran here before. */
-export function agentThreadOf(
-	ref: ConversationRef,
-	id: string,
-	agentId: string,
-): AgentThread | null {
-	const target = conversationsOf(ref).find((c) => c.id === id);
-	return target?.agentThreads?.[agentId] ?? null;
-}
-
-export function updateAgentThread(
-	ref: ConversationRef,
-	id: string,
-	agentId: string,
-	fields: Partial<AgentThread>,
-): void {
-	const target = conversationsOf(ref).find((c) => c.id === id);
-	if (!target) return;
-	const threads = target.agentThreads ?? {};
-	const thread = threads[agentId] ?? {
-		sessions: {},
-		lastProviderId: "",
-		syncedMessages: 0,
-		lastRunId: "",
-		contextResetAt: 0,
-	};
-	patch(ref, id, {
-		agentThreads: { ...threads, [agentId]: { ...thread, ...fields } },
-	});
-}
-
-/** Forgets that agent entirely here: its sessions, its counters, everything. */
-export function removeAgentThread(
-	ref: ConversationRef,
-	id: string,
-	agentId: string,
-): void {
-	const target = conversationsOf(ref).find((c) => c.id === id);
-	if (!target?.agentThreads?.[agentId]) return;
-	const { [agentId]: _gone, ...rest } = target.agentThreads;
-	patch(ref, id, { agentThreads: rest });
-}
-
-/** The session that agent holds here on that provider, if it started one. */
-export function agentThreadSession(
-	ref: ConversationRef,
-	id: string,
-	agentId: string,
-	providerId: string,
-): string | null {
-	return agentThreadOf(ref, id, agentId)?.sessions?.[providerId] ?? null;
-}
-
-export function setAgentThreadSession(
-	ref: ConversationRef,
-	id: string,
-	agentId: string,
-	providerId: string,
-	sessionId: string,
-): void {
-	const thread = agentThreadOf(ref, id, agentId);
-	updateAgentThread(ref, id, agentId, {
-		sessions: { ...(thread?.sessions ?? {}), [providerId]: sessionId },
-	});
 }
 
 export function setLastProvider(
@@ -434,7 +366,6 @@ export async function duplicateConversation(
 		pinned: false,
 		sessions: {},
 		lastProviderId: "",
-		agentThreads: {},
 	};
 	updateList(ref, (list) => [copy, ...list]);
 	await saveConversationBody(

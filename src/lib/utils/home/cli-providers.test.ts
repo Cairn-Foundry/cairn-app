@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { impliedProviders, markIdOf, sortProviders } from "./cli-providers";
+import {
+	catalogueIdOf,
+	impliedProviders,
+	sortProviders,
+} from "./cli-providers";
 
 describe("sortProviders", () => {
 	it("orders agents the same way whatever order they arrive in", () => {
@@ -31,9 +35,9 @@ describe("impliedProviders", () => {
 	});
 });
 
-describe("markIdOf", () => {
+describe("catalogueIdOf", () => {
 	it("reaches the brand mark the provider catalogue files it under", () => {
-		expect(markIdOf("vibe")).toBe("mistral-vibe");
-		expect(markIdOf("claude-code")).toBe("claude-code-cli");
+		expect(catalogueIdOf("vibe")).toBe("mistral-vibe");
+		expect(catalogueIdOf("claude-code")).toBe("claude-code-cli");
 	});
 });

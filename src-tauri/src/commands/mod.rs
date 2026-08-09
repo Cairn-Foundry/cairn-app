@@ -15,6 +15,7 @@ pub mod git_error;
 pub mod instances;
 pub mod lsp;
 pub mod mcp;
+pub mod native_agents;
 pub mod projects;
 pub mod settings;
 pub mod skills;
@@ -28,8 +29,7 @@ pub use agent::{AgentState, send_message, stop_agent, respond_permission};
 pub use agent::config::{
     get_ai_providers_config, save_ai_providers_config,
     set_provider_api_key, get_api_key_statuses, delete_provider_api_key,
-    get_custom_agents, save_custom_agents,
-    probe_provider, list_agent_commands, list_claude_agents, export_claude_agents, discover_provider,
+    probe_provider, list_agent_commands, discover_provider,
 };
 pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use agent_runs::{get_agent_runs, save_agent_runs};
@@ -83,10 +83,13 @@ pub use lsp::{
     lsp_completion, lsp_hover, lsp_signature_help, lsp_definition, lsp_implementation,
     lsp_references, lsp_rename, lsp_format,
 };
-pub use cli_providers::{list_cli_providers, reached_providers};
+pub use cli_providers::{list_cli_providers, reached_providers, agent_capable_providers};
 pub use mcp::{
     list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,
     import_mcp_servers, export_mcp_servers, test_mcp_server,
+};
+pub use native_agents::{
+    list_native_agents, save_native_agent, delete_native_agent, duplicate_native_agent, migrate_custom_agents,
 };
 pub use skills::{
     list_skills, save_skill, delete_skill, duplicate_skill,

@@ -3,11 +3,30 @@ import { invoke } from "@tauri-apps/api/core";
 export type ConversationScope = "instance" | "project";
 
 export interface AgentBlock {
-	kind: "text" | "thinking" | "tool";
+	/**
+	 * `agent` is a subagent the provider delegated to from inside this turn. It
+	 * is a block rather than a message of its own: the delegation happened at
+	 * one point of the turn, and the agent that started it goes on writing
+	 * afterwards - two writers appending to one transcript is what reordered it.
+	 */
+	kind: "text" | "thinking" | "tool" | "agent";
 	text: string;
 	icon?: string;
 	done?: boolean;
 	failed?: boolean;
+	/** The provider's id for the tool call this block draws, when it has one. */
+	toolId?: string;
+	/** `agent` blocks: the run holding what the subagent did, and its answer. */
+	agentRunId?: string;
+	color?: string;
+	result?: string;
+	/**
+	 * Which end of a delegation this block is. Starting one and finishing it are
+	 * two moments of the turn, with whatever the provider wrote in between, so
+	 * they are two entries - rewriting the first one would date the answer from
+	 * before the work that produced it.
+	 */
+	phase?: "start" | "end";
 }
 
 export interface MessageUsage {
@@ -66,25 +85,6 @@ export interface ConversationActivity {
 	messageIndex?: number;
 }
 
-/**
- * What one agent remembers of one conversation. Its sessions are per provider
- * for the same reason the conversation's are: an agent left on `inherit`
- * follows the conversation when it switches backend.
- */
-export interface AgentThread {
-	sessions: Record<string, string>;
-	lastProviderId: string;
-	/**
-	 * How many of the conversation's messages this agent has already been told
-	 * about. A message carries a display time, not a timestamp, so the delta can
-	 * only be counted, not dated.
-	 */
-	syncedMessages: number;
-	lastRunId: string;
-	/** When the agent was last made to forget, so its thread can show the break. */
-	contextResetAt: number;
-}
-
 export interface ConversationMeta {
 	id: string;
 	title: string;
@@ -104,11 +104,6 @@ export interface ConversationMeta {
 	 * `sessions` alone cannot tell whether a provider has already spoken.
 	 */
 	lastProviderId: string;
-	/**
-	 * One thread per agent called here, keyed by agent id. An agent runs in its
-	 * own process with its own context, so it never touches `sessions`.
-	 */
-	agentThreads: Record<string, AgentThread>;
 	messageCount: number;
 	preview: string;
 	modelId?: string | null;

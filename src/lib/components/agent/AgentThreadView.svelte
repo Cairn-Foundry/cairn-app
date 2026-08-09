@@ -21,18 +21,12 @@
   export let runs: AgentRun[] = [];
   export let projectId: string;
   export let onBack: () => void;
-  export let onSend: (message: string) => void;
-  export let onResetContext: () => void;
   export let onDelete: () => void;
   /** When the agent was last made to forget, so the thread can show the break. */
-  export let contextResetAt = 0;
   export let renderMarkdown: (source: string) => string;
 
-  let draft = '';
-  let confirmingReset = false;
   let confirmingDelete = false;
   let scrollEl: HTMLElement | undefined;
-  let textareaEl: HTMLTextAreaElement | undefined;
 
   const STATUS_KEYS = {
     running: 'agents.status.running',
@@ -59,27 +53,6 @@
 
   function statsOf(run: AgentRun) {
     return run.usage ? responseStats(run.usage, $settings.agentResponseStats) : [];
-  }
-
-  function resize() {
-    if (!textareaEl) return;
-    textareaEl.style.height = 'auto';
-    textareaEl.style.height = `${textareaEl.scrollHeight}px`;
-  }
-
-  function send() {
-    const message = draft.trim();
-    if (!message || busy) return;
-    draft = '';
-    void tick().then(resize);
-    onSend(message);
-  }
-
-  function onKeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      send();
-    }
   }
 
   async function stop() {
@@ -122,13 +95,6 @@
     <div class="thread-actions">
       <button
         class="btn ghost"
-        on:click={() => { confirmingReset = true; }}
-        title={t('agents.resetContextHint') as string}
-      >
-        <Icon name="undo" size={12}/> {t('agents.resetContext')}
-      </button>
-      <button
-        class="btn ghost"
         on:click={() => { confirmingDelete = true; }}
         title={t('agents.deleteThread') as string}
       >
@@ -141,14 +107,7 @@
   </div>
 
   <div class="thread-scroll" bind:this={scrollEl}>
-    {#if latest?.handedOverFrom}
-      <div class="thread-note">{t('agents.handedOver')}</div>
-    {/if}
-
     {#each runs as run, i (run.id)}
-      {#if i > 0 && run.startedAt >= contextResetAt && runs[i - 1].startedAt < contextResetAt}
-        <div class="thread-break">{t('agents.contextResetMark')}</div>
-      {/if}
       <div class="msg user">
         <div class="msg-meta">{t('agent.you')}</div>
         <div class="bubble user-bubble selectable"><p>{run.prompt}</p></div>
@@ -192,9 +151,6 @@
       </div>
     {/each}
 
-    {#if contextResetAt > 0 && (!latest || latest.startedAt < contextResetAt)}
-      <div class="thread-break">{t('agents.contextResetMark')}</div>
-    {/if}
 
     {#if request}
       <PermissionCard
@@ -206,53 +162,24 @@
     {/if}
   </div>
 
-  <div class="thread-input-wrap">
-    <div class="thread-input">
-      <textarea
-        bind:this={textareaEl}
-        bind:value={draft}
-        on:input={resize}
-        on:keydown={onKeydown}
-        rows="1"
-        class="selectable"
-        placeholder={busy
-          ? (t('agent.waitingResponse') as string)
-          : ((t('agents.promptPlaceholder') as (n: string) => string)(latest?.agentName ?? ''))}
-        disabled={busy}
-      ></textarea>
-      <div class="thread-input-row">
-        <span class="thread-hint">{t('agents.ownContext')}</span>
-        {#if busy}
-          <button class="btn btn-stop" on:click={stop}>
-            <Icon name="stop" size={12}/> {t('agent.interrupt')}
-          </button>
-        {:else}
-          <button class="btn" on:click={send} disabled={!draft.trim()}>
-            <Icon name="send" size={12}/> {t('agent.sendBtn')}
-          </button>
-        {/if}
-      </div>
-    </div>
+  <div class="thread-foot">
+    <span class="thread-hint">{t('agents.readOnly')}</span>
+    {#if busy}
+      <button class="btn btn-stop" on:click={stop}>
+        <Icon name="stop" size={12}/> {t('agent.interrupt')}
+      </button>
+    {/if}
   </div>
 </div>
 
 {#if confirmingDelete}
   <AgentThreadConfirmModal
-    kind="delete"
     name={latest?.agentName ?? ''}
     on:close={() => { confirmingDelete = false; }}
     on:confirm={() => { confirmingDelete = false; onDelete(); }}
   />
 {/if}
 
-{#if confirmingReset}
-  <AgentThreadConfirmModal
-    kind="reset"
-    name={latest?.agentName ?? ''}
-    on:close={() => { confirmingReset = false; }}
-    on:confirm={() => { confirmingReset = false; onResetContext(); }}
-  />
-{/if}
 
 <style>
   .thread-view {
@@ -322,28 +249,8 @@
     padding: 16px 20px;
   }
 
-  .thread-break {
-    align-items: center;
-    color: var(--fg-3);
-    display: flex;
-    font-size: 10px;
-    gap: 8px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
 
-  .thread-break::before,
-  .thread-break::after {
-    background: var(--stroke-0);
-    content: "";
-    flex: 1;
-    height: 1px;
-  }
 
-  .thread-note {
-    color: var(--fg-3);
-    font-size: 11px;
-  }
 
   .msg {
     display: flex;
@@ -405,38 +312,17 @@
     gap: 3px;
   }
 
-  .thread-input-wrap {
-    flex: 0 0 auto;
-    min-width: 0;
-    padding: 10px 16px 14px;
-  }
 
-  .thread-input {
-    background: var(--bg-1);
-    border: 1px solid var(--agent);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 10px;
-  }
 
-  .thread-input textarea {
-    background: none;
-    border: none;
-    color: var(--fg-0);
-    font: inherit;
-    font-size: 13px;
-    max-height: 200px;
-    outline: none;
-    resize: none;
-    width: 100%;
-  }
 
-  .thread-input-row {
+
+  .thread-foot {
     align-items: center;
+    border-top: 1px solid var(--stroke-0);
     display: flex;
+    flex: 0 0 auto;
     gap: 8px;
+    padding: 10px 16px;
   }
 
   .thread-hint {

@@ -113,6 +113,14 @@ struct AgentOutputEvent {
     working_dir: Option<String>,
     run_id:      Option<String>,
     data:        Option<Value>,
+    /// The delegation this event belongs to, when the provider produced it
+    /// inside a subagent it started: the `tool_use_id` of the `Agent` call.
+    /// Empty for the main thread, which is every event of a provider that does
+    /// not delegate.
+    agent:       Option<String>,
+    /// The provider's own id for a tool call, so the line it drew can be found
+    /// again when something else reports on that same call.
+    tool_id:     Option<String>,
 }
 
 pub fn emit_agent(
@@ -122,6 +130,17 @@ pub fn emit_agent(
     working_dir: Option<String>,
     run_id: Option<String>,
 ) {
+    emit_agent_for(app, line, source, working_dir, run_id, None);
+}
+
+pub fn emit_agent_for(
+    app: &tauri::AppHandle,
+    line: String,
+    source: &str,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+    agent: Option<String>,
+) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line,
         source: source.to_string(),
@@ -129,6 +148,8 @@ pub fn emit_agent(
         working_dir,
         run_id,
         data: None,
+        agent,
+        tool_id: None,
     });
 }
 
@@ -139,6 +160,18 @@ pub fn emit_agent_tool(
     working_dir: Option<String>,
     run_id: Option<String>,
 ) {
+    emit_agent_tool_for(app, label, tool, working_dir, run_id, None, None);
+}
+
+pub fn emit_agent_tool_for(
+    app: &tauri::AppHandle,
+    label: String,
+    tool: &str,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+    agent: Option<String>,
+    tool_id: Option<String>,
+) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line:    label,
         source:  "tool".to_string(),
@@ -146,6 +179,8 @@ pub fn emit_agent_tool(
         working_dir,
         run_id,
         data: None,
+        agent,
+        tool_id,
     });
 }
 
@@ -157,6 +192,17 @@ pub fn emit_agent_data(
     working_dir: Option<String>,
     run_id: Option<String>,
 ) {
+    emit_agent_data_for(app, source, data, working_dir, run_id, None);
+}
+
+pub fn emit_agent_data_for(
+    app: &tauri::AppHandle,
+    source: &str,
+    data: Value,
+    working_dir: Option<String>,
+    run_id: Option<String>,
+    agent: Option<String>,
+) {
     let _ = app.emit("claude-output", AgentOutputEvent {
         line: String::new(),
         source: source.to_string(),
@@ -164,6 +210,8 @@ pub fn emit_agent_data(
         working_dir,
         run_id,
         data: Some(data),
+        agent,
+        tool_id: None,
     });
 }
 

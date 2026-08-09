@@ -10,16 +10,8 @@
   export let renderMarkdown: (source: string) => string;
   /** Paths the user already knows, stripped from tool lines. */
   export let roots: string[] = [];
-
-  /**
-   * The last text is the answer; the ones before it are working notes written
-   * between tool calls. They are kept - they say why the turn went where it
-   * went - but they must not compete with the reply.
-   */
-  $: answerIndex = blocks.reduce(
-    (found, block, i) => (block.kind === 'text' ? i : found),
-    -1,
-  );
+  /** Opens the full thread of a subagent, with its tools and its reasoning. */
+  export let onOpenAgent: ((agentRunId: string) => void) | undefined = undefined;
 
   /**
    * "Bash: cd /tmp" reads as a tool and its argument, not as one long line. The
@@ -52,6 +44,44 @@
         <span class="tool-arg selectable" title={parts.full}>{parts.arg}</span>
       {/if}
     </div>
+  {:else if block.kind === 'agent'}
+    <div class="agent-block" class:failed={block.failed} style={block.color ? `--agent: ${block.color}` : ''}>
+      {#if block.phase === 'end'}
+        <details class="agent-done">
+          <summary>
+            <span class="agent-mark"><Icon name={block.failed ? 'alert' : 'sparkles'} size={10}/></span>
+            <span class="agent-label">
+              {(t('agent.subagent.finished') as (n: string) => string)(block.text)}
+            </span>
+            <Icon name="chev-d" size={11}/>
+          </summary>
+          {#if block.result}
+            <div class="agent-result selectable">{@html renderMarkdown(block.result)}</div>
+          {:else}
+            <div class="agent-result empty">{t('agent.subagent.noAnswer')}</div>
+          {/if}
+          {#if block.agentRunId && onOpenAgent}
+            {@const runId = block.agentRunId}
+            <button class="agent-open" on:click={() => onOpenAgent?.(runId)}>
+              <Icon name="arrow-right" size={11}/> {t('agent.subagent.openThread')}
+            </button>
+          {/if}
+        </details>
+      {:else}
+        <div class="agent-running">
+          <span class="agent-mark">
+            {#if block.done}
+              <Icon name="sparkles" size={10}/>
+            {:else}
+              <Spinner size={10} stroke={1.5}/>
+            {/if}
+          </span>
+          <span class="agent-label">
+            {(t('agent.subagent.started') as (n: string) => string)(block.text)}
+          </span>
+        </div>
+      {/if}
+    </div>
   {:else if block.kind === 'thinking'}
     {#if showThinking}
       <details class="thinking-block">
@@ -60,7 +90,7 @@
       </details>
     {/if}
   {:else}
-    <div class="answer selectable" class:note={i !== answerIndex}>
+    <div class="answer selectable">
       {@html renderMarkdown(block.text)}
     </div>
   {/if}
@@ -137,12 +167,80 @@
   .answer :global(p:last-child) { margin-bottom: 0; }
 
   /* A note the turn wrote on its way, not the reply it landed on. */
-  .answer.note {
-    border-left: 2px solid var(--stroke-0);
-    color: var(--fg-3);
-    font-size: 12px;
-    padding-left: 10px;
+
+  .agent-block {
+    --agent: var(--accent);
+    font-size: 11px;
+    min-width: 0;
+    padding: 1px 0;
   }
+
+  .agent-running,
+  .agent-done > summary {
+    align-items: center;
+    color: var(--agent);
+    display: flex;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .agent-done > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .agent-done > summary::-webkit-details-marker { display: none; }
+  .agent-done[open] > summary :global(svg:last-child) { transform: rotate(180deg); }
+
+  .agent-mark {
+    align-items: center;
+    color: var(--agent);
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 14px;
+    justify-content: center;
+    width: 14px;
+  }
+
+  .agent-label {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agent-block.failed .agent-running,
+  .agent-block.failed .agent-done > summary,
+  .agent-block.failed .agent-mark { color: var(--danger); }
+
+  .agent-result {
+    border-left: 2px solid color-mix(in srgb, var(--agent) 45%, transparent);
+    color: var(--fg-1);
+    font-size: 12px;
+    line-height: 1.6;
+    margin: 6px 0 0 6px;
+    padding: 2px 0 2px 10px;
+  }
+
+  .agent-result.empty { color: var(--fg-3); font-style: italic; }
+  .agent-result :global(p) { margin: 0 0 8px; }
+  .agent-result :global(p:last-child) { margin-bottom: 0; }
+
+  .agent-open {
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--agent);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-size: 11px;
+    gap: 4px;
+    margin: 6px 0 0 16px;
+    padding: 2px 0;
+  }
+
+  .agent-open:hover { text-decoration: underline; }
 
   .thinking-block {
     color: var(--fg-3);

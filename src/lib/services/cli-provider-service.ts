@@ -32,7 +32,7 @@ export async function listCliProviders(): Promise<CliProviderDef[]> {
  * never drift apart.
  */
 export async function reachedProviders(
-	kind: "skill" | "mcp",
+	kind: "skill" | "mcp" | "agent",
 	scope: string,
 	projectPath: string,
 	targets: CliProviderId[],

@@ -23,11 +23,9 @@ function run(id: string, agentId: string, conversationId: string): AgentRun {
 		status: "done",
 		result: id,
 		thinking: "",
-		delivered: false,
 		blocks: [],
 		usage: null,
 		error: "",
-		handedOverFrom: "",
 	};
 }
 

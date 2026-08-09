@@ -100,31 +100,6 @@ export function patchAgentRun(
 	persist(projectId);
 }
 
-/** Runs of that conversation whose answer the provider has not been told about. */
-export function undeliveredResults(
-	projectId: string,
-	conversationId: string,
-): AgentRun[] {
-	return runsOf(projectId).filter(
-		(run) =>
-			run.conversationId === conversationId &&
-			run.status === "done" &&
-			!run.delivered &&
-			run.result.trim() !== "",
-	);
-}
-
-export function markDelivered(projectId: string, runIds: string[]): void {
-	if (!runIds.length) return;
-	agentRuns.update((m) => ({
-		...m,
-		[projectId]: (m[projectId] ?? []).map((run) =>
-			runIds.includes(run.id) ? { ...run, delivered: true } : run,
-		),
-	}));
-	persist(projectId);
-}
-
 /**
  * Forgets one agent's work in one conversation. Only its runs go: what it
  * already answered lives in the conversation as messages, and stays there.

@@ -20,21 +20,21 @@
   <div class="modal del-agent-modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">{t('home.agents.customAgents.deleteModal.heading')}</div>
-        <h3>{(t('home.agents.customAgents.deleteModal.title') as (n: string) => string)(name)}</h3>
+        <div class="step-count">{t('agentDefs.delete.heading')}</div>
+        <h3>{(t('agentDefs.delete.title') as (n: string) => string)(name)}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
     <div class="modal-body">
-      <p class="del-desc">{t('home.agents.customAgents.deleteModal.description')}</p>
+      <p class="del-desc">{t('agentDefs.delete.description')}</p>
     </div>
     <div class="modal-foot">
       <div class="spacer"></div>
       <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.cancel')}</button>
       <button class="btn danger" on:click={() => dispatch('confirm')}>
-        <Icon name="trash" size={14}/> {t('home.agents.customAgents.deleteModal.confirm')}
+        <Icon name="trash" size={14}/> {t('common.delete')}
       </button>
     </div>
   </div>

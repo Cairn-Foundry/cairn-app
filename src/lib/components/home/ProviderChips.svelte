@@ -1,7 +1,7 @@
 <script lang="ts">
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
   import { cliProviders, cliProviderLabel } from '$lib/stores/cli-providers';
-  import { markIdOf, sortProviders } from '$lib/utils/home/cli-providers';
+  import { catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';
   import type { CliProviderId } from '$lib/services/cli-provider-service';
 
   export let providers: CliProviderId[] = [];
@@ -15,7 +15,7 @@
 <span class="chips">
   {#each ordered as provider (provider)}
     <span class="chip" title={cliProviderLabel(provider, $cliProviders)}>
-      <ProviderLogo id={markIdOf(provider)} {size} fallback={provider.slice(0, 1).toUpperCase()}/>
+      <ProviderLogo id={catalogueIdOf(provider)} {size} fallback={provider.slice(0, 1).toUpperCase()}/>
     </span>
   {/each}
 </span>

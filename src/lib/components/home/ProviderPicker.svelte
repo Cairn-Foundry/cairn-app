@@ -4,7 +4,7 @@
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
   import { t } from '$lib/i18n';
   import { cliProviders } from '$lib/stores/cli-providers';
-  import { impliedProviders, markIdOf, sortProviders } from '$lib/utils/home/cli-providers';
+  import { impliedProviders, catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';
   import type { CliProviderId } from '$lib/services/cli-provider-service';
 
   /** The agents the entry is written for. */
@@ -78,7 +78,7 @@
         on:click={() => toggle(provider.id)}
       >
         <span class="mark">
-          <ProviderLogo id={markIdOf(provider.id)} size={15} fallback={provider.label.slice(0, 1)}/>
+          <ProviderLogo id={catalogueIdOf(provider.id)} size={15} fallback={provider.label.slice(0, 1)}/>
         </span>
         <span class="name">{provider.label}</span>
         {#if !provider.installed}

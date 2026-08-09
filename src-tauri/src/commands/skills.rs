@@ -111,9 +111,9 @@ pub struct SkillInput {
 /// lines it does not understand. Those lines are written back untouched, so a
 /// field Cairn never heard of survives a round trip through the editor.
 #[derive(Default)]
-struct Frontmatter {
-    known: HashMap<String, String>,
-    extra: String,
+pub(crate) struct Frontmatter {
+    pub known: HashMap<String, String>,
+    pub extra: String,
 }
 
 fn canonical_key(key: &str) -> String {
@@ -122,7 +122,7 @@ fn canonical_key(key: &str) -> String {
 
 /// Unwraps a YAML scalar: a quoted string loses its quotes and its escapes, a
 /// plain one only loses a trailing comment it never meant to carry.
-fn parse_scalar(raw: &str) -> String {
+pub(crate) fn parse_scalar(raw: &str) -> String {
     let value = raw.trim();
     if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
         let inner = &value[1..value.len() - 1];
@@ -210,9 +210,13 @@ const KNOWN_KEYS: [&str; 8] = [
     "disable-model-invocation",
 ];
 
-/// Splits `SKILL.md` into its frontmatter and its body. A file without
+/// Splits a markdown manifest into its frontmatter and its body. A file without
 /// frontmatter is all body, which is what a hand-written skill often is.
-fn split_manifest(content: &str) -> (Frontmatter, String) {
+///
+/// `known` is the set of keys the caller edits; everything else is collected
+/// verbatim into `extra` and written back untouched, so a field this Cairn
+/// never heard of survives a round trip through the editor.
+pub(crate) fn split_manifest(content: &str, known: &[&str]) -> (Frontmatter, String) {
     let normalized = content.replace("\r\n", "\n");
     let Some(rest) = normalized.strip_prefix("---\n") else {
         return (Frontmatter::default(), normalized);
@@ -233,7 +237,7 @@ fn split_manifest(content: &str) -> (Frontmatter, String) {
 
     for line in raw.lines() {
         if let Some((key, value)) = is_top_level_key(line) {
-            current_extra = !KNOWN_KEYS.contains(&key.as_str());
+            current_extra = !known.contains(&key.as_str());
             if current_extra {
                 current_known = None;
                 block = None;
@@ -281,7 +285,7 @@ fn split_manifest(content: &str) -> (Frontmatter, String) {
 
 /// Emits a value that reads back as the same string: plain when YAML cannot
 /// misread it, double quoted otherwise.
-fn write_scalar(value: &str) -> String {
+pub(crate) fn write_scalar(value: &str) -> String {
     if value.is_empty() {
         return "\"\"".to_string();
     }
@@ -302,7 +306,7 @@ fn write_scalar(value: &str) -> String {
     format!("\"{escaped}\"")
 }
 
-fn write_tool_list(tools: &[String]) -> String {
+pub(crate) fn write_tool_list(tools: &[String]) -> String {
     tools
         .iter()
         .map(|tool| {
@@ -447,7 +451,7 @@ fn fold(
     copies: Vec<Found>,
 ) -> Option<Skill> {
     let first = copies.first()?;
-    let (front, body) = split_manifest(&first.raw);
+    let (front, body) = split_manifest(&first.raw, &KNOWN_KEYS);
     let get = |key: &str| front.known.get(key).map(|v| parse_scalar(v)).unwrap_or_default();
 
     let project_id = project.map(|p| p.id.clone()).unwrap_or_default();
@@ -782,7 +786,7 @@ mod tests {
     #[test]
     fn parses_the_fields_it_knows_and_keeps_the_rest_verbatim() {
         let content = "---\nname: commit\ndescription: \"Stage, commit: and push\"\nallowed-tools: Bash(git status), Bash(git diff *)\nmetadata:\n  author: me\n---\n\n# Commit\n\nBody.\n";
-        let (front, body) = split_manifest(content);
+        let (front, body) = split_manifest(content, &KNOWN_KEYS);
 
         assert_eq!(parse_scalar(&front.known["description"]), "Stage, commit: and push");
         assert_eq!(
@@ -796,7 +800,7 @@ mod tests {
     #[test]
     fn a_block_list_of_tools_reads_as_a_list() {
         let content = "---\nname: x\nallowed-tools:\n  - Read\n  - Write\n---\nBody\n";
-        let (front, _) = split_manifest(content);
+        let (front, _) = split_manifest(content, &KNOWN_KEYS);
 
         assert_eq!(parse_tool_list(&front.known["allowed-tools"]), vec!["Read", "Write"]);
     }
@@ -804,7 +808,7 @@ mod tests {
     #[test]
     fn a_folded_description_reads_as_one_sentence() {
         let content = "---\nname: x\ndescription: >-\n  Ultra-compressed mode.\n  Cuts token usage.\n---\nBody\n";
-        let (front, _) = split_manifest(content);
+        let (front, _) = split_manifest(content, &KNOWN_KEYS);
 
         assert_eq!(front.known["description"], "Ultra-compressed mode. Cuts token usage.");
     }
@@ -812,14 +816,14 @@ mod tests {
     #[test]
     fn a_literal_block_keeps_its_line_breaks() {
         let content = "---\nname: x\ndescription: |\n  First line.\n  Second line.\n---\nBody\n";
-        let (front, _) = split_manifest(content);
+        let (front, _) = split_manifest(content, &KNOWN_KEYS);
 
         assert_eq!(front.known["description"], "First line.\nSecond line.");
     }
 
     #[test]
     fn a_file_without_frontmatter_is_all_body() {
-        let (front, body) = split_manifest("# Just markdown\n");
+        let (front, body) = split_manifest("# Just markdown\n", &KNOWN_KEYS);
 
         assert!(front.known.is_empty());
         assert_eq!(body, "# Just markdown\n");
@@ -845,7 +849,7 @@ mod tests {
             body: "Body".into(),
         };
 
-        let (front, body) = split_manifest(&render_manifest(&input, "my-skill"));
+        let (front, body) = split_manifest(&render_manifest(&input, "my-skill"), &KNOWN_KEYS);
 
         assert_eq!(parse_scalar(&front.known["name"]), "my-skill");
         assert_eq!(parse_scalar(&front.known["description"]), "Use when: a colon appears");

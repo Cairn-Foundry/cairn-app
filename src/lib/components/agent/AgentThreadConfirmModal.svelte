@@ -4,8 +4,6 @@
   import { t } from '$lib/i18n';
 
   export let name: string;
-  /** Which of the two irreversible things is being asked about. */
-  export let kind: 'reset' | 'delete';
 
   const dispatch = createEventDispatcher<{ close: void; confirm: void }>();
 </script>
@@ -22,23 +20,23 @@
   <div class="modal agent-thread-modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">{t(`agents.${kind}Modal.heading`)}</div>
-        <h3>{(t(`agents.${kind}Modal.title`) as (n: string) => string)(name)}</h3>
+        <div class="step-count">{t('agents.deleteModal.heading')}</div>
+        <h3>{(t('agents.deleteModal.title') as (n: string) => string)(name)}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
     <div class="modal-body">
-      <p class="confirm-desc">{t(`agents.${kind}Modal.description`)}</p>
-      <p class="confirm-desc keeps">{t(`agents.${kind}Modal.keeps`)}</p>
+      <p class="confirm-desc">{t('agents.deleteModal.description')}</p>
+      <p class="confirm-desc keeps">{t('agents.deleteModal.keeps')}</p>
     </div>
     <div class="modal-foot">
       <div class="spacer"></div>
       <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.cancel')}</button>
-      <button class="btn" class:danger={kind === 'delete'} on:click={() => dispatch('confirm')}>
-        <Icon name={kind === 'delete' ? 'trash' : 'undo'} size={14}/>
-        {t(kind === 'delete' ? 'agents.deleteThread' : 'agents.resetContext')}
+      <button class="btn danger" on:click={() => dispatch('confirm')}>
+        <Icon name="trash" size={14}/>
+        {t('agents.deleteThread')}
       </button>
     </div>
   </div>

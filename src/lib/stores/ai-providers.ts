@@ -9,21 +9,18 @@ import {
 import {
 	type AiProvidersConfig,
 	type ApiKeyStatus,
-	type CustomAgent,
 	type DiscoveredModel,
 	discoverProvider,
 	getAiProvidersConfig,
 	getApiKeyStatuses,
-	getCustomAgents,
 	type ProbeResult,
 	type ProviderCapabilities,
 	type ProviderSettings,
 	probeProvider,
 	saveAiProvidersConfig,
-	saveCustomAgents,
 } from "$lib/services/ai-provider-service";
 
-export type { CustomAgent, ProbeResult, ProviderSettings };
+export type { ProbeResult, ProviderSettings };
 
 const PERSIST_DELAY_MS = 400;
 
@@ -54,7 +51,6 @@ export const aiProviders = writable<AiProvidersConfig>({
 export const apiKeyStatus = writable<Record<string, ApiKeyStatus>>({});
 export const probeResults = writable<Record<string, ProbeResult>>({});
 export const probing = writable<Record<string, boolean>>({});
-export const customAgents = writable<CustomAgent[]>([]);
 
 /**
  * What each provider answered when asked what it accepts. Cairn ships a short
@@ -144,22 +140,17 @@ export function permissionModesOf(
 
 let loaded = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
-let agentsTimer: ReturnType<typeof setTimeout> | null = null;
 
 export async function loadAiProviders(): Promise<void> {
 	if (loaded) return;
 	loaded = true;
 
-	const [config, agents] = await Promise.all([
-		getAiProvidersConfig().catch(() => null),
-		getCustomAgents().catch(() => []),
-	]);
+	const config = await getAiProvidersConfig().catch(() => null);
 
 	aiProviders.set({
 		providers: mergedDefaults(config?.providers ?? {}),
 		defaultProviderId: config?.defaultProviderId || "claude-code-cli",
 	});
-	customAgents.set(agents);
 
 	for (const def of PROVIDERS) {
 		if (def.status !== "coming-soon" && providerSettingsOf(def.id).enabled) {
@@ -237,17 +228,4 @@ export async function runProbe(providerId: string): Promise<void> {
 	} finally {
 		probing.update((m) => ({ ...m, [providerId]: false }));
 	}
-}
-
-export function persistCustomAgents(): void {
-	if (agentsTimer) clearTimeout(agentsTimer);
-	agentsTimer = setTimeout(() => {
-		agentsTimer = null;
-		void saveCustomAgents(get(customAgents)).catch(() => {});
-	}, PERSIST_DELAY_MS);
-}
-
-export function setCustomAgents(agents: CustomAgent[]): void {
-	customAgents.set(agents);
-	persistCustomAgents();
 }
