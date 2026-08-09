@@ -12,6 +12,8 @@
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
   import LanguageServersSection from '$lib/components/home/LanguageServersSection.svelte';
+  import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
+  import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
   const dispatch = createEventDispatcher<{
@@ -92,6 +94,24 @@
       </div>
       <div style="margin-top: 24px;">
         <AgentsTab />
+      </div>
+
+    {:else if activeSection === 'skills'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('skills.title')}</h1>
+        <div class="sub">{t('skills.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <SkillsSection />
+      </div>
+
+    {:else if activeSection === 'mcp'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('mcp.title')}</h1>
+        <div class="sub">{t('mcp.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <McpSection />
       </div>
 
     {:else if activeSection === 'usage'}

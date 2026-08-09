@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod agent_activity;
 pub mod agent_runs;
+pub mod cli_providers;
 pub mod commit_state;
 pub mod conversations;
 pub mod custom_commands;
@@ -13,8 +14,10 @@ pub mod git_collapse_state;
 pub mod git_error;
 pub mod instances;
 pub mod lsp;
+pub mod mcp;
 pub mod projects;
 pub mod settings;
+pub mod skills;
 pub mod shell;
 pub mod terminal;
 pub mod toolchain;
@@ -79,6 +82,15 @@ pub use lsp::{
     stop_language_servers_for, lsp_did_open, lsp_did_change, lsp_did_save, lsp_did_close,
     lsp_completion, lsp_hover, lsp_signature_help, lsp_definition, lsp_implementation,
     lsp_references, lsp_rename, lsp_format,
+};
+pub use cli_providers::{list_cli_providers, reached_providers};
+pub use mcp::{
+    list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,
+    import_mcp_servers, export_mcp_servers, test_mcp_server,
+};
+pub use skills::{
+    list_skills, save_skill, delete_skill, duplicate_skill,
+    add_skill_resources, delete_skill_resource,
 };
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, update_settings};

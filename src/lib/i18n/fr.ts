@@ -20,6 +20,9 @@ export const fr = {
 		creating: "Création...",
 		cloning: "Clonage...",
 		reverting: "Annulation...",
+		add: "Ajouter",
+		remove: "Retirer",
+		revert: "Rétablir",
 		stepOf: (step: number, total: number) => `Étape ${step} sur ${total}`,
 	},
 
@@ -1035,6 +1038,244 @@ export const fr = {
 		renameFailed: (files: string) => `Renommage impossible dans ${files}.`,
 	},
 
+	cliProviders: {
+		title: "Disponible pour",
+		hint: "Chaque agent coché reçoit cette entrée là où il la cherche.",
+		pickOne: "Choisissez au moins un agent.",
+		selectAll: "Tous les agents",
+		allAgents: "Tous",
+		notInstalled: (name: string) =>
+			`${name} n'est pas sur cette machine. Installez-le d'abord, sinon les fichiers resteraient là sans être lus.`,
+		absent: "absent",
+		alsoReaches: (names: string) =>
+			`Lu aussi par ${names} : ils regardent au même endroit.`,
+	},
+
+	skills: {
+		title: "Compétences",
+		desc: "Le savoir-faire que vos agents mobilisent d'eux-mêmes : un dossier, un SKILL.md, chargé quand le travail s'y prête.",
+		refresh: "Réanalyser",
+		new: "Nouvelle compétence",
+		searchPlaceholder: "Rechercher une compétence",
+		noResults: "Aucune compétence ne correspond à cette recherche.",
+		emptyTitle: "Aucune compétence",
+		emptyDesc:
+			"Une compétence est un dossier contenant un SKILL.md. Sa description dit à l'agent quand y recourir, son corps lui dit quoi faire.",
+		filter: { all: "Toutes" },
+		providersHint:
+			"Le format SKILL.md est le même partout : une compétence peut donc servir plusieurs agents à la fois. Cairn en écrit une copie là où chacun regarde.",
+		divergent:
+			"Les copies de cette compétence ne disent plus la même chose. Enregistrer écrit dans toutes ce qui est affiché ici.",
+		locations: {
+			title: "Sur le disque",
+			hint: "Où vivent les copies, et les agents qui lisent chacune.",
+		},
+		scope: {
+			global: "Personnelles",
+			project: "Projet",
+			plugin: "Plugins",
+			globalHint:
+				"Vit dans ~/.claude/skills. Disponible dans tous les projets que vous ouvrez.",
+			needsProject: "Choisissez d'abord un projet.",
+			projectHint:
+				"Vit dans le .claude/skills du projet : elle voyage avec le dépôt et atteint toute l'équipe.",
+		},
+		newBodyHeading: "Ce que fait cette compétence",
+		newBodyPlaceholder:
+			"Écrivez les instructions que l'agent doit suivre une fois cette compétence chargée.",
+		copyOf: (name: string) => `${name} copie`,
+		duplicate: "Dupliquer",
+		reveal: "Afficher le dossier",
+		invokeHint: "est ce qui l'invoque depuis le prompt",
+		nameClash: "Une autre compétence de cette portée répond déjà à ce nom.",
+		nameRequired: "Une compétence a besoin d'un nom avant d'être écrite.",
+		willCreate: (slug: string) => `Sera créée sous ${slug}/SKILL.md`,
+		unsaved: "Modifications non enregistrées",
+		pluginReadOnly: (plugin: string) =>
+			`Cette compétence vient du plugin ${plugin}. Elle est affichée telle qu'installée et ne peut pas être modifiée ici.`,
+		bodyStats: (words: number, lines: number) =>
+			`${words} mots · ${lines} lignes`,
+		groups: {
+			discovery: "Comment elle est trouvée",
+			instructions: "Instructions",
+			tools: "Outils",
+			location: "Où elle vit",
+			advanced: "Avancé",
+			files: "Fichiers",
+		},
+		fields: {
+			name: "Nom",
+			namePlaceholder: "revue-de-code",
+			description: "Description",
+			descriptionHint:
+				"La seule partie lue avant le chargement. Dites ce qu'elle fait et quand s'en servir.",
+			descriptionPlaceholder:
+				"Relit un diff à la recherche d'erreurs. À utiliser quand on demande une revue ou avant d'ouvrir une merge request.",
+			descriptionMissing:
+				"Sans description, l'agent n'a rien pour décider : la compétence ne se chargera jamais d'elle-même.",
+			descriptionTooLong:
+				"Au-delà de cette longueur la description est coupée, et sa fin n'atteint jamais l'agent.",
+			whenToUse: "Quand l'utiliser",
+			whenToUseHint:
+				"Facultatif, lu en complément de la description. Utile quand le déclencheur mérite sa propre phrase.",
+			whenToUsePlaceholder:
+				"À utiliser quand il est question de migrations, d'index ou d'une requête lente.",
+			paths: "Motifs de fichiers",
+			pathsHint:
+				"Des globs, séparés par des virgules. La compétence est proposée quand le travail touche un fichier qui correspond.",
+			manualOnly: "Uniquement sur demande",
+			manualOnlyHint:
+				"L'agent ne la charge jamais de lui-même : elle ne répond qu'à /nom.",
+			body: "Corps",
+			bodyHint:
+				"Du markdown, chargé en entier dès que la compétence se déclenche. C'est la compétence elle-même.",
+			bodyPlaceholder: "# Titre\n\nLes étapes à suivre...",
+			allowedTools: "Outils autorisés",
+			allowedToolsHint:
+				"Tant que cette compétence est chargée, l'agent s'en tient à ces outils. Laissez vide pour conserver les siens.",
+			allowedToolsEmpty:
+				"Aucune restriction : l'agent garde ses outils habituels.",
+			allowedToolsPlaceholder: "Read, ou Bash(git status)",
+			scope: "Portée",
+			project: "Projet",
+			model: "Modèle",
+			modelPlaceholder: "hériter",
+			license: "Licence",
+			extra: "Autres champs d'en-tête",
+			extraHint:
+				"Tout ce que Cairn ne modélise pas, conservé tel quel. À modifier avec soin : c'est du YAML.",
+		},
+		files: {
+			title: "Fichiers embarqués",
+			hint: "Scripts, gabarits et références vers lesquels la compétence peut envoyer l'agent.",
+			add: "Ajouter des fichiers",
+			empty: "Cette compétence n'embarque rien d'autre que son SKILL.md.",
+		},
+		delete: {
+			heading: "Supprimer une compétence",
+			title: (name: string) => `Supprimer ${name} ?`,
+			description:
+				"Le dossier entier disparaît, avec le SKILL.md et tout ce qu'il embarque. C'est irréversible.",
+			confirm: "Supprimer la compétence",
+		},
+	},
+
+	mcp: {
+		title: "Serveurs MCP",
+		desc: "Les outils que vos agents atteignent hors du dépôt : bases de données, navigateurs, gestionnaires de tickets, tout ce qui parle MCP.",
+		refresh: "Recharger",
+		new: "Nouveau serveur",
+		export: "Exporter",
+		reveal: "Afficher le fichier",
+		test: "Tester",
+		searchPlaceholder: "Rechercher un serveur",
+		noResults: "Aucun serveur ne correspond à cette recherche.",
+		emptyTitle: "Aucun serveur MCP",
+		emptyDesc:
+			"Un serveur MCP donne à votre agent des outils qu'il n'a pas seul. Déclarez-en un ici, ou collez le JSON que sa documentation vous donne.",
+		filter: { all: "Tous" },
+		providersHint:
+			"Tous les agents parlent MCP : un serveur peut donc en servir plusieurs à la fois. Cairn l'écrit dans la configuration de chacun, dans l'orthographe qu'il attend.",
+		divergent:
+			"Les déclarations de ce serveur ne concordent plus. Enregistrer écrit dans toutes ce qui est affiché ici.",
+		locations: {
+			title: "Sur le disque",
+			hint: "Les fichiers où il est déclaré, et les agents qui lisent chacun.",
+		},
+		scope: {
+			needsProject: "Choisissez d'abord un projet.",
+			localOnlyClaude: "Seul Claude Code tient une liste privée par projet.",
+			user: "Tous les projets",
+			local: "Ce projet, vous seul",
+			project: "Ce projet, partagé",
+		},
+		scopeHint: {
+			user: "Écrit dans ~/.claude.json. Disponible dans tous les projets que vous ouvrez.",
+			local:
+				"Écrit dans ~/.claude.json sous ce projet. Le vôtre seul, jamais commité.",
+			project:
+				"Écrit dans le .mcp.json du projet : il est commité et toute l'équipe en dispose.",
+		},
+		transportHint: {
+			stdio: "L'agent de Cairn lance le processus et lui parle par ses tubes.",
+			http: "HTTP streamable : chaque appel est une requête vers l'URL.",
+			sse: "Server-Sent Events, historique. Préférez HTTP quand le serveur propose les deux.",
+		},
+		copyOf: (name: string) => `${name}-copie`,
+		nameClash: "Un autre serveur de cette portée répond déjà à ce nom.",
+		incomplete: "Renseignez le nom et la connexion avant d'enregistrer.",
+		willCreate: "Ce serveur n'existe pas encore.",
+		unsaved: "Modifications non enregistrées",
+		toolPrefix: (prefix: string) =>
+			`Ses outils parviennent à l'agent sous ${prefix}`,
+		groups: {
+			connection: "Connexion",
+			availability: "Où il s'applique",
+		},
+		fields: {
+			name: "Nom",
+			namePlaceholder: "mon-serveur",
+			transport: "Transport",
+			command: "Commande",
+			commandHint:
+				"Un nom cherché dans le PATH, ou un chemin absolu vers le binaire.",
+			args: "Arguments",
+			argsHint: "Un par ligne, dans l'ordre attendu par la commande.",
+			env: "Environnement",
+			envHint:
+				"Transmis au processus. ${VAR} et ${VAR:-défaut} sont résolus à son démarrage.",
+			url: "URL",
+			urlHint: "Le point d'entrée sur lequel le serveur répond aux appels MCP.",
+			headers: "En-têtes",
+			headersHint: "Envoyés à chaque appel. C'est là que va un jeton.",
+			scope: "Portée",
+			project: "Projet",
+			enabled: "Activé",
+			enabledHint:
+				"Codex et Vibe savent garder un serveur déclaré mais éteint. Les autres le chargent dès qu'il est là.",
+			valuePlaceholder: "valeur",
+			reveal: "Afficher la valeur",
+		},
+		approval: {
+			title: "Approbation",
+			approve: "Approuvé",
+			reject: "Refusé",
+			approvedHint: "Claude Code charge ce serveur dans ce projet.",
+			rejectedHint: "Claude Code ignore ce serveur dans ce projet.",
+			pendingHint:
+				"Jamais tranché : Claude Code demandera avant de le charger. Décider ici vous évite la question.",
+			rejectedShort: "off",
+			pendingShort: "neuf",
+		},
+		probe: {
+			connected: "Connecté",
+			failed: "Connexion impossible",
+			tools: "outils",
+			prompts: "prompts",
+			resources: "ressources",
+			protocol: "protocole",
+			partial:
+				"Un serveur SSE historique répond sur un flux qui doit rester ouvert, ce qu'un test ponctuel ne peut pas tenir. Seule son accessibilité a été vérifiée.",
+			showTools: "Voir les outils",
+		},
+		import: {
+			heading: "Importer",
+			title: "Importer depuis du JSON",
+			description:
+				"Collez ce que la documentation du serveur vous donne. La table seule comme l'enveloppe mcpServers sont comprises.",
+			targetsHint: "Les agents pour lesquels ces serveurs sont écrits.",
+			json: "JSON",
+			confirm: "Importer",
+		},
+		delete: {
+			heading: "Retirer un serveur",
+			title: (name: string) => `Retirer ${name} ?`,
+			description:
+				"La déclaration est retirée du fichier ci-dessous. Le serveur lui-même n'est pas touché : Cairn ne l'a jamais installé.",
+			confirm: "Retirer le serveur",
+		},
+	},
+
 	references: {
 		title: "Références",
 		close: "Fermer les références",
@@ -1513,6 +1754,8 @@ export const fr = {
 			activity: "Activité",
 			providers: "Fournisseurs",
 			agents: "Agents",
+			skills: "Compétences",
+			mcp: "Serveurs MCP",
 			usage: "Consommation",
 			languageServers: "Serveurs de langage",
 			changelog: "Nouveautés",

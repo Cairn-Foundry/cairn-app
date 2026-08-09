@@ -20,6 +20,9 @@ export const en = {
 		creating: "Creating...",
 		cloning: "Cloning...",
 		reverting: "Reverting...",
+		add: "Add",
+		remove: "Remove",
+		revert: "Revert",
 		stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
 	},
 
@@ -1013,6 +1016,242 @@ export const en = {
 		renameFailed: (files: string) => `Could not rename in ${files}.`,
 	},
 
+	cliProviders: {
+		title: "Available to",
+		hint: "Every agent ticked here gets this entry written where it looks for it.",
+		pickOne: "Pick at least one agent.",
+		selectAll: "All agents",
+		allAgents: "Any agent",
+		notInstalled: (name: string) =>
+			`${name} is not on this machine. Install it first, or the files would sit there unread.`,
+		absent: "absent",
+		alsoReaches: (names: string) =>
+			`Also read by ${names}: they look in the same place.`,
+	},
+
+	skills: {
+		title: "Skills",
+		desc: "The know-how your agents pick up on their own: one folder, one SKILL.md, loaded when the work matches.",
+		refresh: "Rescan",
+		new: "New skill",
+		searchPlaceholder: "Search a skill",
+		noResults: "No skill matches that search.",
+		emptyTitle: "No skill yet",
+		emptyDesc:
+			"A skill is a folder holding a SKILL.md. Its description tells the agent when to reach for it; its body tells it what to do.",
+		filter: { all: "All" },
+		providersHint:
+			"The SKILL.md format is the same everywhere, so one skill can serve several agents at once. Cairn writes a copy wherever each one looks.",
+		divergent:
+			"The copies of this skill no longer say the same thing. Saving writes what is shown here to all of them.",
+		locations: {
+			title: "On disk",
+			hint: "Where the copies live, and the agents that read each one.",
+		},
+		scope: {
+			global: "Personal",
+			project: "Project",
+			plugin: "Plugins",
+			globalHint:
+				"Lives in ~/.claude/skills. Every project you open can use it.",
+			needsProject: "Pick a project first.",
+			projectHint:
+				"Lives in the project's .claude/skills, so it travels with the repository and reaches the whole team.",
+		},
+		newBodyHeading: "What this skill does",
+		newBodyPlaceholder:
+			"Write the instructions the agent should follow once this skill is loaded.",
+		copyOf: (name: string) => `${name} copy`,
+		duplicate: "Duplicate",
+		reveal: "Show the folder",
+		invokeHint: "is what invokes it at the prompt",
+		nameClash: "Another skill of that scope already answers to this name.",
+		nameRequired: "A skill needs a name before it can be written.",
+		willCreate: (slug: string) => `Will be created as ${slug}/SKILL.md`,
+		unsaved: "Unsaved changes",
+		pluginReadOnly: (plugin: string) =>
+			`This skill comes from the ${plugin} plugin. It is shown as it is installed and cannot be edited here.`,
+		bodyStats: (words: number, lines: number) =>
+			`${words} words · ${lines} lines`,
+		groups: {
+			discovery: "How it gets found",
+			instructions: "Instructions",
+			tools: "Tools",
+			location: "Where it lives",
+			advanced: "Advanced",
+			files: "Files",
+		},
+		fields: {
+			name: "Name",
+			namePlaceholder: "code-review",
+			description: "Description",
+			descriptionHint:
+				"The only part read before the skill loads. Say what it does and when to use it.",
+			descriptionPlaceholder:
+				"Reviews a diff for correctness. Use when the user asks for a review or before opening a merge request.",
+			descriptionMissing:
+				"Without a description the agent has nothing to decide on, and the skill will never load on its own.",
+			descriptionTooLong:
+				"Past this length the description is cut, so its ending never reaches the agent.",
+			whenToUse: "When to use",
+			whenToUseHint:
+				"Optional, and read alongside the description. Useful when the trigger deserves its own sentence.",
+			whenToUsePlaceholder:
+				"Use when a query mentions migrations, indexes or a slow query.",
+			paths: "File patterns",
+			pathsHint:
+				"Globs, comma separated. The skill is offered when the work touches a file that matches.",
+			manualOnly: "Only when asked",
+			manualOnlyHint:
+				"The agent never loads it on its own; it answers to /name and nothing else.",
+			body: "Body",
+			bodyHint:
+				"Markdown, loaded whole once the skill triggers. This is the skill itself.",
+			bodyPlaceholder: "# Title\n\nThe steps to follow...",
+			allowedTools: "Allowed tools",
+			allowedToolsHint:
+				"While this skill is loaded the agent is held to these tools. Leave empty to keep its usual ones.",
+			allowedToolsEmpty: "No restriction: the agent keeps its usual tools.",
+			allowedToolsPlaceholder: "Read, or Bash(git status)",
+			scope: "Scope",
+			project: "Project",
+			model: "Model",
+			modelPlaceholder: "inherit",
+			license: "License",
+			extra: "Other frontmatter",
+			extraHint:
+				"Everything Cairn does not model, kept exactly as written. Edit with care - it is YAML.",
+		},
+		files: {
+			title: "Bundled files",
+			hint: "Scripts, templates and references the skill can point the agent to.",
+			add: "Add files",
+			empty: "This skill ships nothing besides its SKILL.md.",
+		},
+		delete: {
+			heading: "Delete a skill",
+			title: (name: string) => `Delete ${name}?`,
+			description:
+				"The whole folder goes, with the SKILL.md and everything it ships. This cannot be undone.",
+			confirm: "Delete the skill",
+		},
+	},
+
+	mcp: {
+		title: "MCP servers",
+		desc: "The tools your agents reach outside the repository: databases, browsers, issue trackers, anything speaking MCP.",
+		refresh: "Reload",
+		new: "New server",
+		export: "Export",
+		reveal: "Show the file",
+		test: "Test",
+		searchPlaceholder: "Search a server",
+		noResults: "No server matches that search.",
+		emptyTitle: "No MCP server yet",
+		emptyDesc:
+			"An MCP server hands your agent tools it does not have on its own. Declare one here, or paste the JSON a server's documentation gives you.",
+		filter: { all: "All" },
+		providersHint:
+			"Every agent speaks MCP, so one server can serve several at once. Cairn writes it into each one's configuration, in the spelling that one expects.",
+		divergent:
+			"The declarations of this server no longer agree. Saving writes what is shown here to all of them.",
+		locations: {
+			title: "On disk",
+			hint: "The files it is declared in, and the agents that read each one.",
+		},
+		scope: {
+			needsProject: "Pick a project first.",
+			localOnlyClaude: "Only Claude Code keeps a private per-project list.",
+			user: "Every project",
+			local: "This project, you only",
+			project: "This project, shared",
+		},
+		scopeHint: {
+			user: "Written in ~/.claude.json. Available in every project you open.",
+			local:
+				"Written in ~/.claude.json under this project. Yours alone, and never committed.",
+			project:
+				"Written in the project's .mcp.json, so it is committed and the whole team gets it.",
+		},
+		transportHint: {
+			stdio: "Cairn's agent starts the process and talks to it over its pipes.",
+			http: "Streamable HTTP: every call is a request to the URL.",
+			sse: "Legacy Server-Sent Events. Prefer HTTP when the server offers both.",
+		},
+		copyOf: (name: string) => `${name}-copy`,
+		nameClash: "Another server of that scope already answers to this name.",
+		incomplete: "Fill the name and the connection before saving.",
+		willCreate: "This server does not exist yet.",
+		unsaved: "Unsaved changes",
+		toolPrefix: (prefix: string) => `Its tools reach the agent as ${prefix}`,
+		groups: {
+			connection: "Connection",
+			availability: "Where it applies",
+		},
+		fields: {
+			name: "Name",
+			namePlaceholder: "my-server",
+			transport: "Transport",
+			command: "Command",
+			commandHint:
+				"A name looked up in the PATH, or an absolute path to the binary.",
+			args: "Arguments",
+			argsHint: "One per line, in the order the command expects them.",
+			env: "Environment",
+			envHint:
+				"Passed to the process. ${VAR} and ${VAR:-default} are expanded when it starts.",
+			url: "URL",
+			urlHint: "The endpoint the server answers MCP calls on.",
+			headers: "Headers",
+			headersHint: "Sent with every call. This is where a token goes.",
+			scope: "Scope",
+			project: "Project",
+			enabled: "Enabled",
+			enabledHint:
+				"Codex and Vibe can keep a server declared but switched off. The others load it as soon as it is there.",
+			valuePlaceholder: "value",
+			reveal: "Show the value",
+		},
+		approval: {
+			title: "Approval",
+			approve: "Approved",
+			reject: "Rejected",
+			approvedHint: "Claude Code loads this server in this project.",
+			rejectedHint: "Claude Code skips this server in this project.",
+			pendingHint:
+				"Never answered yet: Claude Code will ask before loading it. Deciding here spares you the prompt.",
+			rejectedShort: "off",
+			pendingShort: "new",
+		},
+		probe: {
+			connected: "Connected",
+			failed: "Could not connect",
+			tools: "tools",
+			prompts: "prompts",
+			resources: "resources",
+			protocol: "protocol",
+			partial:
+				"A legacy SSE server answers on a stream that has to stay open, which a one-shot test cannot hold. Only its reachability was checked.",
+			showTools: "See the tools",
+		},
+		import: {
+			heading: "Import",
+			title: "Import from JSON",
+			description:
+				"Paste what a server's documentation gives you. Both the bare map and the mcpServers wrapper are understood.",
+			targetsHint: "The agents these servers are written for.",
+			json: "JSON",
+			confirm: "Import",
+		},
+		delete: {
+			heading: "Remove a server",
+			title: (name: string) => `Remove ${name}?`,
+			description:
+				"The declaration is removed from the file below. The server itself is untouched - Cairn never installed it.",
+			confirm: "Remove the server",
+		},
+	},
+
 	references: {
 		title: "References",
 		close: "Close references",
@@ -1478,6 +1717,8 @@ export const en = {
 			activity: "Activity",
 			providers: "Providers",
 			agents: "Agents",
+			skills: "Skills",
+			mcp: "MCP servers",
 			usage: "Usage and stats",
 			languageServers: "Language servers",
 			changelog: "What's new",
