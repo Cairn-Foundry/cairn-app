@@ -23,9 +23,9 @@
   import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
   import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
+  import type { HomeSection } from '$lib/components/home/HomeSidebar.svelte';
 
   type Screen = 'home' | 'workspace';
-  type HomeSection = 'projects' | 'activity' | 'settings';
 
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;

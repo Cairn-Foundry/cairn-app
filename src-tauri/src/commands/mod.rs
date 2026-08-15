@@ -23,6 +23,7 @@ pub mod instances;
 pub mod lsp;
 pub mod mcp;
 pub mod native_agents;
+pub mod ports;
 pub mod projects;
 pub mod settings;
 pub mod skills;
@@ -103,6 +104,7 @@ pub use skills::{
     list_skills, save_skill, delete_skill, duplicate_skill,
     add_skill_resources, delete_skill_resource,
 };
+pub use ports::{list_listening_ports, kill_process};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, set_window_vibrancy, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};

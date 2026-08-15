@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A Ports & Processes section on the home screen lists every TCP port listening on the machine with the process holding it, and stops any of them after confirmation.",
+					"fr": "Une section Ports & processus sur l'accueil liste tous les ports TCP en écoute sur la machine avec le processus qui les occupe, et permet d'en arrêter un après confirmation."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "The Git view gains an Ignore tab to edit the repository's local ignore rules, the ones that apply to every worktree without ever being committed.",
 					"fr": "La vue Git gagne un onglet Ignore pour éditer les règles d'exclusion locales du dépôt, celles qui s'appliquent à tous les worktrees sans jamais être commitées."
 				}

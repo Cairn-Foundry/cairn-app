@@ -16,6 +16,7 @@
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
+  import PortsSection from '$lib/components/home/PortsSection.svelte';
   import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
@@ -116,6 +117,15 @@
       </div>
       <div style="margin-top: 24px;">
         <UsageSection />
+      </div>
+
+    {:else if activeSection === 'ports'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.ports.title')}</h1>
+        <div class="sub">{t('home.ports.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <PortsSection />
       </div>
 
     {:else if activeSection === 'changelog'}

@@ -214,6 +214,8 @@ pub fn run() {
             save_agent_activity,
             get_agent_runs,
             save_agent_runs,
+            list_listening_ports,
+            kill_process,
             get_usage_entries,
             append_usage_entries,
             backfill_usage_entries,
