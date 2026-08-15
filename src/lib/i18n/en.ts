@@ -1548,6 +1548,12 @@ export const en = {
 		skipCommit: "Skip",
 		abort: "Abort",
 		mergeRebaseTab: "Merge / Rebase",
+		gitignoreTab: "Ignore",
+		gitignoreHint:
+			"Local ignore rules for this repository. They apply to every worktree, are never committed, and stay out of the shared .gitignore.",
+		gitignorePlaceholder: "One pattern per line, for example: *.log",
+		gitignoreSave: "Save",
+		gitignoreRevert: "Revert",
 		strategy: "Strategy",
 		strategyRebase: "Rebase",
 		strategyRebaseDesc:

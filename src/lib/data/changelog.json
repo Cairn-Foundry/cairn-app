@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "The Git view gains an Ignore tab to edit the repository's local ignore rules, the ones that apply to every worktree without ever being committed.",
+					"fr": "La vue Git gagne un onglet Ignore pour éditer les règles d'exclusion locales du dépôt, celles qui s'appliquent à tous les worktrees sans jamais être commitées."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "The code editor keeps the enclosing scopes - function, class, block - pinned at its top while you scroll, so you always see where you are. It can be turned off in Settings, Editor.",
 					"fr": "L'éditeur de code garde les portées englobantes - fonction, classe, bloc - épinglées en haut pendant le défilement, pour toujours savoir où l'on se trouve. Désactivable dans Réglages, Éditeur."
 				}

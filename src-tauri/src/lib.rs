@@ -138,6 +138,8 @@ pub fn run() {
             is_git_repo,
             git_status,
             git_check_ignore,
+            git_read_exclude,
+            git_write_exclude,
             git_diff_unstaged,
             git_diff_staged,
             git_diff_file,

@@ -356,6 +356,49 @@ pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Resu
 }
 
 // ---------------------------------------------------------------------------
+// Exclude (.git/info/exclude)
+// ---------------------------------------------------------------------------
+
+/// Absolute path of `info/exclude` in the repository's common git dir, so it
+/// resolves to the same file from any worktree of the repo.
+fn exclude_path(worktree_path: &str) -> Result<std::path::PathBuf, GitError> {
+    let expanded = expand(worktree_path);
+    let common = run(git_cmd(&expanded).args(["rev-parse", "--path-format=absolute", "--git-common-dir"]))?
+        .trim()
+        .to_string();
+    if common.is_empty() {
+        return Err(GitError::new("not_a_repo", format!("Not a git repository: {worktree_path}")));
+    }
+    Ok(Path::new(&common).join("info").join("exclude"))
+}
+
+#[tauri::command]
+/// Contents of the repository-local ignore file, empty when it does not exist yet.
+pub async fn git_read_exclude(worktree_path: String) -> Result<String, GitError> {
+    let path = exclude_path(&worktree_path)?;
+    match fs::read_to_string(&path) {
+        Ok(text) => Ok(text),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(e.into()),
+    }
+}
+
+#[tauri::command]
+/// Replaces the repository-local ignore file, creating `info/` if needed.
+pub async fn git_write_exclude(worktree_path: String, content: String) -> Result<(), GitError> {
+    let path = exclude_path(&worktree_path)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut next = content;
+    if !next.is_empty() && !next.ends_with('\n') {
+        next.push('\n');
+    }
+    fs::write(&path, next)?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Diff
 // ---------------------------------------------------------------------------
 

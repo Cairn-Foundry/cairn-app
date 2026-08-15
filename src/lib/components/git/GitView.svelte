@@ -13,6 +13,7 @@
   import StashView from '$lib/components/git/StashView.svelte';
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
+  import GitignoreView from '$lib/components/git/GitignoreView.svelte';
   import { readFile, isBinaryPath } from '$lib/services/file-service';
   import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk, GitError } from '$lib/services/git-service';
@@ -533,12 +534,13 @@
   }
 
   /** Switches the left tab, refreshing the data that tab owns and dropping stale selections. */
-  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'mergerebase') {
+  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'mergerebase' | 'gitignore') {
     gitLeftTab.set(tab);
     if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
     if (tab === 'log') { refreshLog(); selectedStash = null; }
     if (tab === 'graph') { refreshGraph(); selectedStash = null; }
     if (tab === 'stash') { clearSelectedCommit(); refreshStashes(); }
+    if (tab === 'gitignore') { clearSelectedCommit(); selectedStash = null; }
   }
 
   /** Compact age label, falling back to an absolute date past a month. */
@@ -933,6 +935,13 @@
           <span class="col-tab-dot" title={t('git.rebaseInProgress') as string}></span>
         {/if}
       </button>
+      <button
+        class="col-tab"
+        class:active={$gitLeftTab === 'gitignore'}
+        on:click={() => setLeftTab('gitignore')}
+      >
+        {t('git.gitignoreTab')}
+      </button>
     </div>
 
     {#if $gitLeftTab === 'changes'}
@@ -1138,6 +1147,8 @@
         on:openFile={(e) => dispatch('openFile', e.detail)}
         on:filesChanged={() => dispatch('filesChanged')}
       />
+    {:else if $gitLeftTab === 'gitignore'}
+      <GitignoreView />
     {/if}
   </div>
 

@@ -59,5 +59,5 @@ export const pendingGitAction = writable<"createProfile" | null>(null);
 
 /** Selected tab of the Git view left pane; persisted with the rest of the project state. */
 export const gitLeftTab = writable<
-	"changes" | "log" | "graph" | "stash" | "mergerebase"
+	"changes" | "log" | "graph" | "stash" | "mergerebase" | "gitignore"
 >("changes");

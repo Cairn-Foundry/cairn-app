@@ -664,6 +664,21 @@ activeInstance.subscribe((inst) => {
 	}
 });
 
+/** Reads the repository-local ignore file of the active worktree. */
+export async function readExclude(): Promise<string> {
+	const wt = worktree();
+	if (!wt) return "";
+	return gitService.readExclude(wt);
+}
+
+/** Saves the repository-local ignore file, then refreshes what it hides. */
+export async function writeExclude(content: string): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.writeExclude(wt, content));
+	await refreshStatus();
+}
+
 /** Reloads the stash list. */
 export async function refreshStashes(): Promise<void> {
 	const wt = worktree();

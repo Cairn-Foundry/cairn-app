@@ -97,7 +97,15 @@ export function snapshotCurrentProject(): void {
 export function applyProjectState(id: string): void {
 	const ps = get(_states)[id] ?? DEFAULT;
 	activeStep.set(ps.activeStep as WorkflowStep);
-	gitLeftTab.set(ps.gitLeftTab as "changes" | "log" | "graph");
+	gitLeftTab.set(
+		ps.gitLeftTab as
+			| "changes"
+			| "log"
+			| "graph"
+			| "stash"
+			| "mergerebase"
+			| "gitignore",
+	);
 	referencesPanelOpen.set(ps.referencesPanelOpen);
 	referencesQuery.set(ps.referencesQuery);
 	openAgentId.set(ps.openAgentId);

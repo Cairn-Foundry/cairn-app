@@ -1585,6 +1585,12 @@ export const fr = {
 		skipCommit: "Ignorer",
 		abort: "Abandonner",
 		mergeRebaseTab: "Merge / Rebase",
+		gitignoreTab: "Ignore",
+		gitignoreHint:
+			"Règles d'exclusion locales à ce dépôt. Elles s'appliquent à tous les worktrees, ne sont jamais commitées et n'entrent pas dans le .gitignore partagé.",
+		gitignorePlaceholder: "Un motif par ligne, par exemple : *.log",
+		gitignoreSave: "Enregistrer",
+		gitignoreRevert: "Annuler",
 		strategy: "Stratégie",
 		strategyRebase: "Rebase",
 		strategyRebaseDesc:

@@ -166,6 +166,19 @@ export async function checkIgnore(
 	return invoke("git_check_ignore", { worktreePath, paths });
 }
 
+/** Contents of the repository-local ignore file, empty when it does not exist yet. */
+export async function readExclude(worktreePath: string): Promise<string> {
+	return invoke("git_read_exclude", { worktreePath });
+}
+
+/** Replaces the repository-local ignore file. */
+export async function writeExclude(
+	worktreePath: string,
+	content: string,
+): Promise<void> {
+	return invoke("git_write_exclude", { worktreePath, content });
+}
+
 /** Worktree against index: everything not staged yet. */
 export async function getDiffUnstaged(
 	worktreePath: string,
