@@ -31,6 +31,7 @@ import { get } from 'svelte/store';
   import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
   import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
+  import { resolveTabClose } from '$lib/utils/files/files-tab-close';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -182,6 +183,7 @@ import { get } from 'svelte/store';
   let tree: FileNode[] = [];
   let gitStatusMap: GitStatusMap = {};
   let gitStatusWorktree: string | null = null;
+  const pendingDiffPanes = new Set<number>();
   let showIgnored = false;
   let multiSelected = new Set<string>();
 
@@ -339,9 +341,11 @@ import { get } from 'svelte/store';
     if (gitStatusWorktree !== worktreePath) {
       pane.baseContent = null;
       pane.currentBlame = new Map();
+      pendingDiffPanes.add(i);
       panes = panes;
       return;
     }
+    pendingDiffPanes.delete(i);
     const reqWorktree = worktreePath;
     const reqPath = tab.path;
     let result: { baseContent: string | null; currentBlame: Map<number, BlameEntry> };
@@ -412,18 +416,13 @@ import { get } from 'svelte/store';
       tabNavForward = tabNavForward.map(j => j > idx ? j - 1 : j).filter(j => j !== idx);
     }
 
-    const wasActive = idx === pane.activeTabIdx;
+    const previousActiveIdx = pane.activeTabIdx;
     pane.tabs = pane.tabs.filter((_, j) => j !== idx);
-
-    if (pane.tabs.length === 0) {
-      pane.activeTabIdx = -1;
-    } else if (wasActive) {
-      pane.activeTabIdx = Math.min(idx, pane.tabs.length - 1);
-    } else if (idx < pane.activeTabIdx) {
-      pane.activeTabIdx = pane.activeTabIdx - 1;
-    }
+    const { activeTabIdx, activeChanged } = resolveTabClose(previousActiveIdx, idx, pane.tabs.length);
+    pane.activeTabIdx = activeTabIdx;
     panes = panes;
     notifyLspClosed(tab.path);
+    if (activeChanged) refreshDiff(i, pane.tabs[activeTabIdx] ?? null);
   }
 
   function handleChange(i: number, value: string) {
@@ -1199,10 +1198,12 @@ import { get } from 'svelte/store';
       } else {
         const relPath = state.parentPath ? `${state.parentPath}/${name}` : name;
         await createFileOrDir(`${worktreePath}/${relPath}`, state.type === 'new-dir');
+        await loadTree(worktreePath);
         if (state.type !== 'new-dir') {
           const node: FileNode = { name, path: relPath, isDir: false };
           await openFile(node);
         }
+        return;
       }
       await loadTree(worktreePath);
     } catch (e) { error = String(e); }
@@ -1702,6 +1703,12 @@ import { get } from 'svelte/store';
       loadPaneBaseFor(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
     } catch (e) {
       error = String(e);
+      if (worktreePath === root && pendingDiffPanes.size > 0) {
+        gitStatusWorktree = root;
+        for (const i of [...pendingDiffPanes]) {
+          loadPaneBaseFor(i, panes[i].tabs[panes[i].activeTabIdx] ?? null);
+        }
+      }
     } finally {
       if (!silent && worktreePath === root) loading = false;
     }

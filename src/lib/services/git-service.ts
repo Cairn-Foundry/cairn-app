@@ -163,7 +163,7 @@ export async function getDiffFile(
 export async function getFileAtHead(
 	worktreePath: string,
 	filePath: string,
-): Promise<string> {
+): Promise<string | null> {
 	return invoke("git_file_at_head", { worktreePath, filePath });
 }
 

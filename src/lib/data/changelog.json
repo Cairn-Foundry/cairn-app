@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The git markers in the editor and the minimap now follow the file that is actually shown. Closing a tab no longer leaves the next file diffed against the closed one, a freshly created file is no longer flagged line by line as modified, and in split view each editor keeps its own markers instead of borrowing the other pane's.",
+					"fr": "Les marqueurs git de l'éditeur et de la minimap suivent désormais le fichier réellement affiché. Fermer un onglet ne laisse plus le fichier suivant comparé à celui qui vient d'être fermé, un fichier tout juste créé n'est plus signalé ligne à ligne comme modifié, et en vue scindée chaque éditeur conserve ses propres marqueurs au lieu d'emprunter ceux de l'autre panneau."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Cairn now shows a loading screen while it starts up, instead of a blank window: the interface only appears once the settings, the projects and the view it was left on are all restored, so a reload no longer flashes an unstyled layout.",

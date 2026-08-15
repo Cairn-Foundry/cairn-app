@@ -8,7 +8,7 @@ vi.mock("$lib/services/file-service", () => ({
 }));
 
 vi.mock("$lib/services/git-service", () => ({
-	getFileAtHead: vi.fn().mockResolvedValue(""),
+	getFileAtHead: vi.fn().mockResolvedValue(null),
 	checkIgnore: vi.fn().mockResolvedValue([]),
 }));
 
@@ -63,6 +63,24 @@ describe("loadPaneBase", () => {
 			new Error("git show failed"),
 		);
 		const state = await loadPaneBase("/wt", "file.ts", "modified");
+		expect(state.baseContent).toBeNull();
+	});
+
+	it("suppresses the gutter when the file has no baseline in HEAD", async () => {
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce(null);
+		const state = await loadPaneBase("/wt", "brand-new.ts", "modified");
+		expect(state.baseContent).toBeNull();
+	});
+
+	it("keeps an empty baseline distinct from a missing one", async () => {
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce("");
+		const state = await loadPaneBase("/wt", "was-empty.ts", "modified");
+		expect(state.baseContent).toBe("");
+	});
+
+	it("suppresses the gutter for a new file whose status is not known yet", async () => {
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce(null);
+		const state = await loadPaneBase("/wt", "created.ts", undefined);
 		expect(state.baseContent).toBeNull();
 	});
 

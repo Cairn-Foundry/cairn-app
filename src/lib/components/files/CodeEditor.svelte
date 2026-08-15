@@ -1,17 +1,14 @@
-<script context="module" lang="ts">
-  import { Compartment as CompartmentModule } from '@codemirror/state';
-
-  const minimapCompartment = new CompartmentModule();
-  const fontSizeCompartment = new CompartmentModule();
-  const shortcutKeymapCompartment = new CompartmentModule();
-  const themeCompartment = new CompartmentModule();
-  const highlightCompartment = new CompartmentModule();
-  const whitespaceCompartment = new CompartmentModule();
-  const languageCompartment = new CompartmentModule();
-  const instanceCompartment = new CompartmentModule();
-</script>
-
 <script lang="ts">
+  import { Compartment } from '@codemirror/state';
+
+  const minimapCompartment = new Compartment();
+  const fontSizeCompartment = new Compartment();
+  const shortcutKeymapCompartment = new Compartment();
+  const themeCompartment = new Compartment();
+  const highlightCompartment = new Compartment();
+  const whitespaceCompartment = new Compartment();
+  const languageCompartment = new Compartment();
+  const instanceCompartment = new Compartment();
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -392,7 +389,11 @@
   }
 
   onMount(() => {
-    const initState = savedState ?? EditorState.create({ doc: content, extensions: buildExtensions() });
+    const initState = EditorState.create({
+      doc: savedState ? savedState.doc : content,
+      selection: savedState ? savedState.selection : undefined,
+      extensions: buildExtensions(),
+    });
     view = new EditorView({ state: initState, parent: container });
     view.dispatch({ effects: instanceCompartment.reconfigure(buildInstanceExtensions()) });
     if (baseContent !== null) {

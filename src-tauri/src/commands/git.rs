@@ -352,21 +352,21 @@ pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, 
 }
 
 #[tauri::command]
-pub async fn git_file_at_head(worktree_path: String, file_path: String) -> Result<String, GitError> {
+pub async fn git_file_at_head(
+    worktree_path: String,
+    file_path: String,
+) -> Result<Option<String>, GitError> {
     let expanded = expand(&worktree_path);
     let output = git_cmd(&expanded)
         .args(["show", &format!("HEAD:{}", file_path)])
         .output()?;
-    // File is new/untracked, deleted from HEAD, or the repo has no commit yet.
-    // Outside a repository there is no baseline at all: reporting an empty one
-    // would flag every line of every file as added.
     if !output.status.success() {
         if !is_repo_root(&expanded)? {
             return Err(GitError::from_process(&output));
         }
-        return Ok(String::new());
+        return Ok(None);
     }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
 }
 
 #[tauri::command]
