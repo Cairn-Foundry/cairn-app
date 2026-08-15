@@ -27,9 +27,8 @@
     document.documentElement.setAttribute('data-theme', $settings.theme);
     document.documentElement.style.setProperty('--accent', $settings.accentColor);
     document.documentElement.style.setProperty('--accent-fg', foregroundOn($settings.accentColor));
-    const font = $settings.fontFamily;
-    document.documentElement.style.setProperty('--font-mono', font);
-    document.documentElement.style.setProperty('--font-ui', font);
+    document.documentElement.style.setProperty('--font-mono', $settings.fontFamily);
+    document.documentElement.style.setProperty('--font-ui', $settings.fontFamily);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
   }

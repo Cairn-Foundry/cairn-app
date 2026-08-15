@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  export type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'providers' | 'agents' | 'skills' | 'mcp' | 'usage' | 'languageServers' | 'changelog' | 'account' | 'settings';
+  export type HomeSection = 'projects' | 'activity' | 'providers' | 'agents' | 'skills' | 'mcp' | 'usage' | 'changelog' | 'settings';
 </script>
 
 <script lang="ts">
@@ -25,41 +25,30 @@
   <button class="home-nav-item {activeSection === 'projects'    ? 'active' : ''}" on:click={() => dispatch('select', 'projects')}>
     <Icon name="folder" size={15}/> {t('home.sidebar.projects')}
   </button>
-  <button class="home-nav-item {activeSection === 'checkpoints' ? 'active' : ''}" on:click={() => dispatch('select', 'checkpoints')}>
-    <Icon name="bookmark" size={15}/> {t('home.sidebar.savedCheckpoints')}
-  </button>
   <button class="home-nav-item {activeSection === 'activity'    ? 'active' : ''}" on:click={() => dispatch('select', 'activity')}>
     <Icon name="clock" size={15}/> {t('home.sidebar.activity')}
   </button>
+
+  <div class="section">{t('home.sidebar.ai')}</div>
   <button class="home-nav-item {activeSection === 'providers'  ? 'active' : ''}" on:click={() => dispatch('select', 'providers')}>
     <Icon name="cloud" size={15}/> {t('home.sidebar.providers')}
   </button>
   <button class="home-nav-item {activeSection === 'agents'     ? 'active' : ''}" on:click={() => dispatch('select', 'agents')}>
     <Icon name="agent" size={15}/> {t('home.sidebar.agents')}
   </button>
-
   <button class="home-nav-item {activeSection === 'skills'     ? 'active' : ''}" on:click={() => dispatch('select', 'skills')}>
     <Icon name="book" size={15}/> {t('home.sidebar.skills')}
   </button>
   <button class="home-nav-item {activeSection === 'mcp'        ? 'active' : ''}" on:click={() => dispatch('select', 'mcp')}>
     <Icon name="link" size={15}/> {t('home.sidebar.mcp')}
   </button>
-
   <button class="home-nav-item {activeSection === 'usage'      ? 'active' : ''}" on:click={() => dispatch('select', 'usage')}>
     <Icon name="gauge" size={15}/> {t('home.sidebar.usage')}
   </button>
 
-  <button class="home-nav-item {activeSection === 'languageServers' ? 'active' : ''}" on:click={() => dispatch('select', 'languageServers')}>
-    <Icon name="server" size={15}/> {t('home.sidebar.languageServers')}
-  </button>
-
+  <div class="section">{t('home.sidebar.app')}</div>
   <button class="home-nav-item {activeSection === 'changelog'  ? 'active' : ''}" on:click={() => dispatch('select', 'changelog')}>
     <Icon name="sparkles" size={15}/> {t('home.sidebar.changelog')}
-  </button>
-
-  <div class="section">{t('home.sections.account')}</div>
-  <button class="home-nav-item {activeSection === 'account'     ? 'active' : ''}" on:click={() => dispatch('select', 'account')}>
-    <Icon name="user" size={15}/> Benjamin
   </button>
   <button class="home-nav-item {activeSection === 'settings'    ? 'active' : ''}" on:click={() => dispatch('select', 'settings')}>
     <Icon name="settings" size={15}/> {t('home.sidebar.settings')}

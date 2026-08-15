@@ -1048,8 +1048,6 @@ export const en = {
 	},
 
 	languageServers: {
-		title: "Language servers",
-		desc: "Real completion, diagnostics and symbol lookup, from the language servers you turn on.",
 		behaviourGroup: "Behaviour",
 		serversGroup: "Servers",
 		suggestOnOpen: "Offer a server on open",
@@ -1752,17 +1750,10 @@ export const en = {
 		greeting: "Good morning, Benjamin.",
 		greetingTagline: "Which cairn are you following today?",
 		sections: {
-			checkpoints: "Saved checkpoints",
-			checkpointsDesc: "Rewind any instance to a saved state.",
-			checkpointsEmpty:
-				"No checkpoints yet - they will appear here as instances run.",
 			activity: "Activity",
 			activityDesc: "Recent events across all instances.",
 			activityEmpty:
 				"No activity yet - events will appear here as instances run.",
-			account: "Account",
-			aiProvider: "AI provider",
-			aiProviderValue: "Claude Code CLI",
 		},
 		usage: {
 			title: "Usage and stats",
@@ -1825,16 +1816,15 @@ export const en = {
 		sidebar: {
 			workspace: "Workspace",
 			projects: "Projects",
-			savedCheckpoints: "Saved checkpoints",
 			activity: "Activity",
+			ai: "Artificial Intelligences",
 			providers: "Providers",
 			agents: "Agents",
 			skills: "Skills",
 			mcp: "MCP servers",
-			usage: "Usage and stats",
-			languageServers: "Language servers",
+			usage: "Usage & Stats",
+			app: "App",
 			changelog: "What's new",
-			account: "Account",
 			settings: "Settings",
 		},
 		changelog: {
@@ -2084,6 +2074,7 @@ export const en = {
 			editor: "Editor",
 			shortcuts: "Shortcuts",
 			languages: "Languages",
+			languageServers: "Language servers",
 			git: "Git",
 			agent: "Agent",
 		},

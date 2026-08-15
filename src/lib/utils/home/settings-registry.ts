@@ -8,6 +8,7 @@ export type SettingsTab =
 	| "shortcuts"
 	| "project"
 	| "languages"
+	| "languageServers"
 	| "git"
 	| "agent";
 
@@ -78,7 +79,7 @@ const STATIC_SETTINGS: SettingEntry[] = [
 	{
 		label: s("settings.syntax.groupTitle"),
 		desc: s("settings.syntax.desc"),
-		tab: "appearance",
+		tab: "editor",
 		group: s("settings.syntax.groupTitle"),
 	},
 	{
@@ -139,6 +140,18 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		desc: s("settings.languages.desc"),
 		tab: "languages",
 		group: s("settings.languages.groupTitle"),
+	},
+	{
+		label: s("languageServers.behaviourGroup"),
+		desc: s("languageServers.suggestOnOpenDesc"),
+		tab: "languageServers",
+		group: s("languageServers.behaviourGroup"),
+	},
+	{
+		label: s("languageServers.serversGroup"),
+		desc: s("languageServers.searchPlaceholder"),
+		tab: "languageServers",
+		group: s("languageServers.serversGroup"),
 	},
 ];
 

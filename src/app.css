@@ -71,8 +71,8 @@
   --r-xl: 14px;
 
   /* Fonts */
-  --font-ui: 'Inter Tight', system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui: Menlo, ui-monospace, SFMono-Regular, monospace;
+  --font-mono: Menlo, ui-monospace, SFMono-Regular, monospace;
   --font-serif: 'Instrument Serif', ui-serif, Georgia, serif;
 }
 

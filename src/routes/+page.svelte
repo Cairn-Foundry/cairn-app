@@ -21,7 +21,7 @@
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
 
   type Screen = 'home' | 'workspace';
-  type HomeSection = 'projects' | 'checkpoints' | 'activity' | 'languageServers' | 'account' | 'settings';
+  type HomeSection = 'projects' | 'activity' | 'settings';
 
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;
@@ -232,7 +232,7 @@
       on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
       on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
-      on:goLanguageServers={() => { homeOpenSection = 'languageServers'; screen = 'home'; }}
+      on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; screen = 'home'; }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
       on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />

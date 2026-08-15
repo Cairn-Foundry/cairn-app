@@ -208,7 +208,7 @@ fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
 fn default_ui_scale() -> f64 { 1.0 }
-fn default_editor_font_family() -> String { "'JetBrains Mono', ui-monospace, monospace".to_string() }
+fn default_editor_font_family() -> String { "Menlo, ui-monospace, monospace".to_string() }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
 fn default_theme() -> String { "default".to_string() }

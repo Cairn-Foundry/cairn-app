@@ -20,6 +20,8 @@ interface ManagedTerminal {
 
 const managed = new Map<string, ManagedTerminal>();
 
+const FALLBACK_FONT = "'JetBrains Mono', 'Fira Code', monospace";
+
 function cssVar(name: string, fallback: string): string {
 	if (typeof document === "undefined") return fallback;
 	const probe = document.createElement("span");
@@ -29,6 +31,16 @@ function cssVar(name: string, fallback: string): string {
 	const color = getComputedStyle(probe).color;
 	probe.remove();
 	return color || fallback;
+}
+
+// cssVar resolves through style.color, so it only ever returns a colour: asking
+// it for a font stack yields the initial "rgb(0, 0, 0)", never the real value.
+function cssFontVar(name: string, fallback: string): string {
+	if (typeof document === "undefined") return fallback;
+	const value = getComputedStyle(document.documentElement)
+		.getPropertyValue(name)
+		.trim();
+	return value || fallback;
 }
 
 function buildTheme() {
@@ -41,10 +53,24 @@ function buildTheme() {
 	};
 }
 
+function refitTerminal(m: ManagedTerminal): void {
+	if (!m.opened) return;
+	try {
+		m.fit.fit();
+	} catch {
+		// Slot has no layout yet (hidden view); ignore until it is shown.
+	}
+}
+
 function applyTheme(): void {
 	const theme = buildTheme();
+	const fontFamily = cssFontVar("--font-mono", FALLBACK_FONT);
 	for (const m of managed.values()) {
 		m.term.options.theme = theme;
+		if (m.term.options.fontFamily !== fontFamily) {
+			m.term.options.fontFamily = fontFamily;
+			refitTerminal(m);
+		}
 	}
 }
 
@@ -134,9 +160,7 @@ export function create(id: string): void {
 	if (managed.has(id)) return;
 
 	const term = new Terminal({
-		fontFamily:
-			cssVar("--font-mono", "").trim() ||
-			"'JetBrains Mono', 'Fira Code', monospace",
+		fontFamily: cssFontVar("--font-mono", FALLBACK_FONT),
 		fontSize: 12.5,
 		cursorBlink: true,
 		scrollback: 5000,
@@ -181,12 +205,7 @@ export function attach(id: string, slot: HTMLElement): void {
 
 export function refit(id: string): void {
 	const m = managed.get(id);
-	if (!m?.opened) return;
-	try {
-		m.fit.fit();
-	} catch {
-		// Slot has no layout yet (hidden view); ignore until it is shown.
-	}
+	if (m) refitTerminal(m);
 }
 
 export function focus(id: string): void {

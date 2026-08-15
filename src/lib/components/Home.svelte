@@ -11,7 +11,6 @@
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
-  import LanguageServersSection from '$lib/components/home/LanguageServersSection.svelte';
   import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
@@ -59,15 +58,6 @@
         on:addProject={(e) => addProjectMode = e.detail}
         on:editProject={(e) => editingProject = e.detail}
       />
-
-    {:else if activeSection === 'checkpoints'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.sections.checkpoints')}</h1>
-        <div class="sub">{t('home.sections.checkpointsDesc')}</div>
-      </div>
-      <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-        {t('home.sections.checkpointsEmpty')}
-      </div>
 
     {:else if activeSection === 'activity'}
       <div class="home-hero" style="padding-bottom: 0">
@@ -123,38 +113,12 @@
         <UsageSection />
       </div>
 
-    {:else if activeSection === 'languageServers'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('languageServers.title')}</h1>
-        <div class="sub">{t('languageServers.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <LanguageServersSection />
-      </div>
-
     {:else if activeSection === 'changelog'}
       <div class="home-hero" style="padding-bottom: 0">
         <h1 style="font-size: 22px">{t('home.changelog.title')}</h1>
       </div>
       <div style="margin-top: 24px;">
         <ChangelogSection />
-      </div>
-
-    {:else if activeSection === 'account'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.sections.account')}</h1>
-      </div>
-      <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 16px; max-width: 480px;">
-        <div style="display: flex; align-items: center; gap: 16px; padding: 20px; background: var(--bg-2); border-radius: var(--r-lg); border: 1px solid var(--stroke-0);">
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-weak); border: 2px solid var(--accent-line); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--accent);">B</div>
-          <div>
-            <div style="font-size: 15px; font-weight: 600; color: var(--fg-0);">Benjamin</div>
-            <div style="font-size: 12px; color: var(--fg-3); margin-top: 2px;">benjamin_bonneton@icloud.com</div>
-          </div>
-        </div>
-        <div style="padding: 14px 16px; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--stroke-0); font-size: 12px; color: var(--fg-3);">
-          {t('home.sections.aiProvider')} · <span style="color: var(--fg-1)">{t('home.sections.aiProviderValue')}</span>
-        </div>
       </div>
 
     {:else if activeSection === 'settings'}

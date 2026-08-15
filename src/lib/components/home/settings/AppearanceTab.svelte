@@ -3,94 +3,12 @@
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '$lib/utils/home/appearance';
-  import SyntaxThemeEditor from '$lib/components/home/settings/SyntaxThemeEditor.svelte';
-  import type { SyntaxTheme } from '$lib/utils/editor/syntax-tokens';
-  import { SYNTAX_TOKEN_KEYS, defaultSyntaxTokens } from '$lib/utils/editor/syntax-tokens';
-  import {
-    createSyntaxTheme,
-    duplicateSyntaxTheme,
-    parseSyntaxTheme,
-    serializeSyntaxTheme,
-  } from '$lib/utils/home/syntax-theme';
-  import { readFile, writeFile } from '$lib/services/file-service';
   import { availableThemes } from '$lib/utils/editor/themes';
 
   const themeOptions = availableThemes();
 
   $: currentFont = $settings.fontFamily;
   $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === $settings.accentColor);
-
-  let editing: SyntaxTheme | null = null;
-  let syntaxError = '';
-
-  $: syntaxThemes = $settings.syntaxThemes;
-  $: activeSyntaxId = $settings.activeSyntaxThemeId;
-  $: builtInTokens = defaultSyntaxTokens($settings.theme);
-
-  function selectSyntaxTheme(id: string) {
-    settings.save({ activeSyntaxThemeId: id });
-  }
-
-  function newSyntaxTheme() {
-    syntaxError = '';
-    editing = createSyntaxTheme(t('settings.syntax.newThemeName') as string, $settings.theme);
-  }
-
-  function duplicate(theme: SyntaxTheme) {
-    const copy = duplicateSyntaxTheme(theme);
-    settings.save({
-      syntaxThemes: [...syntaxThemes, copy],
-      activeSyntaxThemeId: copy.id,
-    });
-  }
-
-  function removeSyntaxTheme(theme: SyntaxTheme) {
-    settings.save({
-      syntaxThemes: syntaxThemes.filter(x => x.id !== theme.id),
-      activeSyntaxThemeId: activeSyntaxId === theme.id ? '' : activeSyntaxId,
-    });
-  }
-
-  function saveSyntaxTheme(theme: SyntaxTheme) {
-    const exists = syntaxThemes.some(x => x.id === theme.id);
-    settings.save({
-      syntaxThemes: exists
-        ? syntaxThemes.map(x => (x.id === theme.id ? theme : x))
-        : [...syntaxThemes, theme],
-      activeSyntaxThemeId: theme.id,
-    });
-    editing = null;
-  }
-
-  async function exportSyntaxTheme(theme: SyntaxTheme) {
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const path = await save({
-      defaultPath: `${theme.name.replace(/[^\w.-]+/g, '-')}.json`,
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-    });
-    if (!path) return;
-    await writeFile(path, serializeSyntaxTheme(theme));
-  }
-
-  async function importSyntaxTheme() {
-    syntaxError = '';
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const path = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-    });
-    if (typeof path !== 'string') return;
-    try {
-      const imported = parseSyntaxTheme((await readFile(path)) ?? '', $settings.theme);
-      settings.save({
-        syntaxThemes: [...syntaxThemes, imported],
-        activeSyntaxThemeId: imported.id,
-      });
-    } catch (err) {
-      syntaxError = err instanceof Error ? err.message : String(err);
-    }
-  }
 </script>
 
 <div class="settings-group">
@@ -195,81 +113,11 @@
     </div>
   </div>
 </div>
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.syntax.groupTitle')}</div>
-  <p class="settings-group-hint">{t('settings.syntax.desc')}</p>
-
-  <div class="syntax-cards">
-    <button
-      class="syntax-card {activeSyntaxId === '' ? 'active' : ''}"
-      on:click={() => selectSyntaxTheme('')}
-    >
-      <span class="syntax-swatches">
-        {#each SYNTAX_TOKEN_KEYS as key}
-          <span class="syntax-swatch" style="background: {builtInTokens[key].color}"></span>
-        {/each}
-      </span>
-      <span class="syntax-card-name">{t('settings.syntax.builtIn')}</span>
-    </button>
-
-    {#each syntaxThemes as theme (theme.id)}
-      <div class="syntax-card-wrap">
-        <button
-          class="syntax-card {activeSyntaxId === theme.id ? 'active' : ''}"
-          on:click={() => selectSyntaxTheme(theme.id)}
-        >
-          <span class="syntax-swatches">
-            {#each SYNTAX_TOKEN_KEYS as key}
-              <span class="syntax-swatch" style="background: {theme.tokens[key]?.color ?? builtInTokens[key].color}"></span>
-            {/each}
-          </span>
-          <span class="syntax-card-name">{theme.name}</span>
-        </button>
-        <div class="syntax-card-actions">
-          <button class="syntax-action" title={t('common.edit') as string} on:click={() => { editing = theme; }}>
-            <Icon name="edit" size={11}/>
-          </button>
-          <button class="syntax-action" title={t('common.duplicate') as string} on:click={() => duplicate(theme)}>
-            <Icon name="copy" size={11}/>
-          </button>
-          <button class="syntax-action" title={t('settings.syntax.export') as string} on:click={() => exportSyntaxTheme(theme)}>
-            <Icon name="download" size={11}/>
-          </button>
-          <button class="syntax-action" title={t('common.delete') as string} on:click={() => removeSyntaxTheme(theme)}>
-            <Icon name="trash" size={11}/>
-          </button>
-        </div>
-      </div>
-    {/each}
-  </div>
-
-  <div class="syntax-buttons">
-    <button class="btn ghost" style="font-size: 12px;" on:click={newSyntaxTheme}>
-      <Icon name="plus" size={12}/> {t('settings.syntax.newTheme')}
-    </button>
-    <button class="btn ghost" style="font-size: 12px;" on:click={importSyntaxTheme}>
-      <Icon name="upload" size={12}/> {t('settings.syntax.import')}
-    </button>
-  </div>
-
-  {#if syntaxError}
-    <p class="syntax-error">{syntaxError}</p>
-  {/if}
-</div>
-
-{#if editing}
-  <SyntaxThemeEditor
-    theme={editing}
-    on:close={() => { editing = null; }}
-    on:save={(e) => saveSyntaxTheme(e.detail)}
-  />
-{/if}
-
 <div class="settings-section-reset">
   <button
     class="btn ghost"
     style="font-size: 12px;"
-    on:click={() => settings.save({ theme: 'default', accentColor: DEFAULT_ACCENT, fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
+    on:click={() => settings.save({ theme: 'default', accentColor: DEFAULT_ACCENT, fontFamily: "Menlo, ui-monospace, monospace" })}
   >
     <Icon name="undo" size={12}/> {t('settings.appearance.resetAppearance')}
   </button>
@@ -422,96 +270,6 @@
     color: var(--accent);
     display: flex;
     align-items: center;
-  }
-
-  .settings-group-hint {
-    margin: -4px 0 10px;
-    font-size: 11.5px;
-    color: var(--fg-3);
-    line-height: 1.5;
-  }
-
-  .syntax-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .syntax-card-wrap { position: relative; }
-
-  .syntax-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: var(--r-md);
-    border: 2px solid var(--stroke-0);
-    background: var(--bg-1);
-    cursor: pointer;
-    transition: border-color .12s, background .12s;
-    width: 168px;
-  }
-  .syntax-card:hover { border-color: var(--stroke-2); background: var(--bg-2); }
-  .syntax-card.active { border-color: var(--accent); background: var(--bg-2); }
-
-  .syntax-swatches {
-    display: flex;
-    gap: 2px;
-    width: 100%;
-  }
-  .syntax-swatch {
-    flex: 1;
-    height: 14px;
-    border-radius: 2px;
-  }
-
-  .syntax-card-name {
-    font-size: 12px;
-    color: var(--fg-1);
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .syntax-card.active .syntax-card-name { color: var(--fg-0); }
-
-  .syntax-card-actions {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    display: flex;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity .12s;
-  }
-  .syntax-card-wrap:hover .syntax-card-actions { opacity: 1; }
-
-  .syntax-action {
-    display: grid;
-    place-items: center;
-    width: 20px;
-    height: 20px;
-    padding: 0;
-    background: var(--bg-3);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-xs);
-    color: var(--fg-2);
-    cursor: pointer;
-  }
-  .syntax-action:hover { background: var(--bg-4); color: var(--fg-0); }
-
-  .syntax-buttons {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .syntax-error {
-    margin: 8px 0 0;
-    font-size: 11.5px;
-    color: var(--danger);
   }
 
   .accent-presets {

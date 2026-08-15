@@ -10,3 +10,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vscode
 /coverage
+.claude
+docs/plans
+CLAUDE.md

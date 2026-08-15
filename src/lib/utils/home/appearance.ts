@@ -44,6 +44,12 @@ export const ACCENT_PRESETS: { label: string; color: string }[] = [
 // Font names are proper typeface names - not translated.
 export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] =
 	[
+		{ label: "Menlo", stack: "Menlo, ui-monospace, monospace", sample: "Ag01" },
+		{
+			label: "Consolas",
+			stack: "Consolas, ui-monospace, monospace",
+			sample: "Ag01",
+		},
 		{
 			label: "JetBrains Mono",
 			stack: "'JetBrains Mono', ui-monospace, monospace",
@@ -55,15 +61,9 @@ export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] =
 			sample: "Ag01",
 		},
 		{ label: "System Mono", stack: "ui-monospace, monospace", sample: "Ag01" },
-		{ label: "Menlo", stack: "Menlo, ui-monospace, monospace", sample: "Ag01" },
 		{
 			label: "Monaco",
 			stack: "Monaco, ui-monospace, monospace",
-			sample: "Ag01",
-		},
-		{
-			label: "Consolas",
-			stack: "Consolas, ui-monospace, monospace",
 			sample: "Ag01",
 		},
 		{ label: "Courier New", stack: "'Courier New', monospace", sample: "Ag01" },

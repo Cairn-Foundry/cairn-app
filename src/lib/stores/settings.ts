@@ -15,7 +15,7 @@ const DEFAULTS: CairnSettings = {
 	showMinimap: true,
 	editorFontSize: 13,
 	uiScale: 1,
-	fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+	fontFamily: "Menlo, ui-monospace, monospace",
 	splitMode: false,
 	splitLeftWidth: 0,
 	shortcuts: [],

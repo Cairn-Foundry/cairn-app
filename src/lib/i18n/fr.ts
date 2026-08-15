@@ -1070,8 +1070,6 @@ export const fr = {
 	},
 
 	languageServers: {
-		title: "Serveurs de langage",
-		desc: "Complétion réelle, diagnostics et recherche de symboles, depuis les serveurs de langage que vous activez.",
 		behaviourGroup: "Comportement",
 		serversGroup: "Serveurs",
 		suggestOnOpen: "Proposer un serveur à l'ouverture",
@@ -1789,18 +1787,10 @@ export const fr = {
 		greeting: "Bonjour, Benjamin.",
 		greetingTagline: "Quel cairn suivez-vous aujourd'hui ?",
 		sections: {
-			checkpoints: "Checkpoints sauvegardés",
-			checkpointsDesc:
-				"Revenez à un état sauvegardé de n'importe quelle instance.",
-			checkpointsEmpty:
-				"Aucun checkpoint pour l'instant - ils apparaîtront ici au fil des instances.",
 			activity: "Activité",
 			activityDesc: "Événements récents sur toutes les instances.",
 			activityEmpty:
 				"Aucune activité pour l'instant - les événements apparaîtront ici au fil des instances.",
-			account: "Compte",
-			aiProvider: "Fournisseur IA",
-			aiProviderValue: "Claude Code CLI",
 		},
 		usage: {
 			title: "Consommation et statistiques",
@@ -1864,16 +1854,15 @@ export const fr = {
 		sidebar: {
 			workspace: "Espace de travail",
 			projects: "Projets",
-			savedCheckpoints: "Checkpoints sauvegardés",
 			activity: "Activité",
+			ai: "Intelligences artificielles",
 			providers: "Fournisseurs",
 			agents: "Agents",
 			skills: "Compétences",
 			mcp: "Serveurs MCP",
-			usage: "Consommation",
-			languageServers: "Serveurs de langage",
+			usage: "Consommation & stats",
+			app: "Application",
 			changelog: "Nouveautés",
-			account: "Compte",
 			settings: "Paramètres",
 		},
 		changelog: {
@@ -2129,6 +2118,7 @@ export const fr = {
 			editor: "Éditeur",
 			shortcuts: "Raccourcis",
 			languages: "Langues",
+			languageServers: "Serveurs de langage",
 			git: "Git",
 			agent: "Agent",
 		},

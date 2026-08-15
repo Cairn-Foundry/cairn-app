@@ -8,6 +8,27 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The font chosen in Settings, Appearance applies to the whole interface again, not only to the editor and the terminal.",
+					"fr": "La police choisie dans Réglages, Apparence s'applique à nouveau à toute l'interface, et plus seulement à l'éditeur et au terminal."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Syntax highlighting themes have moved from Settings, Appearance to Settings, Editor, next to the other code settings.",
+					"fr": "Les thèmes de coloration syntaxique passent de Réglages, Apparence à Réglages, Éditeur, à côté des autres réglages de code."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Menlo is now the default font of the interface. A font already chosen in Settings, Appearance is kept.",
+					"fr": "Menlo est désormais la police par défaut de l'interface. Une police déjà choisie dans Réglages, Apparence est conservée."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Five new themes in Settings, Appearance: Nord, Solarized, Dracula, Paper, and Transparent, which makes the window translucent over the desktop on macOS.",
@@ -215,6 +236,20 @@
 				"text": {
 					"en": "Dragging the minimap's viewport box, or clicking elsewhere on it to jump, also selected the editor's text underneath.",
 					"fr": "Faire glisser le cadre de la minimap, ou cliquer ailleurs dessus pour s'y déplacer, sélectionnait aussi le texte de l'éditeur en dessous."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Choosing a font in Settings, Appearance no longer changes the interface font: the setting applies to the code editor and the terminal only, as its description states.",
+					"fr": "Choisir une police dans Réglages, Apparence ne change plus la police de l'interface : le réglage ne s'applique qu'à l'éditeur de code et au terminal, conformément à sa description."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The terminal now really uses the font chosen in the settings, and open terminals pick up a change immediately instead of keeping the previous one until they were closed.",
+					"fr": "Le terminal utilise désormais réellement la police choisie dans les réglages, et les terminaux ouverts prennent en compte un changement immédiatement au lieu de conserver la précédente jusqu'à leur fermeture."
 				}
 			}
 		]
