@@ -339,7 +339,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 .btn:hover { background: var(--bg-4); color: var(--fg-0); border-color: var(--stroke-1); }
 .btn.primary {
   background: var(--accent);
-  color: white;
+  color: var(--accent-fg);
   border-color: transparent;
 }
 .btn.primary:hover { background: var(--accent-hover); }
@@ -444,10 +444,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   font-size: 9px; font-weight: 600; line-height: 1;
   min-width: 13px; height: 13px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 7px; color: white;
+  border-radius: 7px;
 }
-.step .git-badge .unstaged { background: var(--warning); }
-.step .git-badge .staged { background: var(--accent); }
+.step .git-badge .unstaged {
+  background: oklch(0.66 0.18 48);
+  color: oklch(0.98 0.005 60);
+}
+.step .git-badge .staged { background: var(--accent); color: var(--accent-fg); }
 .step .conflict-dot {
   position: absolute; top: 6px; left: 6px;
   width: 8px; height: 8px; border-radius: 50%;
@@ -1242,7 +1245,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 14px;
   font-size: 12.5px;
-  color: white;
+  color: var(--accent-fg);
   background: var(--accent);
   border-radius: var(--r-sm);
   font-weight: 500;
@@ -1676,7 +1679,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 }
 .home-action.primary .aci,
 .home-action.primary .at,
-.home-action.primary .ad { color: white; }
+.home-action.primary .ad { color: var(--accent-fg); }
 .home-action.primary .ad { color: oklch(0.96 0.02 250 / 0.8); }
 
 .home-section-title {

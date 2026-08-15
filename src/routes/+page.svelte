@@ -16,6 +16,7 @@
   import Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
   import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
+  import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
 
   type Screen = 'home' | 'workspace';
@@ -69,7 +70,7 @@
     initTerminals();
     initLanguageServers();
     void loadAgentActivity();
-    settings.load();
+    await settings.load();
     stopUpdateChecks = startUpdateChecks();
 
     const saved = await getUiState();
@@ -164,6 +165,10 @@
     persistUiState();
   }
 </script>
+
+{#if !mounted}
+  <LoadingScreen/>
+{/if}
 
 <div class="os-window">
   <div class="screen-wrap" class:screen-hidden={screen !== 'home'}>

@@ -654,16 +654,6 @@ export const en = {
 			description:
 				"Every copy of the definition is removed, so the agents that read it lose it too.",
 		},
-		migration: {
-			done: (n: number) =>
-				n === 1
-					? "1 agent Cairn used to keep has been written to ~/.claude/agents."
-					: `${n} agents Cairn used to keep have been written to ~/.claude/agents.`,
-			skipped: (names: string) =>
-				`Left alone, a definition of that name already existed: ${names}.`,
-			droppedParams:
-				"Temperature and token limits were dropped: a definition cannot carry them, the provider decides.",
-		},
 	},
 	agents: {
 		title: "Agents",
@@ -1515,6 +1505,9 @@ export const en = {
 		discardChanges: "Discard changes",
 		discardConfirm: (file: string) =>
 			`Discard all changes to "${file}"? This cannot be undone.`,
+		discardNewTitle: "Delete this new file",
+		discardNewConfirm: (file: string) =>
+			`Delete "${file}"? It is not tracked by git yet, so this cannot be undone.`,
 		stashSelectedTitle: "Stash selected files",
 		discardMultipleConfirm: (n: number) =>
 			`Discard changes in ${n} file${n !== 1 ? "s" : ""}? This cannot be undone.`,
@@ -2201,6 +2194,11 @@ export const en = {
 			themeDesc: "Dark, Light, or High contrast",
 			accentGroup: "Accent color",
 			accentDesc: "Highlight color across the UI",
+			scaleGroup: "Interface size",
+			uiScale: "Interface scale",
+			uiScaleDesc:
+				"Scales the whole interface, so a smaller window still shows a usable layout.",
+			uiScaleResetTitle: "Back to 100%",
 			fontGroup: "Font",
 			fontDesc: "Monospace font for code editor",
 			customColor: "Custom color",

@@ -162,6 +162,37 @@
   </div>
 </div>
 <div class="settings-group">
+  <div class="settings-group-title">{t('settings.appearance.scaleGroup')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.appearance.uiScale')}</span>
+      <span class="settings-row-desc">{t('settings.appearance.uiScaleDesc')}</span>
+    </div>
+    <div class="settings-row-control">
+      <input
+        class="settings-number-input"
+        type="number"
+        min="50"
+        max="200"
+        step="10"
+        value={Math.round($settings.uiScale * 100)}
+        on:change={(e) => {
+          const v = parseInt((e.target as HTMLInputElement).value, 10);
+          if (!isNaN(v)) settings.save({ uiScale: Math.max(50, Math.min(200, v)) / 100 });
+        }}
+      />
+      <span class="settings-row-unit">%</span>
+      <button
+        class="settings-reset-btn"
+        title={t('settings.appearance.uiScaleResetTitle') as string}
+        on:click={() => settings.save({ uiScale: 1 })}
+      >
+        <Icon name="undo" size={12}/>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="settings-group">
   <div class="settings-group-title">{t('settings.syntax.groupTitle')}</div>
   <p class="settings-group-hint">{t('settings.syntax.desc')}</p>
 

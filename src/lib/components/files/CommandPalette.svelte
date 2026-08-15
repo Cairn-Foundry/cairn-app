@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import type { CustomCommand } from '$lib/services/custom-command-service';
@@ -66,7 +66,8 @@
     }
   }
 
-  function scrollToSelected() {
+  async function scrollToSelected() {
+    await tick();
     const items = listEl?.querySelectorAll<HTMLLIElement>('li[data-idx]');
     items?.[selectedIdx]?.scrollIntoView({ block: 'nearest' });
   }

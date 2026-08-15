@@ -322,14 +322,17 @@
   }
 
   let discardTarget: string | null = null;
+  let discardTargetIsNew = false;
   let isDiscarding = false;
 
-  function openDiscard(filePath: string) {
+  function openDiscard(filePath: string, isNew = false) {
     discardTarget = filePath;
+    discardTargetIsNew = isNew;
   }
 
   function closeDiscard() {
     discardTarget = null;
+    discardTargetIsNew = false;
   }
 
   async function handleDiscard() {
@@ -980,11 +983,13 @@
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
-                {#if h.status !== 'untracked'}
-                  <button class="discard-btn" title={t('git.discardTitle') as string} on:click={() => openDiscard(h.filePath)}>
-                    <Icon name="undo" size={12}/>
-                  </button>
-                {/if}
+                <button
+                  class="discard-btn"
+                  title={(h.status === 'untracked' ? t('git.discardNewTitle') : t('git.discardTitle')) as string}
+                  on:click={() => openDiscard(h.filePath, h.status === 'untracked')}
+                >
+                  <Icon name="undo" size={12}/>
+                </button>
                 <button class="stage-btn" on:click={() => stageFile(h.filePath)}>
                   {t('git.stage')}
                 </button>
@@ -1549,7 +1554,9 @@
         </button>
       </div>
       <div class="modal-body">
-        <p class="confirm-body">{(t('git.discardConfirm') as (f: string) => string)(discardTarget)}</p>
+        <p class="confirm-body">
+          {(t(discardTargetIsNew ? 'git.discardNewConfirm' : 'git.discardConfirm') as (f: string) => string)(discardTarget)}
+        </p>
       </div>
       <div class="modal-foot">
         <div class="spacer"></div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
@@ -22,6 +22,7 @@
   let query = $state('');
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
+  let listEl: HTMLUListElement | undefined;
 
   let results = $state<QuickSearchHit[]>([]);
   let lastIndexKey = '';
@@ -73,10 +74,16 @@
     onClose();
   }
 
+  async function scrollToSelected() {
+    await tick();
+    const items = listEl?.querySelectorAll<HTMLLIElement>('li[data-idx]');
+    items?.[selectedIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+
   function handleKey(e: KeyboardEvent) {
     if (e.key === 'Escape') { onClose(); return; }
-    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, results.length - 1); return; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, results.length - 1); scrollToSelected(); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); scrollToSelected(); return; }
     if (e.key === 'Enter' && results[selectedIdx]) { commit(results[selectedIdx]); return; }
   }
 
@@ -111,9 +118,10 @@
     </div>
 
     {#if results.length > 0}
-      <ul class="results-list" role="listbox">
+      <ul class="results-list" role="listbox" bind:this={listEl}>
         {#each results as hit, i}
           <li
+            data-idx={i}
             class="result-item {i === selectedIdx ? 'selected' : ''}"
             role="option"
             aria-selected={i === selectedIdx}

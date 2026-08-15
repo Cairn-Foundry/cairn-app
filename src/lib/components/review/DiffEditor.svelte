@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { MergeView } from '@codemirror/merge';
   import { EditorState, Compartment, type Extension } from '@codemirror/state';
   import { EditorView, lineNumbers } from '@codemirror/view';
@@ -27,6 +28,7 @@
     return [
       resolveLanguageExtension(language),
       lineNumbers(),
+      unselectableGutters,
       bracketMatching(),
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),

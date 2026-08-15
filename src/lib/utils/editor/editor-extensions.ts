@@ -30,18 +30,46 @@ export function buildFontSizeTheme(size: number): Extension {
 	});
 }
 
+/**
+ * The plugin draws the viewport box at 0.2 opacity, which reads as nothing at
+ * all over a dense minimap.
+ */
+const minimapOverlayTheme = EditorView.theme({
+	".cm-minimap-overlay-container .cm-minimap-overlay": {
+		background: "var(--accent)",
+		opacity: "0.22",
+		borderRadius: "2px",
+		boxSizing: "border-box",
+	},
+	".cm-minimap-overlay-container .cm-minimap-overlay:hover": {
+		opacity: "0.34",
+	},
+	".cm-minimap-overlay-container.cm-minimap-overlay-active .cm-minimap-overlay":
+		{
+			opacity: "0.4",
+		},
+});
+
 export function buildMinimap(
 	enabled: boolean,
 	diffGutter?: Record<number, string>,
 ): Extension {
 	if (!enabled) return [];
-	return showMinimap.of({
-		create: () => ({ dom: document.createElement("div") }),
-		displayText: "blocks",
-		showOverlay: "always",
-		gutters: diffGutter ? [diffGutter] : undefined,
-	});
+	return [
+		showMinimap.of({
+			create: () => ({ dom: document.createElement("div") }),
+			displayText: "blocks",
+			showOverlay: "always",
+			gutters: diffGutter ? [diffGutter] : undefined,
+		}),
+		minimapOverlayTheme,
+	];
 }
+
+/** Line numbers are chrome, not content: dragging over them must not select them. */
+export const unselectableGutters: Extension = EditorView.theme({
+	".cm-gutters": { userSelect: "none", "-webkit-user-select": "none" },
+});
 
 function duplicateLineStay(view: EditorView): boolean {
 	const { state } = view;

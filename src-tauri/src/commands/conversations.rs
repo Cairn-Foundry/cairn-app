@@ -22,9 +22,6 @@ pub struct ConversationMeta {
     pub pinned: bool,
     #[serde(default)]
     pub archived: bool,
-    /// Superseded by `sessions`; still read so an existing session survives.
-    #[serde(rename = "sessionId", default, skip_serializing)]
-    pub session_id: Option<String>,
     /// One CLI session per provider: a session id only means something to the
     /// provider that minted it, and a conversation may talk to several.
     #[serde(default)]
@@ -97,20 +94,7 @@ pub fn get_conversation_index(
 ) -> Result<Option<ConversationIndex>, String> {
     let index: Option<ConversationIndex> =
         read_json(&scope_dir(&project_id, instance_id.as_deref())?.join("index.json"))?;
-    Ok(index.map(migrate_index))
-}
-
-/// A conversation written before sessions were per provider carries a single
-/// `sessionId`; it belongs to the provider that conversation was talking to.
-fn migrate_index(mut index: ConversationIndex) -> ConversationIndex {
-    for meta in &mut index.conversations {
-        if let Some(session) = meta.session_id.take() {
-            if meta.sessions.is_empty() && !meta.provider_id.is_empty() {
-                meta.sessions.insert(meta.provider_id.clone(), session);
-            }
-        }
-    }
-    index
+    Ok(index)
 }
 
 #[tauri::command]
@@ -175,44 +159,5 @@ mod tests {
     fn body_path_accepts_uuid_like_ids() {
         let path = body_path("p", None, "3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70").unwrap();
         assert!(path.ends_with("3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70.json"));
-    }
-
-    fn index_from(json: &str) -> ConversationIndex {
-        migrate_index(serde_json::from_str(json).unwrap())
-    }
-
-    #[test]
-    fn a_legacy_session_id_becomes_the_entry_of_its_provider() {
-        let index = index_from(
-            r#"{"conversations":[{"id":"a","providerId":"claude-code-cli","sessionId":"s-1"}]}"#,
-        );
-        let meta = &index.conversations[0];
-        assert_eq!(meta.sessions.get("claude-code-cli").map(String::as_str), Some("s-1"));
-        assert!(meta.session_id.is_none());
-    }
-
-    #[test]
-    fn an_existing_session_map_is_left_alone() {
-        let index = index_from(
-            r#"{"conversations":[{"id":"a","providerId":"openai",
-                "sessionId":"stale","sessions":{"openai":"fresh"}}]}"#,
-        );
-        assert_eq!(index.conversations[0].sessions.get("openai").map(String::as_str), Some("fresh"));
-    }
-
-    #[test]
-    fn a_session_without_a_provider_is_dropped_rather_than_misfiled() {
-        let index = index_from(r#"{"conversations":[{"id":"a","sessionId":"s-1"}]}"#);
-        assert!(index.conversations[0].sessions.is_empty());
-    }
-
-    #[test]
-    fn the_legacy_field_is_no_longer_written_back() {
-        let index = index_from(
-            r#"{"conversations":[{"id":"a","providerId":"openai","sessionId":"s-1"}]}"#,
-        );
-        let json = serde_json::to_string(&index).unwrap();
-        assert!(!json.contains("sessionId"), "{json}");
-        assert!(json.contains("\"sessions\""), "{json}");
     }
 }

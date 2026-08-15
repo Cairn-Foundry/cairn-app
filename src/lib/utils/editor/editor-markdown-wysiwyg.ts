@@ -378,6 +378,43 @@ export function parseMarkdownTable(source: string): TableModel | null {
 	return { rows, align, hasHeader: delimiterIndex === 1 };
 }
 
+const CELL_LINK = /\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+["'][^"']*["'])?\s*\)/g;
+
+/**
+ * A cell is a widget, so the inline decorations never reach it: its links have
+ * to be built here or they render as their raw `[text](href)` source.
+ */
+export function fillTableCell(cell: HTMLElement, text: string): void {
+	CELL_LINK.lastIndex = 0;
+	let last = 0;
+	let match = CELL_LINK.exec(text);
+	if (!match) {
+		cell.textContent = text;
+		return;
+	}
+	while (match) {
+		if (match.index > last) {
+			cell.appendChild(document.createTextNode(text.slice(last, match.index)));
+		}
+		const href = decodeHtmlEntities(match[2]);
+		if (parseLinkTarget(href).kind === "unsupported") {
+			cell.appendChild(document.createTextNode(match[0]));
+		} else {
+			const link = document.createElement("span");
+			link.className = "cm-md-link";
+			link.setAttribute(LINK_HREF_ATTR, href);
+			link.title = href;
+			link.textContent = match[1];
+			cell.appendChild(link);
+		}
+		last = match.index + match[0].length;
+		match = CELL_LINK.exec(text);
+	}
+	if (last < text.length) {
+		cell.appendChild(document.createTextNode(text.slice(last)));
+	}
+}
+
 class TableWidget extends WidgetType {
 	constructor(readonly source: string) {
 		super();
@@ -401,7 +438,7 @@ class TableWidget extends WidgetType {
 			const row = document.createElement("tr");
 			cells.forEach((text, cellIndex) => {
 				const cell = document.createElement(isHeader ? "th" : "td");
-				cell.textContent = text;
+				fillTableCell(cell, text);
 				const align = model.align[cellIndex];
 				if (align) cell.style.textAlign = align;
 				row.appendChild(cell);
@@ -640,6 +677,16 @@ const wysiwygPlugin = ViewPlugin.fromClass(
 
 		constructor(view: EditorView) {
 			this.decorations = this.build(view);
+			// On first mount the container may not be laid out yet, so
+			// view.visibleRanges can still reflect a stale/empty viewport.
+			// Force a remeasure so the real viewport rebuilds decorations
+			// without waiting for a user interaction (e.g. a click).
+			view.requestMeasure({
+				read: () => null,
+				write: () => {
+					this.decorations = this.build(view);
+				},
+			});
 		}
 
 		build(view: EditorView): DecorationSet {

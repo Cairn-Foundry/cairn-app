@@ -14,8 +14,8 @@
         "title": "Cairn",
         "width": 1440,
         "height": 900,
-        "minWidth": 1024,
-        "minHeight": 640,
+        "minWidth": 480,
+        "minHeight": 360,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "resizable": true

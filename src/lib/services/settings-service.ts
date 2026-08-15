@@ -46,6 +46,7 @@ export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
 	editorFontSize: number;
+	uiScale: number;
 	fontFamily: string;
 	splitMode: boolean;
 	splitLeftWidth: number;

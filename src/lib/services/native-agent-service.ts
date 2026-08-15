@@ -54,13 +54,6 @@ export interface NativeAgentInput {
 	systemPrompt: string;
 }
 
-export interface AgentMigrationOutcome {
-	ran: boolean;
-	written: string[];
-	skipped: string[];
-	droppedParams: boolean;
-}
-
 export async function listNativeAgents(
 	projects: SkillProject[],
 ): Promise<NativeAgent[]> {
@@ -88,12 +81,4 @@ export async function duplicateNativeAgent(
 /** The providers that have a subagent roster at all. */
 export async function agentCapableProviders(): Promise<CliProviderId[]> {
 	return await invoke("agent_capable_providers");
-}
-
-/**
- * Writes the agents Cairn used to keep of its own out as definitions, once.
- * Answers `ran: false` on every launch after that.
- */
-export async function migrateCustomAgents(): Promise<AgentMigrationOutcome> {
-	return await invoke("migrate_custom_agents");
 }

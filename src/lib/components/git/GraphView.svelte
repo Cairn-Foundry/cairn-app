@@ -626,13 +626,13 @@
   .chip-create-icon {
     display: inline-flex;
     align-items: center;
-    opacity: 0;
+    opacity: 0.55;
     margin-left: 1px;
     transition: opacity 0.12s ease;
   }
   .chip-creatable:hover .chip-create-icon,
   .chip-creatable:focus-visible .chip-create-icon {
-    opacity: 0.75;
+    opacity: 0.9;
   }
 
   .chip-ticket {

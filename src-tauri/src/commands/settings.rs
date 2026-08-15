@@ -66,6 +66,8 @@ pub struct CairnSettings {
     pub show_minimap: bool,
     #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
     pub editor_font_size: u32,
+    #[serde(rename = "uiScale", default = "default_ui_scale")]
+    pub ui_scale: f64,
     #[serde(rename = "fontFamily", default = "default_editor_font_family")]
     pub editor_font_family: String,
     #[serde(rename = "splitMode", default = "default_split_mode")]
@@ -205,6 +207,7 @@ fn default_save_on() -> String { "blur".to_string() }
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
+fn default_ui_scale() -> f64 { 1.0 }
 fn default_editor_font_family() -> String { "'JetBrains Mono', ui-monospace, monospace".to_string() }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
@@ -217,6 +220,7 @@ impl Default for CairnSettings {
             tree_panel_width: default_tree_panel_width(),
             show_minimap: default_show_minimap(),
             editor_font_size: default_editor_font_size(),
+            ui_scale: default_ui_scale(),
             editor_font_family: default_editor_font_family(),
             split_mode: false,
             split_left_width: 0,

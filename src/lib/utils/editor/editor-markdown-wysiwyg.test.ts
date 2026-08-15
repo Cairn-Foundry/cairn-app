@@ -5,6 +5,7 @@ import {
 	collectBlockRanges,
 	collectInlineRanges,
 	decodeHtmlEntities,
+	fillTableCell,
 	findHeadingLine,
 	isOpenableLink,
 	linkHref,
@@ -338,5 +339,33 @@ describe("findHeadingLine", () => {
 
 	it("returns null for an unknown anchor", () => {
 		expect(findHeadingLine(doc, "nope")).toBeNull();
+	});
+});
+
+describe("fillTableCell", () => {
+	function cellFor(text: string): HTMLElement {
+		const cell = document.createElement("td");
+		fillTableCell(cell, text);
+		return cell;
+	}
+
+	it("renders a markdown link inside a table cell", () => {
+		const cell = cellFor("see [docs](https://example.com) now");
+		const link = cell.querySelector("[data-cm-md-href]");
+		expect(link?.textContent).toBe("docs");
+		expect(link?.getAttribute("data-cm-md-href")).toBe("https://example.com");
+		expect(cell.textContent).toBe("see docs now");
+	});
+
+	it("keeps a cell without a link as plain text", () => {
+		const cell = cellFor("just text");
+		expect(cell.querySelector("[data-cm-md-href]")).toBeNull();
+		expect(cell.textContent).toBe("just text");
+	});
+
+	it("leaves an unsupported scheme as its raw source", () => {
+		const cell = cellFor("[x](javascript:alert(1))");
+		expect(cell.querySelector("[data-cm-md-href]")).toBeNull();
+		expect(cell.textContent).toBe("[x](javascript:alert(1))");
 	});
 });

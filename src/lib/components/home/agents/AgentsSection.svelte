@@ -13,7 +13,7 @@
   import ProviderLogo from './ProviderLogo.svelte';
   import { projects, loadProjects } from '$lib/stores/project';
   import {
-    agentMigration, loadNativeAgents, migrateThenLoadNativeAgents,
+    loadNativeAgents,
     nativeAgents, nativeAgentsError, nativeAgentsLoading,
   } from '$lib/stores/native-agents';
   import {
@@ -73,7 +73,7 @@
 
   onMount(async () => {
     await Promise.all([loadProjects(), loadCliProviders(), loadAiProviders(), loadSkills()]);
-    await migrateThenLoadNativeAgents();
+    await loadNativeAgents();
     if (!selectedPath) select($nativeAgents[0] ?? null);
   });
 
@@ -520,24 +520,6 @@
   </aside>
 
   <section class="ag-detail">
-    {#if $agentMigration}
-      <div class="banner">
-        <Icon name="info" size={13}/>
-        <span>
-          {(t('agentDefs.migration.done') as (n: number) => string)($agentMigration.written.length)}
-          {#if $agentMigration.skipped.length > 0}
-            {(t('agentDefs.migration.skipped') as (names: string) => string)($agentMigration.skipped.join(', '))}
-          {/if}
-          {#if $agentMigration.droppedParams}
-            {t('agentDefs.migration.droppedParams')}
-          {/if}
-        </span>
-        <button class="icon-btn" on:click={() => agentMigration.set(null)} title={t('common.close') as string}>
-          <Icon name="x" size={12}/>
-        </button>
-      </div>
-    {/if}
-
     {#if draft === null}
       <div class="ag-empty">
         <span class="ag-empty-icon"><Icon name="agent" size={30} sw={1.2}/></span>

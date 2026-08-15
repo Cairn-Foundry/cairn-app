@@ -2,8 +2,103 @@
 	{
 		"version": "0.15.0",
 		"date": "",
-		"summary":{},
-		"changes": []
+		"summary": {
+			"en": "The interface adapts: it scales, it reads on any accent, and it says when it is still starting.",
+			"fr": "L'interface s'adapte : elle se met à l'échelle, reste lisible sur n'importe quelle couleur et signale son démarrage."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn now shows a loading screen while it starts up, instead of a blank window: the interface only appears once the settings, the projects and the view it was left on are all restored, so a reload no longer flashes an unstyled layout.",
+					"fr": "Cairn affiche désormais un écran de chargement au démarrage, à la place d'une fenêtre vide : l'interface n'apparaît qu'une fois les réglages, les projets et la vue quittée restaurés, si bien qu'un rechargement ne fait plus apparaître une mise en page non stylée."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The size of the whole interface can be set in Settings > Appearance, from 50% to 200%. It scales the chrome as well as the text, so a small window keeps a usable layout - and the window itself can now be resized down much further than before.",
+					"fr": "La taille de toute l'interface se règle dans Réglages > Apparence, de 50% à 200%. L'échelle s'applique à l'habillage comme au texte, si bien qu'une petite fenêtre reste utilisable - et la fenêtre elle-même peut désormais être réduite bien plus qu'auparavant."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Text drawn on the accent colour now picks itself from that colour and the active theme. A pale accent - yellow, lime, sand - used to carry near-white labels that could not be read; buttons, badges and counters now switch to dark text when the accent is light.",
+					"fr": "Le texte posé sur la couleur principale se choisit désormais d'après cette couleur et le thème actif. Une couleur claire - jaune, citron vert, sable - portait auparavant des libellés presque blancs illisibles ; boutons, pastilles et compteurs passent maintenant au texte sombre quand la couleur est claire."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The unstaged file counter in the sidebar is drawn in a deeper orange, so the number on it can actually be read.",
+					"fr": "Le compteur de fichiers non indexés dans la barre latérale est dessiné dans un orange plus soutenu, pour que le nombre qu'il porte soit réellement lisible."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The viewport box in the editor minimap is drawn in the accent colour with a visible outline, instead of a faint grey that vanished over dense code.",
+					"fr": "Le cadre de la zone visible dans la minimap de l'éditeur est dessiné dans la couleur principale, avec un contour visible, à la place d'un gris pâle qui disparaissait sur du code dense."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Opening the formatting panel moved to Cmd/Ctrl+Shift+Y: it used to share Cmd/Ctrl+Shift+K with deleting a line in the editor, so one of the two never fired.",
+					"fr": "L'ouverture du panneau de formatage passe sur Cmd/Ctrl+Maj+Y : elle partageait Cmd/Ctrl+Maj+K avec la suppression de ligne dans l'éditeur, si bien que l'une des deux ne se déclenchait jamais."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Line numbers are no longer selectable: dragging across the gutter selects the code, not the numbering.",
+					"fr": "Les numéros de ligne ne sont plus sélectionnables : un glissement le long de la gouttière sélectionne le code, pas la numérotation."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Branch tags in the git graph always show their + icon, instead of revealing it only on hover, so it is clear an instance can be created from them.",
+					"fr": "Les étiquettes de branche du graphe git affichent toujours leur icône +, au lieu de la révéler seulement au survol, pour qu'il soit clair qu'une instance peut en être créée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A conversation opened on one project no longer stays on screen after switching to another project: the live conversation is kept per project, not per instance name.",
+					"fr": "Une discussion ouverte sur un projet ne reste plus affichée après un changement de projet : la discussion en cours est conservée par projet, et non par nom d'instance."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Discard action is now offered for a new, untracked file in the Git view. It deletes the file, and says so before asking to confirm.",
+					"fr": "L'action Annuler est désormais proposée pour un nouveau fichier non suivi dans la vue Git. Elle supprime le fichier, et le dit avant de demander confirmation."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The command palette follows the selection again when walking through the list with the arrow keys: the highlighted entry no longer scrolls out of view.",
+					"fr": "La palette de commandes suit à nouveau la sélection lorsqu'on parcourt la liste avec les flèches : l'entrée surlignée ne sort plus de la zone visible."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Markdown links inside a table are rendered as links, instead of showing their raw source. Shift-click follows them like any other link.",
+					"fr": "Les liens markdown à l'intérieur d'un tableau sont rendus comme des liens, au lieu d'afficher leur source brute. Maj+clic les suit comme n'importe quel autre lien."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The toggles in Settings > Agents line up on the right like every other settings tab.",
+					"fr": "Les interrupteurs de Réglages > Agents s'alignent à droite comme dans tous les autres onglets de réglages."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.14.0",

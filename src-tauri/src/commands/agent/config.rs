@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use serde::{Deserialize, Serialize};
-use crate::storage::{ai_providers_file, api_keys_file, api_keys_secret_file, legacy_api_key_file, write_json_atomic};
+use crate::storage::{ai_providers_file, api_keys_file, api_keys_secret_file, write_json_atomic};
 use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::ChaCha20Poly1305;
 use super::platform;
@@ -144,7 +144,7 @@ fn cipher() -> Result<ChaCha20Poly1305, String> {
 
 fn read_stored_keys() -> HashMap<String, String> {
     let Ok(path) = api_keys_file() else { return HashMap::new() };
-    let Ok(raw) = fs::read(&path) else { return migrate_legacy_keys() };
+    let Ok(raw) = fs::read(&path) else { return HashMap::new() };
     if raw.len() < NONCE_LEN {
         return HashMap::new();
     }
@@ -178,22 +178,6 @@ fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
     fs::write(&path, blob).map_err(|e| e.to_string())?;
     restrict_to_owner(&path);
     Ok(())
-}
-
-/// Keys written in plaintext by an earlier version move into the encrypted
-/// file, and the plaintext one is removed.
-fn migrate_legacy_keys() -> HashMap<String, String> {
-    let Ok(legacy) = legacy_api_key_file() else { return HashMap::new() };
-    let Ok(content) = fs::read_to_string(&legacy) else { return HashMap::new() };
-    let keys: HashMap<String, String> = serde_json::from_str(&content).unwrap_or_default();
-    if keys.is_empty() {
-        let _ = fs::remove_file(&legacy);
-        return HashMap::new();
-    }
-    if write_stored_keys(&keys).is_ok() {
-        let _ = fs::remove_file(&legacy);
-    }
-    keys
 }
 
 #[derive(Serialize, Clone)]

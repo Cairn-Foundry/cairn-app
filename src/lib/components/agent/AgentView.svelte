@@ -198,6 +198,15 @@
     rateLimitType?: string;
   }
 
+  /**
+   * The base instance carries the same id in every project, so the live
+   * conversation has to be keyed by the project too or project B shows what
+   * was open in project A.
+   */
+  function liveKey(inst: Instance): string {
+    return `${inst.projectId}:${inst.id}`;
+  }
+
   let conversations = $state<Record<string, Conversation>>({});
   let runs = $state<Record<string, Run>>({});
   let permissions = $state<Record<string, PermissionRequest>>({});
@@ -233,7 +242,7 @@
   });
 
   let activeId = $derived($activeInstance?.id ?? null);
-  let current = $derived(activeId ? conversations[activeId] : undefined);
+  let current = $derived($activeInstance ? conversations[liveKey($activeInstance)] : undefined);
   let historyScopeKey = $derived(
     $activeInstance ? conversationScopeKey($activeInstance.projectId, $activeInstance.id) : '',
   );
@@ -465,7 +474,7 @@
       effort: '',
       permissionMode: '',
     };
-    conversations[inst.id] = conv;
+    conversations[liveKey(inst)] = conv;
     // Nothing is selected while a session is a draft, so a restart comes back
     // to a new session instead of reopening whatever was open before it.
     selectConversation(inst.projectId, inst.id, null);
@@ -473,11 +482,11 @@
   }
 
   function ensureConversation(inst: Instance): Conversation {
-    return conversations[inst.id] ?? startConversation(inst, 'instance');
+    return conversations[liveKey(inst)] ?? startConversation(inst, 'instance');
   }
 
   function syncLive(inst: Instance) {
-    const conv = conversations[inst.id];
+    const conv = conversations[liveKey(inst)];
     // A draft session has no entry in the index yet, so writing its body would
     // leave an orphan file for a conversation that may never exist.
     if (!conv || conv.pending) return;
@@ -492,7 +501,7 @@
   async function openConversation(inst: Instance, id: string, scope: ConversationScope) {
     const found = findConversation(inst.projectId, inst.id, id);
     if (!found) return;
-    const previous = conversations[inst.id];
+    const previous = conversations[liveKey(inst)];
     if (previous) {
       syncLive(inst);
       drafts[previous.id] = previous.draft;
@@ -515,7 +524,7 @@
       activity = body.activity;
     }
 
-    conversations[inst.id] = {
+    conversations[liveKey(inst)] = {
       id: found.meta.id,
       scope,
       messages,
@@ -539,7 +548,7 @@
     });
     await restoreConversations(inst.projectId, inst.id);
     await restoreAgentRuns(inst.projectId);
-    if (conversations[inst.id]) return;
+    if (conversations[liveKey(inst)]) return;
 
     const scopeKey = conversationScopeKey(inst.projectId, inst.id);
     const activeStoredId = get(activeConversationId)[scopeKey];
@@ -559,7 +568,7 @@
   }
 
   function setBusy(inst: Instance, conversationId: string, busy: boolean) {
-    const live = conversations[inst.id];
+    const live = conversations[liveKey(inst)];
     if (live?.id === conversationId) live.busy = busy;
     setAgentBusy(inst.projectId, inst.id, busy, conversationId);
   }
@@ -632,14 +641,14 @@
   }
 
   function notifyAgentCompletion(inst: Instance, conversationId: string) {
-    if (isViewingAgent(inst) && conversations[inst.id]?.id === conversationId) return;
+    if (isViewingAgent(inst) && conversations[liveKey(inst)]?.id === conversationId) return;
     setAgentDone(inst.projectId, inst.id, true, conversationId);
     pingAgentCompletion();
   }
 
   $effect(() => {
     const inst = $activeInstance;
-    const openId = inst ? conversations[inst.id]?.id : undefined;
+    const openId = inst ? conversations[liveKey(inst)]?.id : undefined;
     if (!inst || $activeStep !== 'agent' || $terminalActive || $commandsActive) return;
     const pending = doneConversationOf(inst.projectId, inst.id);
     if (pending === null) return;
@@ -836,7 +845,7 @@
   $effect(() => {
     const inst = $activeInstance;
     if (!inst) return;
-    if (!untrack(() => conversations[inst.id])) void hydrate(inst);
+    if (!untrack(() => conversations[liveKey(inst)])) void hydrate(inst);
     tick().then(resizeTextarea);
   });
 
@@ -1008,7 +1017,7 @@
       const inst = instanceById(run.instanceId);
       if (!inst) return;
 
-      const live = conversations[inst.id];
+      const live = conversations[liveKey(inst)];
       const isLive = live?.id === run.conversationId;
 
       // Produced inside a subagent the provider started: it belongs to that
@@ -1227,7 +1236,7 @@
     // Not the conversation on screen: it has no live state to send through, so
     // what was written for it waits there until it is opened again rather than
     // being dropped or sent into whatever took its place.
-    const conv = conversations[inst.id];
+    const conv = conversations[liveKey(inst)];
     if (conv?.id !== conversationId) return;
 
     // The run that just ended failed. Sending the next one into it would bury
@@ -1249,7 +1258,7 @@
    */
   $effect(() => {
     const inst = $activeInstance;
-    const conv = inst ? conversations[inst.id] : undefined;
+    const conv = inst ? conversations[liveKey(inst)] : undefined;
     if (!inst || !conv || conversationBusy) return;
     if ((queued[conv.id]?.length ?? 0) > 0) void flushQueued(inst, conv.id);
   });
@@ -1259,7 +1268,7 @@
     const waiting = queued[conversationId] ?? [];
     if (waiting.length === 0) return;
     delete queued[conversationId];
-    const conv = conversations[inst.id];
+    const conv = conversations[liveKey(inst)];
     if (!conv || conv.id !== conversationId) return;
     conv.draft = mergeIntoDraft(waiting, conv.draft);
     drafts[conv.id] = conv.draft;
@@ -1270,7 +1279,7 @@
     const waiting = [...(queued[conversationId] ?? [])];
     const [removed] = waiting.splice(index, 1);
     queued[conversationId] = waiting;
-    const conv = conversations[$activeInstance?.id ?? ''];
+    const conv = $activeInstance ? conversations[liveKey($activeInstance)] : undefined;
     if (!conv || conv.id !== conversationId || !removed) return;
     conv.draft = mergeIntoDraft([removed], conv.draft);
     drafts[conv.id] = conv.draft;
@@ -1589,7 +1598,7 @@
   async function newSession(scope: ConversationScope = 'instance') {
     const inst = $activeInstance;
     if (!inst) return;
-    const previous = conversations[inst.id];
+    const previous = conversations[liveKey(inst)];
     if (previous) {
       syncLive(inst);
       drafts[previous.id] = previous.draft;
@@ -1704,7 +1713,7 @@
       setBusy(inst, id, false);
     }
     deleteConversation(refOf(inst, scope), id);
-    if (conversations[inst.id]?.id === id) {
+    if (conversations[liveKey(inst)]?.id === id) {
       const remaining = conversationsOf(refOf(inst, scope))[0];
       if (remaining) void openConversation(inst, remaining.id, scope);
       else startConversation(inst, 'instance');
@@ -1747,8 +1756,8 @@
 
   const handleMoveScope = withInstance((inst, from: ConversationScope, id: string) => {
     void moveConversationToScope(refOf(inst, from), id);
-    if (conversations[inst.id]?.id === id) {
-      conversations[inst.id].scope = from === 'instance' ? 'project' : 'instance';
+    if (conversations[liveKey(inst)]?.id === id) {
+      conversations[liveKey(inst)].scope = from === 'instance' ? 'project' : 'instance';
     }
   });
 

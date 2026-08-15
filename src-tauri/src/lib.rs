@@ -183,7 +183,6 @@ pub fn run() {
             save_native_agent,
             delete_native_agent,
             duplicate_native_agent,
-            migrate_custom_agents,
             list_skills,
             save_skill,
             delete_skill,

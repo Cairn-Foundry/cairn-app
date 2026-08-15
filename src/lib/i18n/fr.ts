@@ -673,16 +673,6 @@ export const fr = {
 			description:
 				"Chaque copie de la définition est supprimée, donc les agents qui la lisaient la perdent aussi.",
 		},
-		migration: {
-			done: (n: number) =>
-				n === 1
-					? "1 agent que Cairn conservait a été écrit dans ~/.claude/agents."
-					: `${n} agents que Cairn conservait ont été écrits dans ~/.claude/agents.`,
-			skipped: (names: string) =>
-				`Laissés tels quels, une définition de ce nom existait déjà : ${names}.`,
-			droppedParams:
-				"La température et les limites de jetons ont été abandonnées : une définition ne peut pas les porter, c'est le fournisseur qui décide.",
-		},
 	},
 	agents: {
 		title: "Agents",
@@ -1551,6 +1541,9 @@ export const fr = {
 		discardChanges: "Annuler les modifications",
 		discardConfirm: (file: string) =>
 			`Annuler toutes les modifications de "${file}" ? Cette action est irréversible.`,
+		discardNewTitle: "Supprimer ce nouveau fichier",
+		discardNewConfirm: (file: string) =>
+			`Supprimer "${file}" ? Il n'est pas encore suivi par git, cette action est irréversible.`,
 		stashSelectedTitle: "Stash des fichiers sélectionnés",
 		discardMultipleConfirm: (n: number) =>
 			`Annuler les modifications de ${n} fichier${n !== 1 ? "s" : ""} ? Cette action est irréversible.`,
@@ -2252,6 +2245,11 @@ export const fr = {
 			themeDesc: "Sombre, Clair ou Contraste élevé",
 			accentGroup: "Couleur d'accentuation",
 			accentDesc: "Couleur de mise en évidence dans toute l'interface",
+			scaleGroup: "Taille de l'interface",
+			uiScale: "Échelle de l'interface",
+			uiScaleDesc:
+				"Met à l'échelle toute l'interface, pour qu'une fenêtre plus petite reste utilisable.",
+			uiScaleResetTitle: "Revenir à 100%",
 			fontGroup: "Police",
 			fontDesc: "Police à espacement fixe pour l'éditeur de code",
 			customColor: "Couleur personnalisée",

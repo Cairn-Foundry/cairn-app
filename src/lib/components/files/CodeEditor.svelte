@@ -51,7 +51,7 @@
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
-  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS } from '$lib/utils/editor/editor-extensions';
+  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS, unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { buildConflictResolver } from '$lib/utils/editor/editor-conflict';
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
@@ -343,6 +343,7 @@
 
       languageCompartment.of(buildLanguageExtensions()),
       lineNumbers(),
+      unselectableGutters,
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       closeBrackets(),
