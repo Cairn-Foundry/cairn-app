@@ -9,6 +9,7 @@ vi.mock("$lib/services/file-service", () => ({
 
 vi.mock("$lib/services/git-service", () => ({
 	getFileAtHead: vi.fn().mockResolvedValue(null),
+	getFileInIndex: vi.fn().mockResolvedValue(null),
 	checkIgnore: vi.fn().mockResolvedValue([]),
 }));
 
@@ -82,6 +83,30 @@ describe("loadPaneBase", () => {
 		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce(null);
 		const state = await loadPaneBase("/wt", "created.ts", undefined);
 		expect(state.baseContent).toBeNull();
+	});
+
+	it("prefers the index over HEAD so staged changes leave the gutter", async () => {
+		vi.mocked(gitService.getFileAtHead).mockClear();
+		vi.mocked(gitService.getFileInIndex).mockResolvedValueOnce("staged text");
+		const state = await loadPaneBase("/wt", "file.ts", "modified");
+		expect(state.baseContent).toBe("staged text");
+		expect(gitService.getFileAtHead).not.toHaveBeenCalled();
+	});
+
+	it("falls back to HEAD when the file is absent from the index", async () => {
+		vi.mocked(gitService.getFileInIndex).mockResolvedValueOnce(null);
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce("head text");
+		const state = await loadPaneBase("/wt", "file.ts", "modified");
+		expect(state.baseContent).toBe("head text");
+	});
+
+	it("falls back to HEAD when reading the index fails", async () => {
+		vi.mocked(gitService.getFileInIndex).mockRejectedValueOnce(
+			new Error("git show failed"),
+		);
+		vi.mocked(gitService.getFileAtHead).mockResolvedValueOnce("head text");
+		const state = await loadPaneBase("/wt", "file.ts", "modified");
+		expect(state.baseContent).toBe("head text");
 	});
 
 	it("handles gitBlame failure gracefully", async () => {

@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod agent_activity;
 pub mod agent_runs;
+pub mod cli;
 pub mod cli_providers;
 pub mod commit_state;
 pub mod conversations;
@@ -57,7 +58,7 @@ pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file, read_file_preview, read_file_base64, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
 pub use git::{
     list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_check_ignore,
-    git_diff_unstaged, git_diff_staged, git_diff_file, git_file_at_head,
+    git_diff_unstaged, git_diff_staged, git_diff_file, git_file_at_head, git_file_in_index,
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
@@ -83,6 +84,7 @@ pub use lsp::{
     lsp_completion, lsp_hover, lsp_signature_help, lsp_definition, lsp_implementation,
     lsp_references, lsp_rename, lsp_format,
 };
+pub use cli::{PendingCliPaths, get_cli_status, install_cli, uninstall_cli, take_pending_cli_paths};
 pub use cli_providers::{list_cli_providers, reached_providers, agent_capable_providers};
 pub use mcp::{
     list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,

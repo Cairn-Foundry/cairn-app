@@ -7,6 +7,8 @@ export interface EnvVariable {
 	key: string;
 	value: string;
 	perInstance: boolean;
+	/** Prefilled into a new instance override, then freely editable. */
+	defaultValue: string;
 	secret: boolean;
 	enabled: boolean;
 }

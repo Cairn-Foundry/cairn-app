@@ -21,6 +21,8 @@ pub struct EnvVariable {
     pub value: String,
     #[serde(rename = "perInstance", default)]
     pub per_instance: bool,
+    #[serde(rename = "defaultValue", default)]
+    pub default_value: String,
     #[serde(default)]
     pub secret: bool,
     #[serde(default = "default_true")]

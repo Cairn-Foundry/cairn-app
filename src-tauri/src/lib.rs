@@ -3,10 +3,45 @@ pub mod commands;
 
 use commands::{AgentState, LspState, TerminalState};
 use commands::*;
+use serde::Serialize;
+use tauri::{Emitter, Manager};
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CliOpenRequest {
+    paths: Vec<String>,
+    cwd: String,
+}
+
+#[cfg(desktop)]
+fn focus_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        focus_main_window(app);
+        let base = std::path::PathBuf::from(&cwd);
+        let paths: Vec<String> = argv
+            .into_iter()
+            .skip(1)
+            .filter(|a| !a.starts_with('-'))
+            .map(|a| commands::cli::absolutize(&a, &base))
+            .collect();
+        if !paths.is_empty() {
+            let _ = app.emit("cli-open", CliOpenRequest { paths, cwd });
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -17,6 +52,7 @@ pub fn run() {
         .manage(TerminalState::new())
         .manage(LspState::new())
         .manage(QuickSearchCache::default())
+        .manage(PendingCliPaths::from_args())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -46,6 +82,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_cli_status,
+            install_cli,
+            uninstall_cli,
+            take_pending_cli_paths,
             run_shell_command,
             run_shell_command_with_stdin,
             run_agent_command,
@@ -90,6 +130,7 @@ pub fn run() {
             git_diff_staged,
             git_diff_file,
             git_file_at_head,
+            git_file_in_index,
             git_stage_file,
             git_unstage_file,
             git_stage_all,

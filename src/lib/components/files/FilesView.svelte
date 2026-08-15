@@ -1739,15 +1739,30 @@ import { get } from 'svelte/store';
   }
 
   $: tree = rawTree;
-  $: adoptStoreStatus($git.statusWorktree, $git.status);
+  let lastIndexVersion = -1;
+  $: adoptStoreStatus($git.statusWorktree, $git.status, $git.indexVersion);
 
-  /** The tree colours follow the store's status rather than a poll of its own. */
-  function adoptStoreStatus(statusWorktree: string | null, status: GitStatusMap) {
+  /**
+   * The tree colours follow the store's status rather than a poll of its own.
+   * The gutter base comes from the index, which a partial stage moves without
+   * changing the status label, so `indexVersion` - bumped by every git write -
+   * is what decides a refresh alongside the status itself.
+   */
+  function adoptStoreStatus(statusWorktree: string | null, status: GitStatusMap, indexVersion: number) {
     if (!statusWorktree || statusWorktree !== worktreePath) return;
+    const previous = gitStatusMap;
+    const indexMoved = lastIndexVersion !== -1 && indexVersion !== lastIndexVersion;
+    lastIndexVersion = indexVersion;
     gitStatusMap = status;
     gitStatusWorktree = statusWorktree;
     const cached = treeCache.get(statusWorktree);
     if (cached) cached.status = status;
+    for (let i = 0; i < panes.length; i++) {
+      const tab = panes[i].tabs[panes[i].activeTabIdx] ?? null;
+      if (!tab) continue;
+      if (!indexMoved && previous[tab.path] === status[tab.path]) continue;
+      refreshDiff(i, tab);
+    }
   }
 
   $: treeFilePaths = collectFilePaths(rawTree);

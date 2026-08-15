@@ -8,6 +8,41 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "A cairn command opens the app from any terminal, and cairn <file> opens that file in the editor of the current project. Install it from Settings, General, Command line.",
+					"fr": "Une commande cairn ouvre l'application depuis n'importe quel terminal, et cairn <fichier> ouvre ce fichier dans l'éditeur du projet en cours. Elle s'installe depuis Réglages, Général, Ligne de commande."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Environment variables can be selected several at a time, with click, ctrl-click and shift-click, and the whole selection moves from one section to another in a single drag.",
+					"fr": "Les variables d'environnement se sélectionnent à plusieurs, au clic, ctrl-clic et maj-clic, et toute la sélection se déplace d'une section à l'autre en un seul glissement."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A variable holding one value per instance can now carry a default value, which prefills the field of every instance that has not set its own.",
+					"fr": "Une variable ayant une valeur par instance peut désormais porter une valeur par défaut, qui pré-remplit le champ de chaque instance n'ayant pas défini la sienne."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A variable value can reference another one, as in APP_URL=http://localhost:{APP_PORT}. References resolve across scopes and through several hops; an unknown name or a cycle is left as written.",
+					"fr": "La valeur d'une variable peut en référencer une autre, par exemple APP_URL=http://localhost:{APP_PORT}. Les références se résolvent entre portées et sur plusieurs niveaux ; un nom inconnu ou un cycle est laissé tel quel."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The git markers in the editor and the minimap are now measured against the staged version of the file, not against the last commit. Staging a change makes its markers disappear, so what stays highlighted is exactly what remains to be staged.",
+					"fr": "Les marqueurs git de l'éditeur et de la minimap se calculent désormais par rapport à la version indexée du fichier, et non plus par rapport au dernier commit. Indexer une modification fait disparaître ses marqueurs : ce qui reste surligné est exactement ce qu'il reste à indexer."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The git markers in the editor and the minimap now follow the file that is actually shown. Closing a tab no longer leaves the next file diffed against the closed one, a freshly created file is no longer flagged line by line as modified, and in split view each editor keeps its own markers instead of borrowing the other pane's.",

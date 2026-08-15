@@ -23,6 +23,13 @@ type GitState = {
 	status: GitFileStatus;
 	/** Worktree `status` was read from, so a consumer can tell it apart from a stale one. */
 	statusWorktree: string | null;
+	/**
+	 * Bumped once per git write, when the status that follows it lands. A
+	 * partial stage leaves the file "modified"
+	 * before and after, so a consumer that diffs against the index cannot tell
+	 * from the status alone that its base is stale - it watches this instead.
+	 */
+	indexVersion: number;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
 	currentBranch: string;
@@ -48,6 +55,7 @@ const GRAPH_PAGE = 200;
 const INITIAL: GitState = {
 	status: {},
 	statusWorktree: null,
+	indexVersion: 0,
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	currentBranch: "",
@@ -92,9 +100,17 @@ export function clearGitError(): void {
 	_git.update((s) => (s.error ? { ...s, error: null } : s));
 }
 
+/**
+ * Set by every git write, consumed by the next successful status read, which
+ * publishes the new status and the new `indexVersion` in one update so a
+ * consumer refreshes once rather than twice.
+ */
+let indexDirty = false;
+
 async function mutate<T>(op: () => Promise<T>): Promise<T> {
 	try {
 		const result = await op();
+		indexDirty = true;
 		clearGitError();
 		return result;
 	} catch (e) {
@@ -175,10 +191,13 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			gitService.getRemoteStatus(wt).catch(() => null),
 			gitService.getOperationState(wt).catch(() => null),
 		]);
+		const bump = indexDirty ? 1 : 0;
+		indexDirty = false;
 		_git.update((s) => ({
 			...s,
 			status,
 			statusWorktree: wt,
+			indexVersion: s.indexVersion + bump,
 			unstagedDiffs,
 			stagedDiffs,
 			currentBranch,

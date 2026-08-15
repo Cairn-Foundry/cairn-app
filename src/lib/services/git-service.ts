@@ -167,6 +167,13 @@ export async function getFileAtHead(
 	return invoke("git_file_at_head", { worktreePath, filePath });
 }
 
+export async function getFileInIndex(
+	worktreePath: string,
+	filePath: string,
+): Promise<string | null> {
+	return invoke("git_file_in_index", { worktreePath, filePath });
+}
+
 export async function stageFile(
 	worktreePath: string,
 	filePath: string,

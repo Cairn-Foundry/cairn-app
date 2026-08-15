@@ -914,13 +914,18 @@ export const fr = {
 		key: "Clé",
 		value: "Valeur",
 		valueHint:
-			"Les jetons des commandes comme {{instance.branch}} sont remplacés au moment de l'injection.",
+			"Les jetons des commandes comme {{instance.branch}} sont remplacés au moment de l'injection. Référencez une autre variable avec {AUTRE}, par exemple http://localhost:{APP_PORT}.",
 		secret: "Secret",
 		secretHint:
 			"Masque la valeur à l'écran. Elle reste stockée en clair dans ~/.cairn.",
 		perInstance: "Une valeur par instance",
 		perInstanceHint:
 			"La clé est déclarée ici, mais chaque instance fournit sa propre valeur.",
+		deleteSelected: (n: number) => `Supprimer ${n} variables`,
+		defaultValue: "Valeur par défaut",
+		defaultValuePlaceholder: "Valeur de départ d'une nouvelle instance",
+		defaultValueHint:
+			"Pré-remplit le champ de chaque instance qui n'a pas défini sa propre valeur.",
 		enabled: "Activée",
 		enabledHint:
 			"Une variable désactivée est absente des processus et du fichier généré.",
@@ -2198,6 +2203,16 @@ export const fr = {
 					desc: "Formater automatiquement avant l'indexation",
 					value: "Prettier",
 				},
+			},
+			cli: {
+				groupTitle: "Ligne de commande",
+				install: "Installer la commande cairn",
+				installDesc:
+					"Ajoute une commande cairn a votre PATH. Lancez cairn pour ramener l'application au premier plan, ou cairn <fichier> pour ouvrir un fichier dans l'editeur.",
+				installedAt: (path: string) => `Installee dans ${path}.`,
+				uninstall: "Retirer la commande cairn",
+				unavailable:
+					"Le lanceur n'est disponible que dans une version installee de Cairn, pas en mode developpement.",
 			},
 			updates: {
 				groupTitle: "Mises à jour",

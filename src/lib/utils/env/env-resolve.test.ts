@@ -7,6 +7,7 @@ function variable(patch: Partial<EnvVariable> & { key: string }): EnvVariable {
 		id: patch.key.toLowerCase(),
 		value: "",
 		perInstance: false,
+		defaultValue: "",
 		secret: false,
 		enabled: true,
 		...patch,
@@ -116,6 +117,99 @@ describe("resolveEnv", () => {
 		});
 
 		expect(resolved[0].secret).toBe(true);
+	});
+
+	it("falls back to the default value when the instance set no override", () => {
+		const resolved = resolve({
+			project: [
+				variable({ key: "PORT", perInstance: true, defaultValue: "3000" }),
+			],
+		});
+
+		expect(resolved[0].value).toBe("3000");
+	});
+
+	it("prefers the override over the default value", () => {
+		const resolved = resolve({
+			project: [
+				variable({
+					key: "PORT",
+					id: "port",
+					perInstance: true,
+					defaultValue: "3000",
+				}),
+			],
+			overrides: { port: "4000" },
+		});
+
+		expect(resolved[0].value).toBe("4000");
+	});
+
+	it("leaves a perInstance variable out when it has neither override nor default", () => {
+		const resolved = resolve({
+			project: [variable({ key: "PORT", perInstance: true })],
+		});
+
+		expect(resolved).toEqual([]);
+	});
+});
+
+describe("variable references", () => {
+	it("expands a reference to another variable", () => {
+		const resolved = resolve({
+			project: [
+				variable({ key: "APP_PORT", value: "3000" }),
+				variable({ key: "APP_URL", value: "http://localhost:{APP_PORT}" }),
+			],
+		});
+
+		expect(toEnvRecord(resolved).APP_URL).toBe("http://localhost:3000");
+	});
+
+	it("accepts the shell form as well", () => {
+		const resolved = resolve({
+			project: [
+				variable({ key: "HOST", value: "example.com" }),
+				variable({ key: "URL", value: "https://${HOST}/api" }),
+			],
+		});
+
+		expect(toEnvRecord(resolved).URL).toBe("https://example.com/api");
+	});
+
+	it("resolves a reference across scopes and through several hops", () => {
+		const resolved = resolve({
+			global: [variable({ key: "HOST", value: "localhost" })],
+			project: [
+				variable({ key: "PORT", value: "3000" }),
+				variable({ key: "BASE", value: "{HOST}:{PORT}" }),
+				variable({ key: "URL", value: "http://{BASE}/api" }),
+			],
+		});
+
+		expect(toEnvRecord(resolved).URL).toBe("http://localhost:3000/api");
+	});
+
+	it("leaves an unknown reference as written", () => {
+		const resolved = resolve({
+			project: [variable({ key: "URL", value: "http://{NOPE}" })],
+		});
+
+		expect(toEnvRecord(resolved).URL).toBe("http://{NOPE}");
+	});
+
+	it("does not loop on a cycle", () => {
+		const record = toEnvRecord(
+			resolve({
+				project: [
+					variable({ key: "A", value: "a{B}" }),
+					variable({ key: "B", value: "b{A}" }),
+				],
+			}),
+		);
+
+		expect(record.A).toBe("ab{A}");
+		expect(record.B).toContain("b");
 	});
 });
 

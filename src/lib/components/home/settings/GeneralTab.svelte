@@ -3,6 +3,28 @@
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { checkForUpdates, openUpdateModal, updateState } from '$lib/stores/update';
+  import { onMount } from 'svelte';
+  import { getCliStatus, installCli, uninstallCli, type CliStatus } from '$lib/services/cli-service';
+
+  let cli: CliStatus | null = null;
+  let cliBusy = false;
+  let cliError = '';
+
+  onMount(async () => {
+    try { cli = await getCliStatus(); } catch {}
+  });
+
+  async function toggleCli() {
+    cliBusy = true;
+    cliError = '';
+    try {
+      cli = cli?.installed ? await uninstallCli() : await installCli();
+    } catch (e) {
+      cliError = String(e);
+    } finally {
+      cliBusy = false;
+    }
+  }
 
   const ROWS = [
     { label: t('settings.general.rows.aiProvider.label') as string,        value: t('settings.general.rows.aiProvider.value') as string,        desc: t('settings.general.rows.aiProvider.desc') as string },
@@ -25,6 +47,35 @@
       <span class="settings-row-value">{s.value}</span>
     </div>
   {/each}
+</div>
+
+<div class="settings-group">
+  <div class="settings-group-title">{t('settings.general.cli.groupTitle')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.general.cli.install')}</span>
+      <span class="settings-row-desc">
+        {#if cliError}
+          {cliError}
+        {:else if cli?.installed && cli.path}
+          {(t('settings.general.cli.installedAt') as (path: string) => string)(cli.path)}
+        {:else if cli && !cli.launcherAvailable}
+          {t('settings.general.cli.unavailable')}
+        {:else}
+          {t('settings.general.cli.installDesc')}
+        {/if}
+      </span>
+    </div>
+    {#if cliBusy}
+      <span class="checking" aria-label={t('settings.general.cli.install') as string}>
+        <Spinner size={12}/>
+      </span>
+    {:else}
+      <button class="btn" disabled={!cli || (!cli.installed && !cli.launcherAvailable)} on:click={() => void toggleCli()}>
+        {cli?.installed ? t('settings.general.cli.uninstall') : t('settings.general.cli.install')}
+      </button>
+    {/if}
+  </div>
 </div>
 
 <div class="settings-group">

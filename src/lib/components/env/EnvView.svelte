@@ -16,7 +16,9 @@
     instanceEnvs,
     loadEnv,
     moveVariable,
+    moveVariables,
     newVariable,
+    overrideValue,
     projectEnvs,
     removeVariable,
     resolvedEnv,
@@ -38,7 +40,9 @@
   let loading = true;
 
   let bodyEls: Partial<Record<EnvScope, HTMLDivElement>> = {};
-  let drag: { scope: EnvScope; index: number; id: string } | null = null;
+  let selection: { scope: EnvScope; ids: Set<string> } | null = null;
+  let anchorIndex = 0;
+  let drag: { scope: EnvScope; index: number; id: string; ids: string[] } | null = null;
   let dropAt: { scope: EnvScope; index: number } | null = null;
   let dragActive = false;
   let dragStartX = 0;
@@ -133,9 +137,22 @@
     await syncEnvFile($activeProject, $activeInstance);
   }
 
+  function deleteLabel(
+    scope: EnvScope,
+    id: string,
+    current: typeof selection,
+  ): string {
+    const count =
+      current?.scope === scope && current.ids.has(id) ? current.ids.size : 1;
+    if (count < 2) return t('common.delete') as string;
+    return (t('env.deleteSelected') as (n: number) => string)(count);
+  }
+
   async function drop(scope: EnvScope, id: string) {
     if (!projectId) return;
-    removeVariable(scope, projectId, instanceId, id);
+    const ids = isSelected(scope, id) ? [...(selection?.ids ?? [])] : [id];
+    for (const target of ids) removeVariable(scope, projectId, instanceId, target);
+    clearSelection();
     await syncEnvFile($activeProject, $activeInstance);
   }
 
@@ -195,10 +212,52 @@
     return null;
   }
 
+  function isSelected(scope: EnvScope, id: string): boolean {
+    return selection?.scope === scope && selection.ids.has(id);
+  }
+
+  function clearSelection() {
+    selection = null;
+  }
+
+  /**
+   * Selection is confined to one section: the drop target decides the scope of
+   * the whole batch, so a mixed-scope selection would have no meaning.
+   */
+  function applySelection(e: PointerEvent, scope: EnvScope, index: number, id: string) {
+    const list = variablesOf(scope);
+    const sameScope = selection?.scope === scope;
+
+    if (e.shiftKey && sameScope) {
+      const [from, to] = anchorIndex <= index ? [anchorIndex, index] : [index, anchorIndex];
+      selection = { scope, ids: new Set(list.slice(from, to + 1).map((v) => v.id)) };
+      return;
+    }
+
+    if (e.metaKey || e.ctrlKey) {
+      const ids = new Set(sameScope && selection ? selection.ids : []);
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      selection = ids.size > 0 ? { scope, ids } : null;
+      anchorIndex = index;
+      return;
+    }
+
+    if (!isSelected(scope, id)) {
+      selection = { scope, ids: new Set([id]) };
+    }
+    anchorIndex = index;
+  }
+
   function dragPointerDown(e: PointerEvent, scope: EnvScope, index: number, id: string) {
     if ((e.target as Element).closest('button, input')) return;
     e.preventDefault();
-    drag = { scope, index, id };
+    applySelection(e, scope, index, id);
+    if (!isSelected(scope, id)) return;
+    const ids = variablesOf(scope)
+      .filter((v) => isSelected(scope, v.id))
+      .map((v) => v.id);
+    drag = { scope, index, id, ids };
     dropAt = { scope, index };
     dragActive = false;
     dragStartX = e.clientX;
@@ -233,20 +292,24 @@
     document.body.classList.remove('dragging');
     if (!pending || !projectId) return;
     if (pending.dropAt.scope === 'instance' && !instanceId) return;
-    moveVariable(
+    moveVariables(
       pending.drag.scope,
       pending.dropAt.scope,
       projectId,
       instanceId,
-      pending.drag.id,
+      pending.drag.ids,
       pending.dropAt.index,
     );
+    if (pending.dropAt.scope !== pending.drag.scope) {
+      selection = { scope: pending.dropAt.scope, ids: new Set(pending.drag.ids) };
+    }
     await syncEnvFile($activeProject, $activeInstance);
   }
 
   $: dropIndicator =
     dragActive && drag && dropAt &&
     (dropAt.scope !== drag.scope ||
+      drag.ids.length > 1 ||
       (dropAt.index !== drag.index && dropAt.index !== drag.index + 1))
       ? dropAt
       : null;
@@ -311,7 +374,12 @@
     </div>
   </div>
 
-  <div class="env-body">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div
+    class="env-body"
+    on:pointerdown={(e) => { if (!(e.target as Element).closest('.env-row')) clearSelection(); }}
+  >
     {#if conflict}
       <div class="env-banner">
         <Icon name="alert" size={14}/>
@@ -383,7 +451,8 @@
               <div
                 class="env-row"
                 class:disabled={!variable.enabled}
-                class:dragging={dragActive && drag?.id === variable.id}
+                class:selected={selection?.scope === section.scope && selection.ids.has(variable.id)}
+                class:dragging={dragActive && drag?.ids.includes(variable.id)}
                 role="button"
                 tabindex="0"
                 on:pointerdown={(e) => dragPointerDown(e, section.scope, i, variable.id)}
@@ -406,7 +475,7 @@
                   <input
                     class="env-input mono selectable env-override"
                     type={variable.secret && !revealed.has(variable.id) ? 'password' : 'text'}
-                    value={instanceFile.overrides[variable.id] ?? ''}
+                    value={overrideValue(variable, instanceFile.overrides)}
                     disabled={!instanceId}
                     placeholder={t('env.overridePlaceholder') as string}
                     spellcheck="false"
@@ -437,7 +506,7 @@
                   <button class="env-action" title={t('common.edit') as string} aria-label={t('common.edit') as string} on:click|stopPropagation={() => startEdit(section.scope, variable)}>
                     <Icon name="edit" size={12}/>
                   </button>
-                  <button class="env-action danger" title={t('common.delete') as string} aria-label={t('common.delete') as string} on:click|stopPropagation={() => drop(section.scope, variable.id)}>
+                  <button class="env-action danger" title={deleteLabel(section.scope, variable.id, selection)} aria-label={deleteLabel(section.scope, variable.id, selection)} on:click|stopPropagation={() => drop(section.scope, variable.id)}>
                     <Icon name="trash" size={12}/>
                   </button>
                 </span>
@@ -647,6 +716,7 @@
   }
   .env-row:hover { border-color: var(--stroke-1); }
   .env-row.disabled { opacity: 0.5; }
+  .env-row.selected { background: var(--accent-weak); border-color: var(--accent); }
   .env-row.dragging { opacity: 0.4; cursor: grabbing; }
 
   .env-toggle {

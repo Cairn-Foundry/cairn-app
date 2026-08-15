@@ -136,6 +136,19 @@
             <span class="ee-hint">{t('env.perInstanceHint')}</span>
           </span>
         </label>
+
+        {#if draft.perInstance}
+          <label class="ee-field">
+            <span class="ee-label">{t('env.defaultValue')}</span>
+            <input
+              class="ee-input mono selectable"
+              bind:value={draft.defaultValue}
+              spellcheck="false"
+              placeholder={t('env.defaultValuePlaceholder') as string}
+            />
+            <span class="ee-hint">{t('env.defaultValueHint')}</span>
+          </label>
+        {/if}
       {/if}
 
       <label class="ee-toggle">

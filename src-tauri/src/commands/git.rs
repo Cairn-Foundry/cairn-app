@@ -370,6 +370,24 @@ pub async fn git_file_at_head(
 }
 
 #[tauri::command]
+pub async fn git_file_in_index(
+    worktree_path: String,
+    file_path: String,
+) -> Result<Option<String>, GitError> {
+    let expanded = expand(&worktree_path);
+    let output = git_cmd(&expanded)
+        .args(["show", &format!(":{}", file_path)])
+        .output()?;
+    if !output.status.success() {
+        if !is_repo_root(&expanded)? {
+            return Err(GitError::from_process(&output));
+        }
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+}
+
+#[tauri::command]
 pub async fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, GitError> {
     let expanded = expand(&worktree_path);
     let mut args = vec!["diff", "--unified=3"];

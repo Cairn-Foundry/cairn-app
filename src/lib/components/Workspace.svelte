@@ -91,6 +91,13 @@
     else filesView?.openFileByPath(hit.path);
   }
 
+  export async function openPathsFromCli(paths: string[]) {
+    if (paths.length === 0) return;
+    openStep('files');
+    await tick();
+    for (const path of paths) filesView?.openFileByPath(path);
+  }
+
   function selectTool(id: string) {
     showTool(id as 'terminal' | 'commands' | 'env' | 'formatting');
     showTools = false;

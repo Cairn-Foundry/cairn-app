@@ -5,7 +5,7 @@
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run build && bash scripts/build-cli-launcher.sh",
     "frontendDist": "../build"
   },
   "app": {
@@ -34,6 +34,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/cairn-cli"],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",

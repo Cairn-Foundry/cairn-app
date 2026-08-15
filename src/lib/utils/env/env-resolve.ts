@@ -35,7 +35,9 @@ export function resolveEnv(input: EnvResolutionInput): ResolvedEnvEntry[] {
 			if (!isValidEnvKey(variable.key)) continue;
 
 			const usesOverride = scope !== "instance" && variable.perInstance;
-			const raw = usesOverride ? input.overrides[variable.id] : variable.value;
+			const raw = usesOverride
+				? (input.overrides[variable.id] ?? (variable.defaultValue || undefined))
+				: variable.value;
 			if (raw === undefined) continue;
 
 			byKey.set(variable.key, {
@@ -48,7 +50,40 @@ export function resolveEnv(input: EnvResolutionInput): ResolvedEnvEntry[] {
 		}
 	}
 
-	return [...byKey.values()];
+	return expandReferences([...byKey.values()]);
+}
+
+const REFERENCE = /\$?\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
+/**
+ * Expands `{OTHER}` / `${OTHER}` references between variables, so a value can
+ * be written as `http://localhost:{APP_PORT}`. Resolution is recursive and
+ * memoized; a reference that cycles, or that names a key no scope defines, is
+ * left as written rather than silently emptied.
+ */
+export function expandReferences(
+	entries: ResolvedEnvEntry[],
+): ResolvedEnvEntry[] {
+	const raw = new Map(entries.map((entry) => [entry.key, entry.value]));
+	const done = new Map<string, string>();
+
+	function expand(key: string, seen: Set<string>): string {
+		const cached = done.get(key);
+		if (cached !== undefined) return cached;
+
+		const value = raw.get(key) ?? "";
+		const next = value.replace(REFERENCE, (match, name: string) => {
+			if (!raw.has(name) || seen.has(name)) return match;
+			return expand(name, new Set([...seen, name]));
+		});
+		done.set(key, next);
+		return next;
+	}
+
+	return entries.map((entry) => ({
+		...entry,
+		value: expand(entry.key, new Set([entry.key])),
+	}));
 }
 
 export function toEnvRecord(

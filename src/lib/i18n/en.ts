@@ -893,13 +893,18 @@ export const en = {
 		key: "Key",
 		value: "Value",
 		valueHint:
-			"Command tokens such as {{instance.branch}} are replaced when the variable is injected.",
+			"Command tokens such as {{instance.branch}} are replaced when the variable is injected. Reference another variable with {OTHER}, as in http://localhost:{APP_PORT}.",
 		secret: "Secret",
 		secretHint:
 			"Hides the value on screen. It is still stored in clear in ~/.cairn.",
 		perInstance: "One value per instance",
 		perInstanceHint:
 			"The key is declared here, but each instance provides its own value.",
+		deleteSelected: (n: number) => `Delete ${n} variables`,
+		defaultValue: "Default value",
+		defaultValuePlaceholder: "Value a new instance starts from",
+		defaultValueHint:
+			"Prefills the field on every instance that has not set its own value.",
 		enabled: "Enabled",
 		enabledHint:
 			"A disabled variable is left out of every process and of the generated file.",
@@ -2147,6 +2152,16 @@ export const en = {
 					desc: "Auto-format before staging",
 					value: "Prettier",
 				},
+			},
+			cli: {
+				groupTitle: "Command line",
+				install: "Install the cairn command",
+				installDesc:
+					"Adds a cairn command to your PATH. Run cairn to bring the app forward, or cairn <file> to open a file in the editor.",
+				installedAt: (path: string) => `Installed at ${path}.`,
+				uninstall: "Remove the cairn command",
+				unavailable:
+					"The launcher is only available in an installed build of Cairn, not in development mode.",
 			},
 			updates: {
 				groupTitle: "Updates",

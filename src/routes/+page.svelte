@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
-  import { activeProjectId, loadProjects, loadListing, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { activeProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
   import { loadAgentActivity } from '$lib/stores/agent-activity';
@@ -31,11 +32,18 @@
   let createFromBranch = '';
   let mounted = false;
 
+  let workspaceView: Workspace | null = null;
+
+  /** Survives closing the last tab, so `cairn <file>` knows where to go back to. */
+  let lastProjectId: string | null = null;
+
   let removeCopyHandler: (() => void) | null = null;
   let stopUpdateChecks: (() => void) | null = null;
+  let unlistenCliOpen: (() => void) | null = null;
   onDestroy(() => {
     removeCopyHandler?.();
     stopUpdateChecks?.();
+    unlistenCliOpen?.();
     disposeLanguageServers();
   });
 
@@ -101,6 +109,14 @@
     }
 
     mounted = true;
+
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      unlistenCliOpen = await listen<{ paths: string[] }>('cli-open', (e) => {
+        void handleCliPaths(e.payload.paths ?? []);
+      });
+      await handleCliPaths(await takePendingCliPaths());
+    } catch {}
   });
 
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
@@ -115,7 +131,10 @@
   referencesQuery.subscribe(() => persistUiState());
   openTabOrder.subscribe(() => persistUiState());
   viewStates.subscribe(() => persistUiState());
-  activeProjectId.subscribe(() => persistUiState());
+  activeProjectId.subscribe((id) => {
+    if (id) lastProjectId = id;
+    persistUiState();
+  });
 
   /**
    * The instances of the target project are loaded before it becomes active, so
@@ -159,6 +178,24 @@
     screen = 'workspace';
   }
 
+  /**
+   * `cairn <file>` has to land on the editor whatever the app was showing. From
+   * the home screen no project is active, so the last one used is reopened
+   * first - falling back to the most recent of the listing on a cold start
+   * where nothing was restored.
+   */
+  async function handleCliPaths(paths: string[]) {
+    if (paths.length === 0) return;
+    if (!$activeProjectId) {
+      const target = lastProjectId ?? $openProjects[0]?.id ?? $projects[0]?.id;
+      if (!target) return;
+      await handleOpenProject(target);
+    }
+    screen = 'workspace';
+    await tick();
+    await workspaceView?.openPathsFromCli(paths);
+  }
+
   function handleSectionChange(e: CustomEvent<{ section: string; settingsTab: string }>) {
     homeSection = e.detail.section;
     homeSettingsTab = e.detail.settingsTab;
@@ -184,6 +221,7 @@
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
     <Workspace
+      bind:this={workspaceView}
       openProjects={$openProjects}
       activeProjectId={$activeProjectId ?? ''}
       activeInstance={$activeInstance}

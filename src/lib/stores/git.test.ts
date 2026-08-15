@@ -4,15 +4,22 @@ import { activeProjectId, projects } from "$lib/stores/project";
 import { activeScreen } from "$lib/stores/ui";
 import type { Project } from "$lib/types/project";
 import { GIT_REFRESH_INTERVAL_MS } from "$lib/utils/timing";
-import { git, refreshStatus, startGitPolling } from "./git";
+import {
+	git,
+	refreshStatus,
+	stageFile as stageFileInStore,
+	startGitPolling,
+} from "./git";
 import { BASE_INSTANCE_ID } from "./instance";
 
 const getStatus = vi.hoisted(() => vi.fn());
 const isGitRepo = vi.hoisted(() => vi.fn());
+const stageFile = vi.hoisted(() => vi.fn());
 
 vi.mock("$lib/services/git-service", () => ({
 	isGitRepo,
 	getStatus,
+	stageFile,
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),
 	getDiffStaged: vi.fn().mockResolvedValue([]),
 	getCurrentBranch: vi.fn().mockResolvedValue("main"),
@@ -96,6 +103,44 @@ describe("refreshStatus", () => {
 		activeProjectId.set(null);
 		await refreshStatus();
 		expect(getStatus).not.toHaveBeenCalled();
+	});
+});
+
+describe("indexVersion", () => {
+	beforeEach(async () => {
+		vi.clearAllMocks();
+		isGitRepo.mockResolvedValue(true);
+		getStatus.mockResolvedValue({ "a.txt": "modified" });
+		stageFile.mockResolvedValue(undefined);
+		projects.set([project("a")]);
+		const { loadInstances } = await import("./instance");
+		await loadInstances("a");
+		activeProjectId.set("a");
+	});
+
+	it("stays put on a status refresh that follows no write", async () => {
+		await refreshStatus();
+		const before = get(git).indexVersion;
+		await refreshStatus();
+		await refreshStatus(true);
+		expect(get(git).indexVersion).toBe(before);
+	});
+
+	it("moves once after a stage, even when the status label does not change", async () => {
+		await refreshStatus();
+		const before = get(git).indexVersion;
+		await stageFileInStore("a.txt");
+		expect(get(git).status).toEqual({ "a.txt": "modified" });
+		expect(get(git).indexVersion).toBe(before + 1);
+	});
+
+	it("does not move when the write fails", async () => {
+		await refreshStatus();
+		const before = get(git).indexVersion;
+		stageFile.mockRejectedValue(new Error("nope"));
+		await expect(stageFileInStore("a.txt")).rejects.toThrow();
+		await refreshStatus();
+		expect(get(git).indexVersion).toBe(before);
 	});
 });
 

@@ -27,7 +27,6 @@ import {
 	resolveEnv,
 	toEnvRecord,
 } from "$lib/utils/env/env-resolve";
-import { moveItem } from "$lib/utils/terminal/terminal-order";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 
@@ -166,9 +165,23 @@ export function newVariable(key = "", value = ""): EnvVariable {
 		key,
 		value,
 		perInstance: false,
+		defaultValue: "",
 		secret: false,
 		enabled: true,
 	};
+}
+
+/**
+ * The value an instance shows for a `perInstance` variable: its own override
+ * when it set one, the variable's default value otherwise. Only an explicit
+ * override is persisted, so changing the default still reaches every instance
+ * that never typed a value of its own.
+ */
+export function overrideValue(
+	variable: EnvVariable,
+	overrides: Record<string, string>,
+): string {
+	return overrides[variable.id] ?? variable.defaultValue;
 }
 
 export function addVariables(
@@ -255,11 +268,6 @@ export function scopeVariables(
 	return instanceEnvFile(projectId, instanceId).variables;
 }
 
-/**
- * Moves a variable inside a scope, or from one scope to another. A variable
- * landing on the instance carries the value that instance had given it, since
- * "one value per instance" no longer means anything down there.
- */
 export function moveVariable(
 	from: EnvScope,
 	to: EnvScope,
@@ -268,36 +276,68 @@ export function moveVariable(
 	id: string,
 	insertIndex: number,
 ): void {
+	moveVariables(from, to, projectId, instanceId, [id], insertIndex);
+}
+
+/**
+ * Moves a selection inside a scope, or from one scope to another. The
+ * variables keep the order they had in the source scope, and the insertion
+ * point is corrected for the ones removed above it so the batch lands where
+ * the indicator was drawn. A variable landing on the instance carries the
+ * value that instance had given it, since "one value per instance" no longer
+ * means anything down there.
+ */
+export function moveVariables(
+	from: EnvScope,
+	to: EnvScope,
+	projectId: string,
+	instanceId: string | null,
+	ids: string[],
+	insertIndex: number,
+): void {
 	if (to === "instance" && !instanceId) return;
 	const source = scopeVariables(from, projectId, instanceId);
-	const index = source.findIndex((v) => v.id === id);
-	if (index === -1) return;
-	const variable = source[index];
+	const moving = source.filter((v) => ids.includes(v.id));
+	if (moving.length === 0) return;
 
 	if (from === to) {
+		const removedBefore = source.filter(
+			(v, i) => ids.includes(v.id) && i < insertIndex,
+		).length;
+		const rest = source.filter((v) => !ids.includes(v.id));
+		const at = insertIndex - removedBefore;
 		updateScope(
 			from,
 			projectId,
 			instanceId,
-			mapVariables((list) => moveItem(list, index, insertIndex)),
+			mapVariables(() => [...rest.slice(0, at), ...moving, ...rest.slice(at)]),
 		);
 		return;
 	}
 
-	const override = instanceEnvFile(projectId, instanceId).overrides[id];
-	const moved =
+	const overrides = instanceEnvFile(projectId, instanceId).overrides;
+	const moved = moving.map((variable) =>
 		to === "instance"
-			? { ...variable, perInstance: false, value: override ?? variable.value }
-			: variable;
+			? {
+					...variable,
+					perInstance: false,
+					value: overrideValue(variable, overrides),
+				}
+			: variable,
+	);
 
 	updateScope(
 		from,
 		projectId,
 		instanceId,
-		mapVariables((list) => list.filter((v) => v.id !== id)),
+		mapVariables((list) => list.filter((v) => !ids.includes(v.id))),
 	);
-	if (variable.perInstance && instanceId) {
-		setOverride(projectId, instanceId, id, null);
+	if (instanceId) {
+		for (const variable of moving) {
+			if (variable.perInstance) {
+				setOverride(projectId, instanceId, variable.id, null);
+			}
+		}
 	}
 	updateScope(
 		to,
@@ -305,7 +345,7 @@ export function moveVariable(
 		instanceId,
 		mapVariables((list) => [
 			...list.slice(0, insertIndex),
-			moved,
+			...moved,
 			...list.slice(insertIndex),
 		]),
 	);
