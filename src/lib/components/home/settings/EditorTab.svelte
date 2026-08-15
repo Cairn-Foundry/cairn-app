@@ -182,6 +182,20 @@
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.editor.stickyScroll')}</span>
+      <span class="settings-row-desc">{t('settings.editor.stickyScrollDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.editor.toggleStickyScroll') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.stickyScroll}
+        on:change={(e) => settings.save({ stickyScroll: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
       <span class="settings-row-label">{t('settings.editor.saveOn')}</span>
       <span class="settings-row-desc">{t('settings.editor.saveOnDesc')}</span>
     </div>
@@ -317,7 +331,7 @@
   <button
     class="btn ghost"
     style="font-size: 12px;"
-    on:click={() => settings.save({ treePanelWidth: 220, showMinimap: true, editorFontSize: 13, sidebarPosition: 'left' })}
+    on:click={() => settings.save({ treePanelWidth: 220, showMinimap: true, stickyScroll: true, editorFontSize: 13, sidebarPosition: 'left' })}
   >
     <Icon name="undo" size={12}/> {t('settings.editor.resetEditor')}
   </button>

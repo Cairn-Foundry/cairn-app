@@ -76,6 +76,8 @@ pub struct CairnSettings {
     pub tree_panel_width: u32,
     #[serde(rename = "showMinimap", default = "default_show_minimap")]
     pub show_minimap: bool,
+    #[serde(rename = "stickyScroll", default = "default_sticky_scroll")]
+    pub sticky_scroll: bool,
     #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
     pub editor_font_size: u32,
     #[serde(rename = "uiScale", default = "default_ui_scale")]
@@ -221,6 +223,7 @@ fn default_show_whitespace() -> bool { false }
 fn default_save_on() -> String { "blur".to_string() }
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
+fn default_sticky_scroll() -> bool { true }
 fn default_editor_font_size() -> u32 { 13 }
 fn default_ui_scale() -> f64 { 1.0 }
 fn default_editor_font_family() -> String { "Menlo, ui-monospace, monospace".to_string() }
@@ -234,6 +237,7 @@ impl Default for CairnSettings {
         CairnSettings {
             tree_panel_width: default_tree_panel_width(),
             show_minimap: default_show_minimap(),
+            sticky_scroll: default_sticky_scroll(),
             editor_font_size: default_editor_font_size(),
             ui_scale: default_ui_scale(),
             editor_font_family: default_editor_font_family(),

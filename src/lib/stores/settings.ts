@@ -15,6 +15,7 @@ import { setCustomServers } from "$lib/utils/languages/servers";
 const DEFAULTS: CairnSettings = {
 	treePanelWidth: 220,
 	showMinimap: true,
+	stickyScroll: true,
 	editorFontSize: 13,
 	uiScale: 1,
 	fontFamily: "Menlo, ui-monospace, monospace",

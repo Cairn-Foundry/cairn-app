@@ -8,6 +8,7 @@
   import { Compartment } from '@codemirror/state';
 
   const minimapCompartment = new Compartment();
+  const stickyScrollCompartment = new Compartment();
   const fontSizeCompartment = new Compartment();
   const shortcutKeymapCompartment = new Compartment();
   const themeCompartment = new Compartment();
@@ -56,6 +57,7 @@
   } from '$lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS, unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { buildConflictResolver } from '$lib/utils/editor/editor-conflict';
+  import { buildStickyScroll, stickyScrollTheme } from '$lib/utils/editor/editor-sticky-scroll';
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
@@ -68,6 +70,7 @@
   export let language: EditorLanguage = 'ts';
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
+  export let stickyScrollEnabled: boolean = true;
   export let fontSize: number = EDITOR_DEFAULTS.fontSize;
   export let baseContent: string | null = null;
   export let onChunkClick: ((chunk: GutterChunk) => void) | undefined = undefined;
@@ -383,6 +386,8 @@
       buildDiffGutterTheme(),
       buildConflictResolver(),
       minimapCompartment.of(buildMinimap(minimapEnabled, minimapDiffGutter)),
+      stickyScrollCompartment.of(buildStickyScroll(stickyScrollEnabled)),
+      stickyScrollTheme,
       themeCompartment.of(buildEditorTheme(theme)),
       fontSizeCompartment.of(buildFontSizeTheme(fontSize)),
       EditorView.lineWrapping,
@@ -455,6 +460,14 @@
   }
 
   $: if (view) syncMinimap($settings.theme, minimapEnabled, true);
+
+  let syncedStickyScroll = true;
+  $: if (view && stickyScrollEnabled !== syncedStickyScroll) {
+    syncedStickyScroll = stickyScrollEnabled;
+    view.dispatch({
+      effects: stickyScrollCompartment.reconfigure(buildStickyScroll(stickyScrollEnabled)),
+    });
+  }
 
   /** Mirrors the git gutter into the minimap so changes stay locatable in long files. */
   function syncMinimap(themeName: string, enabled: boolean, force = false) {

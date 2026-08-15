@@ -112,6 +112,12 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		group: s("settings.editor.codeEditorGroup"),
 	},
 	{
+		label: s("settings.editor.stickyScroll"),
+		desc: s("settings.editor.stickyScrollDesc"),
+		tab: "editor",
+		group: s("settings.editor.codeEditorGroup"),
+	},
+	{
 		label: s("settings.project.workflowTabsGroup"),
 		desc: s("settings.project.workflowTabsHint"),
 		tab: "project",

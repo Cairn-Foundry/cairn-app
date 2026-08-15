@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "The code editor keeps the enclosing scopes - function, class, block - pinned at its top while you scroll, so you always see where you are. It can be turned off in Settings, Editor.",
+					"fr": "L'éditeur de code garde les portées englobantes - fonction, classe, bloc - épinglées en haut pendant le défilement, pour toujours savoir où l'on se trouve. Désactivable dans Réglages, Éditeur."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The font chosen in Settings, Appearance applies to the whole interface again, not only to the editor and the terminal.",

@@ -56,6 +56,7 @@ export interface CustomLanguageServer {
 export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
+	stickyScroll: boolean;
 	editorFontSize: number;
 	uiScale: number;
 	fontFamily: string;

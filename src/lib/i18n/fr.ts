@@ -2300,6 +2300,10 @@ export const fr = {
 			showMinimapDesc:
 				"Panneau d'aperçu dans la barre de défilement droite de l'éditeur.",
 			toggleMinimap: "Basculer la minimap",
+			stickyScroll: "Défilement contextuel",
+			stickyScrollDesc:
+				"Garde les portées englobantes - fonction, classe, bloc - épinglées en haut de l'éditeur pendant le défilement.",
+			toggleStickyScroll: "Basculer le défilement contextuel",
 			quickSearchGroup: "Recherche rapide",
 			quickSearchGitignored:
 				"Afficher les fichiers gitignorés dans la recherche rapide",

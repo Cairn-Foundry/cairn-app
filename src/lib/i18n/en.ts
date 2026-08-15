@@ -2250,6 +2250,10 @@ export const en = {
 			showMinimapDesc:
 				"Scrollbar overview panel on the right side of the code editor.",
 			toggleMinimap: "Toggle minimap",
+			stickyScroll: "Sticky scroll",
+			stickyScrollDesc:
+				"Keep the enclosing scopes - function, class, block - pinned at the top of the editor while scrolling.",
+			toggleStickyScroll: "Toggle sticky scroll",
 			quickSearchGroup: "Quick Search",
 			quickSearchGitignored: "Show gitignored files in quick search",
 			quickSearchGitignoredDesc:
