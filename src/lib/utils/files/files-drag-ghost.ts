@@ -1,5 +1,9 @@
+// The label following the pointer during a file tree drag. Built by hand
+// because the app never uses HTML5 drag and drop, which has no drag image here.
+
 let dragGhostEl: HTMLDivElement | null = null;
 
+/** Creates the floating label, replacing any ghost left over from before. */
 export function createDragGhost(label: string): void {
 	removeDragGhost();
 	const el = document.createElement("div");
@@ -11,17 +15,23 @@ export function createDragGhost(label: string): void {
 	dragGhostEl = el;
 }
 
+/** Follows the pointer, offset so the label never sits under the cursor. */
 export function moveGhost(x: number, y: number): void {
 	if (!dragGhostEl) return;
 	dragGhostEl.style.left = `${x + 12}px`;
 	dragGhostEl.style.top = `${y + 12}px`;
 }
 
+/** Removes the ghost; safe to call when there is none. */
 export function removeDragGhost(): void {
 	dragGhostEl?.remove();
 	dragGhostEl = null;
 }
 
+/**
+ * The directory under the pointer: a directory row drops into itself, a file
+ * row into the directory that contains it.
+ */
 export function findDropTargetDir(x: number, y: number): string | null {
 	const el = document.elementFromPoint(x, y);
 	if (!el) return null;

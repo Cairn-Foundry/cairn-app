@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Peek panel under the editor showing the before/after diff of one gutter hunk.
+   * `chunk` carries the hunk text and its line range; reverting and closing are
+   * delegated to the caller through `onRevert` / `onDismiss`.
+   */
   import DiffEditor from '$lib/components/review/DiffEditor.svelte';
   import { t } from '$lib/i18n';
   import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';

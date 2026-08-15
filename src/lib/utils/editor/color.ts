@@ -1,5 +1,8 @@
+// Converting the palette colours to hex, for the native inputs that need it.
+
 const OKLCH = /^oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)/i;
 
+/** Linear light to sRGB, clamped to a 0-255 channel. */
 function gamma(channel: number): number {
 	const v =
 		channel <= 0.0031308
@@ -8,6 +11,7 @@ function gamma(channel: number): number {
 	return Math.round(Math.min(1, Math.max(0, v)) * 255);
 }
 
+/** One channel as two hex digits. */
 function toHexPair(value: number): string {
 	return value.toString(16).padStart(2, "0");
 }
@@ -43,6 +47,7 @@ export function toHexColor(color: string): string {
 	return `#${toHexPair(r)}${toHexPair(g)}${toHexPair(bl)}`;
 }
 
+/** `#abc` to `#aabbcc`. */
 function expandShortHex(hex: string): string {
 	return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
 }

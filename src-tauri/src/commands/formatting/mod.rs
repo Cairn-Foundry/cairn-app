@@ -1,3 +1,6 @@
+//! Code formatting: the per-project formatter configuration, running a
+//! formatter over a document, and detecting what the repo already uses.
+
 pub mod adapters;
 pub mod catalog;
 

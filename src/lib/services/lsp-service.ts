@@ -1,13 +1,19 @@
+// Language server lifecycle - catalogue, install, start - and the LSP requests
+// the editor sends once one is running.
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** Lifecycle of one server on one root. */
 export type LanguageServerStatus = "starting" | "ready" | "failed" | "stopped";
 
+/** One way to install or remove a server; `available` is false when the manager is missing. */
 export interface ManagerOption {
 	manager: string;
 	command: string;
 	available: boolean;
 }
 
+/** A catalogue entry merged with what was found on this machine. */
 export interface LanguageServerInfo {
 	id: string;
 	name: string;
@@ -21,11 +27,13 @@ export interface LanguageServerInfo {
 	installOptions: ManagerOption[];
 	uninstallOptions: ManagerOption[];
 	updateOptions: ManagerOption[];
+	/** Other server ids the same removal command would take away with it. */
 	alsoRemoves: string[];
 	docUrl: string;
 	binaryPath: string | null;
 	version: string | null;
 	status: LanguageServerStatus;
+	/** One of the roots it runs on, null when it is not running. */
 	runningRoot: string | null;
 }
 
@@ -35,11 +43,13 @@ export interface LspPosition {
 	character: number;
 }
 
+/** A span, `end` exclusive as the protocol defines it. */
 export interface LspRange {
 	start: LspPosition;
 	end: LspPosition;
 }
 
+/** One problem reported on a file. */
 export interface LspDiagnostic {
 	range: LspRange;
 	/** 1 error, 2 warning, 3 information, 4 hint. */
@@ -49,6 +59,10 @@ export interface LspDiagnostic {
 	message: string;
 }
 
+/**
+ * A place in the workspace, flattened out of the protocol's URI and range.
+ * `text` is the source line, when the Rust side could read it for the preview.
+ */
 export interface LspLocation {
 	path: string;
 	line: number;
@@ -58,6 +72,7 @@ export interface LspLocation {
 	text: string | null;
 }
 
+/** A completion candidate; `textEdit` wins over `insertText` when both are set. */
 export interface LspCompletionItem {
 	label: string;
 	kind?: number;
@@ -69,16 +84,19 @@ export interface LspCompletionItem {
 	textEdit?: { range?: LspRange; newText: string };
 }
 
+/** A replacement over a range; edits of one file never overlap. */
 export interface LspTextEdit {
 	range: LspRange;
 	newText: string;
 }
 
+/** Every edit a refactor makes to one file. */
 export interface LspFileEdit {
 	path: string;
 	edits: LspTextEdit[];
 }
 
+/** Signatures for the call being typed; a parameter label may be a range into the signature label. */
 export interface LspSignatureHelp {
 	signatures: {
 		label: string;
@@ -89,6 +107,10 @@ export interface LspSignatureHelp {
 	activeParameter?: number;
 }
 
+/**
+ * Hover payload. The union is the protocol's own history: a bare string, a
+ * marked-up block, or the deprecated array form, and servers still send all three.
+ */
 export interface LspHoverResult {
 	contents:
 		| string
@@ -97,6 +119,7 @@ export interface LspHoverResult {
 	range?: LspRange;
 }
 
+/** Tauri event announcing a server changed state; `message` carries the failure reason. */
 export interface LspStatusEvent {
 	serverId: string;
 	root: string;
@@ -104,6 +127,10 @@ export interface LspStatusEvent {
 	message: string | null;
 }
 
+/**
+ * Tauri event pushing diagnostics for one file. The list is authoritative, so
+ * an empty one means the file is clean, not that nothing was reported.
+ */
 export interface LspDiagnosticsEvent {
 	serverId: string;
 	root: string;
@@ -111,12 +138,14 @@ export interface LspDiagnosticsEvent {
 	diagnostics: LspDiagnostic[];
 }
 
+/** Identifies an open document: which server, on which root, for which file. */
 export interface LspDocRef {
 	serverId: string;
 	root: string;
 	path: string;
 }
 
+/** The catalogue, each entry resolved against what is installed; `root` decides which apply here. */
 export function listLanguageServers(
 	root: string | null,
 ): Promise<LanguageServerInfo[]> {
@@ -126,6 +155,7 @@ export function listLanguageServers(
 /** What a cancelled command rejects with, so it can be told from a failure. */
 export const COMMAND_CANCELLED = "cancelled";
 
+/** One output line of an install or removal in progress, streamed as it comes. */
 export interface LspManagerEvent {
 	serverId: string;
 	line: string;
@@ -147,6 +177,7 @@ export function uninstallLanguageServer(
 	return invoke<string>("uninstall_language_server", { serverId, manager });
 }
 
+/** Result of asking one manager whether the installed server is behind. */
 export interface UpdateCheck {
 	serverId: string;
 	/**
@@ -218,10 +249,12 @@ export function stopLanguageServersWithId(serverId: string): Promise<void> {
 	return invoke("stop_language_servers_with_id", { serverId });
 }
 
+/** Stops every server started on a worktree, when its instance goes away. */
 export function stopLanguageServersFor(worktree: string): Promise<void> {
 	return invoke("stop_language_servers_for", { worktree });
 }
 
+/** Declares a document open; every later request on it needs this first. */
 export function lspDidOpen(
 	doc: LspDocRef,
 	languageId: string,
@@ -230,18 +263,22 @@ export function lspDidOpen(
 	return invoke("lsp_did_open", { ...doc, languageId, text });
 }
 
+/** Sends the whole new text, not an incremental change. */
 export function lspDidChange(doc: LspDocRef, text: string): Promise<void> {
 	return invoke("lsp_did_change", { ...doc, text });
 }
 
+/** Signals a save, which is what some servers wait for before rechecking. */
 export function lspDidSave(doc: LspDocRef, text: string): Promise<void> {
 	return invoke("lsp_did_save", { ...doc, text });
 }
 
+/** Closes the document; the server drops its diagnostics for it. */
 export function lspDidClose(doc: LspDocRef): Promise<void> {
 	return invoke("lsp_did_close", { ...doc });
 }
 
+/** Completions at a position; servers answer with either shape of the union. */
 export function lspCompletion(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -253,6 +290,7 @@ export function lspCompletion(
 	return invoke("lsp_completion", { ...doc, ...position });
 }
 
+/** Documentation at a position, null when the server has nothing to say there. */
 export function lspHover(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -260,6 +298,7 @@ export function lspHover(
 	return invoke("lsp_hover", { ...doc, ...position });
 }
 
+/** Signatures for the call around the position, null outside a call. */
 export function lspSignatureHelp(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -267,6 +306,7 @@ export function lspSignatureHelp(
 	return invoke("lsp_signature_help", { ...doc, ...position });
 }
 
+/** Where the symbol is defined; more than one location when it is ambiguous. */
 export function lspDefinition(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -274,6 +314,7 @@ export function lspDefinition(
 	return invoke<LspLocation[]>("lsp_definition", { ...doc, ...position });
 }
 
+/** Implementations of the interface or abstract symbol at the position. */
 export function lspImplementation(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -281,6 +322,7 @@ export function lspImplementation(
 	return invoke<LspLocation[]>("lsp_implementation", { ...doc, ...position });
 }
 
+/** Every use of the symbol across the workspace, the slowest of these requests. */
 export function lspReferences(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -293,6 +335,7 @@ export function lspReferences(
 	});
 }
 
+/** Edits a rename would make, across every file; applying them is up to the caller. */
 export function lspRename(
 	doc: LspDocRef,
 	position: LspPosition,
@@ -301,6 +344,7 @@ export function lspRename(
 	return invoke<LspFileEdit[]>("lsp_rename", { ...doc, ...position, newName });
 }
 
+/** Edits that format the whole document, null when the server declines. */
 export function lspFormat(
 	doc: LspDocRef,
 	tabSize: number,

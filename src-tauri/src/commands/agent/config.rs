@@ -1,3 +1,6 @@
+//! Provider configuration: the settings file, the encrypted API keys, and what
+//! Cairn asks the installed CLIs and the remote APIs about themselves.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -9,6 +12,9 @@ use super::platform;
 
 const NONCE_LEN: usize = 12;
 
+/// The persisted configuration of one provider. Fields that do not apply to it
+/// (a binary path for an HTTP provider, a temperature for a CLI) simply stay
+/// at their default.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderSettings {
@@ -68,6 +74,8 @@ impl Default for ProviderSettings {
     }
 }
 
+/// The whole `ai-providers.json`: settings per provider id, plus the one the
+/// app starts on.
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AiProvidersConfig {
@@ -77,6 +85,8 @@ pub struct AiProvidersConfig {
     pub default_provider_id: String,
 }
 
+/// Reads the config file, treating a missing one as the defaults rather than
+/// an error.
 pub fn read_ai_providers_config() -> Result<AiProvidersConfig, String> {
     let path = ai_providers_file()?;
     if !path.exists() { return Ok(AiProvidersConfig::default()); }
@@ -84,11 +94,13 @@ pub fn read_ai_providers_config() -> Result<AiProvidersConfig, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// The provider configuration, as the frontend sees it. Never carries a key.
 #[tauri::command]
 pub fn get_ai_providers_config() -> Result<AiProvidersConfig, String> {
     read_ai_providers_config()
 }
 
+/// Replaces the whole configuration file.
 #[tauri::command]
 pub fn save_ai_providers_config(config: AiProvidersConfig) -> Result<(), String> {
     write_json_atomic(&ai_providers_file()?, &config)
@@ -137,10 +149,13 @@ fn encryption_secret() -> Result<[u8; 32], String> {
     Ok(secret)
 }
 
+/// The ChaCha20-Poly1305 cipher the key file is sealed with.
 fn cipher() -> Result<ChaCha20Poly1305, String> {
     Ok(ChaCha20Poly1305::new(&encryption_secret()?.into()))
 }
 
+/// The stored keys, or an empty map when the file is missing, unreadable or
+/// fails authentication - a tampered file is never half-read.
 fn read_stored_keys() -> HashMap<String, String> {
     let Ok(path) = api_keys_file() else { return HashMap::new() };
     let Ok(raw) = fs::read(&path) else { return HashMap::new() };
@@ -157,6 +172,8 @@ fn read_stored_keys() -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
+/// Seals the keys under a fresh nonce, prefixed to the ciphertext. An empty
+/// map removes the file instead of writing an encrypted nothing.
 fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
     let path = api_keys_file()?;
     if keys.is_empty() {
@@ -180,12 +197,14 @@ fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
     Ok(())
 }
 
+/// All the frontend is ever told about a key: whether there is one.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyStatus {
     pub set: bool,
 }
 
+/// Stores a provider's key, replacing any previous one.
 #[tauri::command]
 pub async fn set_provider_api_key(provider_id: String, key: String) -> Result<ApiKeyStatus, String> {
     let mut keys = read_stored_keys();
@@ -204,6 +223,7 @@ pub async fn get_api_key_statuses() -> Result<HashMap<String, bool>, String> {
         .collect())
 }
 
+/// Forgets a provider's key; unknown ids are not an error.
 #[tauri::command]
 pub async fn delete_provider_api_key(provider_id: String) -> Result<(), String> {
     let mut keys = read_stored_keys();
@@ -213,6 +233,8 @@ pub async fn delete_provider_api_key(provider_id: String) -> Result<(), String> 
     Ok(())
 }
 
+/// A provider's key for a run. Rust-side only - it never crosses to the
+/// frontend.
 pub fn get_api_key(provider_id: &str) -> Option<String> {
     read_stored_keys().remove(provider_id).filter(|k| !k.is_empty())
 }
@@ -221,6 +243,7 @@ pub fn get_api_key(provider_id: &str) -> Option<String> {
 // Provider availability probe
 // ---------------------------------------------------------------------------
 
+/// Whether a provider is usable right now, and why not when it is not.
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProbeResult {
@@ -230,6 +253,8 @@ pub struct ProbeResult {
     pub models: Vec<String>,
 }
 
+/// Checks a provider is reachable: a CLI answers `--version`, Ollama answers
+/// its tag list, and any other HTTP provider only needs a key to count.
 #[tauri::command]
 pub async fn probe_provider(
     provider_id: String,
@@ -300,6 +325,7 @@ pub async fn probe_provider(
 // Model catalogue, asked to the provider rather than hardcoded
 // ---------------------------------------------------------------------------
 
+/// A model the provider reported: the id to send, and the name to show.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveredModel {
@@ -320,6 +346,7 @@ fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
+/// GET a JSON body, turning a non-2xx status into the error.
 async fn json_get(
     url: &str,
     headers: &[(&str, String)],
@@ -335,14 +362,17 @@ async fn json_get(
     response.json::<serde_json::Value>().await.map_err(|e| e.to_string())
 }
 
+/// The array under `key`, or an empty slice for anything else.
 fn array_of<'a>(value: &'a serde_json::Value, key: &str) -> &'a [serde_json::Value] {
     value.get(key).and_then(|v| v.as_array()).map_or(&[], |v| v.as_slice())
 }
 
+/// The string under `key`, if it is one.
 fn str_of(value: &serde_json::Value, key: &str) -> Option<String> {
     value.get(key).and_then(|v| v.as_str()).map(String::from)
 }
 
+/// What a provider says it accepts, as the pickers offer it.
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderCapabilities {
@@ -351,6 +381,8 @@ pub struct ProviderCapabilities {
     pub permission_modes: Vec<String>,
 }
 
+/// Whether a token read out of help text can plausibly be an option value
+/// rather than a fragment of prose.
 fn is_option_value(token: &str) -> bool {
     !token.is_empty()
         && token.len() < 60
@@ -434,6 +466,8 @@ fn claude_cli_capabilities(binary_path: &str) -> ProviderCapabilities {
     }
 }
 
+/// The models, efforts and permission modes to offer for a provider, asked to
+/// the provider itself rather than hardcoded.
 #[tauri::command]
 pub async fn discover_provider(
     provider_id: String,
@@ -462,6 +496,8 @@ pub async fn discover_provider(
     })
 }
 
+/// The model catalogue of one HTTP provider, each having its own endpoint and
+/// its own shape. An unknown id returns nothing rather than failing.
 async fn list_provider_models(
     provider_id: String,
     base_url: Option<String>,
@@ -562,6 +598,8 @@ async fn list_provider_models(
 // project and in the user's home
 // ---------------------------------------------------------------------------
 
+/// A slash command the agent can be asked to run, with where it came from
+/// (`project`, `global` or `plugin`).
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSlashCommand {
@@ -570,6 +608,7 @@ pub struct AgentSlashCommand {
     pub scope: String,
 }
 
+/// The one-line description of a command or skill file.
 fn describe(path: &Path) -> String {
     fs::read_to_string(path)
         .ok()
@@ -615,12 +654,14 @@ fn collect_skills(dir: &Path, scope: &str, plugin: &str, out: &mut Vec<AgentSlas
     }
 }
 
+/// One entry of Claude Code's `installed_plugins.json`.
 #[derive(Deserialize)]
 struct InstalledPlugin {
     #[serde(rename = "installPath")]
     install_path: String,
 }
 
+/// The plugin manifest, keyed by `name@marketplace`.
 #[derive(Deserialize)]
 struct InstalledPlugins {
     #[serde(default)]
@@ -643,6 +684,8 @@ fn collect_plugins(home: &Path, out: &mut Vec<AgentSlashCommand>) {
     }
 }
 
+/// The `description` of the frontmatter, falling back to the first meaningful
+/// line when the file has none.
 fn extract_description(content: &str) -> Option<String> {
     let mut lines = content.lines();
     if content.starts_with("---") {
@@ -868,6 +911,8 @@ mod tests {
 
 }
 
+/// Every slash command available in this working directory, deduplicated so a
+/// project entry shadows a global one, which shadows a plugin's.
 #[tauri::command]
 pub async fn list_agent_commands(working_dir: String) -> Result<Vec<AgentSlashCommand>, String> {
     let mut out = Vec::new();

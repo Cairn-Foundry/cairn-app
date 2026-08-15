@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Merge and rebase panel: pick a target branch, run the operation, and work
+   * through the resulting conflicts (continue / skip / abort).
+   * Dispatches `openFile` with a conflicted path and `filesChanged` after any git write.
+   */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -42,6 +47,7 @@
   $: contentFiles = conflictFiles.filter((f) => !structural.has(f));
   $: structuralFiles = conflictFiles.filter((f) => structural.has(f));
 
+  /** Stages a conflicted file, warning first if it still contains conflict markers. */
   async function markResolved(file: string) {
     const wt = $activeInstance?.worktreePath;
     if (!wt) return;
@@ -78,6 +84,7 @@
     if (!hasTargets && $activeProject?.path) loadBranches($activeProject.path);
   });
 
+  /** Clears the branch selection once an operation succeeded. */
   function afterOp(result: GitOpResult | null) {
     if (result && result.ok) {
       strategy = null;
@@ -86,6 +93,7 @@
     }
   }
 
+  /** Runs the selected strategy against the selected target branch. */
   async function run() {
     if (!strategy || !target || running) return;
     running = true;
@@ -101,6 +109,7 @@
     }
   }
 
+  /** Serializes a git action behind the `running` flag and notifies the parent afterwards. */
   async function guarded(fn: () => Promise<unknown>) {
     if (running) return;
     running = true;

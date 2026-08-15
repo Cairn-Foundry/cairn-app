@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Copy-to-clipboard button, placed next to a single discrete value worth
+   * copying (commit hash, branch name, path, id). Shows a check for a moment
+   * after copying.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { CLIPBOARD_CLEAR_DELAY } from '$lib/utils/timing';

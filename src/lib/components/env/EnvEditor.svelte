@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Modal creating or editing one environment variable, including the scope it
+   * belongs to. Dispatches `save` with the variable and its target scope, which
+   * may differ from the one it was opened in.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';

@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Home screen shell: the sidebar plus whichever section is active. Section and
+   * settings tab are echoed up through `sectionChange` so they can be persisted,
+   * and forced back down through `openSection` / `openSettingsTab` on restore.
+   */
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import AddProject from '$lib/components/AddProject.svelte';

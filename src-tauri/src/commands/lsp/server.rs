@@ -1,3 +1,6 @@
+//! Starting, initializing and stopping one language server process, and the
+//! LSP <-> filesystem path conversions its protocol requires.
+
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -23,6 +26,7 @@ use super::registry::{resolve_binary, LanguageServerDef};
 const INITIALIZE_TIMEOUT: Duration = Duration::from_secs(60);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Lifecycle of a server as reported to the frontend.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServerStatus {
@@ -32,6 +36,7 @@ pub enum ServerStatus {
     Stopped,
 }
 
+/// A running server: its client, its process, and the workspace it indexed.
 pub struct ServerHandle {
     pub server_id:    String,
     pub root:         PathBuf,
@@ -61,6 +66,8 @@ struct DiagnosticsEvent {
     diagnostics: Value,
 }
 
+/// Pushes a status change to the frontend so the UI can show why completion is
+/// not answering yet.
 pub fn emit_status(app: &tauri::AppHandle, server_id: &str, root: &Path, status: ServerStatus, message: Option<String>) {
     let _ = app.emit("lsp-status", StatusEvent {
         server_id: server_id.to_string(),
@@ -72,6 +79,8 @@ pub fn emit_status(app: &tauri::AppHandle, server_id: &str, root: &Path, status:
 
 const UNRESERVED: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/";
 
+/// Percent-encodes a path into a `file://` URI, which is the only form LSP
+/// accepts for a document.
 pub fn path_to_uri(path: &Path) -> String {
     let mut uri = String::from("file://");
     for byte in path.to_string_lossy().as_bytes() {
@@ -84,6 +93,7 @@ pub fn path_to_uri(path: &Path) -> String {
     uri
 }
 
+/// Reverse of `path_to_uri`; `None` for any URI that is not a local file.
 pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     let encoded = uri.strip_prefix("file://")?;
     let bytes = encoded.as_bytes();
@@ -107,6 +117,8 @@ pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     Some(PathBuf::from(String::from_utf8(out).ok()?))
 }
 
+/// Declares the capabilities the editor actually implements. A server trims
+/// what it sends to match, so overstating this produces responses we drop.
 #[allow(deprecated)]
 fn initialize_params(root: &Path) -> Result<InitializeParams, String> {
     let uri = Uri::from_str(&path_to_uri(root)).map_err(|e| e.to_string())?;
@@ -278,6 +290,8 @@ pub fn start(
     Ok(handle)
 }
 
+/// Asks the server to shut down, then kills it: a server that ignores the
+/// request must not outlive the app.
 pub fn stop(handle: &ServerHandle) {
     let _ = handle.client.request("shutdown", Value::Null, SHUTDOWN_TIMEOUT);
     let _ = handle.client.notify("exit", Value::Null);
@@ -291,14 +305,17 @@ pub fn stop(handle: &ServerHandle) {
 }
 
 impl ServerHandle {
+    /// Blocks up to `REQUEST_TIMEOUT`.
     pub fn request(&self, method: &str, params: Value) -> Result<Value, String> {
         self.client.request(method, params, REQUEST_TIMEOUT)
     }
 
+    /// Fire and forget, used for document sync.
     pub fn notify(&self, method: &str, params: Value) -> Result<(), String> {
         self.client.notify(method, params)
     }
 
+    /// False once the process has exited, however it exited.
     pub fn is_alive(&self) -> bool {
         self.child
             .lock()

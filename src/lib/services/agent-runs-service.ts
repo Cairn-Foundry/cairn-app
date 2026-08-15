@@ -1,6 +1,10 @@
+// Finished and in-flight subagent runs of a project, persisted per project.
+// Only this layer calls invoke().
+
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentBlock, MessageUsage } from "./conversation-service";
 
+/** Lifecycle of a run; "interrupted" is a run the app lost, not one the user stopped. */
 export type AgentRunStatus =
 	| "running"
 	| "awaiting-permission"
@@ -11,6 +15,7 @@ export type AgentRunStatus =
 
 export type { AgentBlock };
 
+/** One subagent run, self-contained so it still reads after its conversation is deleted. */
 export interface AgentRun {
 	id: string;
 	agentId: string;
@@ -43,10 +48,12 @@ export interface AgentRun {
 	error: string;
 }
 
+/** Every run of the project, both scopes mixed; the caller filters. */
 export async function getAgentRuns(projectId: string): Promise<AgentRun[]> {
 	return await invoke("get_agent_runs", { projectId });
 }
 
+/** Rewrites the whole list: what is not passed in is dropped from disk. */
 export async function saveAgentRuns(
 	projectId: string,
 	runs: AgentRun[],

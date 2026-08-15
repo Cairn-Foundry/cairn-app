@@ -1,7 +1,9 @@
 import { formatCount, formatDuration } from "$lib/utils/format";
 
+/** The metrics that can be shown under an answer. */
 export type ResponseStatField = "duration" | "tokens" | "cost" | "turns";
 
+/** A stat and the icon it is drawn with, before a value is known. */
 export interface ResponseStatDef {
 	id: ResponseStatField;
 	icon: string;
@@ -16,6 +18,10 @@ export const RESPONSE_STAT_FIELDS: ResponseStatDef[] = [
 	{ id: "turns", icon: "refresh" },
 ];
 
+/**
+ * What a provider reported about one answer. Everything is optional: providers
+ * disagree on what they measure.
+ */
 export interface ResponseUsage {
 	model?: string;
 	inputTokens?: number;
@@ -26,6 +32,7 @@ export interface ResponseUsage {
 	numTurns?: number;
 }
 
+/** A stat ready to render: the value is already formatted for display. */
 export interface ResponseStat {
 	id: ResponseStatField;
 	icon: string;

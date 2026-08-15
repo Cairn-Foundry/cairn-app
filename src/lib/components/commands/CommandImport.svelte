@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal offering the scripts found in the project's package.json as commands to
+   * import, preselected. Dispatches `import` with the chosen ones.
+   */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';

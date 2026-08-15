@@ -1,3 +1,4 @@
+/** Global app settings, the single copy shared by every view. */
 import { derived, writable } from "svelte/store";
 import {
 	type CairnSettings,
@@ -10,6 +11,7 @@ import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
 import { setCustomServers } from "$lib/utils/languages/servers";
 
+/** Factory settings; must stay in sync with the Rust defaults in commands/settings.rs. */
 const DEFAULTS: CairnSettings = {
 	treePanelWidth: 220,
 	showMinimap: true,
@@ -73,6 +75,7 @@ function mergeWithDefaults(
 	return result;
 }
 
+/** Reads settings.json; a failure leaves the defaults in place rather than throwing. */
 async function load() {
 	try {
 		set(mergeWithDefaults(DEFAULTS, await getSettings()));
@@ -98,6 +101,7 @@ async function save(patch: Partial<CairnSettings>): Promise<void> {
 	await written;
 }
 
+/** Global app settings, merged with DEFAULTS on load so an older saved config stays valid. */
 export const settings = { subscribe, load, save };
 
 /**

@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Confirmation asked before running a command flagged `confirm`, showing the
+   * steps it is about to execute.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

@@ -1,5 +1,9 @@
 import type { FileNode, QuickSearchHit } from "$lib/services/file-service";
 
+// Scoring and highlighting paths for the quick open palette: exact substrings
+// first, then a subsequence match so acronyms still find their file.
+
+/** The whole tree as a flat list, directories included. */
 export function flattenTreeEntries(nodes: FileNode[]): QuickSearchHit[] {
 	const entries: QuickSearchHit[] = [];
 	for (const n of nodes) {
@@ -14,6 +18,11 @@ export function splitSearchTerms(q: string): string[] {
 	return q.split(/[\s/\\]+/).filter(Boolean);
 }
 
+/**
+ * Best match wins: a filename prefix, then anywhere in the filename, then
+ * anywhere in the path, and last a scattered subsequence. -1 means no match,
+ * which rejects the path outright.
+ */
 function scoreTerm(lPath: string, term: string): number {
 	const filename = lPath.split("/").pop() ?? lPath;
 
@@ -30,6 +39,7 @@ function scoreTerm(lPath: string, term: string): number {
 	return 30;
 }
 
+/** Every term must match; the score is their average, so order is stable. */
 export function scorePathMatch(path: string, q: string): number {
 	const terms = splitSearchTerms(q.toLowerCase());
 	if (terms.length === 0) return 1;
@@ -44,10 +54,12 @@ export function scorePathMatch(path: string, q: string): number {
 	return Math.round(total / terms.length);
 }
 
+/** Escapes before the <mark> tags go in - the result is injected as HTML. */
 export function htmlEscape(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Marks the contiguous match if there is one, otherwise the matched letters. */
 export function highlightPathMatch(path: string, q: string): string {
 	if (!q) return htmlEscape(path);
 	const lPath = path.toLowerCase();
@@ -75,6 +87,7 @@ export function highlightPathMatch(path: string, q: string): string {
 	return result;
 }
 
+/** Plain AND filter over whitespace-separated terms, case-insensitive. */
 export function matchesSearch(text: string, query: string): boolean {
 	const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 	if (terms.length === 0) return true;

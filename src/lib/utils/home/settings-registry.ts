@@ -1,6 +1,10 @@
 import { t } from "$lib/i18n";
 import { SHORTCUT_DEFS, SHORTCUT_GROUP_LABELS } from "$lib/stores/shortcuts";
 
+// A flat index of every setting, so the settings search can find a row without
+// each tab component having to register itself.
+
+/** The settings screens a search hit can send the user to. */
 export type SettingsTab =
 	| "general"
 	| "appearance"
@@ -12,6 +16,7 @@ export type SettingsTab =
 	| "git"
 	| "agent";
 
+/** One searchable setting and where it lives. */
 export interface SettingEntry {
 	label: string;
 	desc: string;
@@ -155,6 +160,7 @@ const STATIC_SETTINGS: SettingEntry[] = [
 	},
 ];
 
+/** Every setting: the hand-written ones plus one entry per shortcut. */
 export const SETTINGS_REGISTRY: SettingEntry[] = [
 	...STATIC_SETTINGS,
 	...SHORTCUT_DEFS.map((d) => ({
@@ -166,6 +172,7 @@ export const SETTINGS_REGISTRY: SettingEntry[] = [
 	})),
 ];
 
+/** Substring match over label and description; an empty query matches nothing. */
 export function searchSettings(query: string): SettingEntry[] {
 	const q = query.trim().toLowerCase();
 	if (!q) return [];

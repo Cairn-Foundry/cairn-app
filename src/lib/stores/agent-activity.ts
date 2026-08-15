@@ -1,11 +1,20 @@
+/**
+ * Agent activity, tracked per conversation rather than per instance: both maps go
+ * from an instance key to conversation ids, and the boolean stores derive from them.
+ */
 import { derived, get, writable } from "svelte/store";
 import {
 	getAgentActivity,
 	saveAgentActivity,
 } from "$lib/services/agent-activity-service";
 
+/**
+ * Running conversations per instance key, in memory only: a conversation is the
+ * unit of agent activity, not the instance, so siblings can run in parallel.
+ */
 export const agentBusyConversations = writable<Record<string, string[]>>({});
 
+/** Convenience view for the instance list: is anything running for this instance. */
 export const agentBusy = derived(agentBusyConversations, (map) => {
 	const busy: Record<string, boolean> = {};
 	for (const [key, ids] of Object.entries(map)) {
@@ -14,20 +23,25 @@ export const agentBusy = derived(agentBusyConversations, (map) => {
 	return busy;
 });
 
+/** The conversation of each instance whose answer finished and has not been read yet. Persisted to agent-activity.json. */
 export const agentDoneConversation = writable<Record<string, string>>({});
 
+/** Convenience view: does this instance carry an unread finished answer. */
 export const agentDone = derived(agentDoneConversation, (map) => {
 	const done: Record<string, boolean> = {};
 	for (const key of Object.keys(map)) done[key] = true;
 	return done;
 });
 
+/** Bumped on every completion so listeners can react to a run finishing even when nothing else changed. */
 export const agentCompletionPing = writable(0);
 
+/** Restores the unread-done markers saved on disk. */
 export async function loadAgentActivity(): Promise<void> {
 	agentDoneConversation.set(await getAgentActivity());
 }
 
+/** The key both activity maps are indexed by. */
 export function agentActivityKey(
 	projectId: string,
 	instanceId: string,
@@ -35,6 +49,7 @@ export function agentActivityKey(
 	return `${projectId}:${instanceId}`;
 }
 
+/** Adds or removes one conversation from the running set; the key disappears once none is left. */
 export function setAgentBusy(
 	projectId: string,
 	instanceId: string,
@@ -58,6 +73,7 @@ export function setAgentBusy(
 	});
 }
 
+/** Marks the instance as carrying an unread answer from `conversationId`, and persists only on a real change. */
 export function setAgentDone(
 	projectId: string,
 	instanceId: string,
@@ -79,6 +95,7 @@ export function setAgentDone(
 	if (changed) saveAgentActivity(get(agentDoneConversation));
 }
 
+/** The conversation holding the unread answer, or null when there is none. */
 export function doneConversationOf(
 	projectId: string,
 	instanceId: string,
@@ -88,10 +105,12 @@ export function doneConversationOf(
 	return key in map ? map[key] : null;
 }
 
+/** Signals that a run just finished. */
 export function pingAgentCompletion(): void {
 	agentCompletionPing.update((n) => n + 1);
 }
 
+/** Drops both markers for an instance, typically when it is deleted. */
 export function clearProjectAgentActivity(
 	projectId: string,
 	instanceId: string,

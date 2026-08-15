@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Application root: switches between the home and workspace screens, restores the persisted UI
+   * state on mount and debounces writing it back, and routes `cairn <file>` paths to the editor.
+   */
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';

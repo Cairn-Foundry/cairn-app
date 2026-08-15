@@ -1,3 +1,6 @@
+//! Filesystem access for the editor: directory trees honouring `.gitignore`,
+//! fuzzy path search, content search, and the read/write/rename primitives.
+
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -13,6 +16,7 @@ use serde::Serialize;
 
 const SEARCH_RESULT_CAP: usize = 2000;
 
+/// One node of the file tree, with `path` relative to the tree root.
 #[derive(Serialize)]
 pub struct FileNode {
     pub name: String,
@@ -23,6 +27,7 @@ pub struct FileNode {
     pub children: Option<Vec<FileNode>>,
 }
 
+/// Intermediate tree keyed by name, so walked paths can be assembled in any order.
 #[derive(Default)]
 struct TreeBuilder {
     is_dir: bool,
@@ -30,6 +35,7 @@ struct TreeBuilder {
     children: std::collections::BTreeMap<String, TreeBuilder>,
 }
 
+/// Walks the tree honouring ignore rules unless `show_ignored`; `.git` is always skipped.
 fn build_gitignore_tree(root: &PathBuf, show_ignored: bool) -> Vec<FileNode> {
     let mut builder = WalkBuilder::new(root);
     builder
@@ -66,6 +72,7 @@ fn build_gitignore_tree(root: &PathBuf, show_ignored: bool) -> Vec<FileNode> {
     to_file_nodes(tree.children)
 }
 
+/// Turns the builder map into the serialized tree, directories first then case-insensitive by name.
 fn to_file_nodes(children: std::collections::BTreeMap<String, TreeBuilder>) -> Vec<FileNode> {
     let mut nodes: Vec<FileNode> = children
         .into_iter()
@@ -83,6 +90,7 @@ fn to_file_nodes(children: std::collections::BTreeMap<String, TreeBuilder>) -> V
     nodes
 }
 
+/// Flat list of every file and directory under `root`, used as the quick-search index.
 fn collect_entries(root: &PathBuf, include_ignored: bool) -> Vec<QuickSearchHit> {
     let mut builder = WalkBuilder::new(root);
     builder
@@ -111,11 +119,13 @@ fn collect_entries(root: &PathBuf, include_ignored: bool) -> Vec<QuickSearchHit>
     entries
 }
 
+/// Path separators become atom separators, so "src/foo" matches the same as "src foo".
 fn parse_query(query: &str) -> Pattern {
     let atoms = query.replace(['/', '\\'], " ");
     Pattern::parse(&atoms, CaseMatching::Ignore, Normalization::Smart)
 }
 
+/// A quick-search entry, matched on its root-relative path.
 #[derive(Clone, Serialize)]
 pub struct QuickSearchHit {
     pub path: String,
@@ -129,15 +139,18 @@ impl AsRef<str> for QuickSearchHit {
     }
 }
 
+/// Cached entry list; `key` pairs the root with the ignore setting it was built for.
 pub struct QuickSearchIndex {
     key: String,
     entries: Vec<QuickSearchHit>,
 }
 
+/// Managed state holding the last quick-search index, rebuilt when the key changes.
 #[derive(Default)]
 pub struct QuickSearchCache(Mutex<Option<QuickSearchIndex>>);
 
 #[tauri::command]
+/// Fuzzy path search over a cached index, rebuilt when the root, the ignore flag or `refresh` demand it.
 pub async fn quick_search(
     state: tauri::State<'_, QuickSearchCache>,
     path: String,
@@ -172,6 +185,7 @@ pub async fn quick_search(
 }
 
 #[tauri::command]
+/// Full recursive tree of the directory.
 pub async fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);
@@ -180,6 +194,7 @@ pub async fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileN
 }
 
 #[tauri::command]
+/// Non-recursive entry names; a missing path yields an empty list rather than an error.
 pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
@@ -196,6 +211,7 @@ pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+/// File contents, or `None` when the bytes are not valid UTF-8 (binary).
 pub async fn read_file(path: String) -> Result<Option<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
@@ -211,6 +227,7 @@ pub async fn read_file(path: String) -> Result<Option<String>, String> {
 
 const PREVIEW_HEAD_BYTES: usize = 1024;
 
+/// Size plus the first bytes as hex, enough for the frontend to sniff the type.
 #[derive(Serialize)]
 pub struct FilePreview {
     pub size: u64,
@@ -219,6 +236,7 @@ pub struct FilePreview {
 }
 
 #[tauri::command]
+/// Size and the first kilobyte hex-encoded, for detecting a binary file's kind.
 pub async fn read_file_preview(path: String) -> Result<FilePreview, String> {
     use std::io::Read;
     let expanded = shellexpand::tilde(&path).into_owned();
@@ -240,6 +258,7 @@ pub async fn read_file_preview(path: String) -> Result<FilePreview, String> {
 const MAX_INLINE_PREVIEW_BYTES: u64 = 64 * 1024 * 1024;
 
 #[tauri::command]
+/// Whole file base64-encoded for inline display; refuses anything over 64 MB.
 pub async fn read_file_base64(path: String) -> Result<String, String> {
     use base64::Engine;
     let expanded = shellexpand::tilde(&path).into_owned();
@@ -253,6 +272,7 @@ pub async fn read_file_base64(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+/// Writes the file, creating missing parent directories.
 pub async fn write_file(path: String, content: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
@@ -263,6 +283,7 @@ pub async fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+/// Deletes a file, or a directory and its contents.
 pub async fn delete_path(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
@@ -275,6 +296,7 @@ pub async fn delete_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+/// Renames, refusing to overwrite an existing destination.
 pub async fn rename_path(from: String, to: String) -> Result<(), String> {
     let from_expanded = shellexpand::tilde(&from).into_owned();
     let to_expanded = shellexpand::tilde(&to).into_owned();
@@ -286,6 +308,7 @@ pub async fn rename_path(from: String, to: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+/// Creates an empty file or a directory; errors if the path is taken.
 pub async fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
@@ -300,6 +323,7 @@ pub async fn create_file_or_dir(path: String, is_dir: bool) -> Result<(), String
     }
 }
 
+/// One match, with byte offsets of the match inside `text`.
 #[derive(Serialize)]
 pub struct SearchMatch {
     pub path: String,
@@ -312,6 +336,7 @@ pub struct SearchMatch {
     pub match_end: u32,
 }
 
+/// Collects every match on a line, sharing the global result cap across walker threads.
 struct MatchSink<'a, M: Matcher> {
     matcher: &'a M,
     rel: &'a str,
@@ -354,6 +379,8 @@ impl<'a, M: Matcher> Sink for MatchSink<'a, M> {
 }
 
 #[tauri::command]
+/// Content search across the tree, run on a blocking thread. `include_glob` and
+/// `exclude_glob` are comma-separated; results are capped at 2000 and sorted by path and position.
 pub async fn search_in_files(
     root: String,
     query: String,

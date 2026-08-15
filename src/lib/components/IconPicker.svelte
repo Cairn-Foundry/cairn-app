@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Popover to pick a project or instance icon, grouped by theme and filtered by
+   * a search field. Dispatches `select` with the icon name.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t, type TranslationKey } from '$lib/i18n';
@@ -24,6 +28,7 @@
     .map(g => ({ id: g.id, names: g.names.filter(n => matchesSearch(n, query)) }))
     .filter(g => g.names.length > 0);
 
+  /** Positions the fixed panel near the trigger, clamped inside the viewport. */
   function place() {
     if (!triggerEl) return;
     const rect = triggerEl.getBoundingClientRect();
@@ -55,6 +60,7 @@
     open = false;
   }
 
+  /** Any scroll outside the panel would leave it detached from the trigger, so close it. */
   function onScrollCapture(e: Event) {
     if (!open) return;
     if (panelEl?.contains(e.target as Node)) return;

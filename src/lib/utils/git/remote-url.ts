@@ -1,3 +1,4 @@
+/** A git remote broken into what a browsable link needs. */
 export type ParsedRemote = {
 	host: string;
 	/** Namespace and repository name, without the trailing `.git`. */

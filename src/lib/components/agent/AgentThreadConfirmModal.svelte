@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Confirmation modal before an agent thread is deleted from the runs panel.
+   * `name` is the agent being dropped; dispatches close and confirm.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

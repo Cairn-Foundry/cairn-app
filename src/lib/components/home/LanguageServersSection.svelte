@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Language server catalogue: install, update, uninstall through each server's package manager,
+   * plus the user-declared custom servers. Every command is explicit - nothing installs on its own.
+   */
   import { onMount } from 'svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
   import Icon from '$lib/components/Icon.svelte';
@@ -24,6 +28,7 @@
   let checking = false;
   let pendingRemoval: { server: LanguageServerInfo; manager: string | null } | null = null;
 
+  /** Re-reads the catalogue against the active worktree, since availability is path-dependent. */
   async function reload() {
     refreshing = true;
     await refreshLanguageServers($activeInstance?.worktreePath ?? null);
@@ -95,6 +100,7 @@
     }
   }
 
+  /** Resolves the manager that owns the binary before the confirmation can name a command. */
   async function askRemoval(server: LanguageServerInfo) {
     const manager = await uninstallManagerFor(server.id).catch(() => null);
     pendingRemoval = { server, manager };

@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Floating panel listing the commits that touched one line of a file
+   * (`git log -L`), with the changed lines of each commit.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
@@ -22,6 +26,7 @@
 
   $: void load(worktreePath, relPath, line);
 
+  /** Fetches the line history, dropping the result if a newer load started meanwhile. */
   async function load(root: string | null, path: string, at: number) {
     const mine = ++token;
     if (!root || !path || at < 1) {

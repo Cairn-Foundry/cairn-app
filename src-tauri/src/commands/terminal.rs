@@ -1,3 +1,7 @@
+//! PTY-backed terminals. Each session is a spawned shell whose output is
+//! streamed to the frontend as `terminal-output` events; the tab layout is
+//! persisted per instance and per project.
+
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
@@ -7,29 +11,34 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use crate::storage::{instance_terminal_state_file, project_terminal_state_file, write_json_atomic};
 
+/// One live PTY: the handle to write to it, resize it, and kill its child.
 struct TerminalSession {
     writer: Box<dyn Write + Send>,
     master: Box<dyn MasterPty + Send>,
     child:  Box<dyn Child + Send + Sync>,
 }
 
+/// Every live terminal of the app, keyed by the frontend's session id.
 #[derive(Default)]
 pub struct TerminalState {
     sessions: Mutex<HashMap<String, TerminalSession>>,
 }
 
 impl TerminalState {
+    /// Starts with no session; terminals are created on demand.
     pub fn new() -> Self {
         Self::default()
     }
 }
 
+/// A chunk of shell output, emitted as a `terminal-output` event.
 #[derive(Clone, Serialize)]
 struct TerminalOutput {
     id:   String,
     data: String,
 }
 
+/// Emitted once when the shell exits, so the tab can show its status.
 #[derive(Clone, Serialize)]
 struct TerminalExit {
     id: String,
@@ -37,6 +46,9 @@ struct TerminalExit {
     exit_code: Option<i32>,
 }
 
+/// Decodes as much of `pending` as forms whole UTF-8, leaving a trailing
+/// partial sequence in the buffer for the next read. A byte that can never
+/// start a valid sequence is replaced rather than stalling the stream.
 fn drain_utf8(pending: &mut Vec<u8>) -> String {
     match std::str::from_utf8(pending) {
         Ok(s) => {
@@ -62,6 +74,8 @@ fn drain_utf8(pending: &mut Vec<u8>) -> String {
     }
 }
 
+/// Forces a UTF-8 locale when the inherited environment does not already ask
+/// for one, otherwise the shell renders non-ASCII output as question marks.
 #[cfg(not(windows))]
 fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
     let is_utf8 = |name: &str| {
@@ -92,6 +106,7 @@ fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
 #[cfg(windows)]
 fn ensure_utf8_locale(_cmd: &mut CommandBuilder) {}
 
+/// The user's login shell, falling back to a shell that always exists.
 fn default_shell() -> String {
     #[cfg(windows)]
     {
@@ -103,6 +118,10 @@ fn default_shell() -> String {
     }
 }
 
+/// Spawns a shell on a new PTY and starts the reader thread that streams its
+/// output. When `command` is given the shell runs it and exits; otherwise the
+/// session is interactive. The reader thread also reaps the child and emits
+/// `terminal-exit`, so nothing else has to wait on it.
 #[tauri::command]
 pub fn terminal_create(
     app: tauri::AppHandle,
@@ -194,6 +213,8 @@ pub fn terminal_create(
     Ok(())
 }
 
+/// Writes keystrokes to the shell. An unknown id is ignored: the session may
+/// have exited while the frontend was still typing.
 #[tauri::command]
 pub fn terminal_write(app: tauri::AppHandle, id: String, data: String) -> Result<(), String> {
     let state = app.state::<TerminalState>();
@@ -205,6 +226,7 @@ pub fn terminal_write(app: tauri::AppHandle, id: String, data: String) -> Result
     Ok(())
 }
 
+/// Tells the shell the window changed size, so it can rewrap its output.
 #[tauri::command]
 pub fn terminal_resize(app: tauri::AppHandle, id: String, cols: u16, rows: u16) -> Result<(), String> {
     let state = app.state::<TerminalState>();
@@ -217,6 +239,8 @@ pub fn terminal_resize(app: tauri::AppHandle, id: String, cols: u16, rows: u16) 
     Ok(())
 }
 
+/// Kills one session's shell; the reader thread ends on its own once the PTY
+/// closes.
 #[tauri::command]
 pub fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<TerminalState>();
@@ -227,6 +251,7 @@ pub fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Kills every session, used when the app tears a project down.
 #[tauri::command]
 pub fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<TerminalState>();
@@ -237,6 +262,7 @@ pub fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Terminal tabs of one instance, plus which is active and how the pane is split.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct TerminalLayout {
     #[serde(default)]
@@ -249,6 +275,7 @@ pub struct TerminalLayout {
     pub split_ratio: Option<f32>,
 }
 
+/// One tab. `command_id` links it back to the custom command that opened it.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TerminalTab {
     pub id:    String,
@@ -261,6 +288,7 @@ pub struct TerminalTab {
     pub port:  Option<u16>,
 }
 
+/// `None` when the instance has never opened a terminal.
 #[tauri::command]
 pub fn get_terminal_state(project_id: String, instance_id: String) -> Result<Option<TerminalLayout>, String> {
     let path = instance_terminal_state_file(&project_id, &instance_id)?;
@@ -272,17 +300,20 @@ pub fn get_terminal_state(project_id: String, instance_id: String) -> Result<Opt
     Ok(Some(state))
 }
 
+/// Persists the tab layout only; the PTYs themselves die with the app.
 #[tauri::command]
 pub fn save_terminal_state(project_id: String, instance_id: String, state: TerminalLayout) -> Result<(), String> {
     write_json_atomic(&instance_terminal_state_file(&project_id, &instance_id)?, &state)
 }
 
+/// Terminals shared across every instance of the project.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProjectTerminalLayout {
     #[serde(default)]
     pub terminals: Vec<ProjectTerminalTab>,
 }
 
+/// A shared terminal. `cwd` is remembered so it respawns where it was created.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProjectTerminalTab {
     pub id:    String,
@@ -291,6 +322,7 @@ pub struct ProjectTerminalTab {
     pub cwd:   Option<String>,
 }
 
+/// `None` when the project has no shared terminal.
 #[tauri::command]
 pub fn get_project_terminal_state(project_id: String) -> Result<Option<ProjectTerminalLayout>, String> {
     let path = project_terminal_state_file(&project_id)?;
@@ -302,6 +334,7 @@ pub fn get_project_terminal_state(project_id: String) -> Result<Option<ProjectTe
     Ok(Some(state))
 }
 
+/// Persists the shared tab list only.
 #[tauri::command]
 pub fn save_project_terminal_state(project_id: String, state: ProjectTerminalLayout) -> Result<(), String> {
     write_json_atomic(&project_terminal_state_file(&project_id)?, &state)

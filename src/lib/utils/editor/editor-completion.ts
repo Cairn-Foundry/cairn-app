@@ -72,6 +72,7 @@ const completionWheel = ViewPlugin.fromClass(
 	},
 );
 
+/** The height of one option, measured; 20 when the list is not laid out yet. */
 function lineHeight(list: HTMLElement): number {
 	const item = list.querySelector("li");
 	return item instanceof HTMLElement && item.offsetHeight > 0
@@ -79,10 +80,12 @@ function lineHeight(list: HTMLElement): number {
 		: 20;
 }
 
+/** The open completion list, if the menu is showing. */
 function completionList(view: EditorView): HTMLElement | null {
 	return view.dom.querySelector(".cm-tooltip-autocomplete > ul");
 }
 
+/** The completion list a wheel event happened over, or null if elsewhere. */
 function listOf(target: EventTarget | null): HTMLElement | null {
 	const list = (target as Element | null)?.closest?.(
 		"ul",
@@ -92,6 +95,7 @@ function listOf(target: EventTarget | null): HTMLElement | null {
 		: null;
 }
 
+/** Autocompletion, kept open on blur so a click in the list does not close it. */
 export function buildCompletion(): Extension {
 	return [
 		autocompletion({ activateOnTyping: true, closeOnBlur: false }),

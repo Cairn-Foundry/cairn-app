@@ -1,3 +1,6 @@
+//! The catalogue of known formatters and the style options they understand,
+//! including which formatter and language a file extension maps to.
+
 use crate::commands::toolchain::ManagerCommands;
 
 /// A set of style options. Flat and sparse on purpose: a missing key means

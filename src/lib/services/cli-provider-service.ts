@@ -1,3 +1,6 @@
+// The registry of external coding CLIs, and which of them read a given
+// skill / MCP / agent file. Only this layer calls invoke().
+
 import { invoke } from "@tauri-apps/api/core";
 
 /** The coding CLIs Cairn can configure skills and MCP servers for. */
@@ -8,6 +11,7 @@ export type CliProviderId =
 	| "antigravity"
 	| "vibe";
 
+/** One CLI as the registry describes it, including whether it is on this machine. */
 export interface CliProviderDef {
 	id: CliProviderId;
 	label: string;
@@ -21,6 +25,7 @@ export interface CliProviderDef {
 	installed: boolean;
 }
 
+/** Every known CLI, installed or not - the caller decides what to grey out. */
 export async function listCliProviders(): Promise<CliProviderDef[]> {
 	return await invoke("list_cli_providers");
 }

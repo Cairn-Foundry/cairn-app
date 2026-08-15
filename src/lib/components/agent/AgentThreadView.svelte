@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Full thread of one sub-agent: every run it made in this conversation, its
+   * live status, and the permission prompts it is waiting on.
+   */
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -22,7 +26,7 @@
   export let projectId: string;
   export let onBack: () => void;
   export let onDelete: () => void;
-  /** When the agent was last made to forget, so the thread can show the break. */
+  /** Renders message markdown; passed down to each turn. */
   export let renderMarkdown: (source: string) => string;
 
   let confirmingDelete = false;
@@ -51,6 +55,7 @@
     if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 
+  /** Token and cost figures for a run, filtered by the user's stats setting. */
   function statsOf(run: AgentRun) {
     return run.usage ? responseStats(run.usage, $settings.agentResponseStats) : [];
   }
@@ -64,6 +69,7 @@
     }
   }
 
+  /** Sends the user's decision back to the agent, moving the run out of its wait. */
   async function answer(decision: PermissionDecision) {
     if (!request || !latest) return;
     clearAgentPermission(latest.id);

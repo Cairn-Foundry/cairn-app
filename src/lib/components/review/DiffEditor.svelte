@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Read-only side by side diff of one file, filling its positioned parent.
+   * Both panes scroll together.
+   */
   import { onMount, onDestroy } from 'svelte';
   import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { MergeView } from '@codemirror/merge';
@@ -23,6 +27,7 @@
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
 
+  /** Editor extensions shared by both panes, with theme and highlight in compartments so they can be swapped later. */
   function buildExtensions(): Extension[] {
     const theme = $settings.theme;
     return [
@@ -54,6 +59,7 @@
   let cleanupScroll: (() => void) | undefined;
 
   onMount(() => {
+    // MergeView misaligns the last chunk when one side lacks its trailing newline.
     const normalize = (s: string) => s.endsWith('\n') ? s : s + '\n';
     const exts = buildExtensions();
     mergeView = new MergeView({

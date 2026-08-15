@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Review step: changed-files list on the left, side by side diff of the selected file on the right.
+   * Content is still static placeholder data, not the real repository diff.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import DiffEditor from './DiffEditor.svelte';
@@ -39,6 +43,7 @@
     { type: '+', content: `}` },
   ];
 
+  /** Splits a unified diff into the two documents the side by side view needs, context lines going to both. */
   function diffToSplit(lines: DiffLine[]): { old: string; new: string } {
     const oldLines = lines.filter(l => l.type === '-' || l.type === ' ').map(l => l.content);
     const newLines = lines.filter(l => l.type === '+' || l.type === ' ').map(l => l.content);

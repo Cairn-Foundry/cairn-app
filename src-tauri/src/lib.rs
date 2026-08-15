@@ -1,3 +1,9 @@
+//! Application entry point: builds the Tauri app, registers the managed state
+//! and wires every `#[tauri::command]` exposed to the frontend.
+
+//! Application entry point: builds the Tauri app, registers the managed state
+//! and wires every `#[tauri::command]` exposed to the frontend.
+
 pub mod storage;
 pub mod commands;
 
@@ -6,6 +12,8 @@ use commands::*;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
+/// Paths handed over by a second launch of the binary, forwarded to the running
+/// instance as a `cli-open` event.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CliOpenRequest {
@@ -13,6 +21,8 @@ struct CliOpenRequest {
     cwd: String,
 }
 
+/// Brings the already running window back to the front, including when it was
+/// minimized or hidden.
 #[cfg(desktop)]
 fn focus_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -22,6 +32,8 @@ fn focus_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Builds and runs the app: plugins, managed state, the macOS menu bar, the
+/// command handlers, and the LSP shutdown on exit.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -88,7 +100,6 @@ pub fn run() {
             take_pending_cli_paths,
             run_shell_command,
             run_shell_command_with_stdin,
-            run_agent_command,
             list_projects,
             add_project,
             remove_project,

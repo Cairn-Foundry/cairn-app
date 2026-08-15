@@ -9,12 +9,17 @@ import type {
 /** Where a resolved value came from, so the UI can show what it inherited. */
 export type StyleOrigin = "default" | "common" | "language";
 
+// Resolving formatting options through their three layers: catalogue default,
+// common style, language override. Mirrors `resolve_style` on the Rust side.
+
+/** One option's effective value and the layer that set it. */
 export interface ResolvedOption {
 	id: string;
 	value: StyleValue;
 	origin: StyleOrigin;
 }
 
+/** The stored config for a language, undefined when it has none yet. */
 export function languageEntry(
 	config: FormattingConfig | null,
 	languageId: string,

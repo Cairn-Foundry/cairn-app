@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Brand mark of an AI provider, falling back to initials when none is known.
+   */
   import { PROVIDER_MARKS } from './provider-marks';
 
   export let id: string;

@@ -1,7 +1,11 @@
+//! Global app settings. `CairnSettings` is mirrored field for field in
+//! `settings-service.ts`, so a field added here needs its counterpart there.
+
 use std::fs;
 use serde::{Deserialize, Serialize};
 use crate::storage::{settings_file, write_json_atomic};
 
+/// One key binding overriding a shortcut's default.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CairnShortcutBinding {
     pub key: String,
@@ -15,6 +19,7 @@ pub struct CairnShortcutBinding {
     pub ctrl: bool,
 }
 
+/// The user's bindings for one shortcut id.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ShortcutConfig {
     pub id: String,
@@ -22,12 +27,15 @@ pub struct ShortcutConfig {
     pub enabled: bool,
 }
 
+/// Tolerates a malformed shortcuts block by dropping it: a bad binding must
+/// never stop the whole settings file from loading.
 fn deserialize_shortcuts<'de, D>(deserializer: D) -> Result<Vec<ShortcutConfig>, D::Error>
 where D: serde::Deserializer<'de> {
     let v = serde_json::Value::deserialize(deserializer).unwrap_or(serde_json::Value::Null);
     Ok(serde_json::from_value::<Vec<ShortcutConfig>>(v).unwrap_or_default())
 }
 
+/// A workflow tab and whether the user kept it visible.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct WorkflowTabConfig {
     pub key: String,
@@ -37,6 +45,7 @@ pub struct WorkflowTabConfig {
     pub order: u32,
 }
 
+/// A named identity (name, email) selectable when committing.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GitProfile {
     pub id: String,
@@ -47,6 +56,7 @@ pub struct GitProfile {
 
 // Keep this list in sync with DEFAULT_WF_TABS in
 // src/lib/utils/home/workflow-tabs.ts (same keys, order and icons).
+/// The workflow tabs, in the order they ship enabled.
 fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
     vec![
         WorkflowTabConfig { key: "files".into(),  name: "Files".into(),  icon: "folder".into(), enabled: true, order: 0 },
@@ -58,6 +68,8 @@ fn default_workflow_tabs() -> Vec<WorkflowTabConfig> {
     ]
 }
 
+/// Global app settings. Mirrored field for field in `settings-service.ts`;
+/// every field carries a serde default so an older file still loads.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CairnSettings {
     #[serde(rename = "treePanelWidth", default = "default_tree_panel_width")]
@@ -160,6 +172,7 @@ pub struct CustomLanguageServer {
     pub doc_url: String,
 }
 
+/// Per-language server preference: which one to use and how to launch it.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LanguageServerSetting {
     pub id: String,
@@ -172,6 +185,7 @@ pub struct LanguageServerSetting {
     pub args: Vec<String>,
 }
 
+/// Colour and weight of one syntax token class.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SyntaxTokenStyle {
     pub color: String,
@@ -183,6 +197,7 @@ pub struct SyntaxTokenStyle {
     pub underline: Option<bool>,
 }
 
+/// A complete set of token styles.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SyntaxTheme {
     pub id: String,
@@ -260,6 +275,7 @@ impl Default for CairnSettings {
     }
 }
 
+/// Defaults on a first launch; shared with the other command modules.
 pub fn read_settings() -> Result<CairnSettings, String> {
     let path = settings_file()?;
     if !path.exists() { return Ok(CairnSettings::default()); }
@@ -267,15 +283,18 @@ pub fn read_settings() -> Result<CairnSettings, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Overwrites the whole settings file atomically.
 fn write_settings(settings: &CairnSettings) -> Result<(), String> {
     write_json_atomic(&settings_file()?, settings)
 }
 
+/// Read once on launch and after every save.
 #[tauri::command]
 pub fn get_settings() -> Result<CairnSettings, String> {
     read_settings()
 }
 
+/// Replaces the whole settings object and echoes back what was stored.
 #[tauri::command]
 pub fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     write_settings(&settings)?;

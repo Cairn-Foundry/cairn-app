@@ -1,3 +1,6 @@
+// The token and cost ledger behind the usage stats: one entry per answered
+// agent turn, denormalized so past spending survives a rename.
+
 import { invoke } from "@tauri-apps/api/core";
 
 /**
@@ -35,10 +38,15 @@ export interface UsageEntry {
 	backfilled: boolean;
 }
 
+/** The whole ledger, unaggregated; grouping and filtering happen in the caller. */
 export async function getUsageEntries(): Promise<UsageEntry[]> {
 	return await invoke("get_usage_entries");
 }
 
+/**
+ * Merges turns into the ledger: an id already present is ignored, so resending
+ * is safe. The ledger is kept sorted by `ts` and capped, oldest dropped first.
+ */
 export async function appendUsageEntries(entries: UsageEntry[]): Promise<void> {
 	await invoke("append_usage_entries", { entries });
 }
@@ -48,6 +56,7 @@ export async function backfillUsageEntries(): Promise<number> {
 	return await invoke("backfill_usage_entries");
 }
 
+/** Wipes the ledger; the conversations it was derived from are untouched. */
 export async function clearUsageEntries(): Promise<void> {
 	await invoke("clear_usage_entries");
 }

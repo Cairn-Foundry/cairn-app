@@ -1,5 +1,9 @@
+// Driving an agent run: prompt, stop, and permission answers.
+// Only this layer calls invoke().
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** Per-run provider overrides; every field is optional, the provider supplies its own defaults. */
 export interface RunOptions {
 	model?: string;
 	effort?: string;
@@ -12,6 +16,11 @@ export interface RunOptions {
 	disallowedTools?: string[];
 }
 
+/**
+ * Starts a run and returns as soon as it is spawned: the answer arrives as
+ * `claude-output` events tagged with `runId`. `sessionId` belongs to the
+ * conversation, not the worktree, and is what resumes the CLI thread.
+ */
 export async function sendMessage(
 	message: string,
 	workingDir: string,
@@ -32,10 +41,12 @@ export async function sendMessage(
 	});
 }
 
+/** Kills exactly one run; the other conversations of the instance keep going. */
 export async function stopAgent(runId: string): Promise<void> {
 	await invoke("stop_agent", { runId });
 }
 
+/** Answer to a tool permission request; allowing may rewrite the tool input. */
 export type PermissionResponse =
 	| {
 			behavior: "allow";
@@ -44,6 +55,7 @@ export type PermissionResponse =
 	  }
 	| { behavior: "deny"; message: string };
 
+/** Unblocks a run waiting on a tool permission; the run stays paused until this lands. */
 export async function respondPermission(
 	runId: string,
 	requestId: string,

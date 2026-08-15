@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal asking for the name of a new project folder.
+   * Dispatches `confirm` with the trimmed name, `close` otherwise.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

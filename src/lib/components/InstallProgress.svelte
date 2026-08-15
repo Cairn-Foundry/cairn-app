@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Progress banner for a long install, showing the last output line and the
+   * elapsed time. `startedAt` is a timestamp, ticked once a second here.
+   */
   import { onDestroy } from 'svelte';
   import UpdateProgress from '$lib/components/layout/UpdateProgress.svelte';
   import { t } from '$lib/i18n';

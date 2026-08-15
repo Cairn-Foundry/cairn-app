@@ -1,3 +1,4 @@
+/** One language server as the frontend needs to know it. */
 export interface LanguageServerDef {
 	id: string;
 	name: string;
@@ -163,6 +164,7 @@ export const LANGUAGE_SERVERS: LanguageServerDef[] = [
  */
 let customServers: LanguageServerDef[] = [];
 
+/** Replaces the user-declared servers, called whenever the settings change. */
 export function setCustomServers(servers: LanguageServerDef[]): void {
 	// An id the catalogue already uses is dropped rather than shadowing it, the
 	// same way the backend drops it: a server nobody can start is worse than one
@@ -176,6 +178,7 @@ export function allServers(): LanguageServerDef[] {
 	return [...LANGUAGE_SERVERS, ...customServers];
 }
 
+/** The lowercased extension including its dot, "" for a dotfile or no extension. */
 function extensionOf(path: string): string {
 	const name = path.split("/").pop() ?? path;
 	const dot = name.lastIndexOf(".");

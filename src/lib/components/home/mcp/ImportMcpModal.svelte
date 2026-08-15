@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Imports MCP servers from a pasted `mcpServers` JSON block into a chosen scope and set of agents.
+   * Dispatches `imported` with the names that were created.
+   */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';

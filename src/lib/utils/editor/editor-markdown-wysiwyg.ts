@@ -17,6 +17,11 @@ import {
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { parentPathOf } from "$lib/utils/files/files-tree";
 
+// Markdown rendered inline in the editor: headings, emphasis, links, rules,
+// bullets, task boxes, images and tables are decorated and their markup hidden.
+// There is no preview pane - the document stays editable, and the lines the
+// selection touches reveal their raw source so the markup can be edited.
+
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
 const headingLine = HEADING_LEVELS.map((level) =>
@@ -28,6 +33,7 @@ const LINK_HREF_ATTR = "data-cm-md-href";
 const codeLine = Decoration.line({ class: "cm-md-code-block" });
 const hidden = Decoration.replace({});
 
+/** The edited file's path, needed to resolve relative images and links. */
 export const setMarkdownDocPath = StateEffect.define<string | null>();
 
 const markdownDocPath = StateField.define<string | null>({
@@ -49,6 +55,7 @@ const NAMED_ENTITIES: Record<string, string> = {
 	nbsp: " ",
 };
 
+/** The handful of entities that appear in alt text and hrefs; unknown ones stay. */
 export function decodeHtmlEntities(text: string): string {
 	return text.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, body: string) => {
 		if (body[0] === "#") {
@@ -65,6 +72,11 @@ export function decodeHtmlEntities(text: string): string {
 const SAFE_URL_SCHEME = /^(https?|data|blob):/i;
 const ANY_URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
+/**
+ * A local image goes through Tauri's asset protocol, resolved against the
+ * document's directory. A src carrying any scheme other than http, https, data
+ * or blob is dropped: a `javascript:` or `file:` src must never be rendered.
+ */
 export function resolveImageSrc(src: string, docPath: string | null): string {
 	const clean = decodeHtmlEntities(src.trim());
 	if (SAFE_URL_SCHEME.test(clean)) return clean;
@@ -83,6 +95,7 @@ export function resolveImageSrc(src: string, docPath: string | null): string {
 	}
 }
 
+/** An image and its optional intrinsic size, from either markdown or `<img>`. */
 export interface HtmlImage {
 	src: string;
 	alt: string;
@@ -92,6 +105,7 @@ export interface HtmlImage {
 
 const HTML_IMG_TAG = /^<img\s([^>]*?)\/?>$/i;
 
+/** One attribute value, quoted either way or bare. */
 function htmlAttribute(attrs: string, name: string): string | null {
 	const match = new RegExp(
 		`${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s"'>]+))`,
@@ -101,6 +115,11 @@ function htmlAttribute(attrs: string, name: string): string | null {
 	return match[2] ?? match[3] ?? match[4] ?? null;
 }
 
+/**
+ * Inline HTML is deliberately limited to `<img>`: every other tag is left as
+ * raw text rather than injected, so a markdown file can never smuggle markup
+ * into the editor.
+ */
 export function parseHtmlImage(source: string): HtmlImage | null {
 	const tag = HTML_IMG_TAG.exec(source.trim());
 	if (!tag) return null;
@@ -117,6 +136,7 @@ export function parseHtmlImage(source: string): HtmlImage | null {
 const MARKDOWN_IMAGE =
 	/^!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)$/;
 
+/** The destination of a `[text](href)` link, entities decoded. */
 export function linkHref(source: string): string | null {
 	const match = /\]\(\s*<?([^)\s>]+)>?(?:\s+["'][^"']*["'])?\s*\)$/.exec(
 		source.trim(),
@@ -126,16 +146,23 @@ export function linkHref(source: string): string | null {
 
 const OPENABLE_LINK = /^(https?|mailto):/i;
 
+/** Only http, https and mailto are handed to the system browser. */
 export function isOpenableLink(href: string): boolean {
 	return OPENABLE_LINK.test(href.trim());
 }
 
+/** What a link resolves to, once its scheme has been judged. */
 export type LinkTarget =
 	| { kind: "external"; href: string }
 	| { kind: "anchor"; anchor: string }
 	| { kind: "file"; path: string; anchor: string | null }
 	| { kind: "unsupported" };
 
+/**
+ * Decides how a markdown link opens: http/mailto to the system browser,
+ * #anchor in-document, a relative path as a new tab. Any other scheme is
+ * ignored rather than followed.
+ */
 export function parseLinkTarget(href: string): LinkTarget {
 	const clean = href.trim();
 	if (!clean) return { kind: "unsupported" };
@@ -152,6 +179,7 @@ export function parseLinkTarget(href: string): LinkTarget {
 	return { kind: "file", path: decodeURIComponent(path), anchor };
 }
 
+/** Resolves a link target against the edited file, applying `.` and `..`. */
 export function resolveDocRelativePath(
 	docPath: string | null,
 	target: string,
@@ -172,6 +200,7 @@ export function resolveDocRelativePath(
 
 const HEADING_LINE = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
 
+/** The anchor a heading answers to: markup stripped, spaces to dashes. */
 export function slugifyHeading(text: string): string {
 	return text
 		.replace(/`([^`]*)`/g, "$1")
@@ -183,6 +212,7 @@ export function slugifyHeading(text: string): string {
 		.replace(/\s+/g, "-");
 }
 
+/** The 1-based line of the heading matching an anchor, null when there is none. */
 export function findHeadingLine(doc: string, anchor: string): number | null {
 	const wanted = anchor.trim().toLowerCase().replace(/^#/, "");
 	if (!wanted) return null;
@@ -194,6 +224,7 @@ export function findHeadingLine(doc: string, anchor: string): number | null {
 	return null;
 }
 
+/** `![alt](src)` on its own; the markdown form carries no size. */
 export function parseMarkdownImage(source: string): HtmlImage | null {
 	const match = MARKDOWN_IMAGE.exec(source.trim());
 	if (!match) return null;
@@ -325,6 +356,7 @@ class CodeFenceWidget extends WidgetType {
 	}
 }
 
+/** A parsed GFM table; `align` is empty when it has no delimiter row. */
 interface TableModel {
 	rows: string[][];
 	align: (string | null)[];
@@ -333,6 +365,7 @@ interface TableModel {
 
 const ALIGNMENT_CELL = /^:?-{1,}:?$/;
 
+/** Splits on unescaped pipes, dropping the optional leading and trailing one. */
 function splitRow(line: string): string[] {
 	const cells: string[] = [];
 	let cell = "";
@@ -354,6 +387,7 @@ function splitRow(line: string): string[] {
 	return cells;
 }
 
+/** The colons of a delimiter cell: `:-:` centre, `-:` right, `:-` left. */
 function alignmentOf(cell: string): string | null {
 	const left = cell.startsWith(":");
 	const right = cell.endsWith(":");
@@ -363,6 +397,7 @@ function alignmentOf(cell: string): string | null {
 	return null;
 }
 
+/** Without a delimiter row the block is still drawn, as a headerless table. */
 export function parseMarkdownTable(source: string): TableModel | null {
 	const lines = source.split("\n").filter((line) => line.trim().length > 0);
 	if (lines.length === 0) return null;
@@ -462,6 +497,7 @@ class TableWidget extends WidgetType {
 const bulletWidget = Decoration.replace({ widget: new BulletWidget() });
 const ruleWidget = Decoration.replace({ widget: new RuleWidget() });
 
+/** The lines any selection range touches: those reveal their raw markup. */
 function activeLines(state: EditorState): Set<number> {
 	const lines = new Set<number>();
 	for (const range of state.selection.ranges) {
@@ -472,12 +508,20 @@ function activeLines(state: EditorState): Set<number> {
 	return lines;
 }
 
+/** The level of an `ATXHeading1`..`6` node, null for any other node. */
 function headingLevel(name: string): number | null {
 	if (!name.startsWith("ATXHeading")) return null;
 	const level = Number(name.slice("ATXHeading".length));
 	return Number.isFinite(level) && level >= 1 && level <= 6 ? level : null;
 }
 
+/**
+ * The inline decorations of one viewport slice. Collected into an array and
+ * sorted by `Decoration.set(ranges, true)`: a RangeSetBuilder cannot be used
+ * here, because tree iteration yields a parent before its children, so the
+ * ranges arrive unsorted, the builder throws, and CodeMirror silently tears the
+ * plugin down - which reads as the markdown rendering randomly disappearing.
+ */
 export function collectInlineRanges(
 	state: EditorState,
 	from: number,
@@ -606,6 +650,11 @@ export function collectInlineRanges(
 	return ranges;
 }
 
+/**
+ * The block decorations: tables and fenced code. These replace line breaks, so
+ * they must come from a StateField rather than a ViewPlugin, and are computed
+ * over the whole document rather than the viewport.
+ */
 export function collectBlockRanges(state: EditorState): Range<Decoration>[] {
 	const ranges: Range<Decoration>[] = [];
 	const revealed = activeLines(state);
@@ -712,10 +761,12 @@ const wysiwygPlugin = ViewPlugin.fromClass(
 	},
 );
 
+/** How the editor is told to open a link pointing at another file. */
 export interface MarkdownLinkOptions {
 	onOpenFile?: (path: string, anchor: string | null) => void;
 }
 
+/** Scrolls to the heading an `#anchor` names; false when it does not exist. */
 function jumpToAnchor(view: EditorView, anchor: string): boolean {
 	const line = findHeadingLine(view.state.doc.toString(), anchor);
 	if (line === null) return false;
@@ -727,6 +778,10 @@ function jumpToAnchor(view: EditorView, anchor: string): boolean {
 	return true;
 }
 
+/**
+ * Shift-click follows a link. A plain click is left as an ordinary text click,
+ * so the document stays editable rather than navigating on every caret move.
+ */
 function buildLinkClickHandler(options: MarkdownLinkOptions) {
 	return EditorView.domEventHandlers({
 		mousedown: (event, view) => {
@@ -884,6 +939,7 @@ const wysiwygTheme = EditorView.theme({
 	},
 });
 
+/** The whole markdown layer; inline decorations stay viewport-scoped in the plugin. */
 export function buildMarkdownWysiwyg(
 	options: MarkdownLinkOptions = {},
 ): Extension {

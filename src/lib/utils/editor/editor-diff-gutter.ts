@@ -8,8 +8,13 @@ import {
 } from "@codemirror/state";
 import { type EditorView, GutterMarker, gutter } from "@codemirror/view";
 
+// The git diff gutter: the baseline is held in a StateField and re-diffed
+// incrementally, so every keystroke updates the markers without a full rescan.
+
+/** How a line differs from the baseline. */
 export type DiffKind = "added" | "modified" | "deleted";
 
+/** One changed hunk, with both sides, as handed to the click handler. */
 export interface GutterChunk {
 	lineStart: number;
 	lineEnd: number;
@@ -18,6 +23,7 @@ export interface GutterChunk {
 	after: string;
 }
 
+/** `lineKinds` is derived from `chunks`; it exists so the gutter is a lookup. */
 interface DiffState {
 	base: Text;
 	hasBase: boolean;
@@ -25,22 +31,27 @@ interface DiffState {
 	lineKinds: Map<number, DiffKind>;
 }
 
+/** Sets the baseline to diff against, replacing any previous one. */
 export const setDiffBase = StateEffect.define<string>();
 
+/** Drops the baseline: an untracked or ignored file has nothing to compare to. */
 export const clearDiffBase = StateEffect.define<null>();
 
 const DIFF_CONFIG = { scanLimit: 500 };
 
+/** An empty string is one empty line, not zero lines, or the diff misaligns. */
 function textOf(content: string): Text {
 	return Text.of(content.length ? content.split("\n") : [""]);
 }
 
+/** Empty on the base side means added, empty on the doc side means deleted. */
 function chunkKind(chunk: Chunk): DiffKind {
 	if (chunk.fromA === chunk.toA) return "added";
 	if (chunk.fromB === chunk.toB) return "deleted";
 	return "modified";
 }
 
+/** The chunk's line span in the document, `toB` being exclusive. */
 function chunkLineRange(
 	doc: Text,
 	chunk: Chunk,
@@ -51,11 +62,13 @@ function chunkLineRange(
 	return { start, end: doc.lineAt(lastPos).number };
 }
 
+/** Whether a 1-based line number falls inside the chunk. */
 function chunkCoversLine(doc: Text, chunk: Chunk, line: number): boolean {
 	const { start, end } = chunkLineRange(doc, chunk);
 	return line >= start && line <= end;
 }
 
+/** A deletion has no lines of its own, so it marks the single line it sits at. */
 function buildLineKinds(
 	doc: Text,
 	chunks: readonly Chunk[],
@@ -124,6 +137,7 @@ const diffField = StateField.define<DiffState>({
 	},
 });
 
+/** The current markers, empty when the gutter extension is not installed. */
 export function diffLineKinds(state: EditorState): Map<number, DiffKind> {
 	return state.field(diffField, false)?.lineKinds ?? new Map();
 }
@@ -139,6 +153,7 @@ class DiffMarker extends GutterMarker {
 	}
 }
 
+/** Materializes both sides of a chunk as text, for the revert popup. */
 function chunkPayload(base: Text, doc: Text, chunk: Chunk): GutterChunk {
 	const before = base.sliceString(
 		chunk.fromA,
@@ -149,6 +164,7 @@ function chunkPayload(base: Text, doc: Text, chunk: Chunk): GutterChunk {
 	return { lineStart: start, lineEnd: end, anchorLine: start, before, after };
 }
 
+/** The gutter plus the state it reads; a click reports the chunk it hit. */
 export function buildDiffGutter(opts: {
 	onChunkClick?: (chunk: GutterChunk) => void;
 }): Extension {
@@ -180,6 +196,7 @@ export function buildDiffGutter(opts: {
 	];
 }
 
+/** Restores the baseline text of the chunk at `line`; false when there is none. */
 export function revertChunkAtLine(view: EditorView, line: number): boolean {
 	const doc = view.state.doc;
 	const { base, chunks } = view.state.field(diffField);

@@ -6,6 +6,7 @@ export function slugify(text: string): string {
 		.replace(/^-|-$/g, "");
 }
 
+/** A byte count for display, one decimal above the byte unit. */
 export function formatBytes(bytes: number): string {
 	const units = ["B", "KB", "MB", "GB"];
 	let value = Math.max(0, bytes);
@@ -17,6 +18,7 @@ export function formatBytes(bytes: number): string {
 	return `${unit === 0 ? value : value.toFixed(1)} ${units[unit]}`;
 }
 
+/** Date and time in the system locale, for anything read outside a transcript. */
 export function formatDate(ts: number): string {
 	return new Intl.DateTimeFormat(undefined, {
 		dateStyle: "medium",

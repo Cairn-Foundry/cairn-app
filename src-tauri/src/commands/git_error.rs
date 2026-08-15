@@ -1,3 +1,5 @@
+//! Turns raw git output into a stable error code the frontend can translate.
+
 use serde::Serialize;
 
 /// Structured error returned by every git command. `code` drives the message
@@ -12,10 +14,12 @@ pub struct GitError {
 }
 
 impl GitError {
+    /// Builds an error with an already-known code, bypassing classification.
     pub fn new(code: &str, raw: impl Into<String>) -> Self {
         GitError { code: code.to_string(), raw: raw.into(), context: None }
     }
 
+    /// Attaches the ref or path the operation was about, for the user-facing message.
     pub fn with_context(mut self, context: impl Into<String>) -> Self {
         self.context = Some(context.into());
         self
@@ -39,28 +43,33 @@ impl GitError {
     }
 }
 
+/// Lets a plain error string from a helper be classified on the `?` boundary.
 impl From<String> for GitError {
     fn from(raw: String) -> Self {
         GitError::from_output(raw)
     }
 }
 
+/// An I/O failure means the `git` binary could not be spawned at all.
 impl From<std::io::Error> for GitError {
     fn from(e: std::io::Error) -> Self {
         GitError::new("git_unavailable", e.to_string())
     }
 }
 
+/// `git2` messages carry the same English wording, so they classify identically.
 impl From<git2::Error> for GitError {
     fn from(e: git2::Error) -> Self {
         GitError::from_output(e.message().to_string())
     }
 }
 
+/// True when every needle is present.
 fn contains_all(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().all(|n| haystack.contains(n))
 }
 
+/// True when at least one needle is present.
 fn contains_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|n| haystack.contains(n))
 }
@@ -72,12 +81,14 @@ pub fn classify(raw: &str) -> &'static str {
     let s = raw.to_lowercase();
 
     if s.contains("index.lock") || contains_all(&s, &["unable to create", ".lock"]) {
+        // A dead git process left .git/index.lock behind, or one is still running.
         return "lock_exists";
     }
     if contains_any(
         &s,
         &["could not read username", "could not read password", "terminal prompts disabled"],
     ) {
+        // Credentials are needed but no terminal is available to prompt for them.
         return "auth_required";
     }
     if contains_any(
@@ -90,30 +101,37 @@ pub fn classify(raw: &str) -> &'static str {
             "host key verification failed",
         ],
     ) {
+        // Credentials or the SSH key were presented and rejected.
         return "auth_failed";
     }
     if contains_any(&s, &["protected branch", "gh006"]) {
+        // The forge refused the push: the branch is protected by a server-side rule.
         return "protected_branch";
     }
     if contains_any(&s, &["hook declined", "hook failed", "hook exited"]) {
+        // A local or server hook vetoed the operation.
         return "hook_rejected";
     }
     if contains_any(
         &s,
         &["error: 403", "the requested url returned error: 403", "you are not allowed to push"],
     ) {
+        // Authenticated, but the account lacks write access to this repository.
         return "permission_denied";
     }
     if contains_any(&s, &["repository not found", "error: 404", "returned error: 404"]) {
+        // The remote repository does not exist, or is private to this account.
         return "remote_not_found";
     }
     if contains_any(&s, &["does not appear to be a git repository", "not a valid repository"]) {
+        // The remote URL resolves but does not serve a git repository.
         return "remote_unreachable";
     }
     if contains_any(
         &s,
         &["no configured push destination", "no such remote", "does not appear to have a url"],
     ) {
+        // No remote is configured for this branch or repository.
         return "no_remote";
     }
     if contains_any(
@@ -128,12 +146,15 @@ pub fn classify(raw: &str) -> &'static str {
             "unable to access",
         ],
     ) {
+        // DNS, TCP or TLS failed before git could talk to the remote.
         return "network_unreachable";
     }
     if contains_any(&s, &["no upstream branch", "there is no tracking information"]) {
+        // The branch has no tracking branch, so push/pull has no default target.
         return "no_upstream";
     }
     if contains_any(&s, &["non-fast-forward", "fetch first", "updates were rejected"]) {
+        // The remote moved ahead: a pull or a force push is required.
         return "non_fast_forward";
     }
     if contains_any(
@@ -146,31 +167,39 @@ pub fn classify(raw: &str) -> &'static str {
             "cannot pull with rebase",
         ],
     ) {
+        // Uncommitted changes block the operation and must be committed or stashed.
         return "dirty_worktree";
     }
     if contains_any(&s, &["you have unmerged files", "fix conflicts and run", "unmerged files"]) {
+        // Conflicts from an earlier step are still unstaged.
         return "unresolved_conflict";
     }
     if contains_any(
         &s,
         &["you have not concluded your merge", "rebase in progress", "a rebase is in progress"],
     ) {
+      // A merge or rebase is already underway and must be finished or aborted.
         return "operation_in_progress";
     }
     if contains_any(&s, &["please tell me who you are", "empty ident name", "unable to auto-detect email"])
     {
+        // user.name / user.email are unset, so no commit can be authored.
         return "identity_missing";
     }
     if contains_any(&s, &["nothing to commit", "no changes added to commit"]) {
+        // Nothing is staged; not a real failure in most flows.
         return "nothing_to_commit";
     }
     if contains_any(&s, &["you are not currently on a branch", "detached head"]) {
+        // HEAD points at a commit rather than a branch.
         return "detached_head";
     }
     if contains_all(&s, &["branch", "already exists"]) || s.contains("already exists and is not a valid") {
+        // The branch name is already taken.
         return "branch_exists";
     }
     if s.contains("is not fully merged") {
+        // Deleting the branch would drop commits reachable from nowhere else.
         return "branch_not_merged";
     }
     if contains_any(
@@ -183,9 +212,11 @@ pub fn classify(raw: &str) -> &'static str {
             "pathspec",
         ],
     ) {
+        // The ref, revision or pathspec does not resolve in this repository.
         return "ref_not_found";
     }
     if contains_any(&s, &["no space left on device", "disk quota exceeded"]) {
+        // The filesystem or the quota is full.
         return "no_disk_space";
     }
 

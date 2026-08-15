@@ -1,3 +1,4 @@
+/** Instances of every loaded project, plus the base pseudo-instance standing for the repository itself. */
 import { derived, get, writable } from "svelte/store";
 import { t } from "$lib/i18n";
 import type { CreateInstanceArgs } from "$lib/services/instance-service";
@@ -8,11 +9,7 @@ import {
 	listInstances,
 	updateInstanceStatus,
 } from "$lib/services/instance-service";
-import type {
-	Instance,
-	InstanceStatus,
-	TimelineEvent,
-} from "$lib/types/instance";
+import type { Instance, InstanceStatus } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import { clearProjectAgentActivity } from "./agent-activity";
 import { activateInstance, activeProject } from "./project";
@@ -26,8 +23,7 @@ import { removeInstanceTerminals } from "./terminal";
  */
 const instancesByProject = writable<Record<string, Instance[]>>({});
 
-export const timeline = writable<TimelineEvent[]>([]);
-
+/** Applies a change to one project's instance list, leaving the other projects alone. */
 function patchProject(
 	projectId: string,
 	patch: (list: Instance[]) => Instance[],
@@ -38,8 +34,10 @@ function patchProject(
 	}));
 }
 
+/** Id of the pseudo-instance standing for the repository itself, outside any worktree. */
 export const BASE_INSTANCE_ID = "__base__";
 
+/** Whether an id refers to the repository itself rather than a real worktree. */
 export function isBaseInstance(id: string | null | undefined): boolean {
 	return id === BASE_INSTANCE_ID;
 }
@@ -59,6 +57,7 @@ export function isArchivedInstance(instance: Instance): boolean {
  */
 const baseInstances = new Map<string, Instance>();
 
+/** The project's base pseudo-instance, rebuilt only when the project path changed. */
 export function baseInstance(project: Project): Instance {
 	const known = baseInstances.get(project.id);
 	if (known && known.worktreePath === project.path) return known;
@@ -79,12 +78,14 @@ export function baseInstance(project: Project): Instance {
 	return built;
 }
 
+/** Real instances of the active project, base instance excluded. */
 export const instances = derived(
 	[instancesByProject, activeProject],
 	([$byProject, $activeProject]) =>
 		$activeProject ? ($byProject[$activeProject.id] ?? []) : [],
 );
 
+/** Resolves the active instance, falling back to the base one; null while the project is not loaded. */
 function resolveActive(
 	byProject: Record<string, Instance[]>,
 	project: Project | null,
@@ -118,20 +119,14 @@ export const activeInstance = derived<
 	null,
 );
 
+/** What the instance selector lists: the base instance first, then the real ones. */
 export const instancesWithBase = derived(
 	[instances, activeProject],
 	([$instances, $activeProject]) =>
 		$activeProject ? [baseInstance($activeProject), ...$instances] : $instances,
 );
 
-export const activeTimeline = derived(
-	[timeline, activeInstance],
-	([$timeline, $activeInstance]) => {
-		if (!$activeInstance) return [];
-		return $timeline.filter((e) => e.instanceId === $activeInstance.id);
-	},
-);
-
+/** Reads a project's instances; until this resolves the project has no key, and activeInstance stays null. */
 export async function loadInstances(projectId: string): Promise<void> {
 	const data = await listInstances(projectId);
 	instancesByProject.update((byProject) => ({
@@ -140,6 +135,7 @@ export async function loadInstances(projectId: string): Promise<void> {
 	}));
 }
 
+/** Creates an instance with its worktree and switches to it. */
 export async function spawnInstance(
 	args: CreateInstanceArgs,
 ): Promise<Instance> {
@@ -149,6 +145,7 @@ export async function spawnInstance(
 	return instance;
 }
 
+/** Branches a new instance off an existing one, numbering its ticket after the siblings already made from it. */
 export async function duplicateInstance(
 	source: {
 		id: string;
@@ -175,6 +172,7 @@ export async function duplicateInstance(
 	return instance;
 }
 
+/** The title the duplicate dialog opens on, numbered like the ticket duplicateInstance() would create. */
 export function getNextDuplicateTitle(source: {
 	id: string;
 	ticket: { title: string };
@@ -184,6 +182,7 @@ export function getNextDuplicateTitle(source: {
 	return `${source.ticket.title} (${seq})`;
 }
 
+/** Changes an instance status; setting it to "done" is what archives it. */
 export async function setInstanceStatus(
 	id: string,
 	projectId: string,
@@ -195,6 +194,7 @@ export async function setInstanceStatus(
 	);
 }
 
+/** Deletes an instance and everything hanging off it: terminals, agent markers, worktree. */
 export async function removeInstance(
 	id: string,
 	projectId: string,

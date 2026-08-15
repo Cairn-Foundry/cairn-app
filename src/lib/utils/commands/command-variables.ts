@@ -1,3 +1,7 @@
+// The `{{token}}` language of custom commands: what a token can resolve to, how
+// it is substituted into a shell script, and the environment it exports.
+
+/** Everything a token can be resolved against, captured when the command runs. */
 export interface CommandContext {
 	instance: {
 		id: string;
@@ -32,6 +36,7 @@ export const VARIABLE_ENV_NAMES: Record<string, string> = {
 	timestamp: "CAIRN_TIMESTAMP",
 };
 
+/** Every catalog key, for the picker offered next to a command's steps. */
 export const VARIABLE_KEYS = Object.keys(VARIABLE_ENV_NAMES);
 
 const TOKEN = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -40,12 +45,14 @@ const PORT_PREFIX = "port";
 
 const SHELL_SAFE = /^[A-Za-z0-9_@%+=:,./-]+$/;
 
+/** Single-quotes anything a POSIX shell could reinterpret, `''` for empty. */
 export function shellQuote(value: string): string {
 	if (value === "") return "''";
 	if (SHELL_SAFE.test(value)) return value;
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+/** A branch or ticket id as a path-safe slug, never empty ("instance"). */
 export function slugify(value: string): string {
 	return (
 		value
@@ -55,10 +62,12 @@ export function slugify(value: string): string {
 	);
 }
 
+/** Two-digit zero padding for the date and time tokens. */
 function pad(value: number): string {
 	return String(value).padStart(2, "0");
 }
 
+/** Resolves every catalog key at once; a missing context field yields "". */
 export function buildValues(ctx: CommandContext): Record<string, string> {
 	const { now } = ctx;
 	return {
@@ -81,6 +90,7 @@ export function buildValues(ctx: CommandContext): Record<string, string> {
 	};
 }
 
+/** Visits every `{{...}}` token across all steps, in source order. */
 function eachToken(steps: string[], visit: (token: string) => void): void {
 	for (const step of steps) {
 		for (const match of step.matchAll(TOKEN)) visit(match[1]);
@@ -119,6 +129,7 @@ function parsePortBase(token: string): number | null {
 	return raw;
 }
 
+/** `{{port}}` alone, or `{{port:3000}}` with a base. */
 function isPortToken(token: string): boolean {
 	return token === PORT_PREFIX || token.startsWith(`${PORT_PREFIX}:`);
 }
@@ -133,11 +144,13 @@ export function findInvalidPortTokens(steps: string[]): string[] {
 	return invalid;
 }
 
+/** A requested base and the free port actually granted for this run. */
 export interface AllocatedPort {
 	base: number;
 	port: number;
 }
 
+/** Everything needed to substitute a step: catalog values, answers, ports. */
 export interface Resolution {
 	values: Record<string, string>;
 	prompts: Record<string, string>;
@@ -192,6 +205,11 @@ export function buildScript(
 		.join(stopOnError ? " && " : "; ");
 }
 
+/**
+ * The environment exported into the PTY: every catalog key under its
+ * `CAIRN_*` name, plus `CAIRN_PORT` for the first allocated port. User entries
+ * come first, so a Cairn variable always wins over one of the same name.
+ */
 export function buildEnv(
 	resolution: Resolution,
 	userEnv: Record<string, string> = {},

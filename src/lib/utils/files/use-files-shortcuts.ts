@@ -9,6 +9,10 @@ import {
 	parentPathOf,
 } from "./files-tree";
 
+// The keyboard handling of the files view, kept out of the component: every
+// action is injected, so the shortcut routing can be read and tested on its own.
+
+/** Everything the handler reads or calls back into, supplied by `FilesView`. */
 export interface FilesShortcutsContext {
 	// -- Action getters/setters ---------------------------------------------
 	getActiveShortcuts: () => Record<ShortcutId, ShortcutBinding | null>;
@@ -74,6 +78,11 @@ export interface FilesShortcutsContext {
 	expandDir: (path: string) => void;
 }
 
+/**
+ * Builds the global keydown handler. Editor shortcuts run first; the tree
+ * shortcuts below are skipped while an editor or input holds focus, so Cmd+C
+ * in a buffer never copies files instead of text.
+ */
 export function makeFilesKeyHandler(ctx: FilesShortcutsContext) {
 	return async function handleGlobalKey(e: KeyboardEvent) {
 		if (!ctx.isWorkspaceActive()) return;

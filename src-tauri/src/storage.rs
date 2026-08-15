@@ -1,7 +1,11 @@
+//! Every path under `~/.cairn` is built here, never inlined at the call site,
+//! so the on-disk layout stays described in one place.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
+/// Result of a shelled-out command, as handed back to the frontend.
 #[derive(Serialize, Deserialize)]
 pub struct CommandOutput {
     pub stdout: String,
@@ -9,15 +13,18 @@ pub struct CommandOutput {
     pub success: bool,
 }
 
+/// Root of the app data directory, `~/.cairn`.
 pub fn cairn_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
     Ok(home.join(".cairn"))
 }
 
+/// Global app settings (`CairnSettings`).
 pub fn settings_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("settings.json"))
 }
 
+/// Provider configuration, secrets excluded.
 pub fn ai_providers_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ai-providers.json"))
 }
@@ -32,34 +39,42 @@ pub fn api_keys_secret_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ai-keys.secret"))
 }
 
+/// All registered projects.
 pub fn projects_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("projects.json"))
 }
 
+/// Project order and folder groupings of the home list.
 pub fn listing_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("listing.json"))
 }
 
+/// Instances belonging to one project.
 pub fn instances_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("instances.json"))
 }
 
+/// Git worktrees, one per instance of the project.
 pub fn worktrees_dir(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("worktrees"))
 }
 
+/// Terminals shared across every instance of the project.
 pub fn project_terminal_state_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("terminal-state.json"))
 }
 
+/// Agent runs recorded at project scope.
 pub fn project_agent_runs_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("agent-runs.json"))
 }
 
+/// Project-scoped conversations: `index.json` plus one file per transcript.
 pub fn project_conversations_dir(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("conversations"))
 }
 
+/// Instance-scoped conversations, same layout as the project-scoped ones.
 pub fn instance_conversations_dir(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -69,18 +84,22 @@ pub fn instance_conversations_dir(project_id: &str, instance_id: &str) -> Result
         .join("conversations"))
 }
 
+/// Formatter configuration for the project.
 pub fn project_formatting_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("formatting.json"))
 }
 
+/// User commands available in every project.
 pub fn global_commands_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("commands.json"))
 }
 
+/// User commands defined for this project only.
 pub fn project_commands_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("commands.json"))
 }
 
+/// Last run and output of the commands, per instance.
 pub fn instance_command_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -90,14 +109,17 @@ pub fn instance_command_state_file(project_id: &str, instance_id: &str) -> Resul
         .join("command-state.json"))
 }
 
+/// Environment variables injected into every spawned process.
 pub fn global_env_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("env.json"))
 }
 
+/// Environment variables added on top of the global ones for this project.
 pub fn project_env_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("env.json"))
 }
 
+/// Environment variables of one instance, the narrowest of the three scopes.
 pub fn instance_env_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -107,18 +129,22 @@ pub fn instance_env_file(project_id: &str, instance_id: &str) -> Result<PathBuf,
         .join("env.json"))
 }
 
+/// Navigation state restored on launch: screen, active project, tabs, sections.
 pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
 }
 
+/// Which conversation of each instance finished and has not been read yet.
 pub fn agent_activity_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("agent-activity.json"))
 }
 
+/// Token and cost usage accumulated across agent runs.
 pub fn usage_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("usage.json"))
 }
 
+/// Editor tabs, cursor, scroll and recent files of one instance.
 pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -128,6 +154,7 @@ pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<P
         .join("file-state.json"))
 }
 
+/// Terminals of one instance: their order and the active one.
 pub fn instance_terminal_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -137,6 +164,7 @@ pub fn instance_terminal_state_file(project_id: &str, instance_id: &str) -> Resu
         .join("terminal-state.json"))
 }
 
+/// Draft commit message and staged selection of one instance.
 pub fn instance_commit_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -146,6 +174,7 @@ pub fn instance_commit_state_file(project_id: &str, instance_id: &str) -> Result
         .join("commit-state.json"))
 }
 
+/// Which file groups are folded in the git view of one instance.
 pub fn instance_git_collapse_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?
         .join("projects")
@@ -155,6 +184,9 @@ pub fn instance_git_collapse_state_file(project_id: &str, instance_id: &str) -> 
         .join("git-collapse-state.json"))
 }
 
+/// Serializes to a temp file then renames over `path`, so a crash mid-write
+/// leaves the previous file intact rather than a truncated one. Missing parent
+/// directories are created.
 pub fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -169,6 +201,9 @@ pub fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
     })
 }
 
+/// Copies `src` into the existing directory `dst`, preserving symlinks and
+/// permission bits. `.git` is skipped: a copied worktree must not inherit the
+/// source repository's metadata.
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -192,6 +227,8 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Recreates a symlink at `dst` pointing to the same target, without following
+/// it. Windows needs to know upfront whether the target is a directory.
 fn copy_symlink(src: &Path, dst: &Path) -> Result<(), String> {
     let target = fs::read_link(src).map_err(|e| e.to_string())?;
     #[cfg(unix)]

@@ -1,3 +1,9 @@
+//! All Tauri commands, one module per domain, re-exported flat so `lib.rs` can
+//! list them in a single `generate_handler!`.
+
+//! All Tauri commands, one module per domain, re-exported flat so `lib.rs` can
+//! list them in a single `generate_handler!`.
+
 pub mod agent;
 pub mod agent_activity;
 pub mod agent_runs;
@@ -99,7 +105,7 @@ pub use skills::{
 };
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, set_window_vibrancy, update_settings};
-pub use shell::{run_shell_command, run_shell_command_with_stdin, run_agent_command, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};
+pub use shell::{run_shell_command, run_shell_command_with_stdin, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};
 pub use terminal::{TerminalState, terminal_create, terminal_write, terminal_resize, terminal_close, terminal_close_all, get_terminal_state, save_terminal_state, get_project_terminal_state, save_project_terminal_state};
 pub use ui_state::{get_ui_state, save_ui_state};
 pub use usage::{get_usage_entries, append_usage_entries, backfill_usage_entries, clear_usage_entries};

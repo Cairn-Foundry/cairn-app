@@ -1,3 +1,6 @@
+//! Shared plumbing for the package managers Cairn installs tools through:
+//! locating a binary, working out which manager owns it, and comparing versions.
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * Presentational file tree of the worktree: sidebar header actions, nodes with
+   * their git status, inline rename and creation. It owns no state - every prop is
+   * driven by FilesView and every interaction goes back through an `on*` callback,
+   * including the pointer-event drag handlers.
+   */
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -63,6 +69,7 @@
 
   let scrollEl: HTMLElement | null = null;
 
+  /** Action that reports the header buttons' intrinsic width so the sidebar cannot shrink past them. */
   function measureActions(node: HTMLElement): { destroy: () => void } {
     const measure = (): void => {
       const header = node.parentElement;
@@ -87,6 +94,7 @@
 
   $: revealActiveInTree(activeTabPath);
 
+  /** Scrolls the row of the active tab into view once the tree has rendered it. */
   function revealActiveInTree(path: string | null) {
     if (!path) return;
     tick().then(() => {

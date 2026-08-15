@@ -1,3 +1,4 @@
+/** Custom commands while they run: one terminal each, with their allocated ports. */
 import { get, writable } from "svelte/store";
 import {
 	allocatePort,
@@ -41,8 +42,10 @@ export interface CommandRun {
 	autoClose: boolean;
 }
 
+/** In-flight runs keyed by commandRunKey(); nothing here is persisted. */
 export const commandRuns = writable<Record<string, CommandRun>>({});
 
+/** The key a run is indexed by: the same command can run once per instance. */
 export function commandRunKey(
 	projectId: string,
 	instanceId: string,
@@ -51,6 +54,7 @@ export function commandRunKey(
 	return `${projectId}:${instanceId}:${commandId}`;
 }
 
+/** Finds the run owning a terminal, since the exit event only carries the terminal id. */
 function findRunByTerminal(terminalId: string): [string, CommandRun] | null {
 	for (const entry of Object.entries(get(commandRuns))) {
 		if (entry[1].terminalId === terminalId) return entry;
@@ -58,6 +62,7 @@ function findRunByTerminal(terminalId: string): [string, CommandRun] | null {
 	return null;
 }
 
+/** Forgets a run without touching its terminal. */
 function dropRun(key: string): void {
 	commandRuns.update((m) => {
 		const next = { ...m };
@@ -66,6 +71,7 @@ function dropRun(key: string): void {
 	});
 }
 
+// A command that asked for it closes its terminal on a clean exit; otherwise the output stays readable.
 onTerminalExit(({ id, exitCode }) => {
 	const found = findRunByTerminal(id);
 	if (!found) return;
@@ -74,6 +80,7 @@ onTerminalExit(({ id, exitCode }) => {
 	else dropRun(key);
 });
 
+// A terminal closed by hand also ends the run that owned it.
 terminalSessions.subscribe((sessions) => {
 	const alive = new Set(
 		Object.values(sessions).flatMap((list) => list.map((s) => s.id)),
@@ -83,6 +90,10 @@ terminalSessions.subscribe((sessions) => {
 	}
 });
 
+/**
+ * Assigns a real port to each {{port:N}} the steps mention, reusing the one this
+ * instance had last time so a dev server keeps the same URL across runs.
+ */
 async function resolvePorts(
 	command: CustomCommand,
 	projectId: string,
@@ -109,6 +120,7 @@ async function resolvePorts(
 	return allocated;
 }
 
+/** Gathers everything the variables can expand to: instance, project, git identity, ports. */
 async function buildResolution(
 	command: CustomCommand,
 	project: Project,
@@ -140,6 +152,7 @@ async function buildResolution(
 	};
 }
 
+/** Runs a command in a fresh terminal, stopping the previous run of that same command first. */
 export async function launchCommand(
 	command: CustomCommand,
 	project: Project,
@@ -190,6 +203,7 @@ export async function launchCommand(
 	showTool("terminal");
 }
 
+/** A launch held back until the user confirms or fills the prompts it declares. */
 export interface PendingLaunch {
 	command: CustomCommand;
 	project: Project;
@@ -200,6 +214,7 @@ export interface PendingLaunch {
 /** A launch waiting on a confirmation or on the answers to its prompts. */
 export const pendingLaunch = writable<PendingLaunch | null>(null);
 
+/** Entry point for the UI: launches straight away, or parks the launch when it needs an answer. */
 export async function requestCommandLaunch(
 	command: CustomCommand,
 	project: Project,
@@ -213,10 +228,12 @@ export async function requestCommandLaunch(
 	await launchCommand(command, project, instance);
 }
 
+/** Drops the parked launch. */
 export function cancelPendingLaunch(): void {
 	pendingLaunch.set(null);
 }
 
+/** Runs the parked launch with the answers collected from the dialog. */
 export async function confirmPendingLaunch(
 	prompts: Record<string, string> = {},
 ): Promise<void> {
@@ -231,6 +248,7 @@ export async function confirmPendingLaunch(
 	);
 }
 
+/** Stops a run by closing its terminal; the exit handler is what drops the run. */
 export async function stopCommand(key: string): Promise<void> {
 	const run = get(commandRuns)[key];
 	if (!run) return;

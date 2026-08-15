@@ -1,3 +1,10 @@
+// Dragging the window by its chrome. The webview has no native title bar, so
+// the frameless window is moved by handing the gesture to Tauri.
+
+/**
+ * Hands a left-button drag to the window manager, unless it started on
+ * something interactive: a button dragged this way would never receive a click.
+ */
 export async function startWindowDrag(event: MouseEvent): Promise<void> {
 	if (event.button !== 0) return;
 
@@ -19,6 +26,7 @@ export async function startWindowDrag(event: MouseEvent): Promise<void> {
 	}
 }
 
+/** Svelte action making a region behave as the window's title bar. */
 export function draggableRegion(node: HTMLElement): { destroy: () => void } {
 	const onMouseDown = (event: MouseEvent): void => {
 		void startWindowDrag(event);

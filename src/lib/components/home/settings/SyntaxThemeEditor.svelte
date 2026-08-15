@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal editing one syntax theme token by token, over a live code preview.
+   * Dispatches `save` with the edited theme, `close` on cancel.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -23,6 +27,7 @@
     ...theme.tokens,
   };
 
+  /** Inline style for one token, used by the preview lines. */
   function cssFor(style: SyntaxTokens[SyntaxTokenKey]): string {
     return `color: ${style.color};
             font-weight: ${style.bold ? 600 : 400};

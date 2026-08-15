@@ -1,3 +1,4 @@
+/** Claude Code subagents discovered across the registered projects, read-only: discovered by scanning every project path. */
 import { get, writable } from "svelte/store";
 import {
 	listNativeAgents,
@@ -9,6 +10,7 @@ export const nativeAgents = writable<NativeAgent[]>([]);
 export const nativeAgentsLoading = writable(false);
 export const nativeAgentsError = writable("");
 
+/** Rescans every registered project; errors land in the error store rather than throwing. */
 export async function loadNativeAgents(): Promise<void> {
 	nativeAgentsLoading.set(true);
 	nativeAgentsError.set("");

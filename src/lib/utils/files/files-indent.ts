@@ -1,7 +1,12 @@
+// Detecting and converting a file's line endings and indentation. The editor
+// always holds LF internally; the original ending is restored on save.
+
+/** To the LF form the editor holds in memory. */
 export function normalizeLineEndings(text: string, le: "CRLF" | "LF"): string {
 	return le === "CRLF" ? text.replace(/\r\n/g, "\n") : text;
 }
 
+/** Back to the file's own endings, for writing to disk. */
 export function denormalizeLineEndings(
 	text: string,
 	le: "CRLF" | "LF",
@@ -9,10 +14,15 @@ export function denormalizeLineEndings(
 	return le === "CRLF" ? text.replace(/\n/g, "\r\n") : text;
 }
 
+/** A single CRLF anywhere makes the whole file CRLF. */
 export function detectLineEndings(text: string): "CRLF" | "LF" {
 	return text.includes("\r\n") ? "CRLF" : "LF";
 }
 
+/**
+ * Decided on the first 100 lines only, and ties go to tabs. Null when nothing
+ * in the file is indented, leaving the choice to the editor settings.
+ */
 export function detectIndentStyle(text: string): "tabs" | "spaces" | null {
 	let tabs = 0,
 		spaces = 0;
@@ -27,6 +37,10 @@ export function detectIndentStyle(text: string): "tabs" | "spaces" | null {
 	return tabs >= spaces ? "tabs" : "spaces";
 }
 
+/**
+ * The smallest indent width no larger than 4, since a file indented by 4 also
+ * shows 8 and 12 as leading runs. Falls back to 2 when nothing is indented.
+ */
 export function detectSpaceSize(text: string): number {
 	const counts: Record<number, number> = {};
 	for (const line of text.split("\n")) {
@@ -43,6 +57,7 @@ export function detectSpaceSize(text: string): number {
 	return sorted.find((n) => n <= 4) ?? sorted[0];
 }
 
+/** Leading tabs only: a tab inside a line may be data. */
 export function convertToSpaces(text: string, size: number): string {
 	return text
 		.split("\n")
@@ -54,6 +69,7 @@ export function convertToSpaces(text: string, size: number): string {
 		.join("\n");
 }
 
+/** Leading runs of exactly `size` spaces only; a partial run is left alone. */
 export function convertToTabs(text: string, size: number): string {
 	const sp = " ".repeat(size);
 	return text

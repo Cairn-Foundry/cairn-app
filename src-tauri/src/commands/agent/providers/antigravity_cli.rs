@@ -1,3 +1,5 @@
+//! The Antigravity (`agy`) CLI provider, reading its step_update stream.
+
 use serde_json::{json, Value};
 
 use super::super::{
@@ -6,6 +8,7 @@ use super::super::{
 };
 use super::cli_common::{run_cli, tool_label};
 
+/// Antigravity CLI, resumed by conversation id.
 pub struct AntigravityCliProvider;
 
 /// Antigravity reports its usage under its own names; the UI reads the ones

@@ -1,3 +1,6 @@
+//! JSON-RPC transport for one language server process: framed reads on a
+//! background thread, and request/response correlation by id.
+
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{ChildStdin, ChildStdout};
@@ -11,12 +14,15 @@ pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 type Pending = Arc<Mutex<HashMap<i64, Sender<Result<Value, String>>>>>;
 
+/// A connected language server. Requests block the caller until the reader
+/// thread matches the response, or the timeout expires.
 pub struct LspClient {
     stdin:   Mutex<ChildStdin>,
     next_id: AtomicI64,
     pending: Pending,
 }
 
+/// Frames one message with its `Content-Length` header, as LSP requires.
 fn write_message(stdin: &mut ChildStdin, payload: &Value) -> Result<(), String> {
     let body = serde_json::to_string(payload).map_err(|e| e.to_string())?;
     write!(stdin, "Content-Length: {}\r\n\r\n{}", body.len(), body).map_err(|e| e.to_string())?;
@@ -45,6 +51,9 @@ fn read_message(reader: &mut BufReader<ChildStdout>) -> Option<Value> {
 }
 
 impl LspClient {
+    /// Spawns the reader thread and returns the connected client. Server-initiated
+    /// requests are answered with null rather than ignored, because a server that
+    /// never gets a reply will stall waiting for one.
     pub fn new(
         stdin: ChildStdin,
         stdout: ChildStdout,
@@ -98,18 +107,22 @@ impl LspClient {
         client
     }
 
+    /// Fire and forget: notifications have no id and get no response.
     pub fn notify(&self, method: &str, params: Value) -> Result<(), String> {
         let payload = json!({ "jsonrpc": "2.0", "method": method, "params": params });
         let mut stdin = self.stdin.lock().map_err(|e| e.to_string())?;
         write_message(&mut stdin, &payload)
     }
 
+    /// Replies to a request the server sent us.
     fn respond(&self, id: i64, result: Value) -> Result<(), String> {
         let payload = json!({ "jsonrpc": "2.0", "id": id, "result": result });
         let mut stdin = self.stdin.lock().map_err(|e| e.to_string())?;
         write_message(&mut stdin, &payload)
     }
 
+    /// Registers the pending id before writing, and unregisters it again if the
+    /// write fails, so a failed send never leaks a waiting slot.
     fn send_request(&self, method: &str, params: Value) -> Result<(i64, Receiver<Result<Value, String>>), String> {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (sender, receiver) = channel();
@@ -125,6 +138,8 @@ impl LspClient {
         Ok((id, receiver))
     }
 
+    /// Blocks until the server answers. On timeout the pending entry is dropped,
+    /// so a late response is discarded instead of matching a later request.
     pub fn request(&self, method: &str, params: Value, timeout: Duration) -> Result<Value, String> {
         let (id, receiver) = self.send_request(method, params)?;
         match receiver.recv_timeout(timeout) {

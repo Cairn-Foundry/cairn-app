@@ -35,22 +35,29 @@ import {
 } from "$lib/services/lsp-service";
 import type { ModifierState } from "$lib/types/shortcuts";
 
+// The bridge between the language server protocol and CodeMirror: offset and
+// position conversion, then completion, hover, signature help and go-to-symbol.
+
+/** The document to query, or null while no server covers the open file. */
 export type LspDocGetter = () => LspDocRef | null;
 
 // -- Position conversion -------------------------------------------------------
 
+/** LSP counts lines and characters from zero; CodeMirror counts lines from one. */
 export function offsetToPosition(doc: Text, offset: number): LspPosition {
 	const clamped = Math.max(0, Math.min(offset, doc.length));
 	const line = doc.lineAt(clamped);
 	return { line: line.number - 1, character: clamped - line.from };
 }
 
+/** Clamped both ways: a server may point past a line the user has since edited. */
 export function positionToOffset(doc: Text, position: LspPosition): number {
 	const lineNumber = Math.max(1, Math.min(position.line + 1, doc.lines));
 	const line = doc.line(lineNumber);
 	return Math.min(line.from + Math.max(0, position.character), line.to);
 }
 
+/** Normalized so `from <= to`, since a server may send a reversed range. */
 export function rangeToOffsets(
 	doc: Text,
 	range: LspRange,
@@ -102,6 +109,7 @@ const SEVERITIES: Record<number, Diagnostic["severity"]> = {
 	4: "info",
 };
 
+/** LSP severities onto CodeMirror's, where hint and info collapse into one. */
 export function toEditorDiagnostics(
 	doc: Text,
 	diagnostics: LspDiagnostic[],
@@ -136,6 +144,7 @@ function renderMarkup(target: HTMLElement, markup: string): void {
 	});
 }
 
+/** Flattens the several shapes markup content can take into plain text. */
 function markupToString(
 	value: LspHoverResult["contents"] | LspCompletionItem["documentation"],
 ): string {
@@ -226,6 +235,11 @@ function toCompletion(item: LspCompletionItem): Completion {
 /** Characters that open a completion even with no word typed yet. */
 const COMPLETION_TRIGGERS = new Set([".", ":", ">", "@", "/", "'", '"']);
 
+/**
+ * Completes on a word, or right after a trigger character. An `isIncomplete`
+ * result drops `validFor`, so the next keystroke re-queries the server instead
+ * of filtering a list the server said was partial.
+ */
 async function completionSource(
 	context: CompletionContext,
 	getDoc: LspDocGetter,
@@ -268,6 +282,7 @@ async function completionSource(
 
 // -- Hover ---------------------------------------------------------------------
 
+/** Hover tooltips; a server that errors or says nothing shows nothing. */
 function buildHover(getDoc: LspDocGetter): Extension {
 	return hoverTooltip(async (view, pos) => {
 		const doc = getDoc();
@@ -321,6 +336,7 @@ export function activeParameterRange(
 	return at < 0 ? null : [at, at + parameter.label.length];
 }
 
+/** The signature with the active parameter emphasized inside its label. */
 function signatureTooltip(pos: number, help: LspSignatureHelp): Tooltip | null {
 	const signature =
 		help.signatures[help.activeSignature ?? 0] ?? help.signatures[0];
@@ -356,6 +372,7 @@ function signatureTooltip(pos: number, help: LspSignatureHelp): Tooltip | null {
  * Where the tooltip is anchored, kept alongside the tooltip itself so an edit
  * can move it rather than throw it away. Null means nothing is showing.
  */
+/** `anchor` is where the call started, so the tooltip survives typing arguments. */
 interface SignatureState {
 	anchor: number;
 	tooltips: readonly Tooltip[];
@@ -392,6 +409,7 @@ const signatureField = StateField.define<SignatureState>({
 const SIGNATURE_TRIGGERS = new Set(["(", ","]);
 const SIGNATURE_CLOSERS = new Set([")", ";"]);
 
+/** Opens on `(` or `,`, closes on `)` or `;` and on leaving the call. */
 function buildSignatureHelp(getDoc: LspDocGetter): Extension {
 	return [
 		signatureField,
@@ -545,6 +563,7 @@ export function buildSymbolClickAffordance(
  * Everything the editor gains from a language server, in one extension. It is
  * inert while `getDoc` answers null, so a file no server covers pays nothing.
  */
+/** Everything the language server contributes to the editor, in one extension. */
 export function buildLspExtensions(getDoc: LspDocGetter): Extension {
 	return [
 		EditorState.languageData.of(() => [

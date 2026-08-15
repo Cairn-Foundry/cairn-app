@@ -1,3 +1,10 @@
+// Reordering the terminal lists. Kept apart from the store so the index
+// arithmetic can be tested on plain arrays.
+
+/**
+ * Moves one item, treating an insert point at either side of its current slot
+ * as a no-op: `insertIndex` counts gaps, so both mean "leave it where it is".
+ */
 export function moveItem<T>(
 	list: T[],
 	fromIndex: number,
@@ -15,6 +22,7 @@ export function moveItem<T>(
 	return next;
 }
 
+/** Inserts at `insertIndex`, clamped to the list rather than left sparse. */
 export function insertAt<T>(list: T[], item: T, insertIndex: number): T[] {
 	const next = [...list];
 	next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, item);

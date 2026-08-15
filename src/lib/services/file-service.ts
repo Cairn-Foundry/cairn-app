@@ -1,5 +1,9 @@
+// Filesystem access for the editor: tree, read and write, search, and the git
+// views built by shelling out to `git` rather than by a dedicated Rust command.
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** One entry of the file tree; `children` is only filled for expanded directories. */
 export interface FileNode {
 	name: string;
 	path: string;
@@ -7,6 +11,7 @@ export interface FileNode {
 	children?: FileNode[];
 }
 
+/** One directory level, gitignored entries excluded unless `showIgnored`. */
 export async function readDirTree(
 	path: string,
 	showIgnored = false,
@@ -14,15 +19,21 @@ export async function readDirTree(
 	return invoke<FileNode[]>("read_dir_tree", { path, showIgnored });
 }
 
+/** Bare entry names of one directory, without the tree walk. */
 export async function listDirNames(path: string): Promise<string[]> {
 	return invoke<string[]>("list_dir_names", { path });
 }
 
+/** A path match from the quick open palette. */
 export interface QuickSearchHit {
 	path: string;
 	isDir: boolean;
 }
 
+/**
+ * Fuzzy path search over a cached index; `refresh` rebuilds that index, so
+ * callers set it only when the worktree or the ignore setting changed.
+ */
 export async function quickSearch(
 	path: string,
 	query: string,
@@ -39,35 +50,43 @@ export async function quickSearch(
 	});
 }
 
+/** Text content of a file, or null when it is not valid UTF-8. */
 export async function readFile(path: string): Promise<string | null> {
 	return invoke<string | null>("read_file", { path });
 }
 
+/** Size plus the first bytes as hex, enough to identify a binary by its magic number. */
 export interface FilePreview {
 	size: number;
 	headHex: string;
 }
 
+/** Cheap look at a file that must not be loaded whole - binaries, large files. */
 export async function readFilePreview(path: string): Promise<FilePreview> {
 	return invoke<FilePreview>("read_file_preview", { path });
 }
 
+/** Whole file as base64, for the image and binary viewers. */
 export async function readFileBase64(path: string): Promise<string> {
 	return invoke<string>("read_file_base64", { path });
 }
 
+/** Overwrites the file, creating it if needed. */
 export async function writeFile(path: string, content: string): Promise<void> {
 	return invoke<void>("write_file", { path, content });
 }
 
+/** Deletes a file or a directory recursively; it does not go to the trash. */
 export async function deletePath(path: string): Promise<void> {
 	return invoke<void>("delete_path", { path });
 }
 
+/** Moves a path, which is also how a rename in place is done. */
 export async function renamePath(from: string, to: string): Promise<void> {
 	return invoke<void>("rename_path", { from, to });
 }
 
+/** Creates an empty file or a directory, parents included. */
 export async function createFileOrDir(
 	path: string,
 	isDir: boolean,
@@ -75,18 +94,22 @@ export async function createFileOrDir(
 	return invoke<void>("create_file_or_dir", { path, isDir });
 }
 
+/** Copies a file or a whole directory. */
 export async function copyPath(from: string, to: string): Promise<void> {
 	return invoke<void>("copy_path", { from, to });
 }
 
+/** Shows the path in Finder or the platform equivalent. */
 export async function revealInFileManager(path: string): Promise<void> {
 	return invoke<void>("reveal_in_file_manager", { path });
 }
 
+/** Opens the system terminal application on that directory. */
 export async function openInTerminal(path: string): Promise<void> {
 	return invoke<void>("open_in_terminal", { path });
 }
 
+/** Status of one file as the Rust `git_status` command reports it. */
 export type GitFileStatus =
 	| "modified"
 	| "untracked"
@@ -98,8 +121,10 @@ export type GitFileStatus =
 	| "staged-copied"
 	| "staged-modified";
 
+/** Status of the whole worktree, keyed by path relative to its root. */
 export type GitStatusMap = Record<string, GitFileStatus>;
 
+/** One hit of a content search; `matchStart` / `matchEnd` index into `text`. */
 export interface SearchMatch {
 	path: string;
 	line: number;
@@ -109,6 +134,7 @@ export interface SearchMatch {
 	matchEnd: number;
 }
 
+/** Search filters; the globs are empty strings when the user set none. */
 export interface SearchOptions {
 	caseSensitive: boolean;
 	isRegex: boolean;
@@ -116,6 +142,7 @@ export interface SearchOptions {
 	excludeGlob: string;
 }
 
+/** Content search under a root; the options are flattened into the IPC payload. */
 export async function searchInFiles(
 	root: string,
 	query: string,
@@ -131,18 +158,23 @@ export async function searchInFiles(
 	});
 }
 
+/** Status of every changed file, for the badges in the file tree. */
 export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
 	return invoke<GitStatusMap>("git_status", { worktreePath });
 }
 
+/** How a line is marked in the editor gutter. */
 export type DiffLineKind = "added" | "modified" | "deleted";
+/** Gutter marks keyed by line number in the current file, one-based. */
 export type DiffLineMap = Map<number, DiffLineKind>;
 
+/** One line of a hunk, carrying its unified-diff marker. */
 export interface DiffHunkLine {
 	type: "+" | "-" | " ";
 	content: string;
 }
 
+/** A unified-diff hunk; `newEnd` is the last line it covers in the new file. */
 export interface DiffHunk {
 	oldStart: number;
 	newStart: number;
@@ -150,11 +182,13 @@ export interface DiffHunk {
 	lines: DiffHunkLine[];
 }
 
+/** The same diff in both shapes the UI needs: gutter marks and hunks. */
 export interface DiffResult {
 	lineMap: DiffLineMap;
 	hunks: DiffHunk[];
 }
 
+/** Diff of one file against HEAD, staged changes included. */
 export async function gitFileDiff(
 	worktreePath: string,
 	relPath: string,
@@ -171,6 +205,11 @@ export async function gitFileDiff(
 	return parseUnifiedDiff(result.stdout);
 }
 
+/**
+ * Turns `git diff` output into gutter marks and hunks. A '-' block followed by
+ * a '+' is a modification, one that is not becomes a single "deleted" mark on
+ * the line that survives it, since a removed line has no row of its own.
+ */
 function parseUnifiedDiff(diff: string): DiffResult {
 	const lineMap: DiffLineMap = new Map();
 	const hunks: DiffHunk[] = [];
@@ -184,6 +223,7 @@ function parseUnifiedDiff(diff: string): DiffResult {
 	let deletionPoint = 0;
 	let deletionHadPlus = false;
 
+	/** Closes a pending '-' block, marking it deleted only if no '+' replaced it. */
 	function flushDeletion() {
 		if (inDeletionBlock && !deletionHadPlus) {
 			const marker = Math.max(1, deletionPoint);
@@ -247,6 +287,7 @@ function parseUnifiedDiff(diff: string): DiffResult {
 	return { lineMap, hunks };
 }
 
+/** What one commit changed in one file. */
 export async function gitCommitFileDiff(
 	worktreePath: string,
 	hash: string,
@@ -264,6 +305,7 @@ export async function gitCommitFileDiff(
 	return parseUnifiedDiff(result.stdout).hunks;
 }
 
+/** Full content of a file as of a commit; throws when the path did not exist there. */
 export async function gitFileAtCommit(
 	worktreePath: string,
 	hash: string,
@@ -282,6 +324,7 @@ export async function gitFileAtCommit(
 	return result.stdout;
 }
 
+/** Diff of the index against HEAD for one file: the staged half only. */
 export async function gitStagedFileDiff(
 	worktreePath: string,
 	relPath: string,
@@ -298,6 +341,7 @@ export async function gitStagedFileDiff(
 	return parseUnifiedDiff(result.stdout);
 }
 
+/** Blame of one line; `hash` is already shortened to 7 characters for display. */
 export interface BlameEntry {
 	hash: string;
 	author: string;
@@ -305,6 +349,7 @@ export interface BlameEntry {
 	summary: string;
 }
 
+/** Blame keyed by line number; an empty map when the file is binary. */
 export async function gitBlame(
 	worktreePath: string,
 	relPath: string,
@@ -323,6 +368,7 @@ export async function gitBlame(
 	return parseBlame(result.stdout);
 }
 
+/** Reads `--line-porcelain` blocks, substituting a placeholder for missing fields. */
 function parseBlame(output: string): Map<number, BlameEntry> {
 	const map = new Map<number, BlameEntry>();
 	const lines = output.split("\n");
@@ -369,11 +415,13 @@ function parseBlame(output: string): Map<number, BlameEntry> {
 	return map;
 }
 
+/** One added or removed line inside a line-history entry. */
 export interface LineHistoryChange {
 	type: "+" | "-";
 	content: string;
 }
 
+/** One commit that touched the tracked line; `timestamp` is in milliseconds. */
 export interface LineHistoryEntry {
 	hash: string;
 	shortHash: string;
@@ -385,9 +433,11 @@ export interface LineHistoryEntry {
 }
 
 const LINE_HISTORY_LIMIT = 30;
+// Record and field separators, matching the %x01 / %x1f of the --format below.
 const SOH = "\u0001";
 const US = "\u001f";
 
+/** History of a single line, newest first, capped at LINE_HISTORY_LIMIT commits. */
 export async function gitLineHistory(
 	worktreePath: string,
 	relPath: string,
@@ -412,6 +462,7 @@ export async function gitLineHistory(
 	return parseLineHistory(result.stdout);
 }
 
+/** Splits the `-L` output on the record separator, one entry per commit. */
 function parseLineHistory(output: string): LineHistoryEntry[] {
 	const entries: LineHistoryEntry[] = [];
 	let current: LineHistoryEntry | null = null;
@@ -446,6 +497,10 @@ function parseLineHistory(output: string): LineHistoryEntry[] {
 	return entries;
 }
 
+/**
+ * Wraps one hunk into a patch `git apply` accepts, recounting the header from
+ * the lines themselves so a hunk edited in the UI stays consistent.
+ */
 export function hunkToPatch(relPath: string, hunk: DiffHunk): string {
 	const addCount = hunk.lines.filter((l) => l.type === "+").length;
 	const delCount = hunk.lines.filter((l) => l.type === "-").length;
@@ -456,6 +511,10 @@ export function hunkToPatch(relPath: string, hunk: DiffHunk): string {
 	return `--- a/${relPath}\n+++ b/${relPath}\n@@ -${hunk.oldStart},${oldCount} +${hunk.newStart},${newCount} @@\n${body}`;
 }
 
+/**
+ * Feeds a patch to `git apply` on stdin: `cached` stages it, `reverse` undoes
+ * it. A rejected patch comes back as `success: false`, it does not throw.
+ */
 export async function applyHunkPatch(
 	worktreePath: string,
 	patch: string,
@@ -478,6 +537,8 @@ export async function applyHunkPatch(
 	return { success: result.success, stderr: result.stderr };
 }
 
+// Extension to syntax mode. The values are the modes the editor knows, so
+// several extensions collapse onto one and anything exotic falls back to text.
 const EXT_LANG: Record<string, string> = {
 	ts: "ts",
 	tsx: "tsx",
@@ -572,11 +633,16 @@ const BINARY_EXT = new Set([
 	"sqlite3",
 ]);
 
+/** Syntax mode for a path, "text" when the extension is unknown. */
 export function langFromPath(filePath: string): string {
 	const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
 	return EXT_LANG[ext] ?? "text";
 }
 
+/**
+ * Extension-only guess, so a binary with an unlisted extension is missed;
+ * readFile returning null is what settles it for certain.
+ */
 export function isBinaryPath(filePath: string): boolean {
 	const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
 	return BINARY_EXT.has(ext);

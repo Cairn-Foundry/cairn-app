@@ -1,11 +1,18 @@
+// Which file cards the Git view leaves folded, per instance.
+// Only this layer calls invoke().
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** File paths folded in the Git view, kept per instance. */
 export interface GitCollapseState {
 	collapsedUnstaged: string[];
+	/** Back-compat only: the staged side is driven by `expandedStaged` and this is written empty. */
 	collapsedStaged: string[];
+	/** Staged cards start folded, so this lists the ones the user opened. */
 	expandedStaged: string[];
 }
 
+/** Null when nothing was folded yet for this instance. */
 export async function getGitCollapseState(
 	projectId: string,
 	instanceId: string,
@@ -20,6 +27,7 @@ export async function getGitCollapseState(
 	}
 }
 
+/** Fire and forget: called on every fold, a lost write only costs a reopened card. */
 export function saveGitCollapseState(
 	projectId: string,
 	instanceId: string,

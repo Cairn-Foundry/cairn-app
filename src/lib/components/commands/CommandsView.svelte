@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Custom commands tool: the global and project lists, each row runnable or
+   * stoppable, with drag to reorder and to move a command between the two scopes.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import CommandEditor from '$lib/components/commands/CommandEditor.svelte';
   import CommandImport from '$lib/components/commands/CommandImport.svelte';
@@ -59,6 +63,7 @@
     editing = { scope, command, isNew: false };
   }
 
+  /** Adds or updates the command, moving it to the other scope when the editor changed it. */
   function saveEdited(command: CustomCommand, scope: CommandScope) {
     if (!editing || !projectId) return;
     if (editing.isNew) addCommand(scope, projectId, command);
@@ -116,6 +121,7 @@
     };
   }
 
+  /** Section the pointer is over, or the nearest one, so a drag past the end of a list still lands. */
   function scopeAt(clientY: number): CommandScope | null {
     let closest: { scope: CommandScope; distance: number } | null = null;
     for (const section of sections) {

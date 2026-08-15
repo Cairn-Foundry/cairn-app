@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Confirmation modal before a conversation and its transcript are deleted.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
 

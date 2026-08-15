@@ -35,6 +35,7 @@ const LABELS: Record<string, string> = {
 	toml: "TOML",
 };
 
+/** Falls back to the raw id, so a language added later still shows something. */
 export function languageLabel(languageId: string): string {
 	return LABELS[languageId] ?? languageId;
 }

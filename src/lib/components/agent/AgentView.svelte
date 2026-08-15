@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * The Agent view: conversation history, the transcript, the activity pane and
+   * the prompt box. The live conversation (draft, busy, error) stays in
+   * component state and is mirrored into the conversation store, which debounces
+   * the write to disk.
+   */
   import { onDestroy, onMount, tick, untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -208,6 +214,14 @@
   }
 
   let conversations = $state<Record<string, Conversation>>({});
+  /**
+   * In-flight runs by runId. A run is pinned to the conversation that sent the
+   * prompt, never to whatever conversation is on screen, and it holds the very
+   * arrays that conversation renders: switching conversation or instance
+   * mid-answer leaves the reply in its own conversation, and reopening a
+   * conversation whose run is still going reattaches to these arrays rather
+   * than to the stale file on disk.
+   */
   let runs = $state<Record<string, Run>>({});
   let permissions = $state<Record<string, PermissionRequest>>({});
   let rateLimit = $state<RateLimitInfo | null>(null);
@@ -1011,6 +1025,8 @@
       const { source, line, summary, runId, data, agent, toolId } = e.payload;
       if (!runId) return;
 
+      // Routing goes through the run, never through the open conversation:
+      // this is what keeps an answer in the conversation that asked for it.
       const run = runs[runId];
       if (!run) return;
 
@@ -1295,6 +1311,7 @@
     await sendPrompt(inst, current, lastPrompt);
   }
 
+  /** Sends the draft. Gating is per conversation: siblings stay free to run. */
   async function send() {
     const inst = $activeInstance;
     if (!inst) return;
@@ -1341,6 +1358,11 @@
     });
   }
 
+  /**
+   * Mints the runId the backend will stamp on every event of this answer, and
+   * opens the run on the sending conversation. The CLI session id belongs to the
+   * conversation, not the worktree, and is handed back for the next --resume.
+   */
   async function sendPrompt(inst: Instance, conv: Conversation, message: string) {
     materialise(inst, conv);
     const runProviderId = currentProvider?.id ?? conv.providerId;

@@ -1,3 +1,7 @@
+/**
+ * Per-project view state: snapshots the ui stores on project switch and restores
+ * them on the way back, so every project reopens exactly where it was left.
+ */
 import { derived, get, writable } from "svelte/store";
 import type { ProjectUiState } from "$lib/services/ui-state-service";
 import { activeProjectId } from "$lib/stores/project";
@@ -15,6 +19,7 @@ import {
 } from "$lib/stores/ui";
 import type { WorkflowStep } from "$lib/types/instance";
 
+/** The state a project that has never been opened starts from. */
 const DEFAULT: ProjectUiState = {
 	activeStep: "files",
 	gitLeftTab: "changes",
@@ -30,12 +35,15 @@ const DEFAULT: ProjectUiState = {
 	referencesQuery: "",
 };
 
+/** View state of every project, keyed by project id. */
 const _states = writable<Record<string, ProjectUiState>>({});
 
+/** Read-only view of the whole map; write through the functions below. */
 export const viewStates = { subscribe: _states.subscribe };
 
 const KEYS = Object.keys(DEFAULT) as (keyof ProjectUiState)[];
 
+/** Field-by-field comparison; every value is a scalar, so `===` is enough. */
 function isSameState(a: ProjectUiState, b: ProjectUiState): boolean {
 	return KEYS.every((k) => a[k] === b[k]);
 }
@@ -52,11 +60,13 @@ function commit(id: string, next: ProjectUiState): void {
 	_states.set({ ...states, [id]: next });
 }
 
+/** View state of the active project, falling back to DEFAULT. */
 export const currentProjectViewState = derived(
 	[_states, activeProjectId],
 	([$s, $pid]) => ($pid ? ($s[$pid] ?? DEFAULT) : DEFAULT),
 );
 
+/** Seeds the map from disk, filling in fields a state saved by an older version lacks. */
 export function initViewStates(states: Record<string, ProjectUiState>): void {
 	const normalized: Record<string, ProjectUiState> = {};
 	for (const [id, ps] of Object.entries(states)) {
@@ -65,6 +75,7 @@ export function initViewStates(states: Record<string, ProjectUiState>): void {
 	_states.set(normalized);
 }
 
+/** Copies the live ui stores into the active project's state; call before leaving it. */
 export function snapshotCurrentProject(): void {
 	const id = get(activeProjectId);
 	if (!id) return;
@@ -82,6 +93,7 @@ export function snapshotCurrentProject(): void {
 	});
 }
 
+/** Pushes a project's saved state back into the ui stores; the mirror of snapshotCurrentProject(). */
 export function applyProjectState(id: string): void {
 	const ps = get(_states)[id] ?? DEFAULT;
 	activeStep.set(ps.activeStep as WorkflowStep);
@@ -102,6 +114,7 @@ export function applyProjectState(id: string): void {
 	);
 }
 
+/** Patches the fields no ui store owns (the git search boxes) on the active project. */
 export function updateProjectViewState(
 	patch: Partial<
 		Pick<
@@ -115,6 +128,7 @@ export function updateProjectViewState(
 	commit(id, { ...(get(_states)[id] ?? DEFAULT), ...patch });
 }
 
+/** Non-reactive read of the whole map, for the persistence layer. */
 export function getAllProjectStates(): Record<string, ProjectUiState> {
 	return get(_states);
 }

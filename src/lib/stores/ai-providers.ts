@@ -1,3 +1,4 @@
+/** AI provider configuration, plus what each provider reports it supports. */
 import { get, writable } from "svelte/store";
 import {
 	defaultConfig,
@@ -24,6 +25,7 @@ export type { ProbeResult, ProviderSettings };
 
 const PERSIST_DELAY_MS = 400;
 
+/** Overlays stored settings on each provider's defaults, so a provider added by a new release appears configured. */
 function mergedDefaults(
 	stored: Partial<Record<string, Partial<ProviderSettings>>>,
 ): Record<string, ProviderSettings> {
@@ -43,13 +45,17 @@ function mergedDefaults(
 	return out;
 }
 
+/** Provider configuration and the default provider; never holds an API key. */
 export const aiProviders = writable<AiProvidersConfig>({
 	providers: mergedDefaults({}),
 	defaultProviderId: "claude-code-cli",
 });
 
+/** Whether a key is stored for each provider; the key itself never reaches the frontend. */
 export const apiKeyStatus = writable<Record<string, ApiKeyStatus>>({});
+/** Last reachability probe per provider; a failed probe leaves the previous result in place. */
 export const probeResults = writable<Record<string, ProbeResult>>({});
+/** Providers with a probe in flight. */
 export const probing = writable<Record<string, boolean>>({});
 
 /**
@@ -61,9 +67,12 @@ export const probing = writable<Record<string, boolean>>({});
 export const providerCapabilities = writable<
 	Record<string, ProviderCapabilities>
 >({});
+/** Providers whose capabilities are being discovered. */
 export const loadingModels = writable<Record<string, boolean>>({});
+/** Last discovery error per provider, empty once it succeeds. */
 export const modelsError = writable<Record<string, string>>({});
 
+/** Asks a provider what it supports; failures are reported in modelsError rather than thrown. */
 export async function refreshProviderModels(providerId: string): Promise<void> {
 	const def = providerById(providerId);
 	if (!def || def.status === "coming-soon") return;
@@ -105,6 +114,7 @@ export function modelsOf(
 	];
 }
 
+/** Discovered values when there are any, shipped ones otherwise, plus whatever is already selected. */
 function optionsOf(
 	discovered: string[] | undefined,
 	shipped: readonly string[],
@@ -118,6 +128,7 @@ function optionsOf(
 		: values;
 }
 
+/** Reasoning effort levels to offer for a provider. */
 export function effortsOf(
 	providerId: string,
 	found: Record<string, ProviderCapabilities>,
@@ -130,6 +141,7 @@ export function effortsOf(
 	);
 }
 
+/** Permission modes to offer for a provider. */
 export function permissionModesOf(
 	providerId: string,
 	found: Record<string, ProviderCapabilities>,
@@ -145,6 +157,7 @@ export function permissionModesOf(
 let loaded = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Loads the configuration once, then discovers the enabled providers and their key status in the background. */
 export async function loadAiProviders(): Promise<void> {
 	if (loaded) return;
 	loaded = true;
@@ -176,6 +189,8 @@ export async function loadAiProviders(): Promise<void> {
 		.catch(() => {});
 }
 
+/** Debounced write of the whole configuration; a settings slider fires on every step.
+ */
 function persist(): void {
 	if (saveTimer) clearTimeout(saveTimer);
 	saveTimer = setTimeout(() => {
@@ -184,6 +199,7 @@ function persist(): void {
 	}, PERSIST_DELAY_MS);
 }
 
+/** Patches one provider's settings and schedules the write. */
 export function updateProviderSettings(
 	providerId: string,
 	fields: Partial<ProviderSettings>,
@@ -198,6 +214,7 @@ export function updateProviderSettings(
 	persist();
 }
 
+/** Sets the provider a new conversation starts with. */
 export function setDefaultProvider(providerId: string): void {
 	aiProviders.update((config) => ({
 		...config,
@@ -206,6 +223,7 @@ export function setDefaultProvider(providerId: string): void {
 	persist();
 }
 
+/** Non-reactive settings of a provider, falling back to its defaults. */
 export function providerSettingsOf(providerId: string): ProviderSettings {
 	const def = providerById(providerId);
 	return (
@@ -214,6 +232,7 @@ export function providerSettingsOf(providerId: string): ProviderSettings {
 	);
 }
 
+/** Checks that a provider is reachable: the CLI is installed, or the endpoint answers. */
 export async function runProbe(providerId: string): Promise<void> {
 	const def = providerById(providerId);
 	if (!def || def.status === "coming-soon") return;

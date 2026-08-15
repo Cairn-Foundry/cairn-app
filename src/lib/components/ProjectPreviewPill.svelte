@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Read-only preview of how a project reads in a list: its accent colour and
+   * name. Used by the project forms to show the result live.
+   */
   export let name: string;
   export let color: string;
 </script>

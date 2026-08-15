@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Context menu of a project card: edit, duplicate, reveal, move between folders, delete.
+   * Each entry dispatches its own event; `moveToFolder` carries the target folder id.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -19,6 +23,7 @@
 
   $: otherFolders = folders.filter((f) => f.id !== currentFolderId);
 
+  /** Action flipping the submenu to the other side when it would overflow the window. */
   function autoflip(node: HTMLElement) {
     const parent = node.closest('.submenu-item') as HTMLElement | null;
     if (!parent) return {};

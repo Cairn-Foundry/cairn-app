@@ -1,3 +1,4 @@
+/** Runs of the native agents: their blocks as they stream in, and the permission requests they raise. */
 import { get, writable } from "svelte/store";
 import {
 	type AgentBlock,
@@ -22,6 +23,7 @@ export const agentPermissionRequests = writable<
 	Record<string, PendingPermission>
 >({});
 
+/** Records a permission request so the Agents view can answer it. */
 export function setAgentPermission(
 	runId: string,
 	request: PendingPermission,
@@ -29,6 +31,7 @@ export function setAgentPermission(
 	agentPermissionRequests.update((m) => ({ ...m, [runId]: request }));
 }
 
+/** Drops the request once answered or once the run ended. */
 export function clearAgentPermission(runId: string): void {
 	agentPermissionRequests.update((m) => {
 		const { [runId]: _answered, ...rest } = m;
@@ -36,17 +39,21 @@ export function clearAgentPermission(runId: string): void {
 	});
 }
 
+// Writes are debounced per project: a streaming run patches its blocks on every chunk.
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const PERSIST_DELAY_MS = 250;
 
+/** A run still holding its process, so it can be stopped and must not be started again. */
 export function isInFlight(status: AgentRunStatus): boolean {
 	return status === "running" || status === "awaiting-permission";
 }
 
+/** Non-reactive read of a project's runs, newest first. */
 export function runsOf(projectId: string): AgentRun[] {
 	return get(agentRuns)[projectId] ?? [];
 }
 
+/** Looks a run up across every project, since a run id is unique app-wide. */
 export function findAgentRun(runId: string): AgentRun | null {
 	for (const list of Object.values(get(agentRuns))) {
 		const run = list.find((r) => r.id === runId);
@@ -55,6 +62,7 @@ export function findAgentRun(runId: string): AgentRun | null {
 	return null;
 }
 
+/** Schedules a debounced write of the project's runs. */
 function persist(projectId: string): void {
 	const existing = persistTimers.get(projectId);
 	if (existing) clearTimeout(existing);
@@ -78,6 +86,7 @@ export async function restoreAgentRuns(projectId: string): Promise<void> {
 	agentRuns.update((m) => ({ ...m, [projectId]: runs }));
 }
 
+/** Records a freshly started run at the head of its project's list. */
 export function addAgentRun(projectId: string, run: AgentRun): void {
 	agentRuns.update((m) => ({
 		...m,
@@ -86,6 +95,7 @@ export function addAgentRun(projectId: string, run: AgentRun): void {
 	persist(projectId);
 }
 
+/** Updates fields of one run; the single write path, so every change is persisted. */
 export function patchAgentRun(
 	projectId: string,
 	runId: string,
@@ -184,6 +194,7 @@ export function lastTextOf(blocks: AgentBlock[]): string {
 	return [...blocks].reverse().find((b) => b.kind === "text")?.text ?? "";
 }
 
+/** The last reasoning block, for the same reason as lastTextOf(). */
 export function lastThinkingOf(blocks: AgentBlock[]): string {
 	return [...blocks].reverse().find((b) => b.kind === "thinking")?.text ?? "";
 }

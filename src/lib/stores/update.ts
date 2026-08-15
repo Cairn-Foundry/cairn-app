@@ -1,3 +1,4 @@
+/** Self-update: the check schedule, the download progress and the modal flag. */
 import { derived, get, writable } from "svelte/store";
 import {
 	checkForUpdate,
@@ -7,9 +8,12 @@ import {
 } from "$lib/services/update-service";
 import { settings } from "$lib/stores/settings";
 
+/** Delay before the first check, so it does not compete with the app opening. */
 export const STARTUP_CHECK_DELAY_MS = 5_000;
+/** How often the background check runs afterwards. */
 export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 
+/** Where the updater is; only "available" onwards means an update was actually found. */
 export type UpdatePhase =
 	| "idle"
 	| "checking"
@@ -18,6 +22,7 @@ export type UpdatePhase =
 	| "installing"
 	| "error";
 
+/** Everything the update modal renders, including the download progress. */
 export interface UpdateState {
 	phase: UpdatePhase;
 	version: string | null;
@@ -28,6 +33,7 @@ export interface UpdateState {
 	lastCheckedAt: number | null;
 }
 
+/** The state with nothing found and nothing in flight. */
 const IDLE: UpdateState = {
 	phase: "idle",
 	version: null,
@@ -40,9 +46,12 @@ const IDLE: UpdateState = {
 
 const { subscribe, set, update } = writable<UpdateState>(IDLE);
 
+/** Read-only updater state; written by checkForUpdates() and installUpdate(). */
 export const updateState = { subscribe };
+/** Whether the update modal is showing; opened by the user, never automatically. */
 export const isUpdateModalOpen = writable(false);
 
+/** Whether an update is waiting or being applied, for the badge in the status bar. */
 export const hasPendingUpdate = derived(
 	updateState,
 	(s) =>
@@ -51,8 +60,10 @@ export const hasPendingUpdate = derived(
 		s.phase === "installing",
 );
 
+// The Update handle the plugin returned, kept out of the store: it is a Rust resource, not state.
 let pending: Update | null = null;
 
+/** Renders an unknown thrown value as a message the modal can show. */
 function toMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
@@ -67,6 +78,7 @@ async function releasePending(): Promise<void> {
 	} catch {}
 }
 
+/** Checks for a release; `silent` keeps a failed background check from surfacing an error. */
 export async function checkForUpdates({ silent = false } = {}): Promise<void> {
 	const phase = get(updateState).phase;
 	if (phase === "checking" || phase === "downloading" || phase === "installing")
@@ -103,6 +115,7 @@ export async function checkForUpdates({ silent = false } = {}): Promise<void> {
 	}
 }
 
+/** Downloads and installs the pending update, then restarts the app. */
 export async function installUpdate(): Promise<void> {
 	if (!pending) return;
 
@@ -124,14 +137,20 @@ export async function installUpdate(): Promise<void> {
 	}
 }
 
+/** Opens the update modal. */
 export function openUpdateModal(): void {
 	isUpdateModalOpen.set(true);
 }
 
+/** Closes the update modal; a download in progress keeps running. */
 export function closeUpdateModal(): void {
 	isUpdateModalOpen.set(false);
 }
 
+/**
+ * Starts the background schedule and follows the autoCheckUpdates setting.
+ * Returns the teardown; call it once, from the app root.
+ */
 export function startUpdateChecks(): () => void {
 	let startupTimer: ReturnType<typeof setTimeout> | null = null;
 	let interval: ReturnType<typeof setInterval> | null = null;

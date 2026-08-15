@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * Environment tool: the global, project and instance variable lists, the
+   * narrower scope overriding the broader one. Rows are multi-selectable and can
+   * be dragged within a scope or into another one; every change is written back
+   * to the worktree .env file.
+   */
   import CopyButton from '$lib/components/CopyButton.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -101,6 +107,7 @@
     revealed = next;
   }
 
+  /** Masks a secret value unless the row has been revealed. */
   function displayValue(variable: EnvVariable, value: string): string {
     if (!value) return '';
     if (!variable.secret || revealed.has(variable.id)) return value;
@@ -115,6 +122,7 @@
     editing = { scope, variable, isNew: false };
   }
 
+  /** Adds or updates the variable, moving it to the other scope when the editor changed it. */
   async function saveEdited(detail: { variable: EnvVariable; scope: EnvScope }) {
     if (!editing || !projectId) return;
     const { variable, scope } = detail;
@@ -168,6 +176,7 @@
     await syncEnvFile($activeProject, $activeInstance);
   }
 
+  /** Adds the imported entries, overwriting an existing key only when `replace` is set. */
   async function applyImport(detail: {
     scope: EnvScope;
     entries: ParsedEnvEntry[];
@@ -202,6 +211,7 @@
     await syncEnvFile($activeProject, $activeInstance, undefined, true);
   }
 
+  /** Scope section under the pointer, with a small margin so the gaps between them stay droppable. */
   function sectionAt(clientY: number): EnvScope | null {
     for (const section of sections) {
       const el = bodyEls[section.scope];
@@ -336,6 +346,7 @@
     await exportEntries(entries, `.${scope}`);
   }
 
+  /** Turning the generated .env file off also removes the one already written in the worktree. */
   async function setWriteFile(enabled: boolean) {
     if (!projectId) return;
     setProjectEnvOptions(projectId, { writeEnvFile: enabled });

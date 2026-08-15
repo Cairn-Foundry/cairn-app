@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Commit graph: lays commits out into coloured lanes drawn as SVG paths, with
+   * ref chips, search and infinite scroll.
+   * Instances are matched to commits by branch name to offer switching or branching off a ref.
+   */
   import { createEventDispatcher } from 'svelte';
   import type { GitGraphCommit } from '$lib/services/git-service';
   import type { Instance } from '$lib/types/instance';
@@ -18,6 +23,7 @@
   let lastCount = 0;
   $: if (commits.length !== lastCount) { lastCount = commits.length; isLoadingMore = false; }
 
+  /** Asks for another page once the scroll gets within 200px of the bottom. */
   function handleScroll(e: Event) {
     if (isLoadingMore || !hasMore) return;
     const el = e.currentTarget as HTMLElement;
@@ -107,18 +113,21 @@
 
   function laneX(lane: number): number { return lane * COL_W + HALF; }
 
+  /** Path from a lane entering at the top down into the commit dot of another lane. */
   function convergeCurve(ax: number, cx: number): string {
     const midY = ROW_H / 2;
     const cp = midY * 0.75;
     return `M ${ax} 0 C ${ax} ${cp * 2} ${cx} ${midY - cp * 0.5} ${cx} ${midY}`;
   }
 
+  /** Path leaving the commit dot and peeling off into a neighbouring lane below. */
   function branchDownCurve(cx: number, ax: number): string {
     const midY = ROW_H / 2;
     const cp = midY * 0.75;
     return `M ${cx} ${midY} C ${cx} ${midY + cp * 0.5} ${ax} ${ROW_H - cp * 2} ${ax} ${ROW_H}`;
   }
 
+  /** Assigns each commit a lane by matching the lanes waiting on its hash, and emits the paths crossing its row. */
   function computeGraph(commits: GitGraphCommit[]): GraphRow[] {
     const lanes: (LaneState | null)[] = [];
     let colorIdx = 0;
@@ -206,6 +215,7 @@
     });
   }
 
+  /** Recovers the merged branch name from a conventional merge commit subject. */
   function mergedBranchLabel(message: string): string | undefined {
     const pr = message.match(/^Merge pull request #\d+ from (\S+)/);
     if (pr) return pr[1];
@@ -214,6 +224,7 @@
     return undefined;
   }
 
+  /** Best branch name to colour a lane with: local refs win over remote ones. */
   function branchLabelForCommit(commit: GitGraphCommit): string | undefined {
     const chips = parseRefs(commit.refs);
     const local = chips.find(c => c.kind === 'head-branch' || c.kind === 'local');
@@ -221,6 +232,7 @@
     return chips.find(c => c.kind === 'remote')?.label;
   }
 
+  /** Classifies raw decoration strings into typed chips, sorted HEAD first then tags last. */
   function parseRefs(refs: string[]): RefChip[] {
     const chips: RefChip[] = [];
     for (const r of refs) {
@@ -242,11 +254,13 @@
     return chips.sort((a, b) => order[a.kind] - order[b.kind]);
   }
 
+  /** True for chips that name a real branch, excluding the remote HEAD symbolic refs. */
   function isBranchChip(chip: RefChip): boolean {
     if (chip.kind !== 'remote' && chip.kind !== 'local' && chip.kind !== 'head-branch') return false;
     return !chip.label.endsWith('/HEAD');
   }
 
+  /** Compact age label, falling back to a formatted date beyond a month. */
   function relativeTime(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const m = Math.floor(diff / 60000);

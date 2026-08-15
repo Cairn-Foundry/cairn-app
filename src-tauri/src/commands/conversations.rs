@@ -1,10 +1,17 @@
+//! Agent conversations, stored per scope (project, or one instance) as a light
+//! `index.json` plus one transcript file per conversation, so opening the panel
+//! never reads the transcripts.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 use crate::storage::{instance_conversations_dir, project_conversations_dir, write_json_atomic};
 
+/// One conversation's metadata: everything the history panel needs to draw a
+/// row without opening the transcript.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ConversationMeta {
     pub id: String,
@@ -43,6 +50,7 @@ pub struct ConversationMeta {
 }
 
 
+/// The whole `index.json` of one scope.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ConversationIndex {
     #[serde(default)]
@@ -51,6 +59,8 @@ pub struct ConversationIndex {
     pub active_id: Option<String>,
 }
 
+/// A transcript. Both lists stay opaque `Value`: their shape belongs to the
+/// frontend and must round-trip unchanged.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ConversationBody {
     #[serde(default)]
@@ -59,6 +69,7 @@ pub struct ConversationBody {
     pub activity: Vec<Value>,
 }
 
+/// No instance id means the project scope.
 fn scope_dir(project_id: &str, instance_id: Option<&str>) -> Result<PathBuf, String> {
     match instance_id {
         Some(id) => instance_conversations_dir(project_id, id),
@@ -66,6 +77,8 @@ fn scope_dir(project_id: &str, instance_id: Option<&str>) -> Result<PathBuf, Str
     }
 }
 
+/// Rejects any id that is not alphanumeric, `-` or `_`: the id becomes a file
+/// name, so `..` or a slash would escape the scope directory.
 fn body_path(
     project_id: &str,
     instance_id: Option<&str>,
@@ -81,12 +94,14 @@ fn body_path(
     Ok(scope_dir(project_id, instance_id)?.join(format!("{conversation_id}.json")))
 }
 
+/// `None` for a missing file, an error for a malformed one.
 fn read_json<T: for<'de> Deserialize<'de>>(path: &PathBuf) -> Result<Option<T>, String> {
     if !path.exists() { return Ok(None); }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     serde_json::from_str(&content).map(Some).map_err(|e| e.to_string())
 }
 
+/// One small read that backs the whole history panel.
 #[tauri::command]
 pub fn get_conversation_index(
     project_id: String,
@@ -97,6 +112,7 @@ pub fn get_conversation_index(
     Ok(index)
 }
 
+/// Replaces the whole index of the scope.
 #[tauri::command]
 pub fn save_conversation_index(
     project_id: String,
@@ -109,6 +125,7 @@ pub fn save_conversation_index(
     )
 }
 
+/// Read only when a conversation is actually opened.
 #[tauri::command]
 pub fn get_conversation_body(
     project_id: String,
@@ -118,6 +135,7 @@ pub fn get_conversation_body(
     read_json(&body_path(&project_id, instance_id.as_deref(), &conversation_id)?)
 }
 
+/// A streaming answer rewrites this one file, never the whole scope.
 #[tauri::command]
 pub fn save_conversation_body(
     project_id: String,
@@ -131,6 +149,7 @@ pub fn save_conversation_body(
     )
 }
 
+/// Drops the transcript only; the caller updates the index separately.
 #[tauri::command]
 pub fn delete_conversation_body(
     project_id: String,

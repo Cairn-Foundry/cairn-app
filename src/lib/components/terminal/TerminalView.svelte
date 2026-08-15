@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * Terminal tool: the two terminal scopes, project then instance, and the one
+   * or two xterm panes they attach to. The DOM node is only a mount point - the
+   * PTY and its xterm instance live in terminal-manager and survive attach,
+   * detach and a move between scopes.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
@@ -150,6 +156,7 @@
     await addProjectTerminal(projectId, activeId, worktreePath, env);
   }
 
+  /** Selecting the terminal already shown in the other pane just moves the focus there. */
   function selectTerminal(id: string) {
     if (!projectId || !activeId) return;
     if (isSplit && focusedPane === 1) {
@@ -161,6 +168,7 @@
     setActiveTerminal(projectId, activeId, id, 0);
   }
 
+  /** Opens the second pane, spawning shells when there are not two to show. */
   async function toggleSplit() {
     if (!projectId || !activeId) return;
     if (isSplit) {
@@ -182,6 +190,7 @@
     return activeTid;
   }
 
+  /** Drags the split bar, clamped so neither pane collapses. */
   function startSplitResize(e: PointerEvent) {
     if (!panesEl || !projectId || !activeId) return;
     e.preventDefault();
@@ -240,6 +249,7 @@
     }
   }
 
+  /** Moves a terminal between the project and instance scopes without restarting its PTY. */
   function toggleShared(s: TerminalSession, section: Section) {
     closeCtxMenu();
     if (!projectId || !activeId) return;
@@ -272,6 +282,7 @@
     node.select();
   }
 
+  /** Arms a drag on pointer events - the HTML5 drag API is unusable in the webview. */
   function dragPointerDown(e: PointerEvent, section: Section, index: number, id: string) {
     if (editingId === id) return;
     if ((e.target as Element).closest('.term-item-close, .term-item-input')) return;
@@ -298,6 +309,7 @@
     return null;
   }
 
+  /** Starts the drag past the threshold, then tracks the target section and index. */
   function dragPointerMove(e: PointerEvent) {
     if (!drag) return;
     if (!dragActive) {
@@ -316,6 +328,7 @@
     };
   }
 
+  /** Reorders within a scope, or moves across scopes - the PTY keeps running either way. */
   function dragPointerUp() {
     if (drag && dropAt && dragActive && projectId && activeId) {
       const { id, from, index } = drag;
@@ -334,6 +347,7 @@
     document.body.classList.remove('dragging');
   }
 
+  /** Hides the drop line on the two positions that would leave the row where it is. */
   function showsIndicator(section: Section, index: number): boolean {
     if (!dragActive || !drag || dropAt?.section !== section || dropAt.index !== index) return false;
     if (drag.from !== section) return true;

@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Ranked breakdown of usage groups (by model, project, agent...) with a share bar per row.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { formatCount, formatTokens, formatUsd } from '$lib/utils/format';

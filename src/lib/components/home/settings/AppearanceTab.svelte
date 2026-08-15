@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Appearance settings: theme, accent colour, interface font and UI scale.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';

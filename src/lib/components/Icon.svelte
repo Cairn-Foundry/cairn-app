@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Single source of every icon in the app, drawn inline as SVG paths keyed by
+   * name. Stroke width and size follow the surrounding text.
+   */
   export let name: string;
   export let size: number = 16;
   export let sw: number = 1.5;

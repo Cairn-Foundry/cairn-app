@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Modal creating or editing a custom command: identity, scope, ordered shell
+   * steps and run options. Dispatches `save` with the command and the scope it
+   * should end up in, which may differ from the one it was opened in.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import IconPicker from '$lib/components/IconPicker.svelte';
@@ -94,6 +99,7 @@
       ? dropAt
       : null;
 
+  /** Inserts a {{token}} at the caret of the focused step, leaving the caret inside tokens that expect a value. */
   function insertToken(token: string) {
     const index = Math.min(focusedStep, steps.length - 1);
     const input = stepInputs[index];

@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Confirmation before deleting an agent definition from every location it was written to.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

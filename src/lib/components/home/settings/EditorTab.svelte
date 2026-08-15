@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Editor settings, plus the syntax theme library: create, duplicate, import and export themes.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
@@ -71,6 +74,7 @@
     await writeFile(path, serializeSyntaxTheme(theme));
   }
 
+  /** Reads a theme file and adds it to the library, surfacing a parse failure inline. */
   async function importSyntaxTheme() {
     syntaxError = '';
     const { open } = await import('@tauri-apps/plugin-dialog');

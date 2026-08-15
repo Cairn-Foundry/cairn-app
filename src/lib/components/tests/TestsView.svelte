@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Tests step: suite tree on the left, counters and the selected test's failure output on the right.
+   * Content is still static placeholder data, no runner is wired yet.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import Spinner from '$lib/components/Spinner.svelte';

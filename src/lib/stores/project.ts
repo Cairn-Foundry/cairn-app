@@ -1,3 +1,4 @@
+/** The registered projects, the open project tabs, and which project is active. */
 import { derived, writable } from "svelte/store";
 import {
 	addProject,
@@ -12,16 +13,23 @@ import {
 import { projectFolders } from "$lib/stores/project-folders";
 import type { Project } from "$lib/types/project";
 
+/** Every registered project, in home-list order. */
 export const projects = writable<Project[]>([]);
+
+/** The project the workspace is showing, or null on the home screen. */
 export const activeProjectId = writable<string | null>(null);
+
+/** Ids of the open project tabs, in tab order; a project can be registered without being open. */
 export const openTabOrder = writable<string[]>([]);
 
+/** The resolved active project, null while nothing is open or the id is stale. */
 export const activeProject = derived(
 	[projects, activeProjectId],
 	([$projects, $activeProjectId]) =>
 		$projects.find((p) => p.id === $activeProjectId) ?? null,
 );
 
+/** The open projects resolved in tab order, skipping ids no longer registered. */
 export const openProjects = derived(
 	[projects, openTabOrder],
 	([$projects, $openTabOrder]) =>
@@ -31,28 +39,34 @@ export const openProjects = derived(
 		}),
 );
 
+/** Opens a tab for a project, or does nothing if it already has one. */
 export function openProject(id: string): void {
 	openTabOrder.update((order) => (order.includes(id) ? order : [...order, id]));
 }
 
+/** Closes the tab; the project stays registered. */
 export function closeProjectTab(id: string): void {
 	openTabOrder.update((order) => order.filter((oid) => oid !== id));
 }
 
+/** Commits a new tab order after a drag. */
 export function reorderTabs(newOrder: string[]): void {
 	openTabOrder.set(newOrder);
 }
 
+/** Reads the registered projects; call loadListing() afterwards to apply the saved order. */
 export async function loadProjects(): Promise<void> {
 	const data = await listProjects();
 	projects.set(data);
 }
 
+/** Registers a project and replaces the list with what the backend returns. */
 export async function registerProject(project: Project): Promise<void> {
 	const updated = await addProject(project);
 	projects.set(updated);
 }
 
+/** Sets the instance a project reopens on, persisting it before updating the store. */
 export async function activateInstance(
 	projectId: string,
 	instanceId: string | null,
@@ -65,6 +79,7 @@ export async function activateInstance(
 	);
 }
 
+/** Removes a project and everything that referenced it: active id and folder membership. */
 export async function unregisterProject(id: string): Promise<void> {
 	const updated = await removeProject(id);
 	projects.set(updated);
@@ -72,6 +87,7 @@ export async function unregisterProject(id: string): Promise<void> {
 	projectFolders.purgeProject(id);
 }
 
+/** Renames and recolors a project. */
 export async function editProject(
 	id: string,
 	name: string,
@@ -81,12 +97,14 @@ export async function editProject(
 	projects.set(updated);
 }
 
+/** Copies a project under a fresh id, keeping its settings but not its instances. */
 export async function duplicateProjectInStore(id: string): Promise<void> {
 	const newId = crypto.randomUUID();
 	const updated = await duplicateProject(id, newId);
 	projects.set(updated);
 }
 
+/** Reorders the list optimistically; `ids` may cover only part of it, the rest keeps its order. */
 export function reorderProjects(ids: string[]): void {
 	projects.update((list) => {
 		const map = new Map(list.map((p) => [p.id, p]));
@@ -101,6 +119,7 @@ export function reorderProjects(ids: string[]): void {
 	saveProjectOrder(ids).catch(console.error);
 }
 
+/** Applies the saved folders and project order on top of the already loaded projects. */
 export async function loadListing(): Promise<void> {
 	const listing = await getListing();
 	projectFolders.init(listing.folders);

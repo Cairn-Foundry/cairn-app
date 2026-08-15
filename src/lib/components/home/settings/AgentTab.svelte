@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Agent display settings: the toggle groups for messages, composer chips and live activity.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { RESPONSE_STAT_FIELDS } from '$lib/utils/agent/response-stats';
@@ -64,6 +67,7 @@
     return activityDisabled && key.startsWith('agentActivity');
   }
 
+  /** Keeps the selected response stats in the order RESPONSE_STAT_FIELDS declares them. */
   function toggleStat(id: string) {
     const current = $settings.agentResponseStats;
     settings.save({

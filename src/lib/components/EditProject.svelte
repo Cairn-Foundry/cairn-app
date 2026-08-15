@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal renaming a project and changing its accent colour. Saving is disabled
+   * until something actually differs from the current project.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';

@@ -11,6 +11,10 @@ import { absolutePathOf } from "./files-tree";
 
 export type { PersistedPane, PersistedTab };
 
+// Saving and restoring the editor: which files were open in which pane, and
+// reading their content back from disk on the next launch.
+
+/** A live tab: `content` is what is on disk, `pending` what the buffer holds. */
 export interface Tab {
 	path: string;
 	content: string;
@@ -21,6 +25,7 @@ export interface Tab {
 	lineEndings?: "LF" | "CRLF";
 }
 
+/** The layout as stored, without any file content. */
 export interface PersistedState {
 	panes: PersistedPane[];
 	expanded: string[];
@@ -28,11 +33,13 @@ export interface PersistedState {
 	splitLeftWidth?: number;
 }
 
+/** One pane's tabs; `activeTabIdx` is -1 when the pane is empty. */
 export interface PaneTabState {
 	tabs: Tab[];
 	activeTabIdx: number;
 }
 
+/** The whole editor area of one instance, in its live form. */
 export interface InstanceTabState {
 	panes: PaneTabState[];
 	expanded: Set<string>;
@@ -42,6 +49,7 @@ export interface InstanceTabState {
 
 const RECENT_FILES_LIMIT = 10;
 
+/** Persists the layout only: content is re-read from disk on restore. */
 export function saveEditorState(
 	projectId: string,
 	instanceId: string,
@@ -66,6 +74,7 @@ export function saveEditorState(
 	saveFileState(projectId, instanceId, fileState);
 }
 
+/** The stored layout, or null for an instance opened for the first time. */
 export async function loadEditorState(
 	projectId: string,
 	instanceId: string,
@@ -83,10 +92,12 @@ export async function loadEditorState(
 	};
 }
 
+/** Most recent first, no duplicates, capped at ten. */
 export function pushRecent(prev: string[], path: string): string[] {
 	return [path, ...prev.filter((p) => p !== path)].slice(0, RECENT_FILES_LIMIT);
 }
 
+/** The editor state rebuilt from disk, ready to render. */
 export interface RehydrateResult {
 	panes: PaneTabState[];
 	expanded: Set<string>;
@@ -94,6 +105,11 @@ export interface RehydrateResult {
 	splitLeftWidth: number;
 }
 
+/**
+ * Rebuilds the panes from disk, clamping each stored active index: a file that
+ * disappeared between two launches leaves its tab out, so the index that was
+ * saved may now point past the end.
+ */
 export async function rehydrateFromPersisted(
 	wtp: string,
 	persisted: PersistedState,
@@ -118,6 +134,7 @@ export async function rehydrateFromPersisted(
 	};
 }
 
+/** Tabs whose file no longer reads are dropped; a binary one opens empty. */
 async function rehydrateTabList(
 	wtp: string,
 	persistedTabs: PersistedTab[],

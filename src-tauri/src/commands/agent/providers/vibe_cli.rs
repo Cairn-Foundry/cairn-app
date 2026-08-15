@@ -1,3 +1,6 @@
+//! The Mistral Vibe CLI provider, whose session id has to be recovered from
+//! the log directory it writes.
+
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -9,6 +12,7 @@ use super::super::{
 };
 use super::cli_common::{run_cli, tool_label};
 
+/// Mistral Vibe CLI.
 pub struct VibeCliProvider;
 
 /// Where Vibe keeps one directory per session. `VIBE_HOME` moves the whole
@@ -22,6 +26,8 @@ fn session_log_dir(env: &std::collections::HashMap<String, String>) -> Option<Pa
     Some(home.join("logs").join("session"))
 }
 
+/// The session directories present before a run starts, to tell apart the one
+/// it creates.
 fn session_dirs(dir: &Option<PathBuf>) -> HashSet<String> {
     let Some(dir) = dir else { return HashSet::new() };
     let Ok(entries) = std::fs::read_dir(dir) else { return HashSet::new() };

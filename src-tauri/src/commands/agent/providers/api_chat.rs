@@ -1,3 +1,6 @@
+//! The raw HTTP chat providers: one implementation for the three request and
+//! streaming shapes of OpenAI-compatible, Anthropic and Gemini endpoints.
+
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -6,6 +9,8 @@ use super::super::{
     emit_agent, emit_agent_data, AgentProvider, AgentResponse, RunningChild, SendRequest,
 };
 
+/// The wire shape of an endpoint, which decides the URL, the auth header and
+/// how the stream is read.
 #[derive(Clone, Copy)]
 pub enum ApiFlavor {
     OpenAiCompatible,
@@ -21,6 +26,8 @@ pub struct ApiChatProvider {
     pub requires_key: bool,
 }
 
+/// What survives a stream once it is drained: the token counts, when the
+/// endpoint reported any.
 struct StreamOutcome {
     usage: Option<Value>,
 }
@@ -75,6 +82,8 @@ impl AgentProvider for ApiChatProvider {
     }
 }
 
+/// The conversation as role and content pairs, the new message last. Roles are
+/// normalised to `user` / `assistant`, since only those two exist here.
 fn history_messages(request: &SendRequest) -> Vec<(String, String)> {
     let mut messages: Vec<(String, String)> = request
         .options
@@ -90,6 +99,8 @@ fn history_messages(request: &SendRequest) -> Vec<(String, String)> {
     messages
 }
 
+/// Reads a server-sent event body, calling `on_data` with each `data:` payload
+/// and stopping on `[DONE]` or as soon as the run is cancelled.
 fn sse_data_lines<R: std::io::Read>(
     reader: R,
     handle: &RunningChild,
@@ -109,6 +120,8 @@ fn sse_data_lines<R: std::io::Read>(
     }
 }
 
+/// Passes a successful response through, otherwise turns the body into the
+/// provider's own error message rather than a bare status code.
 fn ensure_success(resp: reqwest::blocking::Response) -> Result<reqwest::blocking::Response, String> {
     if resp.status().is_success() {
         return Ok(resp);
@@ -129,6 +142,8 @@ fn ensure_success(resp: reqwest::blocking::Response) -> Result<reqwest::blocking
 
 impl ApiChatProvider {
     #[allow(clippy::too_many_arguments)]
+    /// `/chat/completions` with `include_usage`, which is what puts the token
+    /// counts in the final chunk.
     fn stream_openai(
         &self,
         app: &tauri::AppHandle,
@@ -187,6 +202,8 @@ impl ApiChatProvider {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// `/v1/messages`. Input and output tokens arrive in different events, so
+    /// both are collected before the usage is reported.
     fn stream_anthropic(
         &self,
         app: &tauri::AppHandle,
@@ -260,6 +277,8 @@ impl ApiChatProvider {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// `:streamGenerateContent?alt=sse`. The base URL is fixed here: Gemini
+    /// puts the model in the path, so the endpoint is not configurable.
     fn stream_gemini(
         &self,
         app: &tauri::AppHandle,

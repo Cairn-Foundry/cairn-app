@@ -7,6 +7,7 @@ import {
 	type SyntaxTokenKey,
 } from "$lib/utils/editor/syntax-tokens";
 
+/** One coloured run of the syntax preview. */
 export interface PreviewSegment {
 	/** Omitted for plain text painted with the editor foreground. */
 	token?: SyntaxTokenKey;
@@ -164,6 +165,7 @@ export const PREVIEW_LINES: PreviewSegment[][] = [
 	],
 ];
 
+/** A new theme seeded from the current app theme's defaults. */
 export function createSyntaxTheme(name: string, theme: string): SyntaxTheme {
 	return {
 		id: crypto.randomUUID(),
@@ -172,6 +174,7 @@ export function createSyntaxTheme(name: string, theme: string): SyntaxTheme {
 	};
 }
 
+/** A copy under a new id, so editing it never touches the original. */
 export function duplicateSyntaxTheme(source: SyntaxTheme): SyntaxTheme {
 	return {
 		id: crypto.randomUUID(),
@@ -180,6 +183,7 @@ export function duplicateSyntaxTheme(source: SyntaxTheme): SyntaxTheme {
 	};
 }
 
+/** The exported form: name and tokens only, never the local id. */
 export function serializeSyntaxTheme(theme: SyntaxTheme): string {
 	return JSON.stringify({ name: theme.name, tokens: theme.tokens }, null, 2);
 }

@@ -1,3 +1,6 @@
+//! The agent runtime: provider registry, the live runs of the app, and the
+//! `claude-output` events every provider reports through.
+
 use std::collections::HashMap;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,18 +14,27 @@ pub mod platform;
 pub mod providers;
 pub use providers::{ClaudeCliProvider, ProviderRegistry};
 
+/// What a finished run hands back. The session id belongs to the conversation,
+/// not to the worktree: it is emitted to the frontend, stored on the
+/// conversation, and given back on the next `send_message`. Rust keeps none.
 pub struct AgentResponse {
     pub session_id: Option<String>,
 }
 
+/// The live process of one run, shared between the worker thread and the
+/// commands that talk to it. `cancelled` distinguishes a stop the user asked
+/// for from a genuine failure, so stopping reports nothing as an error.
 pub struct RunningAgent {
     pub child: Mutex<Option<Child>>,
     pub stdin: Mutex<Option<std::process::ChildStdin>>,
     pub cancelled: AtomicBool,
 }
 
+/// Shared handle on a run, held by the worker thread and by `AgentState`.
 pub type RunningChild = Arc<RunningAgent>;
 
+/// Per-send overrides: whatever is left unset falls back to the stored
+/// provider settings.
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RunOptions {
@@ -46,6 +58,7 @@ pub struct RunOptions {
     pub disallowed_tools: Option<Vec<String>>,
 }
 
+/// One past turn, replayed into the prompt for providers that cannot resume.
 #[derive(Deserialize, Serialize, Clone)]
 pub struct HistoryMessage {
     pub role: String,
@@ -72,6 +85,7 @@ pub struct ResolvedOptions {
     pub disallowed_tools: Vec<String>,
 }
 
+/// Everything a provider needs for one run, borrowed for the call.
 pub struct SendRequest<'a> {
     pub message: &'a str,
     pub working_dir: &'a str,
@@ -81,6 +95,8 @@ pub struct SendRequest<'a> {
     pub options: &'a ResolvedOptions,
 }
 
+/// One backend Cairn can talk to. `send` runs on a worker thread and blocks
+/// until the run ends, reporting everything through `emit_agent*` as it goes.
 pub trait AgentProvider: Send + Sync {
     fn send(
         &self,
@@ -90,6 +106,8 @@ pub trait AgentProvider: Send + Sync {
     ) -> Result<AgentResponse, String>;
 }
 
+/// App-wide agent state. `running` is keyed by run id, not by instance, so
+/// several conversations of the same instance can answer at the same time.
 pub struct AgentState {
     pub registry: ProviderRegistry,
     pub running:  Mutex<HashMap<String, RunningChild>>,
@@ -102,6 +120,7 @@ impl Default for AgentState {
 }
 
 impl AgentState {
+    /// Registers every known provider; no run is live yet.
     pub fn new() -> Self {
         Self {
             registry: ProviderRegistry::new(),
@@ -110,6 +129,8 @@ impl AgentState {
     }
 }
 
+/// One `claude-output` event. `run_id` is what routes it to the conversation
+/// that started the run.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AgentOutputEvent {
@@ -129,6 +150,7 @@ struct AgentOutputEvent {
     tool_id:     Option<String>,
 }
 
+/// A line of text attributed to the main thread of the run.
 pub fn emit_agent(
     app: &tauri::AppHandle,
     line: String,
@@ -139,6 +161,8 @@ pub fn emit_agent(
     emit_agent_for(app, line, source, working_dir, run_id, None);
 }
 
+/// Same, attributed to the subagent `agent` when the provider produced it
+/// inside a delegation.
 pub fn emit_agent_for(
     app: &tauri::AppHandle,
     line: String,
@@ -159,6 +183,7 @@ pub fn emit_agent_for(
     });
 }
 
+/// A tool call as one activity row.
 pub fn emit_agent_tool(
     app: &tauri::AppHandle,
     label: String,
@@ -169,6 +194,8 @@ pub fn emit_agent_tool(
     emit_agent_tool_for(app, label, tool, working_dir, run_id, None, None);
 }
 
+/// Same, with the delegation it happened in and the provider's own id for the
+/// call, so a later result can find the row it must close.
 pub fn emit_agent_tool_for(
     app: &tauri::AppHandle,
     label: String,
@@ -201,6 +228,7 @@ pub fn emit_agent_data(
     emit_agent_data_for(app, source, data, working_dir, run_id, None);
 }
 
+/// Same, attributed to a subagent.
 pub fn emit_agent_data_for(
     app: &tauri::AppHandle,
     source: &str,
@@ -221,6 +249,8 @@ pub fn emit_agent_data_for(
     });
 }
 
+/// The stored provider settings with the per-send overrides applied on top; an
+/// empty override never wins over a configured value.
 fn resolve_options(provider_id: &str, overrides: Option<RunOptions>) -> ResolvedOptions {
     let stored = config::read_ai_providers_config()
         .ok()
@@ -258,6 +288,9 @@ fn resolve_options(provider_id: &str, overrides: Option<RunOptions>) -> Resolved
     }
 }
 
+/// Starts a run on a worker thread and returns at once: the answer arrives as
+/// `claude-output` events carrying `run_id`, which the frontend minted. The
+/// `[done]` event closes the run whether it succeeded or not.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn send_message(
@@ -367,6 +400,8 @@ pub async fn respond_permission(
     writeln!(stdin, "{envelope}").map_err(|e| e.to_string())
 }
 
+/// Kills the process tree of one run; the other runs of the same instance keep
+/// going.
 #[tauri::command]
 pub async fn stop_agent(app: tauri::AppHandle, run_id: String) -> Result<(), String> {
     let state = app.state::<AgentState>();

@@ -1,4 +1,12 @@
 /** Basic syntax-token rendering for TS snippets */
+// Static highlighting for the short TypeScript snippets shown outside the
+// editor. CodeMirror is not involved, so the rules are deliberately shallow.
+
+/**
+ * Escapes first, then wraps tokens in spans. Regex-based rather than parsed:
+ * a keyword inside a string is highlighted twice over, which is acceptable for
+ * the handful of illustrative snippets this serves.
+ */
 export function tok(code: string): string {
 	const keywords =
 		/\b(export|function|const|let|return|async|await|import|from|if|else|new|class|interface|type|true|false|null|undefined|void)\b/g;

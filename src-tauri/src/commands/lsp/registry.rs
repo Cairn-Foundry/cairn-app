@@ -1,3 +1,6 @@
+//! The catalogue of known language servers, plus the user's own entries, and
+//! how a server's workspace root is resolved for a given file.
+
 use std::path::{Path, PathBuf};
 
 pub use crate::commands::toolchain::{

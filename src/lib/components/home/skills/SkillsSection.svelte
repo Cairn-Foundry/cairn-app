@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Skill editor: browse skills by scope and provider, edit a draft of the SKILL.md frontmatter
+   * and body, and manage the bundled resource files. The files are only written on save.
+   */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
@@ -102,6 +106,7 @@
     ...($projects.length > 0 ? [{ value: 'project', label: t('skills.scope.project') as string }] : []),
   ];
 
+  /** Copies a skill into an editable draft, arrays included so edits stay local. */
   function toDraft(skill: Skill): Draft {
     return {
       name: skill.name,
@@ -126,6 +131,7 @@
     selectedPath = null;
   }
 
+  /** Opens a skill in the editor and records the pristine copy the dirty flag compares against. */
   function select(skill: Skill | null) {
     error = '';
     toolDraft = '';
@@ -143,6 +149,7 @@
     if (selected) select(selected);
   }
 
+  /** Starts a blank draft, defaulting its scope and target to whatever the list is filtered on. */
   function create() {
     const scope: SkillScope = $projects.length > 0 && scopeFilter === 'project' ? 'project' : 'global';
     draft = {
@@ -166,6 +173,7 @@
     error = '';
   }
 
+  /** Writes SKILL.md to every targeted location, then reselects it from the reloaded list. */
   async function save() {
     if (!draft || !slug || nameClash || draft.targets.length === 0) return;
     saving = true;
@@ -237,6 +245,7 @@
     draft.allowedTools = draft.allowedTools.filter((x) => x !== tool);
   }
 
+  /** Copies files picked in the native dialog into the skill directory. */
   async function pickResources() {
     if (!selected) return;
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -266,6 +275,7 @@
     }
   }
 
+  /** Two letters for the avatar, taken from the first two words of the name. */
   function initials(name: string): string {
     const words = name.split(/[-_\s]+/).filter(Boolean);
     if (words.length === 0) return '?';
@@ -273,6 +283,7 @@
     return (words[0][0] + words[1][0]).toUpperCase();
   }
 
+  /** Names the owner of the skill: its plugin, its project, or global. */
   function scopeLabel(skill: Skill): string {
     if (skill.scope === 'plugin') return skill.plugin;
     if (skill.scope === 'project') return skill.projectName;

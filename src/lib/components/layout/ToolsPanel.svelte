@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Side panel listing the non-workflow tools as cards. Adding a tool means an
+   * entry in TOOLS here plus a case in selectTool() in Workspace.svelte.
+   * Dispatches select (tool id) and close.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

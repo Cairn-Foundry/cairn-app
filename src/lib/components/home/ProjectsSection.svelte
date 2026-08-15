@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Project list of the home screen: search, folder grouping, and pointer-driven reordering of
+   * both folders and cards (a card dropped on a folder joins it). Dispatches `openProject`,
+   * `addProject`, `editProject` and `closeProject`.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -67,6 +72,7 @@
 
   const PROJ_DRAG_THRESHOLD = 6;
 
+  /** Insert position for a card in a wrapping grid: row first, then the midpoint of the cell. */
   function computeGridInsertIndex(
     containerEl: HTMLElement | null,
     px: number,
@@ -88,6 +94,7 @@
   $: allFolderProjectIds = new Set($projectFolders.flatMap((f) => f.projectIds));
   $: ungroupedProjects = $projects.filter((p) => !allFolderProjectIds.has(p.id));
 
+  /** Projects of a folder, in the folder's own order, skipping ids that no longer resolve. */
   function folderProjects(folderId: string): Project[] {
     const folder = $projectFolders.find((f) => f.id === folderId);
     if (!folder) return [];
@@ -238,6 +245,7 @@
     }
   }
 
+  /** Commits the gesture: a drop on a folder reassigns the project, otherwise the order is rewritten. */
   function onProjCardPointerUp(_e: PointerEvent) {
     const src        = projDragSrcIndex;
     const insertAt   = projInsertIndex;
@@ -304,12 +312,14 @@
     document.body.classList.remove('dragging');
   }
 
+  /** Swallows the click that closes a drag, so a reorder never doubles as an open. */
   function handleCardClick(e: MouseEvent, action: () => void) {
     if (projDragJustEnded) { projDragJustEnded = false; return; }
     action();
   }
 
   // -- folder reorder (insert-index, like file tabs) -------------------------
+  /** A folder drag only arms after a short delay, so a plain press still collapses the folder. */
   function onFolderPointerDown(e: PointerEvent, idx: number) {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button, input')) return;

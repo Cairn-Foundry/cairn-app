@@ -1,3 +1,4 @@
+/** Token usage ledger: every agent turn recorded, appended to disk in batches. */
 import { get, writable } from "svelte/store";
 import {
 	appendUsageEntries,
@@ -7,7 +8,10 @@ import {
 	type UsageEntry,
 } from "$lib/services/usage-service";
 
+/** The token ledger, kept sorted by timestamp. Written only through recordUsage(). */
 export const usageEntries = writable<UsageEntry[]>([]);
+
+/** False until loadUsage() has run once, so the UI can tell "empty" from "not read yet". */
 export const usageLoaded = writable(false);
 
 /**
@@ -18,6 +22,7 @@ export const usageLoaded = writable(false);
 let pending: UsageEntry[] = [];
 let flushing = false;
 
+/** Drains the queue one batch at a time; re-entrant calls return immediately. */
 async function flush(): Promise<void> {
 	if (flushing) return;
 	flushing = true;
@@ -32,6 +37,7 @@ async function flush(): Promise<void> {
 	}
 }
 
+/** Reads the whole ledger from disk, replacing whatever is in memory. */
 export async function loadUsage(): Promise<void> {
 	usageEntries.set(await getUsageEntries());
 	usageLoaded.set(true);
@@ -58,12 +64,14 @@ export async function backfillUsage(): Promise<number> {
 	return added;
 }
 
+/** Wipes the ledger on disk and in memory, dropping anything still queued. */
 export async function clearUsage(): Promise<void> {
 	await clearUsageEntries();
 	pending = [];
 	usageEntries.set([]);
 }
 
+/** Non-reactive count, for callers that only need a number once. */
 export function usageCount(): number {
 	return get(usageEntries).length;
 }

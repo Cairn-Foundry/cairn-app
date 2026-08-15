@@ -1,3 +1,4 @@
+/** Git state of the active worktree: status, diffs, log, graph, stashes, and every write that changes them. */
 import { derived, get, writable } from "svelte/store";
 import type {
 	BranchDivergence,
@@ -19,6 +20,7 @@ import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 import { activeScreen } from "./ui";
 
+/** Everything the Git view renders for the active worktree, in one object. */
 type GitState = {
 	status: GitFileStatus;
 	/** Worktree `status` was read from, so a consumer can tell it apart from a stale one. */
@@ -49,9 +51,11 @@ type GitState = {
 	error: GitError | null;
 };
 
+/** Page sizes of the log and graph lists; both load more on scroll. */
 const LOG_PAGE = 50;
 const GRAPH_PAGE = 200;
 
+/** The state a worktree starts from; isGitRepo is optimistic until the first read says otherwise. */
 const INITIAL: GitState = {
 	status: {},
 	statusWorktree: null,
@@ -77,8 +81,10 @@ const INITIAL: GitState = {
 
 const _git = writable<GitState>(INITIAL);
 
+/** Git state of the active worktree, read-only: every write goes through the functions below. */
 export const git = { subscribe: _git.subscribe };
 
+/** Badge counts; a file staged and modified counts once in `total`, and untracked files count as unstaged. */
 export const gitFileCounts = derived(git, ($g) => {
 	const staged = new Set($g.stagedDiffs.map((f) => f.filePath));
 	const unstaged = new Set($g.unstagedDiffs.map((f) => f.filePath));
@@ -89,6 +95,7 @@ export const gitFileCounts = derived(git, ($g) => {
 	return { staged: staged.size, unstaged: unstaged.size, total: all.size };
 });
 
+/** Whether the worktree needs resolving, from the status or from an interrupted merge or rebase. */
 export const gitHasConflicts = derived(
 	git,
 	($g) =>
@@ -96,6 +103,7 @@ export const gitHasConflicts = derived(
 		($g.operationState?.conflictedFiles.length ?? 0) > 0,
 );
 
+/** Dismisses the error banner. */
 export function clearGitError(): void {
 	_git.update((s) => (s.error ? { ...s, error: null } : s));
 }
@@ -107,6 +115,7 @@ export function clearGitError(): void {
  */
 let indexDirty = false;
 
+/** Wraps a git write: marks the index dirty on success, publishes the error and rethrows on failure. */
 async function mutate<T>(op: () => Promise<T>): Promise<T> {
 	try {
 		const result = await op();
@@ -119,6 +128,7 @@ async function mutate<T>(op: () => Promise<T>): Promise<T> {
 	}
 }
 
+/** Path every command runs in: the active instance worktree, null when there is none. */
 function worktree(): string | null {
 	return get(activeInstance)?.worktreePath ?? null;
 }
@@ -151,6 +161,7 @@ export function refreshStatus(silent = false): Promise<void> {
 	return queued;
 }
 
+/** The actual read: status, both diffs, branch, remote and operation state, in parallel. */
 async function runRefreshStatus(silent: boolean): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -215,6 +226,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 	}
 }
 
+/** Reloads the first page of the log. */
 export async function refreshLog(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -226,6 +238,7 @@ export async function refreshLog(): Promise<void> {
 	}
 }
 
+/** Appends the next page, skipping hashes already listed in case a commit landed meanwhile. */
 export async function loadMoreLog(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -243,6 +256,7 @@ export async function loadMoreLog(): Promise<void> {
 	}
 }
 
+/** Reloads the first page of the graph; falls back to the project path when no instance is active. */
 export async function refreshGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
@@ -258,6 +272,7 @@ export async function refreshGraph(): Promise<void> {
 	}
 }
 
+/** Appends the next graph page, skipping duplicates. */
 export async function loadMoreGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
@@ -279,6 +294,7 @@ export async function loadMoreGraph(): Promise<void> {
 	}
 }
 
+/** Loads the whole history at once, for a search that must cover everything. */
 export async function loadAllLog(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -290,6 +306,7 @@ export async function loadAllLog(): Promise<void> {
 	}
 }
 
+/** Same as loadAllLog(), for the graph. */
 export async function loadAllGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
@@ -301,12 +318,14 @@ export async function loadAllGraph(): Promise<void> {
 	}
 }
 
+/** Message of HEAD, to prefill the amend form. */
 export async function getHeadCommitMessage(): Promise<string> {
 	const wt = worktree();
 	if (!wt) return "";
 	return gitService.getHeadMessage(wt).catch(() => "");
 }
 
+/** Stages one file. */
 export async function stageFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -314,6 +333,7 @@ export async function stageFile(filePath: string): Promise<void> {
 	await refreshStatus();
 }
 
+/** Unstages one file. */
 export async function unstageFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -321,6 +341,7 @@ export async function unstageFile(filePath: string): Promise<void> {
 	await refreshStatus();
 }
 
+/** Stages everything, untracked files included. */
 export async function stageAll(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -328,6 +349,7 @@ export async function stageAll(): Promise<void> {
 	await refreshStatus();
 }
 
+/** Empties the index without touching the worktree. */
 export async function unstageAll(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -335,12 +357,14 @@ export async function unstageAll(): Promise<void> {
 	await refreshStatus();
 }
 
+/** The identity commits would be attributed to in this worktree. */
 export async function getGitIdentity(): Promise<gitService.GitIdentity> {
 	const wt = worktree();
 	if (!wt) return { name: "", email: "" };
 	return gitService.getIdentity(wt);
 }
 
+/** Commits the index and clears the message fields. */
 export async function commitChanges(
 	message: string,
 	options: gitService.CommitOptions = {},
@@ -353,6 +377,7 @@ export async function commitChanges(
 	await refreshLog();
 }
 
+/** Rewrites HEAD with the index as it stands; refuse it once the commit is pushed. */
 export async function amendLastCommit(
 	message: string,
 	options: Pick<
@@ -367,6 +392,7 @@ export async function amendLastCommit(
 	await refreshLog();
 }
 
+/** Pushes, setting the upstream when the branch has none. */
 export async function pushBranch(
 	forceSetUpstream = false,
 	force = false,
@@ -382,6 +408,7 @@ export async function pushBranch(
 	await refreshStatus();
 }
 
+/** Pulls; the result says whether it left conflicts behind. */
 export async function pullBranch(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -413,6 +440,7 @@ export async function recoverFromGitError(
 	await refreshStatus();
 }
 
+/** Fetches without touching the worktree, to refresh the ahead and behind counts. */
 export async function fetchRemote(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -420,6 +448,7 @@ export async function fetchRemote(): Promise<void> {
 	await refreshStatus();
 }
 
+/** Merges a branch in; the result reports the conflicts if any. */
 export async function mergeBranch(branch: string): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -428,6 +457,7 @@ export async function mergeBranch(branch: string): Promise<GitOpResult | null> {
 	return result;
 }
 
+/** Rebases the current branch onto another. */
 export async function rebaseOnto(onto: string): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -436,6 +466,7 @@ export async function rebaseOnto(onto: string): Promise<GitOpResult | null> {
 	return result;
 }
 
+/** Resumes a rebase once its conflicts are resolved and staged. */
 export async function continueRebase(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -444,6 +475,7 @@ export async function continueRebase(): Promise<GitOpResult | null> {
 	return result;
 }
 
+/** Drops the commit a rebase is stuck on and moves to the next. */
 export async function skipRebase(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -452,6 +484,7 @@ export async function skipRebase(): Promise<GitOpResult | null> {
 	return result;
 }
 
+/** Puts the branch back where the rebase started. */
 export async function abortRebase(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -459,6 +492,7 @@ export async function abortRebase(): Promise<void> {
 	await refreshStatus();
 }
 
+/** git rm: deletes the file and stages the deletion. */
 export async function removeFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -466,6 +500,7 @@ export async function removeFile(filePath: string): Promise<void> {
 	await refreshStatus();
 }
 
+/** Concludes a merge once its conflicts are resolved and staged. */
 export async function continueMerge(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
@@ -474,6 +509,7 @@ export async function continueMerge(): Promise<GitOpResult | null> {
 	return result;
 }
 
+/** Puts the worktree back where the merge started. */
 export async function abortMerge(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -481,12 +517,14 @@ export async function abortMerge(): Promise<void> {
 	await refreshStatus();
 }
 
+/** URL of the origin remote, empty when there is none. */
 export async function getRemoteUrl(): Promise<string> {
 	const wt = worktree();
 	if (!wt) return "";
 	return gitService.getRemoteUrl(wt).catch(() => "");
 }
 
+/** Ahead and behind counts against a base branch. */
 export async function getBranchDivergence(
 	base: string,
 ): Promise<BranchDivergence | null> {
@@ -495,6 +533,7 @@ export async function getBranchDivergence(
 	return gitService.getBranchDivergence(wt, base).catch(() => null);
 }
 
+/** Loads the branch lists from the project path rather than a worktree, so every branch shows. */
 export async function loadBranches(projectPath: string): Promise<void> {
 	try {
 		const { local, remote } = await listBranchesDetailed(projectPath);
@@ -504,6 +543,7 @@ export async function loadBranches(projectPath: string): Promise<void> {
 	}
 }
 
+/** Switches the worktree to an existing branch. */
 export async function checkoutBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -511,6 +551,7 @@ export async function checkoutBranch(branchName: string): Promise<void> {
 	await refreshStatus();
 }
 
+/** Creates a branch off another and checks it out. */
 export async function createBranch(
 	branchName: string,
 	fromBranch: string,
@@ -521,6 +562,7 @@ export async function createBranch(
 	await refreshStatus();
 }
 
+/** Deletes a local branch. */
 export async function deleteBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -528,18 +570,22 @@ export async function deleteBranch(branchName: string): Promise<void> {
 	await refreshStatus();
 }
 
+/** Commit subject being typed; kept in the store so it survives leaving the view. */
 export function setCommitMessage(msg: string): void {
 	_git.update((s) => ({ ...s, commitMessage: msg }));
 }
 
+/** Commit body being typed. */
 export function setCommitBody(body: string): void {
 	_git.update((s) => ({ ...s, commitBody: body }));
 }
 
+/** Back to the initial state, message fields included. */
 export function resetGitStore(): void {
 	_git.set(INITIAL);
 }
 
+/** Drops everything read from a worktree, keeping what the user typed. */
 export function clearGitData(): void {
 	_git.update((s) => ({
 		...s,
@@ -603,6 +649,8 @@ export function startGitPolling(): () => void {
 	};
 }
 
+// Changing worktree wipes the data at once, so no view renders another instance's
+// status for a frame. `undefined` marks the initial call, which must not clear anything.
 let lastClearedWorktree: string | null | undefined;
 activeInstance.subscribe((inst) => {
 	const wt = inst?.worktreePath ?? null;
@@ -616,6 +664,7 @@ activeInstance.subscribe((inst) => {
 	}
 });
 
+/** Reloads the stash list. */
 export async function refreshStashes(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -627,6 +676,7 @@ export async function refreshStashes(): Promise<void> {
 	}
 }
 
+/** Stashes the changes, optionally limited to `paths`. */
 export async function pushStash(
 	message: string,
 	includeUntracked: boolean,
@@ -641,6 +691,7 @@ export async function pushStash(
 	await Promise.all([refreshStashes(), refreshStatus()]);
 }
 
+/** Stages a selection, one file at a time so a single failure names the file. */
 export async function stageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -652,6 +703,7 @@ export async function stageFiles(filePaths: string[]): Promise<void> {
 	await refreshStatus();
 }
 
+/** Unstages a selection. */
 export async function unstageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -663,6 +715,7 @@ export async function unstageFiles(filePaths: string[]): Promise<void> {
 	await refreshStatus();
 }
 
+/** Throws away the worktree changes of a selection; not undoable. */
 export async function discardFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -674,6 +727,7 @@ export async function discardFiles(filePaths: string[]): Promise<void> {
 	await refreshStatus();
 }
 
+/** Applies a stash and drops it. */
 export async function popStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -681,6 +735,7 @@ export async function popStash(index: number): Promise<void> {
 	await Promise.all([refreshStashes(), refreshStatus()]);
 }
 
+/** Applies a stash and keeps it in the list. */
 export async function applyStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -688,6 +743,7 @@ export async function applyStash(index: number): Promise<void> {
 	await refreshStatus();
 }
 
+/** Deletes a stash without applying it. */
 export async function dropStash(index: number): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -695,6 +751,7 @@ export async function dropStash(index: number): Promise<void> {
 	await refreshStashes();
 }
 
+/** Deletes every stash. */
 export async function clearStashes(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -702,6 +759,7 @@ export async function clearStashes(): Promise<void> {
 	await refreshStashes();
 }
 
+/** Changes a stash message, by rewriting it in place. */
 export async function renameStash(
 	index: number,
 	message: string,
@@ -712,12 +770,14 @@ export async function renameStash(
 	await refreshStashes();
 }
 
+/** Diff a stash holds, for the preview; nothing is applied. */
 export async function getStashDiff(index: number): Promise<GitFileDiff[]> {
 	const wt = worktree();
 	if (!wt) return [];
 	return gitService.getStashShow(wt, index);
 }
 
+/** Adds a commit undoing another, rather than rewriting history. */
 export async function revertCommit(commitHash: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -725,6 +785,7 @@ export async function revertCommit(commitHash: string): Promise<void> {
 	await Promise.all([refreshStatus(), refreshLog()]);
 }
 
+/** Throws away the worktree changes of one file; not undoable. */
 export async function discardFile(filePath: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;

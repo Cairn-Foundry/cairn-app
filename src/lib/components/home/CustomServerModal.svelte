@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Editor for a user-declared language server: binary, arguments, extensions, root markers.
+   * Dispatches `save` with the assembled CustomLanguageServer, `close` on cancel.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

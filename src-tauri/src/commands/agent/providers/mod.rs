@@ -1,3 +1,6 @@
+//! The providers Cairn can talk to, and the registry that maps a provider id
+//! to one of them.
+
 pub mod antigravity_cli;
 pub mod api_chat;
 pub mod claude_cli;
@@ -17,6 +20,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use super::AgentProvider;
 
+/// Provider id (as stored in the settings and sent by the frontend) to
+/// implementation.
 pub struct ProviderRegistry {
     map: HashMap<String, Arc<dyn AgentProvider>>,
 }
@@ -28,6 +33,8 @@ impl Default for ProviderRegistry {
 }
 
 impl ProviderRegistry {
+    /// Every provider Cairn ships with. Nothing here checks that a provider is
+    /// installed or configured: that is `probe_provider`'s job.
     pub fn new() -> Self {
         let mut map: HashMap<String, Arc<dyn AgentProvider>> = HashMap::new();
         map.insert("claude-code-cli".into(), Arc::new(ClaudeCliProvider));
@@ -63,6 +70,7 @@ impl ProviderRegistry {
         Self { map }
     }
 
+    /// The provider registered under this id, if any.
     pub fn get(&self, id: &str) -> Option<Arc<dyn AgentProvider>> {
         self.map.get(id).cloned()
     }

@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Read-only cheat sheet of every keyboard binding, grouped as in the shortcuts
+   * store. Dispatches `goSettings` to jump to the place they can be rebound.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

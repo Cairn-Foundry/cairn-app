@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Git settings: the list of identity profiles, with their create, edit and delete modals.
+   */
   import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -45,6 +48,7 @@
     editingId = null;
   }
 
+  /** Creates or updates a profile; an empty label falls back to the author name. */
   function saveModal() {
     if (!modalName.trim() || !modalEmail.trim()) return;
     const resolvedLabel = modalLabel.trim() || modalName.trim();

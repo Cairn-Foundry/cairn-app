@@ -1,8 +1,17 @@
+/**
+ * View state of the workspace: which screen, step and tool are open.
+ * Most flags here are persisted per project (see the four-layer rule in CLAUDE.md).
+ */
 import { writable } from "svelte/store";
 import type { WorkflowStep } from "$lib/types/instance.ts";
 
+/** Workflow tab of the workspace sidebar; persisted per project so a restart reopens on it. */
 export const activeStep = writable<WorkflowStep>("files");
+
+/** Top-level screen, driven by +page.svelte. */
 export const activeScreen = writable<"home" | "workspace">("home");
+
+/** Open tool taking over the main area. Set these through showTool(), never directly. */
 export const terminalActive = writable(false);
 export const commandsActive = writable(false);
 export const envActive = writable(false);
@@ -41,9 +50,14 @@ export const referencesPanelOpen = writable(false);
  * with `===`, and an object would never look equal to itself.
  */
 export const referencesQuery = writable("");
+/** Overlays, transient by design: they are not part of the persisted project state. */
 export const quickOpenVisible = writable(false);
 export const commandPaletteVisible = writable(false);
+
+/** An action requested elsewhere that the Git view performs once it is mounted, then clears. */
 export const pendingGitAction = writable<"createProfile" | null>(null);
+
+/** Selected tab of the Git view left pane; persisted with the rest of the project state. */
 export const gitLeftTab = writable<
 	"changes" | "log" | "graph" | "stash" | "mergerebase"
 >("changes");

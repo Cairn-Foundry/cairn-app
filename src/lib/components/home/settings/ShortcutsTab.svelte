@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Keyboard shortcut settings: rebinding by recording a key or a modified click, per-shortcut
+   * reset and disable, and highlighting of the bindings that collide.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
@@ -37,6 +41,7 @@
 
   $: recordingDef = recordingId ? SHORTCUT_DEFS.find(d => d.id === recordingId) ?? null : null;
 
+  /** Replaces this shortcut's config entry, leaving the others untouched. */
   function saveBinding(id: ShortcutId, binding: ShortcutBinding) {
     const existing = shortcutConfigMap.get(id) ?? { id, binding: null, enabled: true };
     const next = [
@@ -76,6 +81,7 @@
     saveBinding(recordingId, { key: MOUSE_KEY, ...mods });
   }
 
+  /** Drops the override entirely, unless the shortcut is disabled and its entry must survive. */
   function resetBinding(id: ShortcutId) {
     const existing = shortcutConfigMap.get(id);
     if (!existing) return;
@@ -87,6 +93,7 @@
     }
   }
 
+  /** Clears every custom binding while keeping the shortcuts the user switched off. */
   function resetAllBindings() {
     const next = ($settings.shortcuts)
       .filter(c => !c.enabled)

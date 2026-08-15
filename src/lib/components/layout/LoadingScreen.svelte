@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Boot screen shown while the app loads. Removes the static HTML splash on
+   * mount, once the Svelte app is ready to paint.
+   */
   import { onMount } from 'svelte';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import Spinner from '$lib/components/Spinner.svelte';

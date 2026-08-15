@@ -1,3 +1,4 @@
+/** Formatter configuration and detection, per project. */
 import { derived, get, writable } from "svelte/store";
 import {
 	DEFAULT_FORMATTING,
@@ -10,11 +11,16 @@ import {
 	saveProjectFormatting,
 } from "$lib/services/formatting-service";
 
+/** Per-project formatting config, keyed by project id, only for projects read from disk. */
 const projectConfigs = writable<Record<string, FormattingConfig>>({});
+/** The style options the backend exposes; the catalogue, loaded once. */
 const styleOptions = writable<StyleOptionInfo[]>([]);
+/** Formatter binaries found on the last scan, with their version and origin. */
 const formatters = writable<FormatterStatus[]>([]);
+/** True while scan() is walking the toolchain. */
 const scanning = writable(false);
 
+/** Loads the option catalogue once; later calls are no-ops. */
 async function loadStyleOptions() {
 	if (get(styleOptions).length > 0) return;
 	try {
@@ -41,6 +47,7 @@ async function scan(root?: string) {
 /** Projects whose config was actually read from disk. */
 const loaded = new Set<string>();
 
+/** Reads a project's config and marks it loaded, so saveProject can safely merge onto it. */
 async function loadProject(projectId: string) {
 	try {
 		const config = await getProjectFormatting(projectId);
@@ -72,6 +79,7 @@ function projectConfig(projectId: string | null): FormattingConfig | null {
 	return get(projectConfigs)[projectId] ?? null;
 }
 
+/** Facade over the private stores: read-only subscriptions plus the actions. */
 export const formatting = {
 	projects: { subscribe: projectConfigs.subscribe },
 	options: { subscribe: styleOptions.subscribe },

@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Editor for native agent definitions (the .md files the CLI agents read), across every scope
+   * and every targeted provider. Edits go to a local draft; the files are only written on save.
+   */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
@@ -127,6 +131,7 @@
     if (!$providerCapabilities[id]) void refreshProviderModels(id);
   });
 
+  /** Merges the catalogues of several providers, keeping the first entry of each key. */
   function unionOf<T>(lists: T[][], key: (item: T) => string): T[] {
     const seen = new Set<string>();
     const out: T[] = [];
@@ -182,6 +187,7 @@
     .filter((name) => !draft?.skills.includes(name))
     .sort();
 
+  /** Copies an agent into an editable draft, arrays included so edits stay local. */
   function toDraft(agent: NativeAgent): Draft {
     return {
       name: agent.name,
@@ -207,6 +213,7 @@
     selectedPath = null;
   }
 
+  /** Opens an agent in the editor and records the pristine copy the dirty flag compares against. */
   function select(agent: NativeAgent | null) {
     error = '';
     toolDraft = '';
@@ -225,6 +232,7 @@
     if (selected) select(selected);
   }
 
+  /** Starts a blank draft, defaulting its scope and target to whatever the list is filtered on. */
   function create() {
     const scope: NativeAgentScope =
       $projects.length > 0 && scopeFilter === 'project' ? 'project' : 'global';
@@ -250,6 +258,7 @@
     error = '';
   }
 
+  /** Writes the definition to every targeted location, then reselects it from the reloaded list. */
   async function save() {
     if (!draft || !slug || nameClash || draft.targets.length === 0) return;
     saving = true;
@@ -335,6 +344,7 @@
     draft.skills = draft.skills.filter((x) => x !== skill);
   }
 
+  /** Two letters for the avatar, taken from the first two words of the name. */
   function initials(name: string): string {
     const words = name.split(/[-_\s]+/).filter(Boolean);
     if (words.length === 0) return '?';

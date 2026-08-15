@@ -1,5 +1,9 @@
 import type { AgentBlock } from "$lib/services/conversation-service";
 
+// Rendering subagent delegations inside a turn: an `Agent` tool call becomes an
+// entry of its own, and its answer is appended when it eventually comes back.
+
+/** What is known when a subagent starts, once its name has arrived. */
 export interface DelegationStart {
 	/** The provider's id for the `Agent` call that started the subagent. */
 	toolUseId: string;

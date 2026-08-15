@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Settings screen: the tab strip, the cross-tab search, and import/export of the whole settings file.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
@@ -37,6 +40,7 @@
     await writeFile(path, JSON.stringify($settings, null, 2));
   }
 
+  /** Reads a settings JSON back into the store, reporting a parse failure inline. */
   function handleImportFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;

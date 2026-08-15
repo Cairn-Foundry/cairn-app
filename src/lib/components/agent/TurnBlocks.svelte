@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Renders one agent turn: its text, reasoning and tool call blocks.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';

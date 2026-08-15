@@ -1,5 +1,9 @@
+// The syntax palette: the token classes the highlighter emits, and the default
+// colours each app theme starts from before the user edits them.
+
 const LIGHT_THEME_IDS = new Set(["light", "paper"]);
 
+/** The token classes every syntax theme must colour. */
 export const SYNTAX_TOKEN_KEYS = [
 	"kw",
 	"fn",
@@ -20,6 +24,7 @@ export const SYNTAX_TOKEN_KEYS = [
 
 export type SyntaxTokenKey = (typeof SYNTAX_TOKEN_KEYS)[number];
 
+/** One token's appearance; only the colour is required. */
 export interface SyntaxTokenStyle {
 	color: string;
 	bold?: boolean;
@@ -29,6 +34,7 @@ export interface SyntaxTokenStyle {
 
 export type SyntaxTokens = Record<SyntaxTokenKey, SyntaxTokenStyle>;
 
+/** A named, complete syntax palette, as stored and as exported to a file. */
 export interface SyntaxTheme {
 	id: string;
 	name: string;
@@ -73,6 +79,7 @@ const COLORS_LIGHT: Record<SyntaxTokenKey, string> = {
 
 const ITALIC_BY_DEFAULT = new Set<SyntaxTokenKey>(["kw", "cmt"]);
 
+/** The starting palette for an app theme: a light one for light backgrounds. */
 export function defaultSyntaxTokens(theme: string): SyntaxTokens {
 	const colors = LIGHT_THEME_IDS.has(theme) ? COLORS_LIGHT : COLORS_DARK;
 	const tokens = {} as SyntaxTokens;
@@ -96,6 +103,7 @@ export function normalizeSyntaxTokens(
 	return base;
 }
 
+/** Shape check for a theme read from an imported file, which is untrusted. */
 export function isSyntaxTheme(value: unknown): value is SyntaxTheme {
 	if (!value || typeof value !== "object") return false;
 	const theme = value as SyntaxTheme;

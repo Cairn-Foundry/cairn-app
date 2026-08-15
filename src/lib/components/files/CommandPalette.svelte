@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Command palette overlay listing the project custom commands and the bound
+   * shortcut actions in one filtered list. Runs the picked entry through
+   * `onRunCommand` or `onAction`.
+   */
   import { onMount, onDestroy, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -44,6 +49,7 @@
 
   $: { query; selectedIdx = 0; }
 
+  /** Routes the entry to the custom command runner or to the shortcut action. */
   function commit(entry: Entry) {
     if (entry.kind === 'command') onRunCommand(entry.command);
     else onAction(entry.def.id);

@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Fuzzy file finder overlay: searches the worktree through the backend index,
+   * falling back to an in-memory ranking of the loaded tree when it is unavailable.
+   * Calls `onOpen` with the picked hit.
+   */
   import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -34,6 +39,7 @@
     inputEl?.focus();
   }
 
+  /** Offline fallback ranking: scores the already loaded tree entries against the query. */
   function rankInTree(q: string): QuickSearchHit[] {
     return flattenTreeEntries(tree)
       .map(hit => ({ hit, s: scorePathMatch(hit.path, q) }))

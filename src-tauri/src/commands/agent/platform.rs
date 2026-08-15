@@ -1,3 +1,5 @@
+//! Locating and spawning agent CLIs across platforms, and killing them whole.
+
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 
@@ -22,6 +24,7 @@ pub fn resolve_binary(name: &str, override_path: Option<&str>) -> Option<PathBuf
     None
 }
 
+/// Install locations to search when the binary is not on the app's PATH.
 fn fallback_dirs() -> Vec<PathBuf> {
     let mut dirs_list = Vec::new();
     if let Some(home) = dirs::home_dir() {
@@ -44,6 +47,7 @@ fn fallback_dirs() -> Vec<PathBuf> {
     dirs_list
 }
 
+/// File names a binary may carry: Windows npm shims are `.cmd`, not extensionless.
 fn candidate_names(name: &str) -> Vec<String> {
     #[cfg(target_os = "windows")]
     {

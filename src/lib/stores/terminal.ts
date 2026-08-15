@@ -1,3 +1,4 @@
+/** Terminals in their two scopes: per instance and shared across a project. */
 import { get, writable } from "svelte/store";
 import {
 	closeAllTerminals,
@@ -11,6 +12,7 @@ import {
 import * as manager from "$lib/utils/terminal/terminal-manager";
 import { insertAt, moveItem } from "$lib/utils/terminal/terminal-order";
 
+/** A terminal tab; the fields past `title` are only set on a terminal opened by a custom command. */
 export interface TerminalSession {
 	id: string;
 	title: string;
@@ -19,20 +21,26 @@ export interface TerminalSession {
 	port?: number;
 }
 
+/** A project terminal also remembers its cwd, so it respawns in the worktree it was created from. */
 export interface ProjectTerminalSession extends TerminalSession {
 	cwd: string | null;
 }
 
+/** Terminals owned by an instance, keyed by terminalScope(). */
 export const terminalSessions = writable<Record<string, TerminalSession[]>>({});
 
+/** Terminals shared by every instance of a project, keyed by project id. */
 export const projectTerminals = writable<
 	Record<string, ProjectTerminalSession[]>
 >({});
 
+/** Terminal shown in the main pane of each scope; it may belong to either list. */
 export const activeTerminalId = writable<Record<string, string | null>>({});
 
+/** Terminal shown in the second pane, or null when the view is not split. */
 export const splitTerminalId = writable<Record<string, string | null>>({});
 
+/** Width share of the first pane when split. */
 export const splitTerminalRatio = writable<Record<string, number>>({});
 
 export const DEFAULT_SPLIT_RATIO = 0.5;
@@ -42,14 +50,20 @@ const restoredProjects = new Set<string>();
 
 let cleanupDone: Promise<void> | null = null;
 
+/** The key the instance-scoped maps are indexed by. */
 export function terminalScope(projectId: string, instanceId: string): string {
 	return `${projectId}:${instanceId}`;
 }
 
+/**
+ * Kills the PTYs a previous run left behind, once per launch. Every restore
+ * waits on it, so a respawned terminal cannot collide with an orphan.
+ */
 export function initTerminals(): void {
 	if (!cleanupDone) cleanupDone = closeAllTerminals().catch(() => {});
 }
 
+/** Writes the instance terminal state back to disk. */
 function persist(projectId: string, instanceId: string): void {
 	const key = terminalScope(projectId, instanceId);
 	const terminals = get(terminalSessions)[key] ?? [];
@@ -64,6 +78,7 @@ function persist(projectId: string, instanceId: string): void {
 	}).catch(() => {});
 }
 
+/** Writes the project terminal state back to disk. */
 function persistProject(projectId: string): void {
 	const terminals = get(projectTerminals)[projectId] ?? [];
 	void saveProjectTerminalState(projectId, { terminals }).catch(() => {});
@@ -81,6 +96,7 @@ async function spawn(
 	await createTerminal(id, cwd, cols, rows, command, env);
 }
 
+/** Respawns an instance's saved terminals, once per instance. Command terminals are not restored: their process is gone. */
 export async function restoreTerminals(
 	projectId: string,
 	instanceId: string,
@@ -115,6 +131,7 @@ export async function restoreTerminals(
 	}));
 }
 
+/** Respawns the project's shared terminals, each in the cwd it was created with. */
 export async function restoreProjectTerminals(
 	projectId: string,
 	env: Record<string, string> | null = null,
@@ -135,6 +152,7 @@ export async function restoreProjectTerminals(
 	projectTerminals.update((m) => ({ ...m, [projectId]: tabs }));
 }
 
+/** Opens a new instance terminal and focuses it. */
 export async function addTerminal(
 	projectId: string,
 	instanceId: string,
@@ -156,6 +174,7 @@ export async function addTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Opens a terminal running a command script; returns its id so the run can be tracked. */
 export async function addCommandTerminal(
 	projectId: string,
 	instanceId: string,
@@ -178,6 +197,7 @@ export async function addCommandTerminal(
 	return id;
 }
 
+/** Opens a terminal shared by the whole project, focused in the calling instance. */
 export async function addProjectTerminal(
 	projectId: string,
 	instanceId: string,
@@ -201,6 +221,7 @@ export async function addProjectTerminal(
 	persistProject(projectId);
 }
 
+/** Closes an instance terminal, killing its PTY and moving focus to the last remaining one. */
 export async function removeTerminal(
 	projectId: string,
 	instanceId: string,
@@ -225,6 +246,7 @@ export async function removeTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Closes a shared terminal and clears it from every scope that had it focused. */
 export async function removeProjectTerminal(
 	projectId: string,
 	id: string,
@@ -255,6 +277,7 @@ export async function removeProjectTerminal(
 	persistProject(projectId);
 }
 
+/** Focuses a terminal in the main pane, or in the split pane when `pane` is 1. */
 export function setActiveTerminal(
 	projectId: string,
 	instanceId: string,
@@ -267,6 +290,7 @@ export function setActiveTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Shows a terminal in a second pane, seeding the ratio the first time. */
 export function openSplitTerminal(
 	projectId: string,
 	instanceId: string,
@@ -280,6 +304,7 @@ export function openSplitTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Collapses back to a single pane; the terminal itself keeps running. */
 export function closeSplitTerminal(
 	projectId: string,
 	instanceId: string,
@@ -289,6 +314,7 @@ export function closeSplitTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Records the divider position after a drag. */
 export function setSplitRatio(
 	projectId: string,
 	instanceId: string,
@@ -299,6 +325,7 @@ export function setSplitRatio(
 	persist(projectId, instanceId);
 }
 
+/** Renames an instance terminal tab. */
 export function renameTerminal(
 	projectId: string,
 	instanceId: string,
@@ -313,6 +340,7 @@ export function renameTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Renames a shared terminal tab. */
 export function renameProjectTerminal(
 	projectId: string,
 	id: string,
@@ -327,6 +355,7 @@ export function renameProjectTerminal(
 	persistProject(projectId);
 }
 
+/** Reorders the instance terminals after a drag. */
 export function reorderTerminal(
 	projectId: string,
 	instanceId: string,
@@ -341,6 +370,7 @@ export function reorderTerminal(
 	persist(projectId, instanceId);
 }
 
+/** Reorders the shared terminals after a drag. */
 export function reorderProjectTerminal(
 	projectId: string,
 	fromIndex: number,
@@ -353,6 +383,7 @@ export function reorderProjectTerminal(
 	persistProject(projectId);
 }
 
+/** Promotes an instance terminal to the project scope; only the lists move, the PTY keeps running. */
 export function shareTerminal(
 	projectId: string,
 	instanceId: string,
@@ -376,6 +407,7 @@ export function shareTerminal(
 	persistProject(projectId);
 }
 
+/** Brings a shared terminal back into one instance, again without restarting the PTY. */
 export function unshareTerminal(
 	projectId: string,
 	instanceId: string,
@@ -404,6 +436,7 @@ export function unshareTerminal(
 	persistProject(projectId);
 }
 
+/** Kills and forgets every terminal of an instance being deleted; shared terminals are untouched. */
 export async function removeInstanceTerminals(
 	projectId: string,
 	instanceId: string,

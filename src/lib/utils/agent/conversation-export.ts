@@ -1,3 +1,5 @@
+// Turning a conversation into something outside the app: a markdown export, a
+// file name, plus the search, preview and ordering the history panel runs on.
 import type {
 	ConversationMessage,
 	ConversationMeta,
@@ -10,6 +12,7 @@ const ROLE_HEADING: Record<ConversationMessage["role"], string> = {
 	agent: "Agent",
 };
 
+/** One conversation as a standalone markdown document, one heading per turn. */
 export function conversationToMarkdown(
 	title: string,
 	messages: ConversationMessage[],
@@ -33,6 +36,10 @@ export function conversationToMarkdown(
 	return `${lines.join("\n").trimEnd()}\n`;
 }
 
+/**
+ * Search runs on title and preview only, never on the transcripts: those live
+ * in one file per conversation and are read only when one is opened.
+ */
 export function conversationMatches(
 	meta: ConversationMeta,
 	query: string,
@@ -45,6 +52,7 @@ export function conversationMatches(
 	);
 }
 
+/** The last thing actually said, system markers skipped, capped at 120 chars. */
 export function conversationPreview(messages: ConversationMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		if (messages[i].role === "system") continue;
@@ -54,12 +62,17 @@ export function conversationPreview(messages: ConversationMessage[]): string {
 	return "";
 }
 
+/** A title taken from the opening prompt, elided past 48 characters. */
 export function deriveConversationTitle(prompt: string): string {
 	const cleaned = prompt.replace(/\s+/g, " ").trim();
 	if (!cleaned) return "";
 	return cleaned.length > 48 ? `${cleaned.slice(0, 48)}...` : cleaned;
 }
 
+/**
+ * Pinned first, then most recently answered. Ordering is never manual: dragging
+ * a conversation moves it between scopes, it does not reorder its group.
+ */
 export function sortConversations(
 	list: ConversationMeta[],
 ): ConversationMeta[] {
@@ -70,6 +83,7 @@ export function sortConversations(
 	);
 }
 
+/** Slugifies a title into a safe file stem, falling back to "conversation". */
 export function markdownFileName(title: string): string {
 	const slug = title
 		.toLowerCase()

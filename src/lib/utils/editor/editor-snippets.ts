@@ -1,5 +1,8 @@
 import { snippetCompletion } from "@codemirror/autocomplete";
 
+// Completion snippets offered on top of whatever the language server proposes.
+
+/** JavaScript snippets, also reused by TypeScript. */
 export const jsSnippets = [
 	snippetCompletion("if (${condition}) {\n\t${}\n}", {
 		label: "if",
@@ -125,6 +128,7 @@ export const jsSnippets = [
 	}),
 ];
 
+/** The JavaScript snippets plus the type-level constructs. */
 export const tsSnippets = [
 	...jsSnippets,
 	snippetCompletion("interface ${Name} {\n\t${}\n}", {

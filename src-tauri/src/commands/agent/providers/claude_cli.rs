@@ -1,3 +1,5 @@
+//! The Claude Code CLI provider, driven through its stream-json protocol.
+
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
@@ -9,6 +11,7 @@ use super::super::{
 };
 use super::cli_common::tool_label;
 
+/// Claude Code CLI, the only provider Cairn drives through stdin.
 pub struct ClaudeCliProvider;
 
 /// The delegation an event was produced inside, if any. `--forward-subagent-text`

@@ -1,8 +1,11 @@
+//! The GitHub Copilot CLI provider: plain text in, plain text out.
+
 use super::super::{
     emit_agent_for, platform, AgentProvider, AgentResponse, RunningChild, SendRequest,
 };
 use super::cli_common::{run_cli, with_transcript};
 
+/// GitHub Copilot CLI, which keeps no session: history is replayed each time.
 pub struct CopilotCliProvider;
 
 /// The GitHub Copilot CLI has no machine-readable output: `-p` answers in plain

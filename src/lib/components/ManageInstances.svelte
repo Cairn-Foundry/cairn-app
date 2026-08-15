@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Modal listing every instance of the active project, with search, per-row
+   * actions (activate, duplicate, reveal, archive, delete) and a separate
+   * archived group.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -44,6 +49,7 @@
 
   $: archived = $instances.filter(i => isArchivedInstance(i) && matchesQuery(i));
 
+  // Duplicated instances nest under their parent; a row whose parent is filtered out becomes a root itself.
   $: grouped = (() => {
     const allById = new Map($instancesWithBase.map(i => [i.id, i]));
     const filteredIds = new Set(filtered.map(i => i.id));

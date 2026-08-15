@@ -1,3 +1,7 @@
+// Deciding where a drag lands in the editor area: which pane, and whether the
+// drop should open the split. Covers both in-app drags and OS file drops.
+
+/** A pane's rectangle in viewport coordinates. */
 export interface PaneBox {
 	left: number;
 	right: number;
@@ -5,6 +9,7 @@ export interface PaneBox {
 	bottom: number;
 }
 
+/** The resolved target of a drop. */
 export interface PaneDrop {
 	pane: 0 | 1;
 	/** The drop lands on the right edge of a single pane and must open the split. */
@@ -15,6 +20,7 @@ export interface PaneDrop {
 const EDGE_RATIO = 0.28;
 const EDGE_MAX = 220;
 
+/** Point-in-rectangle, edges included. */
 function contains(box: PaneBox, x: number, y: number): boolean {
 	return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 }
@@ -43,6 +49,7 @@ export function resolvePaneDrop(
 	return null;
 }
 
+/** A drop position in CSS pixels. */
 export interface DropPoint {
 	x: number;
 	y: number;

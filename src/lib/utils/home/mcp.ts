@@ -1,5 +1,6 @@
 import type { McpTransport } from "$lib/services/mcp-service";
 
+/** stdio is a local process, everything else is reached over the network. */
 export function transportIcon(transport: McpTransport): string {
 	if (transport === "stdio") return "terminal";
 	return "globe";

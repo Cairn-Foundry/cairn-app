@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Usage dashboard: KPIs against the previous range, daily and hourly charts, breakdowns,
+   * plus backfill, wipe and CSV export.
+   */
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -135,6 +139,7 @@
     },
   ] as Kpi[];
 
+  /** Rebuilds the usage log from the transcripts on disk, for turns recorded before it existed. */
   async function recover() {
     busy = true;
     try {

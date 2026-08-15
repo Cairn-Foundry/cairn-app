@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * MCP server manager: browse by scope and provider, edit a draft of one server, test it,
+   * and export the visible list. Nothing is written to disk before Save.
+   */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
@@ -156,6 +160,7 @@
     { value: 'sse', label: 'SSE' },
   ];
 
+  /** Opens a server in the editor and records the pristine copy the dirty flag compares against. */
   function select(server: McpServer | null) {
     error = '';
     toolsOpen = false;
@@ -172,6 +177,7 @@
     argsText = server.args.join('\n');
   }
 
+  /** Starts a blank draft, defaulting its scope and target to whatever the list is filtered on. */
   function create() {
     const scope: McpScope = scopeFilter !== 'all' && $projects.length > 0 ? scopeFilter : 'user';
     draft = {
@@ -203,6 +209,7 @@
     toolsOpen = false;
   }
 
+  /** The draft as it will be written: args split back out of the textarea, project path resolved. */
   function withProject(server: McpServer): McpServer {
     const project = $projects.find((p) => p.id === server.projectId);
     return {
@@ -214,6 +221,7 @@
     };
   }
 
+  /** Writes the entry and reselects it under the id its scope and name produce. */
   async function save() {
     if (!draft || incomplete || nameClash) return;
     saving = true;
@@ -231,6 +239,7 @@
     }
   }
 
+  /** Copies a server into an unsaved draft, dropping its recorded approval. */
   function duplicate(server: McpServer) {
     const copy = structuredClone(server);
     copy.id = '';
@@ -265,6 +274,7 @@
     }
   }
 
+  /** Probes the draft as configured, not the saved entry, so an untested edit can be checked. */
   async function runTest() {
     if (!draft) return;
     const key = selectedId ?? 'draft';
@@ -315,6 +325,7 @@
     if (draft) draft.enabled = enabled;
   }
 
+  /** The command line for stdio servers, the bare origin for the remote ones. */
   function subtitleOf(server: McpServer): string {
     if (server.transport === 'stdio') {
       return [server.command, ...server.args].join(' ').trim() || '-';

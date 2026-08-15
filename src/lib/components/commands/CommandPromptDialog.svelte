@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Asks for the values of the {{prompt:Label}} variables a command declares,
+   * before it runs. Dispatches `submit` keyed by label.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

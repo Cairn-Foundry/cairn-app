@@ -5,8 +5,10 @@ import {
 	isKnownGitErrorCode,
 } from "$lib/services/git-service";
 
+/** A one-click recovery the banner can offer for a given error code. */
 export type GitErrorAction = "setUpstream" | "pullThenPush" | "removeLock";
 
+/** A git error as the banner renders it. */
 export type DescribedGitError = {
 	title: string;
 	hint: string;

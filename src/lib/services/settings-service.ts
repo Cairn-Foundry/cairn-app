@@ -1,9 +1,13 @@
+// Global app settings, in settings.json. CairnSettings is mirrored by the Rust
+// struct in commands/settings.rs: a new field has to be added on both sides.
+
 import { invoke } from "@tauri-apps/api/core";
 import type { WorkflowStep } from "$lib/types/instance";
 import type { ShortcutConfig } from "$lib/types/shortcuts";
 import type { ThemeName } from "$lib/utils/editor/editor-theme";
 import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
 
+/** An author identity that can be applied to a worktree, instead of git's own config. */
 export interface GitProfile {
 	id: string;
 	label: string;
@@ -11,6 +15,7 @@ export interface GitProfile {
 	email: string;
 }
 
+/** A workflow tab as the user arranged it; `order` drives the sidebar, not array position. */
 export interface WorkflowTabConfig {
 	key: WorkflowStep;
 	name: string;
@@ -19,6 +24,7 @@ export interface WorkflowTabConfig {
 	order: number;
 }
 
+/** User overrides for a catalogue language server, keyed by its catalogue id. */
 export interface LanguageServerSetting {
 	id: string;
 	enabled: boolean;
@@ -43,6 +49,10 @@ export interface CustomLanguageServer {
 	docUrl: string;
 }
 
+/**
+ * Every global setting. The store merges what it reads with its own DEFAULTS,
+ * so a field missing from an older settings.json is not an error.
+ */
 export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
@@ -90,16 +100,19 @@ export interface CairnSettings {
 	agentShowPermissionChip: boolean;
 }
 
+/** Settings as stored; the store fills in anything the file predates. */
 export function getSettings(): Promise<CairnSettings> {
 	return invoke<CairnSettings>("get_settings");
 }
 
+/** Rewrites settings.json whole and answers with what was stored, so pass a complete object. */
 export function updateSettings(
 	settings: CairnSettings,
 ): Promise<CairnSettings> {
 	return invoke<CairnSettings>("update_settings", { settings });
 }
 
+/** Toggles the native window blur; separate from settings because it acts on the window itself. */
 export function setWindowVibrancy(enabled: boolean): Promise<void> {
 	return invoke<void>("set_window_vibrancy", { enabled });
 }

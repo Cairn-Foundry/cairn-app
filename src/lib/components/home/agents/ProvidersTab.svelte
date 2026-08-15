@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * AI provider configuration: API key, model, effort and permission defaults, plus the
+   * availability probe. Keys are handed to the service and never read back.
+   */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -99,6 +103,7 @@
     set(fields);
   }
 
+  /** Context window in k or M, the way the providers themselves quote it. */
   function formatContext(n: number): string {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
     if (n >= 1000) return `${Math.round(n / 1000)}k`;
@@ -109,6 +114,7 @@
     updateProviderSettings(selectedId, fields);
   }
 
+  /** The probe result outranks the declared status: a provider that failed reads unavailable. */
   function statusLabel(p: ProviderDef): string {
     if (p.status === 'coming-soon') return t('home.agents.comingSoon') as string;
     const result = $probeResults[p.id];
@@ -127,6 +133,7 @@
     return $aiProviders.providers[p.id]?.enabled ? 'ok' : '';
   }
 
+  /** Stores the key through the service and reprobes; the key itself is never held here. */
   async function saveKey() {
     if (!keyDraft.trim()) return;
     savingKey = true;

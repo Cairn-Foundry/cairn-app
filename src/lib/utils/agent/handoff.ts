@@ -1,3 +1,7 @@
+// Replaying a thread to a provider that never saw it, when a conversation
+// switches from one provider to another mid-way.
+
+/** The minimum a message needs for a handoff: who spoke and what was said. */
 export interface HandoffMessage {
 	role: string;
 	content: string;
@@ -33,6 +37,10 @@ export function priorTurns(
 		.slice(-maxMessages);
 }
 
+/**
+ * The recent exchange as a flat transcript, capped by turns and by characters.
+ * Trimming happens from the oldest end, so the newest turns always survive.
+ */
 export function buildHandoffTranscript(
 	messages: HandoffMessage[],
 	maxMessages: number = MAX_MESSAGES,

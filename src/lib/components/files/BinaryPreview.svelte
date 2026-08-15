@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Preview of a file the editor cannot show: image, SVG, PDF, or a hex dump of
+   * its first bytes. `source` is the already loaded text for the `svg` kind.
+   */
   import { convertFileSrc } from '@tauri-apps/api/core';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -34,6 +38,7 @@
   $: if (kind === 'svg' && source !== null) size = new Blob([source]).size;
   $: void load(path);
 
+  /** Loads size plus the head bytes, inlining small PDFs; ignores results for a stale path. */
   async function load(p: string) {
     loading = true;
     failed = false;
@@ -63,6 +68,7 @@
     }
   }
 
+  /** Reads the file as base64 into a data URL, used when the asset protocol fails. */
   async function loadInline(p: string): Promise<boolean> {
     try {
       const b64 = await readFileBase64(p);
@@ -74,6 +80,7 @@
     }
   }
 
+  /** Retries once through a data URL before declaring the image broken. */
   async function onImageError() {
     if (inlineUrl !== null || !(await loadInline(path))) imageBroken = true;
   }

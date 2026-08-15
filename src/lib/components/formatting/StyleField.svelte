@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * One style option input, typed from its descriptor. Shows the inherited value
+   * when nothing is set here, and dispatches `change` with undefined to clear it.
+   */
   import { createEventDispatcher } from 'svelte';
   import Select from '$lib/components/Select.svelte';
   import { t } from '$lib/i18n';

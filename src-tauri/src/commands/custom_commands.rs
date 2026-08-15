@@ -1,3 +1,6 @@
+//! User-defined commands (scripts run in a terminal tab), stored globally or
+//! per project, plus the port each one was allocated in an instance.
+
 use std::collections::HashMap;
 use std::fs;
 use std::net::TcpListener;
@@ -10,6 +13,8 @@ fn default_true() -> bool { true }
 
 fn default_cwd() -> String { "worktree".to_string() }
 
+/// A user command: a list of shell steps plus how the UI should present and
+/// run it. `source` marks a command imported from the repo rather than typed.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CustomCommand {
     pub id: String,
@@ -33,12 +38,14 @@ pub struct CustomCommand {
     pub source: Option<String>,
 }
 
+/// The commands of one scope, global or project.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CommandsFile {
     #[serde(default)]
     pub commands: Vec<CustomCommand>,
 }
 
+/// Ports handed out to this instance's commands, so a rerun reuses its port.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct InstanceCommandState {
     #[serde(default)]
@@ -47,36 +54,43 @@ pub struct InstanceCommandState {
 
 const PORT_SCAN_RANGE: u16 = 100;
 
+/// Empty for a scope that has no commands yet.
 fn read_commands(path: &std::path::Path) -> Result<CommandsFile, String> {
     if !path.exists() { return Ok(CommandsFile::default()); }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Tested by binding it: only the OS can answer this without a race.
 fn is_port_free(port: u16) -> bool {
     TcpListener::bind(("127.0.0.1", port)).is_ok()
 }
 
+/// Commands defined for this project only.
 #[tauri::command]
 pub fn get_project_commands(project_id: String) -> Result<CommandsFile, String> {
     read_commands(&project_commands_file(&project_id)?)
 }
 
+/// Replaces the project's whole command list.
 #[tauri::command]
 pub fn save_project_commands(project_id: String, state: CommandsFile) -> Result<(), String> {
     write_json_atomic(&project_commands_file(&project_id)?, &state)
 }
 
+/// Commands available in every project.
 #[tauri::command]
 pub fn get_global_commands() -> Result<CommandsFile, String> {
     read_commands(&global_commands_file()?)
 }
 
+/// Replaces the global command list.
 #[tauri::command]
 pub fn save_global_commands(state: CommandsFile) -> Result<(), String> {
     write_json_atomic(&global_commands_file()?, &state)
 }
 
+/// Empty when no command has run in this instance yet.
 #[tauri::command]
 pub fn get_command_state(project_id: String, instance_id: String) -> Result<InstanceCommandState, String> {
     let path = instance_command_state_file(&project_id, &instance_id)?;
@@ -85,6 +99,7 @@ pub fn get_command_state(project_id: String, instance_id: String) -> Result<Inst
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Records the port allocation after a command starts.
 #[tauri::command]
 pub fn save_command_state(
     project_id: String,
@@ -94,6 +109,9 @@ pub fn save_command_state(
     write_json_atomic(&instance_command_state_file(&project_id, &instance_id)?, &state)
 }
 
+/// Keeps `preferred` when it is still free, otherwise scans upward from `base`.
+/// `exclude` holds ports already promised to commands that have not bound yet,
+/// which a free-port test alone cannot see.
 #[tauri::command]
 pub fn allocate_port(base: u16, preferred: Option<u16>, exclude: Vec<u16>) -> Result<u16, String> {
     if let Some(port) = preferred

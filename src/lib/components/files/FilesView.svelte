@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * The Files workflow step: file tree, up to two editor panes with their tabs, search,
+   * language-server wiring and per-instance persistence of the whole editor state.
+   * Owns `onOpenLink`, which opens a relative markdown link as a tab and jumps to its anchor,
+   * and `executeAction`, the entry point the workspace and command palette call.
+   */
   import { onMount, onDestroy, tick } from 'svelte';
 import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
@@ -140,6 +146,7 @@ import { get } from 'svelte/store';
   let cursorCols: number[] = [1, 1];
   let pendingJumps: ({ line: number; col: number; anchor?: string | null } | null)[] = [null, null];
 
+  /** Records a file in the recents and persists the editor state along with it. */
   function pushRecentFile(path: string) {
     if (!currentInstanceId || !currentProjectId) return;
     const updated = pushRecent(recentFiles, path);
@@ -158,6 +165,7 @@ import { get } from 'svelte/store';
     };
   }
 
+  /** Restores the panes from persisted state, then refills the tab contents from disk. */
   async function rehydrateTabs(wtp: string, persisted: PersistedState) {
     panes = persisted.panes.map((pp, i) => {
       const base = makePane();
@@ -217,6 +225,7 @@ import { get } from 'svelte/store';
 
   $: paneDropHints = [paneDropHint(dragOverPane, 0), paneDropHint(dragOverPane, 1)];
 
+  /** Directory under the pointer, the tree root ('') for a drop on empty tree space. */
   function treeDropDirAt(x: number, y: number): string | null {
     const dir = findDropTargetDir(x, y);
     if (dir !== null) return dir;
@@ -224,6 +233,7 @@ import { get } from 'svelte/store';
     return el?.closest('.files-tree-scroll') ? '' : null;
   }
 
+  /** Copies files dropped from the OS into a tree directory, renaming on collision. */
   async function importOsFiles(paths: string[], targetDir: string) {
     if (!worktreePath) return;
     for (const absolute of paths) {
@@ -237,6 +247,7 @@ import { get } from 'svelte/store';
     await loadTree(worktreePath);
   }
 
+  /** Routes an OS file drop to the tree (import) or to an editor pane (open). */
   async function handleOsFileDrop(paths: string[], x: number, y: number) {
     const treeDir = treeDropDirAt(x, y);
     if (treeDir !== null) {
@@ -253,6 +264,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Opens a dropped file in the target pane, turning on split view first if the drop asked for it. */
   async function dropFileInPane(path: string, drop: PaneDrop) {
     const node = { path, name: basename(path), isDir: false };
     if (drop.openSplit && !splitMode) {
@@ -319,6 +331,7 @@ import { get } from 'svelte/store';
     if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
   }
 
+  /** Stores the pane's cursor, scroll and CodeMirror state so the tab reopens where it was. */
   function captureEditorState(i: number) {
     const pane = panes[i];
     if (pane.activeTabIdx === -1 || !pane.editorRef) return;
@@ -330,6 +343,7 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
+  /** Loads the git base content and blame for a pane, discarding the result if the tab moved on. */
   async function loadPaneBaseFor(i: number, tab: { path: string } | null): Promise<void> {
     const pane = panes[i];
     if (!tab || !worktreePath || isExternalPath(tab.path)) {
@@ -383,6 +397,7 @@ import { get } from 'svelte/store';
     await flushSave(i);
   }
 
+  /** Activates another tab: records tab-navigation history, saves on blur, reloads the diff. */
   async function switchTab(i: number, idx: number) {
     const pane = panes[i];
     if (idx === pane.activeTabIdx) return;
@@ -398,6 +413,7 @@ import { get } from 'svelte/store';
     refreshDiff(i, panes[i].tabs[idx] ?? null);
   }
 
+  /** Closes a tab: flushes pending edits to disk, pushes it on the reopen stack, notifies the LSP. */
   async function closeTab(i: number, idx: number, event: MouseEvent | null) {
     if (event) event.stopPropagation();
     const pane = panes[i];
@@ -425,6 +441,7 @@ import { get } from 'svelte/store';
     if (activeChanged) refreshDiff(i, pane.tabs[activeTabIdx] ?? null);
   }
 
+  /** Records an edit and mirrors it into any other pane showing the same file. */
   function handleChange(i: number, value: string) {
     const pane = panes[i];
     if (pane.activeTabIdx === -1) return;
@@ -440,6 +457,7 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
+  /** Writes the pane's pending content to disk, optionally formatting first, and refreshes git state. */
   async function flushSave(i: number) {
     const pane = panes[i];
     const tab = pane.tabs[pane.activeTabIdx] ?? null;
@@ -483,6 +501,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Fire-and-forget write of every dirty tab, used when leaving an instance or the view. */
   function saveSnapshotToDisk(snapshots: Tab[][], wtp: string): void {
     for (const tab of snapshots.flat()) {
       if (tab.pending === tab.content) continue;
@@ -493,6 +512,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Focuses an already open tab or reads the file and appends a new one; a directory just toggles. */
   async function openFileInPane(i: number, node: FileNode) {
     if (gitStatusMap[node.path] === 'deleted') return;
     if (node.isDir) {
@@ -689,6 +709,7 @@ import { get } from 'svelte/store';
 
   interface ReferencesQuery { path: string; line: number; character: number; symbol: string }
 
+  /** Reads back the persisted references query, tolerating anything that is not valid JSON. */
   function parseReferencesQuery(raw: string): ReferencesQuery | null {
     if (!raw) return null;
     try {
@@ -699,6 +720,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Fills the references panel from definitions, implementations and references at once; a newer lookup wins. */
   async function lookupReferences(doc: LspDocRef, query: ReferencesQuery) {
     const position = { line: query.line, character: query.character };
     const token = ++referencesToken;
@@ -717,6 +739,7 @@ import { get } from 'svelte/store';
     referencesLoading = false;
   }
 
+  /** Looks up the symbol at the cursor and persists the query so the panel survives a restart. */
   async function runFindReferences() {
     const target = focusedDoc();
     if (!target) return;
@@ -752,6 +775,7 @@ import { get } from 'svelte/store';
     if (!referencesResult) void replayReferences();
   }
 
+  /** Opens the first definition of the symbol at the cursor at its line. */
   async function runGoToDefinition() {
     const target = focusedDoc();
     if (!target) return;
@@ -935,6 +959,7 @@ import { get } from 'svelte/store';
   export function getTree(): FileNode[] { return tree; }
   export function openFileByPath(path: string) { quickOpenFile(path); }
 
+  /** Expands every ancestor of a directory and selects it in the tree. */
   export function revealDirectory(path: string) {
     sidebarHidden = false;
     const parts = path.split('/');
@@ -950,6 +975,7 @@ import { get } from 'svelte/store';
     await reloadOpenFiles();
   }
 
+  /** Re-reads one file from disk into every tab showing it. */
   export async function reloadFileByPath(path: string): Promise<void> {
     if (!worktreePath) return;
     try {
@@ -971,6 +997,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Re-reads every open tab from disk and refreshes the diffs; unreadable files keep their tab. */
   export async function reloadOpenFiles(): Promise<void> {
     if (!worktreePath) return;
     const paths = new Set<string>();
@@ -1033,6 +1060,7 @@ import { get } from 'svelte/store';
 
   let editSiblingNames = new Set<string>();
 
+  /** Opens the inline rename/create input, preloading the sibling names used to reject a collision. */
   async function startEdit(state: EditState) {
     editValue = state.value;
     editState = state;
@@ -1046,6 +1074,7 @@ import { get } from 'svelte/store';
 
   let ctxMenuEl: HTMLDivElement | null = null;
 
+  /** Opens the tree context menu, then repositions it once measured so it stays on screen. */
   async function openContextMenu(e: MouseEvent, node: FileNode | null) {
     e.preventDefault();
     e.stopPropagation();
@@ -1062,6 +1091,7 @@ import { get } from 'svelte/store';
 
   type ContextAction = 'new-file' | 'new-dir' | 'cut' | 'copy' | 'paste' | 'rename' | 'delete' | 'copy-path' | 'copy-rel-path' | 'reveal' | 'open-terminal' | 'format' | 'stage' | 'unstage' | 'discard';
 
+  /** Whether focus sits in the editor or a text input, where tree shortcuts must not fire. */
   function isEditorFocused(): boolean {
     const el = document.activeElement;
     if (!el) return false;
@@ -1072,6 +1102,7 @@ import { get } from 'svelte/store';
     );
   }
 
+  /** Copies or moves the clipboard nodes into the target directory, uniquifying names on collision. */
   async function pasteClipboard(clipboard: FileClipboard, targetNode: FileNode | null, wtp: string) {
     const { nodes: srcs, srcWorktreePath, op } = clipboard;
     const targetDir = targetNode?.isDir
@@ -1105,6 +1136,7 @@ import { get } from 'svelte/store';
     } catch (e) { error = String(e); }
   }
 
+  /** Runs a tree context-menu action; a multi-selection that contains the node is acted on as a whole. */
   async function handleContextAction(action: ContextAction) {
     const node = contextMenu?.node ?? null;
     closeContextMenu();
@@ -1182,6 +1214,7 @@ import { get } from 'svelte/store';
     await dispatch[action]();
   }
 
+  /** Applies the inline edit: renames on disk and in the open tabs, or creates and opens the new file. */
   async function commitEdit() {
     if (!editState || !editValue.trim() || !worktreePath) { editState = null; return; }
     if (editConflict) return;
@@ -1271,6 +1304,7 @@ import { get } from 'svelte/store';
     'renameSymbol', 'formatDocument',
   ]);
 
+  /** Runs a shortcut or palette command; anything unknown falls through to the focused editor. */
   export async function executeAction(id: string) {
     if (FILES_STEP_ACTIONS.has(id)) activeStep.set('files');
     switch (id) {
@@ -1468,6 +1502,7 @@ import { get } from 'svelte/store';
     };
   });
 
+  /** Opens a quick-open result in the focused pane. */
   function quickOpenFile(path: string) {
     const node = { path, name: basename(path), isDir: false };
     if (splitMode && focusedPane === 1) openFileInPane(1, node);
@@ -1485,6 +1520,7 @@ import { get } from 'svelte/store';
 
   function closeTabCtxMenu() { tabCtxMenu = null; }
 
+  /** Pins or unpins a tab, re-sorting the bar so pinned tabs stay first and keeping the active one. */
   function togglePinTab(idx: number, paneIdx: 0 | 1) {
     const pane = panes[paneIdx];
     pane.tabs[idx].pinned = !pane.tabs[idx].pinned;
@@ -1516,6 +1552,7 @@ import { get } from 'svelte/store';
     closeTabCtxMenu();
   }
 
+  /** Expands the tree down to the tab's file and selects its directory. */
   function revealTabInTree(idx: number, paneIdx: 0 | 1) {
     const path = panes[paneIdx].tabs[idx]?.path ?? '';
     if (!path) { closeTabCtxMenu(); return; }
@@ -1547,6 +1584,7 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
+  /** Flips the active document between tab and space indentation, keeping the detected width. */
   function convertIndent(paneIdx: 0 | 1) {
     const pane = panes[paneIdx];
     const tab = pane.tabs[pane.activeTabIdx];
@@ -1577,6 +1615,7 @@ import { get } from 'svelte/store';
     cursorCols[0] = 1;
   }
 
+  /** Snapshots the panes into the in-memory scope cache and persists them for the instance. */
   function saveCurrentState() {
     if (currentInstanceId === null || currentProjectId === null) return;
     captureEditorState(0);
@@ -1666,6 +1705,7 @@ import { get } from 'svelte/store';
 
   $: if (worktreePath) showWorktree(worktreePath);
 
+  /** Paints a worktree from the cache when there is one, then refreshes it silently. */
   function showWorktree(root: string) {
     const cached = treeCache.get(root);
     if (cached) {
@@ -1683,6 +1723,7 @@ import { get } from 'svelte/store';
     void loadTree(root);
   }
 
+  /** Reads the tree and git status of a worktree, ignoring the result if the worktree changed meanwhile. */
   async function loadTree(root: string, opts?: { silent?: boolean }) {
     const silent = opts?.silent === true && rawTree.length > 0;
     if (!silent) loading = true;
@@ -1714,6 +1755,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** On window focus, picks up external edits - only for tabs with nothing unsaved to lose. */
   async function reloadOpenFilesFromDisk() {
     if (!worktreePath) return;
     let changed = false;
@@ -1775,6 +1817,7 @@ import { get } from 'svelte/store';
   $: contextMenuTargetPath = contextMenu?.node?.path ?? null;
 
 
+  /** Opens a file in the main pane: focuses an existing tab, or reads it and appends one. */
   async function openFile(node: FileNode) {
     if (splitMode && focusedPane === 1) { await openFileInPane(1, node); return; }
     if (gitStatusMap[node.path] === 'deleted') return;
@@ -1865,6 +1908,7 @@ import { get } from 'svelte/store';
     }
   }
 
+  /** Expands the tree down to the active tab so the file is visible in the sidebar. */
   function syncActiveTabToTree() {
     const path = panes[0].tabs[panes[0].activeTabIdx]?.path ?? '';
     if (isExternalPath(path)) return;
@@ -1874,6 +1918,7 @@ import { get } from 'svelte/store';
     expanded = expanded;
   }
 
+  /** Pops the closed-tab stack and reopens it, re-reading the file when it is still there. */
   async function reopenClosedTab() {
     if (closedTabsStack.length === 0 || !worktreePath) return;
     const tab = closedTabsStack[closedTabsStack.length - 1];
@@ -1893,6 +1938,7 @@ import { get } from 'svelte/store';
     await switchTab(0, pane.tabs.length - 1);
   }
 
+  /** Goes back in tab history, skipping entries whose index no longer exists. */
   async function tabHistoryBack() {
     if (tabNavBack.length === 0) return;
     const target = tabNavBack[tabNavBack.length - 1];
@@ -1917,6 +1963,7 @@ import { get } from 'svelte/store';
 
   const TAB_DRAG_THRESHOLD = 6;
 
+  /** Arms a tab drag and captures the pointer; a press on an inner button is left to that button. */
   function tabPointerDown(e: PointerEvent, i: number, idx: number) {
     if ((e.target as Element).closest('button')) return;
     e.preventDefault();
@@ -1930,6 +1977,7 @@ import { get } from 'svelte/store';
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
+  /** Starts the drag past the threshold, then tracks the insert slot and the pane under the pointer. */
   function tabPointerMove(e: PointerEvent, i: number) {
     const pane = panes[i];
     if (pane.dragSrcIndex === null) return;
@@ -1951,6 +1999,7 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
+  /** Commits the tab drag: moves it to the other pane if one was targeted, otherwise reorders in place. */
   async function tabPointerUp(_e: PointerEvent, i: number) {
     const pane = panes[i];
     const paneTarget = dragOverPane;
@@ -1984,6 +2033,7 @@ import { get } from 'svelte/store';
     panes = panes;
   }
 
+  /** Opens a file and queues a jump, applied once the tab has rendered its content. */
   async function openFileAtLine(path: string, line: number, col: number) {
     const node = { path, name: basename(path), isDir: false };
     const targetPane = splitMode && focusedPane === 1 ? 1 : 0;
@@ -2021,6 +2071,7 @@ import { get } from 'svelte/store';
     openFileInBackground(node);
   }
 
+  /** Plain click opens the node; cmd/ctrl toggles and shift adds to the multi-selection. */
   function handleTreeNodeClick(e: MouseEvent, node: FileNode) {
     if (dragJustEnded) { dragJustEnded = false; return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey) {
@@ -2041,6 +2092,7 @@ import { get } from 'svelte/store';
 
   // -- Drag-and-drop (pointer-event based, works in WKWebView) ------------------
 
+  /** Arms a tree-node drag: captures the pointer and listens on the window until it ends. */
   function onNodePointerDown(e: PointerEvent, node: FileNode) {
     if (gitStatusMap[node.path] === 'deleted') return;
     if (e.button !== 0) return;
@@ -2073,6 +2125,7 @@ import { get } from 'svelte/store';
     document.body.classList.remove('dragging');
   }
 
+  /** Past the threshold, shows the ghost and resolves the target pane or directory, rejecting a drop into the source itself. */
   function onNodePointerMove(e: PointerEvent) {
     if (!dragSrcNode || !dragCaptureEl) return;
     const dx = e.clientX - dragPointerStartX;
@@ -2118,6 +2171,7 @@ import { get } from 'svelte/store';
     dragOverDir = invalid ? null : targetDir;
   }
 
+  /** Commits the tree drag: opens the file in the target pane, or moves the selection into the target directory. */
   async function onNodePointerUp(e: PointerEvent) {
     const src = dragSrcNode;
     const wasActive = dragActive;
@@ -2159,13 +2213,15 @@ import { get } from 'svelte/store';
 
   // -- Bulk delete ---------------------------------------------------------------
 
-  function isPathDeleted(tabPath: string): boolean {
+  /** Whether a tab path falls inside the current selection, itself or through a selected directory. */
+  function isPathInSelection(tabPath: string): boolean {
     for (const p of multiSelected) {
       if (tabPath === p || tabPath.startsWith(p + '/')) return true;
     }
     return false;
   }
 
+  /** Deletes every selected path and drops the tabs that pointed inside them. */
   async function bulkDelete() {
     closeContextMenu();
     if (!worktreePath || multiSelected.size === 0) return;
@@ -2173,8 +2229,8 @@ import { get } from 'svelte/store';
       try { await deletePath(`${worktreePath}/${p}`); } catch {}
     }
     for (const pane of panes) {
-      const activeWasDeleted = pane.activeTabIdx >= 0 && isPathDeleted(pane.tabs[pane.activeTabIdx]?.path ?? '');
-      pane.tabs = pane.tabs.filter(t => !isPathDeleted(t.path));
+      const activeWasDeleted = pane.activeTabIdx >= 0 && isPathInSelection(pane.tabs[pane.activeTabIdx]?.path ?? '');
+      pane.tabs = pane.tabs.filter(t => !isPathInSelection(t.path));
       if (activeWasDeleted) {
         pane.activeTabIdx = pane.tabs.length > 0 ? 0 : -1;
       } else if (pane.activeTabIdx >= pane.tabs.length) {

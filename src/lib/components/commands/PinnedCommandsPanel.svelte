@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Quick launcher for pinned commands, pulled from the sidebar. Clicking a
+   * command already running focuses its terminal instead of starting a second run.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

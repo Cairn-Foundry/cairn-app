@@ -9,4 +9,5 @@ export const IS_MAC =
 	) ||
 		/mac/i.test(navigator.userAgent));
 
+/** The modifier as shortcuts print it. */
 export const MOD_LABEL = IS_MAC ? "⌘" : "Ctrl";

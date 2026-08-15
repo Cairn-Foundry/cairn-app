@@ -14,6 +14,7 @@ const CATALOGUE_IDS: Record<CliProviderId, string> = {
 	vibe: "mistral-vibe",
 };
 
+/** Registry id to catalogue id, unchanged when the two already agree. */
 export function catalogueIdOf(provider: CliProviderId): string {
 	return CATALOGUE_IDS[provider] ?? provider;
 }

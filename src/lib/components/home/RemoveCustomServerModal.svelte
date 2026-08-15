@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Confirmation before dropping a user-declared language server from the settings.
+   * Dispatches `confirm` or `close`.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

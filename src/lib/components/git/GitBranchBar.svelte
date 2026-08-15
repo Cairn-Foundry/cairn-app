@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Branch header of the git view: current branch, ahead/behind counts, and the fetch, pull and push actions.
+   * Dispatches `openMergeRebase` to surface a conflicted state and `filesChanged` after a pull touches the worktree.
+   */
   import { createEventDispatcher } from 'svelte';
   import { get } from 'svelte/store';
   import Icon from '$lib/components/Icon.svelte';
@@ -34,6 +38,7 @@
   let pulling = false;
   let pushing = false;
 
+  /** Fetches the remote then reloads the branch list so the ahead/behind counts follow. */
   async function doFetch() {
     if (busy) return;
     fetching = true;
@@ -45,12 +50,14 @@
     }
   }
 
+  /** Reads the store directly rather than the reactive copy, which is still stale right after the operation. */
   function openTabIfConflicted() {
     if ((get(git).operationState?.kind ?? 'none') !== 'none') {
       dispatch('openMergeRebase');
     }
   }
 
+  /** Pulls, then tells the parent the worktree may have changed and opens the merge tab if it left conflicts. */
   async function doPull() {
     if (busy) return;
     pulling = true;

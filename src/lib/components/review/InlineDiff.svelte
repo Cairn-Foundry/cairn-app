@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Read-only unified diff of one file, rendered by CodeMirror's inline merge view.
+   * Grows with its content and is meant to be embedded in a list rather than filled.
+   */
   import { onMount, onDestroy } from 'svelte';
   import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { unifiedMergeView } from '@codemirror/merge';
@@ -23,6 +27,7 @@
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
 
+  /** Editor extensions for the current theme, with theme and highlight kept in compartments so they can be swapped later. */
   function buildExtensions(): Extension[] {
     const theme = $settings.theme;
     return [

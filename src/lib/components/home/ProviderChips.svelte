@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Row of provider logos standing for the agents an entry is written for.
+   */
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
   import { cliProviders, cliProviderLabel } from '$lib/stores/cli-providers';
   import { catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';

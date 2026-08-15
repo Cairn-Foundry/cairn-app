@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * The Cairn mark, drawn as inline SVG so it inherits the current text color.
+   */
   export let size: number = 20;
 </script>
 

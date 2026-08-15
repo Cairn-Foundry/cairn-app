@@ -30,6 +30,7 @@ export function effortLabel(level: string): string {
 		: humanizeOption(level);
 }
 
+/** Same fallback as `effortLabel`, for a CLI's permission mode. */
 export function permissionModeLabel(mode: string): string {
 	return (PERMISSION_MODES as readonly string[]).includes(mode)
 		? (t(

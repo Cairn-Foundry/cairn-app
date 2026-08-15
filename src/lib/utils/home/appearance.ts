@@ -1,7 +1,12 @@
 import { t } from "$lib/i18n";
 
+// Fixed choices offered by the appearance settings: accents, monospace stacks,
+// and the save-on triggers. Data only, no behaviour.
+
+/** The accent a fresh install starts on. */
 export const DEFAULT_ACCENT = "#6c8eff";
 
+/** Offered accents; the picker still allows any colour beyond these. */
 export const ACCENT_PRESETS: { label: string; color: string }[] = [
 	{
 		label: t("settings.appearance.accentColors.blue") as string,
@@ -69,6 +74,7 @@ export const FONT_OPTIONS: { label: string; stack: string; sample: string }[] =
 		{ label: "Courier New", stack: "'Courier New', monospace", sample: "Ag01" },
 	];
 
+/** When the editor writes a dirty buffer back to disk. */
 type SaveOnValue =
 	| "blur"
 	| "windowChange"
@@ -76,6 +82,7 @@ type SaveOnValue =
 	| "instanceChange"
 	| "manual";
 
+/** The save-on choices with their translated label and explanation. */
 export const SAVE_ON_OPTIONS: {
 	value: SaveOnValue;
 	label: string;
@@ -94,6 +101,7 @@ export const SAVE_ON_OPTIONS: {
 	desc: t(`settings.editor.saveOnOptions.${value}.desc`) as string,
 }));
 
+/** Keys that are never a shortcut on their own, ignored while recording one. */
 export const MODIFIER_KEYS = new Set([
 	"Meta",
 	"Control",
@@ -103,6 +111,7 @@ export const MODIFIER_KEYS = new Set([
 	"OS",
 ]);
 
+/** The palette a project is identified by in the sidebar. */
 export const PROJECT_COLORS = [
 	"#6366f1",
 	"#8b5cf6",

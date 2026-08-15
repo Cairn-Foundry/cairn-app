@@ -1,3 +1,6 @@
+//! Agent skills: the skill files on disk, their resources, and the commands the
+//! frontend edits them through.
+
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};

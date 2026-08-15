@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Content placeholder shown while a block of content loads, in place of any
+   * textual loading message. Wrap it in a container that supplies the padding.
+   */
   export let lines: number = 1;
   export let height: number = 12;
   export let gap: number = 8;

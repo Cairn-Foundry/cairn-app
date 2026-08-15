@@ -5,15 +5,21 @@ import {
 	getFileInIndex,
 } from "$lib/services/git-service";
 
+// Loading what an editor pane needs to show git information: the baseline the
+// diff gutter compares against, and the blame of the working copy.
+
+/** `baseContent` is null when there is no baseline to diff against. */
 export interface PaneDiffState {
 	baseContent: string | null;
 	currentBlame: Map<number, BlameEntry>;
 }
 
+/** CodeMirror works in LF, so a CRLF baseline must be normalized to compare. */
 function toLf(text: string): string {
 	return text.replace(/\r\n/g, "\n");
 }
 
+/** An empty baseline: everything in the file reads as added. */
 export function emptyDiffState(): PaneDiffState {
 	return {
 		baseContent: "",
@@ -21,6 +27,7 @@ export function emptyDiffState(): PaneDiffState {
 	};
 }
 
+/** The staged version when there is one, otherwise HEAD. */
 async function loadBase(
 	worktreePath: string,
 	path: string,
@@ -30,6 +37,11 @@ async function loadBase(
 	return getFileAtHead(worktreePath, path).catch(() => null);
 }
 
+/**
+ * A deleted file diffs against nothing, while an untracked, conflicted or
+ * git-ignored one has no baseline at all - the gutter stays off rather than
+ * marking every line as added.
+ */
 export async function loadPaneBase(
 	worktreePath: string,
 	path: string,

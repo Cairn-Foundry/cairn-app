@@ -1,6 +1,10 @@
 import { t } from "$lib/i18n";
 import type { WorkflowTabConfig } from "$lib/services/settings-service";
 
+/**
+ * The workflow tabs a project starts with. `order` is stored rather than
+ * implied by position, since the user can reorder and disable them.
+ */
 export const DEFAULT_WF_TABS: WorkflowTabConfig[] = [
 	{
 		key: "files",

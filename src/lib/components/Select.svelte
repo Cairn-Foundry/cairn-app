@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Custom dropdown replacing the native select, with keyboard navigation and a
+   * panel positioned in fixed coordinates so it escapes overflow containers.
+   * Binds `value` and also dispatches `change`.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { clickOutside } from '$lib/utils/click-outside';
@@ -20,6 +25,7 @@
 
   $: selected = options.find((o) => o.value === value) ?? null;
 
+  /** Positions the fixed panel under or above the trigger, whichever side has room. */
   function place() {
     if (!triggerEl) return;
     const rect = triggerEl.getBoundingClientRect();
@@ -75,6 +81,7 @@
     }
   }
 
+  /** Any scroll outside the panel would leave it detached from the trigger, so close it. */
   function onScrollCapture(e: Event) {
     if (!open) return;
     if (panelEl?.contains(e.target as Node)) return;

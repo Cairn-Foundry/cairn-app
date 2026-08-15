@@ -1,4 +1,7 @@
 <script lang="ts" context="module">
+  /**
+   * Bar chart of a usage series, with sparse axis labels and the current column set apart.
+   */
   export interface ChartBar {
     /** What sits under the bar. Empty on the columns the axis skips. */
     label: string;

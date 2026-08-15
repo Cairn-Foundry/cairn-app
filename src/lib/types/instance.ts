@@ -1,5 +1,7 @@
+/** Lifecycle of an instance, mirrored by the status dot in the instance list. */
 export type InstanceStatus = "idle" | "running" | "paused" | "done";
 
+/** The workspace tabs, in sidebar order. */
 export type WorkflowStep =
 	| "files"
 	| "agent"
@@ -8,11 +10,13 @@ export type WorkflowStep =
 	| "git"
 	| "cicd";
 
+/** The ticket fields kept on the instance itself, denormalized from the full Ticket. */
 export interface InstanceTicket {
 	id: string;
 	title: string;
 }
 
+/** A unit of work backed by its own git worktree; `parentInstanceId` is set when it was branched off another instance. */
 export interface Instance {
 	id: string;
 	projectId: string;
@@ -23,19 +27,4 @@ export interface Instance {
 	createdAt: number;
 	baseBranch: string;
 	parentInstanceId?: string;
-}
-
-export interface TimelineEvent {
-	id: string;
-	instanceId: string;
-	timestamp: number;
-	type:
-		| "agent_action"
-		| "file_changed"
-		| "commit"
-		| "test_result"
-		| "ci_event"
-		| "checkpoint";
-	summary: string;
-	isCheckpoint: boolean;
 }

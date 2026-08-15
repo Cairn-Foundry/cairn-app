@@ -1,3 +1,7 @@
+//! Instances: one git worktree and branch per unit of work. Creating one adds a
+//! branch and a worktree under the project's `worktrees/` directory; deleting
+//! one takes both away again.
+
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -7,14 +11,19 @@ use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive, write_js
 use super::file_state::delete_file_state_dir;
 use super::projects::read_projects;
 
+// Read-modify-write of instances.json is not atomic on its own, so every
+// mutation serializes through this lock.
 static INSTANCES_WRITE_LOCK: Mutex<()> = Mutex::new(());
 
+/// What the instance is about, as shown in the instance list.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct InstanceTicket {
     pub id: String,
     pub title: String,
 }
 
+/// An instance as written to `instances.json`, where the project id is implied
+/// by the file's location and therefore not stored.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StoredInstance {
     pub id: String,
@@ -31,6 +40,7 @@ pub struct StoredInstance {
     pub parent_instance_id: Option<String>,
 }
 
+/// The same instance as handed to the frontend, with its project id attached.
 #[derive(Serialize, Clone)]
 pub struct Instance {
     pub id: String,
@@ -50,6 +60,7 @@ pub struct Instance {
 }
 
 impl StoredInstance {
+    /// Attaches the project id the stored form leaves out.
     pub fn with_project(self, project_id: String) -> Instance {
         Instance {
             id: self.id,
@@ -65,6 +76,8 @@ impl StoredInstance {
     }
 }
 
+/// `link_existing` picks up a branch that already exists (local, or tracked
+/// from a remote) instead of cutting a new one off `base_branch`.
 #[derive(Deserialize)]
 pub struct CreateInstanceArgs {
     pub id: String,
@@ -80,6 +93,7 @@ pub struct CreateInstanceArgs {
     pub link_existing: bool,
 }
 
+/// Empty for a project that has no instance yet.
 pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
     let path = instances_file(project_id)?;
     if !path.exists() { return Ok(vec![]); }
@@ -87,16 +101,22 @@ pub fn read_instances(project_id: &str) -> Result<Vec<StoredInstance>, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Callers must hold `INSTANCES_WRITE_LOCK` around the read they are updating.
 pub fn write_instances(project_id: &str, instances: &Vec<StoredInstance>) -> Result<(), String> {
     write_json_atomic(&instances_file(project_id)?, instances)
 }
 
+/// Every instance of the project, in storage order.
 #[tauri::command]
 pub fn list_instances(project_id: String) -> Result<Vec<Instance>, String> {
     let stored = read_instances(&project_id)?;
     Ok(stored.into_iter().map(|i| i.with_project(project_id.clone())).collect())
 }
 
+/// Creates the branch and its worktree, then records the instance. A stale git
+/// worktree entry or leftover directory under the same slug is cleared first,
+/// and a branch this call created is deleted again if the worktree fails.
+/// Async: worktree creation blocks long enough to freeze the UI thread.
 #[tauri::command]
 pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -205,6 +225,7 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
     .map_err(|e| e.to_string())?
 }
 
+/// `copy_working_changes` carries the source worktree's uncommitted files over.
 #[derive(Deserialize)]
 pub struct DuplicateInstanceArgs {
     #[serde(rename = "sourceId")]
@@ -218,6 +239,8 @@ pub struct DuplicateInstanceArgs {
     pub copy_working_changes: bool,
 }
 
+/// Branches off the source instance's tip into `{branch}--{short id}` and gives
+/// it its own worktree. Async for the same reason as `create_instance`.
 #[tauri::command]
 pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -294,6 +317,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
     .map_err(|e| e.to_string())?
 }
 
+/// Moves the instance's status dot; nothing on disk changes but the JSON.
 #[tauri::command]
 pub fn update_instance_status(id: String, project_id: String, status: String) -> Result<Instance, String> {
     let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
@@ -306,6 +330,9 @@ pub fn update_instance_status(id: String, project_id: String, status: String) ->
     Ok(updated.with_project(project_id))
 }
 
+/// Removes the worktree directory, prunes the git worktree entry, deletes the
+/// branch, then drops the instance and its editor state. The git cleanup is
+/// best effort: a missing worktree or branch must not block the deletion.
 #[tauri::command]
 pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
     let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;

@@ -1,7 +1,12 @@
+// Agent conversations on disk: the per-scope index and the transcripts it points
+// at. A null `instanceId` addresses the project scope rather than an instance.
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** Which of the two conversation lists a conversation belongs to. */
 export type ConversationScope = "instance" | "project";
 
+/** One step of an agent turn, in the order the provider produced it. */
 export interface AgentBlock {
 	/**
 	 * `agent` is a subagent the provider delegated to from inside this turn. It
@@ -29,6 +34,7 @@ export interface AgentBlock {
 	phase?: "start" | "end";
 }
 
+/** What the turn cost, as far as the provider reported it. All fields optional. */
 export interface MessageUsage {
 	model?: string;
 	inputTokens?: number;
@@ -42,6 +48,7 @@ export interface MessageUsage {
 	numTurns?: number;
 }
 
+/** One line of the transcript, user prompt or agent turn. */
 export interface ConversationMessage {
 	role: "system" | "user" | "agent";
 	/** The answer itself: the last text the turn produced. */
@@ -70,6 +77,7 @@ export interface ConversationMessage {
 	usage?: MessageUsage;
 }
 
+/** One entry of the activity feed shown beside the transcript. */
 export interface ConversationActivity {
 	/** When the line happened, in milliseconds. */
 	ts: number;
@@ -85,6 +93,11 @@ export interface ConversationActivity {
 	messageIndex?: number;
 }
 
+/**
+ * A conversation as the index knows it: everything the panel lists without
+ * opening the transcript. `lastMessageAt` orders the list, so it only moves
+ * when the transcript itself gains something.
+ */
 export interface ConversationMeta {
 	id: string;
 	title: string;
@@ -111,16 +124,19 @@ export interface ConversationMeta {
 	permissionMode?: string | null;
 }
 
+/** Contents of one scope's `index.json`: metadata only, never transcripts. */
 export interface ConversationIndex {
 	conversations: ConversationMeta[];
 	activeId: string | null;
 }
 
+/** One conversation's own file: the transcript and its activity feed. */
 export interface ConversationBody {
 	messages: ConversationMessage[];
 	activity: ConversationActivity[];
 }
 
+/** Null when the scope has no conversations yet, which is not an error. */
 export async function getConversationIndex(
 	projectId: string,
 	instanceId: string | null,
@@ -128,6 +144,7 @@ export async function getConversationIndex(
 	return await invoke("get_conversation_index", { projectId, instanceId });
 }
 
+/** Rewrites the whole index; transcript files are left alone. */
 export async function saveConversationIndex(
 	projectId: string,
 	instanceId: string | null,
@@ -136,6 +153,7 @@ export async function saveConversationIndex(
 	await invoke("save_conversation_index", { projectId, instanceId, index });
 }
 
+/** Reads one transcript file; null when it has never been written. */
 export async function getConversationBody(
 	projectId: string,
 	instanceId: string | null,
@@ -148,6 +166,7 @@ export async function getConversationBody(
 	});
 }
 
+/** Rewrites one transcript file; the index entry is not updated for you. */
 export async function saveConversationBody(
 	projectId: string,
 	instanceId: string | null,
@@ -162,6 +181,7 @@ export async function saveConversationBody(
 	});
 }
 
+/** Removes the transcript file only; drop the index entry separately. */
 export async function deleteConversationBody(
 	projectId: string,
 	instanceId: string | null,

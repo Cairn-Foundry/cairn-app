@@ -1,3 +1,4 @@
+/** User-defined commands, in two scopes: per project and global. */
 import { get, writable } from "svelte/store";
 import {
 	type CommandScope,
@@ -10,12 +11,16 @@ import {
 import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
 import { moveItem } from "$lib/utils/terminal/terminal-order";
 
+/** Commands defined by a project, keyed by project id; only loaded projects appear. */
 export const projectCommands = writable<Record<string, CustomCommand[]>>({});
+
+/** Commands available in every project. */
 export const globalCommands = writable<CustomCommand[]>([]);
 
 const loadedProjects = new Set<string>();
 let loadedGlobal = false;
 
+/** A blank command with the defaults the editor starts from; not added to any scope. */
 export function newCommand(name: string): CustomCommand {
 	return {
 		id: crypto.randomUUID(),
@@ -31,6 +36,7 @@ export function newCommand(name: string): CustomCommand {
 	};
 }
 
+/** Writes the whole scope back to disk, fire and forget. */
 function persist(scope: CommandScope, projectId: string): void {
 	if (scope === "global") {
 		void saveGlobalCommands({ commands: get(globalCommands) }).catch(() => {});
@@ -40,6 +46,7 @@ function persist(scope: CommandScope, projectId: string): void {
 	void saveProjectCommands(projectId, { commands }).catch(() => {});
 }
 
+/** Applies a change to one scope and persists it; the single write path for both stores. */
 function updateScope(
 	scope: CommandScope,
 	projectId: string,
@@ -54,6 +61,7 @@ function updateScope(
 	persist(scope, projectId);
 }
 
+/** Loads the global commands once and this project's commands once; later calls are no-ops. */
 export async function loadCommands(projectId: string): Promise<void> {
 	if (!loadedGlobal) {
 		loadedGlobal = true;
@@ -66,6 +74,7 @@ export async function loadCommands(projectId: string): Promise<void> {
 	projectCommands.update((m) => ({ ...m, [projectId]: file?.commands ?? [] }));
 }
 
+/** Appends one command to a scope. */
 export function addCommand(
 	scope: CommandScope,
 	projectId: string,
@@ -74,6 +83,7 @@ export function addCommand(
 	updateScope(scope, projectId, (list) => [...list, command]);
 }
 
+/** Appends several commands at once, for an import. */
 export function addCommands(
 	scope: CommandScope,
 	projectId: string,
@@ -82,6 +92,7 @@ export function addCommands(
 	updateScope(scope, projectId, (list) => [...list, ...commands]);
 }
 
+/** Replaces a command by id, keeping its position. */
 export function updateCommand(
 	scope: CommandScope,
 	projectId: string,
@@ -92,6 +103,7 @@ export function updateCommand(
 	);
 }
 
+/** Deletes a command. */
 export function removeCommand(
 	scope: CommandScope,
 	projectId: string,
@@ -100,6 +112,7 @@ export function removeCommand(
 	updateScope(scope, projectId, (list) => list.filter((c) => c.id !== id));
 }
 
+/** Copies a command under a new id and name, appended at the end. */
 export function duplicateCommand(
 	scope: CommandScope,
 	projectId: string,
@@ -113,6 +126,7 @@ export function duplicateCommand(
 	});
 }
 
+/** Pinned commands are the ones shown as buttons rather than only in the list. */
 export function toggleCommandPinned(
 	scope: CommandScope,
 	projectId: string,
@@ -123,6 +137,7 @@ export function toggleCommandPinned(
 	);
 }
 
+/** Moves a command between the project and global scopes, at a chosen index; both scopes are rewritten. */
 export function moveCommandToScope(
 	from: CommandScope,
 	to: CommandScope,
@@ -144,6 +159,7 @@ export function moveCommandToScope(
 	});
 }
 
+/** Reorders a command within its scope after a drag. */
 export function reorderCommand(
 	scope: CommandScope,
 	projectId: string,

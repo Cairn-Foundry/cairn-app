@@ -25,6 +25,10 @@ import {
 } from "$lib/utils/editor/syntax-tokens";
 import type { DiffKind } from "./editor-diff-gutter";
 
+// The editor's look: which CodeMirror language extension a file gets, the
+// syntax highlight style built from the user's tokens, and one palette per theme.
+
+/** The languages the editor can highlight; anything else is `text`. */
 export type EditorLanguage =
 	| "ts"
 	| "tsx"
@@ -46,6 +50,7 @@ export type EditorLanguage =
 	| "php"
 	| "text";
 
+/** The app themes an editor palette exists for. */
 export type ThemeName =
 	| "default"
 	| "dark"
@@ -57,6 +62,10 @@ export type ThemeName =
 	| "paper"
 	| "glass";
 
+/**
+ * Markdown is built on `markdownLanguage` rather than the default: the WYSIWYG
+ * layer decorates tables, which only exist with GFM.
+ */
 export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 	switch (lang) {
 		case "tsx":
@@ -100,6 +109,7 @@ export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 
 // -- Syntax highlighting ------------------------------------------------------
 
+/** Maps the user's token colours onto the Lezer highlight tags. */
 export function buildHighlight(
 	theme: string,
 	tokens?: SyntaxTokens,
@@ -165,6 +175,7 @@ export function buildHighlight(
 
 // -- Editor theme palettes ----------------------------------------------------
 
+/** Every colour one theme needs; the syntax colours are separate. */
 interface EditorPalette {
 	bg: string;
 	fg: string;
@@ -447,10 +458,12 @@ const PALETTE_GLASS: EditorPalette = {
 	whitespace: "oklch(0.98 0.004 265 / 0.22)",
 };
 
+/** Appends an alpha to an oklch colour by rewriting its closing paren. */
 function withAlpha(color: string, alpha: number): string {
 	return color.replace(/\)\s*$/, ` / ${alpha})`);
 }
 
+/** Expands a palette into the full CodeMirror theme spec. */
 function buildThemeFromPalette(p: EditorPalette): Extension {
 	const spec: Record<string, Record<string, string>> = {
 		"&": {
@@ -619,6 +632,7 @@ const PALETTES: Record<ThemeName, EditorPalette> = {
 	glass: PALETTE_GLASS,
 };
 
+/** The diff gutter colours of a theme, for the minimap which paints its own. */
 export function diffColors(theme: string): Record<DiffKind, string> {
 	const p = PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT;
 	return {
@@ -628,10 +642,12 @@ export function diffColors(theme: string): Record<DiffKind, string> {
 	};
 }
 
+/** The theme extension, falling back to the default palette for an unknown id. */
 export function buildEditorTheme(theme: string): Extension {
 	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT);
 }
 
+/** The highlighter for a theme, using the user's tokens when there are any. */
 export function buildSyntaxHighlighting(
 	theme: string,
 	tokens?: SyntaxTokens,
@@ -639,6 +655,7 @@ export function buildSyntaxHighlighting(
 	return syntaxHighlighting(buildHighlight(theme, tokens));
 }
 
+/** Sizing of the diff gutter; its colours come from CSS variables. */
 export function buildDiffGutterTheme(): Extension {
 	return EditorView.theme({
 		".cm-diff-gutter": { width: "8px", minWidth: "8px" },

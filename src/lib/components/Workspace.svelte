@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Workspace screen: project tabs, the instance selector, the workflow steps and
+   * the tools panel, with the active view rendered in the main area. Owns the
+   * app-level shortcuts and hands every other one down to FilesView.
+   */
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
@@ -91,6 +96,7 @@
     else filesView?.openFileByPath(hit.path);
   }
 
+  /** Entry point for files passed on the command line: switches to the Files step and opens each one. */
   export async function openPathsFromCli(paths: string[]) {
     if (paths.length === 0) return;
     openStep('files');
@@ -155,6 +161,7 @@
     }
   }
 
+  /** Claims a key only for the workspace's own actions; fullscreen also works outside the workspace. */
   function handleAppKey(e: KeyboardEvent) {
     for (const id of APP_ACTIONS) {
       if (!matchesShortcut(e, $activeShortcuts[id])) continue;
@@ -308,6 +315,7 @@
 
   $: baseInst = $activeProject ? baseInstance($activeProject) : null;
 
+  // Duplicated instances are nested under their parent; roots are the ones whose parent is not in the list.
   $: instanceGroups = (() => {
     const list = $instances.filter(i => !isArchivedInstance(i));
     const byId = new Map(list.map(i => [i.id, i]));

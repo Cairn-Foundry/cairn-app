@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * What's new section: a timeline of releases on the left, the selected one on the right.
+   * Reads CHANGELOG directly - entries carry their own { en, fr } text rather than i18n keys.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { CHANGELOG, CHANGE_KINDS, localized, type ChangeKind } from '$lib/data/changelog';
@@ -21,6 +25,7 @@
       .filter(s => s.changes.length > 0),
   }));
 
+  /** Selects a release and scrolls its block into view. */
   function selectVersion(version: string) {
     selectedVersion = version;
     document
@@ -28,6 +33,7 @@
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /** An empty date means the version is still in development. */
   function formatDate(date: string): string {
     if (!date) return t('home.changelog.unreleased') as string;
     return new Date(date).toLocaleDateString(undefined, {

@@ -10,6 +10,10 @@
 </script>
 
 <script lang="ts">
+  /**
+   * LSP results panel for one symbol: definitions, implementations and usages,
+   * grouped per file into collapsible sections. Calls `onOpen` with the picked location.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { t } from '$lib/i18n';
@@ -49,6 +53,7 @@
   const CONTEXT_BEFORE = 24;
   const CONTEXT_AFTER = 56;
 
+  /** Splits the hit line into before/match/after around the symbol, elided on both ends. */
   function excerpt(hit: LspLocation): { before: string; match: string; after: string } | null {
     if (hit.text === null) return null;
     // The backend trimmed the line, so the columns have to move with it.
@@ -70,6 +75,7 @@
     return pathWithinWorktree(path, worktreePath);
   }
 
+  /** Buckets locations by worktree-relative path, line-sorted, keeping the collapsed state. */
   function group(locations: LspLocation[], sectionId: string): Group[] {
     const byPath = new Map<string, LspLocation[]>();
     for (const location of locations) {

@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Inline pending indicator, the only way this app shows an action in flight.
+   * Size it to the surrounding text (size 10 to 13); when it replaces a label,
+   * put the meaning back with title / aria-label.
+   */
   export let size: number = 13;
   export let stroke: number = 2;
   export let trackColor: string = 'oklch(1 0 0 / 0.3)';

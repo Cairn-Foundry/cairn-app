@@ -1,3 +1,4 @@
+/** Language servers: catalogue, per-root status, diagnostics, and the settings that enable them. */
 import { listen } from "@tauri-apps/api/event";
 import { get, writable } from "svelte/store";
 import {
@@ -28,18 +29,25 @@ import {
 	serverForPath,
 } from "$lib/utils/languages/servers";
 
+/** Catalogue entries with their install state, as the backend reports them. */
 const _infos = writable<LanguageServerInfo[]>([]);
+/** Status of each running server, keyed by statusKey(): one entry per server and workspace root. */
 const _statuses = writable<Record<string, LanguageServerStatus>>({});
+/** Diagnostics per absolute file path, as pushed by the servers. */
 const _diagnostics = writable<Record<string, LspDiagnostic[]>>({});
+/** Last install or update line per server, for the progress shown on its card. */
 const _managerOutput = writable<Record<string, string>>({});
+/** Result of the last update check, in memory only: see checkForUpdates(). */
 const _updateChecks = writable<Record<string, UpdateCheck>>({});
 
+/** Read-only views; every write goes through the functions below. */
 export const languageServerInfos = { subscribe: _infos.subscribe };
 export const languageServerStatuses = { subscribe: _statuses.subscribe };
 export const lspDiagnostics = { subscribe: _diagnostics.subscribe };
 export const managerOutput = { subscribe: _managerOutput.subscribe };
 export const updateChecks = { subscribe: _updateChecks.subscribe };
 
+/** A server is one process per workspace root, so both make the key. */
 function statusKey(serverId: string, root: string): string {
 	return `${serverId}:${root}`;
 }
@@ -58,6 +66,7 @@ export function liveStatusFor(
 	return entry ? entry[1] : null;
 }
 
+/** Reloads the catalogue and its install state; a failure leaves the previous list showing. */
 export async function refreshLanguageServers(
 	root: string | null,
 ): Promise<void> {
@@ -85,6 +94,7 @@ export function clearUpdateCheck(id: string): void {
 
 let unlisten: (() => void)[] = [];
 
+/** Subscribes to the backend LSP events, once; call disposeLanguageServers() to unsubscribe. */
 export function initLanguageServers(): void {
 	if (unlisten.length > 0) return;
 	void listen<LspStatusEvent>("lsp-status", ({ payload }) => {
@@ -109,15 +119,18 @@ export function initLanguageServers(): void {
 	}).then((off) => unlisten.push(off));
 }
 
+/** Detaches the event listeners. */
 export function disposeLanguageServers(): void {
 	for (const off of unlisten) off();
 	unlisten = [];
 }
 
+/** The user setting for a server, or null when it has never been configured. */
 function settingFor(id: string): LanguageServerSetting | null {
 	return get(settings).languageServers.find((s) => s.id === id) ?? null;
 }
 
+/** A server with no setting counts as disabled: nothing starts unless the user asked for it. */
 function isServerEnabled(id: string): boolean {
 	return settingFor(id)?.enabled ?? false;
 }
@@ -208,10 +221,12 @@ export function clearDiagnosticsFor(path: string): void {
 	_diagnostics.update(({ [path]: _dropped, ...rest }) => rest);
 }
 
+/** Clears the progress line of a server once its install is over. */
 export function clearManagerOutput(id: string): void {
 	_managerOutput.update(({ [id]: _dropped, ...rest }) => rest);
 }
 
+/** Silences the suggestion for a server for good. */
 export function dismissServerSuggestion(id: string): void {
 	const current = get(settings).dismissedLanguageServers;
 	if (current.includes(id)) return;
@@ -268,6 +283,7 @@ export async function ensureDocument(
 	return root ? { serverId: def.id, root, path: absolutePath } : null;
 }
 
+/** Drops the diagnostics of every file inside a worktree. */
 function clearDiagnosticsUnder(worktree: string): void {
 	_diagnostics.update((current) => {
 		const next: Record<string, LspDiagnostic[]> = {};
@@ -278,6 +294,7 @@ function clearDiagnosticsUnder(worktree: string): void {
 	});
 }
 
+/** Shuts down every server running on a worktree, typically when its instance is deleted. */
 export async function stopServersForWorktree(worktree: string): Promise<void> {
 	clearDiagnosticsUnder(worktree);
 	await stopLanguageServersFor(worktree).catch(() => {});

@@ -12,6 +12,10 @@ import {
 	writeToTerminal,
 } from "$lib/services/terminal-service";
 
+// The xterm instances, kept alive outside the component tree so a terminal
+// survives switching view: the DOM node is moved into a slot, never rebuilt.
+
+/** One live terminal and the element it renders into. */
 interface ManagedTerminal {
 	term: Terminal;
 	fit: FitAddon;
@@ -23,6 +27,8 @@ const managed = new Map<string, ManagedTerminal>();
 
 const FALLBACK_FONT = "'JetBrains Mono', 'Fira Code', monospace";
 
+/** Resolves a CSS colour variable through a probe element, since xterm needs
+ * a concrete colour rather than a `var()` reference. */
 function cssVar(name: string, fallback: string): string {
 	if (typeof document === "undefined") return fallback;
 	const probe = document.createElement("span");
@@ -44,6 +50,7 @@ function cssFontVar(name: string, fallback: string): string {
 	return value || fallback;
 }
 
+/** The xterm palette, taken from the app theme currently applied. */
 function buildTheme() {
 	return {
 		background: cssVar("--bg-0", "#161616"),
@@ -54,6 +61,7 @@ function buildTheme() {
 	};
 }
 
+/** Refits to the slot; a terminal in a hidden view has no size to fit to. */
 function refitTerminal(m: ManagedTerminal): void {
 	if (!m.opened) return;
 	try {
@@ -63,6 +71,7 @@ function refitTerminal(m: ManagedTerminal): void {
 	}
 }
 
+/** Repaints every terminal after a theme change, refitting only on a font change. */
 function applyTheme(): void {
 	const theme = buildTheme();
 	const fontFamily = cssFontVar("--font-mono", FALLBACK_FONT);
@@ -85,6 +94,11 @@ if (typeof document !== "undefined") {
 
 const isMac = IS_MAC;
 
+/**
+ * Returns false to swallow the key. Only copy is intercepted: Ctrl+V and the
+ * rest must reach the shell, and on macOS Cmd+C would otherwise be sent as a
+ * control sequence instead of copying the selection.
+ */
 function handleClipboardKey(term: Terminal, e: KeyboardEvent): boolean {
 	if (e.type !== "keydown") return true;
 	const copyCombo = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey;
@@ -99,6 +113,7 @@ function handleClipboardKey(term: Terminal, e: KeyboardEvent): boolean {
 	return true;
 }
 
+/** A PTY that ended; `exitCode` is null when it was killed by a signal. */
 export interface TerminalExit {
 	id: string;
 	exitCode: number | null;
@@ -106,6 +121,7 @@ export interface TerminalExit {
 
 const exitHandlers = new Set<(exit: TerminalExit) => void>();
 
+/** Subscribes to PTY exits, returning the unsubscribe. */
 export function onTerminalExit(
 	handler: (exit: TerminalExit) => void,
 ): () => void {
@@ -129,6 +145,7 @@ const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 ]);
 void listenersReady;
 
+/** Quotes a dropped path so a shell receives it as one argument. */
 function quotePath(p: string): string {
 	return /\s/.test(p) ? `'${p.replace(/'/g, "'\\''")}'` : p;
 }
@@ -155,6 +172,7 @@ if (typeof window !== "undefined") {
 	});
 }
 
+/** Builds a terminal and wires its I/O; does nothing if `id` already exists. */
 export function create(id: string): void {
 	if (managed.has(id)) return;
 
@@ -188,6 +206,7 @@ export function create(id: string): void {
 	managed.set(id, { term, fit, el, opened: false });
 }
 
+/** Moves the existing element into `slot`, opening xterm on first attach only. */
 export function attach(id: string, slot: HTMLElement): void {
 	const m = managed.get(id);
 	if (!m) return;
@@ -202,20 +221,24 @@ export function attach(id: string, slot: HTMLElement): void {
 	});
 }
 
+/** Recomputes rows and columns from the current slot size. */
 export function refit(id: string): void {
 	const m = managed.get(id);
 	if (m) refitTerminal(m);
 }
 
+/** Gives the terminal keyboard focus. */
 export function focus(id: string): void {
 	managed.get(id)?.term.focus();
 }
 
+/** Current dimensions, falling back to 80x24 for an unknown id. */
 export function size(id: string): { cols: number; rows: number } {
 	const m = managed.get(id);
 	return m ? { cols: m.term.cols, rows: m.term.rows } : { cols: 80, rows: 24 };
 }
 
+/** Tears the terminal down and forgets it. */
 export function dispose(id: string): void {
 	const m = managed.get(id);
 	if (!m) return;

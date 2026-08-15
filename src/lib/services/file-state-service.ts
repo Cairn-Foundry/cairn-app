@@ -1,5 +1,9 @@
+// Editor layout of one instance - tabs, cursor, scroll, tree expansion - in
+// file-state.json. Only this layer calls invoke().
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** One reopened tab; `cursorPos` is a document offset, not a line number. */
 export interface PersistedTab {
 	path: string;
 	cursorPos: number;
@@ -7,19 +11,23 @@ export interface PersistedTab {
 	pinned?: boolean;
 }
 
+/** One editor pane and which of its tabs was in front. */
 export interface PersistedPane {
 	tabs: PersistedTab[];
 	activeTabIdx: number;
 }
 
+/** Everything the Files view restores on reopen; mirrors the Rust `FileState`. */
 export interface FileState {
 	panes: PersistedPane[];
+	/** Directories left open in the file tree. */
 	expanded: string[];
 	splitMode: boolean;
 	splitLeftWidth: number;
 	recentFiles: string[];
 }
 
+/** Null for an instance that was never opened; the caller starts from an empty layout. */
 export async function getFileState(
 	projectId: string,
 	instanceId: string,
@@ -34,6 +42,7 @@ export async function getFileState(
 	}
 }
 
+/** Fire and forget: called on every cursor and scroll change, so it must never throw. */
 export function saveFileState(
 	projectId: string,
 	instanceId: string,

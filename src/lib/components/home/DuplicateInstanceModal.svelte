@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Asks for the title of the duplicated instance, and whether to carry the working changes over.
+   * Dispatches `confirm` with { title, copyWorkingChanges }.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -16,6 +20,7 @@
     confirm: { title: string; copyWorkingChanges: boolean };
   }>();
 
+  /** Action preselecting the suggested title, so typing replaces it outright. */
   function autoSelect(node: HTMLInputElement) {
     tick().then(() => node.select());
   }

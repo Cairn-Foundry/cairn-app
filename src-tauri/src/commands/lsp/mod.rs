@@ -1,3 +1,6 @@
+//! Language server support: installing and updating servers from the catalogue,
+//! starting them per workspace, and forwarding the editor's LSP requests.
+
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};

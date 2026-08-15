@@ -1,8 +1,12 @@
+//! The registered projects and how the home screen lists them: `projects.json`
+//! holds the projects themselves, `listing.json` their order and folders.
+
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use crate::storage::{projects_file, listing_file, worktrees_dir, cairn_dir, write_json_atomic};
 
+/// A repository registered in the app, identified by a frontend-minted id.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
     pub id: String,
@@ -13,6 +17,7 @@ pub struct Project {
     pub active_instance_id: Option<String>,
 }
 
+/// Empty on a first launch; shared with the other command modules.
 pub fn read_projects() -> Result<Vec<Project>, String> {
     let path = projects_file()?;
     if !path.exists() { return Ok(vec![]); }
@@ -20,15 +25,20 @@ pub fn read_projects() -> Result<Vec<Project>, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Overwrites the whole list atomically.
 pub fn write_projects(projects: &Vec<Project>) -> Result<(), String> {
     write_json_atomic(&projects_file()?, projects)
 }
 
+/// Storage order, not display order: the home list applies `listing.json`.
 #[tauri::command]
 pub fn list_projects() -> Result<Vec<Project>, String> {
     read_projects()
 }
 
+/// Rejects a duplicate id, and a path that canonicalizes onto an existing
+/// project so the same repo cannot be registered twice through a symlink.
+/// Returns the updated list.
 #[tauri::command]
 pub fn add_project(project: Project) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
@@ -50,6 +60,8 @@ pub fn add_project(project: Project) -> Result<Vec<Project>, String> {
     Ok(projects)
 }
 
+/// Also deletes the project's whole `~/.cairn` directory (instances,
+/// conversations, worktrees). The user's repository itself is never touched.
 #[tauri::command]
 pub fn remove_project(id: String) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
@@ -62,6 +74,7 @@ pub fn remove_project(id: String) -> Result<Vec<Project>, String> {
     Ok(projects)
 }
 
+/// Renames and recolors only: the path is fixed once registered.
 #[tauri::command]
 pub fn update_project(id: String, name: String, color: String) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
@@ -74,6 +87,8 @@ pub fn update_project(id: String, name: String, color: String) -> Result<Vec<Pro
     Ok(projects)
 }
 
+/// A second entry on the same repository path, with its own data directory and
+/// no instances. This is the one case where two projects may share a path.
 #[tauri::command]
 pub fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
@@ -94,6 +109,7 @@ pub fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, Str
     Ok(projects)
 }
 
+/// `None` clears the selection, leaving the project with no instance open.
 #[tauri::command]
 pub fn set_active_instance(project_id: String, instance_id: Option<String>) -> Result<(), String> {
     let mut projects = read_projects()?;
@@ -106,6 +122,7 @@ pub fn set_active_instance(project_id: String, instance_id: Option<String>) -> R
 
 // listing.json
 
+/// A folder grouping projects in the home list.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProjectFolder {
     pub id: String,
@@ -115,6 +132,7 @@ pub struct ProjectFolder {
     pub collapsed: bool,
 }
 
+/// How the home screen arranges the projects: folders plus a flat order.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ListingConfig {
     #[serde(default)]
@@ -123,6 +141,7 @@ pub struct ListingConfig {
     pub project_order: Vec<String>,
 }
 
+/// Defaults to no folders and no explicit order.
 fn read_listing() -> Result<ListingConfig, String> {
     let path = listing_file()?;
     if !path.exists() { return Ok(ListingConfig::default()); }
@@ -130,15 +149,18 @@ fn read_listing() -> Result<ListingConfig, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Overwrites folders and order together, atomically.
 fn write_listing(listing: &ListingConfig) -> Result<(), String> {
     write_json_atomic(&listing_file()?, listing)
 }
 
+/// Folders and order in one read, both needed to draw the home list.
 #[tauri::command]
 pub fn get_listing() -> Result<ListingConfig, String> {
     read_listing()
 }
 
+/// Replaces the folders while leaving the project order untouched.
 #[tauri::command]
 pub fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
     let mut listing = read_listing()?;
@@ -146,6 +168,7 @@ pub fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
     write_listing(&listing)
 }
 
+/// Replaces the order after a drag, leaving the folders untouched.
 #[tauri::command]
 pub fn save_project_order(ids: Vec<String>) -> Result<(), String> {
     let mut listing = read_listing()?;

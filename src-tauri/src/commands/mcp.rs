@@ -1,3 +1,6 @@
+//! MCP server configuration: the registered servers, their approval state, and
+//! importing, exporting and connection-testing them.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{BufRead, BufReader, Write};

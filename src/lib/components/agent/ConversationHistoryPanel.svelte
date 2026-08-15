@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * Conversation list for the Agent view: two collapsible scopes, project then
+   * instance, with rename, pin, archive, duplicate, download and delete.
+   * Archiving filters those same two groups, it never adds a third list, and
+   * order is never manual - dragging a row only moves it between scopes.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import SearchInput from '$lib/components/SearchInput.svelte';
   import { t } from '$lib/i18n';
@@ -53,6 +59,7 @@
 
   const DRAG_THRESHOLD = 6;
 
+  /** Rows of one scope: the Active/Archived filter and the search, then pinned first. */
   function rowsOf(list: ConversationMeta[], scope: ConversationScope): Row[] {
     const visible = list.filter(
       (meta) => meta.archived === showArchived && conversationMatches(meta, query),
@@ -100,6 +107,7 @@
     pendingDelete = null;
   }
 
+  /** Arms a drag on pointer events - the HTML5 drag API is unusable in the webview. */
   function dragPointerDown(e: PointerEvent, meta: ConversationMeta, scope: ConversationScope) {
     if (renamingId === meta.id) return;
     if ((e.target as Element).closest('.row-menu, .row-dropdown, .rename-input')) return;
@@ -112,6 +120,7 @@
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
+  /** Which section the pointer is over, used to pick the drop target. */
   function scopeAt(y: number): ConversationScope | null {
     for (const scope of ['project', 'instance'] as const) {
       const el = sectionEls[scope];
@@ -122,6 +131,7 @@
     return null;
   }
 
+  /** Starts the drag past the threshold, then highlights the other scope as target. */
   function dragPointerMove(e: PointerEvent) {
     if (!dragged) return;
     if (!dragActive) {

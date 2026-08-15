@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Inline card asking the user to allow or deny one agent tool call.
+   * `onAnswer` resolves the pending request; ExitPlanMode renders as a plan
+   * approval rather than a tool prompt.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import type {

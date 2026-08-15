@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Editable map of string pairs, used for MCP env vars and HTTP headers.
+   * Dispatches `change` with the whole map; `secret` masks the values until revealed.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -20,6 +24,7 @@
     dispatch('change', next);
   }
 
+  /** Renames a key in place, so the pairs keep the order they were typed in. */
   function rename(from: string, to: string) {
     const trimmed = to.trim();
     if (trimmed === from) return;

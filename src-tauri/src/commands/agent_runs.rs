@@ -1,3 +1,6 @@
+//! The agent runs of a project: a capped history of what ran, what came back,
+//! and what was still in flight when the app last closed.
+
 use std::fs;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

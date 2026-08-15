@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Recap of what an imported config file resolved to, shown before it is applied.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

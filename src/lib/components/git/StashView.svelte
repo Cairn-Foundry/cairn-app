@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Stash list with search and the create / rename / apply / pop / drop actions.
+   * Dispatches `selectStash`, with null to clear the selection when the stash is gone.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -68,6 +72,7 @@
     newStashOpen = false;
   }
 
+  /** Creates the stash from the modal fields and drops the current selection. */
   async function handlePush() {
     isSaving = true;
     try {
@@ -80,6 +85,7 @@
   }
 
   // Edit modal
+  /** Opens the rename modal prefilled with the stash message, or its name when empty. */
   async function openEdit(stash: GitStash) {
     editTarget = stash;
     editMessage = stash.message || stash.name;
@@ -94,6 +100,7 @@
     editTarget = null;
   }
 
+  /** Renames the stash, which recreates it, so the selection is cleared. */
   async function handleRename() {
     if (!editTarget || !editMessage.trim()) return;
     isEditing = true;
@@ -123,6 +130,7 @@
     deleteTarget = null;
   }
 
+  /** Drops the targeted stash, or clears them all when no target is set. */
   async function handleDelete() {
     isDeleting = true;
     try {
@@ -151,6 +159,7 @@
     }
   }
 
+  /** Pops the stash and clears the selection since the entry disappears. */
   async function handlePop(stash: GitStash) {
     loadingIndex = stash.index;
     try {
@@ -161,6 +170,7 @@
     }
   }
 
+  /** Compact age label, falling back to a formatted date beyond a month. */
   function relativeTime(dateStr: string): string {
     if (!dateStr) return '';
     const diff = Date.now() - new Date(dateStr).getTime();

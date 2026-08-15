@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Download progress bar for an app update. Falls back to an indeterminate
+   * bar when the server sends no content length.
+   */
   export let downloaded: number = 0;
   export let total: number | null = null;
   export let thin: boolean = false;

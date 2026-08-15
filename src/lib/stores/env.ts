@@ -1,3 +1,4 @@
+/** Environment variables in three scopes - global, project, instance - and the .env file generated from them. */
 import { derived, get, writable } from "svelte/store";
 import { getSystemUser } from "$lib/services/custom-command-service";
 import {
@@ -32,8 +33,13 @@ import { activeProject } from "./project";
 
 const PERSIST_DEBOUNCE_MS = 250;
 
+/** Variables applying everywhere. Lowest precedence of the three scopes. */
 export const globalEnv = writable<EnvFile>(emptyEnvFile());
+
+/** Variables of each project, keyed by project id; they override the global ones. */
 export const projectEnvs = writable<Record<string, EnvFile>>({});
+
+/** Variables of each instance, keyed by envKey(), plus its overrides of perInstance variables. Highest precedence. */
 export const instanceEnvs = writable<Record<string, EnvFile>>({});
 
 /** Instances whose target file exists but was not written by Cairn. */
@@ -42,6 +48,7 @@ export const envFileConflicts = writable<Record<string, boolean>>({});
 /** Token values used to interpolate `{{ ... }}` inside variable values. */
 export const envInterpolationValues = writable<Record<string, string>>({});
 
+/** The key the instance-scoped maps are indexed by. */
 export function envKey(projectId: string, instanceId: string): string {
 	return `${projectId}:${instanceId}`;
 }
@@ -52,6 +59,7 @@ let loadedGlobal = false;
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/** Debounces a write per key: editing a value fires on every keystroke. */
 function schedule(key: string, write: () => void): void {
 	const pending = timers.get(key);
 	if (pending) clearTimeout(pending);
@@ -64,11 +72,13 @@ function schedule(key: string, write: () => void): void {
 	);
 }
 
+/** Non-reactive read of a project's file, empty when it has none. */
 export function projectEnvFile(projectId: string | null): EnvFile {
 	if (!projectId) return emptyEnvFile();
 	return get(projectEnvs)[projectId] ?? emptyEnvFile();
 }
 
+/** Non-reactive read of an instance's file, empty when it has none. */
 export function instanceEnvFile(
 	projectId: string | null,
 	instanceId: string | null,
@@ -77,6 +87,7 @@ export function instanceEnvFile(
 	return get(instanceEnvs)[envKey(projectId, instanceId)] ?? emptyEnvFile();
 }
 
+/** Reads the three scopes, each at most once; the global and project files are shared. */
 export async function loadEnv(
 	projectId: string,
 	instanceId: string | null,
@@ -103,6 +114,7 @@ export async function loadEnv(
 // Mutations
 // ---------------------------------------------------------------------------
 
+/** Changes the global file and schedules its write. */
 function updateGlobal(fn: (file: EnvFile) => EnvFile): void {
 	globalEnv.update(fn);
 	schedule("global", () => {
@@ -110,6 +122,7 @@ function updateGlobal(fn: (file: EnvFile) => EnvFile): void {
 	});
 }
 
+/** Changes a project file and schedules its write. */
 function updateProject(
 	projectId: string,
 	fn: (file: EnvFile) => EnvFile,
@@ -123,6 +136,7 @@ function updateProject(
 	});
 }
 
+/** Changes an instance file and schedules its write. */
 function updateInstance(
 	projectId: string,
 	instanceId: string,
@@ -142,6 +156,7 @@ function updateInstance(
 	});
 }
 
+/** Routes a change to the right scope; an instance change with no instance id is dropped. */
 function updateScope(
 	scope: EnvScope,
 	projectId: string,
@@ -153,12 +168,14 @@ function updateScope(
 	else if (instanceId) updateInstance(projectId, instanceId, fn);
 }
 
+/** Lifts a list transform into a file transform, leaving the overrides alone. */
 function mapVariables(
 	fn: (list: EnvVariable[]) => EnvVariable[],
 ): (file: EnvFile) => EnvFile {
 	return (file) => ({ ...file, variables: fn(file.variables) });
 }
 
+/** A blank variable with a fresh id, enabled and not secret. */
 export function newVariable(key = "", value = ""): EnvVariable {
 	return {
 		id: crypto.randomUUID(),
@@ -184,6 +201,7 @@ export function overrideValue(
 	return overrides[variable.id] ?? variable.defaultValue;
 }
 
+/** Appends variables to a scope. */
 export function addVariables(
 	scope: EnvScope,
 	projectId: string,
@@ -198,6 +216,7 @@ export function addVariables(
 	);
 }
 
+/** Replaces a variable by id, keeping its position. */
 export function updateVariable(
 	scope: EnvScope,
 	projectId: string,
@@ -214,6 +233,7 @@ export function updateVariable(
 	);
 }
 
+/** Deletes a variable from its scope. */
 export function removeVariable(
 	scope: EnvScope,
 	projectId: string,
@@ -228,6 +248,7 @@ export function removeVariable(
 	);
 }
 
+/** A disabled variable stays declared but is left out of the resolved environment. */
 export function toggleVariableEnabled(
 	scope: EnvScope,
 	projectId: string,
@@ -244,6 +265,7 @@ export function toggleVariableEnabled(
 	);
 }
 
+/** Sets an instance's value for a perInstance variable; null removes the override and restores the default. */
 export function setOverride(
 	projectId: string,
 	instanceId: string,
@@ -258,6 +280,7 @@ export function setOverride(
 	});
 }
 
+/** Non-reactive read of one scope's variables. */
 export function scopeVariables(
 	scope: EnvScope,
 	projectId: string | null,
@@ -268,6 +291,7 @@ export function scopeVariables(
 	return instanceEnvFile(projectId, instanceId).variables;
 }
 
+/** Moves a single variable; the one-item case of moveVariables(). */
 export function moveVariable(
 	from: EnvScope,
 	to: EnvScope,
@@ -351,6 +375,7 @@ export function moveVariables(
 	);
 }
 
+/** Sets whether the generated file is written, and under which name. */
 export function setProjectEnvOptions(
 	projectId: string,
 	patch: Partial<Pick<EnvFile, "writeEnvFile" | "envFileName">>,
@@ -362,6 +387,7 @@ export function setProjectEnvOptions(
 // Resolution
 // ---------------------------------------------------------------------------
 
+/** Flattens the three scopes into the final entries, applying overrides and interpolation. */
 export function resolveInstanceEnv(
 	projectId: string | null,
 	instanceId: string | null,
@@ -377,6 +403,7 @@ export function resolveInstanceEnv(
 	});
 }
 
+/** The resolved environment of the active instance, for the Env view. */
 export const resolvedEnv = derived(
 	[
 		globalEnv,
@@ -390,8 +417,10 @@ export const resolvedEnv = derived(
 		resolveInstanceEnv($project?.id ?? null, $instance?.id ?? null, $values),
 );
 
+// The login name never changes during a session, so it is fetched once.
 let systemUser: Promise<string> | null = null;
 
+/** Recomputes the interpolation tokens for an instance: its branch, worktree, ticket, and the git identity. */
 async function refreshInterpolationValues(
 	project: Project,
 	instance: Instance,

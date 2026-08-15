@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Confirmation before deleting a project folder (the projects themselves are kept).
+   * Dispatches `confirm` or `close`.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

@@ -1,3 +1,4 @@
+/** One section of the icon picker. */
 export interface IconGroup {
 	id: string;
 	names: string[];
@@ -110,6 +111,8 @@ export const ICON_GROUPS: IconGroup[] = [
 	},
 ];
 
+/** Every offered name, flattened, for validating a stored icon. */
 export const ICON_NAMES: string[] = ICON_GROUPS.flatMap((g) => g.names);
 
+/** Fallback for a command whose name suggests nothing. */
 export const DEFAULT_COMMAND_ICON = "play";

@@ -1,5 +1,9 @@
 import type { FileNode, GitStatusMap } from "$lib/services/file-service";
 
+// The file tree's own logic: what is visible, how git status rolls up onto a
+// directory, and the relative/absolute path convention tabs are keyed by.
+
+/** Most to least urgent: a directory shows the worst status underneath it. */
 export const GIT_STATUS_PRIORITY = [
 	"conflicted",
 	"staged",
@@ -9,6 +13,7 @@ export const GIT_STATUS_PRIORITY = [
 ] as const;
 export type GitStatus = (typeof GIT_STATUS_PRIORITY)[number];
 
+/** The rows actually drawn: a collapsed directory hides its whole subtree. */
 export function flattenVisible(
 	nodes: FileNode[],
 	expanded: Set<string>,
@@ -22,6 +27,7 @@ export function flattenVisible(
 	return result;
 }
 
+/** The nodes matching `paths`, in tree order rather than selection order. */
 export function flattenToNodes(
 	tree: FileNode[],
 	paths: Set<string>,
@@ -37,6 +43,7 @@ export function flattenToNodes(
 	return result;
 }
 
+/** Every file path in the tree; directories are not included. */
 export function collectFilePaths(nodes: FileNode[]): Set<string> {
 	const result = new Set<string>();
 	function walk(ns: FileNode[]) {
@@ -49,6 +56,7 @@ export function collectFilePaths(nodes: FileNode[]): Set<string> {
 	return result;
 }
 
+/** Depth-first lookup by exact path. */
 function findNode(nodes: FileNode[], path: string): FileNode | null {
 	for (const n of nodes) {
 		if (n.path === path) return n;
@@ -60,6 +68,7 @@ function findNode(nodes: FileNode[], path: string): FileNode | null {
 	return null;
 }
 
+/** The names already taken in a directory, for rename and paste collisions. */
 export function getSiblingNames(
 	tree: FileNode[],
 	parentPath: string,
@@ -70,6 +79,7 @@ export function getSiblingNames(
 	);
 }
 
+/** Folds the `staged-*` variants into `staged`; null for anything unknown. */
 export function normalizeGitStatus(status: string): GitStatus | null {
 	if (status.startsWith("staged-")) return "staged";
 	if (GIT_STATUS_PRIORITY.includes(status as GitStatus))
@@ -77,6 +87,11 @@ export function normalizeGitStatus(status: string): GitStatus | null {
 	return null;
 }
 
+/**
+ * A directory takes the most urgent status found below it, deletions excluded:
+ * a folder whose files were deleted is not itself deleted, and marking it so
+ * would flag half the tree after a large removal.
+ */
 export function nodeGitStatus(
 	node: FileNode,
 	gitStatusMap: GitStatusMap,
@@ -97,6 +112,7 @@ export function nodeGitStatus(
 	return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
 }
 
+/** Each segment with the path that leads to it, so a crumb can be clicked. */
 export function breadcrumbSegments(
 	path: string,
 ): { name: string; path: string }[] {
@@ -107,6 +123,7 @@ export function breadcrumbSegments(
 	}));
 }
 
+/** Directories reflect their expanded state; files are typed by extension. */
 export function fileIcon(node: FileNode, expanded: Set<string>): string {
 	if (node.isDir) return expanded.has(node.path) ? "folder-open" : "folder";
 	const ext = node.name.split(".").pop()?.toLowerCase() ?? "";
@@ -115,6 +132,7 @@ export function fileIcon(node: FileNode, expanded: Set<string>): string {
 	return "file";
 }
 
+/** Free name for a paste: "x.ts", then "x copy.ts", then "x copy 2.ts". */
 export function pasteDestName(
 	srcName: string,
 	existingNames: Set<string>,
@@ -129,6 +147,8 @@ export function pasteDestName(
 	return candidate;
 }
 
+/** Same, against the real destination - a move within a directory keeps its
+ * own name rather than colliding with itself. */
 export function resolveDestName(
 	rawTree: FileNode[],
 	srcPath: string,
@@ -143,10 +163,12 @@ export function resolveDestName(
 	return pasteDestName(name, siblings);
 }
 
+/** The containing directory, "" for a node at the root. */
 export function parentPathOf(path: string): string {
 	return path.includes("/") ? path.split("/").slice(0, -1).join("/") : "";
 }
 
+/** The last segment of a path. */
 export function basename(path: string): string {
 	return path.split("/").pop() ?? path;
 }
@@ -159,6 +181,7 @@ export function isExternalPath(path: string): boolean {
 	return path.startsWith("/");
 }
 
+/** A tab key back to a real path on disk. */
 export function absolutePathOf(
 	path: string,
 	worktreePath: string | null,

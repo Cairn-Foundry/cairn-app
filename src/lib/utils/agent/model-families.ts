@@ -1,6 +1,10 @@
 import { prettyModelName } from "$lib/components/home/agents/providers-data";
 import type { DiscoveredModel } from "$lib/services/ai-provider-service";
 
+// Grouping a provider's reported model ids into families, purely by parsing the
+// ids: nothing about any vendor's naming is hardcoded.
+
+/** One family and the releases that belong to it, newest-alias first. */
 export interface ModelFamily {
 	key: string;
 	label: string;
@@ -9,6 +13,10 @@ export interface ModelFamily {
 
 const NOISE = new Set(["latest", "preview", "exp"]);
 
+/**
+ * An id split into meaningful parts, with the `models/` prefix, any `:suffix`,
+ * a trailing yyyymmdd date and the noise words dropped.
+ */
 function tokensOf(id: string): string[] {
 	return id
 		.replace(/^models\//, "")
@@ -39,6 +47,7 @@ function sharedPrefix(models: DiscoveredModel[]): string | null {
 	return heads.every((head) => head === heads[0]) ? heads[0] : null;
 }
 
+/** An id with no digit at all is an alias rather than a pinned release. */
 function isVersionless(id: string): boolean {
 	return !/\d/.test(id);
 }

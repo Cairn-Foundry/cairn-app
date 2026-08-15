@@ -1,3 +1,4 @@
+/** Every bindable command; each id needs a matching entry in SHORTCUT_DEFS (stores/shortcuts.ts). */
 export type ShortcutId =
 	| "quickOpen"
 	| "searchFiles"
@@ -60,6 +61,7 @@ export type ShortcutId =
 	| "reloadEditor"
 	| "reloadProject";
 
+/** Placeholder key of a binding triggered by a click instead of a keystroke. */
 export const MOUSE_KEY = "Click";
 
 /** The modifiers a binding matches on, as carried by a mouse or key event. */
@@ -70,6 +72,7 @@ export interface ModifierState {
 	metaKey: boolean;
 }
 
+/** A single keystroke or click; `mod` is the platform accelerator (Cmd on macOS, Ctrl elsewhere). */
 export interface ShortcutBinding {
 	key: string;
 	mod: boolean;
@@ -78,6 +81,7 @@ export interface ShortcutBinding {
 	ctrl: boolean;
 }
 
+/** Static declaration of a command: its label, group and factory-default binding. */
 export interface ShortcutDef {
 	id: ShortcutId;
 	label: string;
@@ -90,6 +94,7 @@ export interface ShortcutDef {
 	hidden?: boolean;
 }
 
+/** A user override of a ShortcutDef; a null binding means the command has been unbound. */
 export interface ShortcutConfig {
 	id: ShortcutId;
 	binding: ShortcutBinding | null;

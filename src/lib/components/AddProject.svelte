@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Multi-step modal registering a project, from a new folder, an existing one or
+   * a clone. `mode` drives which steps are shown; dispatches `created` with the
+   * new project id, or `close`.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -98,6 +103,7 @@
   function back()  { if (!loading) { error = ''; step = Math.max(0, step - 1); } }
   function close() { if (!loading) dispatch('close'); }
 
+  /** Resolves the path (cloning first when needed), rejects duplicates, then registers the project. */
   async function submit() {
     if (!canNext || loading) return;
     loading = true;

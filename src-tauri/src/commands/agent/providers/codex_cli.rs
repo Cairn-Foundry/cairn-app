@@ -1,3 +1,5 @@
+//! The OpenAI Codex CLI provider, reading the thread items of `codex exec --json`.
+
 use serde_json::{json, Value};
 
 use super::super::{
@@ -6,6 +8,7 @@ use super::super::{
 };
 use super::cli_common::{run_cli, tool_label};
 
+/// Codex CLI, resumed by thread id.
 pub struct CodexCliProvider;
 
 /// The type of a thread item, whichever spelling the installed CLI uses:
@@ -18,6 +21,7 @@ fn item_type(item: &Value) -> &str {
         .unwrap_or("")
 }
 
+/// The id that ties the row drawn when an item starts to the one that closes it.
 fn item_id(item: &Value) -> Option<String> {
     item.get("id").and_then(Value::as_str).map(String::from)
 }

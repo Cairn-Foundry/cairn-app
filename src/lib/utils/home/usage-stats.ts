@@ -1,13 +1,19 @@
 import type { UsageEntry } from "$lib/services/usage-service";
 
+// The whole usage dashboard runs on this file: filtering the ledger by range,
+// summing it, grouping it by dimension, and shaping it for the charts.
+
+/** The ranges the dashboard offers. */
 export type UsageRangeId = "7d" | "30d" | "90d" | "all";
 
+/** A selectable range. */
 export interface UsageRange {
 	id: UsageRangeId;
 	/** Days the range covers, or null when it covers the whole ledger. */
 	days: number | null;
 }
 
+/** The ranges in the order the selector shows them. */
 export const USAGE_RANGES: UsageRange[] = [
 	{ id: "7d", days: 7 },
 	{ id: "30d", days: 30 },
@@ -15,6 +21,7 @@ export const USAGE_RANGES: UsageRange[] = [
 	{ id: "all", days: null },
 ];
 
+/** What the usage table can be broken down by. */
 export type UsageDimension =
 	| "model"
 	| "provider"
@@ -22,6 +29,7 @@ export type UsageDimension =
 	| "agent"
 	| "conversation";
 
+/** Everything the summary cards show, sums and derived ratios alike. */
 export interface UsageTotals {
 	turns: number;
 	inputTokens: number;
@@ -41,6 +49,7 @@ export interface UsageTotals {
 	tokensPerTurn: number;
 }
 
+/** One row of the breakdown table. */
 export interface UsageGroup {
 	key: string;
 	label: string;
@@ -55,6 +64,7 @@ export interface UsageGroup {
 	share: number;
 }
 
+/** One column of the daily chart. */
 export interface UsageBucket {
 	/** Local calendar day, as YYYY-MM-DD. */
 	day: string;
@@ -73,6 +83,7 @@ export function dayKey(ts: number): string {
 	return `${d.getFullYear()}-${month}-${day}`;
 }
 
+/** Local midnight of the day a timestamp falls in. */
 function startOfDay(ts: number): number {
 	const d = new Date(ts);
 	d.setHours(0, 0, 0, 0);
@@ -93,6 +104,7 @@ export function rangeWindow(
 	return { from: startOfDay(now) - (range.days - 1) * 86_400_000, to };
 }
 
+/** The entries inside the range; `all` keeps the whole ledger. */
 export function filterRange(
 	entries: UsageEntry[],
 	range: UsageRange,
@@ -114,6 +126,7 @@ export function previousRange(
 	return entries.filter((e) => e.ts >= from - span && e.ts < from);
 }
 
+/** One pass over the entries: sums, distinct counts, then the ratios. */
 export function totals(entries: UsageEntry[]): UsageTotals {
 	const t: UsageTotals = {
 		turns: entries.length,
@@ -301,6 +314,7 @@ export function trend(current: number, previous: number): number | null {
 	return (current - previous) / previous;
 }
 
+/** The ledger as CSV, quoting only the cells that need it. */
 export function usageCsv(entries: UsageEntry[]): string {
 	const header = [
 		"timestamp",

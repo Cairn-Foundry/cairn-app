@@ -1,3 +1,6 @@
+//! Translating between Cairn's style options and the config files of each
+//! formatter, in both directions: import reads them, export writes them.
+
 use std::collections::BTreeMap;
 
 use serde::Serialize;

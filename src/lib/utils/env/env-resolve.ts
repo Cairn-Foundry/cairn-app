@@ -1,6 +1,10 @@
 import type { EnvScope, EnvVariable } from "$lib/services/env-service";
 import { isValidEnvKey } from "./env-file";
 
+// Flattening the three variable scopes into the environment a command runs
+// with, then expanding the references variables make to each other.
+
+/** One exported variable, with the scope it ended up coming from. */
 export interface ResolvedEnvEntry {
 	key: string;
 	value: string;
@@ -9,6 +13,7 @@ export interface ResolvedEnvEntry {
 	secret: boolean;
 }
 
+/** The three scopes plus the per-instance answers to resolve them against. */
 export interface EnvResolutionInput {
 	global: EnvVariable[];
 	project: EnvVariable[];
@@ -86,6 +91,7 @@ export function expandReferences(
 	}));
 }
 
+/** The resolved entries as the plain key/value map a process expects. */
 export function toEnvRecord(
 	entries: ResolvedEnvEntry[],
 ): Record<string, string> {

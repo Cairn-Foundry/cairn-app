@@ -13,11 +13,15 @@ import {
 } from "@codemirror/view";
 import { t } from "$lib/i18n";
 
+// Resolving git conflicts in the editor itself: the markers are hidden, both
+// sides are tinted, and an action bar is inserted above each region.
+
 const START = "<<<<<<<";
 const BASE = "|||||||";
 const SEP = "=======";
 const END = ">>>>>>>";
 
+/** One parsed conflict region, in both char offsets and line numbers. */
 type Conflict = {
 	startFrom: number; // char offset of the `<<<<<<<` line start
 	endTo: number; // char offset of the `>>>>>>>` line end
@@ -29,6 +33,7 @@ type Conflict = {
 	theirsText: string;
 };
 
+/** The text of an inclusive line range, "" when the range is empty. */
 function joinLines(state: EditorState, from: number, to: number): string {
 	if (to < from) return "";
 	const parts: string[] = [];
@@ -36,6 +41,12 @@ function joinLines(state: EditorState, from: number, to: number): string {
 	return parts.join("\n");
 }
 
+/**
+ * Every well-formed region in the document. Diff3 output puts a `|||||||`
+ * base section between the two sides, so "ours" ends at whichever of the base
+ * or separator line comes first. A region that never closes, or that nests
+ * another `<<<<<<<`, is skipped rather than guessed at.
+ */
 function parseConflicts(state: EditorState): Conflict[] {
 	const doc = state.doc;
 	const conflicts: Conflict[] = [];
@@ -100,10 +111,12 @@ function parseConflicts(state: EditorState): Conflict[] {
 	return conflicts;
 }
 
+/** Scrolls a position to the top, leaving room for the action bar above it. */
 function scrollEffect(pos: number) {
 	return EditorView.scrollIntoView(pos, { y: "start", yMargin: 56 });
 }
 
+/** Replaces the region with the chosen text, then moves to the next conflict. */
 function resolve(view: EditorView, c: Conflict, insert: string) {
 	if (view.state.readOnly) return;
 	const at = c.startFrom;
@@ -116,6 +129,7 @@ function resolve(view: EditorView, c: Conflict, insert: string) {
 	if (next) view.dispatch({ effects: scrollEffect(next.barAnchor) });
 }
 
+/** Moves the caret to a conflict and scrolls it into view. */
 function jumpTo(view: EditorView, pos: number) {
 	view.dispatch({
 		selection: { anchor: pos },
@@ -212,6 +226,11 @@ class ConflictBarWidget extends WidgetType {
 	}
 }
 
+/**
+ * Hidden markers, a tint per side, and a block widget per region.
+ * `Decoration.set(ranges, true)` sorts them: the ranges are produced per
+ * conflict rather than in document order, so they cannot be built in sequence.
+ */
 function computeDecorations(state: EditorState): DecorationSet {
 	const conflicts = parseConflicts(state);
 	const anchors = conflicts.map((c) => c.barAnchor);
@@ -329,6 +348,8 @@ const conflictTheme = EditorView.baseTheme({
 	".cm-conflict-navbtn:hover": { background: "var(--bg-3)" },
 });
 
+// Deferred to a microtask: dispatching from a plugin constructor would reenter
+// the update the view is still in the middle of.
 const scrollToFirstConflict = ViewPlugin.fromClass(
 	class {
 		constructor(view: EditorView) {
@@ -344,6 +365,7 @@ const scrollToFirstConflict = ViewPlugin.fromClass(
 	},
 );
 
+/** The conflict UI; harmless on a document that has no markers. */
 export function buildConflictResolver(): Extension {
 	return [conflictField, conflictTheme, scrollToFirstConflict];
 }

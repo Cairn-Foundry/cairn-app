@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Search-in-files sidebar panel: debounced query with case, regex and glob
+   * filters, results grouped per file. Calls `onOpen` with the picked position.
+   * `hidden` keeps the panel mounted, so its state survives being closed.
+   */
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
@@ -51,6 +56,7 @@
 
   $: if (!hidden) tick().then(() => queryInputEl?.focus());
 
+  /** Snapshots the query and filters so each worktree gets its own restored search. */
   function captureState(): SearchState {
     return { query, caseSensitive, isRegex, includeGlob, excludeGlob, showFilters };
   }
@@ -64,6 +70,7 @@
     showFilters = s.showFilters;
   }
 
+  /** Buckets flat matches per file, preserving the order the backend returned them in. */
   function groupResults(matches: SearchMatch[]): GroupedResult[] {
     const map = new Map<string, SearchMatch[]>();
     for (const m of matches) {
@@ -78,6 +85,7 @@
     }));
   }
 
+  /** Runs the search, discarding the answer if the query or worktree moved on meanwhile. */
   async function runSearch() {
     if (hidden || !worktreePath || !query.trim()) {
       results = [];
@@ -141,6 +149,7 @@
     groups = groups.map(g => g.path === path ? { ...g, collapsed: !g.collapsed } : g);
   }
 
+  /** Splits the line into before/match/after; the offsets shift with the trimmed indentation. */
   function highlightMatch(match: SearchMatch): [string, string, string] {
     const trimmed = match.text.trimStart();
     const offset = match.text.length - trimmed.length;

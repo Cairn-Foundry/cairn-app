@@ -1,4 +1,8 @@
 <script lang="ts" context="module">
+  /**
+   * Left navigation of the home screen: one entry per HomeSection.
+   * Dispatches `select` with the section id.
+   */
   export type HomeSection = 'projects' | 'activity' | 'providers' | 'agents' | 'skills' | 'mcp' | 'usage' | 'changelog' | 'settings';
 </script>
 

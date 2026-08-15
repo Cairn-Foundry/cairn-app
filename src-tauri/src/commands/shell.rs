@@ -1,7 +1,12 @@
+//! Shelling out on behalf of the frontend, plus the few OS integrations that
+//! have no plugin: opening a terminal, revealing a file, cloning a repo.
+
 use std::io::Write;
 use std::process::{Command, Stdio};
 use crate::storage::{CommandOutput, copy_dir_recursive};
 
+/// Runs a program to completion and captures its output. A spawn failure comes
+/// back as an unsuccessful `CommandOutput`, never as an error.
 #[tauri::command]
 pub fn run_shell_command(program: &str, args: Vec<String>, cwd: Option<String>) -> CommandOutput {
     let mut cmd = Command::new(program);
@@ -23,6 +28,7 @@ pub fn run_shell_command(program: &str, args: Vec<String>, cwd: Option<String>) 
     }
 }
 
+/// Same, with `stdin` written to the process before its output is read.
 #[tauri::command]
 pub fn run_shell_command_with_stdin(program: &str, args: Vec<String>, cwd: Option<String>, stdin: String) -> CommandOutput {
     let mut cmd = Command::new(program);
@@ -49,11 +55,8 @@ pub fn run_shell_command_with_stdin(program: &str, args: Vec<String>, cwd: Optio
     }
 }
 
-#[tauri::command]
-pub fn run_agent_command(instruction: &str, cwd: &str) -> String {
-    format!("agent stub: received '{}' in '{}'", instruction, cwd)
-}
-
+/// Opens the system terminal in `path`, or in its parent when it is a file.
+/// Linux has no single terminal, so the known emulators are tried in turn.
 #[tauri::command]
 pub fn open_in_terminal(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
@@ -80,6 +83,7 @@ pub fn open_in_terminal(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Shows the path in the system file manager, selected when the platform can.
 #[tauri::command]
 pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
@@ -103,6 +107,7 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Copies a file or a whole directory, creating the missing parents.
 #[tauri::command]
 pub async fn copy_path(from: String, to: String) -> Result<(), String> {
     let src = std::path::Path::new(&from);
@@ -118,6 +123,8 @@ pub async fn copy_path(from: String, to: String) -> Result<(), String> {
     }
 }
 
+/// Resolves `~` and returns the canonical path, erroring if it is not an
+/// existing directory.
 #[tauri::command]
 pub fn validate_directory(path: String) -> Result<String, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
@@ -131,6 +138,9 @@ pub fn validate_directory(path: String) -> Result<String, String> {
     dir_path.canonicalize().map_err(|e| e.to_string()).map(|p| p.to_string_lossy().to_string())
 }
 
+/// Clones `url` into `dest_parent/name` and returns the canonical destination.
+/// Refuses to touch an existing destination, and reports git's stderr as the
+/// error so the user sees the real reason.
 #[tauri::command]
 pub async fn clone_repository(url: String, dest_parent: String, name: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {

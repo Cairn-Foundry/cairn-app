@@ -1,3 +1,6 @@
+//! Token and cost usage accumulated across agent runs, appended to as runs
+//! finish and read back by the usage screen.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};

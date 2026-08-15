@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * Project settings: which workflow tabs are enabled and in what order (pointer-event drag).
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
@@ -25,6 +28,7 @@
     wfInsert = computeTabInsertIndex(wfListEl, e.clientY, { selector: '.wf-row', axis: 'y' });
   }
 
+  /** Commits the reorder and renumbers every `order` field from its new position. */
   function wfPointerUp() {
     if (wfDragSrc === null || wfInsert === null) { wfDragSrc = null; wfInsert = null; return; }
     const isNoop = wfInsert === wfDragSrc || wfInsert === wfDragSrc + 1;

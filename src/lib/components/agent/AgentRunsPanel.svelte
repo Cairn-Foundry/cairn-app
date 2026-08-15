@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Panel listing the sub-agents called in the current conversation, one row
+   * per agent with its latest run, elapsed time and permission state.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
@@ -12,10 +16,12 @@
 
   $: running = threads.filter((th) => isInFlight(th.latest.status)).length;
 
+  /** True when any run of the thread still has an unanswered permission request. */
   function waiting(thread: { runs: AgentRun[] }): boolean {
     return thread.runs.some((r) => $agentPermissionRequests[r.id]);
   }
 
+  /** Coarse run duration, counted against now while the run is still in flight. */
   function elapsed(run: AgentRun): string {
     const end = run.endedAt ?? Date.now();
     const seconds = Math.max(0, Math.round((end - run.startedAt) / 1000));

@@ -1,4 +1,7 @@
 <script lang="ts">
+  /**
+   * General settings: app updates and the installation of the `cairn` command line helper.
+   */
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';

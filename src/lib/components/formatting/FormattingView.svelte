@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Formatting tool: the formatter catalogue and its install state, plus the
+   * common style and the per-language overrides, with import and export of the
+   * usual config files.
+   */
   import { onMount } from 'svelte';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import Icon from '$lib/components/Icon.svelte';

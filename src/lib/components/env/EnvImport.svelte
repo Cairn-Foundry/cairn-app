@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal importing variables from a pasted or picked .env file, into a chosen
+   * scope. `replace` decides whether keys already present are overwritten.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';

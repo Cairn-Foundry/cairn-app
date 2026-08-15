@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Multi-step modal creating an instance: ticket, then a new branch or an
+   * existing one, then its git configuration. Dispatches `create` with the new
+   * instance id. Blocking work is shown as a centered spinner over a dimmed body.
+   */
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -31,6 +36,7 @@
 
   let refreshingBranches = false;
 
+  /** Loads local and remote branches, and picks a sensible base branch if the current one is gone. */
   async function loadBranchList() {
     if (!$activeProject) return;
     refreshingBranches = true;
@@ -57,6 +63,7 @@
 
   const TICKET_SEGMENT = /^[a-z][a-z0-9]*-\d+$/i;
 
+  /** Preselects the branch the modal was opened on, deriving the ticket id from its name when it carries one. */
   function applyInitialBranch() {
     const match = [initialBranch, ...remoteBranches.filter(r => r.endsWith(`/${initialBranch}`))]
       .find(b => availableBranches.includes(b) || remoteBranches.includes(b));
@@ -125,6 +132,7 @@
 
   $: dots = [0, 1, 2];
 
+  /** Spawns the instance and its worktree; yields two frames first so the spinner is painted before the blocking call. */
   async function handleCreate() {
     if (!$activeProject) return;
     creating = true;

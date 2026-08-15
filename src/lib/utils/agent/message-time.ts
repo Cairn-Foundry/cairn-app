@@ -13,6 +13,7 @@ export interface TimeStamped {
 	time?: string;
 }
 
+/** The clock face shown next to a turn in the transcript. */
 export function messageClock(entry: TimeStamped, locale?: string): string {
 	if (entry.ts) return formatClock(entry.ts, locale);
 	return entry.time ?? "";

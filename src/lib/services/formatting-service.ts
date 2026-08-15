@@ -1,3 +1,6 @@
+// Code formatting: the formatter catalogue, the per-project style, and running
+// a formatter over a document. Mirrors `commands/formatting.rs`.
+
 import { invoke } from "@tauri-apps/api/core";
 import type { ManagerOption } from "$lib/services/lsp-service";
 
@@ -7,6 +10,7 @@ export type StyleValue = string | number | boolean;
 /** Sparse by design: a missing key means "inherit from the level above". */
 export type StyleSet = Record<string, StyleValue>;
 
+/** Declaration of one style option: how it is edited and where it applies. */
 export interface StyleOptionInfo {
 	id: string;
 	kind: "boolean" | "number" | "enum";
@@ -18,6 +22,7 @@ export interface StyleOptionInfo {
 	languages: string[];
 }
 
+/** Per-language formatting, overriding the config's `base` style. */
 export interface LanguageFormatting {
 	languageId: string;
 	enabled: boolean;
@@ -29,6 +34,7 @@ export interface LanguageFormatting {
 	style: StyleSet;
 }
 
+/** A project's whole formatting setup, as stored for that project. */
 export interface FormattingConfig {
 	enabled: boolean;
 	formatOnSave: boolean;
@@ -37,6 +43,7 @@ export interface FormattingConfig {
 	languages: LanguageFormatting[];
 }
 
+/** Config a project starts from when it has none stored yet. */
 export const DEFAULT_FORMATTING: FormattingConfig = {
 	enabled: true,
 	formatOnSave: false,
@@ -45,6 +52,7 @@ export const DEFAULT_FORMATTING: FormattingConfig = {
 	languages: [],
 };
 
+/** A catalogue formatter plus what was found for it on this machine. */
 export interface FormatterStatus {
 	id: string;
 	name: string;
@@ -67,6 +75,7 @@ export interface FormatterStatus {
 	updateOptions: ManagerOption[];
 }
 
+/** Result of one format run, including who ran and under which style. */
 export interface FormatOutcome {
 	text: string;
 	changed: boolean;
@@ -77,6 +86,7 @@ export interface FormatOutcome {
 	style: StyleSet;
 }
 
+/** What an imported native config yielded, and what had to be dropped. */
 export interface ImportReport {
 	source: string;
 	style: StyleSet;
@@ -88,22 +98,26 @@ export interface ImportReport {
 	config?: FormattingConfig | null;
 }
 
+/** A formatter config file the repo already carries. */
 export interface DetectedConfig {
 	formatterId: string;
 	file: string;
 }
 
+/** Where the export landed, and the options the target format could not carry. */
 export interface ExportResult {
 	path: string;
 	dropped: string[];
 }
 
+/** Falls back to DEFAULT_FORMATTING on the Rust side when nothing is stored. */
 export function getProjectFormatting(
 	projectId: string,
 ): Promise<FormattingConfig> {
 	return invoke<FormattingConfig>("get_project_formatting", { projectId });
 }
 
+/** Replaces the stored config wholesale; there is no partial update. */
 export function saveProjectFormatting(
 	projectId: string,
 	config: FormattingConfig,
@@ -119,10 +133,12 @@ export function listFormatters(root?: string): Promise<FormatterStatus[]> {
 	return invoke<FormatterStatus[]>("list_formatters", { root: root ?? null });
 }
 
+/** The style vocabulary itself: every option Cairn knows how to express. */
 export function listStyleOptions(): Promise<StyleOptionInfo[]> {
 	return invoke<StyleOptionInfo[]>("list_style_options");
 }
 
+/** Language ids at least one catalogue formatter covers. */
 export function listFormattableLanguages(): Promise<string[]> {
 	return invoke<string[]>("list_formattable_languages");
 }
@@ -137,16 +153,19 @@ export function formatDocument(args: {
 	return invoke<FormatOutcome>("format_document", args);
 }
 
+/** Scans the worktree for native config files, so the repo's own style can win. */
 export function detectRepoFormatters(
 	worktree: string,
 ): Promise<DetectedConfig[]> {
 	return invoke<DetectedConfig[]>("detect_repo_formatters", { worktree });
 }
 
+/** Reads a native config into Cairn's style vocabulary; reports nothing to disk. */
 export function importFormattingConfig(path: string): Promise<ImportReport> {
 	return invoke<ImportReport>("import_formatting_config", { path });
 }
 
+/** Writes the style out in `target`'s own format; options it cannot express are dropped. */
 export function exportFormattingConfig(args: {
 	path: string;
 	target: string;
@@ -156,6 +175,7 @@ export function exportFormattingConfig(args: {
 	return invoke<ExportResult>("export_formatting_config", args);
 }
 
+/** Runs the chosen package manager; resolves with its output. */
 export function installFormatter(
 	formatterId: string,
 	manager: string,
@@ -163,6 +183,7 @@ export function installFormatter(
 	return invoke<string>("install_formatter", { formatterId, manager });
 }
 
+/** Runs the chosen package manager; resolves with its output. */
 export function uninstallFormatter(
 	formatterId: string,
 	manager: string,
@@ -170,6 +191,7 @@ export function uninstallFormatter(
 	return invoke<string>("uninstall_formatter", { formatterId, manager });
 }
 
+/** Runs the chosen package manager; resolves with its output. */
 export function updateFormatter(
 	formatterId: string,
 	manager: string,
@@ -177,6 +199,7 @@ export function updateFormatter(
 	return invoke<string>("update_formatter", { formatterId, manager });
 }
 
+/** Removes the manager the formatter was installed with; null when there is none. */
 export function uninstallManagerForFormatter(
 	formatterId: string,
 ): Promise<string | null> {
@@ -185,6 +208,7 @@ export function uninstallManagerForFormatter(
 	});
 }
 
+/** Updates the manager the formatter was installed with; null when there is none. */
 export function updateManagerForFormatter(
 	formatterId: string,
 ): Promise<string | null> {

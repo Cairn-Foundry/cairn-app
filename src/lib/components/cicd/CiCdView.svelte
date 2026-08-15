@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * CI/CD step: pipelines of the current branch, each shown as its stages and jobs with the failing one called out.
+   * Content is still static placeholder data, no CI provider is wired yet.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
 

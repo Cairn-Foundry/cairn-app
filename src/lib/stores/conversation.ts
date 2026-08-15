@@ -1,3 +1,4 @@
+/** Conversation index for both scopes: metadata in memory, transcripts read and written on demand. */
 import { get, type Writable, writable } from "svelte/store";
 import {
 	type ConversationActivity,
@@ -15,30 +16,38 @@ import { conversationPreview } from "$lib/utils/agent/conversation-export";
 
 export type { ConversationMeta, ConversationScope };
 
+/** Locates a conversation list: a project, plus the instance when the scope is per instance. */
 export interface ConversationRef {
 	projectId: string;
 	instanceId: string;
 	scope: ConversationScope;
 }
 
+/** Conversation metadata per instance, keyed by conversationScopeKey(). Transcripts are read on demand. */
 export const instanceConversations = writable<
 	Record<string, ConversationMeta[]>
 >({});
 
+/** Conversation metadata shared by every instance of a project, keyed by project id. */
 export const projectConversations = writable<
 	Record<string, ConversationMeta[]>
 >({});
 
+/** The conversation open in each instance; persisted in the instance index. */
 export const activeConversationId = writable<Record<string, string | null>>({});
 
+// Scope keys already read from disk, so opening an instance twice does not reload it.
 const restored = new Set<string>();
 const indexTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const bodyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Signature of the last content written per conversation: re-syncing an unchanged
+// transcript must not touch lastMessageAt, or opening a conversation would reorder the list.
 const lastSync = new Map<string, string>();
 
 const PERSIST_DELAY_MS = 250;
 
+/** The key instance-scoped maps are indexed by. */
 export function conversationScopeKey(
 	projectId: string,
 	instanceId: string,
@@ -46,26 +55,31 @@ export function conversationScopeKey(
 	return `${projectId}:${instanceId}`;
 }
 
+/** The map key for a ref: the scope key for an instance, the project id otherwise. */
 function listKey(ref: ConversationRef): string {
 	return ref.scope === "instance"
 		? conversationScopeKey(ref.projectId, ref.instanceId)
 		: ref.projectId;
 }
 
+/** The instance id the service expects: null marks the project scope. */
 function scopedInstanceId(ref: ConversationRef): string | null {
 	return ref.scope === "instance" ? ref.instanceId : null;
 }
 
+/** The writable backing a scope. */
 function listStore(
 	scope: ConversationScope,
 ): Writable<Record<string, ConversationMeta[]>> {
 	return scope === "instance" ? instanceConversations : projectConversations;
 }
 
+/** Non-reactive read of a scope's conversations. */
 export function conversationsOf(ref: ConversationRef): ConversationMeta[] {
 	return get(listStore(ref.scope))[listKey(ref)] ?? [];
 }
 
+/** The single write path for a scope; every change is persisted from here. */
 function updateList(
 	ref: ConversationRef,
 	fn: (list: ConversationMeta[]) => ConversationMeta[],
@@ -75,6 +89,7 @@ function updateList(
 	persistIndex(ref);
 }
 
+/** Debounced write of index.json for a scope. */
 function persistIndex(ref: ConversationRef): void {
 	const key = listKey(ref);
 	const existing = indexTimers.get(key);
@@ -95,6 +110,7 @@ function persistIndex(ref: ConversationRef): void {
 	);
 }
 
+/** Reads both scopes for an instance, once each; the project index is shared by its instances. */
 export async function restoreConversations(
 	projectId: string,
 	instanceId: string,
@@ -160,6 +176,7 @@ export function createConversation(
 	return meta;
 }
 
+/** Opens a conversation in an instance, or closes it with null. */
 export function selectConversation(
 	projectId: string,
 	instanceId: string,
@@ -170,6 +187,7 @@ export function selectConversation(
 	persistIndex({ projectId, instanceId, scope: "instance" });
 }
 
+/** Locates a conversation by id across both scopes, returning the ref needed to act on it. */
 export function findConversation(
 	projectId: string,
 	instanceId: string,
@@ -183,6 +201,7 @@ export function findConversation(
 	return null;
 }
 
+/** Patches one metadata entry and stamps updatedAt; lastMessageAt is set by the caller instead. */
 function patch(
 	ref: ConversationRef,
 	id: string,
@@ -195,6 +214,7 @@ function patch(
 	);
 }
 
+/** Renames a conversation. */
 export function renameConversation(
 	ref: ConversationRef,
 	id: string,
@@ -203,6 +223,7 @@ export function renameConversation(
 	patch(ref, id, { title });
 }
 
+/** Changes the provider the next prompt will use. */
 export function setConversationProvider(
 	ref: ConversationRef,
 	id: string,
@@ -211,6 +232,7 @@ export function setConversationProvider(
 	patch(ref, id, { providerId });
 }
 
+/** Stores the model, effort and permission mode the conversation runs with. */
 export function setConversationRunOptions(
 	ref: ConversationRef,
 	id: string,
@@ -223,6 +245,7 @@ export function setConversationRunOptions(
 	patch(ref, id, fields);
 }
 
+/** Remembers a provider's session id so the next prompt can resume it. */
 export function setConversationSession(
 	ref: ConversationRef,
 	id: string,
@@ -251,6 +274,7 @@ export function lastProviderOf(ref: ConversationRef, id: string): string {
 	return conversationsOf(ref).find((c) => c.id === id)?.lastProviderId ?? "";
 }
 
+/** Records which provider answered last, so a switch can be shown in the transcript. */
 export function setLastProvider(
 	ref: ConversationRef,
 	id: string,
@@ -260,18 +284,21 @@ export function setLastProvider(
 	patch(ref, id, { lastProviderId: providerId });
 }
 
+/** Pinned conversations sort to the top of their group. */
 export function togglePinned(ref: ConversationRef, id: string): void {
 	const target = conversationsOf(ref).find((c) => c.id === id);
 	if (!target) return;
 	patch(ref, id, { pinned: !target.pinned });
 }
 
+/** Archiving filters a conversation out of the Active list; it is not a third group. */
 export function toggleArchived(ref: ConversationRef, id: string): void {
 	const target = conversationsOf(ref).find((c) => c.id === id);
 	if (!target) return;
 	patch(ref, id, { archived: !target.archived });
 }
 
+/** Reads a transcript from disk, dropping the streaming flags a crash may have left set. */
 export async function loadConversationBody(
 	ref: ConversationRef,
 	id: string,
@@ -288,6 +315,11 @@ export async function loadConversationBody(
 	return { messages, activity: body?.activity ?? [] };
 }
 
+/**
+ * Mirrors the live transcript into the store and schedules a debounced write.
+ * lastMessageAt only moves when the transcript actually gained something, so
+ * re-syncing an unchanged conversation never reorders the list.
+ */
 export function updateConversationContent(
 	ref: ConversationRef,
 	id: string,
@@ -329,6 +361,7 @@ export function updateConversationContent(
 	);
 }
 
+/** Deletes a conversation, its transcript and any write still queued for it. */
 export function deleteConversation(ref: ConversationRef, id: string): void {
 	updateList(ref, (list) => list.filter((c) => c.id !== id));
 	const timerKey = `${listKey(ref)}:${id}`;
@@ -347,6 +380,7 @@ export function deleteConversation(ref: ConversationRef, id: string): void {
 	}
 }
 
+/** Copies a conversation and its transcript; the copy starts with no provider session of its own. */
 export async function duplicateConversation(
 	ref: ConversationRef,
 	id: string,
@@ -376,6 +410,7 @@ export async function duplicateConversation(
 	).catch(() => {});
 }
 
+/** Moves a conversation between the instance and project scopes, index entry and transcript together. */
 export async function moveConversationToScope(
 	from: ConversationRef,
 	id: string,
@@ -404,6 +439,7 @@ export async function moveConversationToScope(
 	).catch(() => {});
 }
 
+/** Forgets an instance's conversations in memory, for an instance being deleted; the project scope is untouched. */
 export function removeInstanceConversations(
 	projectId: string,
 	instanceId: string,

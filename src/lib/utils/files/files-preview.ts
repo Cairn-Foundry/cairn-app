@@ -1,3 +1,7 @@
+// How a non-text file is shown: as an image, an inline SVG, a PDF, or the hex
+// dump anything unrecognized falls back to.
+
+/** How a file should be previewed; `binary` is the fallback. */
 export type PreviewKind = "image" | "svg" | "pdf" | "binary";
 
 const IMAGE_EXT = new Set([
@@ -12,6 +16,7 @@ const IMAGE_EXT = new Set([
 	"apng",
 ]);
 
+/** Decided on the extension alone, never on the file's content. */
 export function previewKindFromPath(filePath: string): PreviewKind {
 	const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
 	if (IMAGE_EXT.has(ext)) return "image";
@@ -34,15 +39,18 @@ const MIME_BY_EXT: Record<string, string> = {
 	pdf: "application/pdf",
 };
 
+/** `application/octet-stream` for anything not previewable. */
 export function mimeFromPath(filePath: string): string {
 	const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
 	return MIME_BY_EXT[ext] ?? "application/octet-stream";
 }
 
+/** SVG source as a data URL, so it renders without touching the filesystem. */
 export function svgDataUrl(source: string): string {
 	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
 }
 
+/** A file size for display: one decimal below 10, rounded above. */
 export function formatByteSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	const units = ["KB", "MB", "GB", "TB"];
@@ -55,6 +63,7 @@ export function formatByteSize(bytes: number): string {
 	return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 
+/** Bytes come back from Rust hex-encoded; a trailing half byte is dropped. */
 export function hexToBytes(hex: string): Uint8Array {
 	const clean = hex.length % 2 === 0 ? hex : hex.slice(0, -1);
 	const out = new Uint8Array(clean.length / 2);
@@ -66,6 +75,7 @@ export function hexToBytes(hex: string): Uint8Array {
 
 const HEX_COLUMNS = 16;
 
+/** The classic 16-column dump: offset, hex split in two halves, then ASCII. */
 export function formatHexDump(bytes: Uint8Array): string {
 	const lines: string[] = [];
 	for (let offset = 0; offset < bytes.length; offset += HEX_COLUMNS) {

@@ -1,8 +1,14 @@
+//! Navigation state persisted across launches, so the app reopens on the exact
+//! view the user left. Every new view that takes over the main area needs its
+//! "is it open" flag added here.
+
 use std::collections::HashMap;
 use std::fs;
 use serde::{Deserialize, Serialize};
 use crate::storage::{ui_state_file, write_json_atomic};
 
+/// What one project's workspace was showing: workflow step, active tool, and
+/// the transient search fields of the git view.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProjectUiState {
     #[serde(rename = "activeStep", default = "default_step")]
@@ -52,6 +58,7 @@ impl Default for ProjectUiState {
     }
 }
 
+/// Top-level navigation plus one `ProjectUiState` per project ever opened.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UiState {
     #[serde(default = "default_screen")]
@@ -68,6 +75,7 @@ pub struct UiState {
     pub project_states: HashMap<String, ProjectUiState>,
 }
 
+// Serde defaults, also used by the Default impls so both agree on one value.
 fn default_screen() -> String { "home".to_string() }
 fn default_step() -> String { "files".to_string() }
 fn default_home_section() -> String { "projects".to_string() }
@@ -87,6 +95,8 @@ impl Default for UiState {
     }
 }
 
+/// Falls back to the default state on a first launch, but still fails loudly on
+/// a corrupt file rather than silently discarding it.
 fn read_ui_state() -> Result<UiState, String> {
     let path = ui_state_file()?;
     if !path.exists() { return Ok(UiState::default()); }
@@ -94,15 +104,18 @@ fn read_ui_state() -> Result<UiState, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
+/// Overwrites the whole navigation state atomically.
 fn write_ui_state(state: &UiState) -> Result<(), String> {
     write_json_atomic(&ui_state_file()?, state)
 }
 
+/// Read once on launch to restore the view the user left.
 #[tauri::command]
 pub fn get_ui_state() -> Result<UiState, String> {
     read_ui_state()
 }
 
+/// Called on every navigation change, debounced by the frontend.
 #[tauri::command]
 pub fn save_ui_state(state: UiState) -> Result<(), String> {
     write_ui_state(&state)

@@ -1,7 +1,9 @@
 import type { PermissionResponse } from "$lib/services/agent-service";
 
+/** What the user answered to a tool permission prompt. */
 export type PermissionDecision = "allow" | "always" | "deny";
 
+/** A `can_use_tool` request from the CLI, waiting on the user. */
 export interface PendingPermission {
 	runId: string;
 	requestId: string;

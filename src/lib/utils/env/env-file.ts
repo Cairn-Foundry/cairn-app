@@ -1,8 +1,13 @@
+// Reading and writing `.env` files: the subset of shell quoting dotenv files
+// actually use, including values spanning several lines inside quotes.
+
+/** One `KEY=value` assignment, with the value already unquoted. */
 export interface ParsedEnvEntry {
 	key: string;
 	value: string;
 }
 
+/** Parse result; `invalid` keeps the lines verbatim so they can be reported. */
 export interface ParsedEnvFile {
 	entries: ParsedEnvEntry[];
 	invalid: string[];
@@ -12,16 +17,20 @@ const KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const ASSIGNMENT = /^(?:export\s+)?([^=]+)=(.*)$/s;
 const UNQUOTED_SAFE = /^[A-Za-z0-9_@%+=:,./-]*$/;
 
+/** Keys Cairn exports itself, which a user variable must not shadow. */
 export const RESERVED_KEY_PREFIX = "CAIRN_";
 
+/** A POSIX-shaped name: letter or underscore first, then alphanumerics. */
 export function isValidEnvKey(key: string): boolean {
 	return KEY.test(key);
 }
 
+/** Case-insensitive, so `cairn_x` is refused as readily as `CAIRN_X`. */
 export function isReservedEnvKey(key: string): boolean {
 	return key.toUpperCase().startsWith(RESERVED_KEY_PREFIX);
 }
 
+/** Resolves the backslash escapes a double-quoted value may contain. */
 function unescapeDoubleQuoted(raw: string): string {
 	return raw.replace(/\\([nrtvf\\"'$`])/g, (_, char: string) => {
 		switch (char) {
@@ -71,6 +80,7 @@ function readValue(rest: string, following: string[]): [string, number] {
 	}
 }
 
+/** Index of the terminating quote, skipping escaped ones in double quotes. */
 function findClosingQuote(
 	body: string,
 	quote: string,
@@ -86,6 +96,11 @@ function findClosingQuote(
 	return -1;
 }
 
+/**
+ * Blank lines and comments are skipped, a later assignment overwrites an
+ * earlier one for the same key, and anything unparseable lands in `invalid`
+ * rather than aborting the file.
+ */
 export function parseEnvFile(content: string): ParsedEnvFile {
 	const lines = content.split(/\r?\n/);
 	const entries: ParsedEnvEntry[] = [];
@@ -119,6 +134,7 @@ export function parseEnvFile(content: string): ParsedEnvFile {
 	return { entries, invalid };
 }
 
+/** Quotes only when needed, preferring single quotes; newlines force double. */
 export function quoteEnvValue(value: string): string {
 	if (UNQUOTED_SAFE.test(value)) return value;
 	if (!value.includes("'") && !value.includes("\n")) return `'${value}'`;
@@ -129,6 +145,7 @@ export function quoteEnvValue(value: string): string {
 		.replace(/\r/g, "\\r")}"`;
 }
 
+/** Entries back to `.env` text, one assignment per line. */
 export function serializeEnvFile(entries: ParsedEnvEntry[]): string {
 	return entries
 		.map((entry) => `${entry.key}=${quoteEnvValue(entry.value)}`)

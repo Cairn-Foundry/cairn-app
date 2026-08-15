@@ -15,6 +15,9 @@ use serde_json::Value;
 
 use super::super::{platform, HistoryMessage, RunningChild, SendRequest};
 
+/// Spawns the CLI and calls `on_line` for each non-empty stdout line, blocking
+/// until it exits. A non-zero exit reports stderr as the error, unless the run
+/// was cancelled, in which case the kill is not a failure.
 pub fn run_cli<F>(
     binary: &Path,
     args: &[String],

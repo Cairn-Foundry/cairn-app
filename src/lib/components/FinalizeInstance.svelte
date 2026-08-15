@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Guided checklist closing an instance: commit, sync on the base branch, push,
+   * open the merge request, then archive it. Each step unlocks only once the
+   * previous one is satisfied by the real git state.
+   */
   import { createEventDispatcher, onMount } from 'svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Icon from '$lib/components/Icon.svelte';
@@ -72,6 +77,7 @@
     close: pushDone || closeDone,
   } as Record<StepId, boolean>;
 
+  /** Refreshes everything the checklist derives its step states from. */
   async function loadState(fetchFirst: boolean) {
     checking = true;
     try {
@@ -101,6 +107,7 @@
     dispatch('close');
   }
 
+  /** Runs one step at a time, leaving error reporting to the git store banner. */
   async function runStep(id: StepId, action: () => Promise<void>) {
     if (busyStep) return;
     busyStep = id;

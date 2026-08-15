@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Modal choosing which config file the current style is written to, and warning
+   * about the options the chosen format cannot express.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';

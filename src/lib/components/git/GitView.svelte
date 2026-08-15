@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * Main git workspace: staged and unstaged changes, commit box, history, graph and stashes.
+   * Dispatches `openFile` with a path, `fileDiscarded`, `filesChanged`, `createInstanceFromRef`
+   * with a ref, and `goGitSettings` to hand navigation back to the settings screen.
+   */
   import { onMount, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -95,6 +100,7 @@
     return parts.length > 1 ? parts.slice(0, -1).join('/') + '/' : '';
   }
 
+  /** Counts added and removed lines across every hunk of a file diff. */
   function statFromHunks(hunks: GitDiffHunk[]) {
     const lines = hunks.flatMap(h => h.lines);
     return {
@@ -104,6 +110,7 @@
     };
   }
 
+  /** Builds the per-file card the change lists render, with its split path and line stats. */
   function makeCard(filePath: string, hunks: GitDiffHunk[], status: string): FileCard {
     const { added, removed, hasDiff } = statFromHunks(hunks);
     return {
@@ -119,6 +126,7 @@
     };
   }
 
+  /** Infers a working-tree status from the hunk contents: removals only means deleted. */
   function unstagedStatus(hunks: GitDiffHunk[]): string {
     const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
     const hasAdd = changed.some(l => l.kind === 'add');
@@ -126,6 +134,7 @@
     return hasRemove && !hasAdd ? 'deleted' : 'modified';
   }
 
+  /** Synthesises a whole-file addition hunk so an untracked file renders like a diff. */
   function untrackedHunks(content: string): GitDiffHunk[] {
     if (!content) return [];
     const lines = content.replace(/\n$/, '').split('\n');
@@ -140,6 +149,7 @@
 
   $: void loadUntrackedContent(state.status, instance?.worktreePath ?? null);
 
+  /** Reads the text of every untracked, non-ignored, non-binary file so it can be diffed. */
   async function loadUntrackedContent(
     status: typeof state.status,
     wt: string | null,
@@ -221,6 +231,7 @@
     commitBodyEl.value = state.commitBody;
   }
 
+  /** Classifies a staged file as added, deleted or modified from the kinds of lines it carries. */
   function diffStatus(hunks: GitDiffHunk[]): string {
     const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
     const hasAdd = changed.some(l => l.kind === 'add');
@@ -250,6 +261,7 @@
   $: totalStagedAdded   = stagedCards.reduce((s, c) => s + c.added,   0);
   $: totalStagedRemoved = stagedCards.reduce((s, c) => s + c.removed, 0);
 
+  /** Loads the diff and the body of a commit in parallel and fills the detail pane. */
   async function fetchCommitDetail(commit: SelectedCommitInfo) {
     if (!instance?.worktreePath) return;
     const worktreePath = instance.worktreePath;
@@ -272,6 +284,7 @@
     }
   }
 
+  /** Toggles the commit detail, remembering the selection per worktree. */
   async function selectCommit(commit: SelectedCommitInfo) {
     if (!instance?.worktreePath) return;
     if (selectedCommit?.hash === commit.hash) {
@@ -308,6 +321,7 @@
   let isReverting = false;
   let revertError: GitError | null = null;
 
+  /** Reverts a commit and keeps its own error separate from the global git banner. */
   async function doRevert(hash: string) {
     isReverting = true;
     revertError = null;
@@ -335,6 +349,7 @@
     discardTargetIsNew = false;
   }
 
+  /** Discards the pending file and tells the editor so it can drop its buffer. */
   async function handleDiscard() {
     if (!discardTarget) return;
     isDiscarding = true;
@@ -372,6 +387,7 @@
     selectedFilePaths = next;
   }
 
+  /** Selects or clears only the cards the search filter currently shows. */
   function toggleSelectAll() {
     const next = new Set(selectedFilePaths);
     if (allVisibleSelected) {
@@ -407,6 +423,7 @@
     stashSelectionOpen = false;
   }
 
+  /** Stashes only the selected paths rather than the whole worktree. */
   async function handleStashSelection() {
     isStashingSelection = true;
     try {
@@ -429,6 +446,7 @@
     discardMultipleActive = false;
   }
 
+  /** Discards every selected file and notifies the editor once per path. */
   async function handleDiscardMultiple() {
     isDiscardingMultiple = true;
     const paths = [...selectedFilePaths];
@@ -464,6 +482,7 @@
     selectedStagedFilePaths = next;
   }
 
+  /** Selects or clears only the staged cards the search filter currently shows. */
   function toggleSelectAllStaged() {
     const next = new Set(selectedStagedFilePaths);
     if (allStagedSelected) {
@@ -498,6 +517,7 @@
     };
   });
 
+  /** Opens a stash in the detail pane, loading its diff from the store. */
   async function handleSelectStash(stash: GitStash | null) {
     selectedStash = stash;
     stashDiffFiles = [];
@@ -512,6 +532,7 @@
     }
   }
 
+  /** Switches the left tab, refreshing the data that tab owns and dropping stale selections. */
   function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'mergerebase') {
     gitLeftTab.set(tab);
     if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
@@ -520,6 +541,7 @@
     if (tab === 'stash') { clearSelectedCommit(); refreshStashes(); }
   }
 
+  /** Compact age label, falling back to an absolute date past a month. */
   function relativeTime(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const m = Math.floor(diff / 60000);
@@ -532,6 +554,7 @@
   }
 
   let isLoadingMoreLog = false;
+  /** Pages the log in when the scroller comes within 120px of the bottom. */
   async function handleLogScroll(e: Event) {
     if (isLoadingMoreLog || !state.logHasMore) return;
     const el = e.currentTarget as HTMLElement;
@@ -558,6 +581,7 @@
     }
   }
 
+  /** Grows the rendered slice of a change list as it is scrolled near the bottom. */
   function handleChangesScroll(e: Event, which: 'unstaged' | 'staged') {
     const el = e.currentTarget as HTMLElement;
     if (el.scrollTop + el.clientHeight < el.scrollHeight - 250) return;
@@ -571,6 +595,7 @@
   );
 
   $: reconcileSelectedStash($git.stashes);
+  /** Re-finds the open stash by content after a push or drop shifted every index. */
   function reconcileSelectedStash(list: GitStash[]) {
     const sel = selectedStash;
     if (!sel) return;
@@ -630,12 +655,14 @@
   }
 
   $: syncLogSearchMode($currentProjectViewState.gitLogSearch);
+  /** Searching needs the whole log, so entering search loads it all and leaving it pages again. */
   function syncLogSearchMode(q: string) {
     const active = q.trim().length > 0;
     if (active && !logSearchLoaded) { logSearchLoaded = true; loadAllLog(); }
     else if (!active && logSearchLoaded) { logSearchLoaded = false; refreshLog(); }
   }
 
+  /** Same trade for the graph: search over the full history, otherwise back to the paged view. */
   function handleGraphSearchToggle(active: boolean) {
     graphSearchActive = active;
     if (active) loadAllGraph();
@@ -660,6 +687,7 @@
     else expandedStaged.add(path);
     expandedStaged = expandedStaged;
   }
+  /** Collapses every unstaged card that actually has a diff to show. */
   function collapseAllUnstaged() {
     collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(c => c.filePath));
   }
@@ -738,6 +766,7 @@
     });
   }
 
+  /** Entering amend mode splits the HEAD message back into the title and body inputs. */
   async function toggleAmend() {
     amendMode = !amendMode;
     if (amendMode) {
@@ -755,6 +784,7 @@
     }
   }
 
+  /** Collects the commit flags, resolving the selected git profile into an author override. */
   function buildOptions() {
     const opts: Record<string, unknown> = { noVerify, signOff, allowEmpty };
     if (selectedProfileId) {
@@ -767,6 +797,7 @@
     return opts;
   }
 
+  /** Joins title and body, appending the instance ticket id to the subject when asked. */
   function buildCommitMessage(): string {
     let title = state.commitMessage;
     const ticketId = instance?.ticket?.id;
@@ -777,6 +808,7 @@
     return body ? `${title}\n\n${body}` : title;
   }
 
+  /** Commits or amends with the assembled message and options. */
   async function doCommit() {
     const opts = buildOptions();
     const message = buildCommitMessage();
@@ -790,6 +822,7 @@
 
   let isPushing = false;
 
+  /** Waits two frames so the spinner is painted before the push blocks. */
   async function doPush() {
     isPushing = true;
     await tick();

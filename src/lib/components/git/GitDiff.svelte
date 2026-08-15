@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Renders diff hunks as numbered rows, paginated so a large diff does not build every row at once.
+   * Read-only: no staging, no selection.
+   */
   import type { GitDiffHunk } from '$lib/services/git-service';
   import { t } from '$lib/i18n';
 
@@ -7,6 +11,7 @@
   const PAGE = 300;
   let shown = PAGE;
 
+  // Collapse back to the first page whenever the hunks themselves change, not on every reactive pass.
   let lastSignature = '';
   $: signature =
     hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
@@ -19,6 +24,7 @@
     | { kind: 'sep'; header: string }
     | { kind: 'add' | 'remove' | 'context'; oldNo: number | null; newNo: number | null; content: string };
 
+  /** Reads the starting old and new line numbers out of an @@ hunk header, falling back to 1 when it does not parse. */
   function parseHeader(header: string): { oldStart: number; newStart: number } {
     const m = header.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
     return {
@@ -27,6 +33,7 @@
     };
   }
 
+  /** Flattens the hunks into display rows, walking each side's counter so added and removed lines only advance their own. */
   $: rows = ((): Row[] => {
     const out: Row[] = [];
     hunks.forEach((hunk, i) => {

@@ -1,7 +1,12 @@
+// Environment variables at three scopes, and the `.env` file they are rendered
+// into inside a worktree.
+
 import { invoke } from "@tauri-apps/api/core";
 
+/** The three levels, each one overriding the one before it. */
 export type EnvScope = "global" | "project" | "instance";
 
+/** A declared variable. `perInstance` makes each instance carry its own value. */
 export interface EnvVariable {
 	id: string;
 	key: string;
@@ -13,13 +18,16 @@ export interface EnvVariable {
 	enabled: boolean;
 }
 
+/** What one scope stores: its own variables plus overrides of inherited ones. */
 export interface EnvFile {
 	variables: EnvVariable[];
+	/** Keyed by the inherited variable's id, not by its key. */
 	overrides: Record<string, string>;
 	writeEnvFile: boolean;
 	envFileName: string;
 }
 
+/** State of the `.env` on disk. `managed` means Cairn wrote it and may rewrite it. */
 export interface EnvFileStatus {
 	exists: boolean;
 	managed: boolean;
@@ -27,6 +35,7 @@ export interface EnvFileStatus {
 
 export const DEFAULT_ENV_FILE_NAME = ".env";
 
+/** The state a scope starts from before anything is stored for it. */
 export function emptyEnvFile(): EnvFile {
 	return {
 		variables: [],
@@ -36,18 +45,22 @@ export function emptyEnvFile(): EnvFile {
 	};
 }
 
+/** Variables every project inherits. */
 export async function getGlobalEnv(): Promise<EnvFile> {
 	return await invoke("get_global_env");
 }
 
+/** Replaces the global scope wholesale. */
 export async function saveGlobalEnv(state: EnvFile): Promise<void> {
 	await invoke("save_global_env", { state });
 }
 
+/** The project's own layer, without the global one merged in. */
 export async function getProjectEnv(projectId: string): Promise<EnvFile> {
 	return await invoke("get_project_env", { projectId });
 }
 
+/** Replaces the project scope wholesale. */
 export async function saveProjectEnv(
 	projectId: string,
 	state: EnvFile,
@@ -55,6 +68,7 @@ export async function saveProjectEnv(
 	await invoke("save_project_env", { projectId, state });
 }
 
+/** The instance's own layer, mostly overrides of inherited variables. */
 export async function getInstanceEnv(
 	projectId: string,
 	instanceId: string,
@@ -62,6 +76,7 @@ export async function getInstanceEnv(
 	return await invoke("get_instance_env", { projectId, instanceId });
 }
 
+/** Replaces the instance scope wholesale. */
 export async function saveInstanceEnv(
 	projectId: string,
 	instanceId: string,
@@ -70,6 +85,7 @@ export async function saveInstanceEnv(
 	await invoke("save_instance_env", { projectId, instanceId, state });
 }
 
+/** Whether a `.env` sits there and whether Cairn owns it. The command is `env_file_status`. */
 export async function getEnvFileStatus(
 	worktreePath: string,
 	fileName: string,
@@ -77,6 +93,7 @@ export async function getEnvFileStatus(
 	return await invoke("env_file_status", { worktreePath, fileName });
 }
 
+/** Raw text of the file, so an unmanaged one can be imported before being taken over. */
 export async function readEnvFile(
 	worktreePath: string,
 	fileName: string,
@@ -102,6 +119,7 @@ export async function writeEnvFile(
 	});
 }
 
+/** Only removes a file Cairn generated; false when it is absent or not managed. */
 export async function deleteEnvFile(
 	worktreePath: string,
 	fileName: string,
@@ -109,6 +127,7 @@ export async function deleteEnvFile(
 	return await invoke("delete_env_file", { worktreePath, fileName });
 }
 
+/** Adds the file to `.gitignore` if missing; false when it was already covered. */
 export async function ensureEnvIgnored(
 	worktreePath: string,
 	fileName: string,

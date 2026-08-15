@@ -1,7 +1,10 @@
+// Turning a project's `package.json` scripts into importable custom commands,
+// guessing the package manager from the lockfile and an icon from the name.
 import type { CustomCommand } from "$lib/services/custom-command-service";
 import { listDirNames, readFile } from "$lib/services/file-service";
 import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
 
+/** The package managers a lockfile can identify; npm is the fallback. */
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
 const LOCKFILES: Array<[string, PackageManager]> = [
@@ -23,6 +26,7 @@ const ICON_RULES: Array<[RegExp, string]> = [
 	[/^(doc|docs|storybook)/, "book"],
 ];
 
+/** First lockfile found wins, in LOCKFILES order; npm when none is present. */
 export function detectPackageManager(fileNames: string[]): PackageManager {
 	for (const [lockfile, manager] of LOCKFILES) {
 		if (fileNames.includes(lockfile)) return manager;
@@ -30,6 +34,7 @@ export function detectPackageManager(fileNames: string[]): PackageManager {
 	return "npm";
 }
 
+/** Yarn takes the script name directly, the others need `run`. */
 export function runScriptCommand(
 	manager: PackageManager,
 	script: string,
@@ -37,6 +42,7 @@ export function runScriptCommand(
 	return manager === "yarn" ? `yarn ${script}` : `${manager} run ${script}`;
 }
 
+/** Guesses an icon from the script name, matched on its first word only. */
 export function iconForScript(script: string): string {
 	const name = script.toLowerCase();
 	for (const [pattern, icon] of ICON_RULES) {
@@ -45,12 +51,14 @@ export function iconForScript(script: string): string {
 	return DEFAULT_COMMAND_ICON;
 }
 
+/** One script offered for import, before the user accepts it. */
 export interface ImportCandidate {
 	name: string;
 	script: string;
 	icon: string;
 }
 
+/** Malformed JSON or non-string entries yield nothing rather than throwing. */
 export function parseScripts(packageJson: string): Record<string, string> {
 	try {
 		const parsed = JSON.parse(packageJson) as {
@@ -68,6 +76,7 @@ export function parseScripts(packageJson: string): Record<string, string> {
 	}
 }
 
+/** Candidates keep the declaration order of the scripts object. */
 export function buildCandidates(
 	scripts: Record<string, string>,
 	manager: PackageManager,
@@ -79,6 +88,16 @@ export function buildCandidates(
 	}));
 }
 
+/**
+ * An accepted candidate as a stored command: one step, run in the worktree,
+ * tagged `package.json` so a later re-import can tell it apart from a hand
+ * written one.
+ */
+/**
+ * An accepted candidate as a stored command: one step, run in the worktree,
+ * tagged `package.json` so a later re-import can tell it apart from a hand
+ * written one.
+ */
 export function candidateToCommand(candidate: ImportCandidate): CustomCommand {
 	return {
 		id: crypto.randomUUID(),
@@ -94,6 +113,7 @@ export function candidateToCommand(candidate: ImportCandidate): CustomCommand {
 	};
 }
 
+/** The result of scanning one directory: the manager plus what it can offer. */
 export interface ImportScan {
 	manager: PackageManager;
 	candidates: ImportCandidate[];

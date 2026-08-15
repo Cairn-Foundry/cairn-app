@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Update modal: release notes, then download and install progress. Closing is
+   * blocked while the update is downloading or installing.
+   */
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import UpdateProgress from '$lib/components/layout/UpdateProgress.svelte';

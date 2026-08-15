@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * Asks where a formatting config should be imported from: one of the files
+   * detected at the root of the worktree, or a file picked by hand.
+   */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';

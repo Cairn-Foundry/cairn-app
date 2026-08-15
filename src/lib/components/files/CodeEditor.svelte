@@ -1,4 +1,10 @@
 <script lang="ts">
+  /**
+   * CodeMirror 6 host: builds the extension set, keeps it in sync with the settings
+   * and shortcut stores through compartments, and exposes imperative helpers
+   * (jumpTo, setContent, applyFormattedText, LSP position) to the parent.
+   * `docPath` is what lets markdown resolve local images and relative links.
+   */
   import { Compartment } from '@codemirror/state';
 
   const minimapCompartment = new Compartment();
@@ -83,6 +89,7 @@
     return { line: line.number - 1, character: head - line.from };
   }
 
+  /** Word under the cursor, joining the identifier characters on both sides of it. */
   export function getWordAtCursor(): string {
     if (!view) return '';
     const head = view.state.selection.main.head;
@@ -92,6 +99,7 @@
     return before + after;
   }
 
+  /** Applies LSP edits back-to-front in one transaction so earlier offsets stay valid. */
   export function applyTextEdits(edits: { range: { start: { line: number; character: number }; end: { line: number; character: number } }; newText: string }[]): boolean {
     if (!view || edits.length === 0) return false;
     const doc = view.state.doc;
@@ -143,6 +151,7 @@
     return view?.state ?? null;
   }
 
+  /** Moves the cursor to a clamped line/column and centers it in the viewport. */
   export function jumpTo(line: number, col: number) {
     if (!view) return;
     const doc = view.state.doc;
@@ -188,6 +197,7 @@
   let ctxMenu: ContextMenuState | null = null;
   let ctxMenuEl: HTMLElement | null = null;
 
+  /** Opens the context menu at the pointer, flipped back inside the viewport when needed. */
   function openContextMenu(event: MouseEvent) {
     event.preventDefault();
     if (!view) return;
@@ -278,6 +288,7 @@
 
   // -- Extensions -------------------------------------------------------------
 
+  /** Language extension for the current file, plus markdown WYSIWYG and JS/TS snippets. */
   function buildLanguageExtensions(): Extension[] {
     const isJS = language === 'ts' || language === 'tsx' || language === 'js' || language === 'jsx';
     const isTS = language === 'ts' || language === 'tsx';
@@ -297,6 +308,7 @@
     return exts;
   }
 
+  /** Whether the held modifiers arm a symbol click for go-to-definition or find-references. */
   function isArmedForSymbol(mods: ModifierState): boolean {
     if (!lspDoc) return false;
     return (
@@ -323,6 +335,7 @@
     ];
   }
 
+  /** The full extension set of a fresh editor, each reconfigurable part behind a compartment. */
   function buildExtensions(): Extension[] {
     const theme = $settings.theme;
 
@@ -419,6 +432,7 @@
 
   $: if (view) syncDocAndBase(content, baseContent);
 
+  /** Pushes an externally changed document and its diff base into the view in one dispatch. */
   function syncDocAndBase(nextContent: string, nextBase: string | null) {
     const current = view.state.doc.toString();
     const docChanged = current !== nextContent;

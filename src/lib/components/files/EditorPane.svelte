@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * One editor pane: its tab bar, breadcrumb, editor body and status bar.
+   * Purely presentational - every interaction (tab drag, save, navigation) is handed
+   * back to FilesView through the `on*` callback props.
+   */
   import { tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -93,6 +98,7 @@
 
   $: scrollActiveTabIntoView(activeTabIdx);
 
+  /** Waits for the tab bar to re-render, then brings the active tab back into view. */
   function scrollActiveTabIntoView(_idx: number) {
     tick().then(() => {
       const el = tabsBarEl?.querySelector('.file-tab.tab-active');

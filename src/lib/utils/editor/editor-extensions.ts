@@ -21,6 +21,10 @@ import { toCmKey } from "$lib/stores/shortcuts";
 import type { ShortcutBinding, ShortcutId } from "$lib/types/shortcuts";
 import { EDITOR_DEFAULTS } from "./editor-config";
 
+// The CodeMirror extensions that are not a feature of their own: font sizing,
+// the minimap and its two fixes, and the editing keymap.
+
+/** Line numbers are set slightly smaller than the code they number. */
 export function buildFontSizeTheme(size: number): Extension {
 	return EditorView.theme({
 		"&": { fontSize: `${size}px` },
@@ -79,6 +83,7 @@ const minimapMousedownGuard = ViewPlugin.fromClass(
 	},
 );
 
+/** The minimap plus its two corrections; nothing at all when disabled. */
 export function buildMinimap(
 	enabled: boolean,
 	diffGutter?: Record<number, string>,
@@ -101,6 +106,7 @@ export const unselectableGutters: Extension = EditorView.theme({
 	".cm-gutters": { userSelect: "none", "-webkit-user-select": "none" },
 });
 
+/** Duplicates the line but leaves the caret where it was, unlike `copyLineDown`. */
 function duplicateLineStay(view: EditorView): boolean {
 	const { state } = view;
 	const changes = state.changeByRange((range) => {
@@ -116,6 +122,7 @@ function duplicateLineStay(view: EditorView): boolean {
 	return true;
 }
 
+/** The editing commands a shortcut can be bound to. */
 export const SHORTCUT_COMMANDS: {
 	id: ShortcutId;
 	run: (view: EditorView) => boolean;
@@ -137,6 +144,7 @@ export const SHORTCUT_COMMANDS: {
 	{ id: "duplicateLine", run: duplicateLineStay },
 ];
 
+/** Binds the commands the user actually kept; an unbound id gets no key. */
 export function buildShortcutKeymap(
 	bindings: Record<ShortcutId, ShortcutBinding | null>,
 ): Extension {
