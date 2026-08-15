@@ -395,6 +395,11 @@
     const initState = savedState ?? EditorState.create({ doc: content, extensions: buildExtensions() });
     view = new EditorView({ state: initState, parent: container });
     view.dispatch({ effects: instanceCompartment.reconfigure(buildInstanceExtensions()) });
+    if (baseContent !== null) {
+      view.dispatch({ effects: setDiffBase.of(baseContent) });
+      syncedBase = baseContent;
+    }
+    syncMinimap($settings.theme, minimapEnabled, true);
 
     if (initialCursorPos > 0) {
       const pos = Math.min(initialCursorPos, view.state.doc.length);

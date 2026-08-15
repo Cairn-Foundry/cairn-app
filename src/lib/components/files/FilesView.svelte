@@ -30,7 +30,7 @@ import { get } from 'svelte/store';
   import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
   import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile } from '$lib/stores/git';
+  import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
   import { settings } from '$lib/stores/settings';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
@@ -64,6 +64,7 @@ import { get } from 'svelte/store';
     isExternalPath,
     absolutePathOf,
     pathWithinWorktree,
+    nodeGitStatus,
   } from '$lib/utils/files/files-tree';
   import {
     osDropPoint,
@@ -1060,7 +1061,7 @@ import { get } from 'svelte/store';
 
   function closeContextMenu() { contextMenu = null; }
 
-  type ContextAction = 'new-file' | 'new-dir' | 'cut' | 'copy' | 'paste' | 'rename' | 'delete' | 'copy-path' | 'copy-rel-path' | 'reveal' | 'open-terminal' | 'format';
+  type ContextAction = 'new-file' | 'new-dir' | 'cut' | 'copy' | 'paste' | 'rename' | 'delete' | 'copy-path' | 'copy-rel-path' | 'reveal' | 'open-terminal' | 'format' | 'stage' | 'unstage' | 'discard';
 
   function isEditorFocused(): boolean {
     const el = document.activeElement;
@@ -1129,6 +1130,29 @@ import { get } from 'svelte/store';
         await tick();
         await syncLspDocs();
         await runFormatDocument();
+      },
+      'stage': async () => {
+        if (!node) return;
+        try {
+          await stageGitFile(node.path);
+          if (worktreePath) await loadTree(worktreePath, { silent: true });
+        } catch (e) { error = String(e); }
+      },
+      'unstage': async () => {
+        if (!node) return;
+        try {
+          await unstageGitFile(node.path);
+          if (worktreePath) await loadTree(worktreePath, { silent: true });
+        } catch (e) { error = String(e); }
+      },
+      'discard': async () => {
+        if (!node) return;
+        if (!confirm((t('files.contextMenu.discardConfirm') as (name: string) => string)(node.name))) return;
+        try {
+          await discardGitFile(node.path);
+          await reloadFileByPath(node.path);
+          if (worktreePath) await loadTree(worktreePath, { silent: true });
+        } catch (e) { error = String(e); }
       },
       'delete': async () => {
         if (!node) return;
@@ -2441,6 +2465,21 @@ import { get } from 'svelte/store';
         <div class="ctx-sep"></div>
         <button type="button" class="ctx-item" on:click={() => handleContextAction('format')}>
           <Icon name="edit" size={13}/> {t('files.contextMenu.formatDocument')}
+        </button>
+      {/if}
+      {#if nodeGitStatus(contextMenu.node, gitStatusMap) && nodeGitStatus(contextMenu.node, gitStatusMap) !== 'conflicted'}
+        <div class="ctx-sep"></div>
+        {#if nodeGitStatus(contextMenu.node, gitStatusMap) === 'staged'}
+          <button type="button" class="ctx-item" on:click={() => handleContextAction('unstage')}>
+            <Icon name="x" size={13}/> {t('files.contextMenu.unstage')}
+          </button>
+        {:else}
+          <button type="button" class="ctx-item" on:click={() => handleContextAction('stage')}>
+            <Icon name="plus" size={13}/> {t('files.contextMenu.stage')}
+          </button>
+        {/if}
+        <button type="button" class="ctx-item ctx-item-danger" on:click={() => handleContextAction('discard')}>
+          <Icon name="undo" size={13}/> {t('files.contextMenu.discard')}
         </button>
       {/if}
       <div class="ctx-sep"></div>

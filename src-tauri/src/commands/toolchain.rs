@@ -11,6 +11,7 @@ use serde::Serialize;
 pub struct ManagerCommands {
     pub npm:   Option<&'static str>,
     pub brew:  Option<&'static str>,
+    pub apt:   Option<&'static str>,
     pub cargo: Option<&'static str>,
     pub pip:   Option<&'static str>,
     pub go:    Option<&'static str>,
@@ -33,6 +34,7 @@ pub fn manager_commands(commands: &ManagerCommands) -> Vec<(&'static str, &'stat
     [
         ("npm", commands.npm),
         ("brew", commands.brew),
+        ("apt", commands.apt),
         ("cargo", commands.cargo),
         ("pip", commands.pip),
         ("go", commands.go),
@@ -50,6 +52,7 @@ pub fn manager_commands(commands: &ManagerCommands) -> Vec<(&'static str, &'stat
 fn runs_here(manager: &str) -> bool {
     match manager {
         "brew" => cfg!(any(target_os = "macos", target_os = "linux")),
+        "apt" => cfg!(target_os = "linux"),
         _ => true,
     }
 }
@@ -111,6 +114,18 @@ pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
     }
     if path.contains("/homebrew/") {
         return Some("brew");
+    }
+    // dpkg's own database is the only reliable signal: `/usr/bin` also holds
+    // whatever the OS image shipped with, not just what apt put there.
+    if Command::new("dpkg")
+        .args(["-S", &resolved.to_string_lossy()])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+    {
+        return Some("apt");
     }
     None
 }
@@ -310,9 +325,16 @@ pub fn resolve_binary(binary: &str, root: Option<&Path>) -> Option<PathBuf> {
         .map(|path| std::env::split_paths(&path).collect::<Vec<PathBuf>>())
         .unwrap_or_default();
 
-    path_dirs
-        .into_iter()
-        .chain(login_shell_dirs().iter().cloned())
+    // The login shell's PATH is checked first: it is what nvm, asdf or a
+    // Homebrew prefix actually build, while the process's own inherited PATH
+    // is often just the OS default. On Linux that default already contains
+    // `/usr/bin`, and a distro-packaged `npm` there is old enough to reject
+    // the `engines` field of most modern packages - so a version manager the
+    // user set up would otherwise lose to it on every resolution.
+    login_shell_dirs()
+        .iter()
+        .cloned()
+        .chain(path_dirs)
         .chain(extra_lookup_dirs(root))
         .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
         .find(|candidate| is_executable(candidate))

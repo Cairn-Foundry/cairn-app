@@ -97,6 +97,62 @@
 					"en": "The toggles in Settings > Agents line up on the right like every other settings tab.",
 					"fr": "Les interrupteurs de Réglages > Agents s'alignent à droite comme dans tous les autres onglets de réglages."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Prettier's quote-props and single-attribute-per-line options can now be set and are read from an existing .prettierrc.",
+					"fr": "Les options quote-props et single-attribute-per-line de Prettier peuvent désormais être réglées et sont lues depuis un .prettierrc existant."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Language servers and formatters that only offered a Homebrew install now also offer an apt one on Ubuntu and Debian.",
+					"fr": "Les serveurs de langage et formateurs qui ne proposaient qu'une installation Homebrew proposent désormais aussi apt sous Ubuntu et Debian."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The file tree's right-click menu gained Stage, Unstage and Discard Changes for files and folders under git.",
+					"fr": "Le menu contextuel de l'arborescence des fichiers propose désormais Indexer, Désindexer et Annuler les modifications pour les fichiers et dossiers suivis par git."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "On Ubuntu, npm commands could pick up the distribution's outdated npm instead of the one from a version manager like nvm, which then rejected packages as needing a newer engine.",
+					"fr": "Sous Ubuntu, les commandes npm pouvaient utiliser l'ancien npm fourni par la distribution plutôt que celui d'un gestionnaire de versions comme nvm, qui rejetait alors des paquets nécessitant un moteur plus récent."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A language server that failed to start too many times required restarting the whole app; turning it off and back on in Settings > Language Servers is now enough.",
+					"fr": "Un serveur de langage ayant échoué trop de fois au démarrage nécessitait de redémarrer toute l'application ; le désactiver puis le réactiver dans Réglages > Serveurs de langage suffit désormais."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The autocomplete menu could barely be scrolled with the mouse wheel on Linux, where wheel steps are reported in lines rather than pixels.",
+					"fr": "Le menu d'autocomplétion pouvait à peine être défilé à la molette sous Linux, où les pas de molette sont exprimés en lignes plutôt qu'en pixels."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The editor minimap's git overlay could stay empty on a freshly opened tab until the file was edited.",
+					"fr": "Le calque git de la minimap de l'éditeur pouvait rester vide sur un onglet fraîchement ouvert jusqu'à ce que le fichier soit modifié."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Dragging the minimap's viewport box, or clicking elsewhere on it to jump, also selected the editor's text underneath.",
+					"fr": "Faire glisser le cadre de la minimap, ou cliquer ailleurs dessus pour s'y déplacer, sélectionnait aussi le texte de l'éditeur en dessous."
+				}
 			}
 		]
 	},

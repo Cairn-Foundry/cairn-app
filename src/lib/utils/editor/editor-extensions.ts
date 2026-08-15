@@ -15,7 +15,7 @@ import {
 } from "@codemirror/commands";
 import { gotoLine } from "@codemirror/search";
 import type { Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import { showMinimap } from "@replit/codemirror-minimap";
 import { toCmKey } from "$lib/stores/shortcuts";
 import type { ShortcutBinding, ShortcutId } from "$lib/types/shortcuts";
@@ -50,6 +50,35 @@ const minimapOverlayTheme = EditorView.theme({
 		},
 });
 
+/**
+ * The plugin never calls preventDefault on its own mousedown, so dragging the
+ * viewport box - or clicking elsewhere on the minimap to jump - also reaches
+ * CodeMirror's own selection handling underneath (a same-phase, same-target
+ * listener) and starts a text selection at the same time. Caught here in the
+ * capture phase, ahead of both handlers, the same way the completion menu's
+ * own wheel handler keeps its gesture off the editor scroller.
+ */
+const minimapMousedownGuard = ViewPlugin.fromClass(
+	class {
+		private onMouseDown: (event: MouseEvent) => void;
+
+		constructor(private view: EditorView) {
+			this.onMouseDown = (event) => {
+				const target = event.target as Element | null;
+				if (!target?.closest(".cm-minimap-gutter")) return;
+				event.preventDefault();
+			};
+			view.dom.addEventListener("mousedown", this.onMouseDown, {
+				capture: true,
+			});
+		}
+
+		destroy() {
+			this.view.dom.removeEventListener("mousedown", this.onMouseDown, true);
+		}
+	},
+);
+
 export function buildMinimap(
 	enabled: boolean,
 	diffGutter?: Record<number, string>,
@@ -63,6 +92,7 @@ export function buildMinimap(
 			gutters: diffGutter ? [diffGutter] : undefined,
 		}),
 		minimapOverlayTheme,
+		minimapMousedownGuard,
 	];
 }
 

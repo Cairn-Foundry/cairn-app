@@ -849,6 +849,12 @@ fn stop_matching(
     if let Ok(mut starting) = lsp.starting.lock() {
         starting.retain(|key, _| !accept(key));
     }
+    // A stop is the user's own signal to try again: a server that hit
+    // MAX_START_ATTEMPTS and was banned for the session gets a clean slate
+    // rather than requiring a full app restart to be usable again.
+    if let Ok(mut attempts) = lsp.attempts.lock() {
+        attempts.retain(|key, _| !accept(key));
+    }
 
     for (key, handle) in stopped {
         server::stop(&handle);

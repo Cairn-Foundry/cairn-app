@@ -297,10 +297,19 @@ pub const BUILTIN: &[BuiltinDef] = &[
         root_markers: &["compile_commands.json", "compile_flags.txt", "CMakeLists.txt", "Makefile"],
         install: ManagerCommands {
             brew: Some("brew install llvm"),
+            apt:  Some("sudo apt install -y clangd"),
             ..EMPTY
         },
-        uninstall: ManagerCommands { brew: Some("brew uninstall llvm"), ..EMPTY },
-        update:    ManagerCommands { brew: Some("brew upgrade llvm"), ..EMPTY },
+        uninstall: ManagerCommands {
+            brew: Some("brew uninstall llvm"),
+            apt:  Some("sudo apt remove -y clangd"),
+            ..EMPTY
+        },
+        update: ManagerCommands {
+            brew: Some("brew upgrade llvm"),
+            apt:  Some("sudo apt install --only-upgrade -y clangd"),
+            ..EMPTY
+        },
         check:     ManagerCommands { brew: Some("brew outdated --quiet llvm"), ..EMPTY },
         doc_url: "https://clangd.llvm.org",
     },
@@ -357,6 +366,8 @@ pub const BUILTIN: &[BuiltinDef] = &[
         language_ids: &["java"],
         extensions:   &[".java"],
         root_markers: &["pom.xml", "build.gradle", "build.gradle.kts", ".project"],
+        // no apt package: jdtls has no stable Debian/Ubuntu package name to
+        // install by, so this stays Homebrew-only rather than guessing one.
         install:   ManagerCommands { brew: Some("brew install jdtls"), ..EMPTY },
         uninstall: ManagerCommands { brew: Some("brew uninstall jdtls"), ..EMPTY },
         update:    ManagerCommands { brew: Some("brew upgrade jdtls"), ..EMPTY },
@@ -371,6 +382,8 @@ pub const BUILTIN: &[BuiltinDef] = &[
         language_ids: &["lua"],
         extensions:   &[".lua"],
         root_markers: &[".luarc.json", ".luarc.jsonc"],
+        // no apt package: lua-language-server is not in the Debian/Ubuntu
+        // repositories, so this stays Homebrew-only rather than guessing one.
         install:   ManagerCommands { brew: Some("brew install lua-language-server"), ..EMPTY },
         uninstall: ManagerCommands { brew: Some("brew uninstall lua-language-server"), ..EMPTY },
         update:    ManagerCommands { brew: Some("brew upgrade lua-language-server"), ..EMPTY },
@@ -388,6 +401,8 @@ pub const BUILTIN: &[BuiltinDef] = &[
         language_ids: &["zig"],
         extensions:   &[".zig", ".zon"],
         root_markers: &["build.zig"],
+        // no apt package: zls is not in the Debian/Ubuntu repositories, so
+        // this stays Homebrew-only rather than guessing one.
         install:   ManagerCommands { brew: Some("brew install zls"), ..EMPTY },
         uninstall: ManagerCommands { brew: Some("brew uninstall zls"), ..EMPTY },
         update:    ManagerCommands { brew: Some("brew upgrade zls"), ..EMPTY },
@@ -432,6 +447,8 @@ pub const BUILTIN: &[BuiltinDef] = &[
         language_ids: &["terraform"],
         extensions:   &[".tf", ".tfvars"],
         root_markers: &[".terraform", "main.tf"],
+        // no apt package: terraform-ls ships as a direct binary download, not
+        // through Debian/Ubuntu, npm, cargo or go, so this stays Homebrew-only.
         install:   ManagerCommands { brew: Some("brew install terraform-ls"), ..EMPTY },
         uninstall: ManagerCommands { brew: Some("brew uninstall terraform-ls"), ..EMPTY },
         update:    ManagerCommands { brew: Some("brew upgrade terraform-ls"), ..EMPTY },
@@ -446,6 +463,8 @@ pub const BUILTIN: &[BuiltinDef] = &[
         language_ids: &["markdown"],
         extensions:   &[".md", ".markdown"],
         root_markers: &[],
+        // no apt package: marksman is not in the Debian/Ubuntu repositories,
+        // so this stays Homebrew-only rather than guessing one.
         install:   ManagerCommands { brew: Some("brew install marksman"), ..EMPTY },
         uninstall: ManagerCommands { brew: Some("brew uninstall marksman"), ..EMPTY },
         update:    ManagerCommands { brew: Some("brew upgrade marksman"), ..EMPTY },
@@ -475,7 +494,7 @@ pub const BUILTIN: &[BuiltinDef] = &[
 ];
 
 const EMPTY: ManagerCommands = ManagerCommands {
-    npm: None, brew: None, cargo: None, pip: None, go: None, gem: None,
+    npm: None, brew: None, apt: None, cargo: None, pip: None, go: None, gem: None,
 };
 
 impl From<&BuiltinDef> for LanguageServerDef {

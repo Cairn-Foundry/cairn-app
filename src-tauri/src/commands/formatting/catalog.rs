@@ -5,7 +5,7 @@ use crate::commands::toolchain::ManagerCommands;
 pub type StyleSet = serde_json::Map<String, serde_json::Value>;
 
 const EMPTY: ManagerCommands = ManagerCommands {
-    npm: None, brew: None, cargo: None, pip: None, go: None, gem: None,
+    npm: None, brew: None, apt: None, cargo: None, pip: None, go: None, gem: None,
 };
 
 /// A style option in Cairn's own vocabulary, not in any one tool's. The UI
@@ -100,6 +100,14 @@ pub const STYLE_OPTIONS: &[StyleOptionDef] = &[
         min: None, max: None, default: Value::Str("always"), languages: BRACES,
     },
     StyleOptionDef {
+        id: "quoteProps", kind: "enum", choices: &["asNeeded", "consistent", "preserve"],
+        min: None, max: None, default: Value::Str("asNeeded"), languages: BRACES,
+    },
+    StyleOptionDef {
+        id: "singleAttributePerLine", kind: "boolean", choices: &[],
+        min: None, max: None, default: Value::Bool(false), languages: BRACES,
+    },
+    StyleOptionDef {
         id: "reorderImports", kind: "boolean", choices: &[],
         min: None, max: None, default: Value::Bool(false), languages: &["rust"],
     },
@@ -148,6 +156,7 @@ const PRETTIER_OPTS: &[&str] = &[
     "indentStyle", "indentSize", "lineWidth", "lineEnding", "finalNewline",
     "trimTrailingWhitespace", "quoteStyle", "jsxQuoteStyle", "semicolons",
     "trailingComma", "bracketSpacing", "bracketSameLine", "arrowParens",
+    "quoteProps", "singleAttributePerLine",
 ];
 
 pub const FORMATTERS: &[FormatterDef] = &[
@@ -284,9 +293,9 @@ pub const FORMATTERS: &[FormatterDef] = &[
         extensions: &["php"],
         supported: &["indentStyle", "indentSize", "lineEnding"],
         config_files: &[".php-cs-fixer.php", ".php-cs-fixer.dist.php"],
-        install:   ManagerCommands { brew: Some("brew install php-cs-fixer"), ..EMPTY },
-        uninstall: ManagerCommands { brew: Some("brew uninstall php-cs-fixer"), ..EMPTY },
-        update:    ManagerCommands { brew: Some("brew upgrade php-cs-fixer"), ..EMPTY },
+        install:   ManagerCommands { brew: Some("brew install php-cs-fixer"), apt: Some("sudo apt install -y php-cs-fixer"), ..EMPTY },
+        uninstall: ManagerCommands { brew: Some("brew uninstall php-cs-fixer"), apt: Some("sudo apt remove -y php-cs-fixer"), ..EMPTY },
+        update:    ManagerCommands { brew: Some("brew upgrade php-cs-fixer"), apt: Some("sudo apt install --only-upgrade -y php-cs-fixer"), ..EMPTY },
         check:     ManagerCommands { brew: Some("brew outdated --quiet php-cs-fixer"), ..EMPTY },
         toolchain: false,
         doc_url: "https://cs.symfony.com/",

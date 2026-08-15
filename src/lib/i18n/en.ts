@@ -753,6 +753,7 @@ export const en = {
 			none: "None",
 			es5: "ES5",
 			all: "All",
+			consistent: "Consistent",
 		},
 		options: {
 			indentStyle: "Indent with",
@@ -768,6 +769,8 @@ export const en = {
 			bracketSpacing: "Space inside braces",
 			bracketSameLine: "Closing bracket on the same line",
 			arrowParens: "Arrow function parentheses",
+			quoteProps: "Object property quotes",
+			singleAttributePerLine: "One attribute per line",
 			reorderImports: "Reorder imports",
 			matchBlockTrailingComma: "Trailing comma in match blocks",
 			skipStringNormalization: "Keep string quotes as written",
@@ -1007,6 +1010,11 @@ export const en = {
 			rename: "Rename",
 			openInTerminal: "Open in Terminal",
 			formatDocument: "Format Document",
+			stage: "Stage",
+			unstage: "Unstage",
+			discard: "Discard Changes",
+			discardConfirm: (name: string) =>
+				`Discard changes to "${name}"? This cannot be undone.`,
 			deleteItems: (n: number) => `Delete ${n} items`,
 			deleteConfirm: (name: string) => `Delete "${name}"?`,
 		},

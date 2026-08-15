@@ -20,13 +20,19 @@ const completionWheel = ViewPlugin.fromClass(
 	class {
 		private onWheel: (event: WheelEvent) => void;
 		private offset: number | null = null;
+		private measuredOn: HTMLElement | null = null;
 
 		constructor(private view: EditorView) {
 			this.onWheel = (event) => {
 				const list = listOf(event.target);
 				if (!list) return;
-				list.scrollTop += event.deltaY;
+				const delta =
+					event.deltaMode === 1
+						? event.deltaY * lineHeight(list)
+						: event.deltaY;
+				list.scrollTop += delta;
 				this.offset = list.scrollTop;
+				this.measuredOn = list;
 				event.preventDefault();
 				event.stopPropagation();
 			};
@@ -37,17 +43,25 @@ const completionWheel = ViewPlugin.fromClass(
 		}
 
 		update(update: ViewUpdate) {
-			if (update.docChanged) this.offset = null;
+			if (update.docChanged) {
+				this.offset = null;
+				this.measuredOn = null;
+				return;
+			}
 			if (this.offset === null) return;
+			const list = completionList(this.view);
+			if (!list) {
+				this.offset = null;
+				this.measuredOn = null;
+				return;
+			}
+			if (list === this.measuredOn) return;
+			this.measuredOn = list;
+			const offset = this.offset;
 			this.view.requestMeasure({
 				read: () => null,
 				write: () => {
-					const list = completionList(this.view);
-					if (!list) {
-						this.offset = null;
-						return;
-					}
-					if (this.offset !== null) list.scrollTop = this.offset;
+					list.scrollTop = offset;
 				},
 			});
 		}
@@ -57,6 +71,13 @@ const completionWheel = ViewPlugin.fromClass(
 		}
 	},
 );
+
+function lineHeight(list: HTMLElement): number {
+	const item = list.querySelector("li");
+	return item instanceof HTMLElement && item.offsetHeight > 0
+		? item.offsetHeight
+		: 20;
+}
 
 function completionList(view: EditorView): HTMLElement | null {
 	return view.dom.querySelector(".cm-tooltip-autocomplete > ul");

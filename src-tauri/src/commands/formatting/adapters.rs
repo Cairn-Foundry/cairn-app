@@ -81,12 +81,25 @@ pub fn import_prettier(map: &Map<String, Value>) -> ImportReport {
             "arrowParens" => if let Some(s) = value.as_str() {
                 set(style, mapped, key, "arrowParens", json!(s));
             },
+            "quoteProps" => if let Some(s) = value.as_str() {
+                let id = match s {
+                    "consistent" => "consistent",
+                    "preserve" => "preserve",
+                    _ => "asNeeded",
+                };
+                set(style, mapped, key, "quoteProps", json!(id));
+            },
+            "singleAttributePerLine" => if let Some(b) = value.as_bool() {
+                set(style, mapped, key, "singleAttributePerLine", json!(b));
+            },
             // Understood, but Cairn's model has no place for them: they select
-            // plugins or scope rules rather than describe a style.
+            // plugins or scope rules rather than describe a style. `overrides`
+            // applies a whole style set to a glob, which the flat StyleSet model
+            // cannot represent - same reasoning as editorconfig's per-glob sections.
             "plugins" | "overrides" | "parser" | "filepath" | "rangeStart" | "rangeEnd"
             | "requirePragma" | "insertPragma" | "proseWrap" | "htmlWhitespaceSensitivity"
-            | "vueIndentScriptAndStyle" | "embeddedLanguageFormatting" | "singleAttributePerLine"
-            | "quoteProps" | "experimentalTernaries" => report.unsupported.push(key.clone()),
+            | "vueIndentScriptAndStyle" | "embeddedLanguageFormatting"
+            | "experimentalTernaries" => report.unsupported.push(key.clone()),
             _ => report.unknown.push(key.clone()),
         }
     }
@@ -411,13 +424,20 @@ pub fn export_prettier(style: &StyleSet) -> Exported {
     if let Some(v) = b(style, "bracketSpacing") { map.insert("bracketSpacing".into(), json!(v)); }
     if let Some(v) = b(style, "bracketSameLine") { map.insert("bracketSameLine".into(), json!(v)); }
     if let Some(v) = s(style, "arrowParens") { map.insert("arrowParens".into(), json!(v)); }
+    if let Some(v) = s(style, "quoteProps") {
+        let native = if v == "asNeeded" { "as-needed" } else { v.as_str() };
+        map.insert("quoteProps".into(), json!(native));
+    }
+    if let Some(v) = b(style, "singleAttributePerLine") {
+        map.insert("singleAttributePerLine".into(), json!(v));
+    }
 
     Exported {
         text: serde_json::to_string_pretty(&Value::Object(map)).unwrap_or_default(),
         dropped: dropped_for(style, &[
             "indentStyle", "indentSize", "lineWidth", "lineEnding", "quoteStyle",
             "jsxQuoteStyle", "semicolons", "trailingComma", "bracketSpacing",
-            "bracketSameLine", "arrowParens",
+            "bracketSameLine", "arrowParens", "quoteProps", "singleAttributePerLine",
             // Prettier always does these; nothing is lost by not writing them.
             "finalNewline", "trimTrailingWhitespace",
         ]),

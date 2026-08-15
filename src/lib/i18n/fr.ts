@@ -772,6 +772,7 @@ export const fr = {
 			none: "Aucune",
 			es5: "ES5",
 			all: "Toutes",
+			consistent: "Cohérent",
 		},
 		options: {
 			indentStyle: "Indenter avec",
@@ -787,6 +788,8 @@ export const fr = {
 			bracketSpacing: "Espace dans les accolades",
 			bracketSameLine: "Chevron fermant sur la même ligne",
 			arrowParens: "Parenthèses des fonctions fléchées",
+			quoteProps: "Guillemets des propriétés d'objet",
+			singleAttributePerLine: "Un attribut par ligne",
 			reorderImports: "Réordonner les imports",
 			matchBlockTrailingComma: "Virgule finale dans les blocs match",
 			skipStringNormalization: "Garder les guillemets tels quels",
@@ -1029,6 +1032,11 @@ export const fr = {
 			rename: "Renommer",
 			openInTerminal: "Ouvrir dans le terminal",
 			formatDocument: "Formater le document",
+			stage: "Indexer",
+			unstage: "Désindexer",
+			discard: "Annuler les modifications",
+			discardConfirm: (name: string) =>
+				`Annuler les modifications de "${name}" ? Cette action est irréversible.`,
 			deleteItems: (n: number) => `Supprimer ${n} éléments`,
 			deleteConfirm: (name: string) => `Supprimer "${name}" ?`,
 		},
