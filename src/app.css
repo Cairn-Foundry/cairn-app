@@ -2540,4 +2540,268 @@ html[data-theme="high-contrast"] {
   --stroke-0: oklch(0.32 0 0);
   --stroke-1: oklch(0.48 0 0);
   --stroke-2: oklch(0.65 0 0);
+
+  --stone-0: oklch(0.55 0 0);
+  --stone-1: oklch(0.66 0 0);
+  --stone-2: oklch(0.78 0 0);
+  --stone-3: oklch(0.90 0 0);
+
+  --success: oklch(0.88 0.20 150);
+  --warning: oklch(0.92 0.18 90);
+  --danger:  oklch(0.72 0.24 25);
+
+  --success-weak: oklch(0.88 0.20 150 / 0.22);
+  --warning-weak: oklch(0.92 0.18 90 / 0.22);
+  --danger-weak:  oklch(0.72 0.24 25 / 0.24);
+
+  --git-add-bg:    oklch(0.88 0.20 150 / 0.20);
+  --git-remove-bg: oklch(0.72 0.24 25 / 0.20);
+}
+
+/* ==============================
+   Theme: dark - deep neutral black
+   ============================== */
+html[data-theme="dark"] {
+  --bg-0: oklch(0.115 0.003 260);
+  --bg-1: oklch(0.145 0.004 260);
+  --bg-2: oklch(0.178 0.004 260);
+  --bg-3: oklch(0.215 0.005 260);
+  --bg-4: oklch(0.262 0.006 260);
+  --bg-5: oklch(0.315 0.006 260);
+
+  --fg-0: oklch(0.96 0.003 260);
+  --fg-1: oklch(0.83 0.004 260);
+  --fg-2: oklch(0.65 0.005 260);
+  --fg-3: oklch(0.51 0.005 260);
+  --fg-4: oklch(0.39 0.005 260);
+
+  --stroke-0: oklch(0.255 0.005 260);
+  --stroke-1: oklch(0.335 0.006 260);
+  --stroke-2: oklch(0.44 0.007 260);
+
+  --stone-0: oklch(0.47 0.006 260);
+  --stone-1: oklch(0.55 0.006 260);
+  --stone-2: oklch(0.63 0.007 260);
+  --stone-3: oklch(0.73 0.007 260);
+}
+
+/* ==============================
+   Theme: nord - cold blue slate
+   ============================== */
+html[data-theme="nord"] {
+  --bg-0: oklch(0.235 0.021 265);
+  --bg-1: oklch(0.271 0.023 265);
+  --bg-2: oklch(0.309 0.024 264);
+  --bg-3: oklch(0.352 0.025 263);
+  --bg-4: oklch(0.401 0.026 262);
+  --bg-5: oklch(0.452 0.027 261);
+
+  --fg-0: oklch(0.949 0.011 250);
+  --fg-1: oklch(0.879 0.014 254);
+  --fg-2: oklch(0.741 0.018 258);
+  --fg-3: oklch(0.611 0.021 260);
+  --fg-4: oklch(0.492 0.023 262);
+
+  --stroke-0: oklch(0.352 0.025 263);
+  --stroke-1: oklch(0.436 0.027 262);
+  --stroke-2: oklch(0.536 0.029 260);
+
+  --stone-0: oklch(0.556 0.031 240);
+  --stone-1: oklch(0.646 0.035 236);
+  --stone-2: oklch(0.735 0.036 232);
+  --stone-3: oklch(0.822 0.031 228);
+
+  --accent: #88c0d0;
+  --accent-fg: oklch(0.20 0.021 265);
+
+  --success: oklch(0.78 0.11 148);
+  --warning: oklch(0.84 0.11 82);
+  --danger:  oklch(0.70 0.14 22);
+
+  --success-weak: oklch(0.78 0.11 148 / 0.18);
+  --warning-weak: oklch(0.84 0.11 82 / 0.18);
+  --danger-weak:  oklch(0.70 0.14 22 / 0.18);
+
+  --git-add-bg:    oklch(0.78 0.11 148 / 0.14);
+  --git-remove-bg: oklch(0.70 0.14 22 / 0.14);
+}
+
+/* ==============================
+   Theme: solarized - warm low-glare
+   ============================== */
+html[data-theme="solarized"] {
+  --bg-0: oklch(0.221 0.036 210);
+  --bg-1: oklch(0.258 0.038 208);
+  --bg-2: oklch(0.298 0.038 206);
+  --bg-3: oklch(0.342 0.037 204);
+  --bg-4: oklch(0.392 0.035 202);
+  --bg-5: oklch(0.444 0.033 200);
+
+  --fg-0: oklch(0.936 0.016 90);
+  --fg-1: oklch(0.836 0.019 95);
+  --fg-2: oklch(0.706 0.023 180);
+  --fg-3: oklch(0.596 0.027 190);
+  --fg-4: oklch(0.486 0.030 197);
+
+  --stroke-0: oklch(0.336 0.037 204);
+  --stroke-1: oklch(0.421 0.034 201);
+  --stroke-2: oklch(0.521 0.031 198);
+
+  --stone-0: oklch(0.531 0.032 196);
+  --stone-1: oklch(0.618 0.030 192);
+  --stone-2: oklch(0.706 0.026 186);
+  --stone-3: oklch(0.796 0.021 178);
+
+  --accent: #b58900;
+  --accent-fg: oklch(0.19 0.036 210);
+
+  --success: oklch(0.72 0.15 135);
+  --warning: oklch(0.75 0.16 60);
+  --danger:  oklch(0.62 0.19 28);
+
+  --success-weak: oklch(0.72 0.15 135 / 0.18);
+  --warning-weak: oklch(0.75 0.16 60 / 0.18);
+  --danger-weak:  oklch(0.62 0.19 28 / 0.18);
+
+  --git-add-bg:    oklch(0.72 0.15 135 / 0.15);
+  --git-remove-bg: oklch(0.62 0.19 28 / 0.15);
+}
+
+/* ==============================
+   Theme: dracula - violet night
+   ============================== */
+html[data-theme="dracula"] {
+  --bg-0: oklch(0.212 0.024 288);
+  --bg-1: oklch(0.253 0.028 288);
+  --bg-2: oklch(0.296 0.032 288);
+  --bg-3: oklch(0.344 0.036 288);
+  --bg-4: oklch(0.398 0.040 288);
+  --bg-5: oklch(0.452 0.043 288);
+
+  --fg-0: oklch(0.968 0.013 300);
+  --fg-1: oklch(0.888 0.017 300);
+  --fg-2: oklch(0.752 0.022 296);
+  --fg-3: oklch(0.622 0.026 292);
+  --fg-4: oklch(0.502 0.030 290);
+
+  --stroke-0: oklch(0.344 0.036 288);
+  --stroke-1: oklch(0.432 0.042 288);
+  --stroke-2: oklch(0.532 0.046 290);
+
+  --stone-0: oklch(0.552 0.048 292);
+  --stone-1: oklch(0.638 0.048 294);
+  --stone-2: oklch(0.722 0.045 296);
+  --stone-3: oklch(0.812 0.038 298);
+
+  --accent: #bd93f9;
+  --accent-fg: oklch(0.18 0.024 288);
+
+  --success: oklch(0.86 0.19 145);
+  --warning: oklch(0.90 0.14 95);
+  --danger:  oklch(0.70 0.20 15);
+
+  --success-weak: oklch(0.86 0.19 145 / 0.16);
+  --warning-weak: oklch(0.90 0.14 95 / 0.16);
+  --danger-weak:  oklch(0.70 0.20 15 / 0.18);
+
+  --git-add-bg:    oklch(0.86 0.19 145 / 0.13);
+  --git-remove-bg: oklch(0.70 0.20 15 / 0.13);
+}
+
+/* ==============================
+   Theme: paper - warm sepia light
+   ============================== */
+html[data-theme="paper"] .diff-line.add { background: oklch(0.80 0.15 145 / 0.40); }
+html[data-theme="paper"] .diff-line.add .ln { color: oklch(0.40 0.16 145); }
+html[data-theme="paper"] .diff-line.del { background: oklch(0.78 0.15 28 / 0.36); }
+html[data-theme="paper"] .diff-line.del .ln { color: oklch(0.43 0.19 28); }
+
+html[data-theme="paper"] {
+  --bg-0: oklch(0.945 0.038 88);
+  --bg-1: oklch(0.910 0.046 85);
+  --bg-2: oklch(0.872 0.054 82);
+  --bg-3: oklch(0.828 0.060 79);
+  --bg-4: oklch(0.780 0.064 76);
+  --bg-5: oklch(0.730 0.066 73);
+
+  --fg-0: oklch(0.225 0.052 52);
+  --fg-1: oklch(0.330 0.055 55);
+  --fg-2: oklch(0.458 0.056 58);
+  --fg-3: oklch(0.575 0.052 62);
+  --fg-4: oklch(0.688 0.045 68);
+
+  --stroke-0: oklch(0.838 0.052 80);
+  --stroke-1: oklch(0.752 0.062 76);
+  --stroke-2: oklch(0.648 0.068 71);
+
+  --stone-0: oklch(0.575 0.062 64);
+  --stone-1: oklch(0.648 0.058 67);
+  --stone-2: oklch(0.722 0.052 70);
+  --stone-3: oklch(0.800 0.042 75);
+
+  --accent: #8a4522;
+  --accent-fg: oklch(0.96 0.038 88);
+
+  --success: oklch(0.56 0.15 148);
+  --warning: oklch(0.64 0.15 70);
+  --danger:  oklch(0.54 0.20 27);
+
+  --success-weak: oklch(0.56 0.15 148 / 0.20);
+  --warning-weak: oklch(0.64 0.15 70 / 0.20);
+  --danger-weak:  oklch(0.54 0.20 27 / 0.20);
+
+  --git-add-bg:    oklch(0.56 0.15 148 / 0.14);
+  --git-remove-bg: oklch(0.54 0.20 27 / 0.14);
+}
+html[data-theme="paper"],
+html[data-theme="paper"] body { background: var(--bg-0); }
+html[data-theme="paper"] .os-window { background: var(--bg-0); }
+
+/* ==============================
+   Theme: glass - translucent over the desktop (macOS)
+   ============================== */
+html[data-theme="glass"] {
+  --bg-0: oklch(0.18 0.010 265 / 0.34);
+  --bg-1: oklch(0.22 0.011 265 / 0.44);
+  --bg-2: oklch(0.26 0.012 265 / 0.52);
+  --bg-3: oklch(0.32 0.013 265 / 0.60);
+  --bg-4: oklch(0.38 0.014 265 / 0.68);
+  --bg-5: oklch(0.44 0.015 265 / 0.74);
+
+  --fg-0: oklch(0.985 0.004 265);
+  --fg-1: oklch(0.905 0.006 265);
+  --fg-2: oklch(0.775 0.008 265);
+  --fg-3: oklch(0.655 0.010 265);
+  --fg-4: oklch(0.545 0.011 265);
+
+  --stroke-0: oklch(0.98 0.004 265 / 0.12);
+  --stroke-1: oklch(0.98 0.004 265 / 0.22);
+  --stroke-2: oklch(0.98 0.004 265 / 0.36);
+
+  --stone-0: oklch(0.58 0.012 265);
+  --stone-1: oklch(0.66 0.013 265);
+  --stone-2: oklch(0.74 0.014 265);
+  --stone-3: oklch(0.83 0.013 265);
+
+  --accent: #7aa2ff;
+  --accent-fg: oklch(0.15 0.010 265);
+
+  --success: oklch(0.82 0.15 150);
+  --warning: oklch(0.86 0.14 80);
+  --danger:  oklch(0.72 0.19 22);
+
+  --success-weak: oklch(0.82 0.15 150 / 0.20);
+  --warning-weak: oklch(0.86 0.14 80 / 0.20);
+  --danger-weak:  oklch(0.72 0.19 22 / 0.22);
+
+  --git-add-bg:    oklch(0.82 0.15 150 / 0.16);
+  --git-remove-bg: oklch(0.72 0.19 22 / 0.16);
+}
+
+html[data-theme="glass"],
+html[data-theme="glass"] body { background: transparent; }
+html[data-theme="glass"] .os-window {
+  background: var(--bg-0);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
 }

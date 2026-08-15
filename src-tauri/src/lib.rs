@@ -122,6 +122,7 @@ pub fn run() {
             create_file_or_dir,
             get_settings,
             update_settings,
+            set_window_vibrancy,
             list_branches_detailed,
             is_git_repo,
             git_status,

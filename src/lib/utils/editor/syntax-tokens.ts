@@ -1,3 +1,5 @@
+const LIGHT_THEME_IDS = new Set(["light", "paper"]);
+
 export const SYNTAX_TOKEN_KEYS = [
 	"kw",
 	"fn",
@@ -72,7 +74,7 @@ const COLORS_LIGHT: Record<SyntaxTokenKey, string> = {
 const ITALIC_BY_DEFAULT = new Set<SyntaxTokenKey>(["kw", "cmt"]);
 
 export function defaultSyntaxTokens(theme: string): SyntaxTokens {
-	const colors = theme === "light" ? COLORS_LIGHT : COLORS_DARK;
+	const colors = LIGHT_THEME_IDS.has(theme) ? COLORS_LIGHT : COLORS_DARK;
 	const tokens = {} as SyntaxTokens;
 	for (const key of SYNTAX_TOKEN_KEYS) {
 		tokens[key] = { color: colors[key], italic: ITALIC_BY_DEFAULT.has(key) };

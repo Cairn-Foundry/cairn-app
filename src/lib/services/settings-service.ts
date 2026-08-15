@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { WorkflowStep } from "$lib/types/instance";
 import type { ShortcutConfig } from "$lib/types/shortcuts";
+import type { ThemeName } from "$lib/utils/editor/editor-theme";
 import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
 
 export interface GitProfile {
@@ -51,7 +52,7 @@ export interface CairnSettings {
 	splitMode: boolean;
 	splitLeftWidth: number;
 	shortcuts: ShortcutConfig[];
-	theme: "dark" | "light" | "high-contrast";
+	theme: ThemeName;
 	accentColor: string;
 	workflowTabs: WorkflowTabConfig[];
 	sidebarPosition: "left" | "right";
@@ -97,4 +98,8 @@ export function updateSettings(
 	settings: CairnSettings,
 ): Promise<CairnSettings> {
 	return invoke<CairnSettings>("update_settings", { settings });
+}
+
+export function setWindowVibrancy(enabled: boolean): Promise<void> {
+	return invoke<void>("set_window_vibrancy", { enabled });
 }

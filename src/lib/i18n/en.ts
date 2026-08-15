@@ -2214,7 +2214,7 @@ export const en = {
 
 		appearance: {
 			themeGroup: "Theme",
-			themeDesc: "Dark, Light, or High contrast",
+			themeDesc: "The colours of the whole interface and the editor",
 			accentGroup: "Accent color",
 			accentDesc: "Highlight color across the UI",
 			scaleGroup: "Interface size",

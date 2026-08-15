@@ -19,7 +19,7 @@ const DEFAULTS: CairnSettings = {
 	splitMode: false,
 	splitLeftWidth: 0,
 	shortcuts: [],
-	theme: "dark",
+	theme: "default",
 	accentColor: DEFAULT_ACCENT,
 	workflowTabs: DEFAULT_WF_TABS,
 	sidebarPosition: "left",

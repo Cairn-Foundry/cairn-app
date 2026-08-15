@@ -9,6 +9,7 @@
     "frontendDist": "../build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Cairn",
@@ -18,7 +19,8 @@
         "minHeight": 360,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "resizable": true
+        "resizable": true,
+        "transparent": true
       }
     ],
     "security": {

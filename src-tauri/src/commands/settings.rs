@@ -211,7 +211,7 @@ fn default_ui_scale() -> f64 { 1.0 }
 fn default_editor_font_family() -> String { "'JetBrains Mono', ui-monospace, monospace".to_string() }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
-fn default_theme() -> String { "dark".to_string() }
+fn default_theme() -> String { "default".to_string() }
 fn default_accent_color() -> String { "#6c8eff".to_string() }
 
 impl Default for CairnSettings {
@@ -280,4 +280,28 @@ pub fn get_settings() -> Result<CairnSettings, String> {
 pub fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     write_settings(&settings)?;
     Ok(settings)
+}
+
+/// Turns the native translucency of the window on or off. Only macOS has a real
+/// vibrancy layer; elsewhere the glass theme falls back to its CSS blur.
+#[tauri::command]
+pub fn set_window_vibrancy(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use window_vibrancy::{apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial};
+
+        if enabled {
+            apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
+                .map_err(|e| e.to_string())?;
+        } else {
+            clear_vibrancy(&window).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, enabled);
+        Ok(())
+    }
 }

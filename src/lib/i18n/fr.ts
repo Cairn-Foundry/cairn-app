@@ -2265,7 +2265,7 @@ export const fr = {
 
 		appearance: {
 			themeGroup: "Thème",
-			themeDesc: "Sombre, Clair ou Contraste élevé",
+			themeDesc: "Les couleurs de toute l'interface et de l'éditeur",
 			accentGroup: "Couleur d'accentuation",
 			accentDesc: "Couleur de mise en évidence dans toute l'interface",
 			scaleGroup: "Taille de l'interface",

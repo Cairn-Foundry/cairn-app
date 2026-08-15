@@ -2,6 +2,17 @@
   import '../app.css';
   import { settings } from '$lib/stores/settings';
   import { foregroundOn } from '$lib/utils/home/contrast';
+  import { setWindowVibrancy } from '$lib/services/settings-service';
+
+  let vibrancyApplied: boolean | null = null;
+
+  async function applyVibrancy(enabled: boolean) {
+    if (vibrancyApplied === enabled) return;
+    vibrancyApplied = enabled;
+    try {
+      await setWindowVibrancy(enabled);
+    } catch {}
+  }
 
   // The webview zoom scales the whole chrome, which a root font size cannot do
   // here: the interface is laid out in absolute pixels throughout.
@@ -20,6 +31,7 @@
     document.documentElement.style.setProperty('--font-mono', font);
     document.documentElement.style.setProperty('--font-ui', font);
     void applyZoom($settings.uiScale);
+    void applyVibrancy($settings.theme === 'glass');
   }
 </script>
 

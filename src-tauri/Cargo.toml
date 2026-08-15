@@ -26,7 +26,7 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -54,6 +54,9 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 chacha20poly1305 = "0.10"
 getrandom = "0.2"
 toml_edit = { version = "0.25.13", features = ["parse", "display"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "0.6"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

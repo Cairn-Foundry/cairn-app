@@ -10,6 +10,27 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Five new themes in Settings, Appearance: Nord, Solarized, Dracula, Paper, and Transparent, which makes the window translucent over the desktop on macOS.",
+					"fr": "Cinq nouveaux thèmes dans Réglages, Apparence : Nord, Solarized, Dracula, Paper et Transparent, qui rend la fenêtre translucide sur le bureau sous macOS."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The theme that was called Dark is now called Default, and Dark is a new, deeper and more neutral black.",
+					"fr": "Le thème qui s'appelait Dark s'appelle désormais Default, et Dark est un nouveau noir plus profond et plus neutre."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Contrast theme now has its own accents, status colours and diff backgrounds instead of borrowing the ones of the dark theme.",
+					"fr": "Le thème Contrast a maintenant ses propres accents, couleurs d'état et fonds de diff au lieu de reprendre ceux du thème sombre."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A cairn command opens the app from any terminal, and cairn <file> opens that file in the editor of the current project. Install it from Settings, General, Command line.",
 					"fr": "Une commande cairn ouvre l'application depuis n'importe quel terminal, et cairn <fichier> ouvre ce fichier dans l'éditeur du projet en cours. Elle s'installe depuis Réglages, Général, Ligne de commande."
 				}

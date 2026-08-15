@@ -46,7 +46,16 @@ export type EditorLanguage =
 	| "php"
 	| "text";
 
-export type ThemeName = "dark" | "light" | "high-contrast";
+export type ThemeName =
+	| "default"
+	| "dark"
+	| "light"
+	| "high-contrast"
+	| "nord"
+	| "solarized"
+	| "dracula"
+	| "paper"
+	| "glass";
 
 export function resolveLanguageExtension(lang: EditorLanguage): Extension {
 	switch (lang) {
@@ -191,7 +200,7 @@ interface EditorPalette {
 	isDark: boolean;
 }
 
-const PALETTE_DARK: EditorPalette = {
+const PALETTE_DEFAULT: EditorPalette = {
 	bg: "oklch(0.16 0.008 70)",
 	fg: "oklch(0.88 0.005 80)",
 	caret: "oklch(0.72 0.14 250)",
@@ -287,6 +296,155 @@ const PALETTE_HIGH_CONTRAST: EditorPalette = {
 	diffDeleted: "oklch(0.72 0.20 25)",
 	cursorWidth: "2px",
 	isDark: true,
+};
+
+const PALETTE_DARK: EditorPalette = {
+	...PALETTE_DEFAULT,
+	bg: "oklch(0.115 0.003 260)",
+	fg: "oklch(0.88 0.004 260)",
+	gutterBg: "oklch(0.115 0.003 260)",
+	gutterFg: "oklch(0.41 0.005 260)",
+	gutterBorder: "oklch(0.235 0.005 260)",
+	activeLine: "oklch(0.168 0.004 260)",
+	panelBorder: "oklch(0.235 0.005 260)",
+	foldPlaceholderBg: "oklch(0.235 0.005 260)",
+	foldPlaceholderBorder: "oklch(0.315 0.006 260)",
+	foldPlaceholderFg: "oklch(0.60 0.005 260)",
+	tooltipBg: "oklch(0.158 0.004 260)",
+	tooltipBorder: "oklch(0.295 0.006 260)",
+	tooltipFg: "oklch(0.88 0.004 260)",
+	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.7)",
+	whitespace: "oklch(0.34 0.005 260)",
+};
+
+const PALETTE_NORD: EditorPalette = {
+	...PALETTE_DEFAULT,
+	bg: "oklch(0.235 0.021 265)",
+	fg: "oklch(0.879 0.014 254)",
+	caret: "oklch(0.78 0.075 225)",
+	accent: "oklch(0.78 0.075 225)",
+	gutterBg: "oklch(0.235 0.021 265)",
+	gutterFg: "oklch(0.492 0.023 262)",
+	gutterBorder: "oklch(0.352 0.025 263)",
+	activeLine: "oklch(0.288 0.023 265)",
+	panelBorder: "oklch(0.352 0.025 263)",
+	searchBg: "oklch(0.80 0.11 82 / 0.28)",
+	searchSelectedBg: "oklch(0.80 0.11 82 / 0.55)",
+	foldHover: "oklch(0.84 0.075 225)",
+	foldPlaceholderBg: "oklch(0.309 0.024 264)",
+	foldPlaceholderBorder: "oklch(0.436 0.027 262)",
+	foldPlaceholderFg: "oklch(0.741 0.018 258)",
+	tooltipBg: "oklch(0.271 0.023 265)",
+	tooltipBorder: "oklch(0.436 0.027 262)",
+	tooltipFg: "oklch(0.879 0.014 254)",
+	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.55)",
+	diffAdded: "oklch(0.78 0.11 148)",
+	diffModified: "oklch(0.84 0.11 82)",
+	diffDeleted: "oklch(0.70 0.14 22)",
+	whitespace: "oklch(0.44 0.024 262)",
+};
+
+const PALETTE_SOLARIZED: EditorPalette = {
+	...PALETTE_DEFAULT,
+	bg: "oklch(0.221 0.036 210)",
+	fg: "oklch(0.836 0.019 95)",
+	caret: "oklch(0.70 0.14 75)",
+	accent: "oklch(0.70 0.14 75)",
+	gutterBg: "oklch(0.221 0.036 210)",
+	gutterFg: "oklch(0.486 0.030 197)",
+	gutterBorder: "oklch(0.336 0.037 204)",
+	activeLine: "oklch(0.272 0.038 208)",
+	panelBorder: "oklch(0.336 0.037 204)",
+	searchBg: "oklch(0.75 0.16 60 / 0.28)",
+	searchSelectedBg: "oklch(0.75 0.16 60 / 0.55)",
+	foldHover: "oklch(0.78 0.14 75)",
+	foldPlaceholderBg: "oklch(0.298 0.038 206)",
+	foldPlaceholderBorder: "oklch(0.421 0.034 201)",
+	foldPlaceholderFg: "oklch(0.706 0.023 180)",
+	tooltipBg: "oklch(0.258 0.038 208)",
+	tooltipBorder: "oklch(0.421 0.034 201)",
+	tooltipFg: "oklch(0.836 0.019 95)",
+	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.55)",
+	diffAdded: "oklch(0.72 0.15 135)",
+	diffModified: "oklch(0.75 0.16 60)",
+	diffDeleted: "oklch(0.62 0.19 28)",
+	whitespace: "oklch(0.42 0.032 200)",
+};
+
+const PALETTE_DRACULA: EditorPalette = {
+	...PALETTE_DEFAULT,
+	bg: "oklch(0.212 0.024 288)",
+	fg: "oklch(0.888 0.017 300)",
+	caret: "oklch(0.75 0.16 300)",
+	accent: "oklch(0.75 0.16 300)",
+	gutterBg: "oklch(0.212 0.024 288)",
+	gutterFg: "oklch(0.502 0.030 290)",
+	gutterBorder: "oklch(0.344 0.036 288)",
+	activeLine: "oklch(0.268 0.030 288)",
+	panelBorder: "oklch(0.344 0.036 288)",
+	searchBg: "oklch(0.90 0.14 95 / 0.26)",
+	searchSelectedBg: "oklch(0.90 0.14 95 / 0.52)",
+	foldHover: "oklch(0.82 0.16 300)",
+	foldPlaceholderBg: "oklch(0.296 0.032 288)",
+	foldPlaceholderBorder: "oklch(0.432 0.042 288)",
+	foldPlaceholderFg: "oklch(0.752 0.022 296)",
+	tooltipBg: "oklch(0.253 0.028 288)",
+	tooltipBorder: "oklch(0.432 0.042 288)",
+	tooltipFg: "oklch(0.888 0.017 300)",
+	tooltipShadow: "0 4px 20px oklch(0 0 0 / 0.6)",
+	diffAdded: "oklch(0.86 0.19 145)",
+	diffModified: "oklch(0.90 0.14 95)",
+	diffDeleted: "oklch(0.70 0.20 15)",
+	whitespace: "oklch(0.44 0.036 289)",
+};
+
+const PALETTE_PAPER: EditorPalette = {
+	...PALETTE_LIGHT,
+	bg: "oklch(0.945 0.038 88)",
+	fg: "oklch(0.225 0.052 52)",
+	caret: "oklch(0.47 0.15 42)",
+	accent: "oklch(0.47 0.15 42)",
+	gutterBg: "oklch(0.910 0.046 85)",
+	gutterFg: "oklch(0.575 0.052 62)",
+	gutterBorder: "oklch(0.838 0.052 80)",
+	activeLine: "oklch(0.872 0.054 82)",
+	foldHover: "oklch(0.47 0.15 42)",
+	foldPlaceholderBg: "oklch(0.872 0.054 82)",
+	foldPlaceholderBorder: "oklch(0.752 0.062 76)",
+	foldPlaceholderFg: "oklch(0.458 0.056 58)",
+	tooltipBg: "oklch(0.945 0.038 88)",
+	tooltipBorder: "oklch(0.752 0.062 76)",
+	tooltipFg: "oklch(0.225 0.052 52)",
+	tooltipShadow: "0 4px 20px oklch(0.28 0.05 55 / 0.22)",
+	diffAdded: "oklch(0.56 0.15 148)",
+	diffModified: "oklch(0.64 0.15 70)",
+	diffDeleted: "oklch(0.54 0.20 27)",
+	whitespace: "oklch(0.68 0.050 72)",
+};
+
+const PALETTE_GLASS: EditorPalette = {
+	...PALETTE_DEFAULT,
+	bg: "transparent",
+	fg: "oklch(0.905 0.006 265)",
+	caret: "oklch(0.78 0.12 265)",
+	accent: "oklch(0.78 0.12 265)",
+	gutterBg: "transparent",
+	gutterFg: "oklch(0.615 0.010 265)",
+	gutterBorder: "oklch(0.98 0.004 265 / 0.12)",
+	activeLine: "oklch(0.98 0.004 265 / 0.06)",
+	panelBorder: "oklch(0.98 0.004 265 / 0.16)",
+	foldHover: "oklch(0.85 0.12 265)",
+	foldPlaceholderBg: "oklch(0.98 0.004 265 / 0.12)",
+	foldPlaceholderBorder: "oklch(0.98 0.004 265 / 0.24)",
+	foldPlaceholderFg: "oklch(0.775 0.008 265)",
+	tooltipBg: "oklch(0.22 0.011 265 / 0.92)",
+	tooltipBorder: "oklch(0.98 0.004 265 / 0.22)",
+	tooltipFg: "oklch(0.905 0.006 265)",
+	tooltipShadow: "0 4px 24px oklch(0 0 0 / 0.5)",
+	diffAdded: "oklch(0.82 0.15 150)",
+	diffModified: "oklch(0.86 0.14 80)",
+	diffDeleted: "oklch(0.72 0.19 22)",
+	whitespace: "oklch(0.98 0.004 265 / 0.22)",
 };
 
 function withAlpha(color: string, alpha: number): string {
@@ -450,13 +608,19 @@ function buildThemeFromPalette(p: EditorPalette): Extension {
 }
 
 const PALETTES: Record<ThemeName, EditorPalette> = {
+	default: PALETTE_DEFAULT,
 	dark: PALETTE_DARK,
 	light: PALETTE_LIGHT,
 	"high-contrast": PALETTE_HIGH_CONTRAST,
+	nord: PALETTE_NORD,
+	solarized: PALETTE_SOLARIZED,
+	dracula: PALETTE_DRACULA,
+	paper: PALETTE_PAPER,
+	glass: PALETTE_GLASS,
 };
 
 export function diffColors(theme: string): Record<DiffKind, string> {
-	const p = PALETTES[theme as ThemeName] ?? PALETTE_DARK;
+	const p = PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT;
 	return {
 		added: p.diffAdded,
 		modified: p.diffModified,
@@ -465,7 +629,7 @@ export function diffColors(theme: string): Record<DiffKind, string> {
 }
 
 export function buildEditorTheme(theme: string): Extension {
-	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DARK);
+	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT);
 }
 
 export function buildSyntaxHighlighting(

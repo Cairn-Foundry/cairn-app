@@ -13,6 +13,9 @@
     serializeSyntaxTheme,
   } from '$lib/utils/home/syntax-theme';
   import { readFile, writeFile } from '$lib/services/file-service';
+  import { availableThemes } from '$lib/utils/editor/themes';
+
+  const themeOptions = availableThemes();
 
   $: currentFont = $settings.fontFamily;
   $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === $settings.accentColor);
@@ -93,12 +96,12 @@
 <div class="settings-group">
   <div class="settings-group-title">{t('settings.appearance.themeGroup')}</div>
   <div class="theme-cards">
-    {#each [['dark', 'Dark'], ['light', 'Light'], ['high-contrast', 'High contrast']] as [val, label]}
+    {#each themeOptions as option (option.id)}
       <button
-        class="theme-card {$settings.theme === val ? 'active' : ''}"
-        on:click={() => settings.save({ theme: val as 'dark' | 'light' | 'high-contrast' })}
+        class="theme-card {$settings.theme === option.id ? 'active' : ''}"
+        on:click={() => settings.save({ theme: option.id })}
       >
-        <div class="theme-preview theme-preview-{val}">
+        <div class="theme-preview theme-preview-{option.id}">
           <div class="tp-bar"></div>
           <div class="tp-content">
             <div class="tp-line tp-line-wide"></div>
@@ -106,8 +109,8 @@
             <div class="tp-line tp-line-short"></div>
           </div>
         </div>
-        <span class="theme-card-label">{label}</span>
-        {#if $settings.theme === val}
+        <span class="theme-card-label">{option.label}</span>
+        {#if $settings.theme === option.id}
           <span class="theme-card-check"><Icon name="check" size={11}/></span>
         {/if}
       </button>
@@ -266,7 +269,7 @@
   <button
     class="btn ghost"
     style="font-size: 12px;"
-    on:click={() => settings.save({ theme: 'dark', accentColor: DEFAULT_ACCENT, fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
+    on:click={() => settings.save({ theme: 'default', accentColor: DEFAULT_ACCENT, fontFamily: "'JetBrains Mono', ui-monospace, monospace" })}
   >
     <Icon name="undo" size={12}/> {t('settings.appearance.resetAppearance')}
   </button>
@@ -275,6 +278,7 @@
 <style>
   .theme-cards {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-top: 4px;
   }
@@ -312,9 +316,14 @@
   .tp-line-med   { width: 55%; }
   .tp-line-short { width: 35%; }
 
-  .theme-preview-dark                 { background: oklch(0.16 0.008 70); }
-  .theme-preview-dark .tp-bar         { background: oklch(0.185 0.008 70); }
-  .theme-preview-dark .tp-line        { background: oklch(0.36 0.008 70); }
+  .theme-preview-default                 { background: oklch(0.16 0.008 70); }
+  .theme-preview-default .tp-bar         { background: oklch(0.185 0.008 70); }
+  .theme-preview-default .tp-line        { background: oklch(0.36 0.008 70); }
+  .theme-preview-default .tp-line-wide   { background: color-mix(in oklch, var(--accent) 55%, transparent); }
+
+  .theme-preview-dark                 { background: oklch(0.115 0.003 260); }
+  .theme-preview-dark .tp-bar         { background: oklch(0.145 0.004 260); }
+  .theme-preview-dark .tp-line        { background: oklch(0.315 0.006 260); }
   .theme-preview-dark .tp-line-wide   { background: color-mix(in oklch, var(--accent) 55%, transparent); }
 
   .theme-preview-light                { background: oklch(0.97 0.006 80); }
@@ -326,6 +335,35 @@
   .theme-preview-high-contrast .tp-bar        { background: oklch(0.08 0 0); }
   .theme-preview-high-contrast .tp-line       { background: oklch(0.40 0 0); }
   .theme-preview-high-contrast .tp-line-wide  { background: color-mix(in oklch, var(--accent) 80%, transparent); }
+
+  .theme-preview-nord                 { background: oklch(0.235 0.021 265); }
+  .theme-preview-nord .tp-bar         { background: oklch(0.271 0.023 265); }
+  .theme-preview-nord .tp-line        { background: oklch(0.452 0.027 261); }
+  .theme-preview-nord .tp-line-wide   { background: oklch(0.78 0.075 225); }
+
+  .theme-preview-solarized                { background: oklch(0.221 0.036 210); }
+  .theme-preview-solarized .tp-bar        { background: oklch(0.258 0.038 208); }
+  .theme-preview-solarized .tp-line       { background: oklch(0.444 0.033 200); }
+  .theme-preview-solarized .tp-line-wide  { background: oklch(0.70 0.14 75); }
+
+  .theme-preview-dracula                { background: oklch(0.212 0.024 288); }
+  .theme-preview-dracula .tp-bar        { background: oklch(0.253 0.028 288); }
+  .theme-preview-dracula .tp-line       { background: oklch(0.452 0.043 288); }
+  .theme-preview-dracula .tp-line-wide  { background: oklch(0.75 0.16 300); }
+
+  .theme-preview-paper                { background: oklch(0.945 0.038 88); }
+  .theme-preview-paper .tp-bar        { background: oklch(0.910 0.046 85); }
+  .theme-preview-paper .tp-line       { background: oklch(0.730 0.066 73); }
+  .theme-preview-paper .tp-line-wide  { background: oklch(0.47 0.15 42); }
+
+  .theme-preview-glass {
+    background:
+      linear-gradient(135deg, oklch(0.55 0.14 265 / 0.55), oklch(0.62 0.12 320 / 0.45)),
+      oklch(0.28 0.012 265);
+  }
+  .theme-preview-glass .tp-bar        { background: oklch(1 0 0 / 0.16); }
+  .theme-preview-glass .tp-line       { background: oklch(1 0 0 / 0.30); }
+  .theme-preview-glass .tp-line-wide  { background: oklch(1 0 0 / 0.55); }
 
   .theme-card-label { font-size: 12px; color: var(--fg-1); }
   .theme-card.active .theme-card-label { color: var(--fg-0); }
