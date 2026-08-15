@@ -109,11 +109,9 @@ impl AgentProvider for ClaudeCliProvider {
         *handle.stdin.lock().map_err(|e| e.to_string())? = stdin;
         *handle.child.lock().map_err(|e| e.to_string())? = Some(child);
 
-        if handle.cancelled.load(Ordering::SeqCst) {
-            if let Ok(mut slot) = handle.child.lock() {
-                if let Some(mut c) = slot.take() { platform::kill_tree(&mut c); }
-            }
-        }
+        if handle.cancelled.load(Ordering::SeqCst)
+            && let Ok(mut slot) = handle.child.lock()
+                && let Some(mut c) = slot.take() { platform::kill_tree(&mut c); }
 
         let stderr_thread = stderr.map(|mut err| {
             std::thread::spawn(move || {
@@ -213,18 +211,16 @@ impl AgentProvider for ClaudeCliProvider {
                             for block in blocks {
                                 match block.get("type").and_then(Value::as_str) {
                                     Some("text") => {
-                                        if let Some(text) = block.get("text").and_then(Value::as_str) {
-                                            if !text.is_empty() {
+                                        if let Some(text) = block.get("text").and_then(Value::as_str)
+                                            && !text.is_empty() {
                                                 emit_agent_for(app, text.to_string(), "assistant", wd.clone(), rid.clone(), agent.clone());
                                             }
-                                        }
                                     }
                                     Some("thinking") => {
-                                        if let Some(text) = block.get("thinking").and_then(Value::as_str) {
-                                            if !text.is_empty() {
+                                        if let Some(text) = block.get("thinking").and_then(Value::as_str)
+                                            && !text.is_empty() {
                                                 emit_agent_data_for(app, "thinking", json!({ "text": text }), wd.clone(), rid.clone(), agent.clone());
                                             }
-                                        }
                                     }
                                     Some("tool_use") => {
                                         let name = block.get("name").and_then(Value::as_str).unwrap_or("tool");
@@ -262,13 +258,10 @@ impl AgentProvider for ClaudeCliProvider {
                                 // rather than landing in the conversation.
                                 if agent.is_some()
                                     && block.get("type").and_then(Value::as_str) == Some("text")
-                                {
-                                    if let Some(text) = block.get("text").and_then(Value::as_str) {
-                                        if !text.is_empty() {
+                                    && let Some(text) = block.get("text").and_then(Value::as_str)
+                                        && !text.is_empty() {
                                             emit_agent_data_for(app, "agent_prompt", json!({ "text": text }), wd.clone(), rid.clone(), agent.clone());
                                         }
-                                    }
-                                }
                             }
                         }
                     }
@@ -295,11 +288,10 @@ impl AgentProvider for ClaudeCliProvider {
                             "durationMs": event.get("duration_ms").or_else(|| event.get("duration_api_ms")),
                             "numTurns": event.get("num_turns"),
                         }), wd.clone(), rid.clone());
-                        if event.get("is_error").and_then(Value::as_bool) == Some(true) {
-                            if let Some(text) = event.get("result").and_then(Value::as_str) {
+                        if event.get("is_error").and_then(Value::as_bool) == Some(true)
+                            && let Some(text) = event.get("result").and_then(Value::as_str) {
                                 emit_agent_data(app, "error", json!({ "message": text }), wd.clone(), rid.clone());
                             }
-                        }
                         // Closing stdin ends the streaming session; the CLI exits.
                         if let Ok(mut slot) = handle.stdin.lock() {
                             slot.take();
@@ -320,8 +312,8 @@ impl AgentProvider for ClaudeCliProvider {
             .and_then(|t| t.join().ok())
             .unwrap_or_default();
 
-        if let Some(status) = status {
-            if !status.success() && !handle.cancelled.load(Ordering::SeqCst) {
+        if let Some(status) = status
+            && !status.success() && !handle.cancelled.load(Ordering::SeqCst) {
                 let detail = stderr_text.trim();
                 let message = if detail.is_empty() {
                     format!("claude exited with {status}")
@@ -330,7 +322,6 @@ impl AgentProvider for ClaudeCliProvider {
                 };
                 return Err(message);
             }
-        }
 
         Ok(AgentResponse { session_id: session_id_out })
     }

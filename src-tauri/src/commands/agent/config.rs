@@ -121,15 +121,14 @@ fn restrict_to_owner(path: &Path) {
 /// leak through a backup, a synced folder, a screen share or a stray grep.
 fn encryption_secret() -> Result<[u8; 32], String> {
     let path = api_keys_secret_file()?;
-    if let Ok(existing) = fs::read(&path) {
-        if existing.len() == 32 {
+    if let Ok(existing) = fs::read(&path)
+        && existing.len() == 32 {
             let mut secret = [0u8; 32];
             secret.copy_from_slice(&existing);
             return Ok(secret);
         }
-    }
     let mut secret = [0u8; 32];
-    getrandom::getrandom(&mut secret).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut secret).map_err(|e| e.to_string())?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -149,6 +148,7 @@ fn read_stored_keys() -> HashMap<String, String> {
         return HashMap::new();
     }
     let (nonce, ciphertext) = raw.split_at(NONCE_LEN);
+    let Ok(nonce) = <&[u8; NONCE_LEN]>::try_from(nonce) else { return HashMap::new() };
     let Ok(cipher) = cipher() else { return HashMap::new() };
     cipher
         .decrypt(nonce.into(), ciphertext)
@@ -165,7 +165,7 @@ fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
     }
     let plain = serde_json::to_vec(keys).map_err(|e| e.to_string())?;
     let mut nonce = [0u8; NONCE_LEN];
-    getrandom::getrandom(&mut nonce).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
     let ciphertext = cipher()?
         .encrypt(&nonce.into(), plain.as_slice())
         .map_err(|e| e.to_string())?;
@@ -579,13 +579,13 @@ fn describe(path: &Path) -> String {
 
 /// `.md` files of a commands directory. A subdirectory is a namespace, which
 /// Claude Code invokes as `/dir:name`, so the nesting is kept in the name.
-fn collect_commands(dir: &Path, prefix: &str, scope: &str, plugin: &str, out: &mut Vec<AgentSlashCommand>) {
+fn collect_commands(dir: &Path, prefix: &str, scope: &str, out: &mut Vec<AgentSlashCommand>) {
     let Ok(entries) = fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
             let Some(sub) = path.file_name().and_then(|s| s.to_str()) else { continue };
-            collect_commands(&path, &format!("{prefix}{sub}:"), scope, plugin, out);
+            collect_commands(&path, &format!("{prefix}{sub}:"), scope, out);
             continue;
         }
         if path.extension().is_none_or(|e| e != "md") { continue; }
@@ -637,7 +637,7 @@ fn collect_plugins(home: &Path, out: &mut Vec<AgentSlashCommand>) {
         let plugin = key.split('@').next().unwrap_or(key);
         for entry in entries {
             let root = Path::new(&entry.install_path);
-            collect_commands(&root.join("commands"), &format!("{plugin}:"), "plugin", plugin, out);
+            collect_commands(&root.join("commands"), &format!("{plugin}:"), "plugin", out);
             collect_skills(&root.join("skills"), "plugin", plugin, out);
         }
     }
@@ -679,7 +679,7 @@ mod tests {
         fs::write(dir.join("review.md"), "---\ndescription: Review\n---\n").unwrap();
         fs::write(dir.join("git/sync.md"), "# Sync the branch\n").unwrap();
         let mut out = Vec::new();
-        collect_commands(&dir, "", "project", "", &mut out);
+        collect_commands(&dir, "", "project", &mut out);
         out.sort_by(|a, b| a.name.cmp(&b.name));
         assert_eq!(out.len(), 2);
         assert_eq!(out[0].name, "git:sync");
@@ -762,10 +762,12 @@ mod tests {
 
     #[test]
     fn provider_settings_roundtrip_keeps_values() {
-        let mut s = ProviderSettings::default();
-        s.enabled = true;
-        s.model = "opus".into();
-        s.permission_mode = "plan".into();
+        let s = ProviderSettings {
+            enabled: true,
+            model: "opus".into(),
+            permission_mode: "plan".into(),
+            ..Default::default()
+        };
         let json = serde_json::to_string(&s).unwrap();
         let back: ProviderSettings = serde_json::from_str(&json).unwrap();
         assert!(back.enabled);
@@ -793,6 +795,7 @@ mod tests {
 
     fn open(secret: &[u8; 32], blob: &[u8]) -> Option<HashMap<String, String>> {
         let (nonce, ciphertext) = blob.split_at(NONCE_LEN);
+        let nonce = <&[u8; NONCE_LEN]>::try_from(nonce).ok()?;
         ChaCha20Poly1305::new(secret.into())
             .decrypt(nonce.into(), ciphertext)
             .ok()
@@ -869,11 +872,11 @@ mod tests {
 pub async fn list_agent_commands(working_dir: String) -> Result<Vec<AgentSlashCommand>, String> {
     let mut out = Vec::new();
     let project = Path::new(&working_dir).join(".claude");
-    collect_commands(&project.join("commands"), "", "project", "", &mut out);
+    collect_commands(&project.join("commands"), "", "project", &mut out);
     collect_skills(&project.join("skills"), "project", "", &mut out);
     if let Some(home) = dirs::home_dir() {
         let global = home.join(".claude");
-        collect_commands(&global.join("commands"), "", "global", "", &mut out);
+        collect_commands(&global.join("commands"), "", "global", &mut out);
         collect_skills(&global.join("skills"), "global", "", &mut out);
         collect_plugins(&home, &mut out);
     }

@@ -115,9 +115,7 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                         .revparse_single(&format!("refs/remotes/{}", branch_input))
                         .map_err(|_| format!("Branch '{}' not found", branch_input))?;
                     let remote_commit = remote_obj.peel_to_commit().map_err(|e| e.to_string())?;
-                    let local_name = branch_input
-                        .splitn(2, '/')
-                        .nth(1)
+                    let local_name = branch_input.split_once('/').map(|x| x.1)
                         .unwrap_or(&branch_input)
                         .to_string();
                     if repo.find_branch(&local_name, BranchType::Local).is_ok() {
@@ -171,11 +169,10 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
             );
 
             if let Err(e) = worktree_result {
-                if branch_created {
-                    if let Ok(mut b) = repo.find_branch(&branch, BranchType::Local) {
+                if branch_created
+                    && let Ok(mut b) = repo.find_branch(&branch, BranchType::Local) {
                         let _ = b.delete();
                     };
-                }
                 let _ = fs::remove_dir_all(&worktree_path);
                 return Err(format!("Failed to create worktree: {}", e));
             }

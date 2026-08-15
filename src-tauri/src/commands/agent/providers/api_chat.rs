@@ -170,11 +170,9 @@ impl ApiChatProvider {
             if let Some(delta) = event
                 .pointer("/choices/0/delta/content")
                 .and_then(Value::as_str)
-            {
-                if !delta.is_empty() {
+                && !delta.is_empty() {
                     emit_agent(app, delta.to_string(), "assistant", wd.clone(), rid.clone());
                 }
-            }
             if let Some(u) = event.get("usage").filter(|u| !u.is_null()) {
                 usage = Some(json!({
                     "model": opts.model,
@@ -233,11 +231,10 @@ impl ApiChatProvider {
             let Ok(event) = serde_json::from_str::<Value>(data) else { return };
             match event.get("type").and_then(Value::as_str) {
                 Some("content_block_delta") => {
-                    if let Some(text) = event.pointer("/delta/text").and_then(Value::as_str) {
-                        if !text.is_empty() {
+                    if let Some(text) = event.pointer("/delta/text").and_then(Value::as_str)
+                        && !text.is_empty() {
                             emit_agent(app, text.to_string(), "assistant", wd.clone(), rid.clone());
                         }
-                    }
                 }
                 Some("message_start") => {
                     input_tokens = event
@@ -312,11 +309,9 @@ impl ApiChatProvider {
             if let Some(text) = event
                 .pointer("/candidates/0/content/parts/0/text")
                 .and_then(Value::as_str)
-            {
-                if !text.is_empty() {
+                && !text.is_empty() {
                     emit_agent(app, text.to_string(), "assistant", wd.clone(), rid.clone());
                 }
-            }
             if let Some(meta) = event.get("usageMetadata") {
                 usage = Some(json!({
                     "model": opts.model,

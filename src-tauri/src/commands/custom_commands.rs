@@ -96,11 +96,10 @@ pub fn save_command_state(
 
 #[tauri::command]
 pub fn allocate_port(base: u16, preferred: Option<u16>, exclude: Vec<u16>) -> Result<u16, String> {
-    if let Some(port) = preferred {
-        if !exclude.contains(&port) && is_port_free(port) {
+    if let Some(port) = preferred
+        && !exclude.contains(&port) && is_port_free(port) {
             return Ok(port);
         }
-    }
     for offset in 0..PORT_SCAN_RANGE {
         let Some(port) = base.checked_add(offset) else { break };
         if !exclude.contains(&port) && is_port_free(port) {

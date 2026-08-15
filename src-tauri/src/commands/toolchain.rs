@@ -439,11 +439,10 @@ pub fn detect_version(path: &Path) -> Option<String> {
     }
 
     let version = package_version(&resolved).or_else(|| read_version(path))?;
-    if let Some(stamp) = stamp {
-        if let Ok(mut cache) = VERSIONS.lock() {
+    if let Some(stamp) = stamp
+        && let Ok(mut cache) = VERSIONS.lock() {
             cache.get_or_insert_with(HashMap::new).insert(stamp, version.clone());
         }
-    }
     Some(version)
 }
 

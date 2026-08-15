@@ -226,7 +226,7 @@
   let queued = $state<Record<string, string[]>>({});
   /** Absent while an agent thread has taken the pane over, so every use guards. */
   let scrollEl = $state<HTMLElement | undefined>();
-  let activityEl: HTMLElement;
+  let activityEl: HTMLElement | undefined = $state();
   let textareaEl = $state<HTMLTextAreaElement>();
   let unlisten: UnlistenFn | undefined;
   let copiedKey = $state<string | null>(null);

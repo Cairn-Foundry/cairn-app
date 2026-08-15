@@ -129,8 +129,8 @@ impl AgentProvider for CodexCliProvider {
                     }
                 }
                 Some("item.started") => {
-                    if let Some(item) = item {
-                        if let Some((tool, label)) = item_label(item) {
+                    if let Some(item) = item
+                        && let Some((tool, label)) = item_label(item) {
                             emit_agent_tool_for(
                                 app,
                                 label,
@@ -141,14 +141,13 @@ impl AgentProvider for CodexCliProvider {
                                 item_id(item),
                             );
                         }
-                    }
                 }
                 Some("item.completed") => {
                     let Some(item) = item else { return };
                     match item_type(item) {
                         "agent_message" => {
-                            if let Some(text) = item.get("text").and_then(Value::as_str) {
-                                if !text.is_empty() {
+                            if let Some(text) = item.get("text").and_then(Value::as_str)
+                                && !text.is_empty() {
                                     emit_agent_for(
                                         app,
                                         text.to_string(),
@@ -158,11 +157,10 @@ impl AgentProvider for CodexCliProvider {
                                         None,
                                     );
                                 }
-                            }
                         }
                         "reasoning" => {
-                            if let Some(text) = item.get("text").and_then(Value::as_str) {
-                                if !text.is_empty() {
+                            if let Some(text) = item.get("text").and_then(Value::as_str)
+                                && !text.is_empty() {
                                     emit_agent_data(
                                         app,
                                         "thinking",
@@ -171,7 +169,6 @@ impl AgentProvider for CodexCliProvider {
                                         rid.clone(),
                                     );
                                 }
-                            }
                         }
                         "error" => {
                             emit_agent_data(

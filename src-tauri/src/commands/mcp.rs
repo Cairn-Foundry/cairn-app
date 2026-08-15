@@ -776,7 +776,7 @@ pub async fn list_mcp_servers(projects: Vec<McpProject>) -> Result<Vec<McpServer
         scan_scope("local", Some(project), &project.path, &mut out);
         scan_scope("project", Some(project), &project.path, &mut out);
     }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|a| a.name.to_lowercase());
     Ok(out)
 }
 
@@ -1442,7 +1442,7 @@ mod tests {
 
     #[test]
     fn env_references_expand_with_their_fallback() {
-        std::env::set_var("CAIRN_MCP_TEST", "value");
+        unsafe { std::env::set_var("CAIRN_MCP_TEST", "value") };
 
         assert_eq!(expand_env("${CAIRN_MCP_TEST}/x"), "value/x");
         assert_eq!(expand_env("${CAIRN_MCP_ABSENT:-fallback}"), "fallback");

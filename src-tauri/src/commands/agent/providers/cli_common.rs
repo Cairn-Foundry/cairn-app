@@ -51,13 +51,11 @@ where
     let stderr = child.stderr.take();
     *handle.child.lock().map_err(|e| e.to_string())? = Some(child);
 
-    if handle.cancelled.load(Ordering::SeqCst) {
-        if let Ok(mut slot) = handle.child.lock() {
-            if let Some(mut c) = slot.take() {
+    if handle.cancelled.load(Ordering::SeqCst)
+        && let Ok(mut slot) = handle.child.lock()
+            && let Some(mut c) = slot.take() {
                 platform::kill_tree(&mut c);
             }
-        }
-    }
 
     let stderr_thread = stderr.map(|mut err| {
         std::thread::spawn(move || {
@@ -84,8 +82,8 @@ where
         .and_then(|mut slot| slot.take().and_then(|mut c| c.wait().ok()));
     let stderr_text = stderr_thread.and_then(|t| t.join().ok()).unwrap_or_default();
 
-    if let Some(status) = status {
-        if !status.success() && !handle.cancelled.load(Ordering::SeqCst) {
+    if let Some(status) = status
+        && !status.success() && !handle.cancelled.load(Ordering::SeqCst) {
             let detail = stderr_text.trim();
             let message = if detail.is_empty() {
                 format!("{name} exited with {status}")
@@ -94,7 +92,6 @@ where
             };
             return Err(message);
         }
-    }
 
     Ok(())
 }

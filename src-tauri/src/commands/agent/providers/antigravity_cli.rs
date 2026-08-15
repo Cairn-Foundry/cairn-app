@@ -103,8 +103,8 @@ impl AgentProvider for AntigravityCliProvider {
 
                     match step.get("step_type").and_then(Value::as_str) {
                         Some("agent_response") => {
-                            if let Some(text) = step.get("text_delta").and_then(Value::as_str) {
-                                if !text.is_empty() {
+                            if let Some(text) = step.get("text_delta").and_then(Value::as_str)
+                                && !text.is_empty() {
                                     emit_agent_for(
                                         app,
                                         text.to_string(),
@@ -114,7 +114,6 @@ impl AgentProvider for AntigravityCliProvider {
                                         None,
                                     );
                                 }
-                            }
                         }
                         Some("tool") => {
                             let info = step.get("tool_info");

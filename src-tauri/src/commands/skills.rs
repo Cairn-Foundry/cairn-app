@@ -560,7 +560,7 @@ pub async fn list_skills(projects: Vec<SkillProject>) -> Result<Vec<Skill>, Stri
         scan_scope("project", Some(project), &project.path, &mut out);
     }
 
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|a| a.name.to_lowercase());
     Ok(out)
 }
 

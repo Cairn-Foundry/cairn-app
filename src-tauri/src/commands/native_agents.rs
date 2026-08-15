@@ -276,7 +276,7 @@ pub async fn list_native_agents(projects: Vec<SkillProject>) -> Result<Vec<Nativ
     for project in &projects {
         scan_scope("project", Some(project), &project.path, &mut out);
     }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|a| a.name.to_lowercase());
     Ok(out)
 }
 

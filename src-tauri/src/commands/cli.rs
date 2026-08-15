@@ -126,12 +126,11 @@ pub fn install_cli() -> Result<CliStatus, String> {
             continue;
         }
         let link = dir.join(LINK_NAME);
-        if std::fs::symlink_metadata(&link).is_ok() {
-            if let Err(e) = std::fs::remove_file(&link) {
+        if std::fs::symlink_metadata(&link).is_ok()
+            && let Err(e) = std::fs::remove_file(&link) {
                 errors.push(format!("{}: {}", link.display(), e));
                 continue;
             }
-        }
         #[cfg(unix)]
         let created = std::os::unix::fs::symlink(&target, &link);
         #[cfg(windows)]

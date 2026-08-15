@@ -106,8 +106,8 @@ impl AgentProvider for VibeCliProvider {
 
             match message.get("role").and_then(Value::as_str) {
                 Some("assistant") => {
-                    if let Some(text) = message.get("reasoning_content").and_then(Value::as_str) {
-                        if !text.is_empty() {
+                    if let Some(text) = message.get("reasoning_content").and_then(Value::as_str)
+                        && !text.is_empty() {
                             emit_agent_data(
                                 app,
                                 "thinking",
@@ -116,9 +116,8 @@ impl AgentProvider for VibeCliProvider {
                                 rid.clone(),
                             );
                         }
-                    }
-                    if let Some(text) = message.get("content").and_then(Value::as_str) {
-                        if !text.is_empty() {
+                    if let Some(text) = message.get("content").and_then(Value::as_str)
+                        && !text.is_empty() {
                             emit_agent_for(
                                 app,
                                 text.to_string(),
@@ -128,7 +127,6 @@ impl AgentProvider for VibeCliProvider {
                                 None,
                             );
                         }
-                    }
                     let calls = message.get("tool_calls").and_then(Value::as_array);
                     for call in calls.into_iter().flatten() {
                         let name = call

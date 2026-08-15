@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::storage::{
@@ -128,7 +128,7 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Option<T> {
 /// is dated by its own; an older one only ever recorded a clock face, so it
 /// falls back to the conversation's last activity and says it is approximate.
 fn entries_from_conversation(
-    dir: &PathBuf,
+    dir: &Path,
     project_id: &str,
     project_name: &str,
     instance_id: &str,

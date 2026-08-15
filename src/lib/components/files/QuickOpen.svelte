@@ -22,7 +22,7 @@
   let query = $state('');
   let selectedIdx = $state(0);
   let inputEl: HTMLInputElement | undefined;
-  let listEl: HTMLUListElement | undefined;
+  let listEl: HTMLUListElement | undefined = $state();
 
   let results = $state<QuickSearchHit[]>([]);
   let lastIndexKey = '';

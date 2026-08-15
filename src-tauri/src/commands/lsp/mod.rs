@@ -745,11 +745,10 @@ pub async fn cancel_language_server_command(
 
     for running in running {
         running.cancelled.store(true, Ordering::SeqCst);
-        if let Ok(mut slot) = running.child.lock() {
-            if let Some(child) = slot.as_mut() {
+        if let Ok(mut slot) = running.child.lock()
+            && let Some(child) = slot.as_mut() {
                 let _ = child.kill();
             }
-        }
     }
     Ok(())
 }

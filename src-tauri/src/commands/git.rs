@@ -100,11 +100,10 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
     for line in raw.lines() {
         if line.starts_with("diff --git ") {
             // Flush previous hunk/file
-            if let Some(hunk) = current_hunk.take() {
-                if let Some(ref mut f) = current_file {
+            if let Some(hunk) = current_hunk.take()
+                && let Some(ref mut f) = current_file {
                     f.hunks.push(hunk);
                 }
-            }
             if let Some(f) = current_file.take() {
                 files.push(f);
             }
@@ -116,11 +115,10 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 .to_string();
             current_file = Some(GitFileDiff { file_path: path, hunks: Vec::new() });
         } else if line.starts_with("@@ ") {
-            if let Some(hunk) = current_hunk.take() {
-                if let Some(ref mut f) = current_file {
+            if let Some(hunk) = current_hunk.take()
+                && let Some(ref mut f) = current_file {
                     f.hunks.push(hunk);
                 }
-            }
             current_hunk = Some(GitDiffHunk {
                 header: line.to_string(),
                 lines: Vec::new(),
@@ -145,11 +143,10 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
     }
 
     // Flush last hunk/file
-    if let Some(hunk) = current_hunk.take() {
-        if let Some(ref mut f) = current_file {
+    if let Some(hunk) = current_hunk.take()
+        && let Some(ref mut f) = current_file {
             f.hunks.push(hunk);
         }
-    }
     if let Some(f) = current_file.take() {
         files.push(f);
     }
@@ -277,7 +274,7 @@ pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>
 
     for line in text.lines() {
         if line.len() < 4 { continue; }
-        let x = line.chars().nth(0).unwrap_or(' ');
+        let x = line.chars().next().unwrap_or(' ');
         let y = line.chars().nth(1).unwrap_or(' ');
         let path = line[3..].trim_end().to_string();
         let file_path = if path.contains(" -> ") {
@@ -663,7 +660,7 @@ pub async fn git_remote_status(worktree_path: String) -> Result<RemoteStatus, Gi
     let remote = String::from_utf8_lossy(&upstream_out.stdout).trim().to_string();
 
     let counts = run(git_cmd(&expanded).args(["rev-list", "--left-right", "--count", "HEAD...@{u}"]))?;
-    let parts: Vec<&str> = counts.trim().split_whitespace().collect();
+    let parts: Vec<&str> = counts.split_whitespace().collect();
     let ahead = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
     let behind = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
@@ -708,7 +705,7 @@ pub async fn git_branch_divergence(worktree_path: String, base: String) -> Resul
 
     let range = format!("HEAD...{base_ref}");
     let counts = run(git_cmd(&expanded).args(["rev-list", "--left-right", "--count", &range]))?;
-    let parts: Vec<&str> = counts.trim().split_whitespace().collect();
+    let parts: Vec<&str> = counts.split_whitespace().collect();
     let ahead = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
     let behind = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
@@ -1049,8 +1046,8 @@ pub struct GitStash {
 }
 
 fn parse_stash_subject(subject: &str) -> (String, String) {
-    if let Some(rest) = subject.strip_prefix("WIP on ") {
-        if let Some(colon_pos) = rest.find(": ") {
+    if let Some(rest) = subject.strip_prefix("WIP on ")
+        && let Some(colon_pos) = rest.find(": ") {
             let branch = rest[..colon_pos].to_string();
             let after_colon = &rest[colon_pos + 2..];
             // WIP stashes look like "<hash> <message>": drop the leading short
@@ -1061,14 +1058,12 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
                 .unwrap_or_default();
             return (branch, msg);
         }
-    }
-    if let Some(rest) = subject.strip_prefix("On ") {
-        if let Some(colon_pos) = rest.find(": ") {
+    if let Some(rest) = subject.strip_prefix("On ")
+        && let Some(colon_pos) = rest.find(": ") {
             let branch = rest[..colon_pos].to_string();
             let msg = rest[colon_pos + 2..].to_string();
             return (branch, msg);
         }
-    }
     (String::new(), subject.to_string())
 }
 

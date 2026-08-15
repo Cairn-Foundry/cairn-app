@@ -21,6 +21,12 @@ pub struct ProviderRegistry {
     map: HashMap<String, Arc<dyn AgentProvider>>,
 }
 
+impl Default for ProviderRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProviderRegistry {
     pub fn new() -> Self {
         let mut map: HashMap<String, Arc<dyn AgentProvider>> = HashMap::new();

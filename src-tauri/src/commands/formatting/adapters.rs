@@ -415,9 +415,8 @@ pub fn export_prettier(style: &StyleSet) -> Exported {
     if let Some(v) = n(style, "indentSize") { map.insert("tabWidth".into(), json!(v)); }
     if let Some(v) = n(style, "lineWidth") { map.insert("printWidth".into(), json!(v)); }
     if let Some(v) = s(style, "lineEnding") { map.insert("endOfLine".into(), json!(v)); }
-    if let Some(v) = s(style, "quoteStyle") {
-        if v != "preserve" { map.insert("singleQuote".into(), json!(v == "single")); }
-    }
+    if let Some(v) = s(style, "quoteStyle")
+        && v != "preserve" { map.insert("singleQuote".into(), json!(v == "single")); }
     if let Some(v) = s(style, "jsxQuoteStyle") { map.insert("jsxSingleQuote".into(), json!(v == "single")); }
     if let Some(v) = s(style, "semicolons") { map.insert("semi".into(), json!(v == "always")); }
     if let Some(v) = s(style, "trailingComma") { map.insert("trailingComma".into(), json!(v)); }
@@ -449,14 +448,12 @@ pub fn export_biome(style: &StyleSet) -> Exported {
     if let Some(v) = s(style, "indentStyle") { formatter.insert("indentStyle".into(), json!(v)); }
     if let Some(v) = n(style, "indentSize") { formatter.insert("indentWidth".into(), json!(v)); }
     if let Some(v) = n(style, "lineWidth") { formatter.insert("lineWidth".into(), json!(v)); }
-    if let Some(v) = s(style, "lineEnding") {
-        if v != "auto" { formatter.insert("lineEnding".into(), json!(v)); }
-    }
+    if let Some(v) = s(style, "lineEnding")
+        && v != "auto" { formatter.insert("lineEnding".into(), json!(v)); }
 
     let mut js = Map::new();
-    if let Some(v) = s(style, "quoteStyle") {
-        if v != "preserve" { js.insert("quoteStyle".into(), json!(v)); }
-    }
+    if let Some(v) = s(style, "quoteStyle")
+        && v != "preserve" { js.insert("quoteStyle".into(), json!(v)); }
     if let Some(v) = s(style, "jsxQuoteStyle") { js.insert("jsxQuoteStyle".into(), json!(v)); }
     if let Some(v) = s(style, "semicolons") { js.insert("semicolons".into(), json!(v)); }
     if let Some(v) = s(style, "trailingComma") { js.insert("trailingCommas".into(), json!(v)); }
@@ -565,9 +562,8 @@ pub fn export_editorconfig(style: &StyleSet) -> Exported {
     if let Some(v) = s(style, "indentStyle") { text.push_str(&format!("indent_style = {v}\n")); }
     if let Some(v) = n(style, "indentSize") { text.push_str(&format!("indent_size = {v}\n")); }
     if let Some(v) = n(style, "lineWidth") { text.push_str(&format!("max_line_length = {v}\n")); }
-    if let Some(v) = s(style, "lineEnding") {
-        if v != "auto" { text.push_str(&format!("end_of_line = {v}\n")); }
-    }
+    if let Some(v) = s(style, "lineEnding")
+        && v != "auto" { text.push_str(&format!("end_of_line = {v}\n")); }
     if let Some(v) = b(style, "finalNewline") { text.push_str(&format!("insert_final_newline = {v}\n")); }
     if let Some(v) = b(style, "trimTrailingWhitespace") {
         text.push_str(&format!("trim_trailing_whitespace = {v}\n"));

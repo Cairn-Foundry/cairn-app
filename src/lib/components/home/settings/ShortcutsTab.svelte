@@ -5,6 +5,7 @@
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
   import { MOUSE_KEY, type ShortcutId, type ShortcutBinding, type ShortcutConfig } from '$lib/types/shortcuts';
   import { MODIFIER_KEYS } from '$lib/utils/home/appearance';
+  import { IS_MAC } from '$lib/utils/platform';
   import { matchesSearch } from '$lib/utils/files/files-search';
 
   let shortcutSearch = '';
@@ -47,9 +48,8 @@
   }
 
   function modifiersOf(e: KeyboardEvent | MouseEvent) {
-    const isMac = navigator.platform.startsWith('Mac');
     return {
-      mod: isMac ? e.metaKey : e.ctrlKey,
+      mod: IS_MAC ? e.metaKey : e.ctrlKey,
       shift: e.shiftKey,
       alt: e.altKey,
       ctrl: e.ctrlKey,

@@ -74,11 +74,10 @@ fn binary_name(id: &str) -> &'static str {
 }
 
 fn is_installed(id: &str) -> bool {
-    if let Some(home) = home() {
-        if install_markers(id, &home).iter().any(|p| p.exists()) {
+    if let Some(home) = home()
+        && install_markers(id, &home).iter().any(|p| p.exists()) {
             return true;
         }
-    }
     let binary = binary_name(id);
     !binary.is_empty() && resolve_binary(binary, None).is_some()
 }

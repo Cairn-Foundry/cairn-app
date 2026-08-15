@@ -5,6 +5,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
 import { osDropPoint } from "$lib/utils/files/files-editor-drop";
+import { IS_MAC } from "$lib/utils/platform";
 import "@xterm/xterm/css/xterm.css";
 import {
 	resizeTerminal,
@@ -82,9 +83,7 @@ if (typeof document !== "undefined") {
 	});
 }
 
-const isMac =
-	typeof navigator !== "undefined" &&
-	navigator.platform.toLowerCase().includes("mac");
+const isMac = IS_MAC;
 
 function handleClipboardKey(term: Terminal, e: KeyboardEvent): boolean {
 	if (e.type !== "keydown") return true;
