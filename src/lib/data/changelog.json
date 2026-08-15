@@ -1,7 +1,13 @@
 [
 	{
-		"version": "0.14.0",
+		"version": "0.15.0",
 		"date": "",
+		"summary":{},
+		"changes": []
+	},
+	{
+		"version": "0.14.0",
+		"date": "2026-08-15",
 		"summary": {
 			"en": "AI providers become real: configuration, models, and richer conversations.",
 			"fr": "Les providers IA deviennent réels : configuration, modèles et conversations enrichies."
