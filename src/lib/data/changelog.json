@@ -1,7 +1,13 @@
 [
 	{
-		"version": "0.15.0",
+		"version": "0.16.0",
 		"date": "",
+		"summary": {},
+		"changes": []
+	},
+	{
+		"version": "0.15.0",
+		"date": "2026-08-16",
 		"summary": {
 			"en": "The interface adapts: it scales, it reads on any accent, and it says when it is still starting.",
 			"fr": "L'interface s'adapte : elle se met à l'échelle, reste lisible sur n'importe quelle couleur et signale son démarrage."
