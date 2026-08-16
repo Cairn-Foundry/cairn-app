@@ -171,6 +171,20 @@ export async function getChangedPaths(
 	return invoke("git_changed_paths", { worktreePath });
 }
 
+/** Status, changed paths and the repository check, from a single git process. */
+export interface GitStatusFull {
+	isGitRepo: boolean;
+	status: GitFileStatus;
+	changedPaths: GitChangedPaths;
+}
+
+/** What the status poll reads: everything above in one call. */
+export async function getStatusFull(
+	worktreePath: string,
+): Promise<GitStatusFull> {
+	return invoke("git_status_full", { worktreePath });
+}
+
 /** Keeps only the paths git actually ignores. */
 export async function checkIgnore(
 	worktreePath: string,

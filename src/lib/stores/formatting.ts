@@ -10,6 +10,7 @@ import {
 	type StyleOptionInfo,
 	saveProjectFormatting,
 } from "$lib/services/formatting-service";
+import { reportPersistError } from "$lib/utils/persist-error";
 
 /** Per-project formatting config, keyed by project id, only for projects read from disk. */
 const projectConfigs = writable<Record<string, FormattingConfig>>({});
@@ -70,7 +71,9 @@ async function saveProject(
 	const current = get(projectConfigs)[projectId] ?? DEFAULT_FORMATTING;
 	const next = { ...current, ...patch };
 	projectConfigs.update((all) => ({ ...all, [projectId]: next }));
-	await saveProjectFormatting(projectId, next).catch(() => {});
+	await saveProjectFormatting(projectId, next).catch((e) =>
+		reportPersistError("the formatting configuration", e),
+	);
 }
 
 /** The project's config, or null when the project has never been configured. */

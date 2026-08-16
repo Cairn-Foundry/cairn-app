@@ -99,7 +99,11 @@ fn is_writable_dir(dir: &Path) -> bool {
 /// pointing at a launcher other than this build's reads as not up to date,
 /// which is what a rebuild leaves behind.
 #[tauri::command]
-pub fn get_cli_status() -> CliStatus {
+pub async fn get_cli_status() -> CliStatus {
+    read_cli_status()
+}
+
+fn read_cli_status() -> CliStatus {
     let target = launcher_path();
     let target_str = target.as_ref().map(|p| p.to_string_lossy().into_owned());
     for dir in candidate_dirs() {
@@ -136,7 +140,7 @@ pub fn get_cli_status() -> CliStatus {
 /// replacing an existing entry. Fails with every attempt's reason collected, so
 /// the user sees why `/usr/local/bin` was refused as well as the fallback.
 #[tauri::command]
-pub fn install_cli() -> Result<CliStatus, String> {
+pub async fn install_cli() -> Result<CliStatus, String> {
     let target = launcher_path()
         .ok_or_else(|| "The cairn launcher was not found next to the application binary.".to_string())?;
 
@@ -161,7 +165,7 @@ pub fn install_cli() -> Result<CliStatus, String> {
         #[cfg(windows)]
         let created = std::fs::copy(&target, &link).map(|_| ());
         match created {
-            Ok(()) => return Ok(get_cli_status()),
+            Ok(()) => return Ok(read_cli_status()),
             Err(e) => errors.push(format!("{}: {}", link.display(), e)),
         }
     }
@@ -171,7 +175,7 @@ pub fn install_cli() -> Result<CliStatus, String> {
 /// Removes the link from every candidate directory. Errors only matter when
 /// nothing at all could be removed.
 #[tauri::command]
-pub fn uninstall_cli() -> Result<CliStatus, String> {
+pub async fn uninstall_cli() -> Result<CliStatus, String> {
     let mut removed = false;
     let mut errors: Vec<String> = Vec::new();
     for dir in candidate_dirs() {
@@ -187,5 +191,5 @@ pub fn uninstall_cli() -> Result<CliStatus, String> {
     if !removed && !errors.is_empty() {
         return Err(errors.join("; "));
     }
-    Ok(get_cli_status())
+    Ok(read_cli_status())
 }

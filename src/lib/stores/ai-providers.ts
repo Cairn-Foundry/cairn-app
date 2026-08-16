@@ -20,6 +20,7 @@ import {
 	probeProvider,
 	saveAiProvidersConfig,
 } from "$lib/services/ai-provider-service";
+import { reportPersistError } from "$lib/utils/persist-error";
 
 export type { ProbeResult, ProviderSettings };
 
@@ -195,7 +196,9 @@ function persist(): void {
 	if (saveTimer) clearTimeout(saveTimer);
 	saveTimer = setTimeout(() => {
 		saveTimer = null;
-		void saveAiProvidersConfig(get(aiProviders)).catch(() => {});
+		void saveAiProvidersConfig(get(aiProviders)).catch((e) =>
+			reportPersistError("the AI providers configuration", e),
+		);
 	}, PERSIST_DELAY_MS);
 }
 

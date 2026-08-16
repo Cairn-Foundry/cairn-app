@@ -10,6 +10,7 @@ import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
 import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
 import { setCustomServers } from "$lib/utils/languages/servers";
+import { reportPersistError } from "$lib/utils/persist-error";
 
 /** Factory settings; must stay in sync with the Rust defaults in commands/settings.rs. */
 const DEFAULTS: CairnSettings = {
@@ -96,7 +97,7 @@ async function save(patch: Partial<CairnSettings>): Promise<void> {
 			.then((returned) => {
 				update((current) => mergeWithDefaults(current, returned));
 			})
-			.catch(() => {});
+			.catch((e) => reportPersistError("the settings", e));
 		return next;
 	});
 	await written;

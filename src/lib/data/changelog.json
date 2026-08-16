@@ -440,6 +440,41 @@
 					"en": "Deleting an instance now releases the conversations that hung off it. They stayed in memory for the rest of the session, and a save still pending could rewrite on disk the transcript of an instance that had just been deleted.",
 					"fr": "Supprimer une instance libère désormais les conversations qui en dépendaient. Elles restaient en mémoire jusqu'à la fin de la session, et un enregistrement encore en attente pouvait réécrire sur le disque le transcript d'une instance qui venait d'être supprimée."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The background git refresh now reads the status, the change badges and the repository check in a single git process instead of three, two of which ran the very same command. One refresh cycle costs about 38 percent less.",
+					"fr": "Le rafraichissement git en arriere-plan lit desormais le statut, les badges de modification et la verification du depot en un seul processus git au lieu de trois, dont deux lancaient exactement la meme commande. Un cycle de rafraichissement coute environ 38 pour cent de moins."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "While the Git view is closed, the status refresh slows from every 5 seconds to every 10, halving its remaining cost. Opening the view goes back to the fast cadence immediately.",
+					"fr": "Tant que la vue Git est fermee, le rafraichissement du statut passe de 5 a 10 secondes, ce qui divise par deux son cout restant. Ouvrir la vue revient immediatement a la cadence rapide."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Installing or removing the command line launcher no longer freezes the window while it writes to disk.",
+					"fr": "Installer ou retirer le lanceur en ligne de commande ne gele plus la fenetre pendant l'ecriture sur le disque."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Moving a conversation between the project and instance scopes no longer risks losing its transcript: the copy must be written before the original is removed.",
+					"fr": "Deplacer une conversation entre la portee projet et la portee instance ne risque plus de perdre son transcript : la copie doit etre ecrite avant que l'original ne soit supprime."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A failed save to disk is now reported instead of being silently discarded. Settings, conversations, terminals, environment variables and editor state all used to fail without a trace.",
+					"fr": "Un enregistrement sur le disque qui echoue est desormais signale au lieu d'etre ignore en silence. Les reglages, les conversations, les terminaux, les variables d'environnement et l'etat de l'editeur echouaient auparavant sans laisser de trace."
+				}
 			}
 		]
 	},

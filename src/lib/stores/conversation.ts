@@ -13,6 +13,7 @@ import {
 	saveConversationIndex,
 } from "$lib/services/conversation-service";
 import { conversationPreview } from "$lib/utils/agent/conversation-export";
+import { persist, reportPersistError } from "$lib/utils/persist-error";
 
 export type { ConversationMeta, ConversationScope };
 
@@ -108,10 +109,13 @@ function persistIndex(ref: ConversationRef): void {
 				ref.scope === "instance"
 					? (get(activeConversationId)[key] ?? null)
 					: null;
-			void saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
-				conversations: conversationsOf(ref),
-				activeId,
-			}).catch(() => {});
+			persist(
+				"the conversation index",
+				saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
+					conversations: conversationsOf(ref),
+					activeId,
+				}),
+			);
 		}, PERSIST_DELAY_MS),
 	);
 }
@@ -372,10 +376,13 @@ export function updateConversationContent(
 			...(answered ? { lastMessageAt: Date.now() } : {}),
 		});
 
-		void saveConversationBody(ref.projectId, scopedInstanceId(ref), id, {
-			messages,
-			activity,
-		}).catch(() => {});
+		persist(
+			"a conversation transcript",
+			saveConversationBody(ref.projectId, scopedInstanceId(ref), id, {
+				messages,
+				activity,
+			}),
+		);
 	};
 
 	const existing = bodyTimers.get(timerKey);
@@ -438,7 +445,7 @@ export async function duplicateConversation(
 		scopedInstanceId(ref),
 		copy.id,
 		body,
-	).catch(() => {});
+	).catch((e) => reportPersistError("the duplicated conversation", e));
 }
 
 /** Moves a conversation between the instance and project scopes, index entry and transcript together. */
@@ -454,20 +461,24 @@ export async function moveConversationToScope(
 	};
 
 	const body = await loadConversationBody(from, id);
+
+	// The copy must land before the original is dropped: deleting after a failed
+	// write would lose the transcript outright.
+	try {
+		await saveConversationBody(to.projectId, scopedInstanceId(to), id, body);
+	} catch (e) {
+		reportPersistError("a conversation being moved", e);
+		return;
+	}
+
 	updateList(from, (list) => list.filter((c) => c.id !== id));
 	updateList(to, (list) => [meta, ...list]);
 
-	await saveConversationBody(
-		to.projectId,
-		scopedInstanceId(to),
-		id,
-		body,
-	).catch(() => {});
 	await deleteConversationBody(
 		from.projectId,
 		scopedInstanceId(from),
 		id,
-	).catch(() => {});
+	).catch((e) => reportPersistError("the moved conversation's old copy", e));
 }
 
 /** Forgets an instance's conversations in memory, for an instance being deleted; the project scope is untouched. */

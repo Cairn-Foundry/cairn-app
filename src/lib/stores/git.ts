@@ -15,7 +15,10 @@ import type {
 import * as gitService from "$lib/services/git-service";
 import { listBranchesDetailed } from "$lib/services/instance-service";
 import type { GitErrorAction } from "$lib/utils/git/git-error";
-import { GIT_REFRESH_INTERVAL_MS } from "$lib/utils/timing";
+import {
+	GIT_REFRESH_IDLE_INTERVAL_MS,
+	GIT_REFRESH_INTERVAL_MS,
+} from "$lib/utils/timing";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 import { activeScreen } from "./ui";
@@ -185,8 +188,25 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 	if (!wt) return;
 	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
 	try {
-		const isRepo = await gitService.isGitRepo(wt);
-		if (!isRepo) {
+		// Everything starts at once; the repo check now rides along with the
+		// status instead of gating the rest behind its own git process.
+		const fullPromise = gitService.getStatusFull(wt);
+		const diffsPromise = diffsWanted
+			? Promise.all([
+					gitService.getDiffUnstaged(wt),
+					gitService.getDiffStaged(wt),
+				])
+			: Promise.resolve(null);
+		const branchPromise = gitService.getCurrentBranch(wt);
+		// Awaited only when the path is a repository; keep the rejection handled
+		// so the early return below never leaves an unhandled one behind.
+		branchPromise.catch(() => {});
+		diffsPromise.catch(() => {});
+		const remotePromise = gitService.getRemoteStatus(wt).catch(() => null);
+		const operationPromise = gitService.getOperationState(wt).catch(() => null);
+
+		const full = await fullPromise;
+		if (!full.isGitRepo) {
 			_git.update((s) => ({
 				...s,
 				status: {},
@@ -206,26 +226,14 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			}));
 			return;
 		}
-		const [
-			status,
-			changedPaths,
-			diffs,
-			currentBranch,
-			remoteStatus,
-			operationState,
-		] = await Promise.all([
-			gitService.getStatus(wt),
-			gitService.getChangedPaths(wt),
-			diffsWanted
-				? Promise.all([
-						gitService.getDiffUnstaged(wt),
-						gitService.getDiffStaged(wt),
-					])
-				: Promise.resolve(null),
-			gitService.getCurrentBranch(wt),
-			gitService.getRemoteStatus(wt).catch(() => null),
-			gitService.getOperationState(wt).catch(() => null),
-		]);
+		const { status, changedPaths } = full;
+		const [diffs, currentBranch, remoteStatus, operationState] =
+			await Promise.all([
+				diffsPromise,
+				branchPromise,
+				remotePromise,
+				operationPromise,
+			]);
 		const bump = indexDirty ? 1 : 0;
 		indexDirty = false;
 		_git.update((s) => ({
@@ -645,11 +653,25 @@ export function startGitPolling(): () => void {
 	let visible = get(activeScreen) === "workspace";
 	let focused = typeof document === "undefined" || document.hasFocus();
 
+	let lastRun = 0;
+
 	const tick = () => {
 		if (!visible || !focused) return;
+		lastRun = Date.now();
 		void refreshStatus(true);
 	};
-	const timer = setInterval(tick, GIT_REFRESH_INTERVAL_MS);
+	// The timer keeps the fast cadence and a tick is skipped when the git view
+	// is closed and the slower interval has not elapsed yet, so reopening the
+	// view goes back to full speed without restarting anything.
+	const timer = setInterval(() => {
+		const due = diffsWanted
+			? GIT_REFRESH_INTERVAL_MS
+			: GIT_REFRESH_IDLE_INTERVAL_MS;
+		// Half-interval tolerance: setInterval drifts by a few ms, and an exact
+		// comparison would skip a whole cycle every time it fires early.
+		if (Date.now() - lastRun < due - GIT_REFRESH_INTERVAL_MS / 2) return;
+		tick();
+	}, GIT_REFRESH_INTERVAL_MS);
 
 	const unsubscribe = activeScreen.subscribe((screen) => {
 		const wasVisible = visible;

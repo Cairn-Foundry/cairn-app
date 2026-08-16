@@ -2,6 +2,7 @@
 // agent-activity.json. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
+import { persist } from "$lib/utils/persist-error";
 
 /** Instance key to the conversation id that finished, empty when the file is missing. */
 export async function getAgentActivity(): Promise<Record<string, string>> {
@@ -14,5 +15,8 @@ export async function getAgentActivity(): Promise<Record<string, string>> {
 
 /** Fire and forget: a lost marker only costs a stale dot, never a failed action. */
 export function saveAgentActivity(done: Record<string, string>): void {
-	invoke("save_agent_activity", { done }).catch(() => {});
+	persist(
+		"the agent activity markers",
+		invoke("save_agent_activity", { done }),
+	);
 }

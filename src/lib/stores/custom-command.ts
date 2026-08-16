@@ -9,6 +9,7 @@ import {
 	saveProjectCommands,
 } from "$lib/services/custom-command-service";
 import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
+import { persist as persistToDisk } from "$lib/utils/persist-error";
 import { moveItem } from "$lib/utils/terminal/terminal-order";
 
 /** Commands defined by a project, keyed by project id; only loaded projects appear. */
@@ -39,11 +40,17 @@ export function newCommand(name: string): CustomCommand {
 /** Writes the whole scope back to disk, fire and forget. */
 function persist(scope: CommandScope, projectId: string): void {
 	if (scope === "global") {
-		void saveGlobalCommands({ commands: get(globalCommands) }).catch(() => {});
+		persistToDisk(
+			"the global commands",
+			saveGlobalCommands({ commands: get(globalCommands) }),
+		);
 		return;
 	}
 	const commands = get(projectCommands)[projectId] ?? [];
-	void saveProjectCommands(projectId, { commands }).catch(() => {});
+	persistToDisk(
+		"the project commands",
+		saveProjectCommands(projectId, { commands }),
+	);
 }
 
 /** Applies a change to one scope and persists it; the single write path for both stores. */

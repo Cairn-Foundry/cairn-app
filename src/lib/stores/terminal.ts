@@ -9,6 +9,7 @@ import {
 	saveProjectTerminalState,
 	saveTerminalState,
 } from "$lib/services/terminal-service";
+import { persist as persistToDisk } from "$lib/utils/persist-error";
 import * as manager from "$lib/utils/terminal/terminal-manager";
 import { insertAt, moveItem } from "$lib/utils/terminal/terminal-order";
 
@@ -70,18 +71,24 @@ function persist(projectId: string, instanceId: string): void {
 	const activeId = get(activeTerminalId)[key] ?? null;
 	const splitId = get(splitTerminalId)[key] ?? null;
 	const splitRatio = get(splitTerminalRatio)[key] ?? DEFAULT_SPLIT_RATIO;
-	void saveTerminalState(projectId, instanceId, {
-		terminals,
-		activeId,
-		splitId,
-		splitRatio,
-	}).catch(() => {});
+	persistToDisk(
+		"the terminal state",
+		saveTerminalState(projectId, instanceId, {
+			terminals,
+			activeId,
+			splitId,
+			splitRatio,
+		}),
+	);
 }
 
 /** Writes the project terminal state back to disk. */
 function persistProject(projectId: string): void {
 	const terminals = get(projectTerminals)[projectId] ?? [];
-	void saveProjectTerminalState(projectId, { terminals }).catch(() => {});
+	persistToDisk(
+		"the project terminals",
+		saveProjectTerminalState(projectId, { terminals }),
+	);
 }
 
 // Create the xterm sink before spawning the shell so no early output is lost.

@@ -8,6 +8,7 @@ import {
 	saveAgentRuns,
 } from "$lib/services/agent-runs-service";
 import type { PendingPermission } from "$lib/utils/agent/permission-response";
+import { persist as persistToDisk } from "$lib/utils/persist-error";
 
 export type { AgentBlock, AgentRun, AgentRunStatus };
 
@@ -70,7 +71,10 @@ function persist(projectId: string): void {
 		projectId,
 		setTimeout(() => {
 			persistTimers.delete(projectId);
-			void saveAgentRuns(projectId, runsOf(projectId)).catch(() => {});
+			persistToDisk(
+				"the agent run history",
+				saveAgentRuns(projectId, runsOf(projectId)),
+			);
 		}, PERSIST_DELAY_MS),
 	);
 }

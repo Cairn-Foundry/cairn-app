@@ -18,3 +18,9 @@ export const LSP_CHANGE_DEBOUNCE_MS = 300;
  * processes, so it is deliberately slower than a plain status read would need.
  */
 export const GIT_REFRESH_INTERVAL_MS = 5000;
+/**
+ * Cadence used while the git view is closed. Only the workflow badges are fed
+ * then, and they do not need second-level freshness, so the recurring cost is
+ * halved without the user perceiving it.
+ */
+export const GIT_REFRESH_IDLE_INTERVAL_MS = 10000;

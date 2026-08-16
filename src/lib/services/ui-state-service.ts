@@ -2,6 +2,7 @@
 // Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
+import { persist } from "$lib/utils/persist-error";
 
 /**
  * What one project reopens on. Every view that takes over the main area needs
@@ -55,5 +56,5 @@ export async function getUiState(): Promise<UiState> {
 
 /** Fire and forget: called on every navigation, a lost write only costs the restore point. */
 export function saveUiState(state: UiState): void {
-	invoke("save_ui_state", { state }).catch(() => {});
+	persist("the navigation state", invoke("save_ui_state", { state }));
 }

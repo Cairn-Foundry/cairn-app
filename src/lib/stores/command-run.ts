@@ -19,6 +19,7 @@ import {
 	collectPrompts,
 	type Resolution,
 } from "$lib/utils/commands/command-variables";
+import { reportPersistError } from "$lib/utils/persist-error";
 import { onTerminalExit } from "$lib/utils/terminal/terminal-manager";
 import { prepareInstanceEnv } from "./env";
 import {
@@ -116,7 +117,9 @@ async function resolvePorts(
 		state.ports[slot] = port;
 		allocated.push({ base, port });
 	}
-	await saveCommandState(projectId, instanceId, state).catch(() => {});
+	await saveCommandState(projectId, instanceId, state).catch((e) =>
+		reportPersistError("the command state", e),
+	);
 	return allocated;
 }
 

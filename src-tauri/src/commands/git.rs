@@ -280,20 +280,25 @@ pub async fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
     is_repo_root(&expand(&worktree_path))
 }
 
-#[tauri::command]
-/// Porcelain status mapped to one category per file (untracked, deleted, conflicted,
-/// staged-*, modified). Renames are reported under their destination path.
-pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>, GitError> {
-    let expanded = expand(&worktree_path);
+/// Reads `status --porcelain -u` once. Both the category map and the changed
+/// paths derive from this single output, so a caller wanting both pays for one
+/// git process instead of two.
+fn read_porcelain(worktree_path: &str) -> Result<Option<String>, GitError> {
+    let expanded = expand(worktree_path);
     let output = git_cmd(&expanded)
         .args(["status", "--porcelain", "-u"])
         .output()?;
 
     if !output.status.success() {
-        return Ok(HashMap::new());
+        return Ok(None);
     }
 
-    let text = String::from_utf8_lossy(&output.stdout);
+    Ok(Some(String::from_utf8_lossy(&output.stdout).into_owned()))
+}
+
+/// Maps porcelain lines to one category per file (untracked, deleted, conflicted,
+/// staged-*, modified). Renames are reported under their destination path.
+fn parse_status(text: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
 
     for line in text.lines() {
@@ -335,7 +340,15 @@ pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>
         map.insert(file_path, category.to_string());
     }
 
-    Ok(map)
+    map
+}
+
+#[tauri::command]
+/// Porcelain status mapped to one category per file.
+pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>, GitError> {
+    Ok(read_porcelain(&worktree_path)?
+        .map(|text| parse_status(&text))
+        .unwrap_or_default())
 }
 
 /// Which paths have staged and unstaged changes, without any diff content.
@@ -346,19 +359,11 @@ pub struct GitChangedPaths {
     pub unstaged: Vec<String>,
 }
 
-#[tauri::command]
-/// The paths behind the change badges. `git_status` collapses the index and the
+/// The paths behind the change badges. `parse_status` collapses the index and the
 /// worktree column into one category, so a file that is both staged and
 /// modified would be counted once; this keeps the two columns apart while
 /// staying far cheaper than reading both full diffs.
-pub async fn git_changed_paths(worktree_path: String) -> Result<GitChangedPaths, GitError> {
-    let expanded = expand(&worktree_path);
-    let output = git_cmd(&expanded).args(["status", "--porcelain", "-u"]).output()?;
-    if !output.status.success() {
-        return Ok(GitChangedPaths::default());
-    }
-
-    let text = String::from_utf8_lossy(&output.stdout);
+fn parse_changed_paths(text: &str) -> GitChangedPaths {
     let mut changed = GitChangedPaths::default();
 
     for line in text.lines() {
@@ -380,7 +385,44 @@ pub async fn git_changed_paths(worktree_path: String) -> Result<GitChangedPaths,
         }
     }
 
-    Ok(changed)
+    changed
+}
+
+#[tauri::command]
+/// The paths behind the change badges, on their own.
+pub async fn git_changed_paths(worktree_path: String) -> Result<GitChangedPaths, GitError> {
+    Ok(read_porcelain(&worktree_path)?
+        .map(|text| parse_changed_paths(&text))
+        .unwrap_or_default())
+}
+
+/// Everything the status poll needs, from a single `status --porcelain -u`.
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStatusFull {
+    pub is_git_repo: bool,
+    pub status: HashMap<String, String>,
+    pub changed_paths: GitChangedPaths,
+}
+
+#[tauri::command]
+/// Status, changed paths and the repository check in one call. The poll runs
+/// every few seconds and used to spawn three git processes for this, two of them
+/// running the very same porcelain command.
+pub async fn git_status_full(worktree_path: String) -> Result<GitStatusFull, GitError> {
+    if !is_repo_root(&expand(&worktree_path))? {
+        return Ok(GitStatusFull::default());
+    }
+
+    let Some(text) = read_porcelain(&worktree_path)? else {
+        return Ok(GitStatusFull { is_git_repo: true, ..Default::default() });
+    };
+
+    Ok(GitStatusFull {
+        is_git_repo: true,
+        status: parse_status(&text),
+        changed_paths: parse_changed_paths(&text),
+    })
 }
 
 #[tauri::command]
@@ -1786,6 +1828,36 @@ diff --git a/two.txt b/two.txt
         assert_eq!(status.get("tracked.txt").map(String::as_str), Some("modified"));
         assert_eq!(status.get("untracked.txt").map(String::as_str), Some("untracked"));
         assert_eq!(status.get("staged.txt").map(String::as_str), Some("staged-added"));
+    }
+
+    #[tokio::test]
+    async fn status_full_matches_the_separate_commands() {
+        let repo = TempRepo::new();
+        repo.commit("tracked.txt", "one\n", "init");
+        repo.write("tracked.txt", "two\n");
+        repo.write("untracked.txt", "new\n");
+        repo.write("staged.txt", "add\n");
+        repo.git(&["add", "staged.txt"]);
+
+        let full = git_status_full(repo.wt()).await.unwrap();
+        assert!(full.is_git_repo);
+        assert_eq!(full.status, git_status(repo.wt()).await.unwrap());
+
+        let changed = git_changed_paths(repo.wt()).await.unwrap();
+        assert_eq!(full.changed_paths.staged, changed.staged);
+        assert_eq!(full.changed_paths.unstaged, changed.unstaged);
+    }
+
+    #[tokio::test]
+    async fn status_full_reports_a_plain_directory_as_no_repository() {
+        let dir = std::env::temp_dir().join(format!("cairn-not-a-repo-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+
+        let full = git_status_full(dir.to_string_lossy().into_owned()).await.unwrap();
+        assert!(!full.is_git_repo);
+        assert!(full.status.is_empty());
+
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[tokio::test]

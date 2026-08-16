@@ -28,6 +28,7 @@ import {
 	resolveEnv,
 	toEnvRecord,
 } from "$lib/utils/env/env-resolve";
+import { persist } from "$lib/utils/persist-error";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 
@@ -118,7 +119,7 @@ export async function loadEnv(
 function updateGlobal(fn: (file: EnvFile) => EnvFile): void {
 	globalEnv.update(fn);
 	schedule("global", () => {
-		void saveGlobalEnv(get(globalEnv)).catch(() => {});
+		persist("the global environment", saveGlobalEnv(get(globalEnv)));
 	});
 }
 
@@ -132,7 +133,10 @@ function updateProject(
 		[projectId]: fn(m[projectId] ?? emptyEnvFile()),
 	}));
 	schedule(`project:${projectId}`, () => {
-		void saveProjectEnv(projectId, projectEnvFile(projectId)).catch(() => {});
+		persist(
+			"the project environment",
+			saveProjectEnv(projectId, projectEnvFile(projectId)),
+		);
 	});
 }
 
@@ -148,11 +152,14 @@ function updateInstance(
 		[key]: fn(m[key] ?? emptyEnvFile()),
 	}));
 	schedule(key, () => {
-		void saveInstanceEnv(
-			projectId,
-			instanceId,
-			instanceEnvFile(projectId, instanceId),
-		).catch(() => {});
+		persist(
+			"the instance environment",
+			saveInstanceEnv(
+				projectId,
+				instanceId,
+				instanceEnvFile(projectId, instanceId),
+			),
+		);
 	});
 }
 

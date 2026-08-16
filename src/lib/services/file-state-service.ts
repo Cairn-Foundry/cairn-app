@@ -2,6 +2,7 @@
 // file-state.json. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
+import { persist } from "$lib/utils/persist-error";
 
 /** One reopened tab; `cursorPos` is a document offset, not a line number. */
 export interface PersistedTab {
@@ -48,5 +49,8 @@ export function saveFileState(
 	instanceId: string,
 	state: FileState,
 ): void {
-	invoke("save_file_state", { projectId, instanceId, state }).catch(() => {});
+	persist(
+		"the editor state",
+		invoke("save_file_state", { projectId, instanceId, state }),
+	);
 }
