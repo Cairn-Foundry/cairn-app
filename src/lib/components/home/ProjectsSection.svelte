@@ -7,7 +7,8 @@
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
-  import { projects, unregisterProject, duplicateProjectInStore, openProjects, activeProjectId } from '$lib/stores/project';
+  import { pickGreeting, pickTagline } from '$lib/utils/home/greeting';
+  import { projects, unregisterProject, duplicateProjectInStore, openProjects, openTabOrder, activeProjectId } from '$lib/stores/project';
   import { projectFolders } from '$lib/stores/project-folders';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Project, ProjectFolder } from '$lib/types/project';
@@ -29,6 +30,12 @@
   let search = '';
   let searchInputEl: HTMLInputElement | null = null;
   let prevWasSearching = false;
+
+  const greeting = pickGreeting();
+  const tagline = pickTagline();
+
+  // The most recently opened project's tab, so its card gets a stronger border.
+  $: lastOpenedProjectId = $openTabOrder.length > 0 ? $openTabOrder[$openTabOrder.length - 1] : null;
 
   $: {
     const isSearching = !!search.trim();
@@ -71,6 +78,12 @@
   let dragOverUngrouped = false;
 
   const PROJ_DRAG_THRESHOLD = 6;
+
+  /** Parent directory name of a project path, shown instead of the full path. */
+  function parentFolderName(path: string): string {
+    const segments = path.split(/[\\/]/).filter(Boolean);
+    return segments.length > 1 ? segments[segments.length - 2] : '';
+  }
 
   /** Insert position for a card in a wrapping grid: row first, then the midpoint of the cell. */
   function computeGridInsertIndex(
@@ -390,7 +403,7 @@
 
 <!-- hero + quick actions - hidden via CSS when searching to keep DOM stable -->
 <div class="home-hero" class:hidden={!!search}>
-  <h1>{t('home.greeting')}<br/><em>{t('home.greetingTagline')}</em></h1>
+  <h1>{greeting}<br/><em>{tagline}</em></h1>
 </div>
 
 <div class="home-actions" class:hidden={!!search}>
@@ -427,7 +440,7 @@
     </div>
     <div class="open-tabs-row">
       {#each $openProjects as p (p.id)}
-        <div class="open-tab" class:active={p.id === $activeProjectId} role="button" tabindex="0"
+        <div class="open-tab" class:active={p.id === $activeProjectId} class:last-opened={p.id === lastOpenedProjectId} role="button" tabindex="0"
              on:click={() => dispatch('openProject', p.id)}
              on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
           <span class="open-tab-dot" style="background: {p.color}"></span>
@@ -488,7 +501,7 @@
              on:click={() => dispatch('openProject', p.id)}
              on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
           <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
-          <div class="ppath">{p.path}</div>
+          {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
           <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
             <Icon name="more" size={15}/>
           </button>
@@ -614,7 +627,7 @@
                       on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
                     >
                       <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
-                      <div class="ppath">{p.path}</div>
+                      {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
                       <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
                         <Icon name="more" size={15}/>
                       </button>
@@ -677,7 +690,7 @@
               on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
             >
               <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
-              <div class="ppath">{p.path}</div>
+              {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
               <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
                 <Icon name="more" size={15}/>
               </button>
@@ -749,6 +762,7 @@
   }
   .open-tab:hover { background: var(--bg-3); color: var(--fg-0); }
   .open-tab.active { border-color: var(--accent-line); color: var(--fg-0); }
+  .open-tab.last-opened { border: 2px solid var(--accent); padding: 5px 7px 5px 9px; color: var(--fg-0); }
 
   .open-tab-dot {
     width: 6px; height: 6px;

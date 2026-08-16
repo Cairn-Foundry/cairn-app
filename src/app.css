@@ -2189,7 +2189,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 .project-card .pname .swatch {
   width: 8px; height: 8px; border-radius: 2px;
 }
-.project-card .ppath {
+.project-card .pfolder {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-3);

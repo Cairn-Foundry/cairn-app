@@ -402,7 +402,6 @@
             <div class="ag-field">
               <div class="ag-card-info">
                 <label class="ag-label" for="p-custom">{t('home.agents.fields.customModels')}</label>
-                <span class="ag-hint">{t('home.agents.fields.customModelsHint')}</span>
               </div>
               <div class="inline-row">
                 <input

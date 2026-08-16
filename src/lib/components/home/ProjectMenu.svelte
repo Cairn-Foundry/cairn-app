@@ -161,7 +161,19 @@
     box-shadow: 0 8px 24px oklch(0 0 0 / 0.4);
     z-index: 110;
   }
-  .submenu-item:hover .submenu { display: block; }
+  /* Extends the hoverable area of the trigger past the visual gap on both sides, so a fast
+     mouse move toward the submenu (left or right, depending on autoflip) doesn't drop out of
+     :hover before landing on it. */
+  .submenu-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -8px;
+    right: -8px;
+  }
+  .submenu-item:hover .submenu,
+  .submenu:hover { display: block; }
 
   .folder-dot {
     width: 8px;

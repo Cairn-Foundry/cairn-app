@@ -8,6 +8,41 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The home screen greeting now varies with the time of day, the day of the week and the date instead of a fixed hardcoded name.",
+					"fr": "Le message d'accueil de l'ecran d'accueil varie maintenant selon l'heure, le jour de la semaine et la date, au lieu d'un nom fixe code en dur."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the Open projects row, the most recently opened project gets a stronger border so it stands out.",
+					"fr": "Dans la ligne Projets ouverts, le dernier projet ouvert affiche une bordure plus marquee pour se distinguer."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Project cards show the parent folder name instead of the full path.",
+					"fr": "Les cartes de projet affichent le nom du dossier parent au lieu du chemin complet."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The \"Move to folder\" submenu of a project card no longer closes when the pointer crosses the gap toward it too quickly.",
+					"fr": "Le sous-menu \"Deplacer vers un dossier\" d'une carte de projet ne se ferme plus quand le pointeur traverse l'espace vers lui trop rapidement."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The description under the Custom models field on the Providers page was removed.",
+					"fr": "La description sous le champ Modeles personnalises de la page Providers a ete retiree."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Icons answer the pointer: hovering a button animates its icon the way its action moves - the refresh arrows turn, the trash tips over, the chevrons slide, the send arrow takes off. Motion is disabled when the system asks for reduced motion.",
