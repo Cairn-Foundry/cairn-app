@@ -85,19 +85,25 @@
    * closed renders again with it. Parsing is keyed by the source itself, so a
    * block whose text stopped moving is parsed once and read from here after -
    * only the block still being written costs anything.
+   *
+   * Keying on the text alone made a stream quadratic: the growing block misses
+   * on every chunk, re-parses from the start, and leaves one more near-duplicate
+   * of itself in the cache. Callers that know which block they are rendering pass
+   * its id, so the block keeps a single entry that its own growth overwrites.
    */
-  const markdownCache = new Map<string, string>();
+  const markdownCache = new Map<string, { source: string; html: string }>();
   const MARKDOWN_CACHE_MAX = 200;
 
-  function renderMarkdown(content: string): string {
-    const hit = markdownCache.get(content);
-    if (hit !== undefined) return hit;
+  function renderMarkdown(content: string, blockId?: string): string {
+    const key = blockId ?? content;
+    const hit = markdownCache.get(key);
+    if (hit !== undefined && hit.source === content) return hit.html;
     const html = marked.parse(content, { async: false }) as string;
-    if (markdownCache.size >= MARKDOWN_CACHE_MAX) {
+    if (hit === undefined && markdownCache.size >= MARKDOWN_CACHE_MAX) {
       const oldest = markdownCache.keys().next();
       if (!oldest.done) markdownCache.delete(oldest.value);
     }
-    markdownCache.set(content, html);
+    markdownCache.set(key, { source: content, html });
     return html;
   }
 
@@ -2067,7 +2073,13 @@
                   {#if m.streaming && !m.content}
                     <p><span class="typing-dots"><span></span><span></span><span></span></span></p>
                   {:else if m.role === 'agent'}
-                    {@html renderMarkdown(m.content)}
+                    <!-- Parsing a block that is still growing costs the whole block on every
+                         chunk; the raw text stands in until the answer settles. -->
+                    {#if m.streaming}
+                      <p class="streaming-text">{m.content}</p>
+                    {:else}
+                      {@html renderMarkdown(m.content, m.id)}
+                    {/if}
                   {:else}
                     <p>{m.content}</p>
                   {/if}
@@ -3217,6 +3229,13 @@
   .reply-quote.linked:hover { opacity: 0.7; }
 
   .msg.from-agent .role { color: var(--agent); }
+
+  /* Raw source shown while the answer streams: keeps the line breaks the parsed
+     markdown would have produced, so the text does not reflow on completion. */
+  .streaming-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
   /* A prompt addressed to an agent wears what the composer wore when it was
      written: the agent's colour, and its name. */

@@ -609,6 +609,9 @@ pub async fn git_diff_file(worktree_path: String, file_path: String, staged: boo
     Ok(files.into_iter().next().map(|f| f.hunks).unwrap_or_default())
 }
 
+/// Files past this are not blamed: the walk costs more than the status bar line is worth.
+const MAX_BLAME_BYTES: u64 = 1024 * 1024;
+
 /// One line's blame, already reduced to what the status bar shows.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -625,8 +628,19 @@ pub struct BlameLine {
 /// is parsed here rather than sent across: it repeats the full commit header
 /// for every line and reaches megabytes on a large file, while the four fields
 /// below are all the editor displays.
+///
+/// Blaming a large file is charged against the history behind every one of its
+/// lines, so it grows with the depth of the repository, not just the file. Past
+/// the size guard the status bar simply shows no blame rather than stalling the
+/// tab that is opening.
 pub async fn git_blame_file(worktree_path: String, file_path: String) -> Result<Vec<BlameLine>, GitError> {
     let expanded = expand(&worktree_path);
+    let full = std::path::Path::new(&expanded).join(&file_path);
+    if let Ok(meta) = std::fs::metadata(&full) {
+        if meta.len() > MAX_BLAME_BYTES {
+            return Ok(Vec::new());
+        }
+    }
     let raw = run(git_cmd(&expanded).args(["blame", "--line-porcelain", "--", &file_path]))?;
     Ok(parse_blame_porcelain(&raw))
 }

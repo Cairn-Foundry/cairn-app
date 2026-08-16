@@ -291,13 +291,17 @@
 
   // -- Extensions -------------------------------------------------------------
 
-  /** Language extension for the current file, plus markdown WYSIWYG and JS/TS snippets. */
-  function buildLanguageExtensions(): Extension[] {
+  /**
+   * Language extension for the current file, plus markdown WYSIWYG and JS/TS snippets.
+   * Every mode but JS/TS is fetched on demand, so this resolves a frame or two after
+   * the editor is built and lands through `languageCompartment`.
+   */
+  async function buildLanguageExtensions(): Promise<Extension[]> {
     const isJS = language === 'ts' || language === 'tsx' || language === 'js' || language === 'jsx';
     const isTS = language === 'ts' || language === 'tsx';
     const isJSX = language === 'tsx' || language === 'jsx';
     const jsLang = isJS ? javascript({ typescript: isTS, jsx: isJSX }) : null;
-    const lang = jsLang ?? resolveLanguageExtension(language);
+    const lang = jsLang ?? await resolveLanguageExtension(language);
     const data = jsLang?.language.data;
 
     const exts: Extension[] = [lang];
@@ -354,7 +358,7 @@
       ])),
       shortcutKeymapCompartment.of(buildShortcutKeymap($activeShortcuts)),
 
-      languageCompartment.of(buildLanguageExtensions()),
+      languageCompartment.of([]),
       lineNumbers(),
       unselectableGutters,
       history(),
@@ -497,10 +501,22 @@
     ]});
   }
 
+  /**
+   * Also what installs the mode on a fresh editor: the view is built with an empty
+   * language compartment and this fires as soon as it exists, since `syncedLang`
+   * starts unset. The tab may have moved on by the time the chunk lands, so the
+   * language is checked again before the reconfigure.
+   */
   let syncedLang: EditorLanguage | undefined = undefined;
   $: if (view && language !== syncedLang) {
     syncedLang = language;
-    view.dispatch({ effects: languageCompartment.reconfigure(buildLanguageExtensions()) });
+    void applyLanguage(view, language);
+  }
+
+  async function applyLanguage(target: EditorView, lang: EditorLanguage): Promise<void> {
+    const exts = await buildLanguageExtensions();
+    if (view !== target || syncedLang !== lang) return;
+    target.dispatch({ effects: languageCompartment.reconfigure(exts) });
   }
 
   $: if (view) view.dispatch({ effects: whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []) });

@@ -10,7 +10,7 @@
 
   export let blocks: AgentBlock[] = [];
   export let showThinking = true;
-  export let renderMarkdown: (source: string) => string;
+  export let renderMarkdown: (source: string, blockId?: string) => string;
   /** Paths the user already knows, stripped from tool lines. */
   export let roots: string[] = [];
   /** Opens the full thread of a subagent, with its tools and its reasoning. */
@@ -43,6 +43,7 @@
 </script>
 
 {#each blocks as block, i (blockKey(block, i))}
+  {@const key = blockKey(block, i)}
   {#if block.kind === 'tool'}
     {@const parts = split(block.text)}
     <div class="tool" class:done={block.done} class:failed={block.failed}>
@@ -72,7 +73,7 @@
             <Icon name="chev-d" size={11}/>
           </summary>
           {#if block.result}
-            <div class="agent-result selectable">{@html renderMarkdown(block.result)}</div>
+            <div class="agent-result selectable">{@html renderMarkdown(block.result, `r:${key}`)}</div>
           {:else}
             <div class="agent-result empty">{t('agent.subagent.noAnswer')}</div>
           {/if}
@@ -107,7 +108,7 @@
     {/if}
   {:else}
     <div class="answer selectable">
-      {@html renderMarkdown(block.text)}
+      {@html renderMarkdown(block.text, key)}
     </div>
   {/if}
 {/each}

@@ -14,7 +14,7 @@
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import GitignoreView from '$lib/components/git/GitignoreView.svelte';
-  import { readFile, isBinaryPath } from '$lib/services/file-service';
+  import { readFile, readFilePreview, isBinaryPath } from '$lib/services/file-service';
   import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk, GitError } from '$lib/services/git-service';
   import { describeGitError } from '$lib/utils/git/git-error';
@@ -104,13 +104,27 @@
     return parts.length > 1 ? parts.slice(0, -1).join('/') + '/' : '';
   }
 
-  /** Counts added and removed lines across every hunk of a file diff. */
+  /**
+   * Counts added and removed lines across every hunk of a file diff, and infers the
+   * working-tree status from them: removals only means deleted. One walk, no
+   * intermediate copy - this runs for every file on each poll of the git store.
+   */
   function statFromHunks(hunks: GitDiffHunk[]) {
-    const lines = hunks.flatMap(h => h.lines);
+    let added = 0;
+    let removed = 0;
+    let total = 0;
+    for (const hunk of hunks) {
+      for (const line of hunk.lines) {
+        total++;
+        if (line.kind === 'add') added++;
+        else if (line.kind === 'remove') removed++;
+      }
+    }
     return {
-      added: lines.filter(l => l.kind === 'add').length,
-      removed: lines.filter(l => l.kind === 'remove').length,
-      hasDiff: lines.length > 0,
+      added,
+      removed,
+      hasDiff: total > 0,
+      status: removed > 0 && added === 0 ? 'deleted' : 'modified',
     };
   }
 
@@ -118,10 +132,11 @@
   function makeCard(
     filePath: string,
     hunks: GitDiffHunk[],
-    status: string,
+    status: string | null,
     truncated = false,
   ): FileCard {
-    const { added, removed, hasDiff } = statFromHunks(hunks);
+    const { added, removed, hasDiff, status: inferred } = statFromHunks(hunks);
+    status ??= inferred;
     return {
       file: filePath,
       basename: basename(filePath),
@@ -136,14 +151,6 @@
     };
   }
 
-  /** Infers a working-tree status from the hunk contents: removals only means deleted. */
-  function unstagedStatus(hunks: GitDiffHunk[]): string {
-    const changed = hunks.flatMap(h => h.lines).filter(l => l.kind !== 'context');
-    const hasAdd = changed.some(l => l.kind === 'add');
-    const hasRemove = changed.some(l => l.kind === 'remove');
-    return hasRemove && !hasAdd ? 'deleted' : 'modified';
-  }
-
   /** Synthesises a whole-file addition hunk so an untracked file renders like a diff. */
   function untrackedHunks(content: string): GitDiffHunk[] {
     if (!content) return [];
@@ -153,6 +160,9 @@
       lines: lines.map(l => ({ kind: 'add' as const, content: l })),
     }];
   }
+
+  /** An untracked file past this is listed but not diffed - its content stays on disk. */
+  const UNTRACKED_MAX_BYTES = 512 * 1024;
 
   let untrackedPaths: string[] = [];
   let untrackedContent: Record<string, string> = {};
@@ -176,16 +186,27 @@
     const visible = all.filter(p => !ignored.has(p));
     untrackedPaths = visible;
     const next: Record<string, string> = {};
-    for (const p of visible) {
-      if (isBinaryPath(p)) continue;
-      next[p] = (await readFile(`${wt}/${p}`).catch(() => '')) ?? '';
+    const readable = visible.filter(p => !isBinaryPath(p));
+    // Sized before being read: an untracked build artifact would otherwise be pulled
+    // into the webview whole just to render a diff nobody asked for.
+    const entries = await Promise.all(
+      readable.map(async p => {
+        const full = `${wt}/${p}`;
+        const preview = await readFilePreview(full).catch(() => null);
+        if (!preview || preview.size > UNTRACKED_MAX_BYTES) return null;
+        const text = await readFile(full).catch(() => '');
+        return [p, text ?? ''] as const;
+      }),
+    );
+    for (const entry of entries) {
+      if (entry) next[entry[0]] = entry[1];
     }
     untrackedContent = next;
   }
 
   $: unstagedCards = (() => {
     const cards = state.unstagedDiffs.map(f =>
-      makeCard(f.filePath, f.hunks, unstagedStatus(f.hunks), f.truncated),
+      makeCard(f.filePath, f.hunks, null, f.truncated),
     );
     const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
     for (const p of untrackedPaths) {

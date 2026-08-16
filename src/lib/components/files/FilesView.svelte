@@ -2304,9 +2304,6 @@ import { get } from 'svelte/store';
     onNodeAuxClick={handleTreeNodeAuxClick}
     onContextMenu={openContextMenu}
     onNodePointerDown={onNodePointerDown}
-    onNodePointerMove={onNodePointerMove}
-    onNodePointerUp={onNodePointerUp}
-    onNodePointerCancel={endNodeDrag}
     onCommitEdit={commitEdit}
     onCancelEdit={cancelEdit}
     onEditValueChange={(v) => { editValue = v; }}

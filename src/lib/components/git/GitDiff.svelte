@@ -33,15 +33,25 @@
     };
   }
 
-  /** Flattens the hunks into display rows, walking each side's counter so added and removed lines only advance their own. */
-  $: rows = ((): Row[] => {
+  /** Total rows the hunks would produce, counted without allocating any of them. */
+  $: totalRows = hunks.reduce((n, h, i) => n + h.lines.length + (i > 0 ? 1 : 0), 0);
+
+  /**
+   * Flattens the hunks into display rows, walking each side's counter so added and removed lines
+   * only advance their own. Stops at the page limit: a 20k-line diff shows 300 rows, so building
+   * the other 19.7k only to slice them away costs megabytes per expanded file.
+   */
+  $: rows = ((limit: number): Row[] => {
     const out: Row[] = [];
-    hunks.forEach((hunk, i) => {
+    for (let i = 0; i < hunks.length; i++) {
+      if (out.length >= limit) break;
+      const hunk = hunks[i];
       const { oldStart, newStart } = parseHeader(hunk.header);
       if (i > 0) out.push({ kind: 'sep', header: hunk.header });
       let oldNo = oldStart;
       let newNo = newStart;
       for (const line of hunk.lines) {
+        if (out.length >= limit) break;
         if (line.kind === 'add') {
           out.push({ kind: 'add', oldNo: null, newNo, content: line.content });
           newNo++;
@@ -54,15 +64,15 @@
           newNo++;
         }
       }
-    });
+    }
     return out;
-  })();
+  })(shown);
 
-  $: hidden = Math.max(0, rows.length - shown);
+  $: hidden = Math.max(0, totalRows - shown);
 </script>
 
 <div class="git-diff">
-  {#each rows.slice(0, shown) as row}
+  {#each rows as row}
     {#if row.kind === 'sep'}
       <div class="diff-sep">{row.header}</div>
     {:else}

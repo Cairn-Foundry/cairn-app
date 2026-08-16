@@ -11,7 +11,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import type { FileNode, GitStatusMap } from '$lib/services/file-service';
-  import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
+  import { fileIcon as fileIconFor, flattenVisible, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
 
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 
@@ -58,16 +58,47 @@
   export let onNodeClick: (e: MouseEvent, node: FileNode) => void;
   export let onNodeAuxClick: (e: MouseEvent, node: FileNode) => void;
   export let onContextMenu: (e: MouseEvent, node: FileNode | null) => void;
+  /** Captures the pointer on the row itself, then tracks the drag on window. */
   export let onNodePointerDown: (e: PointerEvent, node: FileNode) => void;
-  export let onNodePointerMove: (e: PointerEvent) => void;
-  export let onNodePointerUp: (e: PointerEvent) => void;
-  export let onNodePointerCancel: () => void;
   export let onCommitEdit: () => void;
   export let onCancelEdit: () => void;
   export let onEditValueChange: (value: string) => void;
   export let onEmptyAreaClick: () => void;
 
   let scrollEl: HTMLElement | null = null;
+
+  /**
+   * Mouse handlers are delegated to the scroll container rather than bound per row:
+   * a tree with ignored files shown reaches tens of thousands of nodes, and three
+   * listeners on each of them is the bulk of what mounting it costs. The pointer
+   * handlers stay on the row - `onNodePointerDown` captures the pointer there, and a
+   * capture taken anywhere else would send the compatibility click to the wrong
+   * element.
+   */
+  $: visibleByPath = new Map(flattenVisible(tree, expanded).map((n) => [n.path, n]));
+
+  /** The tree node a delegated event landed on, or null outside any row. */
+  function nodeFromEvent(e: Event): FileNode | null {
+    const row = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-tree-path]');
+    const path = row?.dataset.treePath;
+    return path === undefined ? null : (visibleByPath.get(path) ?? null);
+  }
+
+  function onTreeClick(e: MouseEvent): void {
+    if (e.target === e.currentTarget) { onEmptyAreaClick(); return; }
+    const node = nodeFromEvent(e);
+    if (node) onNodeClick(e, node);
+  }
+
+  function onTreeAuxClick(e: MouseEvent): void {
+    const node = nodeFromEvent(e);
+    if (node) onNodeAuxClick(e, node);
+  }
+
+  function onTreeContextMenu(e: MouseEvent): void {
+    const node = nodeFromEvent(e);
+    if (node) onContextMenu(e, node);
+  }
 
   /** Action that reports the header buttons' intrinsic width so the sidebar cannot shrink past them. */
   function measureActions(node: HTMLElement): { destroy: () => void } {
@@ -140,7 +171,13 @@
   {/if}
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="files-tree-scroll" bind:this={scrollEl} on:click={(e) => { if (e.target === e.currentTarget) onEmptyAreaClick(); }}>
+  <div
+    class="files-tree-scroll"
+    bind:this={scrollEl}
+    on:click={onTreeClick}
+    on:auxclick={onTreeAuxClick}
+    on:contextmenu={onTreeContextMenu}
+  >
     {#if loading}
       <div class="tree-skeleton">
         <Skeleton lines={8} height={11} gap={10}/>
@@ -196,13 +233,7 @@
       data-tree-path={node.path}
       data-tree-dir={node.isDir ? node.path : undefined}
       data-tree-parent={!node.isDir ? parentPathOf(node.path) : undefined}
-      on:click={(e) => onNodeClick(e, node)}
-      on:auxclick={(e) => onNodeAuxClick(e, node)}
-      on:contextmenu={(e) => onContextMenu(e, node)}
       on:pointerdown={(e) => onNodePointerDown(e, node)}
-      on:pointermove={onNodePointerMove}
-      on:pointerup={onNodePointerUp}
-      on:pointercancel={onNodePointerCancel}
       on:dragstart|preventDefault
     >
       <Icon name={fileIconFor(node, expanded)} size={13}/>

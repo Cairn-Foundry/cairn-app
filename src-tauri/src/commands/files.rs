@@ -235,12 +235,22 @@ pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+/// Past this, a file is not something the editor can usefully hold: the bytes cross
+/// the IPC boundary as JSON and land in the webview heap whole. A stray build artifact
+/// left untracked in a worktree would otherwise freeze the window on its own.
+const MAX_TEXT_FILE_BYTES: u64 = 10 * 1024 * 1024;
+
 #[tauri::command]
 /// File contents, or `None` when the bytes are not valid UTF-8 (binary).
 pub async fn read_file(path: String) -> Result<Option<String>, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
     if !p.exists() { return Err(format!("File not found: {}", path)); }
+
+    let meta = fs::metadata(&p).map_err(|e| e.to_string())?;
+    if meta.len() > MAX_TEXT_FILE_BYTES {
+        return Err(format!("File too large to open: {} bytes", meta.len()));
+    }
 
     // Return None for binary files
     let bytes = fs::read(&p).map_err(|e| e.to_string())?;

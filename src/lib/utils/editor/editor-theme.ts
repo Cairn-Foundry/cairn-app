@@ -1,23 +1,8 @@
-import { cpp } from "@codemirror/lang-cpp";
-import { css } from "@codemirror/lang-css";
-import { html } from "@codemirror/lang-html";
-import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
-import { json } from "@codemirror/lang-json";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { php } from "@codemirror/lang-php";
-import { python } from "@codemirror/lang-python";
-import { rust } from "@codemirror/lang-rust";
-import { sql } from "@codemirror/lang-sql";
-import { vue } from "@codemirror/lang-vue";
-import { xml } from "@codemirror/lang-xml";
-import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { languages } from "@codemirror/language-data";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
-import { svelte } from "codemirror-lang-svelte";
 import {
 	defaultSyntaxTokens,
 	type SyntaxTokenKey,
@@ -65,41 +50,55 @@ export type ThemeName =
 /**
  * Markdown is built on `markdownLanguage` rather than the default: the WYSIWYG
  * layer decorates tables, which only exist with GFM.
+ *
+ * Every mode but JavaScript is imported on demand. Bundling all fourteen put
+ * ~640 KB in the initial download for a user who opens two or three languages;
+ * the caller applies the result through a compartment, so the editor opens
+ * unhighlighted for one frame and gains its mode when the chunk lands.
  */
-export function resolveLanguageExtension(lang: EditorLanguage): Extension {
+export async function resolveLanguageExtension(
+	lang: EditorLanguage,
+): Promise<Extension> {
 	switch (lang) {
 		case "tsx":
 			return javascript({ typescript: true, jsx: true });
 		case "jsx":
 			return javascript({ typescript: false, jsx: true });
 		case "vue":
-			return vue();
+			return (await import("@codemirror/lang-vue")).vue();
 		case "svelte":
-			return svelte();
+			return (await import("codemirror-lang-svelte")).svelte();
 		case "sql":
-			return sql();
+			return (await import("@codemirror/lang-sql")).sql();
 		case "json":
-			return json();
+			return (await import("@codemirror/lang-json")).json();
 		case "html":
-			return html();
+			return (await import("@codemirror/lang-html")).html();
 		case "css":
-			return css();
-		case "markdown":
+			return (await import("@codemirror/lang-css")).css();
+		case "markdown": {
+			const [{ markdown, markdownLanguage }, { languages }] = await Promise.all(
+				[
+					import("@codemirror/lang-markdown"),
+					import("@codemirror/language-data"),
+				],
+			);
 			return markdown({ base: markdownLanguage, codeLanguages: languages });
+		}
 		case "xml":
-			return xml();
+			return (await import("@codemirror/lang-xml")).xml();
 		case "yaml":
-			return yaml();
+			return (await import("@codemirror/lang-yaml")).yaml();
 		case "python":
-			return python();
+			return (await import("@codemirror/lang-python")).python();
 		case "rust":
-			return rust();
+			return (await import("@codemirror/lang-rust")).rust();
 		case "java":
-			return java();
+			return (await import("@codemirror/lang-java")).java();
 		case "cpp":
-			return cpp();
+			return (await import("@codemirror/lang-cpp")).cpp();
 		case "php":
-			return php();
+			return (await import("@codemirror/lang-php")).php();
 		case "text":
 			return [];
 		default:

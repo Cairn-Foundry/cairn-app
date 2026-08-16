@@ -28,7 +28,7 @@
   const highlightCompartment = new Compartment();
 
   /** Editor extensions for the current theme, with theme and highlight kept in compartments so they can be swapped later. */
-  function buildExtensions(): Extension[] {
+  async function buildExtensions(): Promise<Extension[]> {
     const theme = $settings.theme;
     return [
       unifiedMergeView({
@@ -37,7 +37,7 @@
         gutter: true,
         syntaxHighlightDeletions: true,
       }),
-      resolveLanguageExtension(language),
+      await resolveLanguageExtension(language),
       lineNumbers(),
       unselectableGutters,
       bracketMatching(),
@@ -62,14 +62,22 @@
     ]});
   }
 
-  onMount(() => {
+  let destroyed = false;
+
+  onMount(async () => {
+    // The language mode is fetched on demand, so the view is built once it is in hand.
+    const extensions = await buildExtensions();
+    if (destroyed) return;
     view = new EditorView({
-      state: EditorState.create({ doc: newContent, extensions: buildExtensions() }),
+      state: EditorState.create({ doc: newContent, extensions }),
       parent: container,
     });
   });
 
-  onDestroy(() => { view?.destroy(); });
+  onDestroy(() => {
+    destroyed = true;
+    view?.destroy();
+  });
 </script>
 
 <div bind:this={container} class="inline-diff-mount"></div>

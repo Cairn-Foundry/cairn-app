@@ -28,10 +28,10 @@
   const highlightCompartment = new Compartment();
 
   /** Editor extensions shared by both panes, with theme and highlight in compartments so they can be swapped later. */
-  function buildExtensions(): Extension[] {
+  async function buildExtensions(): Promise<Extension[]> {
     const theme = $settings.theme;
     return [
-      resolveLanguageExtension(language),
+      await resolveLanguageExtension(language),
       lineNumbers(),
       unselectableGutters,
       bracketMatching(),
@@ -57,11 +57,14 @@
   }
 
   let cleanupScroll: (() => void) | undefined;
+  let destroyed = false;
 
-  onMount(() => {
+  onMount(async () => {
     // MergeView misaligns the last chunk when one side lacks its trailing newline.
     const normalize = (s: string) => s.endsWith('\n') ? s : s + '\n';
-    const exts = buildExtensions();
+    // The language mode is fetched on demand, so the view is built once it is in hand.
+    const exts = await buildExtensions();
+    if (destroyed) return;
     mergeView = new MergeView({
       a: { doc: normalize(oldContent), extensions: [...exts] },
       b: { doc: normalize(newContent), extensions: [...exts] },
@@ -97,6 +100,7 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     cleanupScroll?.();
     mergeView?.destroy();
   });

@@ -10,6 +10,41 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "A long agent answer no longer slows the interface down as it streams. The text was re-formatted from the start on every fragment received, which grew heavier the longer the answer got; it is now formatted once, when the answer settles.",
+					"fr": "Une longue reponse de l'agent ne ralentit plus l'interface pendant qu'elle arrive. Le texte etait remis en forme depuis le debut a chaque fragment recu, ce qui pesait de plus en plus lourd a mesure que la reponse s'allongeait ; il est desormais mis en forme une seule fois, quand la reponse se stabilise."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Opening a large diff uses far less memory: only the lines actually shown are built, instead of every line of the file being prepared and then discarded.",
+					"fr": "Ouvrir un gros diff consomme beaucoup moins de memoire : seules les lignes reellement affichees sont construites, au lieu de preparer toutes les lignes du fichier pour ensuite les jeter."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The editor now downloads a language's syntax support only when a file using it is opened, instead of bundling all of them into the initial load. The application starts faster.",
+					"fr": "L'editeur ne telecharge desormais la coloration d'un langage que lorsqu'un fichier de ce type est ouvert, au lieu de tous les inclure au chargement initial. L'application demarre plus vite."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The file tree is lighter to display: interactions are handled once for the whole tree rather than attached to every row, which shows on a large repository.",
+					"fr": "L'arborescence est plus legere a afficher : les interactions sont gerees une seule fois pour tout l'arbre plutot qu'attachees a chaque ligne, ce qui se ressent sur un gros depot."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A very large file no longer freezes the window. Opening one, and computing the blame shown in the status bar, are now bounded by size; an oversized untracked file is still listed in the git view but no longer read whole to be diffed.",
+					"fr": "Un fichier tres volumineux ne fige plus la fenetre. Son ouverture, ainsi que le calcul du blame affiche dans la barre de statut, sont desormais bornes par la taille ; un fichier non suivi trop gros reste liste dans la vue git mais n'est plus lu en entier pour etre compare."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "The file tree no longer slows down as the number of modified files grows: a directory's git status is now resolved from an index instead of scanning every change for every folder drawn.",
 					"fr": "L'arborescence ne ralentit plus quand le nombre de fichiers modifies augmente : le statut git d'un dossier est desormais resolu depuis un index au lieu de parcourir tous les changements pour chaque dossier affiche."
 				}
