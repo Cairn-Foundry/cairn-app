@@ -21,6 +21,19 @@
    * argument is shortened for reading and kept whole for the tooltip - the full
    * path is still the thing to copy.
    */
+  /**
+   * Blocks are only ever appended, so their position identifies them. The two
+   * ends of a delegation share the run that produced them, hence the phase:
+   * without it the answer would be taken for the line that started the work.
+   */
+  function blockKey(block: AgentBlock, index: number): string {
+    if (block.kind === 'agent' && block.agentRunId) {
+      return `a:${block.agentRunId}:${block.phase ?? ''}`;
+    }
+    if (block.kind === 'tool' && block.toolId) return `t:${block.toolId}`;
+    return `i:${index}`;
+  }
+
   function split(label: string): { name: string; arg: string; full: string } {
     const at = label.indexOf(': ');
     if (at < 0) return { name: label, arg: '', full: '' };
@@ -29,7 +42,7 @@
   }
 </script>
 
-{#each blocks as block, i (i)}
+{#each blocks as block, i (blockKey(block, i))}
   {#if block.kind === 'tool'}
     {@const parts = split(block.text)}
     <div class="tool" class:done={block.done} class:failed={block.failed}>

@@ -80,8 +80,25 @@
 
   marked.use({ async: false, gfm: true });
 
+  /**
+   * A streamed answer re-renders on every chunk, and every block it already
+   * closed renders again with it. Parsing is keyed by the source itself, so a
+   * block whose text stopped moving is parsed once and read from here after -
+   * only the block still being written costs anything.
+   */
+  const markdownCache = new Map<string, string>();
+  const MARKDOWN_CACHE_MAX = 200;
+
   function renderMarkdown(content: string): string {
-    return marked.parse(content, { async: false }) as string;
+    const hit = markdownCache.get(content);
+    if (hit !== undefined) return hit;
+    const html = marked.parse(content, { async: false }) as string;
+    if (markdownCache.size >= MARKDOWN_CACHE_MAX) {
+      const oldest = markdownCache.keys().next();
+      if (!oldest.done) markdownCache.delete(oldest.value);
+    }
+    markdownCache.set(content, html);
+    return html;
   }
 
   /**
@@ -107,6 +124,8 @@
   }
 
   interface Message {
+    /** See `ConversationMessage.id`: absent on what was written before it. */
+    id?: string;
     role: 'system' | 'user' | 'agent';
     content: string;
     /** When the turn happened, in milliseconds. */
@@ -620,25 +639,30 @@
   }
 
   /**
-   * Rewrites the run's message from what it has written. The element is
-   * assigned back rather than mutated in place, and a message that went missing
-   * - a conversation reloaded under a run still in flight - is created again
-   * instead of silently swallowing everything that follows.
+   * Rewrites the run's message from what it has written. A message that went
+   * missing - a conversation reloaded under a run still in flight - is created
+   * again instead of silently swallowing everything that follows.
+   *
+   * The fields are written onto the message rather than a fresh object being
+   * assigned in its place, and the message points at the run's own block array
+   * rather than a copy of it. Both run on every chunk: replacing the object
+   * gave each chunk a message and a set of blocks Svelte could not recognise,
+   * so the whole turn re-rendered and every closed block was parsed again.
+   * Mutation keeps that identity, and the deep proxy the run lives behind
+   * propagates it. Persistence is unaffected: `persistRun` snapshots.
    */
   function commitAnswer(run: Run, fields: Partial<Message> = {}) {
     if (run.answerIndex < 0 || !run.messages[run.answerIndex]) {
-      run.messages.push({ role: 'agent', content: '', ts: now(), streaming: true });
+      run.messages.push({ id: nextMessageId(), role: 'agent', content: '', ts: now(), streaming: true });
       run.answerIndex = run.messages.length - 1;
     }
-    run.messages[run.answerIndex] = {
-      ...run.messages[run.answerIndex],
-      blocks: [...run.blocks],
-      thinking: run.thinking || undefined,
-      // The answer is the last thing written, not everything written: the notes
-      // between two tool calls belong to the turn, not to the reply.
-      content: lastTextOf(run.blocks),
-      ...fields,
-    };
+    const message = run.messages[run.answerIndex];
+    if (message.blocks !== run.blocks) message.blocks = run.blocks;
+    message.thinking = run.thinking || undefined;
+    // The answer is the last thing written, not everything written: the notes
+    // between two tool calls belong to the turn, not to the reply.
+    message.content = lastTextOf(run.blocks);
+    Object.assign(message, fields);
   }
 
   /**
@@ -686,6 +710,18 @@
 
   function now(): number {
     return Date.now();
+  }
+
+  let messageSeq = 0;
+
+  /**
+   * Identity for a transcript line. Only ever compared against the ids of the
+   * messages on screen, so a counter is enough - and it stays unique across
+   * the reloads of a conversation because it carries the moment it was minted.
+   */
+  function nextMessageId(): string {
+    messageSeq += 1;
+    return `m${Date.now().toString(36)}-${messageSeq}`;
   }
 
   function iconForTool(tool?: string): string {
@@ -1392,13 +1428,14 @@
     const t_now = now();
     if (takingOver) {
       conv.messages.push({
+        id: nextMessageId(),
         role: 'system',
         content: (t('agent.providerSwitched') as (p: string) => string)(providerLabel(runProviderId)),
         ts: t_now,
       });
     }
-    conv.messages.push({ role: 'user', content: message, ts: t_now });
-    conv.messages.push({ role: 'agent', content: '', ts: t_now, streaming: true });
+    conv.messages.push({ id: nextMessageId(), role: 'user', content: message, ts: t_now });
+    conv.messages.push({ id: nextMessageId(), role: 'agent', content: '', ts: t_now, streaming: true });
     const answerIndex = conv.messages.length - 1;
     conv.activity.push({ ts: t_now, icon: 'send', label: message.slice(0, 160) + (message.length > 160 ? '...' : ''), source: 'stdin' });
 
@@ -1936,7 +1973,7 @@
             </div>
           </div>
         {/if}
-        {#each current?.messages ?? [] as m, i}
+        {#each current?.messages ?? [] as m, i (m.id ?? i)}
           {#if m.agentStarted}
           <div class="agent-started" data-msg={i} class:flash={flashedMessage === i}>
             <span class="started-dot" style="background: {agentColorOf(m)}"></span>

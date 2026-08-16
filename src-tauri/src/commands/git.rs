@@ -33,6 +33,11 @@ pub struct GitFileDiff {
     #[serde(rename = "filePath")]
     pub file_path: String,
     pub hunks: Vec<GitDiffHunk>,
+    /// Set when the file held more lines than `DIFF_MAX_LINES_PER_FILE` and the
+    /// rest was dropped, so the view can say so rather than show a partial diff
+    /// as if it were the whole change.
+    #[serde(rename = "truncated", skip_serializing_if = "std::ops::Not::not")]
+    pub truncated: bool,
 }
 
 /// A commit as listed in the history view.
@@ -108,13 +113,22 @@ fn reject_option_like(name: &str) -> Result<(), GitError> {
 
 /// Parses unified diff text into per-file hunks. The path is taken from the `+++ b/`
 /// line when present, so renames and quoted paths resolve to the destination.
+/// Lines kept per file. The git view polls unstaged and staged diffs every few
+/// seconds while it is open, and each one crosses the IPC boundary as JSON: a
+/// worktree carrying a generated file, a lockfile or a vendored tree produces
+/// megabytes nobody reads past the first screen of. Whatever sits beyond this
+/// is dropped and the file is flagged truncated.
+const DIFF_MAX_LINES_PER_FILE: usize = 20_000;
+
 fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
     let mut files: Vec<GitFileDiff> = Vec::new();
     let mut current_file: Option<GitFileDiff> = None;
     let mut current_hunk: Option<GitDiffHunk> = None;
+    let mut lines_in_file: usize = 0;
 
     for line in raw.lines() {
         if line.starts_with("diff --git ") {
+            lines_in_file = 0;
             // Flush previous hunk/file
             if let Some(hunk) = current_hunk.take()
                 && let Some(ref mut f) = current_file {
@@ -129,7 +143,8 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 .last()
                 .unwrap_or("")
                 .to_string();
-            current_file = Some(GitFileDiff { file_path: path, hunks: Vec::new() });
+            current_file =
+                Some(GitFileDiff { file_path: path, hunks: Vec::new(), truncated: false });
         } else if line.starts_with("@@ ") {
             if let Some(hunk) = current_hunk.take()
                 && let Some(ref mut f) = current_file {
@@ -146,6 +161,13 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
         } else if line.starts_with('\\') {
             // "\ No newline at end of file" marker inside a hunk: not a real line.
         } else if let Some(ref mut hunk) = current_hunk {
+            if lines_in_file >= DIFF_MAX_LINES_PER_FILE {
+                if let Some(ref mut f) = current_file {
+                    f.truncated = true;
+                }
+                continue;
+            }
+            lines_in_file += 1;
             let kind = if line.starts_with('+') {
                 "add"
             } else if line.starts_with('-') {
@@ -1716,6 +1738,40 @@ index 1111111..2222222 100644
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].content, "a");
         assert_eq!(lines[1].content, "b");
+    }
+
+    #[test]
+    fn parse_diff_truncates_a_file_that_changed_too_much() {
+        let mut raw = String::from(
+            "diff --git a/big.txt b/big.txt\n--- a/big.txt\n+++ b/big.txt\n@@ -0,0 +1 @@\n",
+        );
+        for i in 0..(DIFF_MAX_LINES_PER_FILE + 500) {
+            raw.push_str(&format!("+line {i}\n"));
+        }
+        // A second file must start with a clean budget rather than inherit the
+        // first one's.
+        raw.push_str("diff --git a/small.txt b/small.txt\n--- a/small.txt\n+++ b/small.txt\n@@ -0,0 +1 @@\n+only line\n");
+
+        let files = parse_diff(&raw);
+        assert_eq!(files.len(), 2);
+        assert!(files[0].truncated);
+        let kept: usize = files[0].hunks.iter().map(|h| h.lines.len()).sum();
+        assert_eq!(kept, DIFF_MAX_LINES_PER_FILE);
+        assert!(!files[1].truncated);
+        assert_eq!(files[1].hunks[0].lines.len(), 1);
+    }
+
+    #[test]
+    fn parse_diff_leaves_an_ordinary_file_untruncated() {
+        let raw = "\
+diff --git a/f.txt b/f.txt
+--- a/f.txt
++++ b/f.txt
+@@ -0,0 +1 @@
++one
+";
+        let files = parse_diff(raw);
+        assert!(!files[0].truncated);
     }
 
     #[test]

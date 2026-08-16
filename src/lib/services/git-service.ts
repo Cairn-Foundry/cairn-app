@@ -19,6 +19,11 @@ export type GitDiffHunk = {
 export type GitFileDiff = {
 	filePath: string;
 	hunks: GitDiffHunk[];
+	/**
+	 * The file changed more than the diff keeps, and what follows was dropped.
+	 * The view says so rather than passing a partial diff off as the whole one.
+	 */
+	truncated?: boolean;
 };
 
 // Wire values emitted by the Rust `git_status` command. Staged entries carry a

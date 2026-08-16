@@ -1460,6 +1460,8 @@ export const fr = {
 		commitBodyPlaceholder:
 			"Ajouter une description plus longue (facultatif)...",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
+		diffTruncated:
+			"Diff tronqué : ce fichier a trop changé pour être affiché en entier.",
 		stage: "Indexer",
 		unstage: "Désindexer",
 		files: "fichiers",

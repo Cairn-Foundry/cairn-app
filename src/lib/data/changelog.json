@@ -475,6 +475,34 @@
 					"en": "A failed save to disk is now reported instead of being silently discarded. Settings, conversations, terminals, environment variables and editor state all used to fail without a trace.",
 					"fr": "Un enregistrement sur le disque qui echoue est desormais signale au lieu d'etre ignore en silence. Les reglages, les conversations, les terminaux, les variables d'environnement et l'etat de l'editeur echouaient auparavant sans laisser de trace."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A streaming agent answer is far cheaper to display: text already written is no longer re-rendered on every chunk, so a long reply stays smooth to the end instead of slowing down as it grows.",
+					"fr": "L'affichage d'une reponse d'agent en cours de streaming est bien moins couteux : le texte deja ecrit n'est plus recalcule a chaque fragment, si bien qu'une longue reponse reste fluide jusqu'au bout au lieu de ralentir en grossissant."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A file with a very large diff is now truncated in the git view, with a note saying so, instead of being sent whole every few seconds while the view is open.",
+					"fr": "Un fichier dont le diff est tres volumineux est desormais tronque dans la vue git, avec une mention qui le signale, au lieu d'etre transmis en entier toutes les quelques secondes tant que la vue est ouverte."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The application starts faster: the editor, the terminal and everything else the workspace needs are only loaded when a project is opened.",
+					"fr": "L'application demarre plus vite : l'editeur, le terminal et tout ce dont l'espace de travail a besoin ne sont charges qu'a l'ouverture d'un projet."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An agent provider that crashes no longer leaves its conversation stuck as busy for ever: the failure is reported and the conversation is released.",
+					"fr": "Un fournisseur d'agent qui plante ne laisse plus sa conversation bloquee en cours indefiniment : l'echec est signale et la conversation est liberee."
+				}
 			}
 		]
 	},

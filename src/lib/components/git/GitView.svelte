@@ -83,6 +83,8 @@
     status: string;
     added: number;
     removed: number;
+    /** The diff stops short of the whole change; the card says so. */
+    truncated?: boolean;
   };
 
   const STATUS_CLASS: Record<string, string> = {
@@ -113,7 +115,12 @@
   }
 
   /** Builds the per-file card the change lists render, with its split path and line stats. */
-  function makeCard(filePath: string, hunks: GitDiffHunk[], status: string): FileCard {
+  function makeCard(
+    filePath: string,
+    hunks: GitDiffHunk[],
+    status: string,
+    truncated = false,
+  ): FileCard {
     const { added, removed, hasDiff } = statFromHunks(hunks);
     return {
       file: filePath,
@@ -125,6 +132,7 @@
       status,
       added,
       removed,
+      truncated,
     };
   }
 
@@ -177,7 +185,7 @@
 
   $: unstagedCards = (() => {
     const cards = state.unstagedDiffs.map(f =>
-      makeCard(f.filePath, f.hunks, unstagedStatus(f.hunks)),
+      makeCard(f.filePath, f.hunks, unstagedStatus(f.hunks), f.truncated),
     );
     const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
     for (const p of untrackedPaths) {
@@ -192,7 +200,7 @@
     : unstagedCards;
 
   $: stagedCards = state.stagedDiffs
-    .map(f => makeCard(f.filePath, f.hunks, diffStatus(f.hunks)))
+    .map(f => makeCard(f.filePath, f.hunks, diffStatus(f.hunks), f.truncated))
     .sort((a, b) => a.basename.localeCompare(b.basename));
 
   $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()
@@ -1043,6 +1051,9 @@
                 {#if !collapsedUnstaged.has(h.filePath)}
                   <div class="card-diff">
                     <GitDiff hunks={h.hunks} />
+                    {#if h.truncated}
+                      <div class="hunk-truncated">{t('git.diffTruncated')}</div>
+                    {/if}
                   </div>
                 {/if}
               {:else}
@@ -1402,6 +1413,9 @@
                 {#if expandedStaged.has(h.filePath)}
                   <div class="card-diff">
                     <GitDiff hunks={h.hunks} />
+                    {#if h.truncated}
+                      <div class="hunk-truncated">{t('git.diffTruncated')}</div>
+                    {/if}
                   </div>
                 {/if}
               {:else}
@@ -2199,6 +2213,16 @@
 
   .hunk-no-preview {
     padding: 10px 12px;
+    font-size: 11.5px;
+    color: var(--fg-4);
+    font-family: var(--font-mono);
+    font-style: italic;
+    background: var(--bg-0);
+    border-top: 1px solid var(--stroke-0);
+  }
+
+  .hunk-truncated {
+    padding: 8px 12px;
     font-size: 11.5px;
     color: var(--fg-4);
     font-family: var(--font-mono);

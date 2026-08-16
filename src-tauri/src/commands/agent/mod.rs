@@ -331,7 +331,22 @@ pub async fn send_message(
             env: &env,
             options: &resolved,
         };
-        let result = provider.send(&app_out, &request, &handle);
+        // A provider that panics would take the rest of this thread with it:
+        // the run would stay in `running`, no `[done]` would ever be emitted,
+        // and the conversation would sit busy for ever with no way back short
+        // of restarting. Turned into an ordinary error, it travels the same
+        // path as any other failure and the conversation is released.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            provider.send(&app_out, &request, &handle)
+        }))
+        .unwrap_or_else(|payload| {
+            let detail = payload
+                .downcast_ref::<&str>()
+                .map(|s| (*s).to_string())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown cause".into());
+            Err(format!("The agent provider crashed: {detail}"))
+        });
 
         if let Ok(mut running) = app_out.state::<AgentState>().running.lock() {
             running.remove(&run_id);

@@ -1431,6 +1431,8 @@ export const en = {
 		commitPlaceholder: "feat(scope): describe your change",
 		commitBodyPlaceholder: "Add an optional longer description...",
 		noDiffPreview: "No preview available (binary or empty file).",
+		diffTruncated:
+			"Diff truncated: this file changed too much to show in full.",
 		stage: "Stage",
 		unstage: "Unstage",
 		files: "files",

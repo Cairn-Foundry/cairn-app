@@ -18,7 +18,7 @@
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
   import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
   import Home from '$lib/components/Home.svelte';
-  import Workspace from '$lib/components/Workspace.svelte';
+  import type Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
   import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
   import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
@@ -37,6 +37,28 @@
   let mounted = false;
 
   let workspaceView: Workspace | null = null;
+
+  /**
+   * The workspace pulls in the editor, the terminal and the markdown renderer,
+   * none of which the home screen shows. It is loaded the first time a project
+   * is opened rather than at startup, and never dropped afterwards: it stays
+   * mounted behind the home screen so terminals and open files survive going
+   * back and forth.
+   */
+  let WorkspaceComponent: typeof Workspace | null = null;
+  let workspaceLoading: Promise<void> | null = null;
+
+  function loadWorkspace(): Promise<void> {
+    workspaceLoading ??= import('$lib/components/Workspace.svelte').then((m) => {
+      WorkspaceComponent = m.default;
+    });
+    return workspaceLoading;
+  }
+
+  // Every way into the workspace goes through `screen`, including restoring a
+  // session that was left there, so the load is asked for here rather than at
+  // each of the callers.
+  $: if (screen === 'workspace') void loadWorkspace();
 
   /** Survives closing the last tab, so `cairn <file>` knows where to go back to. */
   let lastProjectId: string | null = null;
@@ -204,6 +226,10 @@
       await handleOpenProject(target);
     }
     screen = 'workspace';
+    // The workspace is fetched on demand, so waiting a tick is not enough: the
+    // component has to exist before the paths can be handed to it, or opening
+    // `cairn <file>` on a cold start would silently do nothing.
+    await loadWorkspace();
     await tick();
     await workspaceView?.openPathsFromCli(paths);
   }
@@ -232,7 +258,8 @@
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
-    <Workspace
+    {#if WorkspaceComponent}
+    <svelte:component this={WorkspaceComponent}
       bind:this={workspaceView}
       openProjects={$openProjects}
       activeProjectId={$activeProjectId ?? ''}
@@ -248,6 +275,7 @@
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
       on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />
+    {/if}
   </div>
 
   {#if $isUpdateModalOpen}

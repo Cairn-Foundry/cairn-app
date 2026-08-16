@@ -50,6 +50,13 @@ export interface MessageUsage {
 
 /** One line of the transcript, user prompt or agent turn. */
 export interface ConversationMessage {
+	/**
+	 * Identity of the line inside its transcript, so rendering it keeps the DOM
+	 * it already built instead of rebuilding the turn on every streamed chunk.
+	 * Absent on messages written before it was recorded, which fall back to
+	 * their position.
+	 */
+	id?: string;
 	role: "system" | "user" | "agent";
 	/** The answer itself: the last text the turn produced. */
 	content: string;
