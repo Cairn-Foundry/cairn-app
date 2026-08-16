@@ -7,7 +7,10 @@
   export let size: number = 16;
   export let sw: number = 1.5;
 
+  $: cls = ['ic', `ic-${name}`, $$restProps.class].filter(Boolean).join(' ');
+
   $: common = {
+    class: cls,
     width: size,
     height: size,
     viewBox: '0 0 24 24',
@@ -17,10 +20,18 @@
     'stroke-linecap': 'round' as const,
     'stroke-linejoin': 'round' as const,
   };
+  $: solid = {
+    class: cls,
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'currentColor',
+    stroke: 'none' as const,
+  };
 </script>
 
 {#if name === 'cairn'}
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+  <svg {...solid} {...$$restProps} class={cls}>
     <ellipse cx="12" cy="7" rx="3.2" ry="2" />
     <ellipse cx="12" cy="12" rx="5" ry="2.4" />
     <ellipse cx="12" cy="17.5" rx="7" ry="2.8" />
@@ -49,7 +60,7 @@
   <svg {...common} {...$$restProps}>
     <path d="M9 3v4l-4 12a3 3 0 003 3h8a3 3 0 003-3L15 7V3"/>
     <path d="M8 3h8"/>
-    <path d="M6.5 14h11"/>
+    <path class="ic-tests-liquid" d="M6.5 14h11"/>
   </svg>
 {:else if name === 'ci'}
   <svg {...common} {...$$restProps}>
@@ -65,11 +76,13 @@
   </svg>
 {:else if name === 'plus'}
   <svg {...common} {...$$restProps}>
-    <path d="M12 5v14M5 12h14"/>
+    <path class="ic-plus-v" d="M12 5v14"/>
+    <path class="ic-plus-h" d="M5 12h14"/>
   </svg>
 {:else if name === 'x'}
   <svg {...common} {...$$restProps}>
-    <path d="M6 6l12 12M18 6L6 18"/>
+    <path class="ic-x-a" d="M6 6l12 12"/>
+    <path class="ic-x-b" d="M18 6L6 18"/>
   </svg>
 {:else if name === 'chev-r'}
   <svg {...common} {...$$restProps}>
@@ -84,21 +97,23 @@
     <path d="M18 15l-6-6-6 6"/>
   </svg>
 {:else if name === 'play'}
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+  <svg {...solid} {...$$restProps} class={cls}>
     <path d="M7 5.5v13l11-6.5z"/>
   </svg>
 {:else if name === 'pause'}
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+  <svg {...solid} {...$$restProps} class={cls}>
     <rect x="7" y="5" width="3.5" height="14"/>
     <rect x="13.5" y="5" width="3.5" height="14"/>
   </svg>
 {:else if name === 'stop'}
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+  <svg {...solid} {...$$restProps} class={cls}>
     <rect x="6" y="6" width="12" height="12" rx="1"/>
   </svg>
 {:else if name === 'terminal'}
   <svg {...common} {...$$restProps}>
-    <path d="M4 5h16v14H4zM8 10l3 2-3 2M13 15h4"/>
+    <path d="M4 5h16v14H4z"/>
+    <path class="ic-terminal-chevron" d="M8 10l3 2-3 2"/>
+    <path class="ic-terminal-cursor" d="M13 15h4"/>
   </svg>
 {:else if name === 'folder'}
   <svg {...common} {...$$restProps}>
@@ -106,8 +121,8 @@
   </svg>
 {:else if name === 'folder-open'}
   <svg {...common} {...$$restProps}>
-    <path d="M3 9a2 2 0 012-2h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-    <path d="M3 9l2 9"/>
+    <path class="ic-fopen-back" d="M3 19V7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v2"/>
+    <path class="ic-fopen-front" d="M3 19l2.6-7.3a2 2 0 011.9-1.2h13a1 1 0 01.95 1.3L19 19a2 2 0 01-1.9 1.4H5a2 2 0 01-2-1.4z"/>
   </svg>
 {:else if name === 'file-code'}
   <svg {...common} {...$$restProps}>
@@ -123,7 +138,7 @@
 {:else if name === 'search'}
   <svg {...common} {...$$restProps}>
     <circle cx="11" cy="11" r="7"/>
-    <path d="M20 20l-3.5-3.5"/>
+    <path class="ic-search-handle" d="M20 20l-3.5-3.5"/>
   </svg>
 {:else if name === 'settings'}
   <svg {...common} {...$$restProps}>
@@ -149,7 +164,8 @@
 {:else if name === 'save'}
   <svg {...common} {...$$restProps}>
     <path d="M5 3h11l4 4v12a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/>
-    <path d="M7 3v5h8V3M8 21v-7h8v7"/>
+    <path class="ic-save-tab" d="M7 3v5h8V3"/>
+    <path class="ic-save-label" d="M8 21v-7h8v7"/>
   </svg>
 {:else if name === 'edit'}
   <svg {...common} {...$$restProps}>
@@ -165,7 +181,7 @@
 {:else if name === 'ticket'}
   <svg {...common} {...$$restProps}>
     <path d="M4 6h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4V6z"/>
-    <path d="M10 6v14"/>
+    <path class="ic-ticket-perf" d="M10 8.5v1.5M10 12.5v1.5M10 16.5v1.5"/>
   </svg>
 {:else if name === 'refresh'}
   <svg {...common} {...$$restProps}>
@@ -199,16 +215,19 @@
 {:else if name === 'alert'}
   <svg {...common} {...$$restProps}>
     <path d="M12 2l10 18H2L12 2z"/>
-    <path d="M12 9v5M12 17h0"/>
+    <path d="M12 9v5"/>
+    <circle class="ic-alert-dot" cx="12" cy="17" r=".75" fill="currentColor" stroke="none"/>
   </svg>
 {:else if name === 'info'}
   <svg {...common} {...$$restProps}>
     <circle cx="12" cy="12" r="9"/>
-    <path d="M12 8h0M12 11v6"/>
+    <circle class="ic-info-dot" cx="12" cy="8" r=".75" fill="currentColor" stroke="none"/>
+    <path d="M12 11v6"/>
   </svg>
 {:else if name === 'flag'}
   <svg {...common} {...$$restProps}>
-    <path d="M5 21V4M5 4h11l-2 4 2 4H5"/>
+    <path d="M5 21V4"/>
+    <path class="ic-flag-cloth" d="M5 4h11l-2 4 2 4H5"/>
   </svg>
 {:else if name === 'circle'}
   <svg {...common} {...$$restProps}>
@@ -251,8 +270,9 @@
   </svg>
 {:else if name === 'trash'}
   <svg {...common} {...$$restProps}>
-    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
-    <path d="M10 11v5M14 11v5"/>
+    <path class="ic-trash-lid" d="M3 6h18M8 6V4h8v2"/>
+    <path d="M19 6l-1 14H6L5 6"/>
+    <path class="ic-trash-ribs" d="M10 11v5M14 11v5"/>
   </svg>
 {:else if name === 'copy'}
   <svg {...common} {...$$restProps}>
@@ -266,8 +286,9 @@
   </svg>
 {:else if name === 'scissors'}
   <svg {...common} {...$$restProps}>
-    <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
-    <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>
+    <circle class="ic-ring-a" cx="6" cy="6" r="3"/><circle class="ic-ring-b" cx="6" cy="18" r="3"/>
+    <path class="ic-blade-a" d="M8.12 8.12L12 12M14.47 14.48L20 20"/>
+    <path class="ic-blade-b" d="M20 4L8.12 15.88"/>
   </svg>
 {:else if name === 'lock'}
   <svg {...common} {...$$restProps}>
@@ -277,7 +298,8 @@
 {:else if name === 'key'}
   <svg {...common} {...$$restProps}>
     <circle cx="8" cy="15" r="4"/>
-    <path d="M12 11l8-8M18 6l2 2M15 9l2 2"/>
+    <path d="M12 11l8-8"/>
+    <path class="ic-key-teeth" d="M18 6l2 2M15 9l2 2"/>
   </svg>
 {:else if name === 'dots-v'}
   <svg {...common} {...$$restProps}>
@@ -320,8 +342,8 @@
 {:else if name === 'help'}
   <svg {...common} {...$$restProps}>
     <circle cx="12" cy="12" r="9"/>
-    <path d="M9.5 9a2.5 2.5 0 015 .5c0 2-2.5 2.5-2.5 4"/>
-    <circle cx="12" cy="17" r=".5" fill="currentColor"/>
+    <path class="ic-help-curl" d="M9.5 9a2.5 2.5 0 015 .5c0 2-2.5 2.5-2.5 4"/>
+    <circle class="ic-help-dot" cx="12" cy="17" r=".5" fill="currentColor"/>
   </svg>
 {:else if name === 'command'}
   <svg {...common} {...$$restProps}>
@@ -334,14 +356,17 @@
     <path d="M4 4l16 16"/>
   </svg>
 {:else if name === 'grip'}
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" {...$$restProps}>
+  <svg {...solid} {...$$restProps} class={cls}>
     <circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/>
     <circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/>
     <circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>
   </svg>
 {:else if name === 'format'}
   <svg {...common} {...$$restProps}>
-    <path d="M4 6h16M4 10h10M4 14h13M4 18h7"/>
+    <path d="M4 6h16"/>
+    <path d="M4 10h10"/>
+    <path d="M4 14h13"/>
+    <path d="M4 18h7"/>
   </svg>
 {:else if name === 'server'}
   <svg {...common} {...$$restProps}>
@@ -358,12 +383,14 @@
 {:else if name === 'package'}
   <svg {...common} {...$$restProps}>
     <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
-    <path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>
+    <path class="ic-package-seam" d="M4 7.5l8 4.5 8-4.5"/>
+    <path d="M12 12v9"/>
   </svg>
 {:else if name === 'box'}
   <svg {...common} {...$$restProps}>
     <rect x="3" y="6" width="18" height="14" rx="2"/>
-    <path d="M3 10h18M10 6V3h4v3"/>
+    <path class="ic-box-lid" d="M3 10h18"/>
+    <path class="ic-box-tab" d="M10 6V3h4v3"/>
   </svg>
 {:else if name === 'container'}
   <svg {...common} {...$$restProps}>
@@ -374,14 +401,20 @@
   </svg>
 {:else if name === 'rocket'}
   <svg {...common} {...$$restProps}>
-    <path d="M12 2c3.5 2.5 5 6 5 10l-2.5 4h-5L7 12c0-4 1.5-7.5 5-10z"/>
-    <circle cx="12" cy="9" r="1.8"/>
-    <path d="M9 17l-2 4 4-1.5M15 17l2 4-4-1.5"/>
+    <path class="ic-rk" d="M12 2c3.5 2.5 5 6 5 10l-2.5 4h-5L7 12c0-4 1.5-7.5 5-10z"/>
+    <circle class="ic-rk" cx="12" cy="9" r="1.8"/>
+    <path class="ic-rk" d="M9.5 16.5L7.5 18.5M14.5 16.5l2 2"/>
+    <circle class="ic-smoke ic-smoke-1" cx="12" cy="18.8" r="1.3"/>
+    <circle class="ic-smoke ic-smoke-2" cx="9.9" cy="20.3" r="1"/>
+    <circle class="ic-smoke ic-smoke-3" cx="14.1" cy="20.5" r=".9"/>
   </svg>
 {:else if name === 'bug'}
   <svg {...common} {...$$restProps}>
     <rect x="7" y="7" width="10" height="13" rx="5"/>
-    <path d="M9 6a3 3 0 016 0M3 11h4M17 11h4M3 18h4M17 18h4M12 10v8"/>
+    <path d="M9 6a3 3 0 016 0"/>
+    <path class="ic-bug-legs-l" d="M3 11h4M3 18h4"/>
+    <path class="ic-bug-legs-r" d="M17 11h4M17 18h4"/>
+    <path d="M12 10v8"/>
   </svg>
 {:else if name === 'hammer'}
   <svg {...common} {...$$restProps}>
@@ -402,7 +435,8 @@
 {:else if name === 'beaker'}
   <svg {...common} {...$$restProps}>
     <path d="M10 3v6.5L4.5 18a2 2 0 001.7 3h11.6a2 2 0 001.7-3L14 9.5V3"/>
-    <path d="M8.5 3h7M7 15h10"/>
+    <path d="M8.5 3h7"/>
+    <path class="ic-beaker-liquid" d="M7 15h10"/>
   </svg>
 {:else if name === 'wand'}
   <svg {...common} {...$$restProps}>
@@ -427,7 +461,9 @@
   </svg>
 {:else if name === 'list'}
   <svg {...common} {...$$restProps}>
-    <path d="M9 6h11M9 12h11M9 18h11"/>
+    <path d="M9 6h11"/>
+    <path d="M9 12h11"/>
+    <path d="M9 18h11"/>
     <path d="M4.5 6h0M4.5 12h0M4.5 18h0"/>
   </svg>
 {:else if name === 'filter'}
@@ -441,8 +477,8 @@
   </svg>
 {:else if name === 'book'}
   <svg {...common} {...$$restProps}>
-    <path d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 004 22V4.5z"/>
-    <path d="M4 17.5A2.5 2.5 0 016.5 15H20"/>
+    <path class="ic-book-cover" d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 004 22V4.5z"/>
+    <path class="ic-book-page" d="M4 17.5A2.5 2.5 0 016.5 15H20"/>
   </svg>
 {:else if name === 'cloud'}
   <svg {...common} {...$$restProps}>

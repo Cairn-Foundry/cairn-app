@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Icons answer the pointer: hovering a button animates its icon the way its action moves - the refresh arrows turn, the trash tips over, the chevrons slide, the send arrow takes off. Motion is disabled when the system asks for reduced motion.",
+					"fr": "Les icônes répondent au pointeur : survoler un bouton anime son icône dans le sens de son action - les flèches d'actualisation tournent, la corbeille bascule, les chevrons glissent, l'avion d'envoi décolle. L'animation est désactivée si le système demande moins de mouvement."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A Ports & Processes section on the home screen lists every TCP port listening on the machine with the process holding it, and stops any of them after confirmation.",
 					"fr": "Une section Ports & processus sur l'accueil liste tous les ports TCP en écoute sur la machine avec le processus qui les occupe, et permet d'en arrêter un après confirmation."
 				}
