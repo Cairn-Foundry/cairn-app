@@ -85,6 +85,20 @@
   export let onRenameSymbol: (() => void) | undefined = undefined;
   export let onFormatDocument: (() => void) | undefined = undefined;
 
+  /**
+   * Past this size the per-keystroke cost of parsing the document dominates
+   * everything else: syntax highlighting, markdown decorations, the minimap and
+   * sticky scroll all re-read the tree on every change. Beyond the threshold the
+   * file opens as plain text so it stays typable; below it nothing changes.
+   */
+  const HUGE_DOC_BYTES = 2 * 1024 * 1024;
+  const isHugeDoc = (savedState ? savedState.doc.length : content.length) > HUGE_DOC_BYTES;
+
+  $: if (isHugeDoc) {
+    minimapEnabled = false;
+    stickyScrollEnabled = false;
+  }
+
   export function getLspPosition(): { line: number; character: number } | null {
     if (!view) return null;
     const head = view.state.selection.main.head;
@@ -297,6 +311,7 @@
    * the editor is built and lands through `languageCompartment`.
    */
   async function buildLanguageExtensions(): Promise<Extension[]> {
+    if (isHugeDoc) return [];
     const isJS = language === 'ts' || language === 'tsx' || language === 'js' || language === 'jsx';
     const isTS = language === 'ts' || language === 'tsx';
     const isJSX = language === 'tsx' || language === 'jsx';

@@ -566,6 +566,48 @@
 					"en": "An agent provider that crashes no longer leaves its conversation stuck as busy for ever: the failure is reported and the conversation is released.",
 					"fr": "Un fournisseur d'agent qui plante ne laisse plus sa conversation bloquee en cours indefiniment : l'echec est signale et la conversation est liberee."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The file tree only builds the rows actually on screen. A repository with tens of thousands of files no longer takes seconds to display, and scrolling it stays smooth.",
+					"fr": "L'arbre de fichiers ne construit plus que les lignes réellement visibles. Un dépôt de plusieurs dizaines de milliers de fichiers ne met plus plusieurs secondes à s'afficher, et son défilement reste fluide."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The workspace views load when first opened instead of all at startup, which cuts the largest startup chunk by 40 percent. Opening the app is noticeably faster on a modest machine.",
+					"fr": "Les vues de l'espace de travail se chargent à leur première ouverture au lieu de toutes au démarrage, ce qui réduit de 40 pour cent le plus gros bloc chargé au lancement. L'ouverture de l'application est nettement plus rapide sur une machine modeste."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A long conversation shows its most recent messages and offers to reveal the earlier ones, instead of building every turn it ever held.",
+					"fr": "Une longue conversation affiche ses messages les plus récents et propose d'afficher les précédents, au lieu de construire tous les échanges qu'elle a jamais contenus."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A very large file opens as plain text, without syntax colouring, minimap or sticky scroll. Typing in it stays responsive instead of stalling on every keystroke.",
+					"fr": "Un fichier très volumineux s'ouvre en texte brut, sans coloration syntaxique, minimap ni entête flottant. La frappe y reste réactive au lieu de bloquer à chaque caractère."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Detecting the indentation width no longer scans the whole document on every keystroke, which cost milliseconds per character on a file of several thousand lines.",
+					"fr": "La détection de la largeur d'indentation ne parcourt plus tout le document à chaque frappe, ce qui coûtait des millisecondes par caractère sur un fichier de plusieurs milliers de lignes."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Folding a directory in the file tree is remembered again. The tree state was only written when a file was opened or a pane resized, so collapsing a directory and relaunching brought it back expanded.",
+					"fr": "Le repliement d'un dossier dans l'arbre de fichiers est de nouveau conservé. L'état de l'arbre n'était écrit qu'à l'ouverture d'un fichier ou au redimensionnement d'un panneau, si bien qu'un dossier replié se retrouvait déplié au redémarrage."
+				}
 			}
 		]
 	},

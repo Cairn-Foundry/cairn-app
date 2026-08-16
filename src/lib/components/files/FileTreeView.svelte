@@ -125,14 +125,83 @@
 
   $: revealActiveInTree(activeTabPath);
 
-  /** Scrolls the row of the active tab into view once the tree has rendered it. */
+  /**
+   * Scrolls the row of the active tab into view. The row may be outside the
+   * rendered window, so its position comes from its index in the flattened
+   * tree rather than from the DOM.
+   */
   function revealActiveInTree(path: string | null) {
-    if (!path) return;
-    tick().then(() => {
-      const el = scrollEl?.querySelector(`[data-tree-path="${CSS.escape(path)}"]`);
-      el?.scrollIntoView({ block: 'nearest' });
-    });
+    if (!path || !scrollEl) return;
+    const index = flatNodes.findIndex((n) => n.node.path === path);
+    if (index < 0) return;
+    const top = index * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    const viewTop = scrollEl.scrollTop;
+    const viewBottom = viewTop + scrollEl.clientHeight;
+    if (top < viewTop) scrollEl.scrollTop = top;
+    else if (bottom > viewBottom) scrollEl.scrollTop = bottom - scrollEl.clientHeight;
   }
+
+  /**
+   * A repo with `show_ignored` on reaches tens of thousands of nodes, and one
+   * DOM row each is what makes the tree crawl. The visible nodes are flattened
+   * into a list and only the slice around the viewport is rendered; the rows
+   * have a fixed height, so the scrollbar is a pair of spacers.
+   */
+  const ROW_HEIGHT = 25;
+  const OVERSCAN = 12;
+
+  interface FlatNode { node: FileNode; depth: number; }
+
+  function flatten(
+    nodes: FileNode[],
+    depth: number,
+    open: Set<string>,
+    out: FlatNode[],
+  ) {
+    for (const node of nodes) {
+      out.push({ node, depth });
+      if (node.isDir && open.has(node.path) && node.children) {
+        flatten(node.children, depth + 1, open, out);
+      }
+    }
+  }
+
+  /**
+   * `expanded` is passed in rather than read from the closure: a function body
+   * is opaque to the compiler, so a dependency only reached inside `flatten`
+   * would never invalidate this and folding a directory would do nothing.
+   */
+  function buildFlatNodes(nodes: FileNode[], open: Set<string>): FlatNode[] {
+    const out: FlatNode[] = [];
+    flatten(nodes, 0, open, out);
+    return out;
+  }
+
+  $: flatNodes = buildFlatNodes(tree, expanded);
+
+  let scrollTop = 0;
+  let viewportHeight = 0;
+
+  function onTreeScroll() {
+    scrollTop = scrollEl?.scrollTop ?? 0;
+  }
+
+  function measureViewport(node: HTMLElement) {
+    const observer = new ResizeObserver(() => { viewportHeight = node.clientHeight; });
+    observer.observe(node);
+    viewportHeight = node.clientHeight;
+    return { destroy: () => observer.disconnect() };
+  }
+
+  $: firstVisible = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  $: lastVisible = Math.min(
+    flatNodes.length,
+    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN,
+  );
+  $: visibleNodes = flatNodes.slice(firstVisible, lastVisible);
+  $: padTop = firstVisible * ROW_HEIGHT;
+  $: padBottom = Math.max(0, (flatNodes.length - lastVisible) * ROW_HEIGHT);
 
   function handleEditKey(e: KeyboardEvent) {
     if (e.key === 'Enter') onCommitEdit();
@@ -174,6 +243,8 @@
   <div
     class="files-tree-scroll"
     bind:this={scrollEl}
+    use:measureViewport
+    on:scroll={onTreeScroll}
     on:click={onTreeClick}
     on:auxclick={onTreeAuxClick}
     on:contextmenu={onTreeContextMenu}
@@ -204,9 +275,11 @@
       {#if tree.length === 0 && !editState}
         <div class="tree-state">{t('files.treeEmpty')}</div>
       {/if}
-      {#each tree as node (node.path)}
-        {@render treeNode(node, 0)}
+      <div style="height: {padTop}px"></div>
+      {#each visibleNodes as entry (entry.node.path)}
+        {@render treeNode(entry.node, entry.depth)}
       {/each}
+      <div style="height: {padBottom}px"></div>
     {/if}
   </div>
 </aside>
@@ -250,9 +323,6 @@
     {#if editState && editState.parentPath === node.path && editState.type !== 'rename'}
       {@render inlineInput(depth + 1)}
     {/if}
-    {#each node.children as child (child.path)}
-      {@render treeNode(child, depth + 1)}
-    {/each}
   {/if}
 {/snippet}
 
@@ -305,11 +375,15 @@
   }
   .tree-state.error { color: var(--danger); }
 
+  /* Height is fixed: the virtualised tree positions rows by multiplying it. */
   .file-tree-item {
     display: flex;
     align-items: center;
     gap: 7px;
     width: 100%;
+    box-sizing: border-box;
+    height: 25px;
+    flex-shrink: 0;
     padding-top: 4px;
     padding-bottom: 4px;
     padding-right: 12px;

@@ -11,14 +11,7 @@
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
-  import ReviewView from '$lib/components/review/ReviewView.svelte';
-  import TestsView from '$lib/components/tests/TestsView.svelte';
-  import GitView from '$lib/components/git/GitView.svelte';
-  import CiCdView from '$lib/components/cicd/CiCdView.svelte';
-  import TerminalView from '$lib/components/terminal/TerminalView.svelte';
-  import CommandsView from '$lib/components/commands/CommandsView.svelte';
-  import EnvView from '$lib/components/env/EnvView.svelte';
-  import FormattingView from '$lib/components/formatting/FormattingView.svelte';
+  import LazyView from '$lib/components/layout/LazyView.svelte';
   import PinnedCommandsPanel from '$lib/components/commands/PinnedCommandsPanel.svelte';
   import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
@@ -173,6 +166,10 @@
   }
 
   $: toolActive = $terminalActive || $commandsActive || $envActive || $formattingActive;
+  $: reviewActive = !toolActive && $activeStep === 'review';
+  $: testsActive = !toolActive && $activeStep === 'tests';
+  $: gitActive = !toolActive && $activeStep === 'git';
+  $: cicdActive = !toolActive && $activeStep === 'cicd';
 
   $: if (activeProjectId) void loadCommands(activeProjectId);
 
@@ -595,14 +592,14 @@
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'review'}><ReviewView/></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'tests'}><TestsView/></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'git'}><GitView on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'cicd'}><CiCdView/></div>
-      <div class="step-view" class:step-hidden={!$terminalActive}><TerminalView/></div>
-      <div class="step-view" class:step-hidden={!$commandsActive}><CommandsView/></div>
-      <div class="step-view" class:step-hidden={!$envActive}><EnvView/></div>
-      <div class="step-view" class:step-hidden={!$formattingActive}><FormattingView/></div>
+      <div class="step-view" class:step-hidden={!reviewActive}><LazyView active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!testsActive}><LazyView active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!gitActive}><LazyView active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
+      <div class="step-view" class:step-hidden={!cicdActive}><LazyView active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$terminalActive}><LazyView active={$terminalActive} load={() => import('$lib/components/terminal/TerminalView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$commandsActive}><LazyView active={$commandsActive} load={() => import('$lib/components/commands/CommandsView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$envActive}><LazyView active={$envActive} load={() => import('$lib/components/env/EnvView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$formattingActive}><LazyView active={$formattingActive} load={() => import('$lib/components/formatting/FormattingView.svelte')}/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">

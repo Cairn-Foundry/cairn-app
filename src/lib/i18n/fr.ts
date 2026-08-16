@@ -459,6 +459,7 @@ export const fr = {
 		replyJump: "Aller au message auquel ceci répond",
 		activityJump: "Aller au message correspondant",
 		streaming: "en cours",
+		showOlderMessages: (n: string) => `Afficher les ${n} messages précédents`,
 		agentStarted: (name: string) => `${name} a démarré`,
 		seeAgentWork: "voir le détail",
 		waitingWorktree: "En attente d'un agent qui écrit dans ce worktree",

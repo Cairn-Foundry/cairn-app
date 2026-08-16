@@ -156,6 +156,12 @@ import { get } from 'svelte/store';
     saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), updated);
   }
 
+  /** Writes the tab, tree and split state of the current instance to disk. */
+  function persistState() {
+    if (!currentInstanceId || !currentProjectId) return;
+    saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+  }
+
   function snapshotInstanceState(): InstanceTabState {
     return {
       panes: panes.map(p => ({ tabs: p.tabs, activeTabIdx: p.activeTabIdx })),
@@ -173,9 +179,11 @@ import { get } from 'svelte/store';
       base.activeTabIdx = pp.activeTabIdx;
       return base;
     });
+    restoring = true;
     expanded = new Set(persisted.expanded);
     splitMode = persisted.splitMode ?? false;
     splitLeftWidth = persisted.splitLeftWidth ?? 0;
+    tick().then(() => { restoring = false; });
 
     const result = await rehydrateFromPersisted(wtp, persisted);
     panes = panes.map((pane, i) => {
@@ -273,13 +281,34 @@ import { get } from 'svelte/store';
     }
     focusedPane = drop.pane;
     await openFileInPane(drop.pane, node);
-    if (currentInstanceId && currentProjectId) {
-      saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
-    }
+    persistState();
   }
 
   let expanded = new Set<string>();
   let recentFiles: string[] = [];
+
+  /**
+   * A dozen places fold or unfold a directory, and only a few of them used to
+   * reach a save, so collapsing the tree was forgotten on the next launch.
+   * Persisting on the change itself covers all of them, and covers whatever
+   * gets added next. Writes are coalesced: expanding a path expands each of its
+   * parents in turn.
+   */
+  let expandedPersistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True while a restore is filling the state, so it is not written straight back. */
+  let restoring = false;
+
+  $: persistExpanded(expanded);
+
+  function persistExpanded(_: Set<string>) {
+    if (!currentInstanceId || !currentProjectId || restoring) return;
+    if (expandedPersistTimer) clearTimeout(expandedPersistTimer);
+    expandedPersistTimer = setTimeout(persistState, 300);
+  }
+
+  onDestroy(() => {
+    if (expandedPersistTimer) clearTimeout(expandedPersistTimer);
+  });
   let loading = false;
   let loadingPaths = new Set<string>();
   let error = '';
@@ -307,7 +336,7 @@ import { get } from 'svelte/store';
       panes = panes;
       focusedPane = 0;
     }
-    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+    persistState();
   }
 
   function startSplitResize(e: PointerEvent) {
@@ -328,7 +357,7 @@ import { get } from 'svelte/store';
   function stopSplitResize() {
     if (!isSplitResizing) return;
     isSplitResizing = false;
-    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+    persistState();
   }
 
   /** Stores the pane's cursor, scroll and CodeMirror state so the tab reopens where it was. */
@@ -1533,7 +1562,7 @@ import { get } from 'svelte/store';
     pane.tabs = sortedByPin(pane.tabs);
     pane.activeTabIdx = activePath ? pane.tabs.findIndex(t => t.path === activePath) : -1;
     panes = panes;
-    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+    persistState();
     closeTabCtxMenu();
   }
 
@@ -1553,7 +1582,7 @@ import { get } from 'svelte/store';
     pane.tabs = kept;
     pane.activeTabIdx = kept.indexOf(current);
     panes = panes;
-    if (currentInstanceId && currentProjectId) saveEditorState(currentProjectId, currentInstanceId, snapshotInstanceState(), recentFiles);
+    persistState();
     closeTabCtxMenu();
   }
 

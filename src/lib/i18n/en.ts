@@ -445,6 +445,7 @@ export const en = {
 		replyJump: "Go to the message this answers",
 		activityJump: "Go to the matching message",
 		streaming: "streaming",
+		showOlderMessages: (n: string) => `Show ${n} earlier messages`,
 		agentStarted: (name: string) => `${name} started`,
 		seeAgentWork: "see details",
 		inputPlaceholder: "Mention an agent, ask a question, or add context...",

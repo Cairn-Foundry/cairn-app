@@ -40,11 +40,15 @@ export function detectIndentStyle(text: string): "tabs" | "spaces" | null {
 /**
  * The smallest indent width no larger than 4, since a file indented by 4 also
  * shows 8 and 12 as leading runs. Falls back to 2 when nothing is indented.
+ * Decided on the first 100 lines only, like `detectIndentStyle`: scanning the
+ * whole document costs milliseconds per keystroke on a large file.
  */
 export function detectSpaceSize(text: string): number {
 	const counts: Record<number, number> = {};
-	for (const line of text.split("\n")) {
-		const m = line.match(/^( +)\S/);
+	const lines = text.split("\n");
+	const limit = Math.min(lines.length, 100);
+	for (let i = 0; i < limit; i++) {
+		const m = lines[i].match(/^( +)\S/);
 		if (m) {
 			const n = m[1].length;
 			counts[n] = (counts[n] ?? 0) + 1;

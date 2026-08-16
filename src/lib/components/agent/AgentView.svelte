@@ -94,18 +94,50 @@
   const markdownCache = new Map<string, { source: string; html: string }>();
   const MARKDOWN_CACHE_MAX = 200;
 
-  function renderMarkdown(content: string, blockId?: string): string {
+  /**
+   * Parsing a block is superlinear in its length: a 36 KB answer costs ~140 ms,
+   * and a stream delivers dozens of chunks per second. Past this size the block
+   * being written is only re-parsed once per frame, and the previous HTML stands
+   * in between two frames, so a long answer never blocks the paint.
+   */
+  const MARKDOWN_THROTTLE_BYTES = 4000;
+  const markdownPending = new Set<string>();
+  let markdownTick = $state(0);
+
+  function scheduleMarkdown(key: string) {
+    if (markdownPending.has(key)) return;
+    markdownPending.add(key);
+    requestAnimationFrame(() => {
+      markdownPending.delete(key);
+      markdownTick++;
+    });
+  }
+
+  function parseMarkdown(content: string, blockId?: string): string {
     const key = blockId ?? content;
     const hit = markdownCache.get(key);
     if (hit !== undefined && hit.source === content) return hit.html;
+    if (hit !== undefined && content.length > MARKDOWN_THROTTLE_BYTES && markdownPending.has(key)) {
+      return hit.html;
+    }
     const html = marked.parse(content, { async: false }) as string;
     if (hit === undefined && markdownCache.size >= MARKDOWN_CACHE_MAX) {
       const oldest = markdownCache.keys().next();
       if (!oldest.done) markdownCache.delete(oldest.value);
     }
     markdownCache.set(key, { source: content, html });
+    if (content.length > MARKDOWN_THROTTLE_BYTES) scheduleMarkdown(key);
     return html;
   }
+
+  /**
+   * A new identity on every frame the throttle released, so the children this is
+   * handed to re-render and pick the fresh HTML up.
+   */
+  let renderMarkdown = $derived.by(() => {
+    void markdownTick;
+    return (content: string, blockId?: string) => parseMarkdown(content, blockId);
+  });
 
   /**
    * Only a provider the user turned on in Settings > Agents can be picked here:
@@ -854,6 +886,25 @@
    * message it carries; everything the agent did afterwards points at the answer
    * that turn produced, so clicking a tool call lands on the reply it served.
    */
+  /**
+   * A long conversation holds hundreds of turns, each with its own blocks and
+   * parsed markdown, and mounting them all is what makes reopening one slow.
+   * Only the tail is rendered; the rest is one click away.
+   */
+  const MESSAGE_PAGE = 50;
+  let shownMessageLimit = $state(MESSAGE_PAGE);
+
+  $effect(() => {
+    void activeId;
+    shownMessageLimit = MESSAGE_PAGE;
+  });
+
+  let firstShownMessage = $derived(
+    Math.max(0, (current?.messages?.length ?? 0) - shownMessageLimit),
+  );
+  let hiddenMessageCount = $derived(firstShownMessage);
+  let shownMessages = $derived((current?.messages ?? []).slice(firstShownMessage));
+
   let activityTargets = $derived.by(() => {
     const messages = current?.messages ?? [];
     const promptIndexes = messages.flatMap((m, i) => (m.role === 'user' ? [i] : []));
@@ -882,8 +933,13 @@
     revealMessage(entry.messageIndex ?? target);
   }
 
-  function revealMessage(index: number) {
+  async function revealMessage(index: number) {
     if (index < 0 || !scrollEl) return;
+    if (index < firstShownMessage) {
+      const total = current?.messages?.length ?? 0;
+      shownMessageLimit = total - index + MESSAGE_PAGE;
+      await tick();
+    }
     const target = scrollEl.querySelector<HTMLElement>(`[data-msg="${index}"]`);
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1979,7 +2035,13 @@
             </div>
           </div>
         {/if}
-        {#each current?.messages ?? [] as m, i (m.id ?? i)}
+        {#if hiddenMessageCount > 0}
+          <button class="load-older" onclick={() => { shownMessageLimit += MESSAGE_PAGE; }}>
+            {(t('agent.showOlderMessages') as (n: string) => string)(formatCount(hiddenMessageCount))}
+          </button>
+        {/if}
+        {#each shownMessages as m, offset (m.id ?? offset)}
+          {@const i = firstShownMessage + offset}
           {#if m.agentStarted}
           <div class="agent-started" data-msg={i} class:flash={flashedMessage === i}>
             <span class="started-dot" style="background: {agentColorOf(m)}"></span>
@@ -2722,6 +2784,20 @@
     justify-content: center;
     margin-top: 10px;
   }
+
+  .load-older {
+    align-self: center;
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-1);
+    border-radius: 6px;
+    color: var(--fg-2);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    margin-bottom: 10px;
+    padding: 5px 12px;
+  }
+  .load-older:hover { background: var(--bg-4); color: var(--fg-0); }
 
   .empty-hint {
     align-items: center;
