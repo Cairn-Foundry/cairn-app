@@ -46,6 +46,12 @@ const bodyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const lastSync = new Map<string, string>();
 
 const PERSIST_DELAY_MS = 250;
+// A streamed answer resets the debounce on every chunk, so without a ceiling
+// nothing reaches the disk until the run ends and a crash loses the whole answer.
+const PERSIST_MAX_DELAY_MS = 2000;
+
+// First scheduling of the current burst, per timer key, for the max-delay ceiling.
+const bodyDeadlines = new Map<string, number>();
 
 /** The key instance-scoped maps are indexed by. */
 export function conversationScopeKey(
@@ -320,9 +326,10 @@ export async function loadConversationBody(
  * lastMessageAt only moves when the transcript actually gained something, so
  * re-syncing an unchanged conversation never reorders the list.
  *
- * `snapshot` is called only once the signature says something actually changed:
- * this runs on every streamed chunk, and deep-cloning a long transcript each
- * time is what makes a long answer stutter.
+ * `snapshot` and the metadata patch both happen inside the debounced callback:
+ * this runs on every streamed chunk, and deep-cloning a long transcript - or
+ * waking every subscriber of the index - each time is what makes a long answer
+ * stutter.
  */
 export function updateConversationContent(
 	ref: ConversationRef,
@@ -345,31 +352,42 @@ export function updateConversationContent(
 	if (lastSync.get(timerKey) === signature) return;
 	lastSync.set(timerKey, signature);
 
-	const { messages, activity } = snapshot
-		? snapshot()
-		: { messages: liveMessages, activity: liveActivity };
+	const flush = () => {
+		bodyTimers.delete(timerKey);
+		bodyDeadlines.delete(timerKey);
 
-	const meta = conversationsOf(ref).find((c) => c.id === id);
-	const answered =
-		!meta || meta.messageCount !== messages.length || meta.preview !== preview;
+		const { messages, activity } = snapshot
+			? snapshot()
+			: { messages: liveMessages, activity: liveActivity };
 
-	patch(ref, id, {
-		messageCount: messages.length,
-		preview,
-		...(answered ? { lastMessageAt: Date.now() } : {}),
-	});
+		const meta = conversationsOf(ref).find((c) => c.id === id);
+		const answered =
+			!meta ||
+			meta.messageCount !== messages.length ||
+			meta.preview !== preview;
+
+		patch(ref, id, {
+			messageCount: messages.length,
+			preview,
+			...(answered ? { lastMessageAt: Date.now() } : {}),
+		});
+
+		void saveConversationBody(ref.projectId, scopedInstanceId(ref), id, {
+			messages,
+			activity,
+		}).catch(() => {});
+	};
 
 	const existing = bodyTimers.get(timerKey);
 	if (existing) clearTimeout(existing);
+
+	const now = Date.now();
+	const deadline = bodyDeadlines.get(timerKey) ?? now + PERSIST_MAX_DELAY_MS;
+	bodyDeadlines.set(timerKey, deadline);
+
 	bodyTimers.set(
 		timerKey,
-		setTimeout(() => {
-			bodyTimers.delete(timerKey);
-			void saveConversationBody(ref.projectId, scopedInstanceId(ref), id, {
-				messages,
-				activity,
-			}).catch(() => {});
-		}, PERSIST_DELAY_MS),
+		setTimeout(flush, Math.max(0, Math.min(PERSIST_DELAY_MS, deadline - now))),
 	);
 }
 
@@ -382,6 +400,7 @@ export function deleteConversation(ref: ConversationRef, id: string): void {
 		clearTimeout(pending);
 		bodyTimers.delete(timerKey);
 	}
+	bodyDeadlines.delete(timerKey);
 	lastSync.delete(timerKey);
 	void deleteConversationBody(ref.projectId, scopedInstanceId(ref), id).catch(
 		() => {},
@@ -458,6 +477,27 @@ export function removeInstanceConversations(
 ): void {
 	const scopeKey = conversationScopeKey(projectId, instanceId);
 	restored.delete(scopeKey);
+
+	// Timers still armed here would rewrite the transcript of a deleted instance
+	// after Rust erased it, and every per-conversation key would leak otherwise.
+	const prefix = `${scopeKey}:`;
+	for (const [key, timer] of bodyTimers) {
+		if (!key.startsWith(prefix)) continue;
+		clearTimeout(timer);
+		bodyTimers.delete(key);
+	}
+	const indexTimer = indexTimers.get(scopeKey);
+	if (indexTimer) {
+		clearTimeout(indexTimer);
+		indexTimers.delete(scopeKey);
+	}
+	for (const key of [...bodyDeadlines.keys()]) {
+		if (key.startsWith(prefix)) bodyDeadlines.delete(key);
+	}
+	for (const key of [...lastSync.keys()]) {
+		if (key.startsWith(prefix)) lastSync.delete(key);
+	}
+
 	instanceConversations.update((m) => {
 		const next = { ...m };
 		delete next[scopeKey];

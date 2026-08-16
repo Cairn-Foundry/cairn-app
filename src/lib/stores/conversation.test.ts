@@ -28,6 +28,11 @@ const banner: ConversationMessage = {
 	ts: new Date(2026, 0, 15, 10, 0).getTime(),
 };
 
+// Metadata is patched from the debounced write, so nothing lands until it fires.
+function flushPersist() {
+	vi.advanceTimersByTime(250);
+}
+
 function metaOf(id: string) {
 	const found = conversationsOf(ref).find((c) => c.id === id);
 	if (!found) throw new Error(`missing conversation ${id}`);
@@ -58,6 +63,7 @@ describe("updateConversationContent", () => {
 			],
 			[],
 		);
+		flushPersist();
 
 		expect(metaOf(id).lastMessageAt).toBeGreaterThan(before);
 		expect(metaOf(id).preview).toBe("hi");
@@ -74,10 +80,12 @@ describe("updateConversationContent", () => {
 			},
 		];
 		updateConversationContent(ref, id, messages, []);
+		flushPersist();
 		const after = metaOf(id).lastMessageAt;
 
 		vi.advanceTimersByTime(5000);
 		updateConversationContent(ref, id, [...messages], []);
+		flushPersist();
 
 		expect(metaOf(id).lastMessageAt).toBe(after);
 	});
@@ -93,6 +101,7 @@ describe("updateConversationContent", () => {
 			},
 		];
 		updateConversationContent(ref, id, messages, []);
+		flushPersist();
 		const after = metaOf(id).lastMessageAt;
 
 		vi.advanceTimersByTime(5000);
@@ -104,13 +113,38 @@ describe("updateConversationContent", () => {
 				source: "tool",
 			},
 		]);
+		flushPersist();
 
 		expect(metaOf(id).lastMessageAt).toBe(after);
+	});
+
+	it("writes during a continuous stream instead of waiting for it to end", async () => {
+		const { saveConversationBody } = await import(
+			"$lib/services/conversation-service"
+		);
+		vi.mocked(saveConversationBody).mockClear();
+		const { id } = createConversation(ref, "claude-code", "New");
+
+		// A chunk every 100ms never lets the 250ms debounce elapse on its own.
+		for (let i = 0; i < 40; i++) {
+			updateConversationContent(
+				ref,
+				id,
+				[banner, { role: "agent", content: "x".repeat(i + 1), ts: i }],
+				[],
+			);
+			vi.advanceTimersByTime(100);
+		}
+
+		expect(vi.mocked(saveConversationBody).mock.calls.length).toBeGreaterThan(
+			0,
+		);
 	});
 
 	it("gives a conversation holding only its banner no preview", () => {
 		const { id } = createConversation(ref, "claude-code", "New");
 		updateConversationContent(ref, id, [banner], []);
+		flushPersist();
 
 		expect(metaOf(id).preview).toBe("");
 		expect(metaOf(id).messageCount).toBe(1);

@@ -56,7 +56,12 @@ export function conversationMatches(
 export function conversationPreview(messages: ConversationMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		if (messages[i].role === "system") continue;
-		const content = messages[i].content.replace(/\s+/g, " ").trim();
+		// Sliced before normalising: this runs on every streamed chunk, and
+		// collapsing a whole growing message only to keep 120 chars is quadratic.
+		const content = messages[i].content
+			.slice(0, 400)
+			.replace(/\s+/g, " ")
+			.trim();
 		if (content) return content.slice(0, 120);
 	}
 	return "";
