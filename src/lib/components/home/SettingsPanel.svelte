@@ -116,37 +116,41 @@
     </div>
   {/if}
 {:else}
-  <div class="settings-tabs">
-    <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>{t('settings.tabs.general')}</button>
-    <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>{t('settings.tabs.appearance')}</button>
-    <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>{t('settings.tabs.project')}</button>
-    <button class="settings-tab {settingsTab === 'agent'      ? 'active' : ''}" on:click={() => settingsTab = 'agent'}>{t('settings.tabs.agent')}</button>
-    <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
-    <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
-    <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
-    <button class="settings-tab {settingsTab === 'languageServers' ? 'active' : ''}" on:click={() => settingsTab = 'languageServers'}>{t('settings.tabs.languageServers')}</button>
-    <button class="settings-tab {settingsTab === 'git'        ? 'active' : ''}" on:click={() => settingsTab = 'git'}>{t('settings.tabs.git')}</button>
-  </div>
+  <div class="settings-layout">
+    <div class="settings-tabs">
+      <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>{t('settings.tabs.general')}</button>
+      <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>{t('settings.tabs.appearance')}</button>
+      <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
+      <button class="settings-tab {settingsTab === 'agent'      ? 'active' : ''}" on:click={() => settingsTab = 'agent'}>{t('settings.tabs.agent')}</button>
+      <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>{t('settings.tabs.project')}</button>
+      <button class="settings-tab {settingsTab === 'git'        ? 'active' : ''}" on:click={() => settingsTab = 'git'}>{t('settings.tabs.git')}</button>
+      <button class="settings-tab {settingsTab === 'languageServers' ? 'active' : ''}" on:click={() => settingsTab = 'languageServers'}>{t('settings.tabs.languageServers')}</button>
+      <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
+      <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
+    </div>
 
-  {#if settingsTab === 'general'}
-    <GeneralTab/>
-  {:else if settingsTab === 'appearance'}
-    <AppearanceTab/>
-  {:else if settingsTab === 'agent'}
-    <AgentTab/>
-  {:else if settingsTab === 'editor'}
-    <EditorTab/>
-  {:else if settingsTab === 'shortcuts'}
-    <ShortcutsTab/>
-  {:else if settingsTab === 'project'}
-    <ProjectTab/>
-  {:else if settingsTab === 'languages'}
-    <LanguagesTab/>
-  {:else if settingsTab === 'languageServers'}
-    <LanguageServersSection/>
-  {:else if settingsTab === 'git'}
-    <GitTab/>
-  {/if}
+    <div class="settings-content">
+      {#if settingsTab === 'general'}
+        <GeneralTab/>
+      {:else if settingsTab === 'appearance'}
+        <AppearanceTab/>
+      {:else if settingsTab === 'agent'}
+        <AgentTab/>
+      {:else if settingsTab === 'editor'}
+        <EditorTab/>
+      {:else if settingsTab === 'shortcuts'}
+        <ShortcutsTab/>
+      {:else if settingsTab === 'project'}
+        <ProjectTab/>
+      {:else if settingsTab === 'languages'}
+        <LanguagesTab/>
+      {:else if settingsTab === 'languageServers'}
+        <LanguageServersSection/>
+      {:else if settingsTab === 'git'}
+        <GitTab/>
+      {/if}
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -274,19 +278,38 @@
   }
 
   /* SettingsPanel-local styles */
+  .settings-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+    margin-top: 32px;
+  }
+
   .settings-tabs {
     display: flex;
+    flex-direction: column;
     gap: 2px;
-    margin-top: 20px;
     padding: 3px;
     background: var(--bg-0);
     border: 1px solid var(--stroke-0);
     border-radius: var(--r-sm);
-    width: fit-content;
+    width: 180px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+  }
+
+  .settings-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .settings-content :global(> .settings-group:first-child) {
+    margin-top: 0;
   }
 
   .settings-tab {
-    padding: 5px 14px;
+    padding: 7px 12px;
+    text-align: left;
     font-size: 12px;
     color: var(--fg-2);
     border-radius: 4px;

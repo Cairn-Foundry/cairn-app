@@ -2205,29 +2205,6 @@ export const fr = {
 				"Faire défiler le panneau à mesure que les entrées arrivent",
 		},
 		general: {
-			groupTitle: "Général",
-			rows: {
-				aiProvider: {
-					label: "Fournisseur IA",
-					desc: "Driver Agent Bridge",
-					value: "Claude Code CLI",
-				},
-				defaultBranch: {
-					label: "Branche par défaut",
-					desc: "Base pour les nouveaux worktrees",
-					value: "main",
-				},
-				worktreeLocation: {
-					label: "Emplacement des worktrees",
-					desc: "Où les git worktrees sont créés",
-					value: "~/.cairn/worktrees",
-				},
-				formatOnStage: {
-					label: "Formater à l'indexation",
-					desc: "Formater automatiquement avant l'indexation",
-					value: "Prettier",
-				},
-			},
 			cli: {
 				groupTitle: "Ligne de commande",
 				install: "Installer la commande cairn",

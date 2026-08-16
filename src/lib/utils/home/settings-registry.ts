@@ -28,30 +28,6 @@ const s = t as (k: string) => string;
 
 const STATIC_SETTINGS: SettingEntry[] = [
 	{
-		label: s("settings.general.rows.aiProvider.label"),
-		desc: s("settings.general.rows.aiProvider.desc"),
-		tab: "general",
-		group: s("settings.general.groupTitle"),
-	},
-	{
-		label: s("settings.general.rows.defaultBranch.label"),
-		desc: s("settings.general.rows.defaultBranch.desc"),
-		tab: "general",
-		group: s("settings.general.groupTitle"),
-	},
-	{
-		label: s("settings.general.rows.worktreeLocation.label"),
-		desc: s("settings.general.rows.worktreeLocation.desc"),
-		tab: "general",
-		group: s("settings.general.groupTitle"),
-	},
-	{
-		label: s("settings.general.rows.formatOnStage.label"),
-		desc: s("settings.general.rows.formatOnStage.desc"),
-		tab: "general",
-		group: s("settings.general.groupTitle"),
-	},
-	{
 		label: s("settings.general.updates.autoCheck"),
 		desc: s("settings.general.updates.autoCheckDesc"),
 		tab: "general",

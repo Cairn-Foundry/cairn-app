@@ -2155,29 +2155,6 @@ export const en = {
 			activityAutoScrollDesc: "Scroll the panel down as new entries arrive",
 		},
 		general: {
-			groupTitle: "General",
-			rows: {
-				aiProvider: {
-					label: "AI provider",
-					desc: "Agent Bridge driver",
-					value: "Claude Code CLI",
-				},
-				defaultBranch: {
-					label: "Default branch",
-					desc: "Base for new worktrees",
-					value: "main",
-				},
-				worktreeLocation: {
-					label: "Worktree location",
-					desc: "Where git worktrees are created",
-					value: "~/.cairn/worktrees",
-				},
-				formatOnStage: {
-					label: "Format on stage",
-					desc: "Auto-format before staging",
-					value: "Prettier",
-				},
-			},
 			cli: {
 				groupTitle: "Command line",
 				install: "Install the cairn command",

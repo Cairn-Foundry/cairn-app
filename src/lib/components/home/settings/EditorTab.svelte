@@ -240,6 +240,24 @@
 </div>
 
 <div class="settings-group">
+  <div class="settings-group-title">{t('settings.editor.quickSearchGroup')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.editor.quickSearchGitignored')}</span>
+      <span class="settings-row-desc">{t('settings.editor.quickSearchGitignoredDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.editor.quickSearchGitignored') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.quickSearchShowGitignored}
+        on:change={(e) => settings.save({ quickSearchShowGitignored: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+</div>
+
+<div class="settings-group">
   <div class="settings-group-title">{t('settings.syntax.groupTitle')}</div>
   <p class="settings-group-hint">{t('settings.syntax.desc')}</p>
 
@@ -308,24 +326,6 @@
     on:save={(e) => saveSyntaxTheme(e.detail)}
   />
 {/if}
-
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.editor.quickSearchGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.quickSearchGitignored')}</span>
-      <span class="settings-row-desc">{t('settings.editor.quickSearchGitignoredDesc')}</span>
-    </div>
-    <label class="settings-toggle" aria-label={t('settings.editor.quickSearchGitignored') as string}>
-      <input
-        type="checkbox"
-        checked={$settings.quickSearchShowGitignored}
-        on:change={(e) => settings.save({ quickSearchShowGitignored: (e.target as HTMLInputElement).checked })}
-      />
-      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
-    </label>
-  </div>
-</div>
 
 <div class="settings-section-reset">
   <button
