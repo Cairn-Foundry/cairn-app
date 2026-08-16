@@ -167,7 +167,7 @@
       {#if tree.length === 0 && !editState}
         <div class="tree-state">{t('files.treeEmpty')}</div>
       {/if}
-      {#each tree as node}
+      {#each tree as node (node.path)}
         {@render treeNode(node, 0)}
       {/each}
     {/if}
@@ -219,7 +219,7 @@
     {#if editState && editState.parentPath === node.path && editState.type !== 'rename'}
       {@render inlineInput(depth + 1)}
     {/if}
-    {#each node.children as child}
+    {#each node.children as child (child.path)}
       {@render treeNode(child, depth + 1)}
     {/each}
   {/if}

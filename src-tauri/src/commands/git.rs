@@ -1,10 +1,11 @@
 //! Git operations for the review, history and branch views. Everything shells out
 //! to the `git` binary except a few reads served by `git2`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::{LazyLock, Mutex};
 use git2::{Repository, BranchType};
 use crate::commands::git_error::GitError;
 use serde::Serialize;
@@ -269,10 +270,27 @@ pub async fn validate_git_repo(path: String) -> Result<String, GitError> {
         })
 }
 
+/// Paths already proven to be worktree roots. The status poll revalidates on every
+/// tick a property that only changes when the worktree is created or removed, and
+/// each check costs a git process plus two canonicalisations. Only the positive is
+/// cached: a path becomes a root when its instance is created, so caching a "no"
+/// would leave that instance without git for the rest of the session. A root that
+/// is later removed fails its `is_dir` guard here.
+static REPO_ROOTS: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
+
 /// True only when the path is itself a worktree root, not merely nested in a parent repository.
 fn is_repo_root(expanded: &str) -> Result<bool, GitError> {
     if !Path::new(expanded).is_dir() {
+        forget_repo_root(expanded);
         return Ok(false);
+    }
+
+    if REPO_ROOTS
+        .lock()
+        .is_ok_and(|roots| roots.contains(expanded))
+    {
+        return Ok(true);
     }
 
     let output = git_cmd(expanded)
@@ -290,9 +308,22 @@ fn is_repo_root(expanded: &str) -> Result<bool, GitError> {
 
     // The path is a repository only when it is the repo/worktree root itself,
     // not merely nested inside a parent repository (git walks up by default).
-    match (fs::canonicalize(expanded), fs::canonicalize(&toplevel)) {
-        (Ok(a), Ok(b)) => Ok(a == b),
-        _ => Ok(false),
+    let is_root = match (fs::canonicalize(expanded), fs::canonicalize(&toplevel)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    };
+    if is_root
+        && let Ok(mut roots) = REPO_ROOTS.lock()
+    {
+        roots.insert(expanded.to_string());
+    }
+    Ok(is_root)
+}
+
+/// Drops a path from the proven-roots set, so a worktree that goes away is rechecked.
+fn forget_repo_root(expanded: &str) {
+    if let Ok(mut roots) = REPO_ROOTS.lock() {
+        roots.remove(expanded);
     }
 }
 

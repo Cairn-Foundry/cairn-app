@@ -10,6 +10,34 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "The file tree no longer slows down as the number of modified files grows: a directory's git status is now resolved from an index instead of scanning every change for every folder drawn.",
+					"fr": "L'arborescence ne ralentit plus quand le nombre de fichiers modifies augmente : le statut git d'un dossier est desormais resolu depuis un index au lieu de parcourir tous les changements pour chaque dossier affiche."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A terminal producing a lot of output, such as a build, stays responsive: its output is now sent to the interface in batches rather than one event per fragment read.",
+					"fr": "Un terminal qui produit beaucoup de sortie, comme un build, reste reactif : sa sortie est maintenant transmise a l'interface par lots plutot qu'un evenement par fragment lu."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The agent run history was rewritten in full on every fragment received and never written at all while an agent kept streaming; it is now flushed at regular intervals and its size is bounded.",
+					"fr": "L'historique des executions d'agent etait reecrit en entier a chaque fragment recu et n'etait jamais ecrit tant qu'un agent continuait a repondre ; il est maintenant enregistre a intervalle regulier et sa taille est bornee."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Browsing several projects with hidden files shown no longer keeps every path of each one in memory: the file tree cache is now bounded by its real size.",
+					"fr": "Parcourir plusieurs projets en affichant les fichiers ignores ne conserve plus en memoire tous les chemins de chacun : le cache de l'arborescence est desormais borne par sa taille reelle."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "The home screen greeting now varies with the time of day, the day of the week and the date instead of a fixed hardcoded name.",
 					"fr": "Le message d'accueil de l'ecran d'accueil varie maintenant selon l'heure, le jour de la semaine et la date, au lieu d'un nom fixe code en dur."
 				}

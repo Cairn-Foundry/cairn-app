@@ -1694,16 +1694,29 @@ import { get } from 'svelte/store';
    * Walking a repository is the slowest step of a worktree change, so the last
    * trees stay around: coming back to a project paints from the cache at once
    * and the walk runs silently behind it. Bounded, because a cached tree holds
-   * every path of a repository.
+   * every path of a repository. The bound counts nodes rather than trees: with
+   * ignored files shown a single tree reaches six figures, so eight of them
+   * would pin every path of eight repositories in memory for the whole session.
    */
   const TREE_CACHE_MAX = 8;
-  const treeCache = new Map<string, { tree: FileNode[]; status: GitStatusMap }>();
+  const TREE_CACHE_MAX_NODES = 50_000;
+  const treeCache = new Map<string, { tree: FileNode[]; status: GitStatusMap; nodes: number }>();
+
+  function countNodes(nodes: FileNode[]): number {
+    let total = 0;
+    for (const n of nodes) total += 1 + (n.children ? countNodes(n.children) : 0);
+    return total;
+  }
 
   function cacheTree(root: string) {
     treeCache.delete(root);
-    treeCache.set(root, { tree: rawTree, status: gitStatusMap });
+    treeCache.set(root, { tree: rawTree, status: gitStatusMap, nodes: countNodes(rawTree) });
+    let cachedNodes = 0;
+    for (const entry of treeCache.values()) cachedNodes += entry.nodes;
     for (const oldest of treeCache.keys()) {
-      if (treeCache.size <= TREE_CACHE_MAX) break;
+      if (treeCache.size <= TREE_CACHE_MAX && cachedNodes <= TREE_CACHE_MAX_NODES) break;
+      if (treeCache.size === 1) break;
+      cachedNodes -= treeCache.get(oldest)?.nodes ?? 0;
       treeCache.delete(oldest);
     }
   }

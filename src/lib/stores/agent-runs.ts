@@ -42,7 +42,16 @@ export function clearAgentPermission(runId: string): void {
 
 // Writes are debounced per project: a streaming run patches its blocks on every chunk.
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const persistDeadlines = new Map<string, number>();
 const PERSIST_DELAY_MS = 250;
+/** A continuous stream would otherwise push the timer back for ever and never write. */
+const PERSIST_MAX_DELAY_MS = 2000;
+/**
+ * Runs kept per project. Their blocks are duplicated in the conversation
+ * transcripts, so the history here is a working set, not the archive - without
+ * a bound it grows for the lifetime of the project.
+ */
+const MAX_RUNS_PER_PROJECT = 200;
 
 /** A run still holding its process, so it can be stopped and must not be started again. */
 export function isInFlight(status: AgentRunStatus): boolean {
@@ -67,15 +76,25 @@ export function findAgentRun(runId: string): AgentRun | null {
 function persist(projectId: string): void {
 	const existing = persistTimers.get(projectId);
 	if (existing) clearTimeout(existing);
+
+	const now = Date.now();
+	const deadline =
+		persistDeadlines.get(projectId) ?? now + PERSIST_MAX_DELAY_MS;
+	persistDeadlines.set(projectId, deadline);
+
 	persistTimers.set(
 		projectId,
-		setTimeout(() => {
-			persistTimers.delete(projectId);
-			persistToDisk(
-				"the agent run history",
-				saveAgentRuns(projectId, runsOf(projectId)),
-			);
-		}, PERSIST_DELAY_MS),
+		setTimeout(
+			() => {
+				persistTimers.delete(projectId);
+				persistDeadlines.delete(projectId);
+				persistToDisk(
+					"the agent run history",
+					saveAgentRuns(projectId, runsOf(projectId)),
+				);
+			},
+			Math.max(0, Math.min(PERSIST_DELAY_MS, deadline - now)),
+		),
 	);
 }
 
@@ -94,9 +113,20 @@ export async function restoreAgentRuns(projectId: string): Promise<void> {
 export function addAgentRun(projectId: string, run: AgentRun): void {
 	agentRuns.update((m) => ({
 		...m,
-		[projectId]: [run, ...(m[projectId] ?? [])],
+		[projectId]: trimRuns([run, ...(m[projectId] ?? [])]),
 	}));
 	persist(projectId);
+}
+
+/**
+ * Drops the oldest runs past the cap. A run still holding its process is kept
+ * whatever its age: forgetting it would lose the only handle able to stop it.
+ */
+function trimRuns(runs: AgentRun[]): AgentRun[] {
+	if (runs.length <= MAX_RUNS_PER_PROJECT) return runs;
+	return runs.filter(
+		(run, i) => i < MAX_RUNS_PER_PROJECT || isInFlight(run.status),
+	);
 }
 
 /** Updates fields of one run; the single write path, so every change is persisted. */

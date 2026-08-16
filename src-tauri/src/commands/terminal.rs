@@ -177,6 +177,53 @@ pub async fn terminal_create(
 
     let reader_id = id.clone();
     let app_out = app.clone();
+    // A verbose build reads thousands of 4 KB chunks; one IPC event each floods the
+    // bridge. The reader hands its chunks to an emitter thread that batches them and
+    // flushes on size or after a frame, whichever comes first. The deadline lives in
+    // that second thread because the PTY read blocks: a batch left under both
+    // thresholds would otherwise wait for the next byte to be sent, which is exactly
+    // the case of a command that has just gone quiet.
+    const FLUSH_BYTES: usize = 16 * 1024;
+    const FLUSH_AFTER: std::time::Duration = std::time::Duration::from_millis(16);
+
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    let emit_id = id.clone();
+    let app_emit = app.clone();
+    let emitter = std::thread::spawn(move || {
+        let mut batch = String::new();
+        let mut deadline: Option<std::time::Instant> = None;
+        loop {
+            let received = match deadline {
+                Some(at) => rx.recv_timeout(at.saturating_duration_since(std::time::Instant::now())),
+                None => rx.recv().map_err(|_| std::sync::mpsc::RecvTimeoutError::Disconnected),
+            };
+            let closed = match received {
+                Ok(chunk) => {
+                    batch.push_str(&chunk);
+                    deadline.get_or_insert_with(|| std::time::Instant::now() + FLUSH_AFTER);
+                    false
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => false,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => true,
+            };
+            let due = closed
+                || batch.len() >= FLUSH_BYTES
+                || deadline.is_some_and(|at| std::time::Instant::now() >= at);
+            if due && !batch.is_empty() {
+                let _ = app_emit.emit(
+                    "terminal-output",
+                    TerminalOutput { id: emit_id.clone(), data: std::mem::take(&mut batch) },
+                );
+            }
+            if due {
+                deadline = None;
+            }
+            if closed {
+                break;
+            }
+        }
+    });
+
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
         let mut pending: Vec<u8> = Vec::new();
@@ -186,12 +233,17 @@ pub async fn terminal_create(
                 Ok(n) => {
                     pending.extend_from_slice(&buf[..n]);
                     let data = drain_utf8(&mut pending);
-                    if !data.is_empty() {
-                        let _ = app_out.emit("terminal-output", TerminalOutput { id: reader_id.clone(), data });
+                    if !data.is_empty() && tx.send(data).is_err() {
+                        break;
                     }
                 }
             }
         }
+        // Dropping the sender closes the channel; joining guarantees the last batch
+        // reaches the frontend before the exit event that follows it.
+        drop(tx);
+        let _ = emitter.join();
+
         let mut ended = app_out
             .state::<TerminalState>()
             .sessions

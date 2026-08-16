@@ -1110,7 +1110,7 @@
         {:else if filteredLog.length === 0}
           <div class="empty-hint">{t('git.logNoResults')}</div>
         {:else}
-          {#each filteredLog as commit}
+          {#each filteredLog as commit (commit.hash)}
             <div
               class="log-entry"
               class:is-ahead={aheadHashes.has(commit.hash)}

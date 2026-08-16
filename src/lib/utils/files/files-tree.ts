@@ -100,16 +100,41 @@ export function nodeGitStatus(
 		const raw = gitStatusMap[node.path];
 		return raw ? normalizeGitStatus(raw) : null;
 	}
-	const prefix = `${node.path}/`;
-	let best: number = GIT_STATUS_PRIORITY.length;
+	return gitStatusIndex(gitStatusMap).get(node.path) ?? null;
+}
+
+/**
+ * Directory to worst status below it, built in a single pass over the status
+ * map and memoised on it. The tree calls this once per drawn directory on every
+ * repaint, and a repaint follows every git poll: walking the whole map per node
+ * made the cost the product of the two.
+ */
+let indexedMap: GitStatusMap | null = null;
+let indexedResult: Map<string, GitStatus> = new Map();
+
+export function gitStatusIndex(
+	gitStatusMap: GitStatusMap,
+): Map<string, GitStatus> {
+	if (indexedMap === gitStatusMap) return indexedResult;
+	const best = new Map<string, number>();
 	for (const [path, status] of Object.entries(gitStatusMap)) {
 		const normalized = normalizeGitStatus(status);
-		if (path.startsWith(prefix) && normalized && normalized !== "deleted") {
-			const idx = GIT_STATUS_PRIORITY.indexOf(normalized);
-			if (idx !== -1 && idx < best) best = idx;
+		if (!normalized || normalized === "deleted") continue;
+		const idx = GIT_STATUS_PRIORITY.indexOf(normalized);
+		if (idx === -1) continue;
+		let dir = parentPathOf(path);
+		while (dir) {
+			const current = best.get(dir);
+			if (current !== undefined && current <= idx) break;
+			best.set(dir, idx);
+			dir = parentPathOf(dir);
 		}
 	}
-	return best < GIT_STATUS_PRIORITY.length ? GIT_STATUS_PRIORITY[best] : null;
+	indexedResult = new Map(
+		[...best].map(([dir, idx]) => [dir, GIT_STATUS_PRIORITY[idx]]),
+	);
+	indexedMap = gitStatusMap;
+	return indexedResult;
 }
 
 /** Each segment with the path that leads to it, so a crumb can be clicked. */

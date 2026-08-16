@@ -84,12 +84,35 @@ function applyTheme(): void {
 	}
 }
 
+/**
+ * `style` has to be watched alongside `data-theme`: the accent and the font are
+ * custom properties on the root, not part of the theme attribute. A settings
+ * change writes several of them in a row, so the callback is coalesced onto a
+ * frame rather than repainting every terminal once per property.
+ */
+let themeObserver: MutationObserver | null = null;
+let themeFrame = 0;
+
 if (typeof document !== "undefined") {
-	const observer = new MutationObserver(() => applyTheme());
-	observer.observe(document.documentElement, {
+	themeObserver = new MutationObserver(() => {
+		if (themeFrame) return;
+		themeFrame = requestAnimationFrame(() => {
+			themeFrame = 0;
+			applyTheme();
+		});
+	});
+	themeObserver.observe(document.documentElement, {
 		attributes: true,
 		attributeFilter: ["data-theme", "style"],
 	});
+}
+
+/** Releases the root observer; the module owns it for the lifetime of the app. */
+export function disposeTerminalTheming(): void {
+	themeObserver?.disconnect();
+	themeObserver = null;
+	if (themeFrame) cancelAnimationFrame(themeFrame);
+	themeFrame = 0;
 }
 
 const isMac = IS_MAC;
