@@ -417,28 +417,28 @@
 				"kind": "fixed",
 				"text": {
 					"en": "A long answer no longer slows down as it grows. Every streamed fragment re-read the whole message being written just to keep the 120 characters of its preview, so the cost climbed with the length of the reply and the interface stuttered more and more towards the end.",
-					"fr": "Une reponse longue ne ralentit plus a mesure qu'elle grandit. Chaque fragment recu relisait tout le message en cours d'ecriture seulement pour en garder les 120 caracteres d'apercu, si bien que le cout montait avec la longueur de la reponse et que l'interface saccadait de plus en plus vers la fin."
+					"fr": "Une réponse longue ne ralentit plus à mesure qu'elle grandit. Chaque fragment reçu relisait tout le message en cours d'écriture seulement pour en garder les 120 caractères d'aperçu, si bien que le coût montait avec la longueur de la réponse et que l'interface saccadait de plus en plus vers la fin."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
 					"en": "A conversation being written no longer copies its whole transcript, nor redraws the history panel, on every fragment received. Both now happen once per save rather than once per fragment.",
-					"fr": "Une conversation en cours d'ecriture ne recopie plus tout son transcript, ni ne redessine le panneau d'historique, a chaque fragment recu. Les deux n'ont plus lieu qu'une fois par enregistrement au lieu d'une fois par fragment."
+					"fr": "Une conversation en cours d'écriture ne recopie plus tout son transcript, ni ne redessine le panneau d'historique, à chaque fragment reçu. Les deux n'ont plus lieu qu'une fois par enregistrement au lieu d'une fois par fragment."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
 					"en": "A conversation is saved while it is being written. A continuous answer pushed its own write back indefinitely, so nothing reached the disk until the answer ended and a crash in the middle of a long reply lost all of it.",
-					"fr": "Une conversation est enregistree pendant qu'elle s'ecrit. Une reponse continue repoussait indefiniment son propre enregistrement, si bien que rien n'atteignait le disque avant la fin de la reponse et qu'un plantage au milieu d'une reponse longue la perdait entierement."
+					"fr": "Une conversation est enregistrée pendant qu'elle s'écrit. Une réponse continue repoussait indéfiniment son propre enregistrement, si bien que rien n'atteignait le disque avant la fin de la réponse et qu'un plantage au milieu d'une réponse longue la perdait entièrement."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
 					"en": "Deleting an instance now releases the conversations that hung off it. They stayed in memory for the rest of the session, and a save still pending could rewrite on disk the transcript of an instance that had just been deleted.",
-					"fr": "Supprimer une instance libere desormais les conversations qui en dependaient. Elles restaient en memoire jusqu'a la fin de la session, et un enregistrement encore en attente pouvait reecrire sur le disque le transcript d'une instance qui venait d'etre supprimee."
+					"fr": "Supprimer une instance libère désormais les conversations qui en dépendaient. Elles restaient en mémoire jusqu'à la fin de la session, et un enregistrement encore en attente pouvait réécrire sur le disque le transcript d'une instance qui venait d'être supprimée."
 				}
 			}
 		]
