@@ -140,6 +140,27 @@ pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
 /// PATH set only there stays invisible; `extra_lookup_dirs` covers the usual
 /// places that leaves out.
 pub fn spawn_shell(command: &str) -> std::io::Result<std::process::Child> {
+    spawn_shell_in(command, None)
+}
+
+/// `spawn_shell`, run from `cwd` when one is given and is a real directory.
+/// The directory goes through `current_dir` rather than a `cd &&` prefix: the
+/// quoting a path would need differs between `cmd` and a POSIX shell, and a
+/// path holding a space or a `&` would break the concatenated form.
+pub fn spawn_shell_in(
+    command: &str,
+    cwd: Option<&Path>,
+) -> std::io::Result<std::process::Child> {
+    spawn_shell_full(command, cwd, false)
+}
+
+/// `spawn_shell_in`, with `group` putting the child in its own process group so
+/// the caller can signal the whole tree at once.
+pub fn spawn_shell_full(
+    command: &str,
+    cwd: Option<&Path>,
+    group: bool,
+) -> std::io::Result<std::process::Child> {
     #[cfg(windows)]
     let mut process = Command::new("cmd");
     #[cfg(windows)]
@@ -151,6 +172,21 @@ pub fn spawn_shell(command: &str) -> std::io::Result<std::process::Child> {
     };
     #[cfg(not(windows))]
     process.args(["-lc", command]);
+
+    if let Some(dir) = cwd
+        && dir.is_dir()
+    {
+        process.current_dir(dir);
+    }
+
+    // Its own process group, so killing the run takes the whole tree with it.
+    // A shell running `npm test` spawns vitest below it; signalling only the
+    // shell would leave the real work running.
+    #[cfg(unix)]
+    if group {
+        use std::os::unix::process::CommandExt;
+        process.process_group(0);
+    }
 
     process
         .stdin(Stdio::null())

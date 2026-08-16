@@ -2081,7 +2081,7 @@ import { get } from 'svelte/store';
   }
 
   /** Opens a file and queues a jump, applied once the tab has rendered its content. */
-  async function openFileAtLine(path: string, line: number, col: number) {
+  export async function openFileAtLine(path: string, line: number, col = 1) {
     const node = { path, name: basename(path), isDir: false };
     const targetPane = splitMode && focusedPane === 1 ? 1 : 0;
     pendingJumps[targetPane] = { line, col };

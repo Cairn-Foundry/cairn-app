@@ -325,7 +325,7 @@ pub async fn list_language_servers(
 /// plain text. Colours arrive as CSI (`ESC [ ... letter`), and the title a
 /// manager sets on the terminal as OSC (`ESC ] ... BEL` or `ESC \`) - whose
 /// payload is words, so leaving it in would read as output.
-fn strip_ansi(line: &str) -> String {
+pub fn strip_ansi(line: &str) -> String {
     let mut out = String::with_capacity(line.len());
     let mut chars = line.chars();
     while let Some(c) = chars.next() {

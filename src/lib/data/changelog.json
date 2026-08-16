@@ -2,8 +2,75 @@
 	{
 		"version": "0.16.0",
 		"date": "",
-		"summary": {},
-		"changes": []
+		"summary": {
+			"en": "The Tests step runs for real: your suite, its results as they arrive, and the failing line one click away.",
+			"fr": "La step Tests fonctionne vraiment : votre suite, ses resultats au fil de l'execution, et la ligne en echec a un clic."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Tests step now runs the project's own test suite. Cairn detects how the worktree tests itself - a test script in package.json for Vitest or Jest, Cargo.toml, pytest or go.mod - and a monorepo holding several of them offers each one.",
+					"fr": "La step Tests lance desormais la suite de tests du projet. Cairn detecte comment le worktree se teste - un script de test dans package.json pour Vitest ou Jest, Cargo.toml, pytest ou go.mod - et un monorepo qui en contient plusieurs les propose tous."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Results appear as the run goes rather than all at once at the end, so a long suite shows its progress instead of looking frozen. A file still working spins in the list, and its previous results stay on screen, dimmed, until it reports. A run can be stopped without waiting it out.",
+					"fr": "Les resultats apparaissent au fil de l'execution plutot que d'un bloc a la fin : une longue suite montre sa progression au lieu de sembler figee. Un fichier encore en cours affiche une animation dans la liste, et ses resultats precedents restent affiches, attenues, jusqu'a ce qu'il reponde. Une execution peut etre arretee sans attendre sa fin."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A failing test shows why: the expected and received values side by side, the runner's message, and the stack trace with the frames from your own code first - the ones from dependencies stay folded.",
+					"fr": "Un test en echec montre pourquoi : les valeurs attendue et recue cote a cote, le message du lanceur, et la pile d'appels avec en premier les appels de votre propre code - ceux des dependances restent replies."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Clicking a test, a file path or a stack frame opens the source in the editor, on the right line.",
+					"fr": "Cliquer sur un test, un chemin de fichier ou un appel de la pile ouvre la source dans l'editeur, a la bonne ligne."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A single test or a single file can be re-run on its own, without replaying the whole suite: the rest of the tree stays as it was.",
+					"fr": "Un test seul ou un fichier seul peut etre relance sans rejouer toute la suite : le reste de l'arbre reste en place."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The suite tree folds and unfolds in one click.",
+					"fr": "L'arbre des suites se replie et se deplie d'un seul clic."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The suite tree searches across file names, describe blocks and test names at once: every word of the query has to match, in any order, the hits are highlighted, and a folded file unfolds itself when it holds one. Each status filter carries its own count, so you know what a filter costs before clicking it.",
+					"fr": "L'arbre des suites se cherche a la fois sur les noms de fichiers, les blocs describe et les noms de tests : chaque mot de la requete doit correspondre, dans n'importe quel ordre, les correspondances sont surlignees, et un fichier replie se deplie de lui-meme s'il en contient une. Chaque filtre de statut porte son propre compte, pour savoir ce qu'il coute avant de cliquer."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn reopens the Tests step on the last run's results, with the same runner, filter and selected test, instead of on an empty screen.",
+					"fr": "Cairn rouvre la step Tests sur les resultats de la derniere execution, avec le meme lanceur, le meme filtre et le meme test selectionne, au lieu d'un ecran vide."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Rust projects use cargo-nextest when it is installed, and fall back to plain cargo test otherwise.",
+					"fr": "Les projets Rust utilisent cargo-nextest lorsqu'il est installe, et se rabattent sur cargo test sinon."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.15.0",

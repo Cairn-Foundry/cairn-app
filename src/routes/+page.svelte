@@ -12,6 +12,7 @@
   import { initTerminals } from '$lib/stores/terminal';
   import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
+  import { initTests, disposeTests } from '$lib/stores/tests';
   import { listInstances } from '$lib/services/instance-service';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
@@ -73,6 +74,7 @@
     stopUpdateChecks?.();
     unlistenCliOpen?.();
     disposeLanguageServers();
+    disposeTests();
   });
 
   /** Closing a project takes its language servers down with it. */
@@ -105,6 +107,7 @@
 
     initTerminals();
     initLanguageServers();
+    initTests();
     void loadAgentActivity();
     await settings.load();
     stopUpdateChecks = startUpdateChecks();

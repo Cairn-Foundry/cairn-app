@@ -184,6 +184,16 @@ pub fn instance_git_collapse_state_file(project_id: &str, instance_id: &str) -> 
         .join("git-collapse-state.json"))
 }
 
+/// The last test run of one instance, with its selection and filters.
+pub fn instance_test_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("test-state.json"))
+}
+
 /// Serializes to a temp file then renames over `path`, so a crash mid-write
 /// leaves the previous file intact rather than a truncated one. Missing parent
 /// directories are created.

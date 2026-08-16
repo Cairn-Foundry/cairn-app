@@ -7,7 +7,7 @@
 pub mod storage;
 pub mod commands;
 
-use commands::{AgentState, LspState, TerminalState};
+use commands::{AgentState, LspState, TerminalState, TestState};
 use commands::*;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
@@ -62,6 +62,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AgentState::new())
         .manage(TerminalState::new())
+        .manage(TestState::new())
         .manage(LspState::new())
         .manage(QuickSearchCache::default())
         .manage(PendingCliPaths::from_args())
@@ -213,6 +214,11 @@ pub fn run() {
             save_project_terminal_state,
             get_ui_state,
             save_ui_state,
+            has_cargo_nextest,
+            run_tests,
+            stop_tests,
+            get_test_state,
+            save_test_state,
             get_agent_activity,
             save_agent_activity,
             get_agent_runs,
