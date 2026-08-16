@@ -377,6 +377,41 @@
 					"en": "Sending a prompt to an agent no longer re-reads and re-decrypts the provider configuration every time.",
 					"fr": "L'envoi d'un prompt a un agent ne relit et ne dechiffre plus la configuration des fournisseurs a chaque fois."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Closing Cairn while an agent was answering, or with terminals open, left orphan processes running in the background. Every agent and shell is now killed on exit.",
+					"fr": "Fermer Cairn pendant qu'un agent repondait, ou avec des terminaux ouverts, laissait des processus orphelins tourner en arriere-plan. Chaque agent et chaque shell est maintenant arrete a la fermeture."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching instance or tab quickly while the agent was streaming could leave a stale listener behind, so the same answer was processed several times.",
+					"fr": "Changer rapidement d'instance ou d'onglet pendant la reponse de l'agent pouvait laisser un ecouteur orphelin, et la meme reponse etait traitee plusieurs fois."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Stats screen no longer freezes the window while it reads its history, and recovering past usage is now nearly instant instead of taking a fifth of a second.",
+					"fr": "L'ecran Stats ne fige plus la fenetre pendant la lecture de son historique, et la recuperation de l'usage passe est maintenant quasi instantanee au lieu de prendre un cinquieme de seconde."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Long agent answers stream more smoothly: the transcript is only copied when it actually changed, instead of on every chunk.",
+					"fr": "Les longues reponses de l'agent defilent plus fluidement : la conversation n'est recopiee que lorsqu'elle a reellement change, au lieu de l'etre a chaque fragment."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Creating an instance on a worktree path with no parent directory crashed the backend instead of reporting the error.",
+					"fr": "Creer une instance sur un chemin de worktree sans dossier parent faisait planter le backend au lieu de signaler l'erreur."
+				}
 			}
 		]
 	},

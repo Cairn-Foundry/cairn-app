@@ -45,6 +45,8 @@
   let stopUpdateChecks: (() => void) | null = null;
   let unlistenCliOpen: (() => void) | null = null;
   onDestroy(() => {
+    for (const unsubscribe of persistSubscriptions) unsubscribe();
+    if (saveTimer) clearTimeout(saveTimer);
     removeCopyHandler?.();
     stopUpdateChecks?.();
     unlistenCliOpen?.();
@@ -124,21 +126,27 @@
   });
 
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
-  activeStep.subscribe(() => persistUiState());
-  terminalActive.subscribe(() => persistUiState());
-  commandsActive.subscribe(() => persistUiState());
-  envActive.subscribe(() => persistUiState());
-  formattingActive.subscribe(() => persistUiState());
-  openAgentId.subscribe(() => persistUiState());
-  gitLeftTab.subscribe(() => persistUiState());
-  referencesPanelOpen.subscribe(() => persistUiState());
-  referencesQuery.subscribe(() => persistUiState());
-  openTabOrder.subscribe(() => persistUiState());
-  viewStates.subscribe(() => persistUiState());
-  activeProjectId.subscribe((id) => {
-    if (id) lastProjectId = id;
-    persistUiState();
-  });
+
+  const persistSubscriptions = [
+    activeStep,
+    terminalActive,
+    commandsActive,
+    envActive,
+    formattingActive,
+    openAgentId,
+    gitLeftTab,
+    referencesPanelOpen,
+    referencesQuery,
+    openTabOrder,
+    viewStates,
+  ].map((store) => store.subscribe(() => persistUiState()));
+
+  persistSubscriptions.push(
+    activeProjectId.subscribe((id) => {
+      if (id) lastProjectId = id;
+      persistUiState();
+    }),
+  );
 
   /**
    * The instances of the target project are loaded before it becomes active, so

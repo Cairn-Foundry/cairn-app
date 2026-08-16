@@ -113,7 +113,11 @@ pub fn save_command_state(
 /// `exclude` holds ports already promised to commands that have not bound yet,
 /// which a free-port test alone cannot see.
 #[tauri::command]
-pub fn allocate_port(base: u16, preferred: Option<u16>, exclude: Vec<u16>) -> Result<u16, String> {
+pub async fn allocate_port(
+    base: u16,
+    preferred: Option<u16>,
+    exclude: Vec<u16>,
+) -> Result<u16, String> {
     if let Some(port) = preferred
         && !exclude.contains(&port) && is_port_free(port) {
             return Ok(port);
@@ -139,33 +143,33 @@ pub fn allocate_port(base: u16, preferred: Option<u16>, exclude: Vec<u16>) -> Re
 mod tests {
     use super::*;
 
-    #[test]
-    fn allocate_port_reuses_a_free_preferred_port() {
+    #[tokio::test]
+    async fn allocate_port_reuses_a_free_preferred_port() {
         let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let taken = held.local_addr().unwrap().port();
         drop(held);
 
-        assert_eq!(allocate_port(taken, Some(taken), vec![]).unwrap(), taken);
+        assert_eq!(allocate_port(taken, Some(taken), vec![]).await.unwrap(), taken);
     }
 
-    #[test]
-    fn allocate_port_skips_a_busy_preferred_port() {
+    #[tokio::test]
+    async fn allocate_port_skips_a_busy_preferred_port() {
         let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let busy = held.local_addr().unwrap().port();
 
-        let port = allocate_port(busy, Some(busy), vec![]).unwrap();
+        let port = allocate_port(busy, Some(busy), vec![]).await.unwrap();
 
         assert_ne!(port, busy);
         assert!(port > busy);
     }
 
-    #[test]
-    fn allocate_port_skips_excluded_ports() {
+    #[tokio::test]
+    async fn allocate_port_skips_excluded_ports() {
         let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let base = held.local_addr().unwrap().port();
         drop(held);
 
-        let port = allocate_port(base, None, vec![base]).unwrap();
+        let port = allocate_port(base, None, vec![base]).await.unwrap();
 
         assert_ne!(port, base);
     }

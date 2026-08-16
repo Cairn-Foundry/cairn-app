@@ -263,6 +263,18 @@ pub async fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Kills every session on the way out. The frontend has no chance to close its
+/// terminals when the window goes away, so without this the shells outlive the
+/// app.
+pub fn shutdown(app: &tauri::AppHandle) {
+    let state = app.state::<TerminalState>();
+    if let Ok(mut sessions) = state.sessions.lock() {
+        for (_, mut sess) in sessions.drain() {
+            let _ = sess.child.kill();
+        }
+    }
+}
+
 /// Terminal tabs of one instance, plus which is active and how the pane is split.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct TerminalLayout {

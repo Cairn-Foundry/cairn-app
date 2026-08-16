@@ -313,6 +313,8 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                commands::agent::shutdown(app);
+                commands::terminal::shutdown(app);
                 commands::lsp::shutdown(app);
             }
         });

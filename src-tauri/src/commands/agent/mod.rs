@@ -400,6 +400,22 @@ pub async fn respond_permission(
     writeln!(stdin, "{envelope}").map_err(|e| e.to_string())
 }
 
+/// Kills the process tree of every run still in flight on the way out, so no
+/// CLI keeps answering - and keeps costing - after the app is gone.
+pub fn shutdown(app: &tauri::AppHandle) {
+    let state = app.state::<AgentState>();
+    let Ok(mut running) = state.running.lock() else {
+        return;
+    };
+    for (_, handle) in running.drain() {
+        handle.cancelled.store(true, Ordering::SeqCst);
+        if let Ok(mut slot) = handle.child.lock()
+            && let Some(mut child) = slot.take() {
+                platform::kill_tree(&mut child);
+            }
+    }
+}
+
 /// Kills the process tree of one run; the other runs of the same instance keep
 /// going.
 #[tauri::command]

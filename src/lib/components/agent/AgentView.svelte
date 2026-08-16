@@ -243,6 +243,7 @@
   let activityEl: HTMLElement | undefined = $state();
   let textareaEl = $state<HTMLTextAreaElement>();
   let unlisten: UnlistenFn | undefined;
+  let disposed = false;
   let copiedKey = $state<string | null>(null);
 
   let activityWidth = $state(300);
@@ -591,8 +592,12 @@
     updateConversationContent(
       refOf(inst, run.scope),
       run.conversationId,
-      $state.snapshot(run.messages),
-      $state.snapshot(run.activity),
+      run.messages,
+      run.activity,
+      () => ({
+        messages: $state.snapshot(run.messages),
+        activity: $state.snapshot(run.activity),
+      }),
     );
   }
 
@@ -1153,10 +1158,19 @@
       if (isLive) autoscroll();
     });
 
+    // onDestroy runs synchronously, so a fast unmount lands before the listen
+    // above resolves and would leave the listener registered forever.
+    if (disposed) {
+      unlisten();
+      unlisten = undefined;
+      return;
+    }
+
     await autoscroll();
   });
 
   onDestroy(() => {
+    disposed = true;
     unlisten?.();
   });
 

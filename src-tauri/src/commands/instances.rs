@@ -176,7 +176,10 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                 fs::remove_dir_all(&worktree_path).map_err(|e| e.to_string())?;
             }
 
-            fs::create_dir_all(worktree_path.parent().unwrap()).map_err(|e| e.to_string())?;
+            let worktree_parent = worktree_path
+                .parent()
+                .ok_or_else(|| format!("Invalid worktree path: {}", worktree_path.display()))?;
+            fs::create_dir_all(worktree_parent).map_err(|e| e.to_string())?;
 
             let worktree_result = repo.worktree(
                 &slug,

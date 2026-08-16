@@ -319,23 +319,35 @@ export async function loadConversationBody(
  * Mirrors the live transcript into the store and schedules a debounced write.
  * lastMessageAt only moves when the transcript actually gained something, so
  * re-syncing an unchanged conversation never reorders the list.
+ *
+ * `snapshot` is called only once the signature says something actually changed:
+ * this runs on every streamed chunk, and deep-cloning a long transcript each
+ * time is what makes a long answer stutter.
  */
 export function updateConversationContent(
 	ref: ConversationRef,
 	id: string,
-	messages: ConversationMessage[],
-	activity: ConversationActivity[],
+	liveMessages: ConversationMessage[],
+	liveActivity: ConversationActivity[],
+	snapshot?: () => {
+		messages: ConversationMessage[];
+		activity: ConversationActivity[];
+	},
 ): void {
 	const timerKey = `${listKey(ref)}:${id}`;
-	const preview = conversationPreview(messages);
+	const preview = conversationPreview(liveMessages);
 	// Usage and resolved-activity counts are part of the signature so late
 	// telemetry (arriving after the text stopped changing) still gets saved.
-	const usageCount = messages.filter((m) => m.usage).length;
-	const doneCount = activity.filter((a) => a.done).length;
-	const signature = `${messages.length}\u001f${usageCount}\u001f${activity.length}\u001f${doneCount}\u001f${preview}`;
+	const usageCount = liveMessages.filter((m) => m.usage).length;
+	const doneCount = liveActivity.filter((a) => a.done).length;
+	const signature = `${liveMessages.length}\u001f${usageCount}\u001f${liveActivity.length}\u001f${doneCount}\u001f${preview}`;
 
 	if (lastSync.get(timerKey) === signature) return;
 	lastSync.set(timerKey, signature);
+
+	const { messages, activity } = snapshot
+		? snapshot()
+		: { messages: liveMessages, activity: liveActivity };
 
 	const meta = conversationsOf(ref).find((c) => c.id === id);
 	const answered =

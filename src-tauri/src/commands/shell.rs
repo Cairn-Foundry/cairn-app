@@ -59,7 +59,7 @@ pub async fn run_shell_command_with_stdin(program: String, args: Vec<String>, cw
 /// Opens the system terminal in `path`, or in its parent when it is a file.
 /// Linux has no single terminal, so the known emulators are tried in turn.
 #[tauri::command]
-pub fn open_in_terminal(path: String) -> Result<(), String> {
+pub async fn open_in_terminal(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let dir = {
         let p = std::path::Path::new(&expanded);
@@ -86,7 +86,7 @@ pub fn open_in_terminal(path: String) -> Result<(), String> {
 
 /// Shows the path in the system file manager, selected when the platform can.
 #[tauri::command]
-pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
+pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     #[cfg(target_os = "macos")]
     Command::new("open").arg("-R").arg(&expanded).spawn().map_err(|e| e.to_string())?;

@@ -1,6 +1,7 @@
 //! Token and cost usage accumulated across agent runs, appended to as runs
 //! finish and read back by the usage screen.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,10 @@ use super::projects::read_projects;
 /// few megabytes at worst - enough for a year of heavy use, and the stats page
 /// never needs more history than a user can remember having produced.
 const LEDGER_LIMIT: usize = 20_000;
+
+/// Above this many incoming turns, deduplicating through a set beats scanning
+/// the ledger for each one.
+const INDEX_THRESHOLD: usize = 8;
 
 /// One answered turn, with what it consumed. Everything the stats page groups by
 /// is denormalized onto the entry: a project can be removed, a conversation
@@ -87,11 +92,22 @@ fn read_ledger() -> Result<Vec<UsageEntry>, String> {
 /// mid-answer, and a backfill may be asked for twice. The result is kept in
 /// chronological order, so trimming to the limit only ever drops old history.
 fn merge(mut ledger: Vec<UsageEntry>, incoming: Vec<UsageEntry>) -> Vec<UsageEntry> {
-    for entry in incoming {
-        if ledger.iter().any(|e| e.id == entry.id) {
-            continue;
+    // Indexing the ledger costs a clone of every id, which only pays off once
+    // several turns come in at a time - a backfill, never a single append.
+    if incoming.len() > INDEX_THRESHOLD {
+        let mut seen: HashSet<String> = ledger.iter().map(|e| e.id.clone()).collect();
+        for entry in incoming {
+            if seen.insert(entry.id.clone()) {
+                ledger.push(entry);
+            }
         }
-        ledger.push(entry);
+    } else {
+        for entry in incoming {
+            if ledger.iter().any(|e| e.id == entry.id) {
+                continue;
+            }
+            ledger.push(entry);
+        }
     }
     ledger.sort_by_key(|e| e.ts);
     if ledger.len() > LEDGER_LIMIT {
@@ -101,7 +117,7 @@ fn merge(mut ledger: Vec<UsageEntry>, incoming: Vec<UsageEntry>) -> Vec<UsageEnt
 }
 
 #[tauri::command]
-pub fn get_usage_entries() -> Result<Vec<UsageEntry>, String> {
+pub async fn get_usage_entries() -> Result<Vec<UsageEntry>, String> {
     read_ledger()
 }
 
@@ -229,7 +245,7 @@ pub async fn backfill_usage_entries() -> Result<usize, String> {
 }
 
 #[tauri::command]
-pub fn clear_usage_entries() -> Result<(), String> {
+pub async fn clear_usage_entries() -> Result<(), String> {
     write_json_atomic(&usage_file()?, &Vec::<UsageEntry>::new())
 }
 
@@ -256,6 +272,18 @@ mod tests {
         let ledger = merge(vec![entry("a", 1)], vec![entry("a", 1), entry("b", 2)]);
         assert_eq!(ledger.len(), 2);
         assert_eq!(ledger[1].id, "b");
+    }
+
+    #[test]
+    fn a_large_backfill_deduplicates_the_same_way_a_small_one_does() {
+        let existing: Vec<UsageEntry> =
+            (0..100).map(|i| entry(&format!("t{i}"), i as i64)).collect();
+        let incoming: Vec<UsageEntry> =
+            (50..150).map(|i| entry(&format!("t{i}"), i as i64)).collect();
+        assert!(incoming.len() > INDEX_THRESHOLD);
+        let ledger = merge(existing, incoming);
+        assert_eq!(ledger.len(), 150);
+        assert_eq!(ledger[149].id, "t149");
     }
 
     #[test]
