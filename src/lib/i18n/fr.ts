@@ -1975,7 +1975,7 @@ export const fr = {
 				addCustomModel: "Ajouter",
 				removeCustomModel: (m: string) => `Retirer ${m}`,
 				customModelsHint:
-					"Des noms que le provider accepte mais ne liste pas - une version antérieure, par exemple. Ils apparaissent dans les sélecteurs de modèle à côté des familles.",
+					"Des noms que le provider accepte mais ne liste pas.",
 				refreshModels: "Actualiser",
 				modelsLive: "Modèles annoncés par le provider.",
 				modelsFallback:

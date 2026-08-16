@@ -1937,7 +1937,7 @@ export const en = {
 				addCustomModel: "Add",
 				removeCustomModel: (m: string) => `Remove ${m}`,
 				customModelsHint:
-					"Names the provider accepts but does not list - an older release, for instance. They appear in the model pickers next to the families.",
+					"Names the provider accepts but does not list.",
 				refreshModels: "Refresh",
 				modelsLive: "Models reported by the provider.",
 				modelsFallback: "Built-in list - refresh to ask the provider.",
