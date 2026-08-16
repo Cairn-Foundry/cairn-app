@@ -7,9 +7,10 @@ use crate::storage::{CommandOutput, copy_dir_recursive};
 
 /// Runs a program to completion and captures its output. A spawn failure comes
 /// back as an unsuccessful `CommandOutput`, never as an error.
+/// Async: the callers shell out to git, which blocks the UI thread.
 #[tauri::command]
-pub fn run_shell_command(program: &str, args: Vec<String>, cwd: Option<String>) -> CommandOutput {
-    let mut cmd = Command::new(program);
+pub async fn run_shell_command(program: String, args: Vec<String>, cwd: Option<String>) -> CommandOutput {
+    let mut cmd = Command::new(&program);
     cmd.args(&args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -30,8 +31,8 @@ pub fn run_shell_command(program: &str, args: Vec<String>, cwd: Option<String>) 
 
 /// Same, with `stdin` written to the process before its output is read.
 #[tauri::command]
-pub fn run_shell_command_with_stdin(program: &str, args: Vec<String>, cwd: Option<String>, stdin: String) -> CommandOutput {
-    let mut cmd = Command::new(program);
+pub async fn run_shell_command_with_stdin(program: String, args: Vec<String>, cwd: Option<String>, stdin: String) -> CommandOutput {
+    let mut cmd = Command::new(&program);
     cmd.args(&args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);

@@ -333,37 +333,42 @@ pub fn update_instance_status(id: String, project_id: String, status: String) ->
 /// Removes the worktree directory, prunes the git worktree entry, deletes the
 /// branch, then drops the instance and its editor state. The git cleanup is
 /// best effort: a missing worktree or branch must not block the deletion.
+/// Async: removing the worktree directory blocks long enough to freeze the UI thread.
 #[tauri::command]
-pub fn delete_instance(id: String, project_id: String) -> Result<(), String> {
-    let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
-    let mut instances = read_instances(&project_id)?;
-    let instance = instances.iter().find(|i| i.id == id)
-        .ok_or_else(|| format!("Instance '{}' not found", id))?
-        .clone();
+pub async fn delete_instance(id: String, project_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+        let mut instances = read_instances(&project_id)?;
+        let instance = instances.iter().find(|i| i.id == id)
+            .ok_or_else(|| format!("Instance '{}' not found", id))?
+            .clone();
 
-    let wt_path = PathBuf::from(&instance.worktree_path);
-    if wt_path.exists() {
-        fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
-    }
+        let wt_path = PathBuf::from(&instance.worktree_path);
+        if wt_path.exists() {
+            fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
+        }
 
-    let projects = read_projects()?;
-    let expanded_project = projects.iter()
-        .find(|p| p.id == project_id)
-        .map(|p| shellexpand::tilde(&p.path).into_owned())
-        .ok_or_else(|| "Project not found".to_string())?;
+        let projects = read_projects()?;
+        let expanded_project = projects.iter()
+            .find(|p| p.id == project_id)
+            .map(|p| shellexpand::tilde(&p.path).into_owned())
+            .ok_or_else(|| "Project not found".to_string())?;
 
-    let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+        let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-    let slug = instance.branch.replace('/', "-");
-    if let Ok(wt) = repo.find_worktree(&slug) {
-        let _ = wt.prune(None);
-    }
-    if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
-        let _ = branch.delete();
-    };
+        let slug = instance.branch.replace('/', "-");
+        if let Ok(wt) = repo.find_worktree(&slug) {
+            let _ = wt.prune(None);
+        }
+        if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
+            let _ = branch.delete();
+        };
 
-    instances.retain(|i| i.id != id);
-    write_instances(&project_id, &instances)?;
-    let _ = delete_file_state_dir(&project_id, &id);
-    Ok(())
+        instances.retain(|i| i.id != id);
+        write_instances(&project_id, &instances)?;
+        let _ = delete_file_state_dir(&project_id, &id);
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

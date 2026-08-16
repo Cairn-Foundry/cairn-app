@@ -122,8 +122,9 @@ fn default_shell() -> String {
 /// output. When `command` is given the shell runs it and exits; otherwise the
 /// session is interactive. The reader thread also reaps the child and emits
 /// `terminal-exit`, so nothing else has to wait on it.
+/// Async: opening the PTY and starting a login shell blocks the UI thread.
 #[tauri::command]
-pub fn terminal_create(
+pub async fn terminal_create(
     app: tauri::AppHandle,
     id: String,
     cwd: Option<String>,
@@ -253,7 +254,7 @@ pub fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
 
 /// Kills every session, used when the app tears a project down.
 #[tauri::command]
-pub fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<TerminalState>();
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     for (_, mut sess) in sessions.drain() {

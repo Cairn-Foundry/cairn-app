@@ -349,70 +349,47 @@ export interface BlameEntry {
 	summary: string;
 }
 
-/** Blame keyed by line number; an empty map when the file is binary. */
+/** One line's blame as Rust reduces it, before display formatting. */
+interface BlameLine {
+	line: number;
+	hash: string;
+	author: string;
+	timestamp: number;
+	summary: string;
+}
+
+/**
+ * Blame keyed by line number; an empty map when the file is binary. The
+ * porcelain output is parsed in Rust, so only these four fields cross the IPC
+ * rather than the megabytes of repeated commit headers git prints.
+ */
 export async function gitBlame(
 	worktreePath: string,
 	relPath: string,
 ): Promise<Map<number, BlameEntry>> {
-	const result = await invoke<{
-		stdout: string;
-		stderr: string;
-		success: boolean;
-	}>("run_shell_command", {
-		program: "git",
-		args: ["blame", "--line-porcelain", "--", relPath],
-		cwd: worktreePath,
-	});
-	if (!result.success) throw new Error(result.stderr || "git blame failed");
-	if (result.stderr.includes("binary file")) return new Map();
-	return parseBlame(result.stdout);
-}
-
-/** Reads `--line-porcelain` blocks, substituting a placeholder for missing fields. */
-function parseBlame(output: string): Map<number, BlameEntry> {
-	const map = new Map<number, BlameEntry>();
-	const lines = output.split("\n");
-	let i = 0;
-	while (i < lines.length) {
-		const header = lines[i];
-		if (!header || header.length < 40 || !/^[0-9a-f]{40} /.test(header)) {
-			i++;
-			continue;
-		}
-		const parts = header.split(" ");
-		if (parts.length < 3) {
-			i++;
-			continue;
-		}
-		const finalLine = parseInt(parts[2], 10);
-		if (Number.isNaN(finalLine)) {
-			i++;
-			continue;
-		}
-		let author = "";
-		let date = "";
-		let summary = "";
-		i++;
-		while (i < lines.length && !lines[i].startsWith("\t")) {
-			if (lines[i].startsWith("author ") && !lines[i].startsWith("author-"))
-				author = lines[i].slice(7);
-			else if (lines[i].startsWith("author-time ")) {
-				const ts = parseInt(lines[i].slice(12), 10);
-				date = Number.isNaN(ts)
-					? "unknown"
-					: new Date(ts * 1000).toLocaleDateString();
-			} else if (lines[i].startsWith("summary ")) summary = lines[i].slice(8);
-			i++;
-		}
-		i++; // skip content line
-		map.set(finalLine, {
-			hash: parts[0].slice(0, 7),
-			author: author || "(unknown author)",
-			date: date || "unknown",
-			summary: summary || "(no summary)",
+	let lines: BlameLine[];
+	try {
+		lines = await invoke<BlameLine[]>("git_blame_file", {
+			worktreePath,
+			filePath: relPath,
 		});
+	} catch (e) {
+		if (String(e).includes("binary file")) return new Map();
+		throw e;
 	}
-	return map;
+	return new Map(
+		lines.map((l) => [
+			l.line,
+			{
+				hash: l.hash,
+				author: l.author || "(unknown author)",
+				date: l.timestamp
+					? new Date(l.timestamp * 1000).toLocaleDateString()
+					: "unknown",
+				summary: l.summary || "(no summary)",
+			},
+		]),
+	);
 }
 
 /** One added or removed line inside a line-history entry. */

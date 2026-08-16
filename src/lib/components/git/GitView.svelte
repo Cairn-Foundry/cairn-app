@@ -23,6 +23,7 @@
   import {
     git,
     refreshStatus,
+    setDiffsWanted,
     refreshLog,
     loadMoreLog,
     loadAllLog,
@@ -629,10 +630,12 @@
   let graphSearchActive = false;
 
   onMount(() => {
+    setDiffsWanted(true);
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
       refreshStatus();
     }
+    return () => setDiffsWanted(false);
   });
 
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {

@@ -47,14 +47,32 @@ fn build_gitignore_tree(root: &PathBuf, show_ignored: bool) -> Vec<FileNode> {
         .parents(!show_ignored)
         .filter_entry(|e| e.file_name() != ".git");
 
+    // Walking in parallel and assembling afterwards: with `show_ignored` the walk
+    // descends into dependency directories and is what the whole call costs, while
+    // the assembly below is a single pass over the paths it found.
+    let collected = Mutex::new(Vec::new());
+    builder.build_parallel().run(|| {
+        Box::new(|entry| {
+            if let Ok(entry) = entry {
+                let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
+                if let Ok(mut out) = collected.lock() {
+                    out.push((entry.into_path(), is_dir));
+                }
+            }
+            ignore::WalkState::Continue
+        })
+    });
+
+    let mut entries = collected.into_inner().unwrap_or_default();
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
     let mut tree = TreeBuilder::default();
-    for entry in builder.build().flatten() {
-        let path = entry.path();
+    for (path, is_dir) in &entries {
         let rel = match path.strip_prefix(root) {
             Ok(r) if !r.as_os_str().is_empty() => r,
             _ => continue,
         };
-        let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
+        let is_dir = *is_dir;
 
         let components: Vec<_> = rel.components().collect();
         let last = components.len().saturating_sub(1);
@@ -142,7 +160,7 @@ impl AsRef<str> for QuickSearchHit {
 /// Cached entry list; `key` pairs the root with the ignore setting it was built for.
 pub struct QuickSearchIndex {
     key: String,
-    entries: Vec<QuickSearchHit>,
+    entries: Arc<Vec<QuickSearchHit>>,
 }
 
 /// Managed state holding the last quick-search index, rebuilt when the key changes.
@@ -162,15 +180,22 @@ pub async fn quick_search(
     let expanded = shellexpand::tilde(&path).into_owned();
     let key = format!("{}::{}", expanded, include_ignored);
 
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let stale = refresh || guard.as_ref().map(|c| c.key != key).unwrap_or(true);
-    if stale {
-        let root = PathBuf::from(&expanded);
-        if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-        let entries = collect_entries(&root, include_ignored);
-        *guard = Some(QuickSearchIndex { key, entries });
-    }
-    let entries = &guard.as_ref().unwrap().entries;
+    // The index is cloned out and the lock released before matching: a fuzzy match
+    // over the whole entry list would otherwise serialise concurrent keystrokes.
+    let entries = {
+        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+        let stale = refresh || guard.as_ref().map(|c| c.key != key).unwrap_or(true);
+        if stale {
+            let root = PathBuf::from(&expanded);
+            if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
+            let entries = Arc::new(collect_entries(&root, include_ignored));
+            *guard = Some(QuickSearchIndex { key, entries });
+        }
+        match guard.as_ref() {
+            Some(index) => Arc::clone(&index.entries),
+            None => return Ok(Vec::new()),
+        }
+    };
 
     let trimmed = query.trim();
     if trimmed.is_empty() {
@@ -361,14 +386,16 @@ impl<'a, M: Matcher> Sink for MatchSink<'a, M> {
                     if self.count.fetch_add(1, Ordering::Relaxed) >= SEARCH_RESULT_CAP {
                         return Ok(false);
                     }
-                    self.results.lock().unwrap().push(SearchMatch {
-                        path: self.rel.to_string(),
-                        line: line_num,
-                        col: (m.start() + 1) as u32,
-                        text: line_text.clone(),
-                        match_start: m.start() as u32,
-                        match_end: m.end() as u32,
-                    });
+                    if let Ok(mut results) = self.results.lock() {
+                        results.push(SearchMatch {
+                            path: self.rel.to_string(),
+                            line: line_num,
+                            col: (m.start() + 1) as u32,
+                            text: line_text.clone(),
+                            match_start: m.start() as u32,
+                            match_end: m.end() as u32,
+                        });
+                    }
                     start = if m.end() > m.start() { m.end() } else { m.end() + 1 };
                 }
                 _ => break,
@@ -463,4 +490,114 @@ pub async fn search_in_files(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicU32;
+
+    /// A throwaway directory tree, torn down with the guard.
+    struct TempTree {
+        path: PathBuf,
+    }
+
+    impl TempTree {
+        fn new() -> Self {
+            static COUNTER: AtomicU32 = AtomicU32::new(0);
+            let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+            let path = std::env::temp_dir()
+                .join(format!("cairn-files-test-{}-{}", std::process::id(), n));
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(&path).unwrap();
+            TempTree { path }
+        }
+
+        fn write(&self, rel: &str, content: &str) {
+            let full = self.path.join(rel);
+            fs::create_dir_all(full.parent().unwrap()).unwrap();
+            fs::write(full, content).unwrap();
+        }
+
+        fn mkdir(&self, rel: &str) {
+            fs::create_dir_all(self.path.join(rel)).unwrap();
+        }
+    }
+
+    impl Drop for TempTree {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn names(nodes: &[FileNode]) -> Vec<&str> {
+        nodes.iter().map(|n| n.name.as_str()).collect()
+    }
+
+    #[test]
+    fn tree_sorts_directories_first_then_case_insensitively() {
+        let tree = TempTree::new();
+        tree.write("Zeta.txt", "z");
+        tree.write("alpha.txt", "a");
+        tree.mkdir("src");
+        tree.write("src/main.rs", "fn main() {}");
+        tree.mkdir("Docs");
+
+        let nodes = build_gitignore_tree(&tree.path, true);
+        assert_eq!(names(&nodes), vec!["Docs", "src", "alpha.txt", "Zeta.txt"]);
+    }
+
+    #[test]
+    fn tree_nests_children_under_their_directory_with_relative_paths() {
+        let tree = TempTree::new();
+        tree.write("src/lib/deep.rs", "x");
+
+        let nodes = build_gitignore_tree(&tree.path, true);
+        let src = &nodes[0];
+        assert_eq!(src.name, "src");
+        assert!(src.is_dir);
+
+        let lib = &src.children.as_ref().unwrap()[0];
+        assert_eq!(lib.path, "src/lib");
+
+        let deep = &lib.children.as_ref().unwrap()[0];
+        assert_eq!(deep.path, "src/lib/deep.rs");
+        assert!(!deep.is_dir);
+        assert!(deep.children.is_none());
+    }
+
+    #[test]
+    fn tree_honours_gitignore_unless_show_ignored() {
+        let tree = TempTree::new();
+        // `ignore` only applies a .gitignore inside a repository.
+        tree.mkdir(".git");
+        tree.write(".gitignore", "ignored/\n");
+        tree.write("ignored/secret.txt", "s");
+        tree.write("kept.txt", "k");
+
+        let hidden = build_gitignore_tree(&tree.path, false);
+        assert!(!names(&hidden).contains(&"ignored"));
+        assert!(names(&hidden).contains(&"kept.txt"));
+
+        let shown = build_gitignore_tree(&tree.path, true);
+        assert!(names(&shown).contains(&"ignored"));
+    }
+
+    #[test]
+    fn tree_always_skips_the_git_directory() {
+        let tree = TempTree::new();
+        tree.write(".git/config", "[core]");
+        tree.write("a.txt", "a");
+
+        for show_ignored in [false, true] {
+            let nodes = build_gitignore_tree(&tree.path, show_ignored);
+            assert!(!names(&nodes).contains(&".git"));
+        }
+    }
+
+    #[test]
+    fn tree_of_an_empty_directory_is_empty() {
+        let tree = TempTree::new();
+        assert!(build_gitignore_tree(&tree.path, true).is_empty());
+    }
 }

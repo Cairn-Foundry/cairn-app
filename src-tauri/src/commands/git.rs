@@ -338,6 +338,51 @@ pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>
     Ok(map)
 }
 
+/// Which paths have staged and unstaged changes, without any diff content.
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GitChangedPaths {
+    pub staged: Vec<String>,
+    pub unstaged: Vec<String>,
+}
+
+#[tauri::command]
+/// The paths behind the change badges. `git_status` collapses the index and the
+/// worktree column into one category, so a file that is both staged and
+/// modified would be counted once; this keeps the two columns apart while
+/// staying far cheaper than reading both full diffs.
+pub async fn git_changed_paths(worktree_path: String) -> Result<GitChangedPaths, GitError> {
+    let expanded = expand(&worktree_path);
+    let output = git_cmd(&expanded).args(["status", "--porcelain", "-u"]).output()?;
+    if !output.status.success() {
+        return Ok(GitChangedPaths::default());
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut changed = GitChangedPaths::default();
+
+    for line in text.lines() {
+        if line.len() < 4 { continue; }
+        let x = line.chars().next().unwrap_or(' ');
+        let y = line.chars().nth(1).unwrap_or(' ');
+        let path = line[3..].trim_end();
+        let file_path = path.split(" -> ").last().unwrap_or(path).to_string();
+
+        if x == '?' && y == '?' {
+            changed.unstaged.push(file_path);
+            continue;
+        }
+        if x != ' ' {
+            changed.staged.push(file_path.clone());
+        }
+        if y != ' ' {
+            changed.unstaged.push(file_path);
+        }
+    }
+
+    Ok(changed)
+}
+
 #[tauri::command]
 /// Subset of the given paths that git ignores.
 pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, GitError> {
@@ -467,6 +512,71 @@ pub async fn git_diff_file(worktree_path: String, file_path: String, staged: boo
     let raw = run(git_cmd(&expanded).args(&args))?;
     let files = parse_diff(&raw);
     Ok(files.into_iter().next().map(|f| f.hunks).unwrap_or_default())
+}
+
+/// One line's blame, already reduced to what the status bar shows.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BlameLine {
+    pub line: u32,
+    pub hash: String,
+    pub author: String,
+    pub timestamp: i64,
+    pub summary: String,
+}
+
+#[tauri::command]
+/// Blame for the whole file, one entry per line. The `--line-porcelain` output
+/// is parsed here rather than sent across: it repeats the full commit header
+/// for every line and reaches megabytes on a large file, while the four fields
+/// below are all the editor displays.
+pub async fn git_blame_file(worktree_path: String, file_path: String) -> Result<Vec<BlameLine>, GitError> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args(["blame", "--line-porcelain", "--", &file_path]))?;
+    Ok(parse_blame_porcelain(&raw))
+}
+
+/// Reads `--line-porcelain` blocks; a field git omitted stays empty and the
+/// frontend substitutes its placeholder.
+fn parse_blame_porcelain(raw: &str) -> Vec<BlameLine> {
+    let mut out = Vec::new();
+    let mut lines = raw.lines().peekable();
+
+    while let Some(header) = lines.next() {
+        let mut parts = header.split(' ');
+        let Some(hash) = parts.next() else { continue };
+        if hash.len() != 40 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+            continue;
+        }
+        let Some(line_no) = parts.nth(1).and_then(|n| n.parse::<u32>().ok()) else { continue };
+
+        let mut author = String::new();
+        let mut timestamp = 0i64;
+        let mut summary = String::new();
+        while let Some(field) = lines.peek() {
+            if field.starts_with('\t') {
+                lines.next();
+                break;
+            }
+            let field = lines.next().unwrap_or_default();
+            if let Some(v) = field.strip_prefix("author ") {
+                author = v.to_string();
+            } else if let Some(v) = field.strip_prefix("author-time ") {
+                timestamp = v.parse().unwrap_or(0);
+            } else if let Some(v) = field.strip_prefix("summary ") {
+                summary = v.to_string();
+            }
+        }
+
+        out.push(BlameLine {
+            line: line_no,
+            hash: hash[..7].to_string(),
+            author,
+            timestamp,
+            summary,
+        });
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -1438,6 +1548,67 @@ mod tests {
     }
 
     #[test]
+    fn parse_blame_porcelain_keeps_one_entry_per_line() {
+        let raw = "\
+1111111111111111111111111111111111111111 1 1 2
+author Ada
+author-mail <ada@example.com>
+author-time 1700000000
+author-tz +0000
+summary first commit
+filename a.txt
+\tfirst line
+1111111111111111111111111111111111111111 2 2
+\tsecond line
+2222222222222222222222222222222222222222 3 3 1
+author Grace
+author-time 1800000000
+summary later change
+filename a.txt
+\tthird line
+";
+        let blame = parse_blame_porcelain(raw);
+        assert_eq!(blame.len(), 3);
+
+        assert_eq!(blame[0].line, 1);
+        assert_eq!(blame[0].hash, "1111111");
+        assert_eq!(blame[0].author, "Ada");
+        assert_eq!(blame[0].timestamp, 1700000000);
+        assert_eq!(blame[0].summary, "first commit");
+
+        // A repeated commit prints only the header, so the fields stay empty and
+        // the frontend substitutes its placeholders.
+        assert_eq!(blame[1].line, 2);
+        assert_eq!(blame[1].hash, "1111111");
+        assert_eq!(blame[1].author, "");
+
+        assert_eq!(blame[2].line, 3);
+        assert_eq!(blame[2].author, "Grace");
+        assert_eq!(blame[2].summary, "later change");
+    }
+
+    #[test]
+    fn parse_blame_porcelain_does_not_read_author_time_as_author() {
+        let raw = "\
+1111111111111111111111111111111111111111 1 1 1
+author-time 1700000000
+author-mail <ada@example.com>
+\tline
+";
+        let blame = parse_blame_porcelain(raw);
+        assert_eq!(blame[0].author, "");
+        assert_eq!(blame[0].timestamp, 1700000000);
+    }
+
+    #[test]
+    fn parse_blame_porcelain_skips_lines_that_are_not_headers() {
+        assert!(parse_blame_porcelain("not a blame header\n").is_empty());
+        assert!(parse_blame_porcelain("").is_empty());
+        // 40 characters, but not hex.
+        assert!(parse_blame_porcelain("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz 1 1 1\n").is_empty());
+    }
+
+    #[test]
     fn parse_diff_extracts_path_and_lines() {
         let raw = "\
 diff --git a/src/main.rs b/src/main.rs
@@ -1615,6 +1786,31 @@ diff --git a/two.txt b/two.txt
         assert_eq!(status.get("tracked.txt").map(String::as_str), Some("modified"));
         assert_eq!(status.get("untracked.txt").map(String::as_str), Some("untracked"));
         assert_eq!(status.get("staged.txt").map(String::as_str), Some("staged-added"));
+    }
+
+    #[tokio::test]
+    async fn changed_paths_keeps_the_index_and_worktree_columns_apart() {
+        let repo = TempRepo::new();
+        repo.commit("both.txt", "one\n", "init");
+
+        // Staged once, then modified again: the badge counts it on both sides,
+        // which the single category of `git_status` cannot express.
+        repo.write("both.txt", "two\n");
+        repo.git(&["add", "both.txt"]);
+        repo.write("both.txt", "three\n");
+
+        repo.write("untracked.txt", "new\n");
+        repo.write("staged.txt", "add\n");
+        repo.git(&["add", "staged.txt"]);
+
+        let changed = git_changed_paths(repo.wt()).await.unwrap();
+
+        assert!(changed.staged.contains(&"both.txt".to_string()));
+        assert!(changed.unstaged.contains(&"both.txt".to_string()));
+        assert!(changed.staged.contains(&"staged.txt".to_string()));
+        assert!(!changed.unstaged.contains(&"staged.txt".to_string()));
+        assert!(changed.unstaged.contains(&"untracked.txt".to_string()));
+        assert!(!changed.staged.contains(&"untracked.txt".to_string()));
     }
 
     #[tokio::test]

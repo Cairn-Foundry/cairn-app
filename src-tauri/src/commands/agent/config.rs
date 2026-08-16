@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use crate::storage::{ai_providers_file, api_keys_file, api_keys_secret_file, write_json_atomic};
 use chacha20poly1305::aead::{Aead, KeyInit};
@@ -85,13 +86,30 @@ pub struct AiProvidersConfig {
     pub default_provider_id: String,
 }
 
+/// Every write to `ai-providers.json` goes through `save_ai_providers_config`,
+/// so caching the parse is safe and spares a read plus a deserialisation on
+/// every prompt sent.
+static PROVIDERS_CACHE: RwLock<Option<AiProvidersConfig>> = RwLock::new(None);
+
 /// Reads the config file, treating a missing one as the defaults rather than
 /// an error.
 pub fn read_ai_providers_config() -> Result<AiProvidersConfig, String> {
+    if let Ok(cache) = PROVIDERS_CACHE.read()
+        && let Some(config) = cache.as_ref()
+    {
+        return Ok(config.clone());
+    }
     let path = ai_providers_file()?;
-    if !path.exists() { return Ok(AiProvidersConfig::default()); }
-    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    let config = if path.exists() {
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        AiProvidersConfig::default()
+    };
+    if let Ok(mut cache) = PROVIDERS_CACHE.write() {
+        *cache = Some(config.clone());
+    }
+    Ok(config)
 }
 
 /// The provider configuration, as the frontend sees it. Never carries a key.
@@ -103,7 +121,11 @@ pub fn get_ai_providers_config() -> Result<AiProvidersConfig, String> {
 /// Replaces the whole configuration file.
 #[tauri::command]
 pub fn save_ai_providers_config(config: AiProvidersConfig) -> Result<(), String> {
-    write_json_atomic(&ai_providers_file()?, &config)
+    write_json_atomic(&ai_providers_file()?, &config)?;
+    if let Ok(mut cache) = PROVIDERS_CACHE.write() {
+        *cache = Some(config);
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -154,9 +176,27 @@ fn cipher() -> Result<ChaCha20Poly1305, String> {
     Ok(ChaCha20Poly1305::new(&encryption_secret()?.into()))
 }
 
+/// Decrypting `ai-keys.enc` costs a read plus a ChaCha20-Poly1305 pass, and
+/// every prompt needs a key; `write_stored_keys` is the only writer, so the
+/// plaintext map is kept here between writes.
+static KEYS_CACHE: RwLock<Option<HashMap<String, String>>> = RwLock::new(None);
+
 /// The stored keys, or an empty map when the file is missing, unreadable or
 /// fails authentication - a tampered file is never half-read.
 fn read_stored_keys() -> HashMap<String, String> {
+    if let Ok(cache) = KEYS_CACHE.read()
+        && let Some(keys) = cache.as_ref()
+    {
+        return keys.clone();
+    }
+    let keys = decrypt_stored_keys();
+    if let Ok(mut cache) = KEYS_CACHE.write() {
+        *cache = Some(keys.clone());
+    }
+    keys
+}
+
+fn decrypt_stored_keys() -> HashMap<String, String> {
     let Ok(path) = api_keys_file() else { return HashMap::new() };
     let Ok(raw) = fs::read(&path) else { return HashMap::new() };
     if raw.len() < NONCE_LEN {
@@ -175,6 +215,9 @@ fn read_stored_keys() -> HashMap<String, String> {
 /// Seals the keys under a fresh nonce, prefixed to the ciphertext. An empty
 /// map removes the file instead of writing an encrypted nothing.
 fn write_stored_keys(keys: &HashMap<String, String>) -> Result<(), String> {
+    if let Ok(mut cache) = KEYS_CACHE.write() {
+        *cache = Some(keys.clone());
+    }
     let path = api_keys_file()?;
     if keys.is_empty() {
         let _ = fs::remove_file(&path);

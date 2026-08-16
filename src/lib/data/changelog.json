@@ -314,6 +314,69 @@
 					"en": "The terminal now really uses the font chosen in the settings, and open terminals pick up a change immediately instead of keeping the previous one until they were closed.",
 					"fr": "Le terminal utilise désormais réellement la police choisie dans les réglages, et les terminaux ouverts prennent en compte un changement immédiatement au lieu de conserver la précédente jusqu'à leur fermeture."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Deleting an instance no longer freezes the window while its worktree is removed.",
+					"fr": "La suppression d'une instance ne fige plus la fenetre pendant le retrait de son worktree."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a terminal no longer freezes the window while the shell starts.",
+					"fr": "L'ouverture d'un terminal ne fige plus la fenetre pendant le demarrage du shell."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a file no longer freezes the window while its git blame and diff are read.",
+					"fr": "L'ouverture d'un fichier ne fige plus la fenetre pendant la lecture de son blame et de son diff git."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The file tree no longer reloads itself in the background after leaving the Files view, which could make the window stutter on every focus.",
+					"fr": "L'arborescence ne se recharge plus en arriere-plan apres avoir quitte la vue Fichiers, ce qui pouvait faire saccader la fenetre a chaque reprise de focus."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Blame is read far faster on large files: it is now parsed by the backend instead of being sent to the interface in full.",
+					"fr": "Le blame est lu bien plus vite sur les gros fichiers : il est desormais analyse par le backend au lieu d'etre transmis entierement a l'interface."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The file tree is walked in parallel, so showing ignored files on a large project is noticeably faster.",
+					"fr": "L'arborescence est parcourue en parallele, ce qui rend l'affichage des fichiers ignores nettement plus rapide sur un gros projet."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The background git refresh no longer reads the full diffs while the Git view is closed, leaving the app lighter during a session.",
+					"fr": "Le rafraichissement git en arriere-plan ne lit plus les diffs complets quand la vue Git est fermee, ce qui allege l'application pendant une session."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Typing in quick open stays responsive while the search index is being rebuilt.",
+					"fr": "La saisie dans l'ouverture rapide reste reactive pendant la reconstruction de l'index de recherche."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Sending a prompt to an agent no longer re-reads and re-decrypts the provider configuration every time.",
+					"fr": "L'envoi d'un prompt a un agent ne relit et ne dechiffre plus la configuration des fournisseurs a chaque fois."
+				}
 			}
 		]
 	},

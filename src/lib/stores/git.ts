@@ -34,6 +34,8 @@ type GitState = {
 	indexVersion: number;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
+	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
+	changedPaths: gitService.GitChangedPaths;
 	currentBranch: string;
 	branches: string[];
 	remoteBranches: string[];
@@ -62,6 +64,7 @@ const INITIAL: GitState = {
 	indexVersion: 0,
 	unstagedDiffs: [],
 	stagedDiffs: [],
+	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],
 	remoteBranches: [],
@@ -86,8 +89,8 @@ export const git = { subscribe: _git.subscribe };
 
 /** Badge counts; a file staged and modified counts once in `total`, and untracked files count as unstaged. */
 export const gitFileCounts = derived(git, ($g) => {
-	const staged = new Set($g.stagedDiffs.map((f) => f.filePath));
-	const unstaged = new Set($g.unstagedDiffs.map((f) => f.filePath));
+	const staged = new Set($g.changedPaths.staged);
+	const unstaged = new Set($g.changedPaths.unstaged);
 	for (const [p, s] of Object.entries($g.status)) {
 		if (s === "untracked") unstaged.add(p);
 	}
@@ -161,7 +164,22 @@ export function refreshStatus(silent = false): Promise<void> {
 	return queued;
 }
 
-/** The actual read: status, both diffs, branch, remote and operation state, in parallel. */
+/**
+ * Whether anything on screen needs the full diffs. The background poll only
+ * feeds the badges, and reading both diffs is by far the largest recurring
+ * payload of the app, so it is skipped while the git view is closed.
+ */
+let diffsWanted = false;
+
+/** Called by the git view as it opens and closes. */
+export function setDiffsWanted(wanted: boolean): void {
+	diffsWanted = wanted;
+	if (!wanted) {
+		_git.update((s) => ({ ...s, unstagedDiffs: [], stagedDiffs: [] }));
+	}
+}
+
+/** The actual read: status, badge counts, branch, remote and operation state, in parallel. */
 async function runRefreshStatus(silent: boolean): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -175,6 +193,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				statusWorktree: wt,
 				unstagedDiffs: [],
 				stagedDiffs: [],
+				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
 				operationState: null,
@@ -189,15 +208,20 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		}
 		const [
 			status,
-			unstagedDiffs,
-			stagedDiffs,
+			changedPaths,
+			diffs,
 			currentBranch,
 			remoteStatus,
 			operationState,
 		] = await Promise.all([
 			gitService.getStatus(wt),
-			gitService.getDiffUnstaged(wt),
-			gitService.getDiffStaged(wt),
+			gitService.getChangedPaths(wt),
+			diffsWanted
+				? Promise.all([
+						gitService.getDiffUnstaged(wt),
+						gitService.getDiffStaged(wt),
+					])
+				: Promise.resolve(null),
 			gitService.getCurrentBranch(wt),
 			gitService.getRemoteStatus(wt).catch(() => null),
 			gitService.getOperationState(wt).catch(() => null),
@@ -209,8 +233,9 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			status,
 			statusWorktree: wt,
 			indexVersion: s.indexVersion + bump,
-			unstagedDiffs,
-			stagedDiffs,
+			changedPaths,
+			unstagedDiffs: diffs ? diffs[0] : s.unstagedDiffs,
+			stagedDiffs: diffs ? diffs[1] : s.stagedDiffs,
 			currentBranch,
 			remoteStatus,
 			operationState,
@@ -593,6 +618,7 @@ export function clearGitData(): void {
 		statusWorktree: null,
 		unstagedDiffs: [],
 		stagedDiffs: [],
+		changedPaths: { staged: [], unstaged: [] },
 		currentBranch: "",
 		remoteStatus: null,
 		operationState: null,

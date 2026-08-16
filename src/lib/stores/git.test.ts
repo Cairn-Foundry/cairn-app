@@ -20,6 +20,7 @@ vi.mock("$lib/services/git-service", () => ({
 	isGitRepo,
 	getStatus,
 	stageFile,
+	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),
 	getDiffStaged: vi.fn().mockResolvedValue([]),
 	getCurrentBranch: vi.fn().mockResolvedValue("main"),

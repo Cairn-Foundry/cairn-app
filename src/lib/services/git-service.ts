@@ -158,6 +158,19 @@ export async function getStatus(worktreePath: string): Promise<GitFileStatus> {
 	return invoke("git_status", { worktreePath });
 }
 
+/** The paths behind the change badges, with no diff content attached. */
+export interface GitChangedPaths {
+	staged: string[];
+	unstaged: string[];
+}
+
+/** Which files changed on either side of the index, without reading the diffs. */
+export async function getChangedPaths(
+	worktreePath: string,
+): Promise<GitChangedPaths> {
+	return invoke("git_changed_paths", { worktreePath });
+}
+
 /** Keeps only the paths git actually ignores. */
 export async function checkIgnore(
 	worktreePath: string,

@@ -1432,6 +1432,7 @@ import { get } from 'svelte/store';
     window.addEventListener('keydown', handleGlobalKey, { capture: true });
 
     let unlistenFocus: (() => void) | null = null;
+    let focusDisposed = false;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
         if (focused && worktreePath) {
@@ -1441,7 +1442,10 @@ import { get } from 'svelte/store';
         if (!focused && ($settings.saveOn) === 'windowChange') {
           for (let i = 0; i < panes.length; i++) flushSave(i);
         }
-      }).then(unlisten => { unlistenFocus = unlisten; });
+      }).then(unlisten => {
+        if (focusDisposed) unlisten();
+        else unlistenFocus = unlisten;
+      });
     });
 
     let unlistenOsDrop: (() => void) | null = null;
@@ -1494,6 +1498,7 @@ import { get } from 'svelte/store';
 
     return () => {
       window.removeEventListener('keydown', handleGlobalKey, { capture: true });
+      focusDisposed = true;
       unlistenFocus?.();
       osDropDisposed = true;
       unlistenOsDrop?.();
