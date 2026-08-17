@@ -1,7 +1,7 @@
 [
 	{
 		"version": "0.16.0",
-		"date": "",
+		"date": "2026-08-17",
 		"summary": {
 			"en": "The Tests step runs for real: your suite, its results as they arrive, and the failing line one click away.",
 			"fr": "La step Tests fonctionne vraiment : votre suite, ses resultats au fil de l'execution, et la ligne en echec a un clic."
