@@ -21,8 +21,17 @@
   export let path: string;
   export let kind: PreviewKind = 'binary';
   export let source: string | null = null;
+  /** Bumped by the caller to force a re-read from disk without remounting - a reload with the tab left open. */
+  export let reloadToken = 0;
 
   const MAX_INLINE_PDF_BYTES = 24 * 1024 * 1024;
+  /**
+   * Images always load through a data URL rather than the `asset://` protocol: WKWebView caches
+   * that custom scheme by path, ignoring the cache-busting query string, so a file replaced on
+   * disk under the same name keeps showing the old bytes after a close/reopen. A data URL is
+   * read fresh over IPC every time and never touches that cache.
+   */
+  const MAX_INLINE_IMAGE_BYTES = 24 * 1024 * 1024;
 
   let size: number | null = null;
   let hexDump = '';
@@ -33,13 +42,20 @@
   let naturalWidth = 0;
   let naturalHeight = 0;
   let actualSize = false;
+  let cacheBust = 0;
 
-  $: assetUrl = convertFileSrc(path);
+  $: assetUrl = `${convertFileSrc(path)}?t=${cacheBust}`;
   $: if (kind === 'svg' && source !== null) size = new Blob([source]).size;
-  $: void load(path);
+  $: void load(path, reloadToken);
 
-  /** Loads size plus the head bytes, inlining small PDFs; ignores results for a stale path. */
-  async function load(p: string) {
+  /**
+   * Loads size plus the head bytes, inlining small PDFs; ignores results for a stale path.
+   * `token` is unused but keeps this reactive to `reloadToken`, so a reload with the same
+   * path re-reads the file even though the path itself did not change.
+   */
+  async function load(p: string, token: number) {
+    void token;
+    cacheBust = Date.now();
     loading = true;
     failed = false;
     imageBroken = false;
@@ -58,6 +74,7 @@
       size = preview.size;
       hexDump = kind === 'binary' ? formatHexDump(hexToBytes(preview.headHex)) : '';
       if (kind === 'pdf' && preview.size <= MAX_INLINE_PDF_BYTES) await loadInline(p);
+      if (kind === 'image' && preview.size <= MAX_INLINE_IMAGE_BYTES) await loadInline(p);
     } catch {
       if (p !== path) return;
       failed = true;
@@ -68,7 +85,7 @@
     }
   }
 
-  /** Reads the file as base64 into a data URL, used when the asset protocol fails. */
+  /** Reads the file as base64 into a data URL: the normal path for images and small PDFs, and the fallback when the asset protocol fails on a large one. */
   async function loadInline(p: string): Promise<boolean> {
     try {
       const b64 = await readFileBase64(p);

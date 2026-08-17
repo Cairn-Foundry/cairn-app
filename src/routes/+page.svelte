@@ -31,6 +31,9 @@
   let screen: Screen = 'home';
   let homeOpenSection: HomeSection | null = null;
   let homeOpenSettingsTab: string | null = null;
+  let homeOpenAddProjectMode: 'new' | 'open' | 'clone' | null = null;
+  let homeOpenAddProjectPath = '';
+  let homeOpenAddProjectCloneUrl = '';
   let homeSection: string = 'projects';
   let homeSettingsTab: string = 'general';
   let showCreate = false;
@@ -143,10 +146,10 @@
 
     try {
       const { listen } = await import('@tauri-apps/api/event');
-      unlistenCliOpen = await listen<{ paths: string[] }>('cli-open', (e) => {
-        void handleCliPaths(e.payload.paths ?? []);
+      unlistenCliOpen = await listen<{ paths: string[]; openDir: string | null; cloneUrl: string | null }>('cli-open', (e) => {
+        void handleCliRequest(e.payload);
       });
-      await handleCliPaths(await takePendingCliPaths());
+      await handleCliRequest(await takePendingCliPaths());
     } catch {}
   });
 
@@ -237,6 +240,34 @@
     await workspaceView?.openPathsFromCli(paths);
   }
 
+  /**
+   * `cairn .` and `cairn clone <git>` do not name a file to open: a directory
+   * already registered as a project is opened directly, an unknown one - or a
+   * clone URL - goes to the home screen with the import modal preloaded.
+   */
+  async function handleCliRequest(request: { paths: string[]; openDir: string | null; cloneUrl: string | null }) {
+    if (request.cloneUrl) {
+      screen = 'home';
+      homeOpenAddProjectMode = 'clone';
+      homeOpenAddProjectPath = '';
+      homeOpenAddProjectCloneUrl = request.cloneUrl;
+      return;
+    }
+    if (request.openDir) {
+      const existing = $projects.find(p => p.path === request.openDir);
+      if (existing) {
+        await handleOpenProject(existing.id);
+        return;
+      }
+      screen = 'home';
+      homeOpenAddProjectMode = 'open';
+      homeOpenAddProjectPath = request.openDir;
+      homeOpenAddProjectCloneUrl = '';
+      return;
+    }
+    await handleCliPaths(request.paths);
+  }
+
   function handleSectionChange(e: CustomEvent<{ section: string; settingsTab: string }>) {
     homeSection = e.detail.section;
     homeSettingsTab = e.detail.settingsTab;
@@ -253,10 +284,14 @@
     <Home
       openSection={homeOpenSection}
       openSettingsTab={homeOpenSettingsTab}
+      openAddProjectMode={homeOpenAddProjectMode}
+      openAddProjectPath={homeOpenAddProjectPath}
+      openAddProjectCloneUrl={homeOpenAddProjectCloneUrl}
       on:openProject={(e) => handleOpenProject(e.detail)}
       on:closeProject={(e) => handleCloseProject(e.detail)}
       on:projectCreated={(e) => handleProjectCreated(e.detail.id)}
       on:sectionShown={() => { homeOpenSection = null; homeOpenSettingsTab = null; }}
+      on:addProjectShown={() => { homeOpenAddProjectMode = null; }}
       on:sectionChange={handleSectionChange}
     />
   </div>

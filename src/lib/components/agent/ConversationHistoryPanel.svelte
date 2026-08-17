@@ -319,8 +319,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    min-height: 36px;
     padding: 8px 8px 8px 12px;
     border-bottom: 1px solid var(--stroke-0);
+    box-sizing: border-box;
   }
 
   .history-title {

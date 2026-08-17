@@ -58,6 +58,7 @@
   export let lspDiagnostics: LspDiagnostic[] = [];
   export let formatting = false;
   export let worktreePath: string | null = null;
+  export let binaryReloadToken = 0;
 
   let svgPreview = true;
   let showLineHistory = false;
@@ -90,6 +91,7 @@
   export let onConvertIndent: () => void;
   export let onToggleWhitespace: () => void;
   export let onOpenRecent: (node: FileNode) => void;
+  export let onNewFile: () => void = () => {};
   export let onOpenLink: (path: string, anchor: string | null) => void;
   export let onGoToDefinition: () => void;
   export let onFindReferences: () => void;
@@ -186,7 +188,9 @@
           <Skeleton lines={12} height={12} gap={12}/>
         </div>
       {:else if isBinaryPath(activeTab.path)}
-        <BinaryPreview path={activeAbsPath} kind={previewKindFromPath(activeTab.path)} />
+        {#key activeTab.path}
+          <BinaryPreview path={activeAbsPath} kind={previewKindFromPath(activeTab.path)} reloadToken={binaryReloadToken} />
+        {/key}
       {:else}
         {#key activeTab.path}
           <CodeEditor
@@ -295,7 +299,8 @@
       {/if}
     </div>
   {:else}
-    <div class="editor-placeholder">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="editor-placeholder" on:dblclick={onNewFile}>
       <Icon name="file" size={32}/>
       <div>{placeholderText}</div>
       {#if showRecentFiles && recentFiles.filter(p => treeFilePaths.has(p)).length > 0}

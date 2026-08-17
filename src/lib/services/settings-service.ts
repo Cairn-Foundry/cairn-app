@@ -67,6 +67,8 @@ export interface CairnSettings {
 	accentColor: string;
 	workflowTabs: WorkflowTabConfig[];
 	sidebarPosition: "left" | "right";
+	workspaceSidebarPosition: "left" | "right";
+	showPinnedCommandsSidebar: boolean;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

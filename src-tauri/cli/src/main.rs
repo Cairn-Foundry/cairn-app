@@ -70,8 +70,20 @@ fn resolve_app_binary() -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
+/// `clone <url>` names a repository, not a filesystem path: absolutizing it
+/// against the shell's cwd would turn a URL or an `ssh`-style `user@host:repo`
+/// spec into nonsense.
+fn is_clone_invocation(args: &[String]) -> bool {
+    matches!(args, [cmd, ..] if cmd == "clone")
+}
+
 fn main() {
-    let args: Vec<String> = std::env::args().skip(1).map(|a| absolutize(&a)).collect();
+    let raw_args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<String> = if is_clone_invocation(&raw_args) {
+        raw_args
+    } else {
+        raw_args.iter().map(|a| absolutize(a)).collect()
+    };
 
     let Some(binary) = resolve_app_binary() else {
         eprintln!(

@@ -15,15 +15,26 @@ export async function hasCargoNextest(worktreePath: string): Promise<boolean> {
 
 /**
  * Resolves when the run is over; results arrive meanwhile as `test-output`
- * events carrying the same `runId`.
+ * events carrying the same `runId`. `cwd` is where the command actually runs
+ * (the worktree plus the runner's subdir, when it has one); `worktreePath`
+ * stays the true root, so a file path the runner reports relative to its own
+ * `cwd` is turned back into one relative to the worktree the editor opens
+ * against.
  */
 export async function runTests(
 	runId: string,
 	worktreePath: string,
+	cwd: string,
 	command: string,
 	runnerId: string,
 ): Promise<void> {
-	return invoke<void>("run_tests", { runId, worktreePath, command, runnerId });
+	return invoke<void>("run_tests", {
+		runId,
+		worktreePath,
+		cwd,
+		command,
+		runnerId,
+	});
 }
 
 /** Kills exactly one run; a run that already ended is a no-op. */

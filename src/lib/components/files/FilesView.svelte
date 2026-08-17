@@ -142,6 +142,8 @@ import { get } from 'svelte/store';
   }
 
   let panes: PaneState[] = [makePane(), makePane()];
+  /** Bumped whenever a binary tab (image, PDF) must re-read its file from disk without remounting. */
+  let binaryReloadToken = 0;
   let cursorLines: number[] = [1, 1];
   let cursorCols: number[] = [1, 1];
   let pendingJumps: ({ line: number; col: number; anchor?: string | null } | null)[] = [null, null];
@@ -1007,6 +1009,10 @@ import { get } from 'svelte/store';
   /** Re-reads one file from disk into every tab showing it. */
   export async function reloadFileByPath(path: string): Promise<void> {
     if (!worktreePath) return;
+    if (isBinaryPath(path)) {
+      binaryReloadToken++;
+      return;
+    }
     try {
       const raw = await readFile(absolutePathOf(path, worktreePath)) ?? '';
       const le = detectLineEndings(raw);
@@ -1031,7 +1037,12 @@ import { get } from 'svelte/store';
     if (!worktreePath) return;
     const paths = new Set<string>();
     for (const pane of panes) for (const tab of pane.tabs) paths.add(tab.path);
+    let hadBinary = false;
     for (const path of paths) {
+      if (isBinaryPath(path)) {
+        hadBinary = true;
+        continue;
+      }
       let text: string;
       try {
         const raw = await readFile(absolutePathOf(path, worktreePath)) ?? '';
@@ -1050,6 +1061,7 @@ import { get } from 'svelte/store';
         // File may no longer exist; leave that tab as-is
       }
     }
+    if (hadBinary) binaryReloadToken++;
     panes = panes;
     await Promise.all(
       panes.map((p, i) => loadPaneBaseFor(i, p.tabs[p.activeTabIdx] ?? null)),
@@ -1806,9 +1818,10 @@ import { get } from 'svelte/store';
   async function reloadOpenFilesFromDisk() {
     if (!worktreePath) return;
     let changed = false;
+    let hasBinaryTab = false;
     for (const pane of panes) {
       for (const tab of pane.tabs) {
-        if (isBinaryPath(tab.path)) continue;
+        if (isBinaryPath(tab.path)) { hasBinaryTab = true; continue; }
         if (tab.pending !== tab.content) continue;
         try {
           const raw = await readFile(absolutePathOf(tab.path, worktreePath));
@@ -1824,6 +1837,7 @@ import { get } from 'svelte/store';
         } catch {}
       }
     }
+    if (hasBinaryTab) binaryReloadToken++;
     if (changed) panes = panes;
   }
 
@@ -2414,6 +2428,7 @@ import { get } from 'svelte/store';
           recentFiles={recentFiles}
           treeFilePaths={treeFilePaths}
           worktreePath={worktreePath}
+          binaryReloadToken={binaryReloadToken}
           placeholderText={t('files.selectFileToEdit') as string}
           showRecentFiles={true}
           onPaneFocus={() => { focusedPane = i as 0 | 1; }}
@@ -2439,6 +2454,7 @@ import { get } from 'svelte/store';
           onConvertIndent={() => convertIndent(i as 0 | 1)}
           onToggleWhitespace={() => settings.save({ showWhitespace: !($settings.showWhitespace) })}
           onOpenRecent={(node) => openFileInPane(i, node)}
+          onNewFile={() => { expanded.add(selectedDir); expanded = expanded; startEdit({ type: 'new-file', node: null, parentPath: selectedDir, value: '' }); }}
           onOpenLink={(path, anchor) => openMarkdownLink(i, path, anchor)}
           lspDoc={lspDocs[i]}
           formatting={formattingPanes[i]}

@@ -12,7 +12,7 @@
   import FilesView from '$lib/components/files/FilesView.svelte';
   import AgentView from '$lib/components/agent/AgentView.svelte';
   import LazyView from '$lib/components/layout/LazyView.svelte';
-  import PinnedCommandsPanel from '$lib/components/commands/PinnedCommandsPanel.svelte';
+  import PinnedCommandsSidebar from '$lib/components/commands/PinnedCommandsSidebar.svelte';
   import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
   import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '$lib/stores/command-run';
@@ -49,7 +49,6 @@
   let showFinalizeModal = false;
   let showShortcuts = false;
   let showTools = false;
-  let showPinned = false;
   let filesView: FilesView;
   let instanceSearch = '';
   let instanceSearchEl: HTMLInputElement | null = null;
@@ -100,22 +99,14 @@
   function selectTool(id: string) {
     showTool(id as 'terminal' | 'commands' | 'env' | 'formatting');
     showTools = false;
-    showPinned = false;
   }
 
   function closeSidebarPanels() {
     showTools = false;
-    showPinned = false;
-  }
-
-  function togglePinned() {
-    showPinned = !showPinned;
-    if (showPinned) showTools = false;
   }
 
   function toggleTools() {
     showTools = !showTools;
-    if (showTools) showPinned = false;
   }
 
   function openStep(id: string) {
@@ -165,7 +156,8 @@
     }
   }
 
-  $: toolActive = $terminalActive || $commandsActive || $envActive || $formattingActive;
+  $: panelToolActive = $commandsActive || $envActive || $formattingActive;
+  $: toolActive = $terminalActive || panelToolActive;
   $: reviewActive = !toolActive && $activeStep === 'review';
   $: testsActive = !toolActive && $activeStep === 'tests';
   $: gitActive = !toolActive && $activeStep === 'git';
@@ -180,14 +172,6 @@
 
   $: globalPinned = $globalCommands.filter(c => c.pinned);
   $: projectPinned = ($projectCommands[activeProjectId] ?? []).filter(c => c.pinned);
-  $: pinnedCommands = [...globalPinned, ...projectPinned];
-
-  $: hasRunningPinned = Object.values($commandRuns).some(
-    r =>
-      r.projectId === activeProjectId &&
-      r.instanceId === activeInstance?.id &&
-      pinnedCommands.some(c => c.id === r.commandId),
-  );
 
   async function runCommandFromPalette(command: CustomCommand) {
     commandPaletteVisible.set(false);
@@ -505,13 +489,14 @@
   </div>
 
   <!-- Content -->
-  <div class="content-row">
+  <div class="content-row" class:content-row-right={$settings.workspaceSidebarPosition === 'right'}>
     <div class="sidebar-wrap" use:clickOutside={closeSidebarPanels}>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
     <aside
       class="sidebar"
       class:sidebar-empty={!activeInstance}
-      on:click={(e) => { if (!(e.target as Element).closest('.tools-toggle, .pinned-toggle')) closeSidebarPanels(); }}
+      class:sidebar-right={$settings.workspaceSidebarPosition === 'right'}
+      on:click={(e) => { if (!(e.target as Element).closest('.tools-toggle')) closeSidebarPanels(); }}
     >
       {#each STEPS as s}
         <button
@@ -537,19 +522,16 @@
       <div class="divider"></div>
       <div class="spacer"></div>
       <button
-        class="step pinned-toggle {showPinned ? 'active' : ''}"
+        class="step terminal-toggle {$terminalActive ? 'active' : ''}"
         disabled={!activeInstance}
-        aria-label={t('commands.pinnedTitle') as string}
-        on:click={togglePinned}
+        aria-label={t('tools.terminalName') as string}
+        on:click={() => selectTool('terminal')}
       >
-        <span class="icon"><Icon name="command" size={18}/></span>
-        <span class="label">{t('commands.pinnedLabel')}</span>
-        {#if hasRunningPinned}
-          <span class="running-dot" title={t('commands.statusRunning') as string}></span>
-        {/if}
+        <span class="icon"><Icon name="terminal" size={18}/></span>
+        <span class="label">{t('tools.terminalName')}</span>
       </button>
       <button
-        class="step tools-toggle {showTools || toolActive ? 'active' : ''}"
+        class="step tools-toggle {showTools || panelToolActive ? 'active' : ''}"
         disabled={!activeInstance}
         aria-label={t('workspace.ariaTools') as string}
         title={`${t('workspace.toolsLabel')} (${bindingToLabels($shortcuts.toggleTools).join('')})`}
@@ -579,14 +561,6 @@
       />
     {/if}
 
-    {#if showPinned && activeInstance}
-      <PinnedCommandsPanel
-        {globalPinned}
-        {projectPinned}
-        on:close={() => showPinned = false}
-        on:manage={() => selectTool('commands')}
-      />
-    {/if}
     </div>
 
     <main class="main">
@@ -631,6 +605,14 @@
         </div>
       {/if}
     </main>
+
+    {#if activeInstance && $settings.showPinnedCommandsSidebar}
+      <PinnedCommandsSidebar
+        {globalPinned}
+        {projectPinned}
+        position={$settings.workspaceSidebarPosition === 'right' ? 'left' : 'right'}
+      />
+    {/if}
   </div>
 </div>
 

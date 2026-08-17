@@ -102,8 +102,8 @@
   <div class="settings-group-title">{t('settings.editor.layoutGroup')}</div>
   <div class="settings-row">
     <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.sidebarPosition')}</span>
-      <span class="settings-row-desc">{t('settings.editor.sidebarPositionDesc')}</span>
+      <span class="settings-row-label">{t('settings.editor.fileExplorerPosition')}</span>
+      <span class="settings-row-desc">{t('settings.editor.fileExplorerPositionDesc')}</span>
     </div>
     <div class="sidebar-pos-toggle">
       <button

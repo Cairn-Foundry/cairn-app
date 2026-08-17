@@ -8,6 +8,20 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Pinned commands moved out of the header menu into a dedicated rail next to the workflow steps: always visible when at least one command is pinned, right-click to stop a running one.",
+					"fr": "Les commandes epinglees ont quitte le menu du header pour une barre dediee a cote des etapes du workflow : toujours visible des qu'une commande est epinglee, clic droit pour arreter celle qui tourne."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A setting under Project > Layout picks which side the workflow steps sit on - the pinned commands rail follows on the opposite side - and turns the rail off entirely for anyone who does not want it on screen.",
+					"fr": "Un reglage dans Projet > Disposition choisit de quel cote se placent les etapes du workflow - la barre des commandes epinglees suit du cote oppose - et permet de la desactiver entierement pour qui ne la souhaite pas a l'ecran."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "The Tests step now runs the project's own test suite. Cairn detects how the worktree tests itself - a test script in package.json for Vitest or Jest, Cargo.toml, pytest or go.mod - and a monorepo holding several of them offers each one.",
@@ -68,6 +82,90 @@
 				"text": {
 					"en": "Rust projects use cargo-nextest when it is installed, and fall back to plain cargo test otherwise.",
 					"fr": "Les projets Rust utilisent cargo-nextest lorsqu'il est installe, et se rabattent sur cargo test sinon."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A commit's diff in the Git view can be searched by filename, the same way the working tree changes already can.",
+					"fr": "Le diff d'un commit dans la vue Git se recherche par nom de fichier, comme les changements de l'arbre de travail."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "`cairn .` opens the import modal preloaded with the current folder, and `cairn clone <url>` opens it preloaded for a clone - no more hunting for the button.",
+					"fr": "`cairn .` ouvre la modale d'import preremplie avec le dossier courant, et `cairn clone <url>` l'ouvre preremplie pour un clone - plus besoin de chercher le bouton."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Double-clicking the empty editor area starts a new file, ready to be named and saved into the current project.",
+					"fr": "Double-cliquer dans la zone vide de l'editeur cree un nouveau fichier, pret a etre nomme et enregistre dans le projet courant."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Terminal now has its own button in the sidebar instead of living inside Tools, and Commands moved to the window's top bar for one-click access.",
+					"fr": "Le terminal a desormais son propre bouton dans la barre laterale au lieu de vivre dans Outils, et Commandes a rejoint la barre du haut de la fenetre pour un acces en un clic."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The code shown in a Git view diff is now syntax-highlighted, matching the editor.",
+					"fr": "Le code dans le diff de la vue Git est desormais colore syntaxiquement, comme dans l'editeur."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Tests step now finds a package's test script wherever it sits in the repository, instead of only in a short list of known folder names - fixing Vitest not being found in a monorepo subdirectory.",
+					"fr": "La step Tests trouve desormais le script de test d'un paquet ou qu'il se trouve dans le depot, au lieu de se limiter a une courte liste de noms de dossiers connus - ce qui corrige Vitest introuvable dans un sous-dossier de monorepo."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a failing test's file from a monorepo subdirectory now opens the right file instead of a broken path.",
+					"fr": "Ouvrir le fichier d'un test en echec depuis un sous-dossier de monorepo ouvre desormais le bon fichier au lieu d'un chemin casse."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Shift-Tab now outdents in the editor, the way Tab already indents.",
+					"fr": "Shift-Tab desindente desormais dans l'editeur, comme Tab indente deja."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Line breaks and spacing are preserved when the Agent view renders a reply.",
+					"fr": "Les retours a la ligne et les espaces sont preserves lorsque la vue Agent affiche une reponse."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Agent view scrolls again while an agent is answering.",
+					"fr": "La vue Agent defile de nouveau pendant qu'un agent repond."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An image or PDF reopened after being changed on disk now shows the current version instead of a stale cached one.",
+					"fr": "Une image ou un PDF reouvert apres avoir change sur le disque affiche desormais la version actuelle au lieu d'une version en cache perimee."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The History, Agents and New session headers in the Agent view now share the same height.",
+					"fr": "Les en-tetes Historique, Agents et Nouvelle session de la vue Agent partagent desormais la meme hauteur."
 				}
 			}
 		]

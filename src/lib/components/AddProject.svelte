@@ -15,6 +15,8 @@
   import { t } from '$lib/i18n';
 
   export let mode: 'new' | 'open' | 'clone';
+  export let initialPath = '';
+  export let initialCloneUrl = '';
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -53,10 +55,13 @@
 
   // -- Fields ----------------------------------------------------------------
   let name = '';
-  let path = '';
+  let path = initialPath;
   let color = '#6366f1';
-  let cloneUrl = '';
+  let cloneUrl = initialCloneUrl;
   let cloneMethod: 'https' | 'ssh' = 'https';
+
+  if (path) inferNameFromPath();
+  if (cloneUrl) inferNameFromUrl();
 
 
   // -- Directory picker -------------------------------------------------------

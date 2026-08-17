@@ -187,7 +187,11 @@ pub async fn has_cargo_nextest(worktree_path: String) -> bool {
     resolve_binary("cargo-nextest", Some(root)).is_some()
 }
 
-/// Runs `command` in `worktree_path` and streams the result.
+/// Runs `command` in `cwd` and streams the result. `cwd` is the worktree root
+/// plus the runner's `subdir` when it has one - where the command actually
+/// has to run - while `worktree_path` stays the true root, so a file path a
+/// runner reports relative to its own `cwd` is still turned back into a path
+/// relative to the worktree the editor resolves against.
 ///
 /// The whole body goes through `spawn_blocking`: reading a child's pipes to the
 /// end is blocking work, and leaving it on an async worker holds that worker for
@@ -199,11 +203,12 @@ pub async fn run_tests(
     app: tauri::AppHandle,
     run_id: String,
     worktree_path: String,
+    cwd: String,
     command: String,
     runner_id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        run_tests_blocking(app, run_id, worktree_path, command, runner_id)
+        run_tests_blocking(app, run_id, worktree_path, cwd, command, runner_id)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -213,10 +218,11 @@ fn run_tests_blocking(
     app: tauri::AppHandle,
     run_id: String,
     worktree_path: String,
+    cwd: String,
     command: String,
     runner_id: String,
 ) -> Result<(), String> {
-    let cwd = Path::new(&worktree_path).to_path_buf();
+    let cwd = Path::new(&cwd).to_path_buf();
     let mut child = spawn_shell_full(&command, Some(&cwd), true)
         .map_err(|e| format!("failed to start the tests: {e}"))?;
 

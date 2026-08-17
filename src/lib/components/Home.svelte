@@ -26,11 +26,15 @@
     closeProject: string;
     projectCreated: { id: string };
     sectionShown: void;
+    addProjectShown: void;
     sectionChange: { section: string; settingsTab: string };
   }>();
 
   export let openSection: HomeSection | null = null;
   export let openSettingsTab: string | null = null;
+  export let openAddProjectMode: 'new' | 'open' | 'clone' | null = null;
+  export let openAddProjectPath = '';
+  export let openAddProjectCloneUrl = '';
 
   let activeSection: HomeSection = 'projects';
   let settingsTab: SettingsTab = 'general';
@@ -47,7 +51,17 @@
   }
 
   let addProjectMode: 'new' | 'open' | 'clone' | null = null;
+  let addProjectPath = '';
+  let addProjectCloneUrl = '';
   let editingProject: Project | null = null;
+
+  $: if (openAddProjectMode !== null) {
+    activeSection = 'projects';
+    addProjectMode = openAddProjectMode;
+    addProjectPath = openAddProjectPath;
+    addProjectCloneUrl = openAddProjectCloneUrl;
+    dispatch('addProjectShown');
+  }
 </script>
 
 <div class="home">
@@ -61,7 +75,7 @@
       <ProjectsSection
         on:openProject={(e) => dispatch('openProject', e.detail)}
         on:closeProject={(e) => dispatch('closeProject', e.detail)}
-        on:addProject={(e) => addProjectMode = e.detail}
+        on:addProject={(e) => { addProjectMode = e.detail; addProjectPath = ''; addProjectCloneUrl = ''; }}
         on:editProject={(e) => editingProject = e.detail}
       />
 
@@ -145,6 +159,8 @@
 {#if addProjectMode}
   <AddProject
     mode={addProjectMode}
+    initialPath={addProjectPath}
+    initialCloneUrl={addProjectCloneUrl}
     on:close={() => addProjectMode = null}
     on:created={(e) => { addProjectMode = null; dispatch('projectCreated', e.detail); }}
   />

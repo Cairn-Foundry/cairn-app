@@ -84,13 +84,45 @@ describe("detectTestRunners", () => {
 
 	it("finds a second ecosystem in a nested directory", async () => {
 		mountTree(
-			{ "/w": ["package.json"], "/w/src-tauri": ["Cargo.toml"] },
+			{
+				"/w": ["package.json", "src-tauri"],
+				"/w/src-tauri": ["Cargo.toml"],
+			},
 			{ "/w/package.json": PKG_VITEST },
 		);
 		const runners = await detectTestRunners("/w", false);
 
 		expect(runners.map((runner) => runner.id)).toEqual(["vitest", "cargo"]);
 		expect(runners[1].subdir).toBe("src-tauri");
+	});
+
+	it("finds the JS package in a monorepo subdirectory with no fixed name", async () => {
+		mountTree(
+			{ "/w": ["frontend", "README.md"], "/w/frontend": ["package.json"] },
+			{ "/w/frontend/package.json": PKG_VITEST },
+		);
+		const runners = await detectTestRunners("/w", false);
+
+		expect(runners).toHaveLength(1);
+		expect(runners[0].id).toBe("vitest");
+		expect(runners[0].subdir).toBe("frontend");
+	});
+
+	it("does not descend into node_modules or other build/VCS directories", async () => {
+		mountTree(
+			{
+				"/w": ["package.json", "node_modules", ".git", "dist"],
+				"/w/node_modules": ["package.json"],
+			},
+			{
+				"/w/package.json": PKG_VITEST,
+				"/w/node_modules/package.json": PKG_VITEST,
+			},
+		);
+		const runners = await detectTestRunners("/w", false);
+
+		expect(runners).toHaveLength(1);
+		expect(runners[0].subdir).toBe("");
 	});
 
 	it("returns nothing for a worktree with no test setup", async () => {

@@ -855,6 +855,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   min-height: 0;
   overflow: hidden;
 }
+.content-row-right { flex-direction: row-reverse; }
 
 /* Sidebar */
 .sidebar {
@@ -864,6 +865,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   display: flex; flex-direction: column;
   padding: 8px 0;
   flex-shrink: 0;
+}
+.sidebar-right {
+  border-right: none;
+  border-left: 1px solid var(--stroke-0);
 }
 .step {
   display: flex; flex-direction: column; align-items: center;

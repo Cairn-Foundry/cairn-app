@@ -5,8 +5,41 @@
    */
   import type { GitDiffHunk } from '$lib/services/git-service';
   import { t } from '$lib/i18n';
+  import { langFromPath } from '$lib/services/file-service';
+  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
+  import { highlightLineToHtml } from '$lib/utils/git/diff-syntax-highlight';
+  import { activeSyntaxTokens } from '$lib/stores/settings';
 
   export let hunks: GitDiffHunk[] = [];
+  export let filePath = '';
+
+  $: lang = (filePath ? langFromPath(filePath) : 'text') as EditorLanguage;
+
+  let highlightCache = new Map<string, string>();
+  $: if ($activeSyntaxTokens) highlightCache = new Map();
+
+  let highlightTick = 0;
+
+  /**
+   * Renders a diff line as HTML, syntax-highlighted per the file's language; falls back to
+   * escaped text until its highlight resolves. `_tick` is unused but keeps the call reactive:
+   * bumping `highlightTick` re-evaluates every call in the each block once a highlight lands.
+   */
+  function highlightedLine(content: string, _tick: number): string {
+    const key = `${lang}:${content}`;
+    const cached = highlightCache.get(key);
+    if (cached !== undefined) return cached;
+    const fallback = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    highlightCache.set(key, fallback);
+    void highlightLineToHtml(content, lang, $activeSyntaxTokens).then((html) => {
+      highlightCache.set(key, html);
+      highlightTick++;
+    });
+    return fallback;
+  }
 
   const PAGE = 300;
   let shown = PAGE;
@@ -80,7 +113,7 @@
         <span class="gutter">{row.oldNo ?? ''}</span>
         <span class="gutter">{row.newNo ?? ''}</span>
         <span class="sign">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '-' : ''}</span>
-        <span class="content selectable">{row.content || ' '}</span>
+        <span class="content selectable">{@html row.content ? highlightedLine(row.content, highlightTick) : ' '}</span>
       </div>
     {/if}
   {/each}

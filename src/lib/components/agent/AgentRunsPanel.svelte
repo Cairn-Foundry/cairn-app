@@ -97,9 +97,23 @@
     min-height: 0;
   }
 
-  .activity-head { flex: 0 0 auto; }
+  .activity-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 8px 8px 8px 12px;
+    border-bottom: 1px solid var(--stroke-0);
+    box-sizing: border-box;
+  }
 
-  .la-title { flex: 1; }
+  .la-title {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-1);
+  }
 
   .la-badge {
     color: var(--fg-3);

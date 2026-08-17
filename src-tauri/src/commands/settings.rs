@@ -98,6 +98,10 @@ pub struct CairnSettings {
     pub workflow_tabs: Vec<WorkflowTabConfig>,
     #[serde(rename = "sidebarPosition", default = "default_sidebar_position")]
     pub sidebar_position: String,
+    #[serde(rename = "workspaceSidebarPosition", default = "default_sidebar_position")]
+    pub workspace_sidebar_position: String,
+    #[serde(rename = "showPinnedCommandsSidebar", default = "default_true")]
+    pub show_pinned_commands_sidebar: bool,
     #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
@@ -248,6 +252,8 @@ impl Default for CairnSettings {
             accent_color: default_accent_color(),
             workflow_tabs: default_workflow_tabs(),
             sidebar_position: default_sidebar_position(),
+            workspace_sidebar_position: default_sidebar_position(),
+            show_pinned_commands_sidebar: true,
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),

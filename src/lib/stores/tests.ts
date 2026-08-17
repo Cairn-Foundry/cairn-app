@@ -379,7 +379,7 @@ export async function runTests(
 			scope,
 			isWindows(),
 		);
-		await runTestsService(runId, cwd, command, runner.id);
+		await runTestsService(runId, worktreePath, cwd, command, runner.id);
 	} catch (error) {
 		patch(key, { activeRunId: "", error: String(error), pending: [] });
 		forgetRun(runId);

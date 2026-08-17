@@ -22,21 +22,60 @@ pub struct CliStatus {
     pub launcher_available: bool,
 }
 
-/// Paths from the launch arguments, held until the frontend is ready to ask.
+/// What a `cairn` invocation asked for, once its arguments are parsed:
+/// files/directories to open, a directory to import as a project, or a repo
+/// to clone. At most one of `open_dir` / `clone_url` is set; `paths` holds
+/// everything else (files, and directories handed to `take_pending_cli_paths`
+/// callers that only care about file tabs).
+#[derive(Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CliRequest {
+    pub paths: Vec<String>,
+    pub open_dir: Option<String>,
+    pub clone_url: Option<String>,
+}
+
+/// Parses the arguments of a `cairn` invocation against `cwd`: `clone <url>`
+/// opens the clone modal, a single directory argument (`.` included) opens
+/// the import modal, anything else is handed to the frontend as file paths.
+pub fn parse_cli_args(args: &[String], cwd: &Path) -> CliRequest {
+    let args: Vec<&String> = args.iter().filter(|a| !a.starts_with('-')).collect();
+
+    if let [cmd, url] = args.as_slice()
+        && cmd.as_str() == "clone" {
+            return CliRequest {
+                clone_url: Some((*url).clone()),
+                ..Default::default()
+            };
+        }
+
+    if let [arg] = args.as_slice() {
+        let absolute = absolutize(arg, cwd);
+        if Path::new(&absolute).is_dir() {
+            return CliRequest {
+                open_dir: Some(absolute),
+                ..Default::default()
+            };
+        }
+    }
+
+    CliRequest {
+        paths: args.iter().map(|a| absolutize(a, cwd)).collect(),
+        ..Default::default()
+    }
+}
+
+/// The parsed launch request, held until the frontend is ready to ask.
 #[derive(Default)]
-pub struct PendingCliPaths(pub Mutex<Vec<String>>);
+pub struct PendingCliPaths(pub Mutex<CliRequest>);
 
 impl PendingCliPaths {
-    /// Reads the arguments of this launch, dropping flags and resolving the
-    /// paths against the shell's working directory.
+    /// Reads the arguments of this launch and resolves them against the
+    /// shell's working directory.
     pub fn from_args() -> Self {
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let paths: Vec<String> = std::env::args()
-            .skip(1)
-            .filter(|a| !a.starts_with('-'))
-            .map(|a| absolutize(&a, &cwd))
-            .collect();
-        Self(Mutex::new(paths))
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        Self(Mutex::new(parse_cli_args(&args, &cwd)))
     }
 }
 
@@ -51,10 +90,10 @@ pub fn absolutize(arg: &str, cwd: &Path) -> String {
     joined.canonicalize().unwrap_or(joined).to_string_lossy().into_owned()
 }
 
-/// Drains the pending paths: they are consumed once, by the first frontend that
-/// asks, so a later reload does not reopen them.
+/// Drains the pending request: consumed once, by the first frontend that
+/// asks, so a later reload does not reopen it.
 #[tauri::command]
-pub fn take_pending_cli_paths(state: tauri::State<'_, PendingCliPaths>) -> Vec<String> {
+pub fn take_pending_cli_paths(state: tauri::State<'_, PendingCliPaths>) -> CliRequest {
     let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
     std::mem::take(&mut *guard)
 }
@@ -192,4 +231,53 @@ pub async fn uninstall_cli() -> Result<CliStatus, String> {
         return Err(errors.join("; "));
     }
     Ok(read_cli_status())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clone_subcommand_yields_clone_url() {
+        let cwd = std::env::temp_dir();
+        let args = vec!["clone".to_string(), "git@github.com:user/repo.git".to_string()];
+        let req = parse_cli_args(&args, &cwd);
+        assert_eq!(req.clone_url.as_deref(), Some("git@github.com:user/repo.git"));
+        assert!(req.open_dir.is_none());
+        assert!(req.paths.is_empty());
+    }
+
+    #[test]
+    fn dot_argument_yields_open_dir() {
+        let cwd = std::env::temp_dir().canonicalize().unwrap();
+        let args = vec![".".to_string()];
+        let req = parse_cli_args(&args, &cwd);
+        assert_eq!(req.open_dir.as_deref(), Some(cwd.to_string_lossy().as_ref()));
+        assert!(req.clone_url.is_none());
+        assert!(req.paths.is_empty());
+    }
+
+    #[test]
+    fn file_argument_yields_paths() {
+        let cwd = std::env::temp_dir();
+        let file = cwd.join("cairn-cli-test-file.txt");
+        std::fs::write(&file, b"x").unwrap();
+        let args = vec![file.to_string_lossy().into_owned()];
+        let req = parse_cli_args(&args, &cwd);
+        assert_eq!(req.paths, vec![file.to_string_lossy().into_owned()]);
+        assert!(req.open_dir.is_none());
+        assert!(req.clone_url.is_none());
+        std::fs::remove_file(&file).unwrap();
+    }
+
+    #[test]
+    fn flags_are_dropped() {
+        let cwd = std::env::temp_dir();
+        let file = cwd.join("cairn-cli-test-flag.txt");
+        std::fs::write(&file, b"x").unwrap();
+        let args = vec!["--verbose".to_string(), file.to_string_lossy().into_owned()];
+        let req = parse_cli_args(&args, &cwd);
+        assert_eq!(req.paths, vec![file.to_string_lossy().into_owned()]);
+        std::fs::remove_file(&file).unwrap();
+    }
 }

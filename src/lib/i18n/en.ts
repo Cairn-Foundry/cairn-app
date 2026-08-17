@@ -787,11 +787,7 @@ export const en = {
 		globalEmpty: "No command shared across every project yet.",
 		new: "New command",
 		import: "Import",
-		manage: "Manage commands",
 		pinnedLabel: "Commands",
-		pinnedTitle: "Pinned commands",
-		pinnedSubtitle: "Run them in the active instance",
-		pinnedEmpty: "No pinned command yet. Pin one to reach it from here.",
 		run: "Run",
 		stop: "Stop",
 		relaunch: "Run again",
@@ -1467,6 +1463,8 @@ export const en = {
 		manageProfiles: "Manage profiles",
 		changesSearchPlaceholder: "Search by filename...",
 		changesNoResults: "No files match your search.",
+		commitFilesSearchPlaceholder: "Search by filename...",
+		commitFilesNoResults: "No files match your search.",
 		showMoreFiles: (n: number) => `Show ${n} more file${n !== 1 ? "s" : ""}`,
 		showMoreLines: (n: number) =>
 			`Show ${n} more line${n !== 1 ? "s" : ""} (open the file for the full diff)`,
@@ -2264,8 +2262,8 @@ export const en = {
 		editor: {
 			layoutGroup: "Layout",
 			codeEditorGroup: "Code editor",
-			sidebarPosition: "Sidebar position",
-			sidebarPositionDesc:
+			fileExplorerPosition: "File explorer position",
+			fileExplorerPositionDesc:
 				"Move the file explorer to the left or right of the editor.",
 			sidebarLeft: "Left",
 			sidebarRight: "Right",
@@ -2315,6 +2313,15 @@ export const en = {
 			workflowTabsHint: "Drag to reorder · toggle to show/hide",
 			showTab: (name: string) => `Show ${name} tab`,
 			resetProject: "Reset project",
+			layoutGroup: "Layout",
+			sidebarPosition: "Sidebar position",
+			sidebarPositionDesc:
+				"Move the workflow steps to the left or right of the workspace. The pinned commands bar follows on the opposite side.",
+			sidebarLeft: "Left",
+			sidebarRight: "Right",
+			showPinnedCommandsSidebar: "Pinned commands bar",
+			showPinnedCommandsSidebarDesc:
+				"Show the bar listing your pinned commands, on the side opposite the workflow steps.",
 		},
 		languages: {
 			groupTitle: "Language",

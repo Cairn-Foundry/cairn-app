@@ -39,7 +39,7 @@
   } from '@codemirror/language';
   import {
     history, historyKeymap, defaultKeymap,
-    insertTab, toggleComment, toggleBlockComment,
+    insertTab, indentLess, toggleComment, toggleBlockComment,
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectAll,
   } from '@codemirror/commands';
@@ -364,6 +364,7 @@
     return [
       Prec.highest(keymap.of([
         { key: 'Tab',   run: (v) => acceptCompletion(v) || insertTab(v) },
+        { key: 'Shift-Tab', run: indentLess },
         { key: 'Enter', run: acceptCompletion },
         ...closeBracketsKeymap,
         ...completionKeymap,

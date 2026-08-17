@@ -12,12 +12,13 @@ use commands::*;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
-/// Paths handed over by a second launch of the binary, forwarded to the running
-/// instance as a `cli-open` event.
+/// The parsed arguments of a second launch of the binary, forwarded to the
+/// running instance as a `cli-open` event.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CliOpenRequest {
-    paths: Vec<String>,
+    #[serde(flatten)]
+    request: commands::cli::CliRequest,
     cwd: String,
 }
 
@@ -42,14 +43,10 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
         focus_main_window(app);
         let base = std::path::PathBuf::from(&cwd);
-        let paths: Vec<String> = argv
-            .into_iter()
-            .skip(1)
-            .filter(|a| !a.starts_with('-'))
-            .map(|a| commands::cli::absolutize(&a, &base))
-            .collect();
-        if !paths.is_empty() {
-            let _ = app.emit("cli-open", CliOpenRequest { paths, cwd });
+        let args: Vec<String> = argv.into_iter().skip(1).collect();
+        let request = commands::cli::parse_cli_args(&args, &base);
+        if !request.paths.is_empty() || request.open_dir.is_some() || request.clone_url.is_some() {
+            let _ = app.emit("cli-open", CliOpenRequest { request, cwd });
         }
     }));
 

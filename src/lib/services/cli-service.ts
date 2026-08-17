@@ -28,9 +28,20 @@ export function uninstallCli(): Promise<CliStatus> {
 }
 
 /**
- * Drains the paths the app was launched with, absolutized. Draining is the
- * point: a second call returns nothing, so the same file is not reopened.
+ * What a `cairn` invocation asked for: files to open, a directory to open (or
+ * import) as a project, or a repo to clone. At most one of `openDir` /
+ * `cloneUrl` is set.
  */
-export function takePendingCliPaths(): Promise<string[]> {
-	return invoke<string[]>("take_pending_cli_paths");
+export interface CliRequest {
+	paths: string[];
+	openDir: string | null;
+	cloneUrl: string | null;
+}
+
+/**
+ * Drains the request the app was launched with, absolutized. Draining is the
+ * point: a second call returns nothing, so the same launch is not replayed.
+ */
+export function takePendingCliPaths(): Promise<CliRequest> {
+	return invoke<CliRequest>("take_pending_cli_paths");
 }

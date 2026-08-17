@@ -27,6 +27,8 @@ const DEFAULTS: CairnSettings = {
 	accentColor: DEFAULT_ACCENT,
 	workflowTabs: DEFAULT_WF_TABS,
 	sidebarPosition: "left",
+	workspaceSidebarPosition: "left",
+	showPinnedCommandsSidebar: true,
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],

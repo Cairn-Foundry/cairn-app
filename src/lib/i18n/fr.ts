@@ -807,12 +807,7 @@ export const fr = {
 			"Aucune commande partagée entre tous les projets pour l'instant.",
 		new: "Nouvelle commande",
 		import: "Importer",
-		manage: "Gérer les commandes",
 		pinnedLabel: "Commandes",
-		pinnedTitle: "Commandes épinglées",
-		pinnedSubtitle: "À lancer dans l'instance active",
-		pinnedEmpty:
-			"Aucune commande épinglée. Épinglez-en une pour la retrouver ici.",
 		run: "Lancer",
 		stop: "Arrêter",
 		relaunch: "Relancer",
@@ -1497,6 +1492,8 @@ export const fr = {
 		manageProfiles: "Gérer les profils",
 		changesSearchPlaceholder: "Rechercher par nom de fichier...",
 		changesNoResults: "Aucun fichier ne correspond à votre recherche.",
+		commitFilesSearchPlaceholder: "Rechercher par nom de fichier...",
+		commitFilesNoResults: "Aucun fichier ne correspond à votre recherche.",
 		showMoreFiles: (n: number) =>
 			`Afficher ${n} fichier${n !== 1 ? "s" : ""} de plus`,
 		showMoreLines: (n: number) =>
@@ -2314,8 +2311,8 @@ export const fr = {
 		editor: {
 			layoutGroup: "Disposition",
 			codeEditorGroup: "Éditeur de code",
-			sidebarPosition: "Position de la barre latérale",
-			sidebarPositionDesc:
+			fileExplorerPosition: "Position de l'explorateur de fichiers",
+			fileExplorerPositionDesc:
 				"Déplacer l'explorateur de fichiers à gauche ou à droite de l'éditeur.",
 			sidebarLeft: "Gauche",
 			sidebarRight: "Droite",
@@ -2371,6 +2368,15 @@ export const fr = {
 				"Glisser pour réordonner · basculer pour afficher/masquer",
 			showTab: (name: string) => `Afficher l'onglet ${name}`,
 			resetProject: "Réinitialiser le projet",
+			layoutGroup: "Disposition",
+			sidebarPosition: "Position de la barre latérale",
+			sidebarPositionDesc:
+				"Déplacer les étapes du workflow à gauche ou à droite de l'espace de travail. La barre des commandes épinglées se place automatiquement du côté opposé.",
+			sidebarLeft: "Gauche",
+			sidebarRight: "Droite",
+			showPinnedCommandsSidebar: "Barre des commandes épinglées",
+			showPinnedCommandsSidebarDesc:
+				"Afficher la barre listant les commandes épinglées, du côté opposé aux étapes du workflow.",
 		},
 		languages: {
 			groupTitle: "Langue",

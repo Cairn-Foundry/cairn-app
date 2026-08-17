@@ -64,10 +64,22 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		group: s("settings.syntax.groupTitle"),
 	},
 	{
-		label: s("settings.editor.sidebarPosition"),
-		desc: s("settings.editor.sidebarPositionDesc"),
+		label: s("settings.editor.fileExplorerPosition"),
+		desc: s("settings.editor.fileExplorerPositionDesc"),
 		tab: "editor",
 		group: s("settings.editor.layoutGroup"),
+	},
+	{
+		label: s("settings.project.sidebarPosition"),
+		desc: s("settings.project.sidebarPositionDesc"),
+		tab: "project",
+		group: s("settings.project.layoutGroup"),
+	},
+	{
+		label: s("settings.project.showPinnedCommandsSidebar"),
+		desc: s("settings.project.showPinnedCommandsSidebarDesc"),
+		tab: "project",
+		group: s("settings.project.layoutGroup"),
 	},
 	{
 		label: s("settings.editor.treePanelWidth"),

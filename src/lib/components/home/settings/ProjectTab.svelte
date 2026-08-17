@@ -51,6 +51,40 @@
 </script>
 
 <div class="settings-group">
+  <div class="settings-group-title">{t('settings.project.layoutGroup')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.project.sidebarPosition')}</span>
+      <span class="settings-row-desc">{t('settings.project.sidebarPositionDesc')}</span>
+    </div>
+    <div class="sidebar-pos-toggle">
+      <button
+        class="sidebar-pos-btn {($settings.workspaceSidebarPosition) === 'left' ? 'active' : ''}"
+        on:click={() => settings.save({ workspaceSidebarPosition: 'left' })}
+      >{t('settings.project.sidebarLeft')}</button>
+      <button
+        class="sidebar-pos-btn {($settings.workspaceSidebarPosition) === 'right' ? 'active' : ''}"
+        on:click={() => settings.save({ workspaceSidebarPosition: 'right' })}
+      >{t('settings.project.sidebarRight')}</button>
+    </div>
+  </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.project.showPinnedCommandsSidebar')}</span>
+      <span class="settings-row-desc">{t('settings.project.showPinnedCommandsSidebarDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.project.showPinnedCommandsSidebar') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.showPinnedCommandsSidebar}
+        on:change={(e) => settings.save({ showPinnedCommandsSidebar: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+</div>
+
+<div class="settings-group">
   <div class="settings-group-title">{t('settings.project.workflowTabsGroup')}</div>
   <p class="wf-hint">{t('settings.project.workflowTabsHint')}</p>
   <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -96,6 +130,26 @@
 </div>
 
 <style>
+  .sidebar-pos-toggle {
+    display: flex;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .sidebar-pos-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--fg-2);
+    border-radius: 3px;
+    font-family: var(--font-ui);
+    transition: background .1s, color .1s;
+  }
+  .sidebar-pos-btn:hover { color: var(--fg-0); }
+  .sidebar-pos-btn.active { background: var(--bg-3); color: var(--fg-0); }
+
   .wf-hint {
     font-size: 11px;
     color: var(--fg-3);

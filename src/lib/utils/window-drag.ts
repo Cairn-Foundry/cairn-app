@@ -26,17 +26,45 @@ export async function startWindowDrag(event: MouseEvent): Promise<void> {
 	}
 }
 
+/**
+ * Toggles maximize/restore, mirroring the OS title bar's double-click. Skipped
+ * when the gesture started on something interactive, same as the drag itself.
+ */
+async function toggleWindowMaximize(event: MouseEvent): Promise<void> {
+	const target = event.target;
+	if (
+		target instanceof Element &&
+		target.closest(
+			'button, input, textarea, select, a, [role="button"], [data-no-drag]',
+		)
+	) {
+		return;
+	}
+
+	try {
+		const { getCurrentWindow } = await import("@tauri-apps/api/window");
+		await getCurrentWindow().toggleMaximize();
+	} catch {
+		// Ignore in web preview or when the Tauri runtime is unavailable.
+	}
+}
+
 /** Svelte action making a region behave as the window's title bar. */
 export function draggableRegion(node: HTMLElement): { destroy: () => void } {
 	const onMouseDown = (event: MouseEvent): void => {
 		void startWindowDrag(event);
 	};
+	const onDblClick = (event: MouseEvent): void => {
+		void toggleWindowMaximize(event);
+	};
 
 	node.addEventListener("mousedown", onMouseDown);
+	node.addEventListener("dblclick", onDblClick);
 
 	return {
 		destroy: () => {
 			node.removeEventListener("mousedown", onMouseDown);
+			node.removeEventListener("dblclick", onDblClick);
 		},
 	};
 }

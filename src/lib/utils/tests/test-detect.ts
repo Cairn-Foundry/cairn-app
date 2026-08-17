@@ -146,8 +146,21 @@ function detectGo(names: string[], subdir: string): TestRunner | null {
 	};
 }
 
-/** The sub-directories a monorepo commonly puts a second ecosystem in. */
-const NESTED_DIRS = ["src-tauri", "backend", "server", "api"];
+/** Directories a scan never needs to descend into: dependencies, build output, VCS metadata. */
+const SKIP_DIRS = new Set([
+	"node_modules",
+	"target",
+	".git",
+	"dist",
+	"build",
+	"out",
+	".next",
+	".svelte-kit",
+	"vendor",
+	".venv",
+	"venv",
+	"__pycache__",
+]);
 
 /** Every runner found in one directory, in the order they should be offered. */
 async function detectIn(
@@ -169,16 +182,26 @@ async function detectIn(
 }
 
 /**
- * Every runner a worktree exposes, root first then the usual nested folders.
+ * Every runner a worktree exposes. A monorepo can keep its package anywhere,
+ * so every immediate sub-directory of the root is tried, not just a hardcoded
+ * shortlist - `detectIn` is cheap to no-op (an empty `listDirNames`) on a
+ * directory with neither `package.json` nor any other marker, and on a file
+ * it is asked to `listDirNames` on, which resolves to nothing the same way.
  * `hasNextest` comes from the backend, which alone can look for the binary.
  */
 export async function detectTestRunners(
 	worktreePath: string,
 	hasNextest: boolean,
 ): Promise<TestRunner[]> {
+	const rootNames = await listDirNames(worktreePath).catch(
+		() => [] as string[],
+	);
+	const subdirs = rootNames.filter(
+		(name) => !name.startsWith(".") && !SKIP_DIRS.has(name),
+	);
 	const found = await Promise.all([
 		detectIn(worktreePath, "", hasNextest),
-		...NESTED_DIRS.map((dir) => detectIn(worktreePath, dir, hasNextest)),
+		...subdirs.map((dir) => detectIn(worktreePath, dir, hasNextest)),
 	]);
 	return found.flat();
 }

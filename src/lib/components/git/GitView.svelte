@@ -287,6 +287,11 @@
     };
   });
 
+  let commitFilesSearch = '';
+  $: filteredCommitDiffCards = commitFilesSearch.trim()
+    ? commitDiffCards.filter(c => c.filePath.toLowerCase().includes(commitFilesSearch.toLowerCase()))
+    : commitDiffCards;
+
   $: totalAdded          = commitDiffCards.reduce((s, c) => s + c.added,   0);
   $: totalRemoved        = commitDiffCards.reduce((s, c) => s + c.removed, 0);
   $: totalStagedAdded   = stagedCards.reduce((s, c) => s + c.added,   0);
@@ -299,6 +304,7 @@
     selectedCommit = commit;
     selectedCommitDiff = [];
     selectedCommitBody = '';
+    commitFilesSearch = '';
     isLoadingCommitDiff = true;
     try {
       const [diff, body] = await Promise.all([
@@ -1071,7 +1077,7 @@
               {#if h.hasDiff}
                 {#if !collapsedUnstaged.has(h.filePath)}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}
@@ -1245,7 +1251,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -1309,6 +1315,23 @@
       {#if selectedCommitBody}
         <div class="commit-body-detail">{selectedCommitBody}</div>
       {/if}
+      {#if !isLoadingCommitDiff && commitDiffCards.length > 0}
+        <div class="commit-files-search-row">
+          <div class="log-search">
+            <Icon name="search" size={11}/>
+            <input
+              class="log-search-input"
+              bind:value={commitFilesSearch}
+              placeholder={t('git.commitFilesSearchPlaceholder') as string}
+            />
+            {#if commitFilesSearch}
+              <button class="log-search-clear" on:click={() => commitFilesSearch = ''}>
+                <Icon name="x" size={10}/>
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
       <div class="hunks-list">
         {#if isLoadingCommitDiff}
           <div class="empty-hint">
@@ -1316,8 +1339,10 @@
           </div>
         {:else if commitDiffCards.length === 0}
           <div class="empty-hint">{t('git.commitDiffEmpty')}</div>
+        {:else if filteredCommitDiffCards.length === 0}
+          <div class="empty-hint">{t('git.commitFilesNoResults')}</div>
         {:else}
-          {#each commitDiffCards as card (card.filePath)}
+          {#each filteredCommitDiffCards as card (card.filePath)}
             <div class="hunk-card {STATUS_CLASS[card.status] ?? ''}">
               <div class="hunk-card-head">
                 <span class="file-info">
@@ -1338,7 +1363,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -1433,7 +1458,7 @@
               {#if h.hasDiff}
                 {#if expandedStaged.has(h.filePath)}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}
@@ -1945,6 +1970,12 @@
     padding: 6px 10px;
     border-bottom: 1px solid var(--stroke-0);
     flex-shrink: 0;
+  }
+
+  .commit-files-search-row {
+    display: flex;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--stroke-0);
   }
 
   .log-search {

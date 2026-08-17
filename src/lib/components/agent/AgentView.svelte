@@ -78,7 +78,7 @@
   import { responseStats } from '$lib/utils/agent/response-stats';
   import { marked } from 'marked';
 
-  marked.use({ async: false, gfm: true });
+  marked.use({ async: false, gfm: true, breaks: true });
 
   /**
    * A streamed answer re-renders on every chunk, and every block it already
@@ -2143,7 +2143,7 @@
                       {@html renderMarkdown(m.content, m.id)}
                     {/if}
                   {:else}
-                    <p>{m.content}</p>
+                    <p class="plain-text">{m.content}</p>
                   {/if}
                 </div>
               {/if}
@@ -2720,6 +2720,48 @@
 
   .history-toggle:hover { color: var(--fg-0); background: var(--bg-2); }
   .history-toggle.active { color: var(--accent); }
+
+  .agent-split {
+    display: grid;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .agent-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .chat-scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+  }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    padding: 8px 8px 8px 12px;
+    border-bottom: 1px solid var(--stroke-0);
+    box-sizing: border-box;
+  }
+
+  .pane-title {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-1);
+    min-width: 0;
+  }
 
   .pane-title-name {
     overflow: hidden;
@@ -3309,6 +3351,13 @@
   /* Raw source shown while the answer streams: keeps the line breaks the parsed
      markdown would have produced, so the text does not reflow on completion. */
   .streaming-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* The user's own message is shown as sent, not parsed as markdown, so its
+     spaces and line breaks must be rendered as written. */
+  .plain-text {
     white-space: pre-wrap;
     word-break: break-word;
   }
