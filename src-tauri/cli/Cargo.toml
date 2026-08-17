@@ -1,6 +1,6 @@
 [package]
 name = "cairn-cli"
-version = "0.16.0"
+version = "0.17.0"
 description = "Command line launcher for the Cairn application"
 edition = "2021"
 license = "AGPL-3.0-only"
