@@ -22,6 +22,10 @@
     type TestFilter,
   } from '$lib/utils/tests/test-search';
   import { supportsFileScope } from '$lib/utils/tests/test-scope';
+  import { buildTestFixPrompt } from '$lib/utils/tests/test-fix-prompt';
+  import { requestAgentDraft } from '$lib/stores/agent-draft';
+  import { activeStep } from '$lib/stores/ui';
+  import { IS_WINDOWS } from '$lib/utils/platform';
 
   const dispatch = createEventDispatcher<{ openFile: { path: string; line: number } }>();
 
@@ -125,6 +129,20 @@
     void runTests(projectId, instance.id, instance.worktreePath, {
       kind: 'case', file: selected.file, name: selected.name,
     });
+  }
+
+  /**
+   * Hands the failure to the Agent step as a ready-made prompt, and switches to
+   * it. Nothing is sent: the user reads the prompt and decides what to say
+   * about it - whether the code or the test is what is wrong is their call.
+   */
+  function fixWithAi() {
+    if (!instance || !selected || !runner) return;
+    requestAgentDraft(
+      instance.id,
+      buildTestFixPrompt(selected, runner.id, runner.command, IS_WINDOWS),
+    );
+    activeStep.set('agent');
   }
 
   /** Re-runs every test of one file. */
@@ -518,6 +536,11 @@
         {/if}
 
         <div class="actions-row">
+          {#if selected.status === 'fail'}
+            <button class="btn ai-btn" on:click={fixWithAi} disabled={!runner}>
+              <Icon name="sparkles" size={13}/> {t('tests.fixWithAi')}
+            </button>
+          {/if}
           <button class="btn" on:click={rerunCase} disabled={busy}>
             <Icon name="refresh" size={13}/> {t('tests.reRunTest')}
           </button>

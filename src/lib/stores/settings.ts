@@ -56,6 +56,7 @@ const DEFAULTS: CairnSettings = {
 	agentShowModelChip: true,
 	agentShowEffortChip: true,
 	agentShowPermissionChip: true,
+	aiFeatures: {},
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);

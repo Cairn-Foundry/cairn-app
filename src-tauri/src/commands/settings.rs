@@ -45,6 +45,19 @@ pub struct WorkflowTabConfig {
     pub order: u32,
 }
 
+/// Which provider serves one AI feature. Every field may be empty: an empty
+/// `provider_id` or `model` means the default provider, an empty
+/// `prompt_template` the feature's own default.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct AiFeatureAssignment {
+    #[serde(rename = "providerId", default)]
+    pub provider_id: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(rename = "promptTemplate", default)]
+    pub prompt_template: String,
+}
+
 /// A named identity (name, email) selectable when committing.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GitProfile {
@@ -156,6 +169,9 @@ pub struct CairnSettings {
     pub agent_show_effort_chip: bool,
     #[serde(rename = "agentShowPermissionChip", default = "default_true")]
     pub agent_show_permission_chip: bool,
+    /// Keyed by the feature id; a feature with no entry runs on the default provider.
+    #[serde(rename = "aiFeatures", default)]
+    pub ai_features: std::collections::HashMap<String, AiFeatureAssignment>,
 }
 
 /// A language server the user brought themselves. Cairn runs it exactly as it
@@ -281,6 +297,7 @@ impl Default for CairnSettings {
             agent_show_model_chip: true,
             agent_show_effort_chip: true,
             agent_show_permission_chip: true,
+            ai_features: std::collections::HashMap::new(),
         }
     }
 }

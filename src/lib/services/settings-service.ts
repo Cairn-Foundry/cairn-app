@@ -50,6 +50,17 @@ export interface CustomLanguageServer {
 }
 
 /**
+ * Which provider serves one AI feature. An empty `providerId` or `model` means
+ * "whatever the default provider is", so an untouched install needs no entry at
+ * all; an empty `promptTemplate` falls back to the feature's own default.
+ */
+export interface AiFeatureAssignment {
+	providerId: string;
+	model: string;
+	promptTemplate: string;
+}
+
+/**
  * Every global setting. The store merges what it reads with its own DEFAULTS,
  * so a field missing from an older settings.json is not an error.
  */
@@ -101,6 +112,8 @@ export interface CairnSettings {
 	agentShowModelChip: boolean;
 	agentShowEffortChip: boolean;
 	agentShowPermissionChip: boolean;
+	/** Keyed by `AiFeatureId`; a feature with no entry runs on the default provider. */
+	aiFeatures: Record<string, AiFeatureAssignment>;
 }
 
 /** Settings as stored; the store fills in anything the file predates. */

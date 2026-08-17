@@ -1406,7 +1406,17 @@ export const en = {
 		workingTreeClean: "Working tree clean - nothing to commit.",
 		noStagedChanges: "No staged changes - stage hunks to commit.",
 		commitMessage: "Commit message",
-		regenerateWithAi: "Regenerate with AI",
+		generateWithAi: "Generate with AI",
+		aiCancel: "Cancel",
+		aiGenerating: "Writing the commit title and description",
+		aiGenerated: "Commit message ready",
+		aiDismiss: "Dismiss",
+		aiEmpty: "The provider answered nothing usable. Try again.",
+		aiUnavailable:
+			"The provider could not be reached. Check it under Providers.",
+		aiNotAuthenticated:
+			"The provider is not logged in. Authenticate its CLI, then try again.",
+		aiFailed: "The provider failed to write the message.",
 		commit: "Commit",
 		commitAndPush: "Commit & push",
 		changes: "Changes",
@@ -1427,6 +1437,7 @@ export const en = {
 		nFilesStaged: (n: number) => `${n} file${n !== 1 ? "s" : ""} staged`,
 		commitPlaceholder: "feat(scope): describe your change",
 		commitBodyPlaceholder: "Add an optional longer description...",
+		commitBodyLabel: "Commit description",
 		noDiffPreview: "No preview available (binary or empty file).",
 		diffTruncated:
 			"Diff truncated: this file changed too much to show in full.",
@@ -1750,6 +1761,7 @@ export const en = {
 		resetView: "Clear filters",
 		resultCount: (n: number) => `${n} result${n === 1 ? "" : "s"}`,
 		reRunTest: "Re-run this test",
+		fixWithAi: "Fix with AI",
 		reRunFile: "Re-run this file",
 		collapseAll: "Collapse all",
 		expandAll: "Expand all",
@@ -1846,6 +1858,7 @@ export const en = {
 			activity: "Activity",
 			ai: "Artificial Intelligences",
 			providers: "Providers",
+			features: "Features",
 			agents: "Agents",
 			skills: "Skills",
 			mcp: "MCP servers",
@@ -1897,6 +1910,35 @@ export const en = {
 		providers: {
 			title: "Providers",
 			desc: "Connect the AI providers Cairn runs agents on.",
+		},
+		features: {
+			title: "Features",
+			desc: "Choose which provider serves each AI assist.",
+			provider: "Provider",
+			model: "Model",
+			useDefaultProvider: "Default provider",
+			useProviderModel: "Provider default",
+			handsToAgent: "Runs in the Agent step",
+			noProvider:
+				"No CLI provider is enabled. Enable one under Providers - an assist explores the worktree itself, which an API provider cannot do.",
+			promptTemplate: "Prompt template",
+			editTemplate: "Edit the prompt",
+			saveTemplate: "Save",
+			cancel: "Cancel",
+			resetTemplate: "Reset to default",
+			customTemplate: "Customised",
+			promptPlaceholders:
+				"{{ticket}} expands to the instance ticket, or to nothing when there is none.",
+			defs: {
+				commitMessage: {
+					label: "Commit message",
+					desc: "Writes the commit title and description from what is staged, in the Git step.",
+				},
+				testFix: {
+					label: "Test fix",
+					desc: "Turns a failing test into a ready-made prompt and hands it to the Agent step.",
+				},
+			},
 		},
 		agents: {
 			title: "Agents",

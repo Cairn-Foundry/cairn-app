@@ -11,8 +11,8 @@
 
   // Drawn as a circle rather than a rotating border box: a bordered element of
   // an odd pixel size has its centre on a half pixel, and the rounding makes
-  // the arc wobble instead of turning cleanly. An SVG rotates about its own
-  // viewBox, whatever the rendered size.
+  // the arc wobble instead of turning cleanly. Only the arc rotates, about the
+  // viewBox centre, so the layout box itself never moves.
   const VIEW = 24;
   $: radius = (VIEW - stroke * (VIEW / size)) / 2;
   $: width = stroke * (VIEW / size);
@@ -35,6 +35,7 @@
     stroke-width={width}
   />
   <circle
+    class="arc"
     cx={VIEW / 2}
     cy={VIEW / 2}
     r={radius}
@@ -47,11 +48,16 @@
 
 <style>
   .spinner {
-    animation: spinner-rotate 0.6s linear infinite;
     display: inline-block;
     flex-shrink: 0;
-    transform-origin: 50% 50%;
+    overflow: visible;
     vertical-align: middle;
+  }
+
+  .arc {
+    animation: spinner-rotate 0.6s linear infinite;
+    transform-box: view-box;
+    transform-origin: 50% 50%;
   }
 
   @keyframes spinner-rotate {

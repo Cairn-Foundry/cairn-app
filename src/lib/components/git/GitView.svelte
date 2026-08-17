@@ -57,6 +57,10 @@
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
+  import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
+  import { readOnlyPermissionMode, readOnlyTools, resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
+  import { parseCommitMessage, renderCommitPrompt } from '$lib/utils/git/commit-message';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
 
@@ -252,6 +256,12 @@
   let selectedCommitBody = '';
   let isLoadingCommitDiff = false;
   const commitByWorktree: Record<string, SelectedCommitInfo> = {};
+  /**
+   * The commit being written, per worktree. The git store holds a single
+   * message for the whole app, so switching instance would otherwise carry the
+   * message - generated or typed - into a worktree it has nothing to do with.
+   */
+  const draftByWorktree: Record<string, { title: string; body: string }> = {};
 
   let commitTitleEl: HTMLInputElement;
   let commitBodyEl: HTMLTextAreaElement;
@@ -260,6 +270,7 @@
   }
   $: if (commitBodyEl && document.activeElement !== commitBodyEl && commitBodyEl.value !== state.commitBody) {
     commitBodyEl.value = state.commitBody;
+    resizeCommitBody();
   }
 
   /** Classifies a staged file as added, deleted or modified from the kinds of lines it carries. */
@@ -666,6 +677,7 @@
 
   onMount(() => {
     setDiffsWanted(true);
+    void loadAiProviders();
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
       refreshStatus();
@@ -679,8 +691,14 @@
     if (prevWorktree) {
       if (selectedCommit) commitByWorktree[prevWorktree] = selectedCommit;
       else delete commitByWorktree[prevWorktree];
+      draftByWorktree[prevWorktree] = { title: state.commitMessage, body: state.commitBody };
     }
     lastWorktreePath = nextWorktree;
+    // The git store is global, so without this the message being written for
+    // one worktree would follow the user into every other one.
+    const draft = draftByWorktree[nextWorktree] ?? { title: '', body: '' };
+    setCommitMessage(draft.title);
+    setCommitBody(draft.body);
     const restored = commitByWorktree[nextWorktree];
     if (restored) fetchCommitDetail(restored);
     else clearSelectedCommit();
@@ -711,6 +729,96 @@
 
   $: stagedCount = stagedCards.length;
   $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
+
+  /**
+   * Grows the body with its content up to the CSS max-height, past which it
+   * scrolls. Called on input and whenever the value changes from elsewhere -
+   * a generated message, or switching worktree - since neither fires `input`.
+   */
+  function resizeCommitBody() {
+    if (!commitBodyEl) return;
+    commitBodyEl.style.height = 'auto';
+    commitBodyEl.style.height = `${commitBodyEl.scrollHeight}px`;
+  }
+
+  let generating = false;
+  let generateError = '';
+  let generateAbort: AbortController | null = null;
+  /**
+   * What a screen reader is told about the generation. The animation is
+   * decorative and hidden from the tree, so this is the only thing announcing
+   * that the run started - and, just as important, that it finished and the
+   * fields now hold something.
+   */
+  let aiStatusMessage = '';
+
+  $: resolvedCommitFeature = resolveAiFeature('commitMessage', $settings.aiFeatures, $aiProviders);
+  $: canGenerate = (stagedCount > 0 || amendMode) && !resolvedCommitFeature.unavailable;
+
+  /**
+   * Fills the two commit fields from what is staged. The provider is a CLI, so
+   * it reads the diff itself rather than being handed one; the run is read-only
+   * and belongs to no conversation, so nothing lands in the history panel.
+   */
+  async function generateCommitMessage() {
+    if (!instance?.worktreePath || generating) return;
+    const feature = resolvedCommitFeature;
+    if (feature.unavailable) return;
+
+    generating = true;
+    generateError = '';
+    generateAbort = new AbortController();
+    aiStatusMessage = t('git.aiGenerating') as string;
+
+    try {
+      const answer = await runOneShot(
+        renderCommitPrompt(feature.promptTemplate, appendTicketId ? (instance.ticket?.id ?? '') : ''),
+        instance.worktreePath,
+        feature.providerId,
+        {
+          model: feature.model || undefined,
+          permissionMode: readOnlyPermissionMode(feature.providerId) || undefined,
+          allowedTools: readOnlyTools(feature.providerId),
+          signal: generateAbort.signal,
+        },
+      );
+      const parsed = parseCommitMessage(answer);
+      // A failed generation never clobbers what the user already typed.
+      if (parsed.title) {
+        setCommitMessage(parsed.title);
+        setCommitBody(parsed.body);
+        aiStatusMessage = t('git.aiGenerated') as string;
+      } else {
+        generateError = t('git.aiEmpty') as string;
+      }
+    } catch (e) {
+      if (e instanceof AiAssistError) {
+        if (e.kind !== 'cancelled') generateError = aiErrorMessage(e);
+      } else {
+        generateError = String(e);
+      }
+    } finally {
+      // An error is announced by its own alert, a cancel by the button coming
+      // back: leaving the busy message up would outlive what it describes.
+      if (aiStatusMessage !== (t('git.aiGenerated') as string)) aiStatusMessage = '';
+      generating = false;
+      generateAbort = null;
+    }
+  }
+
+  /** Each failure the user can act on gets its own wording, never a bare "error". */
+  function aiErrorMessage(e: AiAssistError): string {
+    const base = t(
+      e.kind === 'unavailable' ? 'git.aiUnavailable'
+      : e.kind === 'notAuthenticated' ? 'git.aiNotAuthenticated'
+      : 'git.aiFailed',
+    ) as string;
+    return e.detail ? `${base} - ${e.detail}` : base;
+  }
+
+  function cancelGenerate() {
+    generateAbort?.abort();
+  }
 
   let showOptions = false;
   let collapsedUnstaged = new Set<string>();
@@ -1545,21 +1653,78 @@
           <Icon name="settings" size={11}/>
           {#if hasActiveOptions}<span class="options-badge"></span>{/if}
         </button>
-        <button class="ai-suggest"><Icon name="sparkles" size={11}/> {t('git.regenerateWithAi')}</button>
+        {#if generating}
+          <button
+            class="ai-suggest ai-btn is-busy"
+            title={t('git.aiCancel') as string}
+            aria-label={t('git.aiCancel') as string}
+            on:click={cancelGenerate}
+          >
+            <Icon name="sparkles" size={11}/> {t('git.aiCancel')}
+          </button>
+        {:else}
+          <button
+            class="ai-suggest ai-btn"
+            disabled={!canGenerate}
+            title={resolvedCommitFeature.unavailable
+              ? (t('home.features.noProvider') as string)
+              : (t('git.generateWithAi') as string)}
+            on:click={generateCommitMessage}
+          >
+            <Icon name="sparkles" size={11}/> {t('git.generateWithAi')}
+          </button>
+        {/if}
       </div>
-      <input
-        class="commit-title"
-        type="text"
-        bind:this={commitTitleEl}
-        placeholder={t('git.commitPlaceholder') as string}
-        on:input={(e) => setCommitMessage((e.target as HTMLInputElement).value)}
-      />
-      <textarea
-        class="commit-msg"
-        bind:this={commitBodyEl}
-        placeholder={t('git.commitBodyPlaceholder') as string}
-        on:input={(e) => setCommitBody((e.target as HTMLTextAreaElement).value)}
-      ></textarea>
+      <!--
+        One live region for the pair: a reader is told once that generation
+        started and once that it landed, instead of twice for two fields, and
+        the fields themselves stay ordinary labelled controls.
+      -->
+      <span class="sr-only" role="status" aria-live="polite">{aiStatusMessage}</span>
+      <div class="ai-field" class:is-generating={generating}>
+        <input
+          class="commit-title"
+          type="text"
+          bind:this={commitTitleEl}
+          aria-label={t('git.commitMessage') as string}
+          placeholder={generating ? '' : (t('git.commitPlaceholder') as string)}
+          disabled={generating}
+          aria-busy={generating}
+          on:input={(e) => setCommitMessage((e.target as HTMLInputElement).value)}
+        />
+        {#if generating}
+          <span class="ai-sweep" aria-hidden="true"></span>
+          {#if !state.commitMessage}
+            <span class="ai-ghost" aria-hidden="true"><i style="width: 62%"></i></span>
+          {/if}
+        {/if}
+      </div>
+      <div class="ai-field ai-field-body" class:is-generating={generating}>
+        <textarea
+          class="commit-msg"
+          bind:this={commitBodyEl}
+          aria-label={t('git.commitBodyLabel') as string}
+          placeholder={generating ? '' : (t('git.commitBodyPlaceholder') as string)}
+          disabled={generating}
+          aria-busy={generating}
+          on:input={(e) => { setCommitBody((e.target as HTMLTextAreaElement).value); resizeCommitBody(); }}
+        ></textarea>
+        {#if generating}
+          <span class="ai-sweep" aria-hidden="true"></span>
+          {#if !state.commitBody}
+            <span class="ai-ghost" aria-hidden="true"><i style="width: 88%"></i><i style="width: 74%"></i><i style="width: 46%"></i></span>
+          {/if}
+        {/if}
+      </div>
+      {#if generateError}
+        <div class="ai-error" role="alert">
+          <Icon name="alert" size={12}/>
+          <span class="selectable">{generateError}</span>
+          <button class="ai-error-close" on:click={() => (generateError = '')} aria-label={t('git.aiDismiss') as string}>
+            <Icon name="x" size={11}/>
+          </button>
+        </div>
+      {/if}
       {#if showOptions}
         <div class="commit-options">
           <label class="option-item">
@@ -2522,10 +2687,38 @@
     padding: 3px 8px;
     cursor: pointer;
   }
-  .ai-suggest:hover {
-    background: var(--bg-4);
-    color: var(--fg-0);
-    border-color: var(--stroke-1);
+  .ai-suggest.is-busy:hover {
+    transform: none;
+  }
+  .ai-suggest:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .ai-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    color: var(--danger);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .ai-error span {
+    flex: 1;
+    min-width: 0;
+  }
+  .ai-error-close {
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
   }
 
   .commit-title {
@@ -2540,10 +2733,170 @@
     padding: 8px;
     outline: none;
     box-sizing: border-box;
-    margin-bottom: 6px;
+    display: block;
   }
   .commit-title:focus { border-color: var(--accent); }
   .commit-title::placeholder { color: var(--fg-4); }
+
+  /** Announced, never shown: the animation itself is hidden from the tree. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /*
+   * The generating state is drawn around the real fields rather than replacing
+   * them: the input keeps its size and position, so the answer lands where the
+   * placeholder lines were instead of making the form jump. `position: relative`
+   * is load-bearing - the ghost and sweep layers are absolutely positioned and
+   * would otherwise escape to the viewport.
+   */
+  .ai-field {
+    position: relative;
+    isolation: isolate;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+  .ai-field-body {
+    margin-bottom: 0;
+  }
+
+  /*
+   * The border glow runs at exactly twice the shimmer's period, so the two stay
+   * in phase and the pair reads as one motion. Unrelated durations never line
+   * up twice the same way and come across as competing flickers.
+   */
+  .ai-field.is-generating {
+    animation: ai-breathe 2.4s ease-in-out infinite;
+  }
+  /* The disabled field would otherwise grey out under the animation. */
+  .ai-field.is-generating .commit-title,
+  .ai-field.is-generating .commit-msg {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent) 5%, var(--bg-0));
+    color: var(--fg-3);
+    opacity: 1;
+  }
+  /*
+   * A rotating aurora border drawn behind the field: the field's own border
+   * goes transparent while generating and this layer, one pixel larger, shows
+   * through as a moving gradient ring.
+   */
+  .ai-field.is-generating::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: 5px;
+    background: conic-gradient(
+      from var(--ai-angle),
+      var(--accent),
+      #b56cff,
+      #5ce0d8,
+      var(--accent)
+    );
+    animation: ai-btn-spin 3s linear infinite;
+    opacity: 0.85;
+  }
+
+  /*
+   * The shimmer passing through the field. It loops seamlessly: the gradient is
+   * built from two identical halves and travels exactly one half per cycle, so
+   * the frame it ends on is pixel-identical to the one it starts on and the
+   * repeat has no seam. `linear` timing is required for that - easing would
+   * slow the band at the loop point and give the jump away.
+   */
+  .ai-sweep {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /*
+     * The faded stops are the accent at zero alpha, never the `transparent`
+     * keyword: that keyword is transparent *black*, and interpolating towards
+     * it drags the ramp through a dark band - the field looks like it has a
+     * hole passing across it rather than a shimmer.
+     */
+    background: linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--accent) 0%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 34%, transparent) 25%,
+      color-mix(in srgb, var(--accent) 0%, transparent) 50%,
+      color-mix(in srgb, var(--accent) 34%, transparent) 75%,
+      color-mix(in srgb, var(--accent) 0%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: ai-sweep 2.4s linear infinite;
+    /* Keeps the band inside the field's rounded corners. */
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  /*
+   * Ghost lines standing where the answer will land, each one "typing" in with
+   * a staggered delay so the field looks like it is being written rather than
+   * merely waiting.
+   */
+  .ai-ghost {
+    position: absolute;
+    inset: 0;
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    pointer-events: none;
+  }
+  .ai-ghost i {
+    display: block;
+    height: 7px;
+    border-radius: 4px;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 45%, transparent),
+      color-mix(in srgb, #b56cff 40%, transparent),
+      color-mix(in srgb, #5ce0d8 35%, transparent));
+    transform-origin: left center;
+    animation: ai-ghost-type 2.4s ease-in-out infinite;
+  }
+  .ai-ghost i:nth-child(2) { animation-delay: .3s; }
+  .ai-ghost i:nth-child(3) { animation-delay: .6s; }
+
+  @keyframes ai-breathe {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+    50% { box-shadow: 0 0 16px 2px color-mix(in srgb, var(--accent) 28%, transparent); }
+  }
+  /*
+   * Exactly one half of the two-part gradient, which is what makes the end
+   * frame identical to the start frame. Any other distance leaves a seam.
+   */
+  @keyframes ai-sweep {
+    from { background-position: 100% 0; }
+    to { background-position: 0% 0; }
+  }
+  @keyframes ai-ghost-type {
+    0% { transform: scaleX(0); opacity: 0; }
+    15% { opacity: 1; }
+    60% { transform: scaleX(1); opacity: 1; }
+    85% { opacity: 0; transform: scaleX(1); }
+    100% { opacity: 0; transform: scaleX(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-field.is-generating,
+    .ai-field.is-generating::before,
+    .ai-sweep,
+    .ai-ghost i {
+      animation: none;
+    }
+    /* Still legible standing still: the state must survive without motion. */
+    .ai-sweep { opacity: 0.3; }
+    .ai-ghost i { transform: none; opacity: .6; }
+  }
 
   .commit-msg {
     width: 100%;
@@ -2555,10 +2908,14 @@
     font-size: 12px;
     line-height: 1.5;
     padding: 8px;
-    resize: vertical;
+    /* Height follows the content, so the user never drags it themselves. */
+    resize: none;
     min-height: 52px;
+    max-height: 220px;
+    overflow-y: auto;
     outline: none;
     box-sizing: border-box;
+    display: block;
   }
   .commit-msg:focus { border-color: var(--accent); }
   .commit-msg::placeholder { color: var(--fg-4); }

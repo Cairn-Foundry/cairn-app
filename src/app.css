@@ -3280,3 +3280,82 @@ html[data-theme="glass"] .os-window {
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
+
+/*
+ * Shared style for every "do it with AI" button. The gradient border and the
+ * sparkle sweep only wake up on hover so the button sits quietly among its
+ * neighbours until the pointer reaches it. `--ai-glow` drives the border
+ * rotation through @property so it can be animated.
+ */
+@property --ai-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.ai-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--fg-1);
+  border-color: transparent;
+  background: transparent;
+  transition: color .18s, box-shadow .25s, transform .18s;
+}
+.ai-btn svg { color: var(--accent); }
+.ai-btn::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ai-angle),
+    var(--accent),
+    #b56cff,
+    #5ce0d8,
+    var(--accent)
+  );
+  opacity: 0.55;
+  transition: opacity .25s;
+}
+.ai-btn::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--bg-2);
+}
+.ai-btn:hover:not(:disabled) {
+  color: var(--fg-0);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+              0 4px 18px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.ai-btn:hover:not(:disabled)::before {
+  opacity: 1;
+  animation: ai-btn-spin 2.4s linear infinite;
+}
+.ai-btn:hover:not(:disabled) .icon,
+.ai-btn:hover:not(:disabled) svg {
+  animation: ai-btn-twinkle 1.1s ease-in-out infinite;
+  color: var(--accent);
+}
+/* While the work runs the button keeps the hover look on its own. */
+.ai-btn.is-busy::before { opacity: 1; animation: ai-btn-spin 2.4s linear infinite; }
+.ai-btn.is-busy svg { animation: ai-btn-twinkle 1.1s ease-in-out infinite; }
+.ai-btn:active:not(:disabled) { transform: translateY(0); }
+.ai-btn:disabled { opacity: 0.45; cursor: default; }
+@keyframes ai-btn-spin { to { --ai-angle: 360deg; } }
+@keyframes ai-btn-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: scale(1.25) rotate(15deg); filter: drop-shadow(0 0 4px var(--accent)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-btn:hover:not(:disabled)::before,
+  .ai-btn.is-busy::before,
+  .ai-btn:hover:not(:disabled) svg,
+  .ai-btn.is-busy svg { animation: none; }
+  .ai-btn:hover:not(:disabled) { transform: none; }
+}

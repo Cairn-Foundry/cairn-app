@@ -167,6 +167,69 @@
 					"en": "The History, Agents and New session headers in the Agent view now share the same height.",
 					"fr": "Les en-tetes Historique, Agents et Nouvelle session de la vue Agent partagent desormais la meme hauteur."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Git step's \"Generate with AI\" button now works: it reads what is staged and fills the commit title and description. The run is read-only, cancellable, and leaves nothing in the conversation history.",
+					"fr": "Le bouton « Générer avec l'IA » de la step Git fonctionne désormais : il lit le contenu stage et remplit le titre et la description du commit. L'exécution est en lecture seule, annulable, et ne laisse rien dans l'historique des conversations."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A failing test in the Tests step can be handed to the agent: the button composes a prompt from the failure - message, expected against received, project stack frames and the command that re-runs that single test - opens the Agent step and fills the input without sending, so you can add what only you know before running it.",
+					"fr": "Un test en échec de la step Tests peut être confié à l'agent : le bouton compose un prompt à partir de l'échec - message, attendu contre reçu, frames du projet et commande qui relance ce seul test - ouvre la step Agent et remplit la saisie sans envoyer, pour que vous puissiez ajouter ce que vous seul savez avant de lancer."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A new Features page, under Artificial Intelligences, maps each AI assist to the provider and model that serves it, and lets the commit message prompt be rewritten. Only CLI providers are offered: they explore the worktree themselves and need no API key.",
+					"fr": "Une nouvelle page Fonctionnalités, dans Intelligences artificielles, associe chaque assistance IA au fournisseur et au modèle qui s'en charge, et permet de réécrire le prompt du message de commit. Seuls les fournisseurs CLI sont proposés : ils explorent le worktree eux-mêmes et ne demandent aucune clé API."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Agent input box now grows to fit a prompt handed to it by another step, instead of staying one line tall.",
+					"fr": "La zone de saisie de l'agent s'agrandit désormais pour accueillir un prompt transmis par une autre step, au lieu de rester haute d'une seule ligne."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "While the AI writes a commit message, the title and description fields shimmer under a glowing border rather than showing a plain spinner, and a screen reader is told when the run starts and when the message is ready.",
+					"fr": "Pendant que l'IA rédige un message de commit, les champs titre et description scintillent sous une bordure lumineuse plutôt que d'afficher un simple indicateur, et un lecteur d'écran est averti du début de l'exécution et de la disponibilité du message."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A generated commit message no longer starts with the agent's own reasoning: when the answer states its thinking before the message, the commit subject is read from the first line that actually looks like one.",
+					"fr": "Un message de commit généré ne commence plus par le raisonnement de l'agent : lorsque la réponse expose sa réflexion avant le message, le sujet du commit est lu à partir de la première ligne qui en a réellement la forme."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The commit message no longer follows you from one instance to another: what is being written is kept per worktree, so switching instance no longer carries a message - generated or typed - into a repository it has nothing to do with.",
+					"fr": "Le message de commit ne vous suit plus d'une instance à l'autre : ce qui est en cours de rédaction est conservé par worktree, si bien que changer d'instance n'emporte plus un message - généré ou saisi - vers un dépôt qui n'a rien à voir."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The commit description grows with its content up to a maximum height instead of being resized by hand, the way the agent input already behaves.",
+					"fr": "La description du commit s'agrandit avec son contenu jusqu'à une hauteur maximale au lieu d'être redimensionnée à la main, comme le fait déjà la saisie de l'agent."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "AI buttons (Generate with AI in the Git step, Fix with AI in the Tests step) share a new animated style with a gradient glow on hover, and generating a commit message now shows an aurora border and ghost lines typing in instead of a plain shimmer.",
+					"fr": "Les boutons IA (Générer avec l'IA dans l'étape Git, Corriger avec l'IA dans l'étape Tests) partagent un nouveau style animé avec un halo dégradé au survol, et la génération d'un message de commit affiche désormais une bordure aurore et des lignes fantômes qui s'écrivent au lieu d'un simple reflet."
+				}
 			}
 		]
 	},

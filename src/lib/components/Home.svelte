@@ -14,6 +14,7 @@
   import type { Project } from '$lib/types/project';
   import AgentsSection from '$lib/components/home/agents/AgentsSection.svelte';
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
+  import FeaturesSection from '$lib/components/home/features/FeaturesSection.svelte';
   import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
   import UsageSection from '$lib/components/home/usage/UsageSection.svelte';
   import PortsSection from '$lib/components/home/PortsSection.svelte';
@@ -95,6 +96,15 @@
       </div>
       <div style="margin-top: 24px;">
         <ProvidersTab />
+      </div>
+
+    {:else if activeSection === 'features'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.features.title')}</h1>
+        <div class="sub">{t('home.features.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <FeaturesSection />
       </div>
 
     {:else if activeSection === 'agents'}

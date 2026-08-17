@@ -12,6 +12,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { t, getLocale } from '$lib/i18n';
   import { activeInstance, instancesWithBase } from '$lib/stores/instance';
+  import { agentDraftRequest, clearAgentDraft } from '$lib/stores/agent-draft';
   import { activeProject, projects } from '$lib/stores/project';
   import { recordUsage } from '$lib/stores/usage';
   import { prepareInstanceEnv } from '$lib/stores/env';
@@ -334,6 +335,33 @@
       ?? selectableProviders[0],
   );
   let currentProviderDef = $derived(currentProvider ? providerById(currentProvider.id) : undefined);
+
+  /**
+   * A prompt another step composed - a failing test, so far. It fills the draft
+   * and is never sent: the user reads it, adds what only they know, and runs it
+   * themselves. An empty conversation takes it as is; one that already holds an
+   * exchange gets a fresh session rather than having its draft overwritten.
+   */
+  $effect(() => {
+    const request = $agentDraftRequest;
+    if (!request) return;
+    const inst = untrack(() => $activeInstance);
+    if (!inst || inst.id !== request.instanceId) return;
+
+    untrack(() => {
+      let conv = conversations[liveKey(inst)];
+      if (!conv || conv.messages.length > 0) conv = startConversation(inst, 'instance');
+      conv.draft = request.text;
+      drafts[conv.id] = request.text;
+      clearAgentDraft();
+      // The box is sized from its content, so an injected prompt has to grow it
+      // the same way typing would.
+      void tick().then(() => {
+        resizeTextarea();
+        textareaEl?.focus();
+      });
+    });
+  });
   let modelOptions = $derived(
     currentProvider ? modelsOf(currentProvider.id, $providerCapabilities) : [],
   );

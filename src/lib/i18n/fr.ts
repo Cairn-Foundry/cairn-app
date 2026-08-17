@@ -1432,7 +1432,17 @@ export const fr = {
 		noStagedChanges:
 			"Aucune modification indexée - indexez des hunks pour commiter.",
 		commitMessage: "Message de commit",
-		regenerateWithAi: "Régénérer avec l'IA",
+		generateWithAi: "Générer avec l'IA",
+		aiCancel: "Annuler",
+		aiGenerating: "Rédaction du titre et de la description du commit",
+		aiGenerated: "Message de commit prêt",
+		aiDismiss: "Fermer",
+		aiEmpty: "Le fournisseur n'a rien renvoyé d'exploitable. Réessayez.",
+		aiUnavailable:
+			"Le fournisseur est injoignable. Vérifiez-le dans Fournisseurs.",
+		aiNotAuthenticated:
+			"Le fournisseur n'est pas connecté. Authentifiez son CLI, puis réessayez.",
+		aiFailed: "Le fournisseur n'a pas pu rédiger le message.",
 		commit: "Commiter",
 		commitAndPush: "Commiter & pousser",
 		changes: "Modifications",
@@ -1455,6 +1465,7 @@ export const fr = {
 		commitPlaceholder: "feat(scope): décrivez votre modification",
 		commitBodyPlaceholder:
 			"Ajouter une description plus longue (facultatif)...",
+		commitBodyLabel: "Description du commit",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		diffTruncated:
 			"Diff tronqué : ce fichier a trop changé pour être affiché en entier.",
@@ -1786,6 +1797,7 @@ export const fr = {
 		resetView: "Effacer les filtres",
 		resultCount: (n: number) => `${n} résultat${n === 1 ? "" : "s"}`,
 		reRunTest: "Relancer ce test",
+		fixWithAi: "Corriger avec l'IA",
 		reRunFile: "Relancer ce fichier",
 		collapseAll: "Tout replier",
 		expandAll: "Tout deplier",
@@ -1883,6 +1895,7 @@ export const fr = {
 			activity: "Activité",
 			ai: "Intelligences artificielles",
 			providers: "Fournisseurs",
+			features: "Fonctionnalités",
 			agents: "Agents",
 			skills: "Compétences",
 			mcp: "Serveurs MCP",
@@ -1934,6 +1947,35 @@ export const fr = {
 		providers: {
 			title: "Fournisseurs",
 			desc: "Connectez les fournisseurs IA sur lesquels Cairn exécute les agents.",
+		},
+		features: {
+			title: "Fonctionnalités",
+			desc: "Choisissez le fournisseur qui prend en charge chaque assistance IA.",
+			provider: "Fournisseur",
+			model: "Modèle",
+			useDefaultProvider: "Fournisseur par défaut",
+			useProviderModel: "Modèle par défaut",
+			handsToAgent: "S'exécute dans la step Agent",
+			noProvider:
+				"Aucun fournisseur CLI n'est activé. Activez-en un dans Fournisseurs : une assistance explore le worktree elle-même, ce qu'un fournisseur API ne peut pas faire.",
+			promptTemplate: "Modèle de prompt",
+			editTemplate: "Modifier le prompt",
+			saveTemplate: "Enregistrer",
+			cancel: "Annuler",
+			resetTemplate: "Réinitialiser",
+			customTemplate: "Personnalisé",
+			promptPlaceholders:
+				"{{ticket}} est remplacé par le ticket de l'instance, ou par rien s'il n'y en a pas.",
+			defs: {
+				commitMessage: {
+					label: "Message de commit",
+					desc: "Rédige le titre et la description du commit à partir du contenu stage, dans la step Git.",
+				},
+				testFix: {
+					label: "Correction de test",
+					desc: "Transforme un test en échec en prompt prêt à l'emploi et le passe à la step Agent.",
+				},
+			},
 		},
 		agents: {
 			title: "Agents",

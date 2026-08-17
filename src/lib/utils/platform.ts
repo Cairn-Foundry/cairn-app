@@ -9,5 +9,14 @@ export const IS_MAC =
 	) ||
 		/mac/i.test(navigator.userAgent));
 
+/** Read the same way as IS_MAC, and for the same reason. */
+export const IS_WINDOWS =
+	typeof navigator !== "undefined" &&
+	(/win/i.test(
+		(navigator as { userAgentData?: { platform?: string } }).userAgentData
+			?.platform ?? "",
+	) ||
+		/windows/i.test(navigator.userAgent));
+
 /** The modifier as shortcuts print it. */
 export const MOD_LABEL = IS_MAC ? "⌘" : "Ctrl";
