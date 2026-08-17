@@ -84,6 +84,8 @@
   export let onFindReferences: (() => void) | undefined = undefined;
   export let onRenameSymbol: (() => void) | undefined = undefined;
   export let onFormatDocument: (() => void) | undefined = undefined;
+  export let onOpenOnForge: ((line: number) => void) | undefined = undefined;
+  export let openOnForgeLabel = '';
 
   /**
    * Past this size the per-keystroke cost of parsing the document dominates
@@ -210,7 +212,7 @@
 
   // -- Context menu ------------------------------------------------------------
 
-  type ContextMenuState = { x: number; y: number; hasSelection: boolean };
+  type ContextMenuState = { x: number; y: number; hasSelection: boolean; line: number };
   let ctxMenu: ContextMenuState | null = null;
   let ctxMenuEl: HTMLElement | null = null;
 
@@ -229,7 +231,8 @@
     if (x + menuW > vw - pad) x = Math.max(pad, x - menuW);
     if (y + menuH > vh - pad) y = Math.max(pad, y - menuH);
 
-    ctxMenu = { x, y, hasSelection };
+    const line = view.state.doc.lineAt(view.state.selection.main.head).number;
+    ctxMenu = { x, y, hasSelection, line };
   }
 
   function closeContextMenu() { ctxMenu = null; }
@@ -615,6 +618,14 @@
     <button role="menuitem" disabled={readonly} on:click={() => runCmd(deleteLine)}>
       <span class="icon"></span>{t('editor.contextMenu.deleteLine')}<span class="kbd">{bindingToLabels($shortcuts.deleteLine).join('')}</span>
     </button>
+
+    {#if onOpenOnForge && openOnForgeLabel}
+      {@const forgeLine = ctxMenu.line}
+      <div class="ctx-sep" role="separator"></div>
+      <button role="menuitem" on:click={() => { closeContextMenu(); onOpenOnForge?.(forgeLine); }}>
+        <span class="icon"></span>{(t('integrations.openOn') as (s: string) => string)(openOnForgeLabel)}
+      </button>
+    {/if}
   </div>
 {/if}
 

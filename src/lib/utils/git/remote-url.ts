@@ -50,6 +50,61 @@ export function parseRemoteUrl(remote: string): ParsedRemote | null {
  * GitHub uses the compare form; everything else follows the GitLab shape, which
  * covers self-hosted instances whose hostname says nothing about the product.
  */
+function isGitHubHost(host: string): boolean {
+	return host === "github.com" || host.endsWith(".github.com");
+}
+
+function encodePath(path: string): string {
+	return path.split("/").map(encodeURIComponent).join("/");
+}
+
+/** Deep link to a file, at a line when given, on the forge hosting `remote`. */
+export function buildFileUrl(
+	remote: string,
+	ref: string,
+	path: string,
+	line: number | null = null,
+): string | null {
+	const parsed = parseRemoteUrl(remote);
+	if (!parsed || !ref || !path) return null;
+	const anchor = line === null ? "" : `#L${line}`;
+	if (isGitHubHost(parsed.host)) {
+		return `${parsed.webUrl}/blob/${encodeURIComponent(ref)}/${encodePath(path)}${anchor}`;
+	}
+	return `${parsed.webUrl}/-/blob/${encodeURIComponent(ref)}/${encodePath(path)}${anchor}`;
+}
+
+/** Deep link to a commit on the forge hosting `remote`. */
+export function buildCommitUrl(remote: string, sha: string): string | null {
+	const parsed = parseRemoteUrl(remote);
+	if (!parsed || !sha) return null;
+	if (isGitHubHost(parsed.host)) return `${parsed.webUrl}/commit/${sha}`;
+	return `${parsed.webUrl}/-/commit/${sha}`;
+}
+
+/** Deep link to a branch on the forge hosting `remote`. */
+export function buildBranchUrl(remote: string, branch: string): string | null {
+	const parsed = parseRemoteUrl(remote);
+	if (!parsed || !branch) return null;
+	if (isGitHubHost(parsed.host)) {
+		return `${parsed.webUrl}/tree/${encodeURIComponent(branch)}`;
+	}
+	return `${parsed.webUrl}/-/tree/${encodeURIComponent(branch)}`;
+}
+
+/** Deep link to the comparison of two refs on the forge hosting `remote`. */
+export function buildCompareUrl(
+	remote: string,
+	base: string,
+	head: string,
+): string | null {
+	const parsed = parseRemoteUrl(remote);
+	if (!parsed || !base || !head) return null;
+	const range = `${encodeURIComponent(base)}...${encodeURIComponent(head)}`;
+	if (isGitHubHost(parsed.host)) return `${parsed.webUrl}/compare/${range}`;
+	return `${parsed.webUrl}/-/compare/${range}`;
+}
+
 export function buildMergeRequestUrl(
 	remote: string,
 	sourceBranch: string,
@@ -58,7 +113,7 @@ export function buildMergeRequestUrl(
 	const parsed = parseRemoteUrl(remote);
 	if (!parsed || !sourceBranch) return null;
 
-	if (parsed.host === "github.com" || parsed.host.endsWith(".github.com")) {
+	if (isGitHubHost(parsed.host)) {
 		const range = targetBranch
 			? `${encodeURIComponent(targetBranch)}...${encodeURIComponent(sourceBranch)}`
 			: encodeURIComponent(sourceBranch);

@@ -1,0 +1,32 @@
+{
+  "issues": [
+    {
+      "id": "10042",
+      "key": "CAIRN-42",
+      "fields": {
+        "summary": "Pipeline badge stays red after a retry",
+        "issuetype": { "id": "10001", "name": "Bug" },
+        "status": { "name": "In Progress", "statusCategory": { "id": 4, "key": "indeterminate", "name": "In Progress" } },
+        "labels": ["bug", "cicd"],
+        "assignee": { "accountId": "5b10ac8d82e05b22cc7d4ef5", "displayName": "Benjamin Bonneton" },
+        "updated": "2026-08-14T10:22:31.000+0200",
+        "description": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Short one." }] }] }
+      }
+    },
+    {
+      "id": "10038",
+      "key": "CAIRN-38",
+      "fields": {
+        "summary": "Rename the Review step",
+        "issuetype": { "id": "10002", "name": "Story" },
+        "status": { "name": "Done", "statusCategory": { "id": 3, "key": "done", "name": "Done" } },
+        "labels": [],
+        "assignee": null,
+        "updated": "2026-08-11T18:02:44.000+0200",
+        "description": null
+      }
+    }
+  ],
+  "nextPageToken": "CAEaAggD",
+  "isLast": false
+}

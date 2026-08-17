@@ -14,6 +14,12 @@ export type WorkflowStep =
 export interface InstanceTicket {
 	id: string;
 	title: string;
+	/** Tracker key ("CAIRN-42", "#123") when the ticket came from an integration. */
+	key?: string;
+	url?: string;
+	/** The integration kind, informative only. */
+	source?: string;
+	connectionId?: string;
 }
 
 /** A unit of work backed by its own git worktree; `parentInstanceId` is set when it was branched off another instance. */

@@ -9,6 +9,8 @@ export interface CommandContext {
 		worktreePath: string;
 		ticketId: string;
 		ticketTitle: string;
+		ticketKey?: string;
+		ticketUrl?: string;
 		baseBranch: string;
 	};
 	project: { id: string; name: string; path: string };
@@ -25,6 +27,10 @@ export const VARIABLE_ENV_NAMES: Record<string, string> = {
 	"instance.ticketTitle": "CAIRN_TICKET_TITLE",
 	"instance.baseBranch": "CAIRN_BASE_BRANCH",
 	"instance.slug": "CAIRN_INSTANCE_SLUG",
+	ticket: "CAIRN_TICKET",
+	"ticket.key": "CAIRN_TICKET_KEY",
+	"ticket.title": "CAIRN_TICKET_TITLE",
+	"ticket.url": "CAIRN_TICKET_URL",
 	"project.id": "CAIRN_PROJECT_ID",
 	"project.name": "CAIRN_PROJECT_NAME",
 	"project.path": "CAIRN_PROJECT_PATH",
@@ -70,6 +76,7 @@ function pad(value: number): string {
 /** Resolves every catalog key at once; a missing context field yields "". */
 export function buildValues(ctx: CommandContext): Record<string, string> {
 	const { now } = ctx;
+	const ticketKey = ctx.instance.ticketKey || ctx.instance.ticketId;
 	return {
 		"instance.id": ctx.instance.id,
 		"instance.branch": ctx.instance.branch,
@@ -78,6 +85,10 @@ export function buildValues(ctx: CommandContext): Record<string, string> {
 		"instance.ticketTitle": ctx.instance.ticketTitle,
 		"instance.baseBranch": ctx.instance.baseBranch,
 		"instance.slug": slugify(ctx.instance.branch || ctx.instance.ticketId),
+		ticket: ticketKey,
+		"ticket.key": ticketKey,
+		"ticket.title": ctx.instance.ticketTitle,
+		"ticket.url": ctx.instance.ticketUrl ?? "",
 		"project.id": ctx.project.id,
 		"project.name": ctx.project.name,
 		"project.path": ctx.project.path,

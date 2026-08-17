@@ -13,6 +13,7 @@
   import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
   import { initTests, disposeTests } from '$lib/stores/tests';
+  import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, watchInstance, unwatchInstance } from '$lib/stores/integrations';
   import { listInstances } from '$lib/services/instance-service';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
@@ -78,7 +79,32 @@
     unlistenCliOpen?.();
     disposeLanguageServers();
     disposeTests();
+    disposeIntegrations();
+    void syncWatchedInstance(null);
   });
+
+  let watched: { projectId: string; instanceId: string; branch: string } | null = null;
+  /** One watched instance at a time: the one on screen in the workspace, none from home. */
+  async function syncWatchedInstance(target: { projectId: string; instanceId: string; branch: string } | null) {
+    const hasChanged =
+      !target || watched?.projectId !== target.projectId || watched?.instanceId !== target.instanceId || watched?.branch !== target.branch;
+    if (watched && hasChanged) {
+      const previous = watched;
+      watched = null;
+      await unwatchInstance(previous.projectId, previous.instanceId).catch(() => {});
+    }
+    if (target && !watched) {
+      watched = { ...target };
+      await watchInstance(target.projectId, target.instanceId, target.branch).catch(() => {});
+    }
+  }
+
+  $: if (mounted && $activeProjectId) void loadProjectIntegrations($activeProjectId).catch(() => {});
+  $: if (mounted) void syncWatchedInstance(
+    screen === 'workspace' && $activeInstance
+      ? { projectId: $activeInstance.projectId, instanceId: $activeInstance.id, branch: $activeInstance.branch }
+      : null,
+  );
 
   /** Closing a project takes its language servers down with it. */
   async function stopProjectLanguageServers(projectId: string) {
@@ -111,6 +137,7 @@
     initTerminals();
     initLanguageServers();
     initTests();
+    initIntegrations();
     void loadAgentActivity();
     await settings.load();
     stopUpdateChecks = startUpdateChecks();
@@ -311,6 +338,7 @@
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
       on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; screen = 'home'; }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
+      on:goIntegrations={() => { homeOpenSection = 'integrations'; screen = 'home'; }}
       on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />
     {/if}

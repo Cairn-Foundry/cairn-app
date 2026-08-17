@@ -4,7 +4,7 @@
    * both folders and cards (a card dropped on a folder joins it). Dispatches `openProject`,
    * `addProject`, `editProject` and `closeProject`.
    */
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { pickGreeting, pickTagline } from '$lib/utils/home/greeting';
@@ -19,6 +19,7 @@
   import CreateFolderModal from './CreateFolderModal.svelte';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { reorderProjects } from '$lib/stores/project';
+  import { inboxLabel, loadProjectInbox, projectInbox } from '$lib/stores/project-inbox';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
@@ -26,6 +27,10 @@
     editProject: Project;
     closeProject: string;
   }>();
+
+  onMount(() => {
+    for (const p of $projects) void loadProjectInbox(p.id);
+  });
 
   let search = '';
   let searchInputEl: HTMLInputElement | null = null;
@@ -500,7 +505,7 @@
         <div class="project-card" role="button" tabindex="0"
              on:click={() => dispatch('openProject', p.id)}
              on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
-          <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
+          <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
           {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
           <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
             <Icon name="more" size={15}/>
@@ -626,7 +631,7 @@
                       on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
                       on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
                     >
-                      <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
+                      <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
                       {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
                       <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
                         <Icon name="more" size={15}/>
@@ -689,7 +694,7 @@
               on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
               on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
             >
-              <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}</div>
+              <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
               {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
               <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
                 <Icon name="more" size={15}/>
@@ -959,6 +964,19 @@
   .folder-name:hover { color: var(--fg-0); }
 
   .folder-spacer { flex: 1; }
+
+  .inbox-pill {
+    margin-left: auto;
+    margin-right: 22px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--fg-3);
+    background: var(--bg-3);
+    border-radius: 10px;
+    padding: 1px 7px;
+    line-height: 1.6;
+    flex-shrink: 0;
+  }
 
   .folder-count {
     font-size: 11px;

@@ -35,6 +35,8 @@ const DEFAULTS: CairnSettings = {
 	agentActivityWidth: 300,
 	quickSearchShowGitignored: false,
 	autoCheckUpdates: true,
+	integrationsPollSeconds: 30,
+	branchTemplate: "feat/{{key}}-{{slug}}",
 	syntaxThemes: [],
 	activeSyntaxThemeId: "",
 	languageServers: [],

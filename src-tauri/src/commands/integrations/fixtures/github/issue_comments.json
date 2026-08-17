@@ -1,0 +1,40 @@
+[
+  {
+    "url": "https://api.github.com/repos/cairn-app/cairn/issues/comments/3100000001",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#issuecomment-3100000001",
+    "issue_url": "https://api.github.com/repos/cairn-app/cairn/issues/340",
+    "id": 3100000001,
+    "node_id": "IC_kwDOLxQzR85404AB",
+    "user": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "html_url": "https://github.com/apps/github-actions",
+      "type": "Bot"
+    },
+    "created_at": "2026-08-10T15:22:40Z",
+    "updated_at": "2026-08-10T15:22:40Z",
+    "author_association": "NONE",
+    "body": "Coverage: 84.2% (+0.3%)",
+    "performed_via_github_app": { "id": 15368, "slug": "github-actions", "name": "GitHub Actions" }
+  },
+  {
+    "url": "https://api.github.com/repos/cairn-app/cairn/issues/comments/3100000002",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#issuecomment-3100000002",
+    "issue_url": "https://api.github.com/repos/cairn-app/cairn/issues/340",
+    "id": 3100000002,
+    "node_id": "IC_kwDOLxQzR85404AC",
+    "user": {
+      "login": "alice",
+      "id": 77001,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77001?v=4",
+      "html_url": "https://github.com/alice",
+      "type": "User"
+    },
+    "created_at": "2026-08-12T09:39:00Z",
+    "updated_at": "2026-08-12T09:39:00Z",
+    "author_association": "MEMBER",
+    "body": "Ready to merge once CI is green.",
+    "performed_via_github_app": null
+  }
+]

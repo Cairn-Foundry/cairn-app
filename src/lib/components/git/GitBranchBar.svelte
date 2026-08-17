@@ -3,11 +3,23 @@
    * Branch header of the git view: current branch, ahead/behind counts, and the fetch, pull and push actions.
    * Dispatches `openMergeRebase` to surface a conflicted state and `filesChanged` after a pull touches the worktree.
    */
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
   import { t } from '$lib/i18n';
+  import { activeInstance } from '$lib/stores/instance';
+  import { capabilities, forgeTerms, hasForge } from '$lib/stores/integrations';
+  import {
+    loadMergeRequest,
+    mergeRequestFormRequest,
+    mergeRequests,
+    mergeRequestStateFor,
+  } from '$lib/stores/merge-request';
+  import { activeStep } from '$lib/stores/ui';
+  import { clickOutside } from '$lib/utils/click-outside';
   import {
     git,
     loadBranches,
@@ -37,6 +49,67 @@
   let fetching = false;
   let pulling = false;
   let pushing = false;
+
+  $: projectId = $activeProject?.id ?? '';
+  $: instanceId = $activeInstance?.id ?? '';
+  $: mrState = mergeRequestStateFor($mergeRequests, projectId, instanceId);
+  $: mergeRequest = mrState.mergeRequest;
+  $: forgeLabel = $capabilities.forge?.label ?? '';
+
+  let lastMrKey = '';
+  $: {
+    const key = $hasForge && projectId && instanceId && state.currentBranch
+      ? `${projectId}:${instanceId}:${state.currentBranch}`
+      : '';
+    if (key !== lastMrKey) {
+      lastMrKey = key;
+      if (key) void loadMergeRequest(projectId, instanceId, state.currentBranch);
+    }
+  }
+
+  let isMrFormOpen = false;
+  let isMrMenuOpen = false;
+  let mrLinkCopied = false;
+
+  let lastFormRequest = get(mergeRequestFormRequest);
+  const unsubscribeFormRequest = mergeRequestFormRequest.subscribe((n) => {
+    if (n === lastFormRequest) return;
+    lastFormRequest = n;
+    if ($hasForge && !mergeRequest) isMrFormOpen = true;
+  });
+  onDestroy(unsubscribeFormRequest);
+
+  $: mrChipText = mergeRequest
+    ? [
+        mergeRequest.number,
+        mergeRequest.isDraft ? (t('mergeRequest.draft') as string) : null,
+        mergeRequest.state !== 'open' ? (t(`mergeRequest.state.${mergeRequest.state}`) as string) : null,
+        (t('mergeRequest.approvals') as (n: number, total: number | null) => string)(
+          mergeRequest.approvals.approved,
+          mergeRequest.approvals.required,
+        ),
+        mergeRequest.pipelineStatus
+          ? `${t('mergeRequest.pipeline')} ${(t(`cicd.status.${mergeRequest.pipelineStatus}`) as string).toLowerCase()}`
+          : null,
+      ].filter((part) => part !== null).join(' - ')
+    : '';
+
+  function openReview() {
+    isMrMenuOpen = false;
+    activeStep.set('review');
+  }
+
+  async function openMrInBrowser() {
+    isMrMenuOpen = false;
+    if (mergeRequest?.url) await openUrl(mergeRequest.url);
+  }
+
+  async function copyMrLink() {
+    if (!mergeRequest?.url) return;
+    await navigator.clipboard.writeText(mergeRequest.url);
+    mrLinkCopied = true;
+    setTimeout(() => { mrLinkCopied = false; isMrMenuOpen = false; }, 900);
+  }
 
   /** Fetches the remote then reloads the branch list so the ahead/behind counts follow. */
   async function doFetch() {
@@ -88,6 +161,56 @@
       <Icon name="branch" size={13} />
       <span class="branch-name selectable">{state.currentBranch}</span>
     </div>
+
+    {#if $hasForge && projectId && instanceId}
+      {#if mergeRequest}
+        <div class="mr-chip-wrap" use:clickOutside={() => (isMrMenuOpen = false)}>
+          <button
+            class="mr-chip"
+            class:is-draft={mergeRequest.isDraft}
+            class:is-failing={mergeRequest.pipelineStatus === 'failed'}
+            title={`${mergeRequest.title} - ${t('mergeRequest.openReview')}`}
+            on:click={openReview}
+          >
+            <Icon name="review" size={12} />
+            <span class="mr-chip-text">{mrChipText}</span>
+          </button>
+          <button
+            class="mr-chip-menu-btn"
+            aria-label={t('mergeRequest.moreActions') as string}
+            aria-expanded={isMrMenuOpen}
+            on:click={() => (isMrMenuOpen = !isMrMenuOpen)}
+          >
+            <Icon name="chev-d" size={11} />
+          </button>
+          {#if isMrMenuOpen}
+            <div class="mr-menu" role="menu">
+              <button role="menuitem" on:click={openMrInBrowser}>
+                <Icon name="external" size={12} />
+                {forgeLabel ? (t('integrations.openOn') as (s: string) => string)(forgeLabel) : t('mergeRequest.openInBrowser')}
+              </button>
+              <button role="menuitem" on:click={copyMrLink}>
+                <Icon name={mrLinkCopied ? 'check' : 'copy'} size={12} />
+                {mrLinkCopied ? t('mergeRequest.linkCopied') : t('mergeRequest.copyLink')}
+              </button>
+              <button role="menuitem" on:click={openReview}>
+                <Icon name="review" size={12} />
+                {t('mergeRequest.openReview')}
+              </button>
+            </div>
+          {/if}
+        </div>
+      {:else if mrState.isRefreshing && !mrState.isLoaded}
+        <span class="mr-chip-pending" title={t(`integrations.terms.${$forgeTerms}.one`) as string}>
+          <Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)" />
+        </span>
+      {:else}
+        <button class="mr-chip create" on:click={() => (isMrFormOpen = true)}>
+          <Icon name="plus" size={11} />
+          <span>{t(`integrations.terms.${$forgeTerms}.chipCreate`)}</span>
+        </button>
+      {/if}
+    {/if}
 
     {#if inOperation && op}
       <button class="op-chip" on:click={() => dispatch('openMergeRebase')}>
@@ -166,7 +289,123 @@
   </div>
 {/if}
 
+{#if isMrFormOpen && $activeInstance}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={() => (isMrFormOpen = false)}
+    on:keydown={(e) => e.key === 'Escape' && (isMrFormOpen = false)}
+  >
+    <div class="modal mr-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <div>
+          <div class="step-count">{t(`integrations.terms.${$forgeTerms}.one`)}</div>
+          <h3>{t(`integrations.terms.${$forgeTerms}.create`)}</h3>
+        </div>
+        <button class="icon-btn close" on:click={() => (isMrFormOpen = false)} aria-label={t('common.close') as string}>
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+      <div class="modal-body">
+        <MergeRequestForm
+          {projectId}
+          {instanceId}
+          sourceBranch={state.currentBranch}
+          targetBranch={$activeInstance.baseBranch}
+          worktreePath={$activeInstance.worktreePath}
+          ticket={$activeInstance.ticket.key
+            ? { key: $activeInstance.ticket.key, title: $activeInstance.ticket.title, url: $activeInstance.ticket.url ?? '' }
+            : null}
+          on:created={() => (isMrFormOpen = false)}
+          on:cancel={() => (isMrFormOpen = false)}
+        />
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .mr-modal { width: min(560px, 92vw); }
+
+  .mr-chip-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .mr-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 380px;
+    padding: 3px 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 999px;
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .mr-chip:hover { background: var(--bg-3); }
+  .mr-chip.is-draft { color: var(--fg-2); border-style: dashed; }
+  .mr-chip.is-failing { border-color: color-mix(in oklch, var(--danger) 40%, var(--stroke-0)); }
+  .mr-chip.create { color: var(--fg-2); }
+  .mr-chip.create:hover { color: var(--fg-0); }
+  .mr-chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mr-chip-wrap .mr-chip {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+  }
+  .mr-chip-menu-btn {
+    display: inline-grid;
+    place-items: center;
+    height: 100%;
+    padding: 3px 5px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 0 999px 999px 0;
+    background: var(--bg-2);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .mr-chip-menu-btn:hover { background: var(--bg-3); color: var(--fg-0); }
+  .mr-chip-pending { display: inline-flex; padding: 0 4px; }
+  .mr-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    min-width: 190px;
+    padding: 4px;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-md);
+    background: var(--bg-2);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.25);
+  }
+  .mr-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mr-menu button:hover { background: var(--bg-3); }
+
   .branch-bar {
     display: flex;
     align-items: center;

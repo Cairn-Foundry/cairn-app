@@ -932,6 +932,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   background: var(--danger);
   box-shadow: 0 0 0 2px var(--bg-1);
 }
+.step .ci-busy {
+  position: absolute; top: 5px; left: 5px;
+  display: inline-flex;
+  color: var(--accent);
+}
 .sidebar .divider {
   height: 1px; background: var(--stroke-0);
   margin: 6px 16px;

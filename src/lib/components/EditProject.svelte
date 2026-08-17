@@ -3,14 +3,18 @@
    * Modal renaming a project and changing its accent colour. Saving is disabled
    * until something actually differs from the current project.
    */
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import ProjectIntegrationsForm from '$lib/components/ProjectIntegrationsForm.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
   import { t } from '$lib/i18n';
   import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
   import { editProject } from '$lib/stores/project';
+  import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '$lib/stores/integrations';
+  import { getRemoteUrl } from '$lib/services/git-service';
   import type { Project } from '$lib/types/project';
+  import type { ProjectIntegrations } from '$lib/types/integrations';
 
   export let project: Project;
 
@@ -20,16 +24,33 @@
   let color = project.color;
   let loading = false;
   let error = '';
+  let remoteUrl = '';
+  let bindings: ProjectIntegrations = EMPTY_BINDINGS;
+  let pristineBindings = JSON.stringify(EMPTY_BINDINGS);
 
+  onMount(async () => {
+    const [, remote] = await Promise.all([
+      loadProjectIntegrations(project.id).catch(() => undefined),
+      getRemoteUrl(project.path).catch(() => ''),
+    ]);
+    remoteUrl = remote;
+    bindings = $bindingsByProject[project.id] ?? EMPTY_BINDINGS;
+    pristineBindings = JSON.stringify(bindings);
+  });
 
-  $: canSave = name.trim().length > 0 && (name.trim() !== project.name || color !== project.color);
+  $: hasBindingChanges = JSON.stringify(bindings) !== pristineBindings;
+  $: canSave = name.trim().length > 0
+    && (name.trim() !== project.name || color !== project.color || hasBindingChanges);
 
   async function save() {
     if (!canSave || loading) return;
     loading = true;
     error = '';
     try {
-      await editProject(project.id, name.trim(), color);
+      if (name.trim() !== project.name || color !== project.color) {
+        await editProject(project.id, name.trim(), color);
+      }
+      if (hasBindingChanges) await saveProjectIntegrations(project.id, bindings);
       dispatch('close');
     } catch (err) {
       error = String(err);
@@ -86,6 +107,10 @@
 
       <ProjectPreviewPill name={name || project.name} {color} />
 
+      <div class="form-section bindings">
+        <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
+      </div>
+
       {#if error}
         <div class="ep-error" role="alert">
           <Icon name="info" size={14}/> {error}
@@ -112,6 +137,7 @@
   .ep-modal { width: min(440px, 92vw); }
 
   .form-section { margin-bottom: 20px; }
+  .form-section.bindings { margin-top: 20px; margin-bottom: 0; }
   .ep-label {
     display: block;
     font-size: 11px;

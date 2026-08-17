@@ -91,6 +91,9 @@ export interface CairnSettings {
 	agentActivityWidth: number;
 	quickSearchShowGitignored: boolean;
 	autoCheckUpdates: boolean;
+	integrationsPollSeconds: number;
+	/** Branch name built from a ticket: `{{key}}`, `{{slug}}`, `{{kind}}`. */
+	branchTemplate: string;
 	syntaxThemes: SyntaxTheme[];
 	activeSyntaxThemeId: string;
 	languageServers: LanguageServerSetting[];

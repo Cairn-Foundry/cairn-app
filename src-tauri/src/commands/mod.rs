@@ -20,6 +20,7 @@ pub mod git;
 pub mod git_collapse_state;
 pub mod git_error;
 pub mod instances;
+pub mod integrations;
 pub mod lsp;
 pub mod mcp;
 pub mod native_agents;
@@ -78,11 +79,23 @@ pub use git::{
     git_graph,
     git_diff_commit,
     git_commit_body,
+    git_diff_files_between, git_diff_file_between, git_commit_exists,
     git_stash_list, git_stash_push, git_stash_pop, git_stash_apply,
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_revert_commit, git_discard_file,
 };
-pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status};
+pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status, update_instance_ticket};
+pub use integrations::{
+    IntegrationState, integration_kinds, list_integration_connections, save_integration_connection,
+    delete_integration_connection, test_integration_connection,
+    get_project_integrations, save_project_integrations, suggest_project_integrations,
+    get_project_capabilities, list_tracker_projects,
+    tracker_list_tickets, tracker_get_ticket, tracker_resolve_url, tracker_list_transitions, tracker_transition,
+    forge_find_merge_request, forge_create_merge_request, forge_list_discussions, forge_reply, forge_resolve,
+    forge_approve, forge_list_members, forge_list_labels, forge_web_link,
+    ci_list_pipelines, ci_get_pipeline, ci_job_log, ci_retry_job, ci_cancel_pipeline, ci_play_job,
+    integration_watch, integration_unwatch,
+};
 pub use lsp::{
     LspState, list_language_servers, install_language_server, uninstall_language_server,
     uninstall_manager_for, update_language_server, update_manager_for, check_language_server_updates,

@@ -1,0 +1,144 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "10042",
+  "self": "https://acme.atlassian.net/rest/api/3/issue/10042",
+  "key": "CAIRN-42",
+  "fields": {
+    "summary": "Pipeline badge stays red after a retry",
+    "issuetype": {
+      "self": "https://acme.atlassian.net/rest/api/3/issuetype/10001",
+      "id": "10001",
+      "name": "Bug",
+      "subtask": false
+    },
+    "status": {
+      "self": "https://acme.atlassian.net/rest/api/3/status/3",
+      "name": "In Progress",
+      "id": "3",
+      "statusCategory": {
+        "self": "https://acme.atlassian.net/rest/api/3/statuscategory/4",
+        "id": 4,
+        "key": "indeterminate",
+        "colorName": "yellow",
+        "name": "In Progress"
+      }
+    },
+    "labels": ["bug", "cicd"],
+    "assignee": {
+      "self": "https://acme.atlassian.net/rest/api/3/user?accountId=5b10ac8d82e05b22cc7d4ef5",
+      "accountId": "5b10ac8d82e05b22cc7d4ef5",
+      "displayName": "Benjamin Bonneton",
+      "active": true
+    },
+    "reporter": {
+      "accountId": "5b10ac8d82e05b22cc7d4ef5",
+      "displayName": "Benjamin Bonneton"
+    },
+    "updated": "2026-08-14T10:22:31.000+0200",
+    "created": "2026-08-10T09:01:12.000+0200",
+    "resolution": null,
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "heading",
+          "attrs": { "level": 2 },
+          "content": [{ "type": "text", "text": "Symptom" }]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "After retrying a failed job the badge " },
+            { "type": "text", "text": "stays red", "marks": [{ "type": "strong" }] },
+            { "type": "text", "text": " until a " },
+            { "type": "text", "text": "reload", "marks": [{ "type": "em" }] },
+            { "type": "text", "text": ". See " },
+            {
+              "type": "text",
+              "text": "the store",
+              "marks": [{ "type": "link", "attrs": { "href": "https://gitlab.com/cairn/cairn/-/blob/main/src/lib/stores/pipelines.ts" } }]
+            },
+            { "type": "text", "text": "." }
+          ]
+        },
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Open the CI/CD tab" }] }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Retry the failed job" }] },
+                {
+                  "type": "orderedList",
+                  "attrs": { "order": 1 },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        { "type": "paragraph", "content": [{ "type": "text", "text": "wait for it to finish" }] }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        { "type": "paragraph", "content": [{ "type": "text", "text": "the badge does not move" }] }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "codeBlock",
+          "attrs": { "language": "typescript" },
+          "content": [{ "type": "text", "text": "pipelines.refresh(id);\nbadge.update();" }]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Reported by " },
+            { "type": "mention", "attrs": { "id": "5b10ac8d82e05b22cc7d4ef5", "text": "@Benjamin Bonneton" } },
+            { "type": "text", "text": ", tracked in " },
+            { "type": "inlineCard", "attrs": { "url": "https://acme.atlassian.net/browse/CAIRN-40" } }
+          ]
+        },
+        { "type": "rule" },
+        {
+          "type": "blockquote",
+          "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "Refresh once the retry answers." }] }
+          ]
+        },
+        {
+          "type": "table",
+          "attrs": { "isNumberColumnEnabled": false, "layout": "default" },
+          "content": [
+            {
+              "type": "tableRow",
+              "content": [
+                { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Browser" }] }] },
+                { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Result" }] }] }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "WebKit" }] }] },
+                { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "red | stuck" }] }] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

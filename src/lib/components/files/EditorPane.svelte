@@ -97,6 +97,8 @@
   export let onFindReferences: () => void;
   export let onRenameSymbol: () => void;
   export let onFormatDocument: () => void;
+  export let onOpenOnForge: ((line: number) => void) | undefined = undefined;
+  export let openOnForgeLabel = '';
 
   $: scrollActiveTabIntoView(activeTabIdx);
 
@@ -213,6 +215,8 @@
             {onFindReferences}
             {onRenameSymbol}
             {onFormatDocument}
+            onOpenOnForge={isExternalPath(activeTab.path) ? undefined : onOpenOnForge}
+            {openOnForgeLabel}
             {baseContent}
             onChunkClick={onChunkClick}
             onChange={onChange}

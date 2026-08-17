@@ -73,6 +73,30 @@ describe("buildValues", () => {
 		expect(values.date).toBe("2026-07-26");
 		expect(values.time).toBe("09-05-03");
 	});
+
+	it("exposes the ticket catalog, falling back to the typed id when no key is linked", () => {
+		const values = buildValues(ctx);
+		expect(values.ticket).toBe("CAI-12");
+		expect(values["ticket.key"]).toBe("CAI-12");
+		expect(values["ticket.title"]).toBe("Custom commands");
+		expect(values["ticket.url"]).toBe("");
+	});
+
+	it("prefers the tracker key and url of a linked ticket", () => {
+		const values = buildValues({
+			...ctx,
+			instance: {
+				...ctx.instance,
+				ticketKey: "#12",
+				ticketUrl: "https://gitlab.com/acme/app/-/issues/12",
+			},
+		});
+		expect(values.ticket).toBe("#12");
+		expect(values["ticket.key"]).toBe("#12");
+		expect(values["ticket.url"]).toBe(
+			"https://gitlab.com/acme/app/-/issues/12",
+		);
+	});
 });
 
 describe("collectPrompts", () => {

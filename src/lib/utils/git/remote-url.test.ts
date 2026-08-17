@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildMergeRequestUrl, parseRemoteUrl } from "./remote-url";
+import {
+	buildBranchUrl,
+	buildCommitUrl,
+	buildCompareUrl,
+	buildFileUrl,
+	buildMergeRequestUrl,
+	parseRemoteUrl,
+} from "./remote-url";
 
 describe("parseRemoteUrl", () => {
 	it("parses an scp-like ssh remote", () => {
@@ -65,5 +72,45 @@ describe("buildMergeRequestUrl", () => {
 		expect(
 			buildMergeRequestUrl("git@gitlab.com:group/repo.git", "", "main"),
 		).toBeNull();
+	});
+});
+
+describe("deep link fallbacks", () => {
+	const gitlab = "git@gitlab.acme.io:group/sub/repo.git";
+	const github = "https://github.com/acme/repo.git";
+
+	it("builds file links, with an optional line", () => {
+		expect(buildFileUrl(gitlab, "main", "src/a b.ts", 12)).toBe(
+			"https://gitlab.acme.io/group/sub/repo/-/blob/main/src/a%20b.ts#L12",
+		);
+		expect(buildFileUrl(github, "feat/x", "src/a.ts")).toBe(
+			"https://github.com/acme/repo/blob/feat%2Fx/src/a.ts",
+		);
+		expect(buildFileUrl(github, "", "src/a.ts")).toBeNull();
+	});
+
+	it("builds commit and branch links", () => {
+		expect(buildCommitUrl(gitlab, "abc")).toBe(
+			"https://gitlab.acme.io/group/sub/repo/-/commit/abc",
+		);
+		expect(buildCommitUrl(github, "abc")).toBe(
+			"https://github.com/acme/repo/commit/abc",
+		);
+		expect(buildBranchUrl(gitlab, "feat/x")).toBe(
+			"https://gitlab.acme.io/group/sub/repo/-/tree/feat%2Fx",
+		);
+		expect(buildBranchUrl(github, "main")).toBe(
+			"https://github.com/acme/repo/tree/main",
+		);
+	});
+
+	it("builds compare links", () => {
+		expect(buildCompareUrl(gitlab, "main", "feat/x")).toBe(
+			"https://gitlab.acme.io/group/sub/repo/-/compare/main...feat%2Fx",
+		);
+		expect(buildCompareUrl(github, "main", "feat/x")).toBe(
+			"https://github.com/acme/repo/compare/main...feat%2Fx",
+		);
+		expect(buildCompareUrl("nope", "main", "x")).toBeNull();
 	});
 });

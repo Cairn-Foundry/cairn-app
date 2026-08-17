@@ -32,7 +32,7 @@
 </script>
 
 {#if Comp}
-  <svelte:component this={Comp} {...$$restProps} on:openFile on:fileDiscarded on:filesChanged on:goGitSettings on:createInstanceFromRef/>
+  <svelte:component this={Comp} {...$$restProps} on:openFile on:fileDiscarded on:filesChanged on:goGitSettings on:createInstanceFromRef on:goIntegrations/>
 {:else if active}
   <div class="lazy-pending"><Spinner size={16}/></div>
 {/if}

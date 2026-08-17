@@ -62,6 +62,7 @@ pub fn run() {
         .manage(TestState::new())
         .manage(LspState::new())
         .manage(QuickSearchCache::default())
+        .manage(IntegrationState::default())
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -115,6 +116,7 @@ pub fn run() {
             duplicate_instance,
             delete_instance,
             update_instance_status,
+            update_instance_ticket,
             set_active_instance,
             get_listing,
             save_folders,
@@ -178,6 +180,9 @@ pub fn run() {
             git_head_message,
             git_diff_commit,
             git_commit_body,
+            git_diff_files_between,
+            git_diff_file_between,
+            git_commit_exists,
             git_stash_list,
             git_stash_push,
             git_stash_pop,
@@ -312,6 +317,38 @@ pub fn run() {
             update_formatter,
             uninstall_manager_for_formatter,
             update_manager_for_formatter,
+            integration_kinds,
+            list_integration_connections,
+            save_integration_connection,
+            delete_integration_connection,
+            test_integration_connection,
+            get_project_integrations,
+            save_project_integrations,
+            suggest_project_integrations,
+            get_project_capabilities,
+            list_tracker_projects,
+            tracker_list_tickets,
+            tracker_get_ticket,
+            tracker_resolve_url,
+            tracker_list_transitions,
+            tracker_transition,
+            forge_find_merge_request,
+            forge_create_merge_request,
+            forge_list_discussions,
+            forge_reply,
+            forge_resolve,
+            forge_approve,
+            forge_list_members,
+            forge_list_labels,
+            forge_web_link,
+            ci_list_pipelines,
+            ci_get_pipeline,
+            ci_job_log,
+            ci_retry_job,
+            ci_cancel_pipeline,
+            ci_play_job,
+            integration_watch,
+            integration_unwatch,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -320,6 +357,7 @@ pub fn run() {
                 commands::agent::shutdown(app);
                 commands::terminal::shutdown(app);
                 commands::lsp::shutdown(app);
+                commands::integrations::shutdown(app);
             }
         });
 }

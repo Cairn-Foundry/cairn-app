@@ -2,14 +2,18 @@
 // Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Instance, InstanceStatus } from "$lib/types/instance";
+import type {
+	Instance,
+	InstanceStatus,
+	InstanceTicket,
+} from "$lib/types/instance";
 
 /** `linkExisting` reuses a branch that already exists instead of creating one. */
 export interface CreateInstanceArgs {
 	id: string;
 	projectId: string;
 	projectPath: string;
-	ticket: { id: string; title: string };
+	ticket: InstanceTicket;
 	branch?: string;
 	baseBranch?: string;
 	linkExisting?: boolean;
@@ -32,7 +36,7 @@ export interface DuplicateInstanceArgs {
 	sourceId: string;
 	projectId: string;
 	newId: string;
-	ticket: { id: string; title: string };
+	ticket: InstanceTicket;
 	copyWorkingChanges: boolean;
 }
 
@@ -50,6 +54,14 @@ export async function updateInstanceStatus(
 	status: InstanceStatus,
 ): Promise<Instance> {
 	return invoke<Instance>("update_instance_status", { id, projectId, status });
+}
+
+export async function updateInstanceTicket(
+	id: string,
+	projectId: string,
+	ticket: InstanceTicket,
+): Promise<Instance> {
+	return invoke<Instance>("update_instance_ticket", { id, projectId, ticket });
 }
 
 /**

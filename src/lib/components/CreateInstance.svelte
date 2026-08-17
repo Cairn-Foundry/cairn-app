@@ -4,15 +4,30 @@
    * existing one, then its git configuration. Dispatches `create` with the new
    * instance id. Blocking work is shown as a centered spinner over a dimmed body.
    */
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
   import { listBranchesDetailed } from '$lib/services/instance-service';
+  import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '$lib/stores/integrations';
+  import { settings } from '$lib/stores/settings';
+  import {
+    DEFAULT_TICKET_QUERY,
+    resetTicketSearch,
+    resolveTicketInput,
+    searchTickets,
+    setTicket,
+    ticketSearch,
+    transitionTicketToStatus,
+  } from '$lib/stores/tracker';
+  import type { Ticket, TicketQuery } from '$lib/types/integrations';
+  import type { InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
+  import { renderBranchTemplate } from '$lib/utils/integrations/branch-template';
 
   export let initialBranch = '';
 
@@ -35,6 +50,80 @@
   let prevSlug = '';
 
   let refreshingBranches = false;
+
+  let hasTracker = false;
+  let transitionWarning = '';
+  let createdInstanceId = '';
+  let ticketMode: 'ticket' | 'manual' = 'manual';
+  let selectedTicket: Ticket | null = null;
+  let ticketQueryText = '';
+  let ticketScope: TicketQuery['scope'] = DEFAULT_TICKET_QUERY.scope;
+  let isResolvingTicket = false;
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const TICKET_SCOPES: { id: TicketQuery['scope']; label: string }[] = [
+    { id: 'assigned', label: t('createInstance.assignedToMe') as string },
+    { id: 'created', label: t('createInstance.createdByMe') as string },
+    { id: 'all', label: t('createInstance.allTickets') as string },
+  ];
+
+  const LOOKS_LIKE_TICKET_REF = /^(https?:\/\/\S+|#\d+|[a-z][a-z0-9]*-\d+)$/i;
+
+  function runTicketSearch(page = 1) {
+    if (!$activeProject) return;
+    void searchTickets($activeProject.id, {
+      ...DEFAULT_TICKET_QUERY,
+      scope: ticketScope,
+      text: ticketQueryText.trim(),
+      page,
+    });
+  }
+
+  function scheduleTicketSearch() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => runTicketSearch(), 250);
+  }
+
+  function selectScope(scope: TicketQuery['scope']) {
+    ticketScope = scope;
+    runTicketSearch();
+  }
+
+  async function resolvePastedTicket() {
+    const text = ticketQueryText.trim();
+    if (!$activeProject || !LOOKS_LIKE_TICKET_REF.test(text)) return;
+    isResolvingTicket = true;
+    try {
+      const ticket = await resolveTicketInput($activeProject.id, text);
+      if (ticket) pickTicket(ticket);
+    } catch {
+      runTicketSearch();
+    } finally {
+      isResolvingTicket = false;
+    }
+  }
+
+  function pickTicket(ticket: Ticket) {
+    selectedTicket = ticket;
+    ticketId = ticket.key;
+    ticketTitle = ticket.title;
+    error = '';
+  }
+
+  function clearSelectedTicket() {
+    selectedTicket = null;
+    ticketId = '';
+    ticketTitle = '';
+    branchName = '';
+    prevSlug = '';
+  }
+
+  function switchTicketMode(next: 'ticket' | 'manual') {
+    if (ticketMode === next) return;
+    ticketMode = next;
+    if (next === 'manual') clearSelectedTicket();
+    else if ($ticketSearch.results.length === 0) runTicketSearch();
+  }
 
   /** Loads local and remote branches, and picks a sensible base branch if the current one is gone. */
   async function loadBranchList() {
@@ -75,13 +164,31 @@
   }
 
   onMount(async () => {
+    const project = $activeProject;
+    if (project) {
+      try {
+        await loadProjectIntegrations(project.id);
+      } catch {}
+      hasTracker = capabilitiesOf(project.id).tracker !== null;
+      if (hasTracker && !initialBranch) {
+        ticketMode = 'ticket';
+        runTicketSearch();
+      }
+    }
     await loadBranchList();
     if (initialBranch) applyInitialBranch();
   });
 
+  onDestroy(() => {
+    if (searchTimer) clearTimeout(searchTimer);
+    resetTicketSearch();
+  });
+
   $: if (ticketId) {
     const slug = slugify(ticketId);
-    const generated = `feat/${slug}`;
+    const generated = selectedTicket
+      ? renderBranchTemplate($settings.branchTemplate, { key: selectedTicket.key, slug, kind: selectedTicket.kind })
+      : `feat/${slug}`;
     if (!branchName || branchName === prevSlug) branchName = generated;
     prevSlug = generated;
   }
@@ -139,16 +246,40 @@
     error = '';
     await tick();
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    const ticket: InstanceTicket = selectedTicket
+      ? {
+          id: ticketId.trim(),
+          title: ticketTitle.trim(),
+          key: selectedTicket.key,
+          url: selectedTicket.url,
+          source: capabilitiesOf($activeProject.id).tracker?.kind ?? undefined,
+          connectionId: $projectBindings.tracker?.connectionId,
+        }
+      : { id: ticketId.trim(), title: ticketTitle.trim() };
     try {
       const instance = await spawnInstance({
         id: crypto.randomUUID(),
         projectId: $activeProject.id,
         projectPath: $activeProject.path,
-        ticket: { id: ticketId.trim(), title: ticketTitle.trim() },
+        ticket,
         ...(mode === 'create'
           ? { branch: branchName.trim(), baseBranch, linkExisting: false }
           : { branch: existingBranch, baseBranch: existingLocalName, linkExisting: true }),
       });
+      if (selectedTicket) {
+        setTicket(instance.projectId, instance.id, selectedTicket);
+        const onCreate = $projectBindings.autoTransition.onCreate;
+        if (onCreate) {
+          try {
+            await transitionTicketToStatus(instance.projectId, instance.id, onCreate);
+          } catch {
+            transitionWarning = t('createInstance.ticketTransitionFailed') as string;
+            createdInstanceId = instance.id;
+            creating = false;
+            return;
+          }
+        }
+      }
       dispatch('create', { instanceId: instance.id });
     } catch (err) {
       error = String(err);
@@ -176,14 +307,91 @@
       {/if}
 
       {#if step === 0}
-        <div class="form-row">
-          <label for="ticket-id">{t('createInstance.ticketId')}</label>
-          <input id="ticket-id" type="text" bind:value={ticketId} placeholder={t('createInstance.ticketIdPlaceholder') as string} />
-        </div>
-        <div class="form-row">
-          <label for="ticket-title">{t('createInstance.title')}</label>
-          <input id="ticket-title" type="text" bind:value={ticketTitle} placeholder={t('createInstance.titlePlaceholder') as string} />
-        </div>
+        {#if hasTracker}
+          <div class="ticket-tabs" role="tablist">
+            <button role="tab" aria-selected={ticketMode === 'ticket'} class="ticket-tab" class:active={ticketMode === 'ticket'} on:click={() => switchTicketMode('ticket')}>{t('createInstance.fromTicket')}</button>
+            <button role="tab" aria-selected={ticketMode === 'manual'} class="ticket-tab" class:active={ticketMode === 'manual'} on:click={() => switchTicketMode('manual')}>{t('createInstance.manual')}</button>
+          </div>
+        {/if}
+        {#if hasTracker && ticketMode === 'ticket'}
+          {#if selectedTicket}
+            <div class="selected-ticket">
+              <div class="field-label">{t('createInstance.selectedTicket')}</div>
+              <div class="selected-ticket-row">
+                <span class="mono ticket-key">{selectedTicket.key}</span>
+                <span class="ticket-title-text">{selectedTicket.title}</span>
+                <span class="ticket-status">{selectedTicket.status}</span>
+                <button class="btn ghost" type="button" on:click={clearSelectedTicket}>{t('createInstance.clearTicket')}</button>
+              </div>
+            </div>
+          {:else}
+            <div class="ticket-scopes">
+              {#each TICKET_SCOPES as scope}
+                <button class="ticket-scope" class:active={ticketScope === scope.id} type="button" on:click={() => selectScope(scope.id)}>{scope.label}</button>
+              {/each}
+            </div>
+            <div class="branch-list-wrap">
+              <div class="branch-search-row">
+                <Icon name="search" size={13}/>
+                <input
+                  class="branch-search"
+                  type="text"
+                  bind:value={ticketQueryText}
+                  placeholder={t('createInstance.pasteUrl') as string}
+                  autocomplete="off"
+                  on:input={scheduleTicketSearch}
+                  on:paste={() => setTimeout(resolvePastedTicket, 0)}
+                  on:keydown={(e) => e.key === 'Enter' && resolvePastedTicket()}
+                />
+                {#if isResolvingTicket}
+                  <Spinner size={12} trackColor="var(--stroke-1)" color="var(--accent)"/>
+                {/if}
+              </div>
+              <div class="branch-list ticket-list">
+                {#if $ticketSearch.isSearching && $ticketSearch.results.length === 0}
+                  <div class="ticket-skeleton"><Skeleton lines={4} height={14} gap={10}/></div>
+                {:else if $ticketSearch.error}
+                  <div class="branch-empty">{$ticketSearch.error.message}</div>
+                {:else if $ticketSearch.results.length === 0}
+                  <div class="branch-empty">{t('createInstance.noTickets')}</div>
+                {:else}
+                  {#each $ticketSearch.results as ticket (ticket.id)}
+                    <button class="ticket-item" type="button" on:click={() => pickTicket(ticket)}>
+                      <span class="mono ticket-key">{ticket.key}</span>
+                      <span class="ticket-title-text">{ticket.title}</span>
+                      <span class="ticket-status">{ticket.status}</span>
+                      {#if ticket.labels.length > 0}
+                        <span class="ticket-labels">
+                          {#each ticket.labels.slice(0, 3) as label}
+                            <span class="ticket-label">{label}</span>
+                          {/each}
+                        </span>
+                      {/if}
+                    </button>
+                  {/each}
+                  {#if $ticketSearch.hasMore}
+                    <button class="branch-item" type="button" disabled={$ticketSearch.isSearching} on:click={() => runTicketSearch($ticketSearch.query.page + 1)}>
+                      {#if $ticketSearch.isSearching}
+                        <Spinner size={12} trackColor="var(--stroke-1)" color="var(--accent)"/>
+                      {:else}
+                        <Icon name="chev-d" size={12}/>
+                      {/if}
+                    </button>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          {/if}
+        {:else}
+          <div class="form-row">
+            <label for="ticket-id">{t('createInstance.ticketId')}</label>
+            <input id="ticket-id" type="text" bind:value={ticketId} placeholder={t('createInstance.ticketIdPlaceholder') as string} />
+          </div>
+          <div class="form-row">
+            <label for="ticket-title">{t('createInstance.title')}</label>
+            <input id="ticket-title" type="text" bind:value={ticketTitle} placeholder={t('createInstance.titlePlaceholder') as string} />
+          </div>
+        {/if}
       {/if}
 
       {#if step === 1}
@@ -395,6 +603,10 @@
         {/if}
       {/if}
 
+      {#if transitionWarning}
+        <div class="warning-box"><Icon name="info" size={13}/> {transitionWarning}</div>
+      {/if}
+
       {#if error}
         <div class="error-box">{error}</div>
       {/if}
@@ -408,10 +620,14 @@
         {/each}
       </div>
       <div class="spacer"></div>
-      {#if step > 0}
+      {#if step > 0 && !createdInstanceId}
         <button class="btn ghost" on:click={back} disabled={creating}>{t('common.back')}</button>
       {/if}
-      {#if step < 2}
+      {#if createdInstanceId}
+        <button class="btn primary" on:click={() => dispatch('create', { instanceId: createdInstanceId })}>
+          {t('common.continue')} <Icon name="chev-r" size={14}/>
+        </button>
+      {:else if step < 2}
         <button
           class="btn primary"
           disabled={!canNext}
@@ -521,6 +737,112 @@
     font-size: 12px;
     color: var(--red, #e55);
     font-family: var(--font-mono);
+  }
+
+  .ticket-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--stroke-0);
+  }
+  .ticket-tab {
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: var(--fg-3);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ticket-tab:hover { color: var(--fg-0); }
+  .ticket-tab.active { color: var(--fg-0); border-bottom-color: var(--accent); }
+
+  .ticket-scopes {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .ticket-scope {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--stroke-0);
+    background: var(--bg-0);
+    color: var(--fg-2);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .ticket-scope:hover { color: var(--fg-0); border-color: var(--fg-3); }
+  .ticket-scope.active { border-color: var(--accent); background: var(--accent-weak); color: var(--fg-0); }
+
+  .ticket-list { max-height: 260px; }
+  .ticket-skeleton { padding: 8px 10px; }
+
+  .ticket-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--r-sm);
+    border: none;
+    background: none;
+    color: var(--fg-2);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    min-width: 0;
+  }
+  .ticket-item:hover { background: var(--bg-3); color: var(--fg-0); }
+  .ticket-key { color: var(--accent); flex-shrink: 0; }
+  .ticket-title-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-0);
+  }
+  .ticket-status {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .ticket-labels { display: flex; gap: 4px; flex-shrink: 0; }
+  .ticket-label {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--bg-3);
+    color: var(--fg-2);
+    font-size: 10px;
+  }
+
+  .selected-ticket { display: flex; flex-direction: column; gap: 6px; }
+  .selected-ticket-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--accent);
+    background: var(--accent-weak);
+    border-radius: var(--r-md);
+    font-size: 12px;
+  }
+
+  .warning-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-0);
+    border: 1px solid var(--warn, oklch(0.75 0.15 80));
+    border-radius: var(--r-md);
+    font-size: 12px;
+    color: var(--warn, oklch(0.75 0.15 80));
   }
 
   .field-label {

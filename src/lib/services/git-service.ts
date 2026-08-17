@@ -234,6 +234,50 @@ export async function getDiffFile(
 	return invoke("git_diff_file", { worktreePath, filePath, staged });
 }
 
+export type GitChangedFile = {
+	filePath: string;
+	status: "A" | "M" | "D";
+	additions: number;
+	deletions: number;
+};
+
+export type GitFileBetween = {
+	oldContent: string | null;
+	newContent: string | null;
+};
+
+/** Files changed by `base...head`, with their line counts. */
+export async function getDiffFilesBetween(
+	worktreePath: string,
+	base: string,
+	head: string,
+): Promise<GitChangedFile[]> {
+	return invoke("git_diff_files_between", { worktreePath, base, head });
+}
+
+/** One file on both sides of `base...head`. */
+export async function getDiffFileBetween(
+	worktreePath: string,
+	base: string,
+	head: string,
+	filePath: string,
+): Promise<GitFileBetween> {
+	return invoke("git_diff_file_between", {
+		worktreePath,
+		base,
+		head,
+		filePath,
+	});
+}
+
+/** Whether the commit is present in the worktree. */
+export async function commitExists(
+	worktreePath: string,
+	commitHash: string,
+): Promise<boolean> {
+	return invoke("git_commit_exists", { worktreePath, commitHash });
+}
+
 /** Committed content of a file, null when it is untracked or binary. */
 export async function getFileAtHead(
 	worktreePath: string,

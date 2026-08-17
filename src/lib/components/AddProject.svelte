@@ -9,9 +9,13 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
   import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
+  import ProjectIntegrationsForm from '$lib/components/ProjectIntegrationsForm.svelte';
   import { validateDirectory, cloneRepository } from '$lib/services/project-service';
+  import { getRemoteUrl } from '$lib/services/git-service';
   import { projects, registerProject } from '$lib/stores/project';
+  import { EMPTY_BINDINGS, saveProjectIntegrations } from '$lib/stores/integrations';
   import type { Project } from '$lib/types/project';
+  import type { ProjectIntegrations } from '$lib/types/integrations';
   import { t } from '$lib/i18n';
 
   export let mode: 'new' | 'open' | 'clone';
@@ -59,6 +63,19 @@
   let color = '#6366f1';
   let cloneUrl = initialCloneUrl;
   let cloneMethod: 'https' | 'ssh' = 'https';
+  let bindings: ProjectIntegrations = EMPTY_BINDINGS;
+  let openedRemoteUrl = '';
+  let openedRemotePath = '';
+
+  $: isIdentityStep = (mode === 'new' && step === 0) || (mode !== 'new' && step === 1);
+  $: remoteUrl = mode === 'clone' ? cloneUrl.trim() : openedRemoteUrl;
+  $: hasBindings = bindings.tracker !== null || bindings.forge !== null || bindings.ci !== null;
+  $: if (mode === 'open' && isIdentityStep && path && path !== openedRemotePath) void resolveOpenedRemote(path);
+
+  async function resolveOpenedRemote(target: string) {
+    openedRemotePath = target;
+    openedRemoteUrl = await getRemoteUrl(target).catch(() => '');
+  }
 
   if (path) inferNameFromPath();
   if (cloneUrl) inferNameFromUrl();
@@ -132,6 +149,7 @@
       const id = crypto.randomUUID();
       const project: Project = { id, name: name.trim(), path: resolvedPath, color, activeInstanceId: null };
       await registerProject(project);
+      if (hasBindings) await saveProjectIntegrations(id, bindings).catch(() => undefined);
       dispatch('created', { id });
     } catch (err) {
       error = String(err);
@@ -195,6 +213,10 @@
         </div>
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
+
+        <div class="form-section bindings">
+          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+        </div>
 
       <!-- -- NEW - step 1: location -- -->
       {:else if mode === 'new' && step === 1}
@@ -273,6 +295,10 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
+        <div class="form-section bindings">
+          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+        </div>
+
       <!-- -- CLONE - step 0: source -- -->
       {:else if mode === 'clone' && step === 0}
 
@@ -337,6 +363,10 @@
         </div>
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
+
+        <div class="form-section bindings">
+          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+        </div>
 
       <!-- -- CLONE - step 2: destination -- -->
       {:else if mode === 'clone' && step === 2}
@@ -417,6 +447,7 @@
     line-height: 1.55;
   }
   .form-section { margin-bottom: 22px; }
+  .form-section.bindings { margin-top: 22px; margin-bottom: 0; }
   .ap-label {
     display: block;
     font-size: 11px;

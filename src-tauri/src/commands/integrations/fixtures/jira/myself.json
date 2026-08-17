@@ -1,0 +1,16 @@
+{
+  "self": "https://acme.atlassian.net/rest/api/3/user?accountId=5b10ac8d82e05b22cc7d4ef5",
+  "accountId": "5b10ac8d82e05b22cc7d4ef5",
+  "accountType": "atlassian",
+  "emailAddress": "benjamin@acme.io",
+  "avatarUrls": {
+    "48x48": "https://avatar-management.services.atlassian.com/initials/BB-1.png?size=48",
+    "24x24": "https://avatar-management.services.atlassian.com/initials/BB-1.png?size=24",
+    "16x16": "https://avatar-management.services.atlassian.com/initials/BB-1.png?size=16",
+    "32x32": "https://avatar-management.services.atlassian.com/initials/BB-1.png?size=32"
+  },
+  "displayName": "Benjamin Bonneton",
+  "active": true,
+  "timeZone": "Europe/Paris",
+  "locale": "fr_FR"
+}

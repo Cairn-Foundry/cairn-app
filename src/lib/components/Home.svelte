@@ -20,6 +20,7 @@
   import PortsSection from '$lib/components/home/PortsSection.svelte';
   import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
+  import IntegrationsSection from '$lib/components/home/IntegrationsSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
 
   const dispatch = createEventDispatcher<{
@@ -79,6 +80,15 @@
         on:addProject={(e) => { addProjectMode = e.detail; addProjectPath = ''; addProjectCloneUrl = ''; }}
         on:editProject={(e) => editingProject = e.detail}
       />
+
+    {:else if activeSection === 'integrations'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('integrations.title')}</h1>
+        <div class="sub">{t('integrations.subtitle')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <IntegrationsSection />
+      </div>
 
     {:else if activeSection === 'activity'}
       <div class="home-hero" style="padding-bottom: 0">
@@ -161,7 +171,7 @@
       </div>
 
     {:else if activeSection === 'settings'}
-      <SettingsPanel bind:settingsTab/>
+      <SettingsPanel bind:settingsTab on:openSection={(e) => (activeSection = e.detail as HomeSection)}/>
     {/if}
   </main>
 </div>

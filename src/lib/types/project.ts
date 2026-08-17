@@ -1,6 +1,3 @@
-/** The tracker a ticket was imported from. */
-export type TicketSource = "gitlab" | "github" | "jira";
-
 /** A registered repository, as persisted in projects.json. */
 export interface Project {
 	id: string;
@@ -16,13 +13,4 @@ export interface ProjectFolder {
 	name: string;
 	projectIds: string[];
 	collapsed: boolean;
-}
-
-/** A unit of work an instance is created for, imported from a tracker. */
-export interface Ticket {
-	id: string;
-	source: TicketSource;
-	title: string;
-	description: string;
-	url: string | null;
 }

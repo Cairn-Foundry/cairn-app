@@ -129,6 +129,16 @@ pub fn instance_env_file(project_id: &str, instance_id: &str) -> Result<PathBuf,
         .join("env.json"))
 }
 
+/// Integration connections (GitLab, GitHub, Jira accounts), tokens excluded.
+pub fn integrations_file() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("integrations.json"))
+}
+
+/// Which connections the project uses as tracker, forge and CI.
+pub fn project_integrations_file(project_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects").join(project_id).join("integrations.json"))
+}
+
 /// Navigation state restored on launch: screen, active project, tabs, sections.
 pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))

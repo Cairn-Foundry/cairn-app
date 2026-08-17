@@ -444,6 +444,8 @@ async function refreshInterpolationValues(
 			worktreePath: instance.worktreePath,
 			ticketId: instance.ticket.id,
 			ticketTitle: instance.ticket.title,
+			ticketKey: instance.ticket.key ?? "",
+			ticketUrl: instance.ticket.url ?? "",
 			baseBranch: instance.baseBranch,
 		},
 		project: { id: project.id, name: project.name, path: project.path },

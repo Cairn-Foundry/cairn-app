@@ -1,0 +1,22 @@
+{
+  "login": "bbonneton",
+  "id": 5120441,
+  "node_id": "MDQ6VXNlcjUxMjA0NDE=",
+  "avatar_url": "https://avatars.githubusercontent.com/u/5120441?v=4",
+  "gravatar_id": "",
+  "url": "https://api.github.com/users/bbonneton",
+  "html_url": "https://github.com/bbonneton",
+  "type": "User",
+  "site_admin": false,
+  "name": "Benjamin Bonneton",
+  "company": null,
+  "blog": "",
+  "location": "Lyon",
+  "email": null,
+  "bio": null,
+  "public_repos": 12,
+  "followers": 8,
+  "following": 3,
+  "created_at": "2013-08-01T10:22:11Z",
+  "updated_at": "2026-07-30T08:15:02Z"
+}

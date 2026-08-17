@@ -1365,6 +1365,111 @@ pub async fn git_commit_body(worktree_path: String, commit_hash: String) -> Resu
 }
 
 // ---------------------------------------------------------------------------
+// Diff between two refs
+// ---------------------------------------------------------------------------
+
+/// A file changed between two refs, as listed by the review step.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitChangedFile {
+    pub file_path: String,
+    /// `A`, `M` or `D`.
+    pub status: String,
+    pub additions: usize,
+    pub deletions: usize,
+}
+
+/// Both sides of one file between two refs; `None` when the file is absent on that side.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitFileBetween {
+    pub old_content: Option<String>,
+    pub new_content: Option<String>,
+}
+
+fn three_dot_range(base: &str, head: &str) -> String {
+    format!("{base}...{head}")
+}
+
+#[tauri::command]
+/// Files changed by `base...head` with their line counts, in git's order.
+pub async fn git_diff_files_between(
+    worktree_path: String,
+    base: String,
+    head: String,
+) -> Result<Vec<GitChangedFile>, GitError> {
+    reject_option_like(&base)?;
+    reject_option_like(&head)?;
+    let expanded = expand(&worktree_path);
+    let range = three_dot_range(&base, &head);
+    let statuses = run(git_cmd(&expanded).args([
+        "diff", "--name-status", "--no-renames", "--no-color", &range,
+    ]))?;
+    let numstats = run(git_cmd(&expanded).args([
+        "diff", "--numstat", "--no-renames", "--no-color", &range,
+    ]))?;
+    let mut counts: std::collections::HashMap<String, (usize, usize)> = std::collections::HashMap::new();
+    for line in numstats.lines() {
+        let mut parts = line.splitn(3, '\t');
+        let added = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+        let deleted = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+        if let Some(path) = parts.next() {
+            counts.insert(path.to_string(), (added, deleted));
+        }
+    }
+    Ok(statuses
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, '\t');
+            let status = parts.next()?.chars().next()?.to_string();
+            let path = parts.next()?.to_string();
+            let (additions, deletions) = counts.get(&path).copied().unwrap_or((0, 0));
+            Some(GitChangedFile { file_path: path, status, additions, deletions })
+        })
+        .collect())
+}
+
+fn show_at(worktree: &str, rev: &str, file_path: &str) -> Result<Option<String>, GitError> {
+    let output = git_cmd(worktree)
+        .args(["show", &format!("{rev}:{file_path}")])
+        .output()?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+}
+
+#[tauri::command]
+/// One file on both sides of `base...head`: the merge base of the two refs and `head`.
+pub async fn git_diff_file_between(
+    worktree_path: String,
+    base: String,
+    head: String,
+    file_path: String,
+) -> Result<GitFileBetween, GitError> {
+    reject_option_like(&base)?;
+    reject_option_like(&head)?;
+    let expanded = expand(&worktree_path);
+    let merge_base = run(git_cmd(&expanded).args(["merge-base", &base, &head]))?;
+    let merge_base = merge_base.trim();
+    Ok(GitFileBetween {
+        old_content: show_at(&expanded, merge_base, &file_path)?,
+        new_content: show_at(&expanded, &head, &file_path)?,
+    })
+}
+
+#[tauri::command]
+/// Whether the commit is present in the worktree's object store.
+pub async fn git_commit_exists(worktree_path: String, commit_hash: String) -> Result<bool, GitError> {
+    reject_option_like(&commit_hash)?;
+    let expanded = expand(&worktree_path);
+    let output = git_cmd(&expanded)
+        .args(["cat-file", "-e", &format!("{commit_hash}^{{commit}}")])
+        .output()?;
+    Ok(output.status.success())
+}
+
+// ---------------------------------------------------------------------------
 // Stash
 // ---------------------------------------------------------------------------
 

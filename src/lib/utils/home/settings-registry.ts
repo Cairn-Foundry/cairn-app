@@ -22,6 +22,8 @@ export interface SettingEntry {
 	desc: string;
 	tab: SettingsTab;
 	group: string;
+	/** Set when the setting lives on a home section rather than a settings tab. */
+	homeSection?: string;
 }
 
 const s = t as (k: string) => string;
@@ -151,6 +153,20 @@ const STATIC_SETTINGS: SettingEntry[] = [
 		desc: s("languageServers.searchPlaceholder"),
 		tab: "languageServers",
 		group: s("languageServers.serversGroup"),
+	},
+	{
+		label: s("integrations.addConnection"),
+		desc: s("integrations.subtitle"),
+		tab: "general",
+		group: s("integrations.title"),
+		homeSection: "integrations",
+	},
+	{
+		label: s("integrations.bindings.title"),
+		desc: s("integrations.bindings.desc"),
+		tab: "general",
+		group: s("integrations.title"),
+		homeSection: "integrations",
 	},
 ];
 

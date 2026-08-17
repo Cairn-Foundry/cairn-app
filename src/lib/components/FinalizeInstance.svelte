@@ -11,6 +11,7 @@
   import CopyButton from '$lib/components/CopyButton.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
+  import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
   import { t } from '$lib/i18n';
   import type { Instance } from '$lib/types/instance';
   import type { BranchDivergence } from '$lib/services/git-service';
@@ -26,6 +27,9 @@
     getBranchDivergence,
   } from '$lib/stores/git';
   import { isArchivedInstance, removeInstance, setInstanceStatus } from '$lib/stores/instance';
+  import { hasForge, hasTracker, projectBindings } from '$lib/stores/integrations';
+  import { loadMergeRequest, mergeRequests, mergeRequestStateFor } from '$lib/stores/merge-request';
+  import { loadTicket, ticketStateFor, tickets, transitionTicketToStatus } from '$lib/stores/tracker';
   import { describeGitError } from '$lib/utils/git/git-error';
   import { buildMergeRequestUrl } from '$lib/utils/git/remote-url';
 
@@ -42,6 +46,8 @@
   let handedOff = false;
   let pendingDelete = false;
   let deleting = false;
+  let isMrFormOpen = false;
+  let hasTransitionFailed = false;
 
   $: state = $git;
   $: counts = $gitFileCounts;
@@ -54,6 +60,11 @@
   $: behindRemote = state.remoteStatus?.behind ?? 0;
   $: needsForcePush = hasUpstream && ahead > 0 && behindRemote > 0;
   $: mrUrl = buildMergeRequestUrl(remoteUrl, instance.branch, instance.baseBranch);
+  $: mrState = mergeRequestStateFor($mergeRequests, instance.projectId, instance.id);
+  $: mergeRequest = $hasForge ? mrState.mergeRequest : null;
+  $: ticket = instance.ticket.key
+    ? { key: instance.ticket.key, title: instance.ticket.title, url: instance.ticket.url ?? '' }
+    : null;
   $: gitError = state.error ? describeGitError(state.error) : null;
 
   $: commitDone = counts.total === 0;
@@ -65,7 +76,7 @@
     commit: commitDone,
     sync: syncDone,
     push: pushDone,
-    handoff: handedOff,
+    handoff: handedOff || mergeRequest !== null,
     close: closeDone,
   } as Record<StepId, boolean>;
 
@@ -95,6 +106,7 @@
       ]);
       remoteUrl = url;
       divergence = div;
+      if ($hasForge) await loadMergeRequest(instance.projectId, instance.id, instance.branch);
     } finally {
       checking = false;
     }
@@ -140,9 +152,34 @@
       handedOff = true;
     });
 
+  function onMergeRequestCreated() {
+    isMrFormOpen = false;
+    handedOff = true;
+  }
+
+  async function openMergeRequest() {
+    if (mergeRequest) await openUrl(mergeRequest.url);
+  }
+
+  /** The finalize transition is a courtesy: its failure is shown, never blocking. */
+  async function transitionOnFinalize() {
+    const status = $projectBindings.autoTransition.onFinalize;
+    if (!status || !$hasTracker || !ticket) return;
+    hasTransitionFailed = false;
+    try {
+      if (!ticketStateFor($tickets, instance.projectId, instance.id).ticket) {
+        await loadTicket(instance.projectId, instance.id, ticket.key);
+      }
+      await transitionTicketToStatus(instance.projectId, instance.id, status);
+    } catch {
+      hasTransitionFailed = true;
+    }
+  }
+
   const doClose = () =>
     runStep('close', async () => {
       await setInstanceStatus(instance.id, instance.projectId, 'done');
+      await transitionOnFinalize();
     });
 
   const doReopen = () =>
@@ -275,22 +312,59 @@
             <div class="fin-text">
               <span class="fin-title">{t('finalizeInstance.steps.handoff.title')}</span>
               <span class="fin-sub">
-                {mrUrl
-                  ? (t('finalizeInstance.steps.handoff.ready') as (base: string) => string)(instance.baseBranch)
-                  : t('finalizeInstance.steps.handoff.noRemote')}
+                {#if mergeRequest}
+                  {(t('finalizeInstance.steps.handoff.existing') as (number: string, base: string) => string)(mergeRequest.number, mergeRequest.targetBranch)}
+                {:else if $hasForge || mrUrl}
+                  {(t('finalizeInstance.steps.handoff.ready') as (base: string) => string)(instance.baseBranch)}
+                {:else}
+                  {t('finalizeInstance.steps.handoff.noRemote')}
+                {/if}
               </span>
             </div>
             <div class="fin-actions">
-              <span class="fin-branch selectable">{instance.branch}</span>
-              <CopyButton value={instance.branch} size={12}/>
-              {#if mrUrl}
-                <button class="btn step-btn" disabled={!stepEnabled.handoff || !!busyStep} on:click={doHandoff}>
+              {#if mergeRequest}
+                <span class="fin-branch selectable">{mergeRequest.url}</span>
+                <CopyButton value={mergeRequest.url} size={12}/>
+                <button class="btn step-btn" on:click={openMergeRequest}>
                   <Icon name="external" size={12}/>
-                  {t('finalizeInstance.steps.handoff.action')}
+                  {t('finalizeInstance.steps.handoff.open')}
                 </button>
+              {:else}
+                <span class="fin-branch selectable">{instance.branch}</span>
+                <CopyButton value={instance.branch} size={12}/>
+                {#if $hasForge}
+                  {#if mrState.isRefreshing && !mrState.isLoaded}
+                    <Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+                  {:else}
+                    <button class="btn step-btn" disabled={!stepEnabled.handoff || !!busyStep} on:click={() => (isMrFormOpen = !isMrFormOpen)}>
+                      <Icon name={isMrFormOpen ? 'chev-u' : 'plus'} size={12}/>
+                      {t('finalizeInstance.steps.handoff.action')}
+                    </button>
+                  {/if}
+                {:else if mrUrl}
+                  <button class="btn step-btn" disabled={!stepEnabled.handoff || !!busyStep} on:click={doHandoff}>
+                    <Icon name="external" size={12}/>
+                    {t('finalizeInstance.steps.handoff.action')}
+                  </button>
+                {/if}
               {/if}
             </div>
           </li>
+
+          {#if isMrFormOpen && !mergeRequest && $hasForge}
+            <li class="fin-step fin-mr-form">
+              <MergeRequestForm
+                projectId={instance.projectId}
+                instanceId={instance.id}
+                sourceBranch={instance.branch}
+                targetBranch={instance.baseBranch}
+                worktreePath={instance.worktreePath}
+                {ticket}
+                on:created={onMergeRequestCreated}
+                on:cancel={() => (isMrFormOpen = false)}
+              />
+            </li>
+          {/if}
 
           <li class="fin-step" class:muted={!stepEnabled.close}>
             <span class="fin-mark" class:ok={stepStates.close}>
@@ -333,6 +407,15 @@
             </button>
           </div>
         {/if}
+      {/if}
+
+      {#if hasTransitionFailed}
+        <div class="git-error-banner">
+          <Icon name="alert" size={14}/>
+          <div class="git-error-text">
+            <span class="git-error-title">{t('ticket.transitionFailed')}</span>
+          </div>
+        </div>
       {/if}
 
       {#if gitError}
@@ -400,6 +483,10 @@
     background: var(--bg-0);
   }
   .fin-step.muted { opacity: 0.55; }
+  .fin-mr-form {
+    display: block;
+    padding: 14px;
+  }
 
   .fin-mark {
     display: grid;

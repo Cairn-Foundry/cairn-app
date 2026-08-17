@@ -1,0 +1,40 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "20017",
+  "self": "https://jira.acme.io/rest/api/2/issue/20017",
+  "key": "OPS-17",
+  "fields": {
+    "summary": "Rotate the runner registration token",
+    "issuetype": {
+      "self": "https://jira.acme.io/rest/api/2/issuetype/3",
+      "id": "3",
+      "name": "Task",
+      "subtask": false
+    },
+    "status": {
+      "self": "https://jira.acme.io/rest/api/2/status/10000",
+      "name": "To Do",
+      "id": "10000",
+      "statusCategory": {
+        "self": "https://jira.acme.io/rest/api/2/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    },
+    "labels": [],
+    "assignee": null,
+    "reporter": {
+      "self": "https://jira.acme.io/rest/api/2/user?username=bbonneton",
+      "name": "bbonneton",
+      "key": "bbonneton",
+      "displayName": "Benjamin Bonneton",
+      "active": true
+    },
+    "updated": "2026-08-12T16:45:09.000+0200",
+    "created": "2026-08-12T08:30:00.000+0200",
+    "resolution": null,
+    "description": "h2. Context\n\nThe token expires on *2026-09-01*.\n\n# rotate it in the admin panel\n# update the {{RUNNER_TOKEN}} variable"
+  }
+}

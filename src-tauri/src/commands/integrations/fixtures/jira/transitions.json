@@ -1,0 +1,23 @@
+{
+  "expand": "transitions",
+  "transitions": [
+    {
+      "id": "11",
+      "name": "To Do",
+      "to": { "self": "https://acme.atlassian.net/rest/api/3/status/10000", "name": "To Do", "id": "10000", "statusCategory": { "id": 2, "key": "new", "name": "To Do" } },
+      "hasScreen": false,
+      "isGlobal": true,
+      "isInitial": false,
+      "isAvailable": true
+    },
+    {
+      "id": "31",
+      "name": "Done",
+      "to": { "self": "https://acme.atlassian.net/rest/api/3/status/10001", "name": "Done", "id": "10001", "statusCategory": { "id": 3, "key": "done", "name": "Done" } },
+      "hasScreen": false,
+      "isGlobal": true,
+      "isInitial": false,
+      "isAvailable": true
+    }
+  ]
+}

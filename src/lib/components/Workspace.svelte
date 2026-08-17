@@ -34,11 +34,17 @@
   import { instances, baseInstance, isBaseInstance, isArchivedInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { gitFileCounts, gitHasConflicts, startGitPolling } from '$lib/stores/git';
+  import { gitFileCounts, gitHasConflicts, startGitPolling, getRemoteUrl } from '$lib/stores/git';
+  import { activeCiBusy, activeCiFailing, retryLatestPipeline } from '$lib/stores/pipelines';
+  import { requestMergeRequestForm } from '$lib/stores/merge-request';
+  import { forgeLink } from '$lib/utils/integrations/links';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
+  import TicketPanel from '$lib/components/layout/TicketPanel.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
@@ -130,7 +136,14 @@
   const APP_ACTIONS: ShortcutId[] = [
     'toggleFullscreen', 'toggleTools', 'openTerminal', 'openCommands',
     'openEnv', 'openFormatting', 'goHome', 'reloadEditor', 'reloadProject',
+    'createMergeRequest', 'openBranchOnForge', 'retryLastPipeline',
   ];
+
+  async function openBranchOnForge() {
+    if (!activeInstance?.branch) return;
+    const url = await forgeLink(activeProjectId, await getRemoteUrl(), { type: 'branch', name: activeInstance.branch });
+    if (url) await openUrl(url);
+  }
 
   async function runAction(id: string) {
     switch (id) {
@@ -141,6 +154,9 @@
       case 'openEnv':          if (activeInstance) selectTool('env'); break;
       case 'openFormatting':   if (activeInstance) selectTool('formatting'); break;
       case 'goHome':           dispatch('goHome'); break;
+      case 'createMergeRequest': if (activeInstance) requestMergeRequestForm(); break;
+      case 'openBranchOnForge':  await openBranchOnForge(); break;
+      case 'retryLastPipeline':  if (activeInstance) await retryLatestPipeline(activeProjectId, activeInstance.id); break;
       default:                 await filesView?.executeAction(id); break;
     }
   }
@@ -194,6 +210,7 @@
     goShortcuts: void;
     goLanguageServers: void;
     goGitSettings: void;
+    goIntegrations: void;
     createInstance: { branch?: string };
     reorderTabs: string[];
   }>();
@@ -461,6 +478,8 @@
           <span class="ticket-name">{activeInstance.ticket.title}</span>
         </div>
 
+        <TicketPanel instance={activeInstance} />
+
         {#if activeInstance.branch}
           <div class="branch-info">
             <Icon name="branch" size={11}/>
@@ -508,6 +527,11 @@
           <span class="label">{s.label}</span>
           {#if s.id === 'git' && $gitHasConflicts}
             <span class="conflict-dot" title={t('git.conflictsToResolve') as string}></span>
+          {/if}
+          {#if s.id === 'cicd' && $activeCiFailing}
+            <span class="conflict-dot" title={t('cicd.status.failed') as string}></span>
+          {:else if s.id === 'cicd' && $activeCiBusy}
+            <span class="ci-busy" title={t('cicd.status.running') as string}><Spinner size={10}/></span>
           {/if}
           {#if doneSteps.has(s.id)}
             <span class="check"><Icon name="check" size={11}/></span>
@@ -569,7 +593,7 @@
       <div class="step-view" class:step-hidden={!reviewActive}><LazyView active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')}/></div>
       <div class="step-view" class:step-hidden={!testsActive}><LazyView active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
       <div class="step-view" class:step-hidden={!gitActive}><LazyView active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
-      <div class="step-view" class:step-hidden={!cicdActive}><LazyView active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!cicdActive}><LazyView active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => dispatch('goIntegrations')}/></div>
       <div class="step-view" class:step-hidden={!$terminalActive}><LazyView active={$terminalActive} load={() => import('$lib/components/terminal/TerminalView.svelte')}/></div>
       <div class="step-view" class:step-hidden={!$commandsActive}><LazyView active={$commandsActive} load={() => import('$lib/components/commands/CommandsView.svelte')}/></div>
       <div class="step-view" class:step-hidden={!$envActive}><LazyView active={$envActive} load={() => import('$lib/components/env/EnvView.svelte')}/></div>

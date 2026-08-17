@@ -9,7 +9,12 @@ import type {
 } from "$lib/services/ai-provider-service";
 import type { AiFeatureAssignment } from "$lib/services/settings-service";
 
-export type AiFeatureId = "commitMessage" | "testFix";
+export type AiFeatureId =
+	| "commitMessage"
+	| "testFix"
+	| "mrDescription"
+	| "ciFix"
+	| "reviewReply";
 
 export interface AiFeatureDef {
 	id: AiFeatureId;
@@ -29,6 +34,39 @@ Then one blank line, then the body.
 Subject: Conventional Commits, \`type(scope): description\`, 80 characters maximum, imperative mood, no trailing period.{{ticket}}
 Body: what changed and why, wrapped at 72 characters. Omit it entirely when the subject says everything.`;
 
+const DEFAULT_MR_DESCRIPTION_TEMPLATE = `Read the commits of this branch (git log {{base}}..HEAD) and its diff (git diff {{base}}...HEAD), then write the merge request for them.
+
+Answer with the merge request itself and nothing else: no preamble, no reasoning, no code fence around the whole answer.
+The very first line of your answer is the title: one line, 80 characters maximum, imperative mood, no trailing period.
+Then one blank line, then the description in markdown: what changed, why, and how to test it. Keep it factual and short.{{ticket}}`;
+
+const DEFAULT_CI_FIX_TEMPLATE = `A CI job is failing on this branch. Find out why and fix it in this worktree.
+
+Job: {{job}}
+Commit: {{sha}}
+
+Log excerpt:
+\`\`\`
+{{excerpt}}
+\`\`\`
+
+Reproduce the failure locally when you can, fix the cause rather than the symptom, and say what you changed.`;
+
+const DEFAULT_REVIEW_REPLY_TEMPLATE = `A reviewer left a comment on the merge request of this branch. Address it in this worktree.
+
+File: {{path}}
+Line: {{line}}
+
+Code under review:
+\`\`\`
+{{excerpt}}
+\`\`\`
+
+Comment:
+> {{comment}}
+
+Make the change the reviewer asks for when it is right, or explain in one paragraph why the current code should stay. Say what you changed.`;
+
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
 		id: "commitMessage",
@@ -41,6 +79,24 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		icon: "beaker",
 		runsProvider: false,
 		defaultPromptTemplate: "",
+	},
+	{
+		id: "mrDescription",
+		icon: "review",
+		runsProvider: true,
+		defaultPromptTemplate: DEFAULT_MR_DESCRIPTION_TEMPLATE,
+	},
+	{
+		id: "ciFix",
+		icon: "ci",
+		runsProvider: false,
+		defaultPromptTemplate: DEFAULT_CI_FIX_TEMPLATE,
+	},
+	{
+		id: "reviewReply",
+		icon: "review",
+		runsProvider: false,
+		defaultPromptTemplate: DEFAULT_REVIEW_REPLY_TEMPLATE,
 	},
 ];
 

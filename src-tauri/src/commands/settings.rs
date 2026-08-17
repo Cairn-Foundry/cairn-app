@@ -172,6 +172,10 @@ pub struct CairnSettings {
     /// Keyed by the feature id; a feature with no entry runs on the default provider.
     #[serde(rename = "aiFeatures", default)]
     pub ai_features: std::collections::HashMap<String, AiFeatureAssignment>,
+    #[serde(rename = "integrationsPollSeconds", default = "default_integrations_poll_seconds")]
+    pub integrations_poll_seconds: u64,
+    #[serde(rename = "branchTemplate", default = "default_branch_template")]
+    pub branch_template: String,
 }
 
 /// A language server the user brought themselves. Cairn runs it exactly as it
@@ -251,6 +255,8 @@ fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
 fn default_theme() -> String { "default".to_string() }
 fn default_accent_color() -> String { "#6c8eff".to_string() }
+fn default_integrations_poll_seconds() -> u64 { 30 }
+fn default_branch_template() -> String { "feat/{{key}}-{{slug}}".to_string() }
 
 impl Default for CairnSettings {
     fn default() -> Self {
@@ -298,6 +304,8 @@ impl Default for CairnSettings {
             agent_show_effort_chip: true,
             agent_show_permission_chip: true,
             ai_features: std::collections::HashMap::new(),
+            integrations_poll_seconds: default_integrations_poll_seconds(),
+            branch_template: default_branch_template(),
         }
     }
 }

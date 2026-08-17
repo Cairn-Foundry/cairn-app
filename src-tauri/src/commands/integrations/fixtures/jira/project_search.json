@@ -1,0 +1,31 @@
+{
+  "self": "https://acme.atlassian.net/rest/api/3/project/search?maxResults=50&startAt=0",
+  "maxResults": 50,
+  "startAt": 0,
+  "total": 2,
+  "isLast": true,
+  "values": [
+    {
+      "expand": "description,lead,url,projectKeys",
+      "self": "https://acme.atlassian.net/rest/api/3/project/10000",
+      "id": "10000",
+      "key": "CAIRN",
+      "name": "Cairn",
+      "projectTypeKey": "software",
+      "simplified": true,
+      "style": "next-gen",
+      "isPrivate": false
+    },
+    {
+      "expand": "description,lead,url,projectKeys",
+      "self": "https://acme.atlassian.net/rest/api/3/project/10001",
+      "id": "10001",
+      "key": "OPS",
+      "name": "Operations",
+      "projectTypeKey": "business",
+      "simplified": false,
+      "style": "classic",
+      "isPrivate": false
+    }
+  ]
+}

@@ -2,8 +2,96 @@
 	{
 		"version": "0.17.0",
 		"date": "",
-		"summary": {},
-		"changes": []
+		"summary": {
+			"en": "Integrations: GitLab, GitHub and Jira come into Cairn - tickets, merge requests, pipelines and reviews, without leaving the workspace.",
+			"fr": "Intégrations : GitLab, GitHub et Jira entrent dans Cairn - tickets, merge requests, pipelines et reviews, sans quitter l'espace de travail."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "New Integrations page on the home screen: connect GitLab, GitHub and Jira with a personal token, test the connection and bind each project to a tracker, a forge and a CI.",
+					"fr": "Nouvelle page Intégrations sur l'écran d'accueil : connectez GitLab, GitHub et Jira avec un jeton personnel, testez la connexion et liez chaque projet à un tracker, une forge et une CI."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Create an instance from a ticket: search the tickets assigned to you or created by you, paste a URL or a key, and the branch name follows a configurable template.",
+					"fr": "Création d'une instance depuis un ticket : recherchez les tickets qui vous sont assignés ou que vous avez créés, collez une URL ou une clé, et le nom de branche suit un gabarit configurable."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Ticket panel in the workspace header: status with transitions, labels, assignees, description, and Start from ticket to hand the work to the agent.",
+					"fr": "Panneau ticket dans l'en-tête du workspace : statut avec transitions, labels, assignés, description, et Démarrer depuis le ticket pour confier le travail à l'agent."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Create the merge request from the finalization: title, description generated with AI, draft, reviewers, labels, link to the ticket.",
+					"fr": "Création de la merge request depuis la finalisation : titre, description générée par l'IA, brouillon, relecteurs, labels, lien vers le ticket."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Merge request chip in the Git step: state, approvals and pipeline of the branch, one click to review it.",
+					"fr": "Puce merge request dans la step Git : état, approbations et pipeline de la branche, un clic pour la relire."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The CI/CD step is real: pipelines of the branch, stages and jobs, job log with jump to failure, retry, cancel and run, and a badge on the step while a pipeline runs or fails.",
+					"fr": "La step CI/CD devient réelle : pipelines de la branche, étapes et jobs, journal du job avec saut à l'échec, relance, annulation et lancement, et un badge sur la step quand un pipeline tourne ou échoue."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Review step shows the merge request of the branch: discussions anchored on the diff, reply, resolve, approve and mark ready.",
+					"fr": "La step Review affiche la merge request de la branche : discussions ancrées sur le diff, réponse, résolution, approbation et passage en prête."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Fix with agent from a failed CI job and Address with agent from a review comment: a ready-made prompt lands in the Agent step.",
+					"fr": "Corriger avec l'agent depuis un job CI en échec et Traiter avec l'agent depuis un commentaire de review : un prompt prêt à l'emploi arrive dans la step Agent."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Open on <service> links everywhere a file, a line, a commit or a branch can be opened on the forge, whatever the forge.",
+					"fr": "Liens Ouvrir sur <service> partout où un fichier, une ligne, un commit ou une branche peut s'ouvrir sur la forge, quelle que soit la forge."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Project cards on the home screen show how many merge requests await your review and how many tickets are assigned to you.",
+					"fr": "Les cartes de projet de l'accueil affichent le nombre de merge requests en attente de votre relecture et de tickets qui vous sont assignés."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Ticket variables {{ticket.key}}, {{ticket.title}} and {{ticket.url}} in custom commands and the commit message template, and three shortcuts: create merge request, open branch on forge, retry last pipeline.",
+					"fr": "Variables {{ticket.key}}, {{ticket.title}} et {{ticket.url}} dans les commandes personnalisées et le gabarit de message de commit, et trois raccourcis : créer la merge request, ouvrir la branche sur la forge, relancer le dernier pipeline."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Open in GitLab becomes Open on <service>, named after the connected forge.",
+					"fr": "Ouvrir dans GitLab devient Ouvrir sur <service>, du nom de la forge connectée."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.16.0",

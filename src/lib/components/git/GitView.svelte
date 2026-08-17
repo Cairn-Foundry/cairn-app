@@ -51,6 +51,11 @@
   } from '$lib/stores/git';
   import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { capabilities } from '$lib/stores/integrations';
+  import { getRemoteUrl } from '$lib/stores/git';
+  import type { WebLinkTarget } from '$lib/types/integrations';
+  import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
   import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
   import { activeStep, pendingGitAction, gitLeftTab } from '$lib/stores/ui';
@@ -772,7 +777,7 @@
 
     try {
       const answer = await runOneShot(
-        renderCommitPrompt(feature.promptTemplate, appendTicketId ? (instance.ticket?.id ?? '') : ''),
+        renderCommitPrompt(feature.promptTemplate, appendTicketId ? (instance.ticket?.id ?? '') : '', instance.ticket ?? {}),
         instance.worktreePath,
         feature.providerId,
         {
@@ -856,7 +861,40 @@
     profileDropdownOpen = false;
   }
 
+  let forgeRemoteUrl = '';
+  let forgeRemoteWorktree = '';
+  $: if (instance?.worktreePath && instance.worktreePath !== forgeRemoteWorktree) {
+    forgeRemoteWorktree = instance.worktreePath;
+    forgeRemoteUrl = '';
+    void getRemoteUrl().then((url) => { if (instance?.worktreePath === forgeRemoteWorktree) forgeRemoteUrl = url; });
+  }
+  $: openOnForgeLabel = forgeLabel($capabilities.forge, forgeRemoteUrl);
+
+  let forgeMenu: { x: number; y: number; target: WebLinkTarget } | null = null;
+
+  function openForgeMenu(e: MouseEvent, target: WebLinkTarget) {
+    if (!openOnForgeLabel) return;
+    e.preventDefault();
+    const pad = 8;
+    const x = Math.min(e.clientX, window.innerWidth - 240 - pad);
+    const y = Math.min(e.clientY, window.innerHeight - 40 - pad);
+    forgeMenu = { x, y, target };
+  }
+
+  async function openTargetOnForge(target: WebLinkTarget) {
+    if (!instance) return;
+    const url = await forgeLink(instance.projectId, forgeRemoteUrl, target);
+    if (url) await openUrl(url);
+  }
+
+  function openOnForge() {
+    const menu = forgeMenu;
+    forgeMenu = null;
+    if (menu) void openTargetOnForge(menu.target);
+  }
+
   function handleWindowPointerdown(e: PointerEvent) {
+    if (forgeMenu && !(e.target as Element | null)?.closest('.forge-menu')) forgeMenu = null;
     if (!profileDropdownOpen) return;
     const target = e.target as Node;
     if (!profileTriggerEl?.contains(target) && !profileDropdownEl?.contains(target)) {
@@ -988,9 +1026,19 @@
   }
 </script>
 
+{#if forgeMenu && openOnForgeLabel}
+  <div class="ctx-menu forge-menu" style="left:{forgeMenu.x}px;top:{forgeMenu.y}px" role="menu">
+    <button role="menuitem" on:click={openOnForge}>
+      <Icon name="external" size={12}/>
+      {(t('integrations.openOn') as (s: string) => string)(openOnForgeLabel)}
+    </button>
+  </div>
+{/if}
+
 <svelte:window on:pointerdown={handleWindowPointerdown} on:keydown={(e) => {
   if (e.key === 'Escape') {
-    if (discardTarget) closeDiscard();
+    if (forgeMenu) forgeMenu = null;
+    else if (discardTarget) closeDiscard();
     else if (discardMultipleActive) closeDiscardMultiple();
     else if (stashSelectionOpen) closeStashSelection();
   }
@@ -1144,7 +1192,7 @@
         {:else}
           {#each filteredUnstagedCards.slice(0, unstagedVisible) as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedUnstaged.has(h.filePath)}>
-              <div class="hunk-card-head">
+              <div class="hunk-card-head" role="group" on:contextmenu={(e) => openForgeMenu(e, { type: 'file', path: h.filePath, ref: state.currentBranch })}>
                 {#if h.hasDiff}
                   <button class="card-collapse-btn" title={(collapsedUnstaged.has(h.filePath) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleUnstagedCollapse(h.filePath)}>
                     <Icon name={collapsedUnstaged.has(h.filePath) ? 'chev-r' : 'chev-d'} size={12}/>
@@ -1254,6 +1302,7 @@
               tabindex="0"
               on:click={() => selectCommit(commit)}
               on:keydown={(e) => e.key === 'Enter' && selectCommit(commit)}
+              on:contextmenu={(e) => openForgeMenu(e, { type: 'commit', sha: commit.hash })}
             >
               <div class="log-entry-main">
                 <span class="log-hash selectable">{commit.shortHash}</span>
@@ -1397,6 +1446,15 @@
             {/if}
             <span class="revert-sep"></span>
           {/if}
+          {#if openOnForgeLabel}
+            <button
+              class="revert-btn"
+              title={(t('integrations.openOn') as (s: string) => string)(openOnForgeLabel)}
+              on:click={() => openTargetOnForge({ type: 'commit', sha: selectedCommit!.hash })}
+            >
+              <Icon name="external" size={11}/>
+            </button>
+          {/if}
           <button
             class="revert-btn"
             disabled={isReverting || isLoadingCommitDiff}
@@ -1452,7 +1510,7 @@
         {:else}
           {#each filteredCommitDiffCards as card (card.filePath)}
             <div class="hunk-card {STATUS_CLASS[card.status] ?? ''}">
-              <div class="hunk-card-head">
+              <div class="hunk-card-head" role="group" on:contextmenu={(e) => selectedCommit && openForgeMenu(e, { type: 'file', path: card.filePath, ref: selectedCommit.hash })}>
                 <span class="file-info">
                   <span class="file-basename">{card.basename}</span>
                   {#if card.dirpath}<span class="file-dir">{card.dirpath}</span>{/if}
@@ -1532,7 +1590,7 @@
         {:else}
           {#each filteredStagedCards.slice(0, stagedVisible) as h (h.filePath)}
             <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={!expandedStaged.has(h.filePath)}>
-              <div class="hunk-card-head">
+              <div class="hunk-card-head" role="group" on:contextmenu={(e) => openForgeMenu(e, { type: 'file', path: h.filePath, ref: state.currentBranch })}>
                 {#if h.hasDiff}
                   <button class="card-collapse-btn" title={(expandedStaged.has(h.filePath) ? t('git.collapseFile') : t('git.expandFile')) as string} on:click={() => toggleStagedCollapse(h.filePath)}>
                     <Icon name={expandedStaged.has(h.filePath) ? 'chev-d' : 'chev-r'} size={12}/>
@@ -3340,4 +3398,32 @@
     font-size: 11px;
     color: var(--fg-3);
   }
+
+  .forge-menu {
+    position: fixed;
+    z-index: 9999;
+    min-width: 200px;
+    padding: 4px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-1);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.2);
+    font-size: 12.5px;
+    color: var(--fg-1);
+  }
+  .forge-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .forge-menu button:hover { background: var(--bg-4); color: var(--fg-0); }
 </style>

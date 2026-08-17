@@ -1,0 +1,92 @@
+[
+  {
+    "id": 2410000001,
+    "node_id": "PRR_kwDOLxQzR86PmQAB",
+    "user": {
+      "login": "alice",
+      "id": 77001,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77001?v=4",
+      "html_url": "https://github.com/alice",
+      "type": "User"
+    },
+    "body": "A couple of remarks inline.",
+    "state": "CHANGES_REQUESTED",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#pullrequestreview-2410000001",
+    "pull_request_url": "https://api.github.com/repos/cairn-app/cairn/pulls/340",
+    "author_association": "MEMBER",
+    "submitted_at": "2026-08-11T08:12:44Z",
+    "commit_id": "7e2d9c1b0a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d"
+  },
+  {
+    "id": 2410000002,
+    "node_id": "PRR_kwDOLxQzR86PmQAC",
+    "user": {
+      "login": "alice",
+      "id": 77001,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77001?v=4",
+      "html_url": "https://github.com/alice",
+      "type": "User"
+    },
+    "body": "",
+    "state": "APPROVED",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#pullrequestreview-2410000002",
+    "pull_request_url": "https://api.github.com/repos/cairn-app/cairn/pulls/340",
+    "author_association": "MEMBER",
+    "submitted_at": "2026-08-12T09:40:10Z",
+    "commit_id": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b"
+  },
+  {
+    "id": 2410000003,
+    "node_id": "PRR_kwDOLxQzR86PmQAD",
+    "user": {
+      "login": "bob",
+      "id": 77002,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77002?v=4",
+      "html_url": "https://github.com/bob",
+      "type": "User"
+    },
+    "body": "LGTM",
+    "state": "APPROVED",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#pullrequestreview-2410000003",
+    "pull_request_url": "https://api.github.com/repos/cairn-app/cairn/pulls/340",
+    "author_association": "CONTRIBUTOR",
+    "submitted_at": "2026-08-11T16:03:00Z",
+    "commit_id": "7e2d9c1b0a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d"
+  },
+  {
+    "id": 2410000004,
+    "node_id": "PRR_kwDOLxQzR86PmQAE",
+    "user": {
+      "login": "bob",
+      "id": 77002,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77002?v=4",
+      "html_url": "https://github.com/bob",
+      "type": "User"
+    },
+    "body": "Hold on, the test is flaky.",
+    "state": "CHANGES_REQUESTED",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#pullrequestreview-2410000004",
+    "pull_request_url": "https://api.github.com/repos/cairn-app/cairn/pulls/340",
+    "author_association": "CONTRIBUTOR",
+    "submitted_at": "2026-08-12T07:15:31Z",
+    "commit_id": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b"
+  },
+  {
+    "id": 2410000005,
+    "node_id": "PRR_kwDOLxQzR86PmQAF",
+    "user": {
+      "login": "carol",
+      "id": 77003,
+      "avatar_url": "https://avatars.githubusercontent.com/u/77003?v=4",
+      "html_url": "https://github.com/carol",
+      "type": "User"
+    },
+    "body": "Just a drive-by comment.",
+    "state": "COMMENTED",
+    "html_url": "https://github.com/cairn-app/cairn/pull/340#pullrequestreview-2410000005",
+    "pull_request_url": "https://api.github.com/repos/cairn-app/cairn/pulls/340",
+    "author_association": "NONE",
+    "submitted_at": "2026-08-12T08:00:00Z",
+    "commit_id": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b"
+  }
+]

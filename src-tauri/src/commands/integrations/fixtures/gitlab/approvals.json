@@ -1,0 +1,38 @@
+{
+  "id": 318472911,
+  "iid": 12,
+  "project_id": 61728394,
+  "title": "Draft: fix(cicd): refresh badge after retry",
+  "description": "Recomputes `ciFailing` from the pipeline store instead of the last event.\n\nCloses #42",
+  "state": "opened",
+  "created_at": "2026-08-15T10:03:44.219Z",
+  "updated_at": "2026-08-17T07:12:09.870Z",
+  "merge_status": "cannot_be_merged",
+  "approved": false,
+  "approvals_required": 2,
+  "approvals_left": 1,
+  "require_password_to_approve": false,
+  "approved_by": [
+    {
+      "user": {
+        "id": 1042,
+        "username": "bbonneton",
+        "name": "Benjamin Bonneton",
+        "state": "active",
+        "locked": false,
+        "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
+        "web_url": "https://gitlab.com/bbonneton"
+      }
+    }
+  ],
+  "suggested_approvers": [],
+  "approvers": [],
+  "approver_groups": [],
+  "user_has_approved": true,
+  "user_can_approve": false,
+  "approval_rules_left": [],
+  "has_approval_rules": true,
+  "merge_request_approvers_available": true,
+  "multiple_approval_rules_available": true,
+  "invalid_approvers_rules": []
+}

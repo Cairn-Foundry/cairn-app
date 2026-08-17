@@ -415,6 +415,24 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "app",
 		default: { key: "r", mod: true, shift: false, alt: true, ctrl: false },
 	},
+	{
+		id: "createMergeRequest",
+		...d("createMergeRequest"),
+		group: "app",
+		default: { key: "m", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "openBranchOnForge",
+		...d("openBranchOnForge"),
+		group: "app",
+		default: { key: "o", mod: true, shift: true, alt: false, ctrl: false },
+	},
+	{
+		id: "retryLastPipeline",
+		...d("retryLastPipeline"),
+		group: "app",
+		default: { key: "u", mod: true, shift: true, alt: false, ctrl: false },
+	},
 ];
 
 /** Localized headings of the shortcut groups, in settings and in the command palette. */

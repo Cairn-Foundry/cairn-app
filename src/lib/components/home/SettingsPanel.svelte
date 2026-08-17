@@ -3,6 +3,7 @@
    * Settings screen: the tab strip, the cross-tab search, and import/export of the whole settings file.
    */
   import Icon from '$lib/components/Icon.svelte';
+  import { createEventDispatcher } from 'svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import GeneralTab from './settings/GeneralTab.svelte';
@@ -19,6 +20,8 @@
 
   export let settingsTab: SettingsTab = 'general';
 
+  const dispatch = createEventDispatcher<{ openSection: string }>();
+
   let settingsSearch = '';
   let importFileInput: HTMLInputElement;
   let importError = '';
@@ -26,8 +29,12 @@
   $: settingsResults = searchSettings(settingsSearch);
 
   function goToSettingEntry(entry: SettingEntry) {
-    settingsTab = entry.tab;
     settingsSearch = '';
+    if (entry.homeSection) {
+      dispatch('openSection', entry.homeSection);
+      return;
+    }
+    settingsTab = entry.tab;
   }
 
   async function exportSettings() {
@@ -106,7 +113,7 @@
             <span class="settings-row-label">{entry.label}</span>
             <span class="settings-row-desc">{entry.desc}</span>
           </div>
-          <span class="ssr-breadcrumb">{entry.tab.charAt(0).toUpperCase() + entry.tab.slice(1)} › {entry.group}</span>
+          <span class="ssr-breadcrumb">{entry.homeSection ? entry.group : `${entry.tab.charAt(0).toUpperCase() + entry.tab.slice(1)} › ${entry.group}`}</span>
         </button>
       {/each}
     </div>

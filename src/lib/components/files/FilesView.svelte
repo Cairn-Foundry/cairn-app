@@ -36,7 +36,10 @@ import { get } from 'svelte/store';
   import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
   import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
   import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { git, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
+  import { git, getRemoteUrl, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { capabilities } from '$lib/stores/integrations';
+  import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
   import { resolveTabClose } from '$lib/utils/files/files-tab-close';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
   import { settings } from '$lib/stores/settings';
@@ -1647,6 +1650,24 @@ import { get } from 'svelte/store';
   $: sidebarRight = $settings.sidebarPosition === 'right';
 
   $: worktreePath = $activeInstance?.worktreePath ?? null;
+
+  let forgeRemoteUrl = '';
+  let forgeRemoteWorktree = '';
+  $: if (worktreePath && worktreePath !== forgeRemoteWorktree) {
+    forgeRemoteWorktree = worktreePath;
+    forgeRemoteUrl = '';
+    void getRemoteUrl().then((url) => { if (worktreePath === forgeRemoteWorktree) forgeRemoteUrl = url; });
+  }
+  $: openOnForgeLabel = forgeLabel($capabilities.forge, forgeRemoteUrl) ?? '';
+
+  async function openLineOnForge(paneIndex: number, line: number) {
+    const tab = activeTabs[paneIndex];
+    const projectId = $activeProjectId;
+    const branch = $git.currentBranch;
+    if (!tab || !projectId || !branch) return;
+    const url = await forgeLink(projectId, forgeRemoteUrl, { type: 'file', path: tab.path, line, ref: branch });
+    if (url) await openUrl(url);
+  }
   // Guarded on the path: the statement also re-runs on every cursor move (the
   // move touches `panes`, which rebuilds `activeTabs`), and an unguarded reset
   // would drag the caret position back to 1:1 right after each move.
@@ -2447,6 +2468,8 @@ import { get } from 'svelte/store';
           onFindReferences={() => { focusedPane = i as 0 | 1; void runFindReferences(); }}
           onRenameSymbol={() => { focusedPane = i as 0 | 1; startRenameSymbol(); }}
           onFormatDocument={() => { focusedPane = i as 0 | 1; void runFormatDocument(); }}
+          onOpenOnForge={(line) => void openLineOnForge(i, line)}
+          {openOnForgeLabel}
           onChunkClick={(chunk) => handleChunkClick(i, chunk)}
           onRevertChunk={() => revertActiveChunk(i)}
           onCloseHunk={() => { panes[i].activeChunk = null; panes = panes; }}

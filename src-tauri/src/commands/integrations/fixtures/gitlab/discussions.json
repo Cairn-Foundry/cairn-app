@@ -1,0 +1,196 @@
+[
+  {
+    "id": "6a9c1e2f3b4d5a6c7e8f9012a3b4c5d6e7f80912",
+    "individual_note": false,
+    "notes": [
+      {
+        "id": 2210034571,
+        "type": "DiffNote",
+        "body": "This recomputes on every event; can we derive it from the store instead?",
+        "attachment": null,
+        "author": {
+          "id": 2211,
+          "username": "alice",
+          "name": "Alice Martin",
+          "state": "active",
+          "locked": false,
+          "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/2211/avatar.png",
+          "web_url": "https://gitlab.com/alice"
+        },
+        "created_at": "2026-08-16T15:02:41.512Z",
+        "updated_at": "2026-08-16T15:02:41.512Z",
+        "system": false,
+        "noteable_id": 318472911,
+        "noteable_type": "MergeRequest",
+        "project_id": 61728394,
+        "commit_id": null,
+        "position": {
+          "base_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "start_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "head_sha": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b",
+          "old_path": "src/lib/stores/pipelines.ts",
+          "new_path": "src/lib/stores/pipelines.ts",
+          "position_type": "text",
+          "old_line": null,
+          "new_line": 48,
+          "line_range": {
+            "start": {
+              "line_code": "3f2a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a_0_48",
+              "type": "new",
+              "old_line": null,
+              "new_line": 48
+            },
+            "end": {
+              "line_code": "3f2a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a_0_48",
+              "type": "new",
+              "old_line": null,
+              "new_line": 48
+            }
+          }
+        },
+        "resolvable": true,
+        "resolved": false,
+        "resolved_by": null,
+        "resolved_at": null,
+        "confidential": false,
+        "internal": false,
+        "imported": false,
+        "imported_from": "none",
+        "noteable_iid": 12,
+        "commands_changes": {}
+      },
+      {
+        "id": 2210041188,
+        "type": "DiffNote",
+        "body": "Good catch, fixed in the next push.",
+        "attachment": null,
+        "author": {
+          "id": 1042,
+          "username": "bbonneton",
+          "name": "Benjamin Bonneton",
+          "state": "active",
+          "locked": false,
+          "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
+          "web_url": "https://gitlab.com/bbonneton"
+        },
+        "created_at": "2026-08-16T15:20:03.004Z",
+        "updated_at": "2026-08-16T15:20:03.004Z",
+        "system": false,
+        "noteable_id": 318472911,
+        "noteable_type": "MergeRequest",
+        "project_id": 61728394,
+        "commit_id": null,
+        "position": {
+          "base_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "start_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "head_sha": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b",
+          "old_path": "src/lib/stores/pipelines.ts",
+          "new_path": "src/lib/stores/pipelines.ts",
+          "position_type": "text",
+          "old_line": null,
+          "new_line": 48
+        },
+        "resolvable": true,
+        "resolved": false,
+        "resolved_by": null,
+        "resolved_at": null,
+        "confidential": false,
+        "internal": false,
+        "imported": false,
+        "imported_from": "none",
+        "noteable_iid": 12,
+        "commands_changes": {}
+      }
+    ]
+  },
+  {
+    "id": "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+    "individual_note": false,
+    "notes": [
+      {
+        "id": 2210034990,
+        "type": "DiffNote",
+        "body": "This import is now unused.",
+        "attachment": null,
+        "author": {
+          "id": 2211,
+          "username": "alice",
+          "name": "Alice Martin",
+          "state": "active",
+          "locked": false,
+          "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/2211/avatar.png",
+          "web_url": "https://gitlab.com/alice"
+        },
+        "created_at": "2026-08-16T15:05:12.000Z",
+        "updated_at": "2026-08-16T15:31:40.000Z",
+        "system": false,
+        "noteable_id": 318472911,
+        "noteable_type": "MergeRequest",
+        "project_id": 61728394,
+        "commit_id": null,
+        "position": {
+          "base_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "start_sha": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
+          "head_sha": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b",
+          "old_path": "src/lib/components/cicd/CiCdView.svelte",
+          "new_path": "src/lib/components/cicd/CiCdView.svelte",
+          "position_type": "text",
+          "old_line": 12,
+          "new_line": null
+        },
+        "resolvable": true,
+        "resolved": true,
+        "resolved_by": {
+          "id": 1042,
+          "username": "bbonneton",
+          "name": "Benjamin Bonneton",
+          "state": "active",
+          "locked": false,
+          "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
+          "web_url": "https://gitlab.com/bbonneton"
+        },
+        "resolved_at": "2026-08-16T15:31:40.000Z",
+        "confidential": false,
+        "internal": false,
+        "imported": false,
+        "imported_from": "none",
+        "noteable_iid": 12,
+        "commands_changes": {}
+      }
+    ]
+  },
+  {
+    "id": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3",
+    "individual_note": true,
+    "notes": [
+      {
+        "id": 2209988001,
+        "type": null,
+        "body": "requested review from @alice",
+        "attachment": null,
+        "author": {
+          "id": 1042,
+          "username": "bbonneton",
+          "name": "Benjamin Bonneton",
+          "state": "active",
+          "locked": false,
+          "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
+          "web_url": "https://gitlab.com/bbonneton"
+        },
+        "created_at": "2026-08-15T10:04:01.000Z",
+        "updated_at": "2026-08-15T10:04:01.000Z",
+        "system": true,
+        "noteable_id": 318472911,
+        "noteable_type": "MergeRequest",
+        "project_id": 61728394,
+        "resolvable": false,
+        "confidential": false,
+        "internal": false,
+        "imported": false,
+        "imported_from": "none",
+        "noteable_iid": 12,
+        "commands_changes": {}
+      }
+    ]
+  }
+]

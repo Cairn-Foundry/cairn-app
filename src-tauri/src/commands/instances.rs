@@ -20,6 +20,14 @@ static INSTANCES_WRITE_LOCK: Mutex<()> = Mutex::new(());
 pub struct InstanceTicket {
     pub id: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(rename = "connectionId", default, skip_serializing_if = "Option::is_none")]
+    pub connection_id: Option<String>,
 }
 
 /// An instance as written to `instances.json`, where the project id is implied
@@ -328,6 +336,19 @@ pub fn update_instance_status(id: String, project_id: String, status: String) ->
     let instance = instances.iter_mut().find(|i| i.id == id)
         .ok_or_else(|| format!("Instance '{}' not found", id))?;
     instance.status = status;
+    let updated = instance.clone();
+    write_instances(&project_id, &instances)?;
+    Ok(updated.with_project(project_id))
+}
+
+/// Replaces the instance ticket, which is how a manual id gets linked to a tracker.
+#[tauri::command]
+pub fn update_instance_ticket(id: String, project_id: String, ticket: InstanceTicket) -> Result<Instance, String> {
+    let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut instances = read_instances(&project_id)?;
+    let instance = instances.iter_mut().find(|i| i.id == id)
+        .ok_or_else(|| format!("Instance '{}' not found", id))?;
+    instance.ticket = ticket;
     let updated = instance.clone();
     write_instances(&project_id, &instances)?;
     Ok(updated.with_project(project_id))

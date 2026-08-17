@@ -8,8 +8,13 @@ import {
 	duplicateInstance as duplicateInstanceService,
 	listInstances,
 	updateInstanceStatus,
+	updateInstanceTicket,
 } from "$lib/services/instance-service";
-import type { Instance, InstanceStatus } from "$lib/types/instance";
+import type {
+	Instance,
+	InstanceStatus,
+	InstanceTicket,
+} from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import { clearProjectAgentActivity } from "./agent-activity";
 import { removeInstanceConversations } from "./conversation";
@@ -190,6 +195,17 @@ export async function setInstanceStatus(
 	status: InstanceStatus,
 ): Promise<void> {
 	const updated = await updateInstanceStatus(id, projectId, status);
+	patchProject(projectId, (list) =>
+		list.map((i) => (i.id === id ? updated : i)),
+	);
+}
+
+export async function setInstanceTicket(
+	id: string,
+	projectId: string,
+	ticket: InstanceTicket,
+): Promise<void> {
+	const updated = await updateInstanceTicket(id, projectId, ticket);
 	patchProject(projectId, (list) =>
 		list.map((i) => (i.id === id ? updated : i)),
 	);

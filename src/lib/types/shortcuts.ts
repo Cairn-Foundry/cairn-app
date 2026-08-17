@@ -59,7 +59,11 @@ export type ShortcutId =
 	| "openFormatting"
 	| "goHome"
 	| "reloadEditor"
-	| "reloadProject";
+	| "reloadProject"
+	// Integrations (global)
+	| "createMergeRequest"
+	| "openBranchOnForge"
+	| "retryLastPipeline";
 
 /** Placeholder key of a binding triggered by a click instead of a keystroke. */
 export const MOUSE_KEY = "Click";
