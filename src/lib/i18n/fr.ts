@@ -1158,6 +1158,7 @@ export const fr = {
 		searchReviewers: "Rechercher un relecteur...",
 		labels: "Labels",
 		removeSourceBranch: "Supprimer la branche source après fusion",
+		squash: "Regrouper les commits à la fusion",
 		linkTicket: "Lier le ticket",
 		generateWithAi: "Générer avec l'IA",
 		approvals: (n: number, total: number | null) =>

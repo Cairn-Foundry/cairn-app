@@ -324,6 +324,8 @@ pub struct MergeRequestDraft {
     #[serde(default)]
     pub remove_source_branch: bool,
     #[serde(default)]
+    pub is_squash: bool,
+    #[serde(default)]
     pub linked_ticket_key: Option<String>,
 }
 

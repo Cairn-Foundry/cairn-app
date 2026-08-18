@@ -189,6 +189,8 @@ export interface MergeRequestDraft {
 	reviewers: string[];
 	labels: string[];
 	removeSourceBranch: boolean;
+	/** GitLab only: squash the commits when the merge request is merged. */
+	isSquash: boolean;
 	/** Becomes "Closes #123" / "Resolves CAIRN-42" depending on the service. */
 	linkedTicketKey: string | null;
 }

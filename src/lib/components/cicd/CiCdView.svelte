@@ -408,7 +408,6 @@
                 <span class="selectable">{shortSha(pipeline.sha)}</span>
                 <CopyButton value={pipeline.sha} size={10}/>
               </span>
-              {#if pipeline.source}<span class="commit">- {pipeline.source}</span>{/if}
             </div>
             <div class="spacer"></div>
             <span class="dim mono meta">{timing(pipeline)}</span>

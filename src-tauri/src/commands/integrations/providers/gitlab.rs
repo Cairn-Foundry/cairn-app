@@ -544,6 +544,7 @@ impl ForgeProvider for GitLabApi {
             "title": title,
             "description": description,
             "remove_source_branch": draft.remove_source_branch,
+            "squash": draft.is_squash,
         });
         if !draft.labels.is_empty() {
             body["labels"] = Value::String(draft.labels.join(","));

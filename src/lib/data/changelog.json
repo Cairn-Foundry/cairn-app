@@ -10,6 +10,27 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Finalize instance: the merge request target branch can be chosen from every branch of the project, instead of always being the base branch.",
+					"fr": "Finaliser l'instance : la branche cible de la merge request se choisit parmi toutes les branches du projet, au lieu d'être toujours la branche de base."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Finalize instance: a Squash commits option on the merge request form (GitLab).",
+					"fr": "Finaliser l'instance : une option Regrouper les commits sur le formulaire de merge request (GitLab)."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "CI/CD step: the pipeline header no longer repeats its trigger source next to the title.",
+					"fr": "Étape CI/CD : l'en-tête de pipeline ne répète plus sa source de déclenchement à côté du titre."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "CI/CD step: the whole pipeline history of the branch, loaded as you scroll, with a search bar and status filters applied by the forge itself - so a search reaches pipelines that are not on screen yet.",
 					"fr": "Étape CI/CD : tout l'historique des pipelines de la branche, chargé au fil du défilement, avec une barre de recherche et des filtres par statut appliqués par la forge elle-même - une recherche atteint donc les pipelines pas encore affichés."
 				}

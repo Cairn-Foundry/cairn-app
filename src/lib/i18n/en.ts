@@ -1135,6 +1135,7 @@ export const en = {
 		searchReviewers: "Search a reviewer...",
 		labels: "Labels",
 		removeSourceBranch: "Delete source branch when merged",
+		squash: "Squash commits when merged",
 		linkTicket: "Link the ticket",
 		generateWithAi: "Generate with AI",
 		approvals: (n: number, total: number | null) =>

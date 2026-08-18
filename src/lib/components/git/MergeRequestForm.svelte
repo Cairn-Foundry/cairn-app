@@ -6,8 +6,11 @@
    */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Select from '$lib/components/Select.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
+  import { activeProject } from '$lib/stores/project';
+  import { git, loadBranches } from '$lib/stores/git';
   import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
   import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
   import { forgeTerms } from '$lib/stores/integrations';
@@ -35,6 +38,8 @@
   let description = '';
   let isDraft = false;
   let removeSourceBranch = true;
+  let isSquash = false;
+  let selectedTarget = targetBranch;
   let hasLinkedTicket = ticket !== null;
   let reviewers: Actor[] = [];
   let labels: string[] = [];
@@ -60,9 +65,23 @@
   $: resolvedFeature = resolveAiFeature('mrDescription', $settings.aiFeatures, $aiProviders);
   $: canGenerate = !resolvedFeature.unavailable && !isGenerating && !isSubmitting;
   $: canSubmit = title.trim() !== '' && !isSubmitting && !isGenerating;
+  $: targetOptions = buildTargetOptions($git.branches, $git.remoteBranches);
+
+  /** Every branch the MR could target, source excluded, current target always present. */
+  function buildTargetOptions(local: string[], remote: string[]): { value: string; label: string }[] {
+    const names = new Set([targetBranch, ...local, ...remote.map(stripRemote)]);
+    names.delete(sourceBranch);
+    return [...names].sort().map((value) => ({ value, label: value }));
+  }
+
+  function stripRemote(name: string): string {
+    const slash = name.indexOf('/');
+    return slash === -1 ? name : name.slice(slash + 1);
+  }
 
   onMount(() => {
     void loadAiProviders();
+    if ($activeProject?.path) void loadBranches($activeProject.path);
     void loadForgeLabels(projectId)
       .then((list) => { availableLabels = list; })
       .catch(() => { availableLabels = []; })
@@ -130,7 +149,7 @@
     aiStatusMessage = t('mergeRequest.aiGenerating') as string;
     try {
       const answer = await runOneShot(
-        buildMrDescriptionPrompt(targetBranch, ticket, $settings.aiFeatures),
+        buildMrDescriptionPrompt(selectedTarget, ticket, $settings.aiFeatures),
         worktreePath,
         feature.providerId,
         {
@@ -188,10 +207,11 @@
         description,
         isDraft,
         sourceBranch,
-        targetBranch,
+        targetBranch: selectedTarget,
         reviewers: reviewers.map((r) => r.login),
         labels,
         removeSourceBranch,
+        isSquash,
         linkedTicketKey: hasLinkedTicket && ticket ? ticket.key : null,
       });
       dispatch('created', created);
@@ -207,7 +227,14 @@
   <div class="mr-branches">
     <span class="mr-branch selectable">{sourceBranch}</span>
     <Icon name="chev-r" size={11}/>
-    <span class="mr-branch selectable" title={t('mergeRequest.target') as string}>{targetBranch}</span>
+    <div class="mr-target">
+      <Select
+        bind:value={selectedTarget}
+        options={targetOptions}
+        disabled={isSubmitting}
+        ariaLabel={t('mergeRequest.target') as string}
+      />
+    </div>
   </div>
 
   <div class="form-row">
@@ -318,6 +345,10 @@
       <input type="checkbox" bind:checked={removeSourceBranch} />
       <span>{t('mergeRequest.removeSourceBranch')}</span>
     </label>
+    <label class="mr-option">
+      <input type="checkbox" bind:checked={isSquash} />
+      <span>{t('mergeRequest.squash')}</span>
+    </label>
     {#if ticket}
       <label class="mr-option">
         <input type="checkbox" bind:checked={hasLinkedTicket} />
@@ -358,6 +389,11 @@
     font-family: var(--font-mono);
     font-size: 11.5px;
     color: var(--fg-2);
+  }
+  .mr-target {
+    flex: 1;
+    min-width: 0;
+    max-width: 60%;
   }
   .mr-branch {
     max-width: 45%;
