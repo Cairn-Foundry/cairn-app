@@ -255,7 +255,7 @@ fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
 fn default_theme() -> String { "default".to_string() }
 fn default_accent_color() -> String { "#6c8eff".to_string() }
-fn default_integrations_poll_seconds() -> u64 { 30 }
+pub(crate) fn default_integrations_poll_seconds() -> u64 { 10 }
 fn default_branch_template() -> String { "feat/{{key}}-{{slug}}".to_string() }
 
 impl Default for CairnSettings {

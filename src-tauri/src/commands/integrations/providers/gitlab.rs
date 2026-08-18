@@ -5,7 +5,10 @@ use std::sync::Mutex;
 use serde_json::{json, Value};
 use crate::commands::integrations::http::{host_of, HttpClient};
 use crate::commands::integrations::model::*;
-use crate::commands::integrations::provider::{CiProvider, ForgeProvider, TrackerProvider, WebLinkStyle, WebLinks};
+use crate::commands::integrations::provider::{
+    filter_by_text, gitlab_status_param, is_full_sha, CiProvider, ForgeProvider, TrackerProvider, WebLinkStyle,
+    WebLinks, PIPELINES_PER_PAGE,
+};
 
 const TICKETS_PER_PAGE: u32 = 20;
 const MAX_LOG_CHARS: usize = 400_000;
@@ -621,23 +624,49 @@ impl ForgeProvider for GitLabApi {
 }
 
 impl CiProvider for GitLabApi {
-    async fn list_pipelines(&self, git_ref: &str, limit: usize) -> Result<Vec<Pipeline>, IntegrationError> {
-        let query = vec![
+    async fn list_pipelines(
+        &self,
+        git_ref: &str,
+        q: &PipelineQuery,
+        limit: usize,
+        page: usize,
+    ) -> Result<Page<Pipeline>, IntegrationError> {
+        let mut query = vec![
             ("ref", git_ref.to_string()),
-            ("per_page", limit.clamp(1, 20).to_string()),
+            ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
+            ("page", page.max(1).to_string()),
             ("order_by", "id".to_string()),
             ("sort", "desc".to_string()),
         ];
-        let list = self.http.get_json(&self.project("pipelines"), &query).await?;
-        let mut pipelines = Vec::new();
-        for summary in list.as_array().into_iter().flatten() {
-            let id = id_of(summary, "id");
-            if id.is_empty() {
-                continue;
-            }
-            pipelines.push(self.get_pipeline(&id).await?);
+        if let Some(status) = q.status.and_then(gitlab_status_param) {
+            query.push(("status", status.to_string()));
         }
-        Ok(pipelines)
+        if let Some(username) = q.username.as_deref().filter(|u| !u.is_empty()) {
+            query.push(("username", username.to_string()));
+        }
+        if let Some(source) = q.source.as_deref().filter(|s| !s.is_empty()) {
+            query.push(("source", source.to_string()));
+        }
+        let text = q.text.trim();
+        if is_full_sha(text) {
+            query.push(("sha", text.to_string()));
+        }
+
+        let list = self.http.get_json(&self.project("pipelines"), &query).await?;
+        let ids: Vec<String> = list
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|summary| id_of(summary, "id"))
+            .filter(|id| !id.is_empty())
+            .collect();
+
+        let has_more = ids.len() >= limit.clamp(1, PIPELINES_PER_PAGE);
+        let mut pipelines = Vec::with_capacity(ids.len());
+        for id in &ids {
+            pipelines.push(self.get_pipeline(id).await?);
+        }
+        Ok(Page { items: filter_by_text(pipelines, text), has_more })
     }
 
     async fn get_pipeline(&self, id: &str) -> Result<Pipeline, IntegrationError> {
@@ -700,7 +729,7 @@ mod tests {
         assert_eq!(t.status_category, StatusCategory::InProgress);
         assert_eq!(t.labels, vec!["bug", "Doing"]);
         assert_eq!(t.assignees.len(), 1);
-        assert_eq!(t.assignees[0].login, "bbonneton");
+        assert_eq!(t.assignees[0].login, "alovelace");
         assert_eq!(t.kind.as_deref(), Some("issue"));
         assert_eq!(t.url, "https://gitlab.com/cairn/cairn/-/issues/42");
         assert!(t.description.starts_with("After retrying"));
@@ -715,14 +744,14 @@ mod tests {
 
     #[test]
     fn maps_merge_request_with_approvals() {
-        let mr = map_merge_request(&parse(MERGE_REQUEST), Some(&parse(APPROVALS)), Some("bbonneton"));
+        let mr = map_merge_request(&parse(MERGE_REQUEST), Some(&parse(APPROVALS)), Some("alovelace"));
         assert_eq!(mr.id, "12");
         assert_eq!(mr.number, "!12");
         assert_eq!(mr.state, MergeRequestState::Open);
         assert!(mr.is_draft);
         assert_eq!(mr.source_branch, "feat/42-pipeline-badge");
         assert_eq!(mr.target_branch, "main");
-        assert_eq!(mr.author.login, "bbonneton");
+        assert_eq!(mr.author.login, "alovelace");
         assert_eq!(mr.reviewers.len(), 1);
         assert_eq!(mr.reviewers[0].login, "alice");
         assert_eq!(mr.labels, vec!["bug"]);
@@ -809,8 +838,8 @@ mod tests {
     #[test]
     fn maps_user_to_identity() {
         let id = map_identity(&parse(USER));
-        assert_eq!(id.login, "bbonneton");
-        assert_eq!(id.display_name, "Benjamin Bonneton");
+        assert_eq!(id.login, "alovelace");
+        assert_eq!(id.display_name, "Ada Lovelace");
         assert!(id.avatar_url.as_deref().unwrap().starts_with("https://"));
     }
 

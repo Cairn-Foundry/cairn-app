@@ -421,6 +421,28 @@ pub struct Pipeline {
     pub failed_job_id: Option<String>,
 }
 
+/// What the CI list is narrowed to. Every field is applied by the provider, on
+/// the whole branch history - never by the client on the page it happens to hold.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineQuery {
+    #[serde(default)]
+    pub status: Option<PipelineStatus>,
+    /// Free text: a sha prefix, a pipeline number, or a commit title fragment.
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+impl PipelineQuery {
+    pub fn is_empty(&self) -> bool {
+        self.status.is_none() && self.text.trim().is_empty() && self.username.is_none() && self.source.is_none()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct JobLog {

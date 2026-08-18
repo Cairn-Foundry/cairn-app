@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn parses_field_output() {
-        let out = "p1711\ncnode\nLbenjamin\ntIPv4\nn127.0.0.1:7357\np683\ncControlCe\nLbenjamin\ntIPv4\nn*:7000\ntIPv6\nn*:7000\n";
+        let out = "p1711\ncnode\nLada\ntIPv4\nn127.0.0.1:7357\np683\ncControlCe\nLada\ntIPv4\nn*:7000\ntIPv6\nn*:7000\n";
         let ports = parse_lsof(out);
         assert_eq!(ports.len(), 2);
         assert_eq!(ports[0].port, 7000);

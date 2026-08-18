@@ -1200,7 +1200,7 @@ export const fr = {
 		noCiBody:
 			"Liez ce projet à une forge qui fournit une CI (GitLab ou GitHub) pour voir ici les pipelines de la branche.",
 		goToIntegrations: "Ouvrir les intégrations",
-		onBranch: (branch: string, n: number) => `sur ${branch} - ${n} derniers`,
+		onBranch: (branch: string) => `sur ${branch}`,
 		retry: "Relancer",
 		cancel: "Annuler",
 		play: "Lancer",
@@ -1214,6 +1214,9 @@ export const fr = {
 		failed: (job: string) => `${job} a échoué`,
 		openJob: "Ouvrir le job",
 		noPipelines: "Aucun pipeline pour cette branche pour l'instant.",
+		noMatch: "Aucun pipeline ne correspond aux filtres.",
+		search: "Rechercher des pipelines...",
+		allStatuses: "Tous",
 		status: {
 			pending: "En attente",
 			running: "En cours",

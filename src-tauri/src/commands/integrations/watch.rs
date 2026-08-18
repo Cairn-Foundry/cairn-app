@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 use super::model::*;
 use super::provider::{Backend, CiProvider, ForgeProvider};
-use crate::commands::settings::read_settings;
+use crate::commands::settings::{default_integrations_poll_seconds, read_settings};
 
 pub const INTEGRATION_UPDATE_EVENT: &str = "integration-update";
 const MANUAL_MODE_RECHECK: Duration = Duration::from_secs(30);
@@ -52,8 +52,9 @@ async fn poll_merge_request(project_id: &str, branch: &str) -> Result<Option<Mer
 }
 
 async fn poll_pipeline(project_id: &str, branch: &str) -> Result<Option<Pipeline>, IntegrationError> {
-    let pipelines = Backend::for_capability(project_id, Capability::Ci)?.list_pipelines(branch, 1).await?;
-    Ok(pipelines.into_iter().next())
+    let page =
+        Backend::for_capability(project_id, Capability::Ci)?.list_pipelines(branch, &PipelineQuery::default(), 1, 1).await?;
+    Ok(page.items.into_iter().next())
 }
 
 pub fn start(app: AppHandle, project_id: String, instance_id: String, branch: String) -> WatchHandle {
@@ -61,7 +62,9 @@ pub fn start(app: AppHandle, project_id: String, instance_id: String, branch: St
         let mut last_mr = json!("unset");
         let mut last_pipeline = json!("unset");
         loop {
-            let seconds = read_settings().map(|s| s.integrations_poll_seconds).unwrap_or(30);
+            let seconds = read_settings()
+                .map(|s| s.integrations_poll_seconds)
+                .unwrap_or_else(|_| default_integrations_poll_seconds());
             if seconds == 0 {
                 tokio::time::sleep(MANUAL_MODE_RECHECK).await;
                 continue;

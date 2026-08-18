@@ -19,7 +19,7 @@ use tauri::{AppHandle, State};
 use crate::commands::agent::config::{delete_provider_api_key, get_api_key, set_provider_api_key};
 use connections::*;
 use model::*;
-use provider::{Backend, CiProvider, ForgeProvider, TrackerProvider};
+use provider::{Backend, CiProvider, ForgeProvider, TrackerProvider, PIPELINES_PER_PAGE};
 
 const TTL_LIST: Duration = Duration::from_secs(30);
 const TTL_TICKET: Duration = Duration::from_secs(5 * 60);
@@ -432,13 +432,20 @@ pub async fn ci_list_pipelines(
     state: State<'_, IntegrationState>,
     project_id: String,
     git_ref: String,
+    query: Option<PipelineQuery>,
     limit: Option<usize>,
+    page: Option<usize>,
     force: Option<bool>,
-) -> Result<Vec<Pipeline>, IntegrationError> {
-    let limit = limit.unwrap_or(5);
-    let key = format!("pipelines:{git_ref}:{limit}");
+) -> Result<Page<Pipeline>, IntegrationError> {
+    let limit = limit.unwrap_or(PIPELINES_PER_PAGE);
+    let page = page.unwrap_or(1);
+    let query = query.unwrap_or_default();
+    let key = format!(
+        "pipelines:{git_ref}:{limit}:{page}:{}",
+        serde_json::to_string(&query).unwrap_or_default()
+    );
     cached(&state, &project_id, key, TTL_LIST, force.unwrap_or(false), || async {
-        Backend::for_capability(&project_id, Capability::Ci)?.list_pipelines(&git_ref, limit).await
+        Backend::for_capability(&project_id, Capability::Ci)?.list_pipelines(&git_ref, &query, limit, page).await
     })
     .await
 }

@@ -367,7 +367,7 @@
   .mr-chip-menu-btn {
     display: inline-grid;
     place-items: center;
-    height: 100%;
+    align-self: stretch;
     padding: 3px 5px;
     border: 1px solid var(--stroke-0);
     border-radius: 0 999px 999px 0;
@@ -380,7 +380,7 @@
   .mr-menu {
     position: absolute;
     top: calc(100% + 4px);
-    left: 0;
+    right: 0;
     z-index: 30;
     display: flex;
     flex-direction: column;

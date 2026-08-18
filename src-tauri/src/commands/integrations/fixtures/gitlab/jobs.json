@@ -16,12 +16,12 @@
     "queued_duration": 4.0,
     "user": {
       "id": 1042,
-      "username": "bbonneton",
-      "name": "Benjamin Bonneton",
+      "username": "alovelace",
+      "name": "Ada Lovelace",
       "state": "active",
       "locked": false,
       "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
-      "web_url": "https://gitlab.com/bbonneton"
+      "web_url": "https://gitlab.com/alovelace"
     },
     "commit": {
       "id": "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
@@ -30,11 +30,11 @@
       "parent_ids": ["9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b"],
       "title": "fix(cicd): refresh badge after retry, #42",
       "message": "fix(cicd): refresh badge after retry, #42\n",
-      "author_name": "Benjamin Bonneton",
-      "author_email": "benjamin@example.com",
+      "author_name": "Ada Lovelace",
+      "author_email": "ada@example.com",
       "authored_date": "2026-08-17T07:09:40.000Z",
-      "committer_name": "Benjamin Bonneton",
-      "committer_email": "benjamin@example.com",
+      "committer_name": "Ada Lovelace",
+      "committer_email": "ada@example.com",
       "committed_date": "2026-08-17T07:09:40.000Z",
       "trailers": {},
       "extended_trailers": {},
@@ -94,8 +94,8 @@
       "short_id": "c1d2e3f4",
       "title": "fix(cicd): refresh badge after retry, #42",
       "message": "fix(cicd): refresh badge after retry, #42\n",
-      "author_name": "Benjamin Bonneton",
-      "author_email": "benjamin@example.com",
+      "author_name": "Ada Lovelace",
+      "author_email": "ada@example.com",
       "web_url": "https://gitlab.com/cairn/cairn/-/commit/c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0"
     },
     "pipeline": {
@@ -138,8 +138,8 @@
       "short_id": "c1d2e3f4",
       "title": "fix(cicd): refresh badge after retry, #42",
       "message": "fix(cicd): refresh badge after retry, #42\n",
-      "author_name": "Benjamin Bonneton",
-      "author_email": "benjamin@example.com",
+      "author_name": "Ada Lovelace",
+      "author_email": "ada@example.com",
       "web_url": "https://gitlab.com/cairn/cairn/-/commit/c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0"
     },
     "pipeline": {
@@ -182,8 +182,8 @@
       "short_id": "c1d2e3f4",
       "title": "fix(cicd): refresh badge after retry, #42",
       "message": "fix(cicd): refresh badge after retry, #42\n",
-      "author_name": "Benjamin Bonneton",
-      "author_email": "benjamin@example.com",
+      "author_name": "Ada Lovelace",
+      "author_email": "ada@example.com",
       "web_url": "https://gitlab.com/cairn/cairn/-/commit/c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0"
     },
     "pipeline": {

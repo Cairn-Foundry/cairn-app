@@ -231,6 +231,31 @@ export type PipelineStatus =
 	| "manual"
 	| "unknown";
 
+export interface PipelinePage {
+	items: Pipeline[];
+	/** Read from the page the forge returned, before the text pass narrowed it. */
+	hasMore: boolean;
+}
+
+/** Kept in step with `PIPELINES_PER_PAGE` on the Rust side. */
+export const PIPELINE_PAGE_SIZE = 20;
+
+/** Applied by the provider on the whole branch history, never on the loaded page. */
+export interface PipelineQuery {
+	status: PipelineStatus | null;
+	/** A sha prefix, a pipeline number, or a commit title fragment. */
+	text: string;
+	username: string | null;
+	source: string | null;
+}
+
+export const EMPTY_PIPELINE_QUERY: PipelineQuery = {
+	status: null,
+	text: "",
+	username: null,
+	source: null,
+};
+
 export interface PipelineJob {
 	id: string;
 	name: string;

@@ -1737,7 +1737,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
    ============================== */
 .ci-wrap {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: 22px 26px;
 }
 .ci-header {

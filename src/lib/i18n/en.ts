@@ -1177,7 +1177,7 @@ export const en = {
 		noCiBody:
 			"Link this project to a forge that provides CI (GitLab or GitHub) to see the pipelines of the branch here.",
 		goToIntegrations: "Open Integrations",
-		onBranch: (branch: string, n: number) => `on ${branch} - last ${n}`,
+		onBranch: (branch: string) => `on ${branch}`,
 		retry: "Retry",
 		cancel: "Cancel",
 		play: "Run",
@@ -1191,6 +1191,9 @@ export const en = {
 		failed: (job: string) => `${job} failed`,
 		openJob: "Open job",
 		noPipelines: "No pipeline for this branch yet.",
+		noMatch: "No pipeline matches the current filters.",
+		search: "Search pipelines...",
+		allStatuses: "All",
 		status: {
 			pending: "Pending",
 			running: "Running",

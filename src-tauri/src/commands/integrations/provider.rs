@@ -34,12 +34,79 @@ pub trait ForgeProvider {
 
 #[allow(async_fn_in_trait)]
 pub trait CiProvider {
-    async fn list_pipelines(&self, git_ref: &str, limit: usize) -> Result<Vec<Pipeline>, IntegrationError>;
+    async fn list_pipelines(
+        &self,
+        git_ref: &str,
+        query: &PipelineQuery,
+        limit: usize,
+        page: usize,
+    ) -> Result<Page<Pipeline>, IntegrationError>;
     async fn get_pipeline(&self, id: &str) -> Result<Pipeline, IntegrationError>;
     async fn job_log(&self, job_id: &str) -> Result<JobLog, IntegrationError>;
     async fn retry_job(&self, job_id: &str) -> Result<(), IntegrationError>;
     async fn cancel_pipeline(&self, id: &str) -> Result<(), IntegrationError>;
     async fn play_job(&self, job_id: &str) -> Result<(), IntegrationError>;
+}
+
+// ---------------------------------------------------------------------------
+// CI query helpers
+// ---------------------------------------------------------------------------
+
+/// How many pipelines one page may hold. Both forges cap `per_page` well above
+/// this; the cost here is the per-pipeline job fetch, not the listing itself.
+pub const PIPELINES_PER_PAGE: usize = 20;
+
+/// The `status` value GitLab's `/pipelines` accepts, or `None` when the status
+/// has no server-side equivalent and must be left to the text pass.
+pub fn gitlab_status_param(status: PipelineStatus) -> Option<&'static str> {
+    match status {
+        PipelineStatus::Pending => Some("pending"),
+        PipelineStatus::Running => Some("running"),
+        PipelineStatus::Success => Some("success"),
+        PipelineStatus::Failed => Some("failed"),
+        PipelineStatus::Canceled => Some("canceled"),
+        PipelineStatus::Skipped => Some("skipped"),
+        PipelineStatus::Manual => Some("manual"),
+        PipelineStatus::Unknown => None,
+    }
+}
+
+/// The `status` value GitHub's `actions/runs` accepts.
+pub fn github_status_param(status: PipelineStatus) -> Option<&'static str> {
+    match status {
+        PipelineStatus::Pending => Some("queued"),
+        PipelineStatus::Running => Some("in_progress"),
+        PipelineStatus::Success => Some("success"),
+        PipelineStatus::Failed => Some("failure"),
+        PipelineStatus::Canceled => Some("cancelled"),
+        PipelineStatus::Skipped => Some("skipped"),
+        PipelineStatus::Manual => Some("action_required"),
+        PipelineStatus::Unknown => None,
+    }
+}
+
+/// A full commit sha. Both forges match `sha` / `head_sha` exactly - a prefix
+/// silently returns nothing - so only a complete sha may be pushed server-side;
+/// anything shorter is left to the text pass below.
+pub fn is_full_sha(text: &str) -> bool {
+    text.len() == 40 && text.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// The last pass, for what no forge indexes: the commit title, the pipeline
+/// number, and a short sha. A full sha is already matched server-side.
+pub fn filter_by_text(pipelines: Vec<Pipeline>, text: &str) -> Vec<Pipeline> {
+    if text.is_empty() || is_full_sha(text) {
+        return pipelines;
+    }
+    let needle = text.to_lowercase();
+    pipelines
+        .into_iter()
+        .filter(|p| {
+            p.title.to_lowercase().contains(&needle)
+                || p.number.to_lowercase().contains(&needle)
+                || p.sha.to_lowercase().starts_with(&needle)
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -303,10 +370,16 @@ impl ForgeProvider for Backend {
 }
 
 impl CiProvider for Backend {
-    async fn list_pipelines(&self, git_ref: &str, limit: usize) -> Result<Vec<Pipeline>, IntegrationError> {
+    async fn list_pipelines(
+        &self,
+        git_ref: &str,
+        query: &PipelineQuery,
+        limit: usize,
+        page: usize,
+    ) -> Result<Page<Pipeline>, IntegrationError> {
         match self {
-            Backend::GitLab(api) => api.list_pipelines(git_ref, limit).await,
-            Backend::GitHub(api) => api.list_pipelines(git_ref, limit).await,
+            Backend::GitLab(api) => api.list_pipelines(git_ref, query, limit, page).await,
+            Backend::GitHub(api) => api.list_pipelines(git_ref, query, limit, page).await,
             Backend::Jira(_) => Err(IntegrationError::unsupported()),
         }
     }
@@ -370,7 +443,7 @@ mod tests {
         let backend = Backend::for_connection(&jira_connection(), "token", "CAIRN").unwrap();
         let err = backend.find_merge_request("feat/x").await.unwrap_err();
         assert_eq!(err.code, IntegrationErrorCode::Unsupported);
-        let err = backend.list_pipelines("main", 5).await.unwrap_err();
+        let err = backend.list_pipelines("main", 5, 1).await.unwrap_err();
         assert_eq!(err.code, IntegrationErrorCode::Unsupported);
     }
 

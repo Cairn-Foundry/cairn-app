@@ -1,11 +1,11 @@
 {
   "id": 1042,
-  "username": "bbonneton",
-  "name": "Benjamin Bonneton",
+  "username": "alovelace",
+  "name": "Ada Lovelace",
   "state": "active",
   "locked": false,
   "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
-  "web_url": "https://gitlab.com/bbonneton",
+  "web_url": "https://gitlab.com/alovelace",
   "created_at": "2019-03-12T09:14:33.000Z",
   "bio": "",
   "location": "Lyon",
@@ -26,7 +26,7 @@
   "last_sign_in_at": "2026-08-14T07:02:11.000Z",
   "confirmed_at": "2019-03-12T09:20:01.000Z",
   "last_activity_on": "2026-08-17",
-  "email": "benjamin@example.com",
+  "email": "ada@example.com",
   "theme_id": 1,
   "color_scheme_id": 1,
   "projects_limit": 100000,
@@ -37,5 +37,5 @@
   "two_factor_enabled": true,
   "external": false,
   "private_profile": false,
-  "commit_email": "benjamin@example.com"
+  "commit_email": "ada@example.com"
 }

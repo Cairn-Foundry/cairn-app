@@ -41,10 +41,10 @@
     "commit_id": "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b",
     "original_commit_id": "7e2d9c1b0a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d",
     "user": {
-      "login": "bbonneton",
+      "login": "alovelace",
       "id": 5120441,
       "avatar_url": "https://avatars.githubusercontent.com/u/5120441?v=4",
-      "html_url": "https://github.com/bbonneton",
+      "html_url": "https://github.com/alovelace",
       "type": "User"
     },
     "body": "Good catch, fixed in the next push.",

@@ -66,10 +66,12 @@ import {
 	ciBusy,
 	ciFailing,
 	clearPipelines,
+	loadMorePipelines,
 	loadPipelines,
 	pipelineStateFor,
 	pipelines,
 	selectPipeline,
+	setPipelineQuery,
 } from "./pipelines";
 
 function pipeline(id: string, status: Pipeline["status"]): Pipeline {
@@ -211,7 +213,10 @@ describe("integration-update reduction", () => {
 		await loadInstances("p1");
 		projects.set([project("p1", "i2")]);
 		activeProjectId.set("p1");
-		ciListPipelines.mockResolvedValue([pipeline("9", "running")]);
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("9", "running")],
+			hasMore: false,
+		});
 		await loadPipelines("p1", "i1", "feat/x");
 		expect(get(activeCiBusy)).toBe(false);
 
@@ -259,6 +264,142 @@ describe("integration-update reduction", () => {
 		expect(mergeRequestStateFor(state, "p1", "i2").mergeRequest?.title).toBe(
 			"second",
 		);
+	});
+
+	it("still fetches the full list after the watcher pushed the latest pipeline", async () => {
+		reduceIntegrationUpdate({
+			projectId: "p1",
+			instanceId: "i1",
+			kind: "pipeline",
+			data: pipeline("1237", "failed"),
+		});
+		const watched = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(watched.pipelines).toHaveLength(1);
+		expect(watched.isLoaded).toBe(false);
+
+		ciListPipelines.mockResolvedValue({
+			items: [
+				pipeline("1237", "failed"),
+				pipeline("1236", "failed"),
+				pipeline("1235", "failed"),
+			],
+			hasMore: false,
+		});
+		await loadPipelines("p1", "i1", "v0-17");
+
+		const state = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(state.pipelines.map((p) => p.id)).toEqual(["1237", "1236", "1235"]);
+	});
+
+	it("keeps a filtered list intact when the watcher pushes an unrelated pipeline", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("1235", "success")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "v0-17", {
+			status: "success",
+			text: "",
+			username: null,
+			source: null,
+		});
+
+		reduceIntegrationUpdate({
+			projectId: "p1",
+			instanceId: "i1",
+			kind: "pipeline",
+			data: pipeline("1240", "running"),
+		});
+
+		const state = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(state.pipelines.map((p) => p.id)).toEqual(["1235"]);
+		expect(get(ciBusy)[A]).toBe(true);
+	});
+
+	it("hands the filters to the provider instead of narrowing the loaded page", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("9", "failed")],
+			hasMore: true,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			status: "failed",
+			text: "flaky",
+			username: null,
+			source: null,
+		});
+
+		expect(ciListPipelines).toHaveBeenLastCalledWith(
+			"p1",
+			"feat/x",
+			expect.objectContaining({ status: "failed", text: "flaky" }),
+			20,
+			1,
+		);
+		const state = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(state.pipelines.map((p) => p.id)).toEqual(["9"]);
+		expect(state.hasMore).toBe(true);
+	});
+
+	it("keeps the active filters when paginating, and never duplicates a pipeline", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("9", "failed")],
+			hasMore: true,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			status: "failed",
+			text: "",
+			username: null,
+			source: null,
+		});
+
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("9", "failed"), pipeline("8", "failed")],
+			hasMore: false,
+		});
+		await loadMorePipelines("p1", "i1", "feat/x");
+
+		expect(ciListPipelines).toHaveBeenLastCalledWith(
+			"p1",
+			"feat/x",
+			expect.objectContaining({ status: "failed" }),
+			20,
+			2,
+		);
+		const state = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(state.pipelines.map((p) => p.id)).toEqual(["9", "8"]);
+		expect(state.hasMore).toBe(false);
+	});
+
+	it("drops a slow answer whose filter is no longer the one on screen", async () => {
+		let releaseStale: (value: unknown) => void = () => {};
+		ciListPipelines.mockReturnValueOnce(
+			new Promise((resolve) => {
+				releaseStale = resolve;
+			}),
+		);
+		const stale = setPipelineQuery("p1", "i1", "feat/x", {
+			status: "success",
+			text: "",
+			username: null,
+			source: null,
+		});
+
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7", "failed")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			status: "failed",
+			text: "",
+			username: null,
+			source: null,
+		});
+
+		releaseStale({ items: [pipeline("1", "success")], hasMore: true });
+		await stale;
+
+		const state = pipelineStateFor(get(pipelines), "p1", "i1");
+		expect(state.pipelines.map((p) => p.id)).toEqual(["7"]);
+		expect(state.hasMore).toBe(false);
 	});
 
 	it("owns a single listener and detaches it on dispose", async () => {

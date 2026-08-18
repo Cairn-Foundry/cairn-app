@@ -4,33 +4,41 @@
    * failing one called out, plus the log of the job being looked at. Data comes from the bound CI
    * service through `stores/pipelines.ts`; without a `ci` capability the step points to Integrations.
    */
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
+  import PipelineSkeleton from './PipelineSkeleton.svelte';
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeStep } from '$lib/stores/ui.js';
   import { settings } from '$lib/stores/settings';
   import { capabilities, hasCi } from '$lib/stores/integrations';
+  import { git } from '$lib/stores/git';
   import {
-    pipelines, pipelineStateFor, PIPELINE_LIMIT, loadPipelines, selectPipeline,
-    openJobLog, closeJobLog, retryJob, playJob, cancelPipeline,
+    pipelines, pipelineStateFor, loadPipelines, loadMorePipelines, selectPipeline,
+    setPipelineQuery, openJobLog, closeJobLog, retryJob, playJob, cancelPipeline,
   } from '$lib/stores/pipelines';
   import { requestAgentDraft } from '$lib/stores/agent-draft';
   import { buildCiFixPrompt } from '$lib/utils/integrations/prompts';
   import { ansiToLines, stripAnsi } from '$lib/utils/integrations/ansi';
+  import { buildPipelinesUrl } from '$lib/utils/integrations/links';
   import { formatDuration } from '$lib/utils/format';
-  import type { Pipeline, PipelineJob, PipelineStatus } from '$lib/types/integrations';
+  import { EMPTY_PIPELINE_QUERY, type Pipeline, type PipelineJob, type PipelineStatus } from '$lib/types/integrations';
 
   const dispatch = createEventDispatcher<{ goIntegrations: void }>();
 
   $: projectId = $activeProjectId ?? '';
   $: instanceId = $activeInstance?.id ?? '';
-  $: branch = $activeInstance?.branch ?? '';
+  /**
+   * The base pseudo-instance carries no branch of its own - it stands for the
+   * repository itself - so the checked out branch is what its pipelines hang
+   * off. Without this the step has no ref and never loads.
+   */
+  $: branch = $activeInstance?.branch || $git.currentBranch;
   $: state = pipelineStateFor($pipelines, projectId, instanceId);
   $: ciLabel = $capabilities.ci?.label ?? '';
 
@@ -39,7 +47,7 @@
     const key = `${projectId}:${instanceId}:${branch}`;
     if (loadedFor !== key) {
       loadedFor = key;
-      if (!state.isLoaded) void loadPipelines(projectId, instanceId, branch);
+      void loadPipelines(projectId, instanceId, branch);
     }
   }
 
@@ -48,10 +56,56 @@
     void loadPipelines(projectId, instanceId, branch);
   }
 
+  let searchQuery = '';
+  let statusFilter: PipelineStatus | '' = '';
+
+  const FILTER_STATUSES: PipelineStatus[] = ['success', 'failed', 'running', 'pending', 'canceled'];
+
+  /**
+   * Filters are applied by the provider on the whole branch history, so every
+   * change reloads from page 1 rather than narrowing the pages already held.
+   */
+  function applyFilters() {
+    if (!branch) return;
+    void setPipelineQuery(projectId, instanceId, branch, {
+      ...EMPTY_PIPELINE_QUERY,
+      status: statusFilter || null,
+      text: searchQuery.trim(),
+    });
+  }
+
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+  }
+
+  function setStatusFilter(status: PipelineStatus | '') {
+    statusFilter = status;
+    applyFilters();
+  }
+
+  onDestroy(() => clearTimeout(searchTimer));
+
+  $: hasFilters = searchQuery.trim() !== '' || statusFilter !== '';
+  /**
+   * A reload replaces the list it already shows, so the placeholder keeps its
+   * height rather than collapsing to a fixed count and jolting the scroll.
+   */
+  $: skeletonCards = state.pipelines.length === 0
+    ? 3
+    : Math.min(state.pipelines.length, 6);
   $: selected = state.pipelines.find((p) => p.id === state.selectedPipelineId) ?? state.pipelines[0] ?? null;
 
+  /**
+   * The pipeline list of the branch, not whichever pipeline happens to be
+   * selected: the button sits in the header, next to the branch name, so it
+   * mirrors what the step shows rather than one row of it.
+   */
+  $: pipelinesUrl = buildPipelinesUrl($capabilities.forge, branch);
+
   async function openOnForge() {
-    const url = selected?.url ?? $capabilities.forge?.webUrl;
+    const url = pipelinesUrl || $capabilities.forge?.webUrl;
     if (url) await openUrl(url);
   }
 
@@ -165,6 +219,14 @@
     target?.scrollIntoView({ block: 'center' });
   }
 
+  function handlePipelineScroll(e: Event) {
+    const el = e.target as HTMLElement;
+    if (!state.hasMore || state.isLoadingMore || !branch) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+      void loadMorePipelines(projectId, instanceId, branch);
+    }
+  }
+
   function jobLogOf(pipeline: Pipeline): PipelineJob | null {
     if (!state.openJobId) return null;
     return pipeline.stages.flatMap((s) => s.jobs).find((j) => j.id === state.openJobId) ?? null;
@@ -253,7 +315,22 @@
     border: 1px solid oklch(0.70 0.18 25 / 0.3); border-radius: var(--r-md);
     background: var(--danger-weak); color: var(--fg-1); font-size: 12px;
   }
-  .skeleton-wrap { padding: 4px 0; }
+  .ci-filters { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .ci-search {
+    flex: 1; min-width: 140px;
+    padding: 5px 10px; border: 1px solid var(--stroke-0); border-radius: var(--r-md);
+    background: var(--bg-1); color: var(--fg-1); font-size: 12px;
+  }
+  .ci-search::placeholder { color: var(--fg-3); }
+  .ci-status-filters { display: flex; gap: 4px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 3px 8px; border: 1px solid var(--stroke-0); border-radius: 999px;
+    background: var(--bg-2); color: var(--fg-2); font-size: 11px; cursor: pointer;
+  }
+  .filter-chip:hover { background: var(--bg-3); color: var(--fg-1); }
+  .filter-chip.active { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+  .pipeline-list { overflow-y: auto; flex: 1; min-height: 0; }
+  .load-more { display: flex; justify-content: center; padding: 12px 0; }
 </style>
 
 <div class="ci-wrap">
@@ -269,7 +346,7 @@
   {:else}
     <div class="ci-header">
       <h2>{t('cicd.title')}</h2>
-      <span class="dim mono meta">{(t('cicd.onBranch') as (branch: string, n: number) => string)(branch, PIPELINE_LIMIT)}</span>
+      <span class="dim mono meta">{(t('cicd.onBranch') as (branch: string) => string)(branch)}</span>
       <div class="spacer"></div>
       <button class="btn" on:click={refresh} disabled={state.isRefreshing}>
         {#if state.isRefreshing}<Spinner size={13}/>{:else}<Icon name="refresh" size={13}/>{/if} {t('cicd.refresh')}
@@ -286,14 +363,31 @@
       </div>
     {/if}
 
-    {#if !state.isLoaded}
-      <div class="pipeline skeleton-wrap"><Skeleton lines={4} height={14} gap={12}/></div>
+    <div class="ci-filters">
+      <input
+        class="ci-search"
+        type="text"
+        placeholder={t('cicd.search') as string}
+        bind:value={searchQuery}
+        on:input={onSearchInput}
+      />
+      <div class="ci-status-filters">
+        <button class="filter-chip" class:active={statusFilter === ''} on:click={() => setStatusFilter('')}>{t('cicd.allStatuses')}</button>
+        {#each FILTER_STATUSES as s}
+          <button class="filter-chip {pillClass(s)}" class:active={statusFilter === s} on:click={() => setStatusFilter(statusFilter === s ? '' : s)}>{statusLabel(s)}</button>
+        {/each}
+      </div>
+    </div>
+
+    {#if !state.isLoaded || state.isRefreshing}
+      <PipelineSkeleton cards={skeletonCards}/>
     {:else if state.pipelines.length === 0}
       <div class="empty-state">
         <Icon name="ci" size={24}/>
-        <div class="body">{t('cicd.noPipelines')}</div>
+        <div class="body">{hasFilters ? t('cicd.noMatch') : t('cicd.noPipelines')}</div>
       </div>
     {:else}
+      <div class="pipeline-list" on:scroll={handlePipelineScroll}>
       {#each state.pipelines as pipeline (pipeline.id)}
         {@const isExpanded = selected?.id === pipeline.id}
         {@const failedJob = pipeline.status === 'failed' ? failedJobOf(pipeline) : null}
@@ -385,7 +479,7 @@
                 <span>{t('cicd.log')}</span>
                 <span class="job-name">{openJob.name}</span>
                 <div class="spacer"></div>
-                {#if failureRange}
+                {#if failureRange && openJob.status === 'failed'}
                   <button class="btn" on:click={jumpToFailure}><Icon name="alert" size={12}/> {t('cicd.jumpToFailure')}</button>
                 {/if}
                 <button class="btn" on:click={() => openUrl(openJob.url)}><Icon name="external" size={12}/> {t('cicd.openJob')}</button>
@@ -396,7 +490,7 @@
               {:else if state.jobLog}
                 <div class="log-body selectable" bind:this={logBody}>
                   {#each logLines as line, index}
-                    <div class="line" class:failure={failureRange !== null && index >= failureRange[0] && index <= failureRange[1]} data-line={index}>{@html line}</div>
+                    <div class="line" class:failure={failureRange !== null && openJob.status === 'failed' && index >= failureRange[0] && index <= failureRange[1]} data-line={index}>{@html line}</div>
                   {/each}
                 </div>
                 {#if state.jobLog.truncated}
@@ -422,6 +516,11 @@
           {/if}
         </div>
       {/each}
+
+      {#if state.isLoadingMore}
+        <div class="load-more"><Spinner size={13}/></div>
+      {/if}
+      </div>
     {/if}
   {/if}
 </div>

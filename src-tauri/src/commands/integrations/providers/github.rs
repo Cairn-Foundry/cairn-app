@@ -7,7 +7,10 @@ use std::sync::Mutex;
 use serde_json::{json, Value};
 use crate::commands::integrations::http::{host_of, HttpClient};
 use crate::commands::integrations::model::*;
-use crate::commands::integrations::provider::{CiProvider, ForgeProvider, TrackerProvider, WebLinkStyle, WebLinks};
+use crate::commands::integrations::provider::{
+    filter_by_text, github_status_param, is_full_sha, CiProvider, ForgeProvider, TrackerProvider, WebLinkStyle,
+    WebLinks, PIPELINES_PER_PAGE,
+};
 use crate::commands::integrations::providers::gitlab::failure_excerpt;
 
 const TICKETS_PER_PAGE: u32 = 20;
@@ -827,11 +830,37 @@ impl ForgeProvider for GitHubApi {
 }
 
 impl CiProvider for GitHubApi {
-    async fn list_pipelines(&self, git_ref: &str, limit: usize) -> Result<Vec<Pipeline>, IntegrationError> {
-        let query = vec![("branch", git_ref.to_string()), ("per_page", limit.clamp(1, 20).to_string())];
+    async fn list_pipelines(
+        &self,
+        git_ref: &str,
+        q: &PipelineQuery,
+        limit: usize,
+        page: usize,
+    ) -> Result<Page<Pipeline>, IntegrationError> {
+        let mut query = vec![
+            ("branch", git_ref.to_string()),
+            ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
+            ("page", page.max(1).to_string()),
+        ];
+        if let Some(status) = q.status.and_then(github_status_param) {
+            query.push(("status", status.to_string()));
+        }
+        if let Some(username) = q.username.as_deref().filter(|u| !u.is_empty()) {
+            query.push(("actor", username.to_string()));
+        }
+        if let Some(source) = q.source.as_deref().filter(|s| !s.is_empty()) {
+            query.push(("event", source.to_string()));
+        }
+        let text = q.text.trim();
+        if is_full_sha(text) {
+            query.push(("head_sha", text.to_string()));
+        }
+
         let list = self.http.get_json(&self.repo("actions/runs"), &query).await?;
+        let runs: Vec<&Value> = list.get("workflow_runs").and_then(Value::as_array).into_iter().flatten().collect();
+        let has_more = runs.len() >= limit.clamp(1, PIPELINES_PER_PAGE);
         let mut pipelines = Vec::new();
-        for run in list.get("workflow_runs").and_then(Value::as_array).into_iter().flatten() {
+        for run in runs {
             let id = id_of(run, "id");
             if id.is_empty() {
                 continue;
@@ -839,7 +868,7 @@ impl CiProvider for GitHubApi {
             let jobs = self.run_jobs(&id).await?;
             pipelines.push(map_pipeline(run, &jobs));
         }
-        Ok(pipelines)
+        Ok(Page { items: filter_by_text(pipelines, text), has_more })
     }
 
     async fn get_pipeline(&self, id: &str) -> Result<Pipeline, IntegrationError> {
@@ -907,8 +936,8 @@ mod tests {
         assert_eq!(t.status_category, StatusCategory::Todo);
         assert_eq!(t.labels, vec!["bug", "in progress"]);
         assert_eq!(t.assignees.len(), 1);
-        assert_eq!(t.assignees[0].login, "bbonneton");
-        assert_eq!(t.assignees[0].display_name, "bbonneton");
+        assert_eq!(t.assignees[0].login, "alovelace");
+        assert_eq!(t.assignees[0].display_name, "alovelace");
         assert_eq!(t.kind.as_deref(), Some("issue"));
         assert_eq!(t.url, "https://github.com/cairn-app/cairn/issues/42");
         assert!(t.description.starts_with("After retrying"));
@@ -933,10 +962,10 @@ mod tests {
         assert!(mr.is_draft);
         assert_eq!(mr.source_branch, "feat/42-pipeline-badge");
         assert_eq!(mr.target_branch, "main");
-        assert_eq!(mr.author.login, "bbonneton");
+        assert_eq!(mr.author.login, "alovelace");
         assert_eq!(mr.reviewers.len(), 1);
         assert_eq!(mr.reviewers[0].login, "alice");
-        assert_eq!(mr.assignees[0].login, "bbonneton");
+        assert_eq!(mr.assignees[0].login, "alovelace");
         assert_eq!(mr.labels, vec!["bug"]);
         assert_eq!(mr.approvals.approved, 1);
         assert_eq!(mr.approvals.required, None);
@@ -1107,8 +1136,8 @@ mod tests {
     #[test]
     fn maps_user_to_identity_and_project() {
         let id = map_identity(&parse(USER));
-        assert_eq!(id.login, "bbonneton");
-        assert_eq!(id.display_name, "Benjamin Bonneton");
+        assert_eq!(id.login, "alovelace");
+        assert_eq!(id.display_name, "Ada Lovelace");
         assert!(id.avatar_url.as_deref().unwrap().starts_with("https://"));
         let p = map_project(&json!({ "full_name": "cairn-app/cairn", "html_url": "https://github.com/cairn-app/cairn" }));
         assert_eq!(p.key, "cairn-app/cairn");

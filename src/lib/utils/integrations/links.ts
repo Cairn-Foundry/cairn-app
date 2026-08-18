@@ -23,6 +23,27 @@ export function forgeLabel(
 	return forge?.label ?? parseRemoteUrl(remoteUrl)?.host ?? null;
 }
 
+/**
+ * The pipeline list of a branch on the forge, as the CI step's header button
+ * opens it - the list, never a single pipeline. An empty ref gives the index of
+ * every pipeline; an unknown forge gives "", so the caller can fall back.
+ */
+export function buildPipelinesUrl(
+	forge: { kind: string; webUrl: string } | null | undefined,
+	ref: string,
+): string {
+	if (!forge?.webUrl) return "";
+	const base = forge.webUrl.replace(/\/+$/, "");
+	if (forge.kind === "github") {
+		return ref
+			? `${base}/actions?query=branch%3A${encodeURIComponent(ref)}`
+			: `${base}/actions`;
+	}
+	return ref
+		? `${base}/-/pipelines?ref=${encodeURIComponent(ref)}`
+		: `${base}/-/pipelines`;
+}
+
 /** The remote-only fallback: GitHub or GitLab URL shapes guessed from the host. */
 export function fallbackForgeLink(
 	remoteUrl: string,

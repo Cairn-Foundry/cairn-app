@@ -11,11 +11,11 @@
   "locked": false,
   "title": "fix(cicd): refresh badge after retry",
   "user": {
-    "login": "bbonneton",
+    "login": "alovelace",
     "id": 5120441,
     "node_id": "MDQ6VXNlcjUxMjA0NDE=",
     "avatar_url": "https://avatars.githubusercontent.com/u/5120441?v=4",
-    "html_url": "https://github.com/bbonneton",
+    "html_url": "https://github.com/alovelace",
     "type": "User",
     "site_admin": false
   },
@@ -28,11 +28,11 @@
   "assignee": null,
   "assignees": [
     {
-      "login": "bbonneton",
+      "login": "alovelace",
       "id": 5120441,
       "node_id": "MDQ6VXNlcjUxMjA0NDE=",
       "avatar_url": "https://avatars.githubusercontent.com/u/5120441?v=4",
-      "html_url": "https://github.com/bbonneton",
+      "html_url": "https://github.com/alovelace",
       "type": "User",
       "site_admin": false
     }

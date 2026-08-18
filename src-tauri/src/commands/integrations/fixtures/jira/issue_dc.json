@@ -26,10 +26,10 @@
     "labels": [],
     "assignee": null,
     "reporter": {
-      "self": "https://jira.acme.io/rest/api/2/user?username=bbonneton",
-      "name": "bbonneton",
-      "key": "bbonneton",
-      "displayName": "Benjamin Bonneton",
+      "self": "https://jira.acme.io/rest/api/2/user?username=alovelace",
+      "name": "alovelace",
+      "key": "alovelace",
+      "displayName": "Ada Lovelace",
       "active": true
     },
     "updated": "2026-08-12T16:45:09.000+0200",

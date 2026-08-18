@@ -7,6 +7,7 @@ import {
 	type Actor,
 	type Comment,
 	type Discussion,
+	EMPTY_PIPELINE_QUERY,
 	INTEGRATION_ERROR_CODES,
 	type IntegrationConnection,
 	type IntegrationError,
@@ -16,7 +17,10 @@ import {
 	type JobLog,
 	type MergeRequest,
 	type MergeRequestDraft,
+	PIPELINE_PAGE_SIZE,
 	type Pipeline,
+	type PipelinePage,
+	type PipelineQuery,
 	type ProjectIntegrations,
 	type ResolvedCapabilities,
 	type Ticket,
@@ -266,10 +270,19 @@ export async function forgeWebLink(
 export async function ciListPipelines(
 	projectId: string,
 	gitRef: string,
-	limit = 5,
+	query: PipelineQuery = EMPTY_PIPELINE_QUERY,
+	limit = PIPELINE_PAGE_SIZE,
+	page = 1,
 	force = false,
-): Promise<Pipeline[]> {
-	return invoke("ci_list_pipelines", { projectId, gitRef, limit, force });
+): Promise<PipelinePage> {
+	return invoke("ci_list_pipelines", {
+		projectId,
+		gitRef,
+		query,
+		limit,
+		page,
+		force,
+	});
 }
 
 export async function ciGetPipeline(

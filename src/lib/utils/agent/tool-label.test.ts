@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { shortenPaths } from "./tool-label";
 
 const WORKTREE =
-	"/Users/benjamin/.cairn/projects/36c73747-dcd9/worktrees/feat-000-init";
+	"/Users/ada/.cairn/projects/36c73747-dcd9/worktrees/feat-000-init";
 
 describe("shortenPaths", () => {
 	it("keeps only what the worktree does not already say", () => {
@@ -21,14 +21,14 @@ describe("shortenPaths", () => {
 	});
 
 	it("prefers the deepest root, so a worktree wins over its project", () => {
-		const project = "/Users/benjamin/.cairn/projects/36c73747-dcd9";
+		const project = "/Users/ada/.cairn/projects/36c73747-dcd9";
 		expect(shortenPaths(`${WORKTREE}/index.html`, [project, WORKTREE])).toBe(
 			"index.html",
 		);
 	});
 
 	it("keeps a path outside the worktree readable, under a tilde", () => {
-		const outside = "/Users/benjamin/.claude/skills/pixel-art/review.py";
+		const outside = "/Users/ada/.claude/skills/pixel-art/review.py";
 		expect(shortenPaths(outside, [WORKTREE])).toBe(
 			"~/.claude/skills/pixel-art/review.py",
 		);

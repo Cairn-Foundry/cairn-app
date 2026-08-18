@@ -27,12 +27,12 @@
     "assignee": {
       "self": "https://acme.atlassian.net/rest/api/3/user?accountId=5b10ac8d82e05b22cc7d4ef5",
       "accountId": "5b10ac8d82e05b22cc7d4ef5",
-      "displayName": "Benjamin Bonneton",
+      "displayName": "Ada Lovelace",
       "active": true
     },
     "reporter": {
       "accountId": "5b10ac8d82e05b22cc7d4ef5",
-      "displayName": "Benjamin Bonneton"
+      "displayName": "Ada Lovelace"
     },
     "updated": "2026-08-14T10:22:31.000+0200",
     "created": "2026-08-10T09:01:12.000+0200",
@@ -106,7 +106,7 @@
           "type": "paragraph",
           "content": [
             { "type": "text", "text": "Reported by " },
-            { "type": "mention", "attrs": { "id": "5b10ac8d82e05b22cc7d4ef5", "text": "@Benjamin Bonneton" } },
+            { "type": "mention", "attrs": { "id": "5b10ac8d82e05b22cc7d4ef5", "text": "@Ada Lovelace" } },
             { "type": "text", "text": ", tracked in " },
             { "type": "inlineCard", "attrs": { "url": "https://acme.atlassian.net/browse/CAIRN-40" } }
           ]

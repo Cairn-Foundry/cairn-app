@@ -10,6 +10,41 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "CI/CD step: the whole pipeline history of the branch, loaded as you scroll, with a search bar and status filters applied by the forge itself - so a search reaches pipelines that are not on screen yet.",
+					"fr": "Étape CI/CD : tout l'historique des pipelines de la branche, chargé au fil du défilement, avec une barre de recherche et des filtres par statut appliqués par la forge elle-même - une recherche atteint donc les pipelines pas encore affichés."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Pipelines and merge requests are now polled every 10 seconds instead of 30, so a running pipeline and its jobs advance on screen more closely to the forge.",
+					"fr": "Les pipelines et les merge requests sont désormais interrogés toutes les 10 secondes au lieu de 30, si bien qu'une pipeline en cours et ses jobs progressent à l'écran au plus près de la forge."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "CI/CD step: only the latest pipeline of the branch was listed, and the search and filters had no effect - the background watcher marked the list as already loaded, so the step never fetched the history and kept reinstating that single pipeline.",
+					"fr": "Étape CI/CD : seule la dernière pipeline de la branche était affichée et la recherche comme les filtres restaient sans effet - la surveillance en arrière-plan marquait la liste comme déjà chargée, si bien que l'étape ne récupérait jamais l'historique et réinstallait sans cesse cette unique pipeline."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "CI/CD step: on the base folder, which carries no branch of its own, the step stayed on its placeholder forever - it now follows the checked out branch.",
+					"fr": "Étape CI/CD : sur le dossier de base, qui ne porte pas de branche propre, l'étape restait indéfiniment sur son squelette - elle suit désormais la branche courante."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "CI/CD step: \"Open on GitLab\" opened the selected pipeline instead of the pipeline list of the branch.",
+					"fr": "Étape CI/CD : « Ouvrir sur GitLab » ouvrait la pipeline sélectionnée au lieu de la liste des pipelines de la branche."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "New Integrations page on the home screen: connect GitLab, GitHub and Jira with a personal token, test the connection and bind each project to a tracker, a forge and a CI.",
 					"fr": "Nouvelle page Intégrations sur l'écran d'accueil : connectez GitLab, GitHub et Jira avec un jeton personnel, testez la connexion et liez chaque projet à un tracker, une forge et une CI."
 				}

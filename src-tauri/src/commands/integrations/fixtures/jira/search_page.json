@@ -8,7 +8,7 @@
         "issuetype": { "id": "10001", "name": "Bug" },
         "status": { "name": "In Progress", "statusCategory": { "id": 4, "key": "indeterminate", "name": "In Progress" } },
         "labels": ["bug", "cicd"],
-        "assignee": { "accountId": "5b10ac8d82e05b22cc7d4ef5", "displayName": "Benjamin Bonneton" },
+        "assignee": { "accountId": "5b10ac8d82e05b22cc7d4ef5", "displayName": "Ada Lovelace" },
         "updated": "2026-08-14T10:22:31.000+0200",
         "description": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Short one." }] }] }
       }

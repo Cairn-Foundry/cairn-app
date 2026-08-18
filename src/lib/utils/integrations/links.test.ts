@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fallbackForgeLink, forgeLabel, forgeLink } from "./links";
+import {
+	buildPipelinesUrl,
+	fallbackForgeLink,
+	forgeLabel,
+	forgeLink,
+} from "./links";
 
 const forgeWebLink = vi.hoisted(() => vi.fn());
 const capabilitiesOf = vi.hoisted(() => vi.fn());
@@ -94,5 +99,37 @@ describe("forgeLabel", () => {
 	it("falls back to the remote host, and hides without either", () => {
 		expect(forgeLabel(null, remote)).toBe("gitlab.acme.io");
 		expect(forgeLabel(null, "")).toBeNull();
+	});
+});
+
+describe("buildPipelinesUrl", () => {
+	const gitlab = {
+		kind: "gitlab",
+		webUrl: "https://gitlab.acme.io/acme/backend",
+	};
+
+	it("opens the pipeline list of the branch, never a single pipeline", () => {
+		expect(buildPipelinesUrl(gitlab, "hotfix/roles-in-progress-slots")).toBe(
+			"https://gitlab.acme.io/acme/backend/-/pipelines?ref=hotfix%2Froles-in-progress-slots",
+		);
+	});
+
+	it("falls back to the whole index when no branch is known", () => {
+		expect(buildPipelinesUrl(gitlab, "")).toBe(
+			"https://gitlab.acme.io/acme/backend/-/pipelines",
+		);
+	});
+
+	it("uses the Actions shape on GitHub", () => {
+		expect(
+			buildPipelinesUrl(
+				{ kind: "github", webUrl: "https://github.com/acme/repo" },
+				"feat/x",
+			),
+		).toBe("https://github.com/acme/repo/actions?query=branch%3Afeat%2Fx");
+	});
+
+	it("returns nothing without a forge, so the caller can fall back", () => {
+		expect(buildPipelinesUrl(null, "main")).toBe("");
 	});
 });

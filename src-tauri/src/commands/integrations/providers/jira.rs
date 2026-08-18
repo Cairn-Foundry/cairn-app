@@ -542,7 +542,7 @@ mod tests {
         assert_eq!(t.labels, vec!["bug", "cicd"]);
         assert_eq!(t.assignees.len(), 1);
         assert_eq!(t.assignees[0].login, "5b10ac8d82e05b22cc7d4ef5");
-        assert_eq!(t.assignees[0].display_name, "Benjamin Bonneton");
+        assert_eq!(t.assignees[0].display_name, "Ada Lovelace");
         assert_eq!(t.url, "https://acme.atlassian.net/browse/CAIRN-42");
         assert_eq!(t.updated_at, "2026-08-14T10:22:31.000+0200");
         assert!(t.description.starts_with("## Symptom\n\nAfter retrying"));
@@ -559,7 +559,7 @@ mod tests {
             "  1. wait for it to finish\n",
             "  2. the badge does not move\n\n",
             "```typescript\npipelines.refresh(id);\nbadge.update();\n```\n\n",
-            "Reported by @Benjamin Bonneton, tracked in [https://acme.atlassian.net/browse/CAIRN-40](https://acme.atlassian.net/browse/CAIRN-40)\n\n",
+            "Reported by @Ada Lovelace, tracked in [https://acme.atlassian.net/browse/CAIRN-40](https://acme.atlassian.net/browse/CAIRN-40)\n\n",
             "---\n\n",
             "> Refresh once the retry answers.\n\n",
             "| Browser | Result |\n| --- | --- |\n| WebKit | red \\| stuck |"
@@ -606,10 +606,10 @@ mod tests {
     fn maps_myself_to_identity() {
         let id = map_identity(&parse(MYSELF));
         assert_eq!(id.login, "5b10ac8d82e05b22cc7d4ef5");
-        assert_eq!(id.display_name, "Benjamin Bonneton");
+        assert_eq!(id.display_name, "Ada Lovelace");
         assert_eq!(id.avatar_url.as_deref(), Some("https://avatar-management.services.atlassian.com/initials/BB-1.png?size=48"));
-        let dc = map_identity(&json!({ "name": "bbonneton", "key": "JIRAUSER1", "displayName": "Ben" }));
-        assert_eq!(dc.login, "bbonneton");
+        let dc = map_identity(&json!({ "name": "alovelace", "key": "JIRAUSER1", "displayName": "Ben" }));
+        assert_eq!(dc.login, "alovelace");
         assert!(dc.avatar_url.is_none());
     }
 

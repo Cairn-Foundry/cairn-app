@@ -16,12 +16,12 @@
     {
       "user": {
         "id": 1042,
-        "username": "bbonneton",
-        "name": "Benjamin Bonneton",
+        "username": "alovelace",
+        "name": "Ada Lovelace",
         "state": "active",
         "locked": false,
         "avatar_url": "https://secure.gravatar.com/avatar/6f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c?s=80&d=identicon",
-        "web_url": "https://gitlab.com/bbonneton"
+        "web_url": "https://gitlab.com/alovelace"
       }
     }
   ],
