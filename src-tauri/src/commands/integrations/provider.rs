@@ -443,7 +443,7 @@ mod tests {
         let backend = Backend::for_connection(&jira_connection(), "token", "CAIRN").unwrap();
         let err = backend.find_merge_request("feat/x").await.unwrap_err();
         assert_eq!(err.code, IntegrationErrorCode::Unsupported);
-        let err = backend.list_pipelines("main", 5, 1).await.unwrap_err();
+        let err = backend.list_pipelines("main", &PipelineQuery::default(), 5, 1).await.unwrap_err();
         assert_eq!(err.code, IntegrationErrorCode::Unsupported);
     }
 
