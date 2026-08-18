@@ -279,7 +279,8 @@
   .suite-error {
     margin: 2px 16px 8px 34px; padding: 6px 9px; font-size: 11.5px;
     color: var(--danger); background: var(--bg-2); border-radius: var(--r-sm);
-    font-family: var(--font-mono); white-space: pre-wrap; line-height: 1.5;
+    font-family: var(--font-mono); white-space: pre-wrap; word-break: break-word;
+    overflow-x: hidden; line-height: 1.5;
   }
 
   .list-empty {

@@ -90,6 +90,13 @@
 					"en": "Open in GitLab becomes Open on <service>, named after the connected forge.",
 					"fr": "Ouvrir dans GitLab devient Ouvrir sur <service>, du nom de la forge connectée."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Integrations page: a search bar over the connection list, the first connection opened on arrival, the form section renamed Service information, and the save bar only shown when there is something to save.",
+					"fr": "Page Intégrations : une barre de recherche sur la liste des connexions, la première connexion ouverte à l'arrivée, la section du formulaire renommée Informations du service, et la barre d'enregistrement affichée seulement quand il y a quelque chose à enregistrer."
+				}
 			}
 		]
 	},

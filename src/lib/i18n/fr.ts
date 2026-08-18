@@ -1002,6 +1002,8 @@ export const fr = {
 			"Connectez GitLab, GitHub et Jira pour retrouver tickets, merge requests et pipelines dans Cairn.",
 		page: "Intégrations",
 		addConnection: "Ajouter une connexion",
+		searchPlaceholder: "Rechercher une connexion",
+		noResults: "Aucune connexion ne correspond à cette recherche.",
 		noConnections: "Aucune connexion pour l'instant",
 		noConnectionsBody:
 			"Ajoutez une connexion GitLab, GitHub ou Jira pour démarrer des instances depuis des tickets, créer des merge requests et suivre les pipelines.",
@@ -1031,6 +1033,7 @@ export const fr = {
 		},
 		form: {
 			title: "Nouvelle connexion",
+			section: "Informations du service",
 			editTitle: "Modifier la connexion",
 			kind: "Service",
 			label: "Libellé",

@@ -1627,7 +1627,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   flex: 1;
   min-height: 0;
 }
-.tests-list { border-right: 1px solid var(--stroke-0); overflow-y: auto; background: var(--bg-1); padding: 6px 0; }
+.tests-list { border-right: 1px solid var(--stroke-0); overflow-y: auto; overflow-x: hidden; background: var(--bg-1); padding: 6px 0; }
 .test-row {
   display: flex; align-items: center; gap: 10px;
   padding: 7px 16px;

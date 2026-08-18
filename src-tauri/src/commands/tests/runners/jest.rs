@@ -5,6 +5,8 @@
 
 use serde_json::Value;
 
+use crate::commands::lsp::strip_ansi;
+
 use super::{
     normalize_path, parse_stack_line, FailureLocation, TestCase, TestEvent, TestFailure, TestStatus,
 };
@@ -40,7 +42,7 @@ fn build_failure(messages: &[String]) -> Option<TestFailure> {
     if messages.is_empty() {
         return None;
     }
-    let message = messages.join("\n");
+    let message = strip_ansi(&messages.join("\n"));
     let stack: Vec<_> = message.lines().filter_map(parse_stack_line).collect();
     let location = stack
         .iter()
@@ -94,7 +96,7 @@ pub fn parse_report(output: &str) -> Vec<TestEvent> {
             {
                 events.push(TestEvent::SuiteError {
                     file:    file.clone(),
-                    message: message.to_string(),
+                    message: strip_ansi(message),
                 });
             }
             continue;

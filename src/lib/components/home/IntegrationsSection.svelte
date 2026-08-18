@@ -9,6 +9,7 @@
   import { t, type TranslationKey } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';
+  import SearchInput from '$lib/components/SearchInput.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
@@ -23,6 +24,7 @@
   } from '$lib/types/integrations';
 
   let ready = false;
+  let search = '';
   let selectedId: string | null = null;
   let draft: IntegrationConnection | null = null;
   let credentials: Record<string, string> = {};
@@ -37,11 +39,27 @@
   onMount(async () => {
     await Promise.all([loadKinds(), loadConnections()]);
     ready = true;
+    const first = $connections[0];
+    if (first) select(first);
   });
 
   $: descriptor = draft ? $kindDescriptors.find((d) => d.kind === draft?.kind) ?? null : null;
   $: kindOptions = $kindDescriptors.map((d) => ({ value: d.kind, label: d.label }));
   $: isNew = draft !== null && selectedId === null;
+  $: query = search.trim().toLowerCase();
+  $: visible = query === ''
+    ? $connections
+    : $connections.filter((c) => `${c.label} ${c.baseUrl} ${c.identity?.login ?? ''}`.toLowerCase().includes(query));
+  $: stored = selectedId === null ? null : $connections.find((c) => c.id === selectedId) ?? null;
+  $: hasCredentialInput = Object.values(credentials).some((v) => v.trim() !== '');
+  $: isDirty = draft !== null && (
+    isNew
+    || hasCredentialInput
+    || stored === null
+    || draft.label !== stored.label
+    || draft.baseUrl !== stored.baseUrl
+    || draft.kind !== stored.kind
+  );
   $: isHttp = draft !== null && /^http:\/\//i.test(draft.baseUrl.trim());
   $: hasNewToken = (credentials.token ?? '').trim() !== '';
   $: isIncomplete = draft === null
@@ -222,12 +240,18 @@
       </span>
     </div>
 
+    {#if ready && $connections.length > 0}
+      <SearchInput bind:value={search} placeholder={t('integrations.searchPlaceholder') as string}/>
+    {/if}
+
     {#if !ready}
       <div class="master-skeleton"><Skeleton lines={3} height={34} gap={4}/></div>
     {:else if $connections.length === 0}
       <p class="ag-master-empty">{t('integrations.noConnections')}</p>
+    {:else if visible.length === 0}
+      <p class="ag-master-empty">{t('integrations.noResults')}</p>
     {:else}
-      {#each $connections as connection (connection.id)}
+      {#each visible as connection (connection.id)}
         {@const status = statusOf(connection)}
         <div class="conn-row">
           <button
@@ -324,7 +348,7 @@
       {/if}
 
       <div class="ag-group">
-        <div class="ag-group-title">{t('integrations.form.title')}</div>
+        <div class="ag-group-title">{t('integrations.form.section')}</div>
 
         <div class="ag-card">
           <div class="ag-field">
@@ -421,6 +445,7 @@
         {/each}
       </div>
 
+      {#if isDirty}
       <div class="save-bar">
         <span class="save-note">
           {#if isNew && !isTestedOk}
@@ -448,6 +473,7 @@
           </button>
         {/if}
       </div>
+      {/if}
     {/if}
   </section>
 </div>
