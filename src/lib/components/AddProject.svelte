@@ -28,20 +28,20 @@
   }>();
 
   // Step layout per mode:
-  //   new:   [identity] → [location]          (2 steps)
-  //   open:  [location] → [identity]          (2 steps)
-  //   clone: [source]   → [identity] → [dest] (3 steps)
+  //   new:   [identity] -> [integrations] -> [location]               (3 steps)
+  //   open:  [location] -> [identity]     -> [integrations]           (3 steps)
+  //   clone: [source]   -> [identity]     -> [integrations] -> [dest] (4 steps)
 
   const stepLabels: Record<typeof mode, string[]> = {
-    new:   [t('addProject.stepLabels.identity') as string,  t('addProject.stepLabels.location') as string],
-    open:  [t('addProject.stepLabels.location') as string,  t('addProject.stepLabels.identity') as string],
-    clone: [t('addProject.stepLabels.source') as string,    t('addProject.stepLabels.identity') as string, t('addProject.stepLabels.destination') as string],
+    new:   [t('addProject.stepLabels.identity') as string,  t('addProject.stepLabels.integrations') as string, t('addProject.stepLabels.location') as string],
+    open:  [t('addProject.stepLabels.location') as string,  t('addProject.stepLabels.identity') as string,     t('addProject.stepLabels.integrations') as string],
+    clone: [t('addProject.stepLabels.source') as string,    t('addProject.stepLabels.identity') as string,     t('addProject.stepLabels.integrations') as string, t('addProject.stepLabels.destination') as string],
   };
 
   const modalTitles: Record<typeof mode, string[]> = {
-    new:   [t('addProject.modalTitles.nameYourProject') as string,    t('addProject.modalTitles.chooseFolder') as string],
-    open:  [t('addProject.modalTitles.chooseFolder') as string,       t('addProject.modalTitles.nameYourProject') as string],
-    clone: [t('addProject.modalTitles.repositorySource') as string,   t('addProject.modalTitles.nameYourProject') as string, t('addProject.modalTitles.chooseDestination') as string],
+    new:   [t('addProject.modalTitles.nameYourProject') as string,    t('addProject.modalTitles.configureIntegrations') as string, t('addProject.modalTitles.chooseFolder') as string],
+    open:  [t('addProject.modalTitles.chooseFolder') as string,       t('addProject.modalTitles.nameYourProject') as string,       t('addProject.modalTitles.configureIntegrations') as string],
+    clone: [t('addProject.modalTitles.repositorySource') as string,   t('addProject.modalTitles.nameYourProject') as string,       t('addProject.modalTitles.configureIntegrations') as string, t('addProject.modalTitles.chooseDestination') as string],
   };
 
   const modeLabel: Record<typeof mode, string> = {
@@ -67,7 +67,10 @@
   let openedRemoteUrl = '';
   let openedRemotePath = '';
 
-  $: isIdentityStep = (mode === 'new' && step === 0) || (mode !== 'new' && step === 1);
+  $: isIdentityStep =
+    (mode === 'new' && step === 0) ||
+    (mode === 'open' && step === 1) ||
+    (mode === 'clone' && step === 1);
   $: remoteUrl = mode === 'clone' ? cloneUrl.trim() : openedRemoteUrl;
   $: hasBindings = bindings.tracker !== null || bindings.forge !== null || bindings.ci !== null;
   $: if (mode === 'open' && isIdentityStep && path && path !== openedRemotePath) void resolveOpenedRemote(path);
@@ -111,11 +114,20 @@
 
   // -- canNext ----------------------------------------------------------------
   $: canNext = (() => {
-    if (mode === 'new')   { if (step === 0) return name.trim().length > 0; return path.length > 0; }
-    if (mode === 'open')  { if (step === 0) return path.length > 0;        return name.trim().length > 0; }
+    if (mode === 'new') {
+      if (step === 0) return name.trim().length > 0;
+      if (step === 1) return true;
+      return path.length > 0;
+    }
+    if (mode === 'open') {
+      if (step === 0) return path.length > 0;
+      if (step === 1) return name.trim().length > 0;
+      return true;
+    }
     if (mode === 'clone') {
       if (step === 0) return cloneUrl.trim().length > 0;
       if (step === 1) return name.trim().length > 0;
+      if (step === 2) return true;
       return path.length > 0;
     }
     return false;
@@ -214,12 +226,13 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-        <div class="form-section bindings">
-          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
-        </div>
-
-      <!-- -- NEW - step 1: location -- -->
+      <!-- -- NEW - step 1: integrations -- -->
       {:else if mode === 'new' && step === 1}
+
+        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+
+      <!-- -- NEW - step 2: location -- -->
+      {:else if mode === 'new' && step === 2}
 
         <p class="ap-hint">{t('addProject.hintNew')}</p>
         <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
@@ -295,9 +308,10 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-        <div class="form-section bindings">
-          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
-        </div>
+      <!-- -- OPEN - step 2: integrations -- -->
+      {:else if mode === 'open' && step === 2}
+
+        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
 
       <!-- -- CLONE - step 0: source -- -->
       {:else if mode === 'clone' && step === 0}
@@ -364,12 +378,13 @@
 
         <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
 
-        <div class="form-section bindings">
-          <ProjectIntegrationsForm {remoteUrl} bind:bindings />
-        </div>
-
-      <!-- -- CLONE - step 2: destination -- -->
+      <!-- -- CLONE - step 2: integrations -- -->
       {:else if mode === 'clone' && step === 2}
+
+        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+
+      <!-- -- CLONE - step 3: destination -- -->
+      {:else if mode === 'clone' && step === 3}
 
         <p class="ap-hint">{t('addProject.hintClone')}</p>
         <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
@@ -447,7 +462,6 @@
     line-height: 1.55;
   }
   .form-section { margin-bottom: 22px; }
-  .form-section.bindings { margin-top: 22px; margin-bottom: 0; }
   .ap-label {
     display: block;
     font-size: 11px;

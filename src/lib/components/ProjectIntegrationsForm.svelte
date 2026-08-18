@@ -12,8 +12,8 @@
   import Select from '$lib/components/Select.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { connections, kindDescriptors, loadConnections, loadKinds } from '$lib/stores/integrations';
-  import { listTrackerProjects, suggestProjectIntegrations } from '$lib/services/integration-service';
-  import type { Capability, ProjectIntegrations, TrackerProject } from '$lib/types/integrations';
+  import { listTrackerProjects, suggestProjectIntegrations, trackerListStatuses } from '$lib/services/integration-service';
+  import type { Capability, ProjectIntegrations, TrackerProject, TrackerStatus } from '$lib/types/integrations';
   import { parseRemoteUrl } from '$lib/utils/git/remote-url';
 
   export let projectId = '';
@@ -160,11 +160,41 @@
     isPickerOpen = false;
   }
 
+  let trackerStatuses: TrackerStatus[] = [];
+  let isLoadingStatuses = false;
+  let statusesFetchedFor = '';
+
+  $: if (projectId && bindings.tracker && bindings.tracker.connectionId !== statusesFetchedFor) {
+    void fetchStatuses();
+  }
+  $: if (!bindings.tracker) {
+    trackerStatuses = [];
+    statusesFetchedFor = '';
+  }
+
+  async function fetchStatuses() {
+    if (!projectId || !bindings.tracker) return;
+    const connectionId = bindings.tracker.connectionId;
+    statusesFetchedFor = connectionId;
+    isLoadingStatuses = true;
+    try {
+      trackerStatuses = await trackerListStatuses(projectId);
+    } catch {
+      trackerStatuses = [];
+    } finally {
+      isLoadingStatuses = false;
+    }
+  }
+
+  $: transitionOptions = [
+    { value: '', label: t('integrations.bindings.transitionNone') as string },
+    ...trackerStatuses.map(s => ({ value: s.name, label: s.name })),
+  ];
+
   function setTransition(field: 'onCreate' | 'onFinalize', value: string) {
-    const trimmed = value.trim();
     bindings = {
       ...bindings,
-      autoTransition: { ...bindings.autoTransition, [field]: trimmed === '' ? null : trimmed },
+      autoTransition: { ...bindings.autoTransition, [field]: value === '' ? null : value },
     };
   }
 </script>
@@ -303,28 +333,28 @@
       <div class="pi-transitions">
         <span class="pi-label">{t('integrations.bindings.autoTransition')}</span>
         <p class="pi-hint">{t('integrations.bindings.transitionHint')}</p>
-        <label class="pi-transition">
-          <span>{t('integrations.bindings.autoTransitionOnCreate')}</span>
-          <input
-            class="pi-input selectable"
-            type="text"
-            autocomplete="off"
-            placeholder={t('integrations.bindings.transitionPlaceholder') as string}
-            value={bindings.autoTransition.onCreate ?? ''}
-            on:input={(e) => setTransition('onCreate', e.currentTarget.value)}
-          />
-        </label>
-        <label class="pi-transition">
-          <span>{t('integrations.bindings.autoTransitionOnFinalize')}</span>
-          <input
-            class="pi-input selectable"
-            type="text"
-            autocomplete="off"
-            placeholder={t('integrations.bindings.transitionPlaceholder') as string}
-            value={bindings.autoTransition.onFinalize ?? ''}
-            on:input={(e) => setTransition('onFinalize', e.currentTarget.value)}
-          />
-        </label>
+        {#if isLoadingStatuses}
+          <div class="pi-status-loading"><Spinner size={11}/></div>
+        {:else}
+          <div class="pi-transition">
+            <span class="pi-transition-label">{t('integrations.bindings.autoTransitionOnCreate')}</span>
+            <Select
+              value={bindings.autoTransition.onCreate ?? ''}
+              options={transitionOptions}
+              ariaLabel={t('integrations.bindings.autoTransitionOnCreate') as string}
+              on:change={(e) => setTransition('onCreate', e.detail)}
+            />
+          </div>
+          <div class="pi-transition">
+            <span class="pi-transition-label">{t('integrations.bindings.autoTransitionOnFinalize')}</span>
+            <Select
+              value={bindings.autoTransition.onFinalize ?? ''}
+              options={transitionOptions}
+              ariaLabel={t('integrations.bindings.autoTransitionOnFinalize') as string}
+              on:change={(e) => setTransition('onFinalize', e.detail)}
+            />
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -338,9 +368,9 @@
     color: var(--fg-3);
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
-  .pi-desc { margin: 0 0 10px; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
+  .pi-desc { margin: 0 0 16px; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
 
   .pi-suggest {
     display: flex;
@@ -360,10 +390,10 @@
   .pi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 18px;
   }
-  .pi-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; position: relative; }
+  .pi-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; position: relative; }
   .pi-grid .pi-field { margin-bottom: 0; }
   .pi-label { font-size: 11px; font-weight: 600; color: var(--fg-2); }
   .pi-hint { margin: 0; font-size: 11px; color: var(--fg-3); line-height: 1.5; }
@@ -429,6 +459,8 @@
   .pi-result code { flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-0); }
   .pi-result span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-3); }
 
-  .pi-transitions { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-  .pi-transition { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--fg-2); }
+  .pi-transitions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .pi-transition { display: flex; flex-direction: column; gap: 4px; }
+  .pi-transition-label { font-size: 11.5px; color: var(--fg-2); }
+  .pi-status-loading { display: flex; align-items: center; padding: 8px 0; color: var(--fg-3); }
 </style>

@@ -465,6 +465,34 @@ impl TrackerProvider for JiraApi {
         Ok(map_transitions(&value))
     }
 
+    async fn list_statuses(&self) -> Result<Vec<TrackerStatus>, IntegrationError> {
+        let value = self.http.get_json(&self.api(&format!("project/{}/statuses", &self.project_key)), &[]).await?;
+        let mut seen = std::collections::HashSet::new();
+        let mut statuses = Vec::new();
+        if let Some(issue_types) = value.as_array() {
+            for it in issue_types {
+                if let Some(arr) = it.get("statuses").and_then(Value::as_array) {
+                    for s in arr {
+                        let id = id_of(s, "id");
+                        if id.is_empty() || !seen.insert(id.clone()) {
+                            continue;
+                        }
+                        let category_key = s.get("statusCategory")
+                            .and_then(|c| c.get("key"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("");
+                        statuses.push(TrackerStatus {
+                            id,
+                            name: str_of(s, "name"),
+                            category: map_status_category(category_key),
+                        });
+                    }
+                }
+            }
+        }
+        Ok(statuses)
+    }
+
     async fn transition(&self, key: &str, transition_id: &str) -> Result<Ticket, IntegrationError> {
         let key = self.full_key(key);
         self.http

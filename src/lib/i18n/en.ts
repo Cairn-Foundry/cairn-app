@@ -32,12 +32,14 @@ export const en = {
 			location: "Location",
 			source: "Source",
 			destination: "Destination",
+			integrations: "Integrations",
 		},
 		modalTitles: {
 			nameYourProject: "Name your project",
 			chooseFolder: "Choose a folder",
 			repositorySource: "Repository source",
 			chooseDestination: "Choose destination",
+			configureIntegrations: "Configure integrations",
 		},
 		modeLabels: {
 			new: "New project",
@@ -127,6 +129,8 @@ export const en = {
 	editProject: {
 		heading: "Edit project",
 		subheading: "Rename & recolor",
+		tabIdentity: "Identity",
+		tabIntegrations: "Integrations",
 		projectName: "Project name",
 		color: "Color",
 		saveChanges: "Save changes",
@@ -1051,9 +1055,8 @@ export const en = {
 			repoPath: "Repository path",
 			repoPathPlaceholder: "group/repo",
 			trackerProjectKeyPlaceholder: "CAIRN",
-			transitionPlaceholder: "Status name or transition id",
-			transitionHint:
-				"Transitions depend on the ticket; type the status name as the tracker shows it.",
+			transitionPlaceholder: "Select a status",
+			transitionHint: "The ticket will be moved to this status automatically.",
 			noConnectionForKind: "No connection provides this capability yet.",
 		},
 		terms: {

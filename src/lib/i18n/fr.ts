@@ -32,12 +32,14 @@ export const fr = {
 			location: "Emplacement",
 			source: "Source",
 			destination: "Destination",
+			integrations: "Intégrations",
 		},
 		modalTitles: {
 			nameYourProject: "Nommer le projet",
 			chooseFolder: "Choisir un dossier",
 			repositorySource: "Source du dépôt",
 			chooseDestination: "Choisir la destination",
+			configureIntegrations: "Configurer les intégrations",
 		},
 		modeLabels: {
 			new: "Nouveau projet",
@@ -129,6 +131,8 @@ export const fr = {
 	editProject: {
 		heading: "Modifier le projet",
 		subheading: "Renommer & recolorer",
+		tabIdentity: "Identité",
+		tabIntegrations: "Intégrations",
 		projectName: "Nom du projet",
 		color: "Couleur",
 		saveChanges: "Enregistrer les modifications",
@@ -1075,9 +1079,8 @@ export const fr = {
 			repoPath: "Chemin du dépôt",
 			repoPathPlaceholder: "groupe/depot",
 			trackerProjectKeyPlaceholder: "CAIRN",
-			transitionPlaceholder: "Nom du statut ou identifiant de transition",
-			transitionHint:
-				"Les transitions dépendent du ticket ; saisissez le nom du statut tel que le tracker l'affiche.",
+			transitionPlaceholder: "Sélectionner un statut",
+			transitionHint: "Le ticket sera automatiquement déplacé vers ce statut.",
 			noConnectionForKind: "Aucune connexion ne fournit encore cette capacité.",
 		},
 		terms: {

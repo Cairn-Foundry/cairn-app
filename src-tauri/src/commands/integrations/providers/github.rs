@@ -647,6 +647,13 @@ impl TrackerProvider for GitHubApi {
         })
     }
 
+    async fn list_statuses(&self) -> Result<Vec<TrackerStatus>, IntegrationError> {
+        Ok(vec![
+            TrackerStatus { id: "open".to_string(), name: "Open".to_string(), category: StatusCategory::Todo },
+            TrackerStatus { id: "closed".to_string(), name: "Closed".to_string(), category: StatusCategory::Done },
+        ])
+    }
+
     async fn transition(&self, key: &str, transition_id: &str) -> Result<Ticket, IntegrationError> {
         let number = parse_number(key)?;
         let state = match transition_id {

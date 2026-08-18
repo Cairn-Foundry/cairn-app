@@ -231,6 +231,14 @@ pub struct TicketTransition {
     pub to_status: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackerStatus {
+    pub id: String,
+    pub name: String,
+    pub category: StatusCategory,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Page<T> {

@@ -480,6 +480,13 @@ impl TrackerProvider for GitLabApi {
         })
     }
 
+    async fn list_statuses(&self) -> Result<Vec<TrackerStatus>, IntegrationError> {
+        Ok(vec![
+            TrackerStatus { id: "opened".to_string(), name: "Opened".to_string(), category: StatusCategory::Todo },
+            TrackerStatus { id: "closed".to_string(), name: "Closed".to_string(), category: StatusCategory::Done },
+        ])
+    }
+
     async fn transition(&self, key: &str, transition_id: &str) -> Result<Ticket, IntegrationError> {
         let iid = parse_iid(key)?;
         let event = match transition_id {

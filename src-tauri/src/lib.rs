@@ -331,6 +331,7 @@ pub fn run() {
             tracker_get_ticket,
             tracker_resolve_url,
             tracker_list_transitions,
+            tracker_list_statuses,
             tracker_transition,
             forge_find_merge_request,
             forge_create_merge_request,

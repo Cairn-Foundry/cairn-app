@@ -90,7 +90,7 @@ pub use integrations::{
     delete_integration_connection, test_integration_connection,
     get_project_integrations, save_project_integrations, suggest_project_integrations,
     get_project_capabilities, list_tracker_projects,
-    tracker_list_tickets, tracker_get_ticket, tracker_resolve_url, tracker_list_transitions, tracker_transition,
+    tracker_list_tickets, tracker_get_ticket, tracker_resolve_url, tracker_list_transitions, tracker_list_statuses, tracker_transition,
     forge_find_merge_request, forge_create_merge_request, forge_list_discussions, forge_reply, forge_resolve,
     forge_approve, forge_list_members, forge_list_labels, forge_web_link,
     ci_list_pipelines, ci_get_pipeline, ci_job_log, ci_retry_job, ci_cancel_pipeline, ci_play_job,

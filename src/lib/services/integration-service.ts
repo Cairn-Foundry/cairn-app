@@ -24,6 +24,7 @@ import {
 	type TicketQuery,
 	type TicketTransition,
 	type TrackerProject,
+	type TrackerStatus,
 	type WebLinkTarget,
 } from "$lib/types/integrations";
 
@@ -166,6 +167,12 @@ export async function trackerListTransitions(
 	key: string,
 ): Promise<TicketTransition[]> {
 	return invoke("tracker_list_transitions", { projectId, key });
+}
+
+export async function trackerListStatuses(
+	projectId: string,
+): Promise<TrackerStatus[]> {
+	return invoke("tracker_list_statuses", { projectId });
 }
 
 export async function trackerTransition(

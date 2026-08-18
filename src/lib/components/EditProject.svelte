@@ -1,8 +1,4 @@
 <script lang="ts">
-  /**
-   * Modal renaming a project and changing its accent colour. Saving is disabled
-   * until something actually differs from the current project.
-   */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import ProjectIntegrationsForm from '$lib/components/ProjectIntegrationsForm.svelte';
@@ -19,6 +15,9 @@
   export let project: Project;
 
   const dispatch = createEventDispatcher<{ close: void }>();
+
+  type Tab = 'identity' | 'integrations';
+  let activeTab: Tab = 'identity';
 
   let name = project.name;
   let color = project.color;
@@ -86,36 +85,59 @@
       </button>
     </div>
 
-    <div class="modal-body">
-      <div class="form-section">
-        <label class="ep-label" for="edit-name">
-          {t('editProject.projectName')} <span class="req">*</span>
-        </label>
-        <input
-          id="edit-name"
-          class="ep-input"
-          bind:value={name}
-          placeholder={project.name}
-          autocomplete="off"
-        />
+    <div class="ep-layout">
+      <div class="ep-tabs" role="tablist">
+        <button
+          class="ep-tab {activeTab === 'identity' ? 'active' : ''}"
+          role="tab"
+          aria-selected={activeTab === 'identity'}
+          on:click={() => activeTab = 'identity'}
+        >
+          <Icon name="edit" size={14}/>
+          {t('editProject.tabIdentity')}
+        </button>
+        <button
+          class="ep-tab {activeTab === 'integrations' ? 'active' : ''}"
+          role="tab"
+          aria-selected={activeTab === 'integrations'}
+          on:click={() => activeTab = 'integrations'}
+        >
+          <Icon name="link" size={14}/>
+          {t('editProject.tabIntegrations')}
+        </button>
       </div>
 
-      <div class="form-section">
-        <div class="ep-label">{t('editProject.color')}</div>
-        <ProjectColorPicker bind:color idSuffix="edit" />
+      <div class="ep-panel">
+        {#if activeTab === 'identity'}
+          <div class="form-section">
+            <label class="ep-label" for="edit-name">
+              {t('editProject.projectName')} <span class="req">*</span>
+            </label>
+            <input
+              id="edit-name"
+              class="ep-input"
+              bind:value={name}
+              placeholder={project.name}
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-section">
+            <div class="ep-label">{t('editProject.color')}</div>
+            <ProjectColorPicker bind:color idSuffix="edit" />
+          </div>
+
+          <ProjectPreviewPill name={name || project.name} {color} />
+        {:else}
+          <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
+        {/if}
+
+        {#if error}
+          <div class="ep-error" role="alert">
+            <Icon name="info" size={14}/> {error}
+          </div>
+        {/if}
       </div>
-
-      <ProjectPreviewPill name={name || project.name} {color} />
-
-      <div class="form-section bindings">
-        <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
-      </div>
-
-      {#if error}
-        <div class="ep-error" role="alert">
-          <Icon name="info" size={14}/> {error}
-        </div>
-      {/if}
     </div>
 
     <div class="modal-foot">
@@ -134,10 +156,53 @@
 </div>
 
 <style>
-  .ep-modal { width: min(440px, 92vw); }
+  .ep-modal { width: min(720px, 92vw); }
 
-  .form-section { margin-bottom: 20px; }
-  .form-section.bindings { margin-top: 20px; margin-bottom: 0; }
+  .ep-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ep-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 180px;
+    flex-shrink: 0;
+    padding: 20px 16px 20px 20px;
+    border-right: 1px solid var(--stroke-0);
+  }
+
+  .ep-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--fg-2);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+  }
+  .ep-tab :global(svg) { flex-shrink: 0; }
+  .ep-tab:hover { background: var(--bg-3); color: var(--fg-0); }
+  .ep-tab.active { background: var(--accent-weak); color: var(--accent); }
+
+  .ep-panel {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 28px;
+    overflow-y: auto;
+  }
+
+  .form-section { margin-bottom: 24px; }
   .ep-label {
     display: block;
     font-size: 11px;
@@ -168,9 +233,6 @@
   }
   .ep-input::placeholder { color: var(--fg-4); opacity: 1; }
 
-
-
-
   .ep-error {
     display: flex;
     align-items: flex-start;
@@ -184,5 +246,4 @@
     color: var(--danger, oklch(0.75 0.18 15));
     line-height: 1.5;
   }
-
 </style>

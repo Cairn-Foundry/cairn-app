@@ -295,6 +295,11 @@ pub async fn tracker_list_transitions(project_id: String, key: String) -> Result
 }
 
 #[tauri::command]
+pub async fn tracker_list_statuses(project_id: String) -> Result<Vec<TrackerStatus>, IntegrationError> {
+    Backend::for_capability(&project_id, Capability::Tracker)?.list_statuses().await
+}
+
+#[tauri::command]
 pub async fn tracker_transition(
     state: State<'_, IntegrationState>,
     project_id: String,

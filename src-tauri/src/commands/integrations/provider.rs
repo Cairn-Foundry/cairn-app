@@ -15,6 +15,7 @@ pub trait TrackerProvider {
     async fn get_ticket(&self, key: &str) -> Result<Ticket, IntegrationError>;
     async fn resolve_ticket_url(&self, url: &str) -> Result<Option<Ticket>, IntegrationError>;
     async fn list_transitions(&self, key: &str) -> Result<Vec<TicketTransition>, IntegrationError>;
+    async fn list_statuses(&self) -> Result<Vec<TrackerStatus>, IntegrationError>;
     async fn transition(&self, key: &str, transition_id: &str) -> Result<Ticket, IntegrationError>;
 }
 
@@ -217,6 +218,13 @@ impl TrackerProvider for Backend {
             Backend::GitLab(api) => api.list_transitions(key).await,
             Backend::GitHub(api) => api.list_transitions(key).await,
             Backend::Jira(api) => api.list_transitions(key).await,
+        }
+    }
+    async fn list_statuses(&self) -> Result<Vec<TrackerStatus>, IntegrationError> {
+        match self {
+            Backend::GitLab(api) => api.list_statuses().await,
+            Backend::GitHub(api) => api.list_statuses().await,
+            Backend::Jira(api) => api.list_statuses().await,
         }
     }
     async fn transition(&self, key: &str, transition_id: &str) -> Result<Ticket, IntegrationError> {

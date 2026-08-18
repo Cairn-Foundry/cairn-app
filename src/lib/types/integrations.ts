@@ -129,6 +129,12 @@ export interface TicketTransition {
 	toStatus: string;
 }
 
+export interface TrackerStatus {
+	id: string;
+	name: string;
+	category: StatusCategory;
+}
+
 export interface TicketPage {
 	items: Ticket[];
 	hasMore: boolean;
