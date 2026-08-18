@@ -35,13 +35,17 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Resolve and check version
         id: resolve
         run: |
           set -euo pipefail
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#v}"
-          PKG=$(node -p "require('./package.json').version")
+          PKG=$(bun --print "require('./package.json').version")
           CARGO=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
           if [ "$VERSION" != "$PKG" ] || [ "$VERSION" != "$CARGO" ]; then
             echo "version mismatch: tag=$VERSION package.json=$PKG Cargo.toml=$CARGO" >&2
@@ -169,6 +173,10 @@ jobs:
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -177,7 +185,7 @@ jobs:
         env:
           RELEASE_NOTES: ${{ needs.verify.outputs.notes }}
         run: |
-          node scripts/build-updater-manifest.mjs \
+          bun scripts/build-updater-manifest.mjs \
             "${{ needs.verify.outputs.version }}" \
             "${{ needs.verify.outputs.tag }}" \
             artifacts \
