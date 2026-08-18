@@ -153,6 +153,13 @@
 					"en": "Integrations page: a search bar over the connection list, the first connection opened on arrival, the form section renamed Service information, and the save bar only shown when there is something to save.",
 					"fr": "Page Intégrations : une barre de recherche sur la liste des connexions, la première connexion ouverte à l'arrivée, la section du formulaire renommée Informations du service, et la barre d'enregistrement affichée seulement quand il y a quelque chose à enregistrer."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Terminal: accented and composed characters (dead keys, input methods) are no longer duplicated or scrambled on Linux.",
+					"fr": "Terminal : les caractères accentués et composés (touches mortes, méthodes de saisie) ne sont plus dupliqués ni mélangés sous Linux."
+				}
 			}
 		]
 	},

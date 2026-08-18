@@ -195,6 +195,22 @@ if (typeof window !== "undefined") {
 	});
 }
 
+// One pending-write chain per terminal. A composed character ends the
+// composition from a timer while ordinary keys emit synchronously, so two
+// `onData` calls can be issued back to back; unawaited `invoke()` calls have no
+// ordering guarantee and would reach the PTY out of order.
+const writeQueues = new Map<string, Promise<void>>();
+
+/** Queues a PTY write behind the ones already in flight for that terminal. */
+function enqueueWrite(id: string, data: string): void {
+	const pending = writeQueues.get(id) ?? Promise.resolve();
+	const next = pending.then(() => writeToTerminal(id, data)).catch(() => {});
+	writeQueues.set(id, next);
+	void next.then(() => {
+		if (writeQueues.get(id) === next) writeQueues.delete(id);
+	});
+}
+
 /** Builds a terminal and wires its I/O; does nothing if `id` already exists. */
 export function create(id: string): void {
 	if (managed.has(id)) return;
@@ -220,7 +236,7 @@ export function create(id: string): void {
 	term.attachCustomKeyEventHandler((e) => handleClipboardKey(term, e));
 
 	term.onData((data) => {
-		void writeToTerminal(id, data);
+		enqueueWrite(id, data);
 	});
 	term.onResize(({ cols, rows }) => {
 		void resizeTerminal(id, cols, rows);
@@ -229,18 +245,27 @@ export function create(id: string): void {
 	managed.set(id, { term, fit, el, opened: false });
 }
 
-/** Moves the existing element into `slot`, opening xterm on first attach only. */
+/**
+ * Moves the existing element into `slot`, opening xterm on first attach only.
+ *
+ * Focus is only taken when the terminal actually moved into the slot. The
+ * caller is a reactive effect that re-runs on unrelated store writes, and a
+ * `focus()` landing between `compositionstart` and `compositionend` makes xterm
+ * blur-clear its helper textarea, which desynchronises the composition offsets
+ * and duplicates or scrambles dead-key input (`^` then `a`) on Linux.
+ */
 export function attach(id: string, slot: HTMLElement): void {
 	const m = managed.get(id);
 	if (!m) return;
-	if (slot.firstChild !== m.el) slot.replaceChildren(m.el);
+	const moved = slot.firstChild !== m.el;
+	if (moved) slot.replaceChildren(m.el);
 	if (!m.opened) {
 		m.term.open(m.el);
 		m.opened = true;
 	}
 	requestAnimationFrame(() => {
 		refit(id);
-		m.term.focus();
+		if (moved) m.term.focus();
 	});
 }
 
@@ -268,4 +293,5 @@ export function dispose(id: string): void {
 	m.term.dispose();
 	m.el.remove();
 	managed.delete(id);
+	writeQueues.delete(id);
 }

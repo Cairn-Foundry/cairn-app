@@ -5,6 +5,7 @@
    * PTY and its xterm instance live in terminal-manager and survive attach,
    * detach and a move between scopes.
    */
+  import { untrack } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
@@ -110,6 +111,12 @@
     if (!$terminalActive || !splitSlotEl) return;
     if (splitTid) manager.attach(splitTid, splitSlotEl);
     else splitSlotEl.replaceChildren();
+  });
+
+  $effect(() => {
+    if (!$terminalActive) return;
+    const tid = untrack(() => (focusedPane === 1 ? splitTid : activeTid));
+    if (tid) requestAnimationFrame(() => manager.focus(tid));
   });
 
   $effect(() => {
