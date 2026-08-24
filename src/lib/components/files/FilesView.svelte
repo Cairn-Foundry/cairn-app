@@ -35,7 +35,7 @@ import { get } from 'svelte/store';
   import { languageIdForPath } from '$lib/utils/languages/servers';
   import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
   import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
-  import { readDirTree, listDirNames, readFile, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, listDirNames, readFile, fileMtimes, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
   import { git, getRemoteUrl, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { capabilities } from '$lib/stores/integrations';
@@ -1516,6 +1516,11 @@ import { get } from 'svelte/store';
       });
     });
 
+    // External edits while the window stays focused - an agent, a script, git -
+    // are caught by polling the open tabs' mtimes; the focus handler above only
+    // covers edits made while the app was in the background.
+    const mtimeTimer = setInterval(() => void pollOpenFileMtimes(), 2000);
+
     let prevInstId: string | null = null;
     let prevInstWtp: string | null = null;
     const unsubInst = activeInstance.subscribe(inst => {
@@ -1548,6 +1553,7 @@ import { get } from 'svelte/store';
       unlistenOsDrop?.();
       unsubInst();
       unsubProj();
+      clearInterval(mtimeTimer);
     };
   });
 
@@ -1832,6 +1838,36 @@ import { get } from 'svelte/store';
       }
     } finally {
       if (!silent && worktreePath === root) loading = false;
+    }
+  }
+
+  let knownMtimes = new Map<string, number>();
+  let isPollingMtimes = false;
+
+  /** Reloads open tabs when a file's mtime moved under them; dirty tabs keep their edits. */
+  async function pollOpenFileMtimes() {
+    if (!worktreePath || isPollingMtimes) return;
+    isPollingMtimes = true;
+    const root = worktreePath;
+    try {
+      const paths = [...new Set(panes.flatMap(p => p.tabs.map(t => absolutePathOf(t.path, root))))];
+      if (paths.length === 0) { knownMtimes = new Map(); return; }
+      const mtimes = await fileMtimes(paths);
+      if (worktreePath !== root) return;
+      let changed = false;
+      const next = new Map<string, number>();
+      for (const path of paths) {
+        const mtime = mtimes[path];
+        if (mtime === undefined) continue;
+        const known = knownMtimes.get(path);
+        next.set(path, mtime);
+        if (known !== undefined && known !== mtime) changed = true;
+      }
+      knownMtimes = next;
+      if (changed) await reloadOpenFilesFromDisk();
+    } catch {
+    } finally {
+      isPollingMtimes = false;
     }
   }
 

@@ -2166,6 +2166,11 @@
                     {renderMarkdown}
                     onOpenAgent={openThreadOf}
                   />
+                  {#if m.streaming}
+                    <!-- The run is still going even when every block is closed: without
+                         this the turn looks finished the moment the last text lands. -->
+                    <p class="turn-typing"><span class="typing-dots"><span></span><span></span><span></span></span></p>
+                  {/if}
                 </div>
               {:else}
                 {#if m.thinking && $settings.agentShowThinking}
@@ -2825,6 +2830,7 @@
     gap: 14px;
     min-width: 0;
   }
+  .turn-typing { margin: 0; }
 
   .empty-session {
     align-items: center;

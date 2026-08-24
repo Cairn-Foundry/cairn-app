@@ -55,6 +55,13 @@ export async function readFile(path: string): Promise<string | null> {
 	return invoke<string | null>("read_file", { path });
 }
 
+/** Last-modified time in milliseconds per path; a missing file has no entry. */
+export async function fileMtimes(
+	paths: string[],
+): Promise<Record<string, number>> {
+	return invoke<Record<string, number>>("file_mtimes", { paths });
+}
+
 /** Size plus the first bytes as hex, enough to identify a binary by its magic number. */
 export interface FilePreview {
 	size: number;

@@ -40,7 +40,7 @@ export function emptyEnvFile(): EnvFile {
 	return {
 		variables: [],
 		overrides: {},
-		writeEnvFile: true,
+		writeEnvFile: false,
 		envFileName: DEFAULT_ENV_FILE_NAME,
 	};
 }

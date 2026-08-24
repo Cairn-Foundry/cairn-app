@@ -122,6 +122,8 @@ export const fr = {
 		searchTickets: "Rechercher des tickets...",
 		pasteUrl: "Coller l'URL ou la clé d'un ticket",
 		noTickets: "Aucun ticket ne correspond.",
+		alreadyAssigned: "Déjà affectés",
+		noAssignedTickets: "Aucun ticket n'est déjà affecté à une instance.",
 		ticketTransitionFailed:
 			"Le ticket n'a pas pu être passé à son statut de départ.",
 		selectedTicket: "Ticket sélectionné",

@@ -120,6 +120,8 @@ export const en = {
 		searchTickets: "Search tickets...",
 		pasteUrl: "Paste a ticket URL or key",
 		noTickets: "No ticket matches.",
+		alreadyAssigned: "Already assigned",
+		noAssignedTickets: "No ticket is already assigned to an instance.",
 		ticketTransitionFailed:
 			"The ticket could not be moved to its start status.",
 		selectedTicket: "Selected ticket",

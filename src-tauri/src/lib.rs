@@ -125,6 +125,7 @@ pub fn run() {
             quick_search,
             list_dir_names,
             read_file,
+        file_mtimes,
             read_file_preview,
             read_file_base64,
             write_file,

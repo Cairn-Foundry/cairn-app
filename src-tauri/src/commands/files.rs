@@ -260,6 +260,21 @@ pub async fn read_file(path: String) -> Result<Option<String>, String> {
     }
 }
 
+#[tauri::command]
+/// Last-modified time in milliseconds for each path; a path that cannot be
+/// read simply has no entry, which the caller treats as unchanged.
+pub async fn file_mtimes(paths: Vec<String>) -> Result<std::collections::HashMap<String, u64>, String> {
+    let mut out = std::collections::HashMap::new();
+    for path in paths {
+        let expanded = shellexpand::tilde(&path).into_owned();
+        let Ok(meta) = fs::metadata(&expanded) else { continue };
+        let Ok(modified) = meta.modified() else { continue };
+        let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) else { continue };
+        out.insert(path, dur.as_millis() as u64);
+    }
+    Ok(out)
+}
+
 const PREVIEW_HEAD_BYTES: usize = 1024;
 
 /// Size plus the first bytes as hex, enough for the frontend to sniff the type.

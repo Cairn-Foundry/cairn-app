@@ -24,7 +24,7 @@
     transitionTicketToStatus,
   } from '$lib/stores/tracker';
   import type { Ticket, TicketQuery } from '$lib/types/integrations';
-  import type { InstanceTicket } from '$lib/types/instance';
+  import type { Instance, InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
   import { renderBranchTemplate } from '$lib/utils/integrations/branch-template';
@@ -66,6 +66,30 @@
     { id: 'created', label: t('createInstance.createdByMe') as string },
     { id: 'all', label: t('createInstance.allTickets') as string },
   ];
+
+  let ticketListTab: 'available' | 'assigned' = 'available';
+
+  // Tickets already tied to an instance of the current project, matched by
+  // tracker key. Built from the instances, not the search results: the search
+  // is paginated, so it never sees the whole picture.
+  $: assignedTickets = dedupeAssignedTickets($instances);
+  $: assignedTicketKeys = new Set(assignedTickets.map((tk) => tk.key ?? tk.id));
+  $: availableTickets = $ticketSearch.results.filter((tk) => !assignedTicketKeys.has(tk.key));
+  $: assignedShown = assignedTickets.filter((tk) =>
+    matchesSearch(`${tk.key ?? tk.id} ${tk.title}`, ticketQueryText),
+  );
+
+  function dedupeAssignedTickets(list: Instance[]): InstanceTicket[] {
+    const seen = new Set<string>();
+    const out: InstanceTicket[] = [];
+    for (const inst of list) {
+      const key = inst.ticket.key ?? inst.ticket.id;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(inst.ticket);
+    }
+    return out;
+  }
 
   const LOOKS_LIKE_TICKET_REF = /^(https?:\/\/\S+|#\d+|[a-z][a-z0-9]*-\d+)$/i;
 
@@ -329,6 +353,13 @@
               {#each TICKET_SCOPES as scope}
                 <button class="ticket-scope" class:active={ticketScope === scope.id} type="button" on:click={() => selectScope(scope.id)}>{scope.label}</button>
               {/each}
+              <button
+                class="assigned-toggle"
+                class:active={ticketListTab === 'assigned'}
+                type="button"
+                aria-pressed={ticketListTab === 'assigned'}
+                on:click={() => ticketListTab = ticketListTab === 'assigned' ? 'available' : 'assigned'}
+              >{t('createInstance.alreadyAssigned')}{assignedTickets.length > 0 ? ` (${assignedTickets.length})` : ''}</button>
             </div>
             <div class="branch-list-wrap">
               <div class="branch-search-row">
@@ -348,14 +379,25 @@
                 {/if}
               </div>
               <div class="branch-list ticket-list">
-                {#if $ticketSearch.isSearching && $ticketSearch.results.length === 0}
+                {#if ticketListTab === 'assigned'}
+                  {#if assignedShown.length === 0}
+                    <div class="branch-empty">{t('createInstance.noAssignedTickets')}</div>
+                  {/if}
+                  {#each assignedShown as ticket (ticket.key ?? ticket.id)}
+                    <div class="ticket-item assigned">
+                      <span class="mono ticket-key">{ticket.key ?? ticket.id}</span>
+                      <span class="ticket-title-text">{ticket.title}</span>
+                    </div>
+                  {/each}
+                {:else if $ticketSearch.isSearching && $ticketSearch.results.length === 0}
                   <div class="ticket-skeleton"><Skeleton lines={4} height={14} gap={10}/></div>
                 {:else if $ticketSearch.error}
                   <div class="branch-empty">{$ticketSearch.error.message}</div>
-                {:else if $ticketSearch.results.length === 0}
-                  <div class="branch-empty">{t('createInstance.noTickets')}</div>
                 {:else}
-                  {#each $ticketSearch.results as ticket (ticket.id)}
+                  {#if availableTickets.length === 0}
+                    <div class="branch-empty">{t('createInstance.noTickets')}</div>
+                  {/if}
+                  {#each availableTickets as ticket (ticket.id)}
                     <button class="ticket-item" type="button" on:click={() => pickTicket(ticket)}>
                       <span class="mono ticket-key">{ticket.key}</span>
                       <span class="ticket-title-text">{ticket.title}</span>
@@ -794,6 +836,19 @@
     min-width: 0;
   }
   .ticket-item:hover { background: var(--bg-3); color: var(--fg-0); }
+  .assigned-toggle {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--fg-3);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: var(--r-sm);
+  }
+  .assigned-toggle:hover { color: var(--fg-1); }
+  .assigned-toggle.active { color: var(--accent); background: var(--bg-3); }
+  .ticket-item.assigned { cursor: default; opacity: 0.6; }
   .ticket-key { color: var(--accent); flex-shrink: 0; }
   .ticket-title-text {
     flex: 1;
