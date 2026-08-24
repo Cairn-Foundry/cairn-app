@@ -70,7 +70,7 @@
     agentActivityKey, agentBusyConversations, agentDoneConversation,
   } from '$lib/stores/agent-activity';
   import { writeFile } from '$lib/services/file-service';
-  import { activeStep, terminalActive, commandsActive, openAgentId } from '$lib/stores/ui';
+  import { activeStep, terminalActive, commandsActive, envActive, formattingActive, openAgentId } from '$lib/stores/ui';
   import { PROVIDERS } from '$lib/components/home/agents/providers-data';
   import { IS_MAC, MOD_LABEL } from '$lib/utils/platform';
   import { formatCount } from '$lib/utils/format';
@@ -312,6 +312,21 @@
   $effect(() => {
     const w = $settings.agentActivityWidth;
     if (!untrack(() => isActivityResizing)) activityWidth = w;
+  });
+
+  /**
+   * The view is only hidden with `display: none` when another step or a tool
+   * takes the main area, so it stays mounted and keeps the scroll position it
+   * had. While hidden its `scrollHeight` is 0, so an autoscroll fired then is
+   * lost - the thread must be pinned to the bottom again on the way back.
+   */
+  let isStepVisible = $derived(
+    $activeStep === 'agent'
+      && !$terminalActive && !$commandsActive && !$envActive && !$formattingActive,
+  );
+
+  $effect(() => {
+    if (isStepVisible) void autoscroll();
   });
 
   let activeId = $derived($activeInstance?.id ?? null);

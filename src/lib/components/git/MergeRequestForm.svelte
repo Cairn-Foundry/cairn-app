@@ -240,7 +240,15 @@
   <div class="form-row">
     <label for="mr-title">{t('mergeRequest.title')}</label>
     <div class="mr-title-row">
-      <input id="mr-title" type="text" bind:value={title} disabled={isGenerating} />
+      <div class="ai-field mr-title-field" class:is-generating={isGenerating}>
+        <input id="mr-title" type="text" bind:value={title} disabled={isGenerating} aria-busy={isGenerating} />
+        {#if isGenerating}
+          <span class="ai-sweep" aria-hidden="true"></span>
+          {#if !title}
+            <span class="ai-ghost" aria-hidden="true"><i style="width: 62%"></i></span>
+          {/if}
+        {/if}
+      </div>
       {#if isGenerating}
         <button type="button" class="btn ghost ai-btn" on:click={cancelGenerate}>
           <Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)"/>
@@ -267,7 +275,15 @@
 
   <div class="form-row">
     <label for="mr-description">{t('mergeRequest.description')}</label>
-    <textarea id="mr-description" rows="6" bind:value={description} disabled={isGenerating}></textarea>
+    <div class="ai-field" class:is-generating={isGenerating}>
+      <textarea id="mr-description" rows="6" bind:value={description} disabled={isGenerating} aria-busy={isGenerating}></textarea>
+      {#if isGenerating}
+        <span class="ai-sweep" aria-hidden="true"></span>
+        {#if !description}
+          <span class="ai-ghost" aria-hidden="true"><i style="width: 88%"></i><i style="width: 74%"></i><i style="width: 46%"></i></span>
+        {/if}
+      {/if}
+    </div>
   </div>
 
   <div class="form-row">
@@ -406,9 +422,12 @@
     align-items: center;
     gap: 6px;
   }
-  .mr-title-row input {
+  .mr-title-field {
     flex: 1;
     min-width: 0;
+  }
+  .mr-title-field input {
+    width: 100%;
   }
   .ai-btn {
     flex: none;
@@ -419,6 +438,7 @@
     white-space: nowrap;
   }
   .mr-form textarea {
+    width: 100%;
     padding: 9px 11px;
     background: var(--bg-0);
     border: 1px solid var(--stroke-1);

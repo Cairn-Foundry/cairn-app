@@ -12,7 +12,7 @@
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
 
-  export let shortcuts: Record<ShortcutId, ShortcutBinding>;
+  export let shortcuts: Record<ShortcutId, ShortcutBinding | null>;
   export let shortcutDefs: ShortcutDef[];
   export let customCommands: CustomCommand[] = [];
   export let onClose: () => void;

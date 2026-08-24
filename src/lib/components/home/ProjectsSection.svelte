@@ -8,7 +8,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { pickGreeting, pickTagline } from '$lib/utils/home/greeting';
-  import { projects, unregisterProject, duplicateProjectInStore, openProjects, openTabOrder, activeProjectId } from '$lib/stores/project';
+  import { projects, unregisterProject, duplicateProjectInStore, openProjects, activeProjectId, lastOpenedProjectId } from '$lib/stores/project';
   import { projectFolders } from '$lib/stores/project-folders';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Project, ProjectFolder } from '$lib/types/project';
@@ -38,9 +38,6 @@
 
   const greeting = pickGreeting();
   const tagline = pickTagline();
-
-  // The most recently opened project's tab, so its card gets a stronger border.
-  $: lastOpenedProjectId = $openTabOrder.length > 0 ? $openTabOrder[$openTabOrder.length - 1] : null;
 
   $: {
     const isSearching = !!search.trim();
@@ -445,7 +442,7 @@
     </div>
     <div class="open-tabs-row">
       {#each $openProjects as p (p.id)}
-        <div class="open-tab" class:active={p.id === $activeProjectId} class:last-opened={p.id === lastOpenedProjectId} role="button" tabindex="0"
+        <div class="open-tab" class:active={p.id === $activeProjectId} class:last-opened={p.id === $lastOpenedProjectId} role="button" tabindex="0"
              on:click={() => dispatch('openProject', p.id)}
              on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
           <span class="open-tab-dot" style="background: {p.color}"></span>

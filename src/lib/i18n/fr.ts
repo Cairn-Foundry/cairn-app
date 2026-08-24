@@ -2760,6 +2760,7 @@ export const fr = {
 			clearSearch: "Effacer la recherche",
 			enableShortcut: "Activer le raccourci",
 			customized: "Personnalisé",
+			unbound: "Non défini",
 			pressKeyCombo: "Appuyer sur une combinaison de touches...",
 			pressClickCombo: "Cliquer avec des modificateurs...",
 			conflictsWithAnother: "Conflit avec un autre raccourci",

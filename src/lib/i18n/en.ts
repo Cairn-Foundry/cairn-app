@@ -2702,6 +2702,7 @@ export const en = {
 			clearSearch: "Clear search",
 			enableShortcut: "Enable shortcut",
 			customized: "Customized",
+			unbound: "Not set",
 			pressKeyCombo: "Press key combo...",
 			pressClickCombo: "Click with modifiers...",
 			conflictsWithAnother: "Conflicts with another shortcut",

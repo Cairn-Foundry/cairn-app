@@ -932,11 +932,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   background: var(--danger);
   box-shadow: 0 0 0 2px var(--bg-1);
 }
-.step .ci-busy {
-  position: absolute; top: 5px; left: 5px;
+.step .ci-status {
+  position: absolute; top: 5px; right: 5px;
   display: inline-flex;
   color: var(--accent);
 }
+.step .ci-status.failed { color: var(--danger); }
 .sidebar .divider {
   height: 1px; background: var(--stroke-0);
   margin: 6px 16px;
@@ -3366,4 +3367,151 @@ html[data-theme="glass"] .os-window {
   .ai-btn:hover:not(:disabled) svg,
   .ai-btn.is-busy svg { animation: none; }
   .ai-btn:hover:not(:disabled) { transform: none; }
+}
+
+/*
+ * The generating state is drawn around the real fields rather than replacing
+ * them: the input keeps its size and position, so the answer lands where the
+ * placeholder lines were instead of making the form jump. `position: relative`
+ * is load-bearing - the ghost and sweep layers are absolutely positioned and
+ * would otherwise escape to the viewport.
+ */
+.ai-field {
+  position: relative;
+  isolation: isolate;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.ai-field-body {
+  margin-bottom: 0;
+}
+
+/*
+ * The border glow runs at exactly twice the shimmer's period, so the two stay
+ * in phase and the pair reads as one motion. Unrelated durations never line
+ * up twice the same way and come across as competing flickers.
+ */
+.ai-field.is-generating {
+  animation: ai-breathe 2.4s ease-in-out infinite;
+}
+/* The disabled field would otherwise grey out under the animation. */
+.ai-field.is-generating input,
+.ai-field.is-generating textarea {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-0));
+  color: var(--fg-3);
+  opacity: 1;
+}
+/*
+ * A rotating aurora border drawn behind the field: the field's own border
+ * goes transparent while generating and this layer, one pixel larger, shows
+ * through as a moving gradient ring.
+ */
+.ai-field.is-generating::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: 5px;
+  background: conic-gradient(
+    from var(--ai-angle),
+    var(--accent),
+    #b56cff,
+    #5ce0d8,
+    var(--accent)
+  );
+  animation: ai-btn-spin 3s linear infinite;
+  opacity: 0.85;
+}
+
+/*
+ * The shimmer passing through the field. It loops seamlessly: the gradient is
+ * built from two identical halves and travels exactly one half per cycle, so
+ * the frame it ends on is pixel-identical to the one it starts on and the
+ * repeat has no seam. `linear` timing is required for that - easing would
+ * slow the band at the loop point and give the jump away.
+ */
+.ai-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /*
+   * The faded stops are the accent at zero alpha, never the `transparent`
+   * keyword: that keyword is transparent *black*, and interpolating towards
+   * it drags the ramp through a dark band - the field looks like it has a
+   * hole passing across it rather than a shimmer.
+   */
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--accent) 0%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 34%, transparent) 25%,
+    color-mix(in srgb, var(--accent) 0%, transparent) 50%,
+    color-mix(in srgb, var(--accent) 34%, transparent) 75%,
+    color-mix(in srgb, var(--accent) 0%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: ai-sweep 2.4s linear infinite;
+  /* Keeps the band inside the field's rounded corners. */
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/*
+ * Ghost lines standing where the answer will land, each one "typing" in with
+ * a staggered delay so the field looks like it is being written rather than
+ * merely waiting.
+ */
+.ai-ghost {
+  position: absolute;
+  inset: 0;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  pointer-events: none;
+}
+.ai-ghost i {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 45%, transparent),
+    color-mix(in srgb, #b56cff 40%, transparent),
+    color-mix(in srgb, #5ce0d8 35%, transparent));
+  transform-origin: left center;
+  animation: ai-ghost-type 2.4s ease-in-out infinite;
+}
+.ai-ghost i:nth-child(2) { animation-delay: .3s; }
+.ai-ghost i:nth-child(3) { animation-delay: .6s; }
+
+@keyframes ai-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { box-shadow: 0 0 16px 2px color-mix(in srgb, var(--accent) 28%, transparent); }
+}
+/*
+ * Exactly one half of the two-part gradient, which is what makes the end
+ * frame identical to the start frame. Any other distance leaves a seam.
+ */
+@keyframes ai-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+@keyframes ai-ghost-type {
+  0% { transform: scaleX(0); opacity: 0; }
+  15% { opacity: 1; }
+  60% { transform: scaleX(1); opacity: 1; }
+  85% { opacity: 0; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-field.is-generating,
+  .ai-field.is-generating::before,
+  .ai-sweep,
+  .ai-ghost i {
+    animation: none;
+  }
+  /* Still legible standing still: the state must survive without motion. */
+  .ai-sweep { opacity: 0.3; }
+  .ai-ghost i { transform: none; opacity: .6; }
 }

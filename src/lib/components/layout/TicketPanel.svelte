@@ -22,7 +22,7 @@
     ticketStateFor,
     transitionTicket,
   } from '$lib/stores/tracker';
-  import { activeStep } from '$lib/stores/ui';
+  import { activeStep, showTool } from '$lib/stores/ui';
   import type { Instance } from '$lib/types/instance';
   import { clickOutside } from '$lib/utils/click-outside';
   import { buildTicketStartPrompt } from '$lib/utils/integrations/prompts';
@@ -102,6 +102,8 @@
     if (!ticket) return;
     requestAgentDraft(instance.id, buildTicketStartPrompt(ticket));
     activeStep.set('agent');
+    // A tool open over the main area would keep the agent step hidden behind it.
+    showTool(null);
     close();
   }
 
@@ -247,12 +249,18 @@
 </div>
 
 <style>
-  .ticket-panel-wrap { position: relative; }
+  /*
+   * `align-self: stretch` takes the height of the `.btn` beside it in the
+   * header flex row, and the toggle fills the wrapper: the two stay aligned
+   * even if that button's padding or font size changes.
+   */
+  .ticket-panel-wrap { position: relative; align-self: stretch; }
 
   .ticket-toggle {
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    height: 100%;
     padding: 4px 8px;
     border-radius: var(--r-sm);
     border: 1px solid var(--stroke-0);
@@ -265,12 +273,16 @@
   .ticket-toggle:hover, .ticket-toggle.active { background: var(--bg-3); color: var(--fg-0); }
   .ticket-toggle.linked .mono { color: var(--accent); }
 
+  /*
+   * Anchored on its right edge: the toggle sits at the right end of the header,
+   * so a panel growing rightwards from `left: 0` would run off the window.
+   */
   .ticket-panel {
     position: absolute;
     top: calc(100% + 6px);
-    left: 0;
+    right: 0;
     z-index: 40;
-    width: min(520px, 80vw);
+    width: min(520px, calc(100vw - 24px));
     max-height: 70vh;
     overflow-y: auto;
     display: flex;

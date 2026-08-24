@@ -64,7 +64,7 @@ pub fn run() {
         .manage(QuickSearchCache::default())
         .manage(IntegrationState::default())
         .manage(PendingCliPaths::from_args())
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};

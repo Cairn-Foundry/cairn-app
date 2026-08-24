@@ -26,7 +26,9 @@
   $: conflictIds = (() => {
     const seen = new Map<string, ShortcutId[]>();
     for (const def of SHORTCUT_DEFS) {
-      const k = bindingKey($shortcuts[def.id]);
+      const binding = $shortcuts[def.id];
+      if (!binding) continue;
+      const k = bindingKey(binding);
       if (!seen.has(k)) seen.set(k, []);
       seen.get(k)!.push(def.id);
     }
@@ -189,6 +191,9 @@
             {#if isRecording}
               <span class="sc-recording-hint">{def.mouse ? t('settings.shortcuts.pressClickCombo') : t('settings.shortcuts.pressKeyCombo')}</span>
             {:else if !isDisabled}
+              {#if !binding}
+                <span class="sc-unbound">{t('settings.shortcuts.unbound')}</span>
+              {/if}
               {#each bindingToLabels(binding) as kLabel, i}
                 {#if i > 0}<span class="sc-plus">+</span>{/if}
                 <kbd class="sc-kbd">{kLabel}</kbd>
@@ -313,6 +318,11 @@
     flex-shrink: 0;
   }
 
+  .sc-unbound {
+    font-size: 11px;
+    color: var(--fg-4);
+    font-style: italic;
+  }
   .sc-plus {
     font-size: 10px;
     color: var(--fg-4);

@@ -383,7 +383,9 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		id: "openCommands",
 		...d("openCommands"),
 		group: "app",
-		default: { key: "c", mod: true, shift: true, alt: false, ctrl: false },
+		// Unbound by default: Ctrl+Shift+C is the terminal's copy, and taking it
+		// app-wide stole it from the shell. Rebindable in the settings.
+		default: null,
 	},
 	{
 		id: "openEnv",
@@ -448,9 +450,10 @@ export const SHORTCUT_GROUP_LABELS: Record<string, string> = {
 /** Effective binding of every command, user override or default, ignoring whether it is enabled. */
 export const shortcuts = derived(settings, ($s) => {
 	const configMap = new Map(($s.shortcuts ?? []).map((c) => [c.id, c]));
-	const result = {} as Record<ShortcutId, ShortcutBinding>;
+	const result = {} as Record<ShortcutId, ShortcutBinding | null>;
 	for (const def of SHORTCUT_DEFS) {
-		result[def.id] = configMap.get(def.id)?.binding ?? { ...def.default };
+		const fallback = def.default ? { ...def.default } : null;
+		result[def.id] = configMap.get(def.id)?.binding ?? fallback;
 	}
 	return result;
 });
@@ -464,7 +467,7 @@ export const activeShortcuts = derived(settings, ($s) => {
 		result[def.id] =
 			config && !config.enabled
 				? null
-				: (config?.binding ?? { ...def.default });
+				: (config?.binding ?? (def.default ? { ...def.default } : null));
 	}
 	return result;
 });
@@ -526,7 +529,11 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 /** The binding split into the chips shown in the UI, with macOS glyphs when appropriate. */
-export function bindingToLabels(b: ShortcutBinding, mac = IS_MAC): string[] {
+export function bindingToLabels(
+	b: ShortcutBinding | null,
+	mac = IS_MAC,
+): string[] {
+	if (!b) return [];
 	const labels: string[] = [];
 	if (b.mod) labels.push(mac ? "⌘" : "Ctrl");
 	if (b.ctrl && !b.mod) labels.push("Ctrl");

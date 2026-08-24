@@ -478,8 +478,6 @@
           <span class="ticket-name">{activeInstance.ticket.title}</span>
         </div>
 
-        <TicketPanel instance={activeInstance} />
-
         {#if activeInstance.branch}
           <div class="branch-info">
             <Icon name="branch" size={11}/>
@@ -488,6 +486,7 @@
         {/if}
 
         <div class="instance-actions">
+          <TicketPanel instance={activeInstance} />
           <button class="btn primary" on:click={() => showFinalizeModal = true}>
             <Icon name="check" size={13}/> {t('workspace.finalizeInstance')}
           </button>
@@ -529,9 +528,9 @@
             <span class="conflict-dot" title={t('git.conflictsToResolve') as string}></span>
           {/if}
           {#if s.id === 'cicd' && $activeCiFailing}
-            <span class="conflict-dot" title={t('cicd.status.failed') as string}></span>
+            <span class="ci-status failed" title={t('cicd.status.failed') as string}><Icon name="alert" size={12}/></span>
           {:else if s.id === 'cicd' && $activeCiBusy}
-            <span class="ci-busy" title={t('cicd.status.running') as string}><Spinner size={10}/></span>
+            <span class="ci-status" title={t('cicd.status.running') as string}><Spinner size={10}/></span>
           {/if}
           {#if doneSteps.has(s.id)}
             <span class="check"><Icon name="check" size={11}/></span>

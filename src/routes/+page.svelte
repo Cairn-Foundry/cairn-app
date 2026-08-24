@@ -6,7 +6,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
-  import { activeProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
   import { initTerminals } from '$lib/stores/terminal';
@@ -157,6 +157,7 @@
       openProject(saved.activeProjectId);
       await loadInstances(saved.activeProjectId);
       activeProjectId.set(saved.activeProjectId);
+      lastOpenedProjectId.set(saved.activeProjectId);
       applyProjectState(saved.activeProjectId);
       if (saved.screen === 'workspace') {
         homeOpenSection = saved.homeSection as HomeSection;
@@ -214,6 +215,7 @@
     snapshotCurrentProject();
     await loadInstances(id);
     activeProjectId.set(id);
+    lastOpenedProjectId.set(id);
     applyProjectState(id);
   }
 

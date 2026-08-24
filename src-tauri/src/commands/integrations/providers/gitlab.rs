@@ -271,18 +271,31 @@ pub fn map_job(v: &Value) -> PipelineJob {
     }
 }
 
-/// `jobs` is the answer of `pipelines/:id/jobs`, grouped here by `stage` in
-/// order of first appearance.
+/// `jobs` is the answer of `pipelines/:id/jobs`, which comes back newest first.
+/// Grouping by first appearance in that order would put the last stage of the
+/// pipeline at the top, so the stages are ordered by their earliest job id -
+/// the order they ran in. Jobs inside a stage keep the order the API gave.
 pub fn map_pipeline(v: &Value, jobs: &[Value]) -> Pipeline {
     let mut stages: Vec<PipelineStage> = Vec::new();
+    let mut first_job: Vec<i64> = Vec::new();
     for job in jobs {
         let stage_name = str_of(job, "stage");
+        let job_id = job.get("id").and_then(Value::as_i64).unwrap_or(i64::MAX);
         let mapped = map_job(job);
-        match stages.iter_mut().find(|s| s.name == stage_name) {
-            Some(stage) => stage.jobs.push(mapped),
-            None => stages.push(PipelineStage { name: stage_name, status: PipelineStatus::Unknown, jobs: vec![mapped] }),
+        match stages.iter().position(|s| s.name == stage_name) {
+            Some(i) => {
+                stages[i].jobs.push(mapped);
+                first_job[i] = first_job[i].min(job_id);
+            }
+            None => {
+                stages.push(PipelineStage { name: stage_name, status: PipelineStatus::Unknown, jobs: vec![mapped] });
+                first_job.push(job_id);
+            }
         }
     }
+    let mut ordered: Vec<(i64, PipelineStage)> = first_job.into_iter().zip(stages).collect();
+    ordered.sort_by_key(|(id, _)| *id);
+    let mut stages: Vec<PipelineStage> = ordered.into_iter().map(|(_, s)| s).collect();
     for stage in &mut stages {
         stage.status = aggregate_status(&stage.jobs);
     }
@@ -826,6 +839,16 @@ mod tests {
         let manual = &p.stages[2].jobs[0];
         assert!(manual.is_manual);
         assert_eq!(p.url, "https://gitlab.com/cairn/cairn/-/pipelines/8241");
+    }
+
+    #[test]
+    fn orders_stages_oldest_first_whatever_the_api_order() {
+        let jobs = parse(JOBS);
+        let mut reversed = jobs.as_array().unwrap().clone();
+        reversed.reverse();
+        let p = map_pipeline(&parse(PIPELINE), &reversed);
+        assert_eq!(p.stages.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), vec!["build", "test", "deploy"]);
+        assert_eq!(p.stages[1].jobs.iter().map(|j| j.id.as_str()).collect::<Vec<_>>(), vec!["50102", "50103"]);
     }
 
     #[test]

@@ -91,7 +91,8 @@ export interface ShortcutDef {
 	label: string;
 	description: string;
 	group: "files" | "editor" | "tabs" | "view" | "tree" | "app";
-	default: ShortcutBinding;
+	/** null for a command that ships unbound: rebindable, but no factory keystroke. */
+	default: ShortcutBinding | null;
 	/** Bound to a mouse click rather than a key: recorded and matched on a click. */
 	mouse?: boolean;
 	/** Kept out of the command palette. */

@@ -39,6 +39,15 @@ export const openProjects = derived(
 		}),
 );
 
+/**
+ * The project opened most recently. Tab order cannot answer this: it is
+ * positional, the user reorders it by dragging, and reopening a project that
+ * already has a tab leaves it where it was. Set when a project is actually
+ * switched to, not merely when a tab appears - switching between two already
+ * open tabs changes which one was used last.
+ */
+export const lastOpenedProjectId = writable<string | null>(null);
+
 /** Opens a tab for a project, or does nothing if it already has one. */
 export function openProject(id: string): void {
 	openTabOrder.update((order) => (order.includes(id) ? order : [...order, id]));
@@ -47,6 +56,7 @@ export function openProject(id: string): void {
 /** Closes the tab; the project stays registered. */
 export function closeProjectTab(id: string): void {
 	openTabOrder.update((order) => order.filter((oid) => oid !== id));
+	lastOpenedProjectId.update((last) => (last === id ? null : last));
 }
 
 /** Commits a new tab order after a drag. */
