@@ -10,6 +10,111 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "Editor: the document now lives in the editor itself - a keystroke no longer copies the whole file into the tab, the dirty marker is a structural compare, and language servers receive incremental edits instead of the full text.",
+					"fr": "Éditeur : le document vit désormais dans l'éditeur lui-même - une frappe ne recopie plus le fichier entier dans l'onglet, le marqueur de modification est une comparaison structurelle, et les serveurs de langage reçoivent des éditions incrémentales au lieu du texte complet."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Files: file contents are served through a dedicated cairn:// channel with an ETag - a file already open costs a stat instead of a re-read - and the tree travels as one flat string, several times smaller than before.",
+					"fr": "Fichiers : le contenu des fichiers passe par un canal cairn:// dédié avec un ETag - un fichier déjà ouvert coûte un stat au lieu d'une relecture - et l'arbre voyage sous forme d'une seule chaîne plate, plusieurs fois plus petite qu'avant."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Files: the last tree of each project is kept on disk, so the first opening after a launch paints it before the repository is walked.",
+					"fr": "Fichiers : le dernier arbre de chaque projet est conservé sur disque, la première ouverture après un lancement l'affiche donc avant le parcours du dépôt."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Git: diff syntax colouring runs in a background worker, so a large diff no longer stalls the view while it colours.",
+					"fr": "Git : la coloration syntaxique des diffs tourne dans un worker en arrière-plan, un gros diff ne bloque donc plus la vue pendant qu'il se colore."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Language servers: one process per language serves every instance of a project through workspace folders, instead of one process per worktree.",
+					"fr": "Serveurs de langage : un seul processus par langage sert toutes les instances d'un projet via les dossiers de workspace, au lieu d'un processus par worktree."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Files: each worktree is watched, so a project you come back to repaints its tree without walking the repository again, and the git status refreshes on changes instead of on a timer.",
+					"fr": "Fichiers : chaque worktree est surveillé, un projet sur lequel on revient repeint donc son arbre sans reparcourir le dépôt, et le statut git se rafraîchit sur changement plutôt que sur un minuteur."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Editor: switching tabs swaps the document in place instead of rebuilding the editor, keeping the parse, the undo history and the selection of each tab.",
+					"fr": "Éditeur : changer d'onglet permute le document sur place au lieu de reconstruire l'éditeur, en gardant l'analyse, l'historique d'annulation et la sélection de chaque onglet."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Terminal: terminals off screen are hibernated - their screen is kept as text and restored on return - so only the visible ones cost memory and rendering.",
+					"fr": "Terminal : les terminaux hors écran sont mis en veille - leur écran est conservé en texte et restauré au retour - seuls les terminaux visibles coûtent donc de la mémoire et du rendu."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Git: the status poll reads everything in one round trip and skips the interface entirely when nothing changed; hovering a project tab preloads its tree and status.",
+					"fr": "Git : le poll de statut lit tout en un aller-retour et ne touche pas l'interface quand rien n'a changé ; survoler l'onglet d'un projet précharge son arbre et son statut."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Instances: node_modules, .venv, vendor and target of the project are cloned copy-on-write into a new instance when the volume allows it (APFS, btrfs, XFS), so it starts with its dependencies in place.",
+					"fr": "Instances : node_modules, .venv, vendor et target du projet sont clonés en copy-on-write dans une nouvelle instance quand le volume le permet (APFS, btrfs, XFS), qui démarre ainsi avec ses dépendances en place."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Agent: streamed output reaches the interface in one batch per frame, and a long answer only re-renders its last paragraph while it streams.",
+					"fr": "Agent : la sortie en streaming arrive à l'interface par lot à chaque frame, et une longue réponse ne re-rend que son dernier paragraphe pendant qu'elle s'écrit."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Language servers: TypeScript no longer spawns a second tsserver per worktree, documents of a project left behind are closed on its servers, and a server idle for ten minutes is stopped and restarted on the next file that needs it.",
+					"fr": "Serveurs de langage : TypeScript ne lance plus un second tsserver par worktree, les documents d'un projet quitté sont fermés sur ses serveurs, et un serveur inactif depuis dix minutes est arrêté puis relancé au prochain fichier qui en a besoin."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Files: switching project restores the tabs in one step instead of a blank editor followed by its content, keeps only unsaved buffers of the instances left behind in memory, and trusts a tree read less than thirty seconds ago instead of walking the repository again.",
+					"fr": "Fichiers : le changement de projet restaure les onglets en une fois au lieu d'un éditeur vide suivi de son contenu, ne garde en mémoire que les buffers non sauvegardés des instances quittées, et fait confiance à un arbre lu il y a moins de trente secondes au lieu de reparcourir le dépôt."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Terminal: only the terminals on screen hold a GPU context, so a session with many terminals no longer falls back to the slow renderer for the ones still scrolling in the background.",
+					"fr": "Terminal : seuls les terminaux à l'écran gardent un contexte GPU, une session avec beaucoup de terminaux ne retombe donc plus sur le rendu lent pour ceux qui défilent encore en arrière-plan."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Saving the navigation state, a transcript or the editor layout no longer runs on the interface thread, which removes the regular hitch while an agent is answering.",
+					"fr": "L'enregistrement de l'état de navigation, d'un transcript ou de la disposition de l'éditeur ne s'exécute plus sur le thread de l'interface, ce qui supprime le hoquet régulier pendant qu'un agent répond."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "Terminal: output is now drawn on the GPU, which keeps a verbose command readable instead of stalling the pane, and resizing the window no longer refits on every pixel.",
 					"fr": "Terminal : la sortie est désormais dessinée par le GPU, ce qui garde une commande verbeuse lisible au lieu de bloquer le panneau, et le redimensionnement de la fenêtre ne réajuste plus à chaque pixel."
 				}

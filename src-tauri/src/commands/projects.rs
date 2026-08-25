@@ -111,7 +111,7 @@ pub fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, Str
 
 /// `None` clears the selection, leaving the project with no instance open.
 #[tauri::command]
-pub fn set_active_instance(project_id: String, instance_id: Option<String>) -> Result<(), String> {
+pub async fn set_active_instance(project_id: String, instance_id: Option<String>) -> Result<(), String> {
     let mut projects = read_projects()?;
     let project = projects.iter_mut()
         .find(|p| p.id == project_id)
@@ -162,7 +162,7 @@ pub fn get_listing() -> Result<ListingConfig, String> {
 
 /// Replaces the folders while leaving the project order untouched.
 #[tauri::command]
-pub fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
+pub async fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
     let mut listing = read_listing()?;
     listing.folders = folders;
     write_listing(&listing)
@@ -170,7 +170,7 @@ pub fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
 
 /// Replaces the order after a drag, leaving the folders untouched.
 #[tauri::command]
-pub fn save_project_order(ids: Vec<String>) -> Result<(), String> {
+pub async fn save_project_order(ids: Vec<String>) -> Result<(), String> {
     let mut listing = read_listing()?;
     listing.project_order = ids;
     write_listing(&listing)

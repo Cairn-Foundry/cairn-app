@@ -1,3 +1,4 @@
+import type { Text } from "@codemirror/state";
 import { isBinaryPath, readFile } from "$lib/services/file-service";
 import {
 	type FileState,
@@ -6,6 +7,7 @@ import {
 	type PersistedTab,
 	saveFileState,
 } from "$lib/services/file-state-service";
+import { docFromString } from "./document-model";
 import { detectLineEndings, normalizeLineEndings } from "./files-indent";
 import { absolutePathOf } from "./files-tree";
 
@@ -14,11 +16,11 @@ export type { PersistedPane, PersistedTab };
 // Saving and restoring the editor: which files were open in which pane, and
 // reading their content back from disk on the next launch.
 
-/** A live tab: `content` is what is on disk, `pending` what the buffer holds. */
+/** A live tab: `savedDoc` is what is on disk, `doc` what the buffer holds. */
 export interface Tab {
 	path: string;
-	content: string;
-	pending: string;
+	doc: Text;
+	savedDoc: Text;
 	cursorPos: number;
 	scrollTop: number;
 	pinned?: boolean;
@@ -49,14 +51,9 @@ export interface InstanceTabState {
 
 const RECENT_FILES_LIMIT = 10;
 
-/** Persists the layout only: content is re-read from disk on restore. */
-export function saveEditorState(
-	projectId: string,
-	instanceId: string,
-	state: InstanceTabState,
-	recentFiles: string[],
-): void {
-	const fileState: FileState = {
+/** The layout without any file content. */
+export function toPersistedState(state: InstanceTabState): PersistedState {
+	return {
 		panes: state.panes.map((p) => ({
 			tabs: p.tabs.map((t) => ({
 				path: t.path,
@@ -67,6 +64,20 @@ export function saveEditorState(
 			activeTabIdx: p.activeTabIdx,
 		})),
 		expanded: [...state.expanded],
+		splitMode: state.splitMode,
+		splitLeftWidth: state.splitLeftWidth,
+	};
+}
+
+/** Persists the layout only: content is re-read from disk on restore. */
+export function saveEditorState(
+	projectId: string,
+	instanceId: string,
+	state: InstanceTabState,
+	recentFiles: string[],
+): void {
+	const fileState: FileState = {
+		...toPersistedState(state),
 		splitMode: state.splitMode,
 		splitLeftWidth: state.splitLeftWidth,
 		recentFiles,
@@ -156,11 +167,11 @@ async function rehydrateTabList(
 	return valid.map((r) => {
 		const saved = persistedTabs.find((p) => p.path === r.path) as PersistedTab;
 		const le = detectLineEndings(r.text);
-		const normalized = normalizeLineEndings(r.text, le);
+		const doc = docFromString(normalizeLineEndings(r.text, le));
 		return {
 			path: r.path,
-			content: normalized,
-			pending: normalized,
+			doc,
+			savedDoc: doc,
 			cursorPos: saved.cursorPos,
 			scrollTop: saved.scrollTop,
 			pinned: saved.pinned,

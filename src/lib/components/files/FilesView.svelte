@@ -19,7 +19,7 @@ import { get } from 'svelte/store';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, referencesPanelOpen, referencesQuery } from '$lib/stores/ui';
   import {
     type LspDiagnostic, type LspDocRef, type LspTextEdit,
-    lspDefinition, lspDidChange, lspDidClose, lspDidOpen, lspDidSave,
+    lspDefinition, lspDidChange,
     lspFormat, lspImplementation, lspReferences, lspRename,
   } from '$lib/services/lsp-service';
   import { formatDocument, type StyleSet } from '$lib/services/formatting-service';
@@ -28,15 +28,19 @@ import { get } from 'svelte/store';
   import InstallProgress from '$lib/components/InstallProgress.svelte';
   import { cancelLanguageServerCommand, installLanguageServer, COMMAND_CANCELLED } from '$lib/services/lsp-service';
   import {
-    clearDiagnosticsFor, clearManagerOutput, ensureDocument, managerOutput, languageServerInfos,
+    clearManagerOutput, ensureDocument, managerOutput, languageServerInfos,
     lspDiagnostics, refreshLanguageServers, setServerEnabled, shouldSuggestFor,
     dismissServerSuggestion,
   } from '$lib/stores/language-server';
   import { languageIdForPath } from '$lib/utils/languages/servers';
   import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
-  import { LSP_CHANGE_DEBOUNCE_MS } from '$lib/utils/timing';
-  import { readDirTree, listDirNames, readFile, fileMtimes, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { git, getRemoteUrl, refreshStatus as refreshGitStore, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
+  import { Text } from '@codemirror/state';
+  import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
+  import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
+  import { readDirTree, readDirTreeCached, listDirNames, readFile, fileMtimes, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { onFsChanged, unwatchWorktree, watchWorktree } from '$lib/services/fs-watch-service';
+  import { scheduleKeyed } from '$lib/utils/scheduler';
+  import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { capabilities } from '$lib/stores/integrations';
   import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
@@ -49,6 +53,7 @@ import { get } from 'svelte/store';
     type Tab,
     type PersistedState,
     type InstanceTabState,
+    toPersistedState,
     saveEditorState,
     loadEditorState,
     pushRecent,
@@ -176,14 +181,13 @@ import { get } from 'svelte/store';
     };
   }
 
-  /** Restores the panes from persisted state, then refills the tab contents from disk. */
-  async function rehydrateTabs(wtp: string, persisted: PersistedState) {
-    panes = persisted.panes.map((pp, i) => {
-      const base = makePane();
-      base.tabs = pp.tabs.map(p => ({ path: p.path, content: '', pending: '', cursorPos: p.cursorPos, scrollTop: p.scrollTop }));
-      base.activeTabIdx = pp.activeTabIdx;
-      return base;
-    });
+  /**
+   * Restores the layout, reads the tab contents from disk and assigns the
+   * panes once: CodeMirror sees a single state change instead of an empty
+   * editor followed by its content. Unsaved buffers of a scope left earlier
+   * take precedence over the file on disk.
+   */
+  async function rehydrateTabs(wtp: string, persisted: PersistedState, dirty?: Map<string, Tab>) {
     restoring = true;
     expanded = new Set(persisted.expanded);
     splitMode = persisted.splitMode ?? false;
@@ -191,14 +195,23 @@ import { get } from 'svelte/store';
     tick().then(() => { restoring = false; });
 
     const result = await rehydrateFromPersisted(wtp, persisted);
-    panes = panes.map((pane, i) => {
-      const r = result.panes[i];
-      if (!r) return pane;
-      return { ...pane, tabs: r.tabs, activeTabIdx: r.activeTabIdx };
+    return result.panes.map(r => {
+      const tabs = r.tabs.map(t => dirty?.get(t.path) ?? t);
+      for (const t of dirty?.values() ?? []) {
+        if (!tabs.some(x => x.path === t.path)) tabs.push(t);
+      }
+      return { ...makePane(), tabs, activeTabIdx: r.activeTabIdx };
     });
   }
 
-  const savedState = new Map<string, InstanceTabState>();
+  /**
+   * What a scope left behind: its layout, its unsaved buffers, and nothing
+   * else. Clean tabs are read back from disk on return, so a session that
+   * visited many instances does not pin every file it ever showed in memory.
+   */
+  interface SavedScope { persisted: PersistedState; dirty: Map<string, Tab>; recentFiles: string[] }
+  const SAVED_SCOPES_MAX = 4;
+  const savedState = new Map<string, SavedScope>();
 
   let rawTree: FileNode[] = [];
   let tree: FileNode[] = [];
@@ -329,9 +342,9 @@ import { get } from 'svelte/store';
   $: activeTabs = panes.map(p => p.tabs[p.activeTabIdx] ?? null);
   $: activeLangs = activeTabs.map(t => (t ? langFromPath(t.path) : 'text') as any);
   $: activeLineEndingsArr = activeTabs.map(t => t?.lineEndings ?? 'LF');
-  $: isDirtyArr = activeTabs.map(t => t ? t.pending !== t.content : false);
-  $: activeIndentStyles = activeTabs.map(t => t ? detectIndentStyle(t.pending) : null);
-  $: activeSpaceSizes = activeTabs.map((t, i) => (t && activeIndentStyles[i] === 'spaces') ? detectSpaceSize(t.pending) : 2);
+  $: isDirtyArr = activeTabs.map(t => t ? isDirty(t) : false);
+  $: activeIndentStyles = activeTabs.map(t => t ? indentStyleOf(t.savedDoc) : null);
+  $: activeSpaceSizes = activeTabs.map((t, i) => (t && activeIndentStyles[i] === 'spaces') ? spaceSizeOf(t.savedDoc) : 2);
   $: currentLineBlames = panes.map((p, i) => p.currentBlame.get(cursorLines[i]) ?? null);
 
   function toggleSplit() {
@@ -454,8 +467,8 @@ import { get } from 'svelte/store';
     const tab = pane.tabs[idx];
     if (!tab || tab.pinned) return;
 
-    if (tab.pending !== tab.content && worktreePath) {
-      const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
+    if (isDirty(tab) && worktreePath) {
+      const wc = denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF');
       await writeFile(absolutePathOf(tab.path, worktreePath), wc);
     }
 
@@ -476,16 +489,22 @@ import { get } from 'svelte/store';
   }
 
   /** Records an edit and mirrors it into any other pane showing the same file. */
-  function handleChange(i: number, value: string) {
+  /**
+   * A keystroke: the pane takes the view's own `Text` (no copy) and the twin
+   * tab of the other pane shares it, so both views agree on one document.
+   * ponytail: the twin view is given the whole Text rather than the transaction; two panes on the same file is rare
+   */
+  function handleChange(i: number, doc: Text, changes: LspContentChange[]) {
     const pane = panes[i];
     if (pane.activeTabIdx === -1) return;
     const changedPath = pane.tabs[pane.activeTabIdx].path;
-    pane.tabs[pane.activeTabIdx].pending = value;
-    scheduleLspChange(changedPath, value);
+    pane.tabs[pane.activeTabIdx].doc = doc;
+    const absolute = absoluteOf(changedPath);
+    if (absolute) lsp.change(absolute, changes);
     for (let j = 0; j < panes.length; j++) {
       if (j === i) continue;
       for (const tab of panes[j].tabs) {
-        if (tab.path === changedPath && tab.pending !== value) tab.pending = value;
+        if (tab.path === changedPath) tab.doc = doc;
       }
     }
     panes = panes;
@@ -496,12 +515,12 @@ import { get } from 'svelte/store';
     const pane = panes[i];
     const tab = pane.tabs[pane.activeTabIdx] ?? null;
     if (!tab || pane.saving || !worktreePath) return;
-    if (tab.pending === tab.content) return;
+    if (!isDirty(tab)) return;
     pane.saving = true;
     panes = panes;
     const wasDeleted = gitStatusMap[tab.path] === 'deleted';
     const wasConflicted = gitStatusMap[tab.path] === 'conflicted';
-    const hadMarkers = hasConflictMarkers(tab.content);
+    const hadMarkers = hasConflictMarkers(tab.savedDoc.toString());
     try {
       // Formatting happens before the write, so what lands on disk and what the
       // editor shows are the same text. A formatter that fails leaves the
@@ -514,13 +533,15 @@ import { get } from 'svelte/store';
         await tick();
       }
       const current = pane.tabs[pane.activeTabIdx] ?? tab;
-      const writeContent = denormalizeLineEndings(current.pending, current.lineEndings ?? 'LF');
+      const text = current.doc.toString();
+      const writeContent = denormalizeLineEndings(text, current.lineEndings ?? 'LF');
       await writeFile(absolutePathOf(tab.path, worktreePath), writeContent);
-      pane.tabs[pane.activeTabIdx].content = current.pending;
+      pane.tabs[pane.activeTabIdx].savedDoc = current.doc;
       panes = panes;
-      notifyLspSaved(tab.path, current.pending);
+      const savedAbsolute = absoluteOf(tab.path);
+      if (savedAbsolute) lsp.saved(savedAbsolute, text);
       if (wasDeleted) await loadTree(worktreePath);
-      if (wasConflicted && hadMarkers && !hasConflictMarkers(current.pending)) {
+      if (wasConflicted && hadMarkers && !hasConflictMarkers(text)) {
         await stageGitFile(tab.path).catch(() => {});
       }
       const updatedStatus = await gitStatus(worktreePath).catch(() => null);
@@ -538,10 +559,10 @@ import { get } from 'svelte/store';
   /** Fire-and-forget write of every dirty tab, used when leaving an instance or the view. */
   function saveSnapshotToDisk(snapshots: Tab[][], wtp: string): void {
     for (const tab of snapshots.flat()) {
-      if (tab.pending === tab.content) continue;
+      if (!isDirty(tab)) continue;
       const path = tab.path;
-      const wc = denormalizeLineEndings(tab.pending, tab.lineEndings ?? 'LF');
-      tab.content = tab.pending; // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
+      const wc = denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF');
+      tab.savedDoc = tab.doc; // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
       writeFile(absolutePathOf(path, wtp), wc).catch(() => {});
     }
   }
@@ -567,7 +588,7 @@ import { get } from 'svelte/store';
       return;
     }
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
       pane.activeTabIdx = pane.tabs.length - 1;
       pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
@@ -579,7 +600,8 @@ import { get } from 'svelte/store';
       const raw2 = await readFile(absolutePathOf(node.path, worktreePath)) ?? '';
       const le2 = detectLineEndings(raw2);
       const text2 = normalizeLineEndings(raw2, le2);
-      pane.tabs = [...pane.tabs, { path: node.path, content: text2, pending: text2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
+      const doc2 = docFromString(text2);
+      pane.tabs = [...pane.tabs, { path: node.path, doc: doc2, savedDoc: doc2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
@@ -592,8 +614,7 @@ import { get } from 'svelte/store';
   const NO_DIAGNOSTICS: LspDiagnostic[] = [];
 
   let lspDocs: (LspDocRef | null)[] = [null, null];
-  const lspChangeTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  const openLspDocs = new Map<string, LspDocRef>();
+  const lsp = new LspDocSync();
 
   function absoluteOf(path: string): string | null {
     return worktreePath && !isExternalPath(path) ? absolutePathOf(path, worktreePath) : null;
@@ -612,49 +633,22 @@ import { get } from 'svelte/store';
     lspDocs[i] = null;
     lspDocs = lspDocs;
     if (!tab || !wtp || !absolute) return;
-    const doc = await ensureDocument(wtp, absolute);
+    const doc = await lsp.open(wtp, absolute, languageIdForPath(absolute) ?? 'plaintext', () => tab.doc.toString());
     if (panes[i].tabs[panes[i].activeTabIdx]?.path !== tab.path) return;
     lspDocs[i] = doc;
     lspDocs = lspDocs;
-    if (!doc) return;
-    openLspDocs.set(absolute, doc);
-    await lspDidOpen(doc, languageIdForPath(absolute) ?? 'plaintext', tab.pending).catch(() => {});
-  }
-
-  /**
-   * Keyed by the file the text comes from, never by the pane that showed it:
-   * a pane changes document while a server is still starting, and a change
-   * attributed to the slot rather than to the file lands in the wrong buffer.
-   */
-  function scheduleLspChange(path: string, text: string) {
-    const absolute = absoluteOf(path);
-    const doc = absolute ? openLspDocs.get(absolute) : null;
-    if (!doc) return;
-    const timer = lspChangeTimers.get(doc.path);
-    if (timer) clearTimeout(timer);
-    lspChangeTimers.set(doc.path, setTimeout(() => {
-      lspChangeTimers.delete(doc.path);
-      lspDidChange(doc, text).catch(() => {});
-    }, LSP_CHANGE_DEBOUNCE_MS));
-  }
-
-  function notifyLspSaved(path: string, text: string) {
-    const absolute = absoluteOf(path);
-    const doc = absolute ? openLspDocs.get(absolute) : null;
-    if (doc) lspDidSave(doc, text).catch(() => {});
   }
 
   function notifyLspClosed(path: string) {
     const absolute = absoluteOf(path);
     if (!absolute) return;
     if (panes.some(p => p.tabs.some(t => t.path === path))) return;
-    const doc = openLspDocs.get(absolute);
-    if (!doc) return;
-    const timer = lspChangeTimers.get(doc.path);
-    if (timer) { clearTimeout(timer); lspChangeTimers.delete(doc.path); }
-    openLspDocs.delete(absolute);
-    clearDiagnosticsFor(absolute);
-    lspDidClose(doc).catch(() => {});
+    lsp.close(absolute);
+  }
+
+  function closeAllLspDocs() {
+    lsp.closeAll();
+    syncedLspPaths = '';
   }
 
   $: activeAbsolutePaths = panes.map(p => {
@@ -879,14 +873,15 @@ import { get } from 'svelte/store';
       const tabs = tabsForAbsolute(fileEdit.path);
       try {
         const updated = tabs.length > 0
-          ? applyEditsToText(tabs[0].pending, fileEdit.edits)
+          ? applyEditsToText(tabs[0].doc.toString(), fileEdit.edits)
           : await editOnDisk(fileEdit.path, fileEdit.edits);
         if (updated === null) continue;
-        for (const tab of tabs) tab.pending = updated;
+        const updatedDoc = docFromString(updated);
+        for (const tab of tabs) tab.doc = updatedDoc;
         touchedDisk ||= tabs.length === 0;
 
-        const openDoc = openLspDocs.get(fileEdit.path);
-        if (openDoc) await lspDidChange(openDoc, updated).catch(() => {});
+        const openDoc = lsp.get(fileEdit.path);
+        if (openDoc) await lspDidChange(openDoc, [{ text: updated }]).catch(() => {});
       } catch {
         failed.push(pathWithinWorktree(fileEdit.path, worktreePath));
       }
@@ -927,7 +922,7 @@ import { get } from 'svelte/store';
             projectId: $activeProjectId ?? null,
             worktree: worktreePath,
             path: `${worktreePath}/${tab.path}`,
-            content: tab.pending,
+            content: tab.doc.toString(),
           });
           if (outcome.formatterId && outcome.formatterId !== LSP_FORMATTER_ID) {
             if (outcome.changed) pane.editorRef?.applyFormattedText(outcome.text);
@@ -944,7 +939,7 @@ import { get } from 'svelte/store';
       // held to the project's own indentation rather than to whatever the file
       // happens to use - a document formatted against the wrong setting is what
       // reads as "the setting does nothing".
-      const detected = detectIndentStyle(tab.pending);
+      const detected = detectIndentStyle(tab.doc.toString());
       const size = Number(configured?.indentSize);
       const edits = doc
         ? await lspFormat(
@@ -952,7 +947,7 @@ import { get } from 'svelte/store';
             Number.isFinite(size) && size > 0
               ? size
               : detected === 'spaces'
-                ? detectSpaceSize(tab.pending)
+                ? detectSpaceSize(tab.doc.toString())
                 : 2,
             configured
               ? configured.indentStyle !== 'tab'
@@ -1023,8 +1018,7 @@ import { get } from 'svelte/store';
       for (const pane of panes) {
         for (const tab of pane.tabs) {
           if (tab.path === path) {
-            tab.content = text;
-            tab.pending = text;
+            tab.doc = tab.savedDoc = docFromString(text);
             if (le) tab.lineEndings = le;
           }
         }
@@ -1053,9 +1047,8 @@ import { get } from 'svelte/store';
         text = normalizeLineEndings(raw, le);
         for (const pane of panes) {
           for (const tab of pane.tabs) {
-            if (tab.path === path && tab.content !== text) {
-              tab.content = text;
-              tab.pending = text;
+            if (tab.path === path && tab.savedDoc.toString() !== text) {
+              tab.doc = tab.savedDoc = docFromString(text);
               if (le) tab.lineEndings = le;
             }
           }
@@ -1644,11 +1637,12 @@ import { get } from 'svelte/store';
     const pane = panes[paneIdx];
     const tab = pane.tabs[pane.activeTabIdx];
     if (!tab) return;
-    const style = detectIndentStyle(tab.pending);
-    const size = detectSpaceSize(tab.pending);
+    const text = tab.doc.toString();
+    const style = detectIndentStyle(text);
+    const size = detectSpaceSize(text);
     const converted = style === 'tabs'
-      ? convertToSpaces(tab.pending, Math.max(size, 2))
-      : convertToTabs(tab.pending, Math.max(size, 2));
+      ? convertToSpaces(text, Math.max(size, 2))
+      : convertToTabs(text, Math.max(size, 2));
     pane.editorRef?.setContent(converted);
   }
 
@@ -1659,10 +1653,17 @@ import { get } from 'svelte/store';
 
   let forgeRemoteUrl = '';
   let forgeRemoteWorktree = '';
+  const forgeRemoteUrls = new Map<string, string>();
   $: if (worktreePath && worktreePath !== forgeRemoteWorktree) {
     forgeRemoteWorktree = worktreePath;
-    forgeRemoteUrl = '';
-    void getRemoteUrl().then((url) => { if (worktreePath === forgeRemoteWorktree) forgeRemoteUrl = url; });
+    forgeRemoteUrl = forgeRemoteUrls.get(worktreePath) ?? '';
+    if (!forgeRemoteUrl) {
+      void getRemoteUrl().then((url) => {
+        if (worktreePath !== forgeRemoteWorktree) return;
+        forgeRemoteUrl = url;
+        if (url) forgeRemoteUrls.set(forgeRemoteWorktree, url);
+      });
+    }
   }
   $: openOnForgeLabel = forgeLabel($capabilities.forge, forgeRemoteUrl) ?? '';
 
@@ -1694,7 +1695,16 @@ import { get } from 'svelte/store';
     captureEditorState(0);
     captureEditorState(1);
     const state = snapshotInstanceState();
-    savedState.set(`${currentProjectId}:${currentInstanceId}`, state);
+    const dirty = new Map<string, Tab>();
+    for (const p of state.panes) for (const t of p.tabs) if (isDirty(t)) dirty.set(t.path, t);
+    const scope = `${currentProjectId}:${currentInstanceId}`;
+    savedState.delete(scope);
+    savedState.set(scope, { persisted: toPersistedState(state), dirty, recentFiles });
+    for (const key of savedState.keys()) {
+      if (savedState.size <= SAVED_SCOPES_MAX) break;
+      if (savedState.get(key)!.dirty.size === 0) savedState.delete(key);
+    }
+    closeAllLspDocs();
     saveEditorState(currentProjectId, currentInstanceId, state, recentFiles);
   }
 
@@ -1712,43 +1722,32 @@ import { get } from 'svelte/store';
       currentProjectId = pid;
       currentScope = scope;
       recentFiles = [];
-      panes = panes.map(() => makePane());
+      panes = [makePane(), makePane()];
       editState = null;
       contextMenu = null;
-      if (scope !== null && savedState.has(scope)) {
-        const s = savedState.get(scope)!;
-        panes = s.panes.map((sp, i) => {
-          const base = makePane();
-          base.tabs = sp.tabs;
-          base.activeTabIdx = sp.activeTabIdx;
-          return base;
-        });
-        expanded = s.expanded;
-        splitMode = s.splitMode;
-        splitLeftWidth = s.splitLeftWidth;
-        syncActiveTabToTree();
-        refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
-        refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
-      } else if (id !== null && wtp !== null && pid !== null) {
-        selectedDir = '';
-        loadEditorState(pid, id).then(({ persisted, recentFiles: rf }) => {
+      const saved = scope !== null ? savedState.get(scope) ?? null : null;
+      if (!saved) selectedDir = '';
+      if (id !== null && wtp !== null && pid !== null) {
+        const load = saved
+          ? Promise.resolve({ persisted: saved.persisted, recentFiles: saved.recentFiles })
+          : loadEditorState(pid, id);
+        load.then(async ({ persisted, recentFiles: rf }) => {
+          if (currentScope !== scope) return;
           recentFiles = rf;
-          if (persisted) {
-            rehydrateTabs(wtp, persisted).then(() => {
-              syncActiveTabToTree();
-              refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
-              refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
-            });
-          } else {
-            panes = [makePane(), makePane()];
+          if (!persisted) {
             expanded = new Set();
             splitMode = false;
             splitLeftWidth = 0;
+            return;
           }
+          const restored = await rehydrateTabs(wtp, persisted, saved?.dirty);
+          if (currentScope !== scope) return;
+          panes = restored;
+          syncActiveTabToTree();
+          refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
+          refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
         });
       } else {
-        selectedDir = '';
-        panes = [makePane(), makePane()];
         expanded = new Set();
         splitMode = false;
         splitLeftWidth = 0;
@@ -1768,7 +1767,43 @@ import { get } from 'svelte/store';
    */
   const TREE_CACHE_MAX = 8;
   const TREE_CACHE_MAX_NODES = 50_000;
-  const treeCache = new Map<string, { tree: FileNode[]; status: GitStatusMap; nodes: number }>();
+  /** A tree younger than this is trusted as is: a quick round trip between two projects does not walk the repository again. */
+  const TREE_CACHE_FRESH_MS = 30_000;
+  const treeCache = new Map<string, { tree: FileNode[]; status: GitStatusMap; nodes: number; at: number; stale: boolean }>();
+
+  /**
+   * Every cached worktree is watched: a change in a project the user left
+   * marks its tree stale, and coming back to an unchanged one walks nothing.
+   * A worktree the watcher refuses (inotify limits) falls back to the age rule.
+   */
+  const watchedRoots = new Set<string>();
+  function watchRoot(root: string) {
+    if (watchedRoots.has(root)) return;
+    watchWorktree(root).then(
+      () => { watchedRoots.add(root); if (root === worktreePath) setGitWatched(true); },
+      () => {},
+    );
+  }
+  function unwatchRoot(root: string) {
+    if (!watchedRoots.delete(root)) return;
+    void unwatchWorktree(root).catch(() => {});
+  }
+  $: setGitWatched(worktreePath !== null && watchedRoots.has(worktreePath));
+
+  let unlistenFsChanged: (() => void) | null = null;
+  void onFsChanged(({ worktree, gitOnly }) => {
+    if (worktree === worktreePath) {
+      if (!gitOnly) scheduleKeyed('background', `walk:${worktree}`, () => { void loadTree(worktree, { silent: true }); });
+      void refreshGitStore(true);
+      return;
+    }
+    const cached = treeCache.get(worktree);
+    if (cached && !gitOnly) cached.stale = true;
+  }).then((off) => { unlistenFsChanged = off; });
+  onDestroy(() => {
+    unlistenFsChanged?.();
+    for (const root of [...watchedRoots]) unwatchRoot(root);
+  });
 
   function countNodes(nodes: FileNode[]): number {
     let total = 0;
@@ -1778,7 +1813,8 @@ import { get } from 'svelte/store';
 
   function cacheTree(root: string) {
     treeCache.delete(root);
-    treeCache.set(root, { tree: rawTree, status: gitStatusMap, nodes: countNodes(rawTree) });
+    treeCache.set(root, { tree: rawTree, status: gitStatusMap, nodes: countNodes(rawTree), at: Date.now(), stale: false });
+    watchRoot(root);
     let cachedNodes = 0;
     for (const entry of treeCache.values()) cachedNodes += entry.nodes;
     for (const oldest of treeCache.keys()) {
@@ -1786,6 +1822,7 @@ import { get } from 'svelte/store';
       if (treeCache.size === 1) break;
       cachedNodes -= treeCache.get(oldest)?.nodes ?? 0;
       treeCache.delete(oldest);
+      unwatchRoot(oldest);
     }
   }
 
@@ -1799,13 +1836,28 @@ import { get } from 'svelte/store';
       tree = cached.tree;
       gitStatusMap = cached.status;
       gitStatusWorktree = root;
-      void loadTree(root, { silent: true });
+      const trusted = watchedRoots.has(root) ? !cached.stale : Date.now() - cached.at <= TREE_CACHE_FRESH_MS;
+      if (trusted) void refreshGitStore(true);
+      else void loadTree(root, { silent: true });
       return;
     }
     rawTree = [];
     tree = [];
     gitStatusMap = {};
     gitStatusWorktree = null;
+    void paintFromDiskCache(root);
+  }
+
+  /** First visit of a project this session: the last walk's tree paints at once, the fresh one lands silently behind it. */
+  async function paintFromDiskCache(root: string) {
+    const cached = await readDirTreeCached(root, showIgnored).catch(() => null);
+    if (worktreePath !== root) return;
+    if (cached && cached.length > 0 && rawTree.length === 0) {
+      rawTree = cached;
+      tree = cached;
+      void loadTree(root, { silent: true });
+      return;
+    }
     void loadTree(root);
   }
 
@@ -1879,15 +1931,14 @@ import { get } from 'svelte/store';
     for (const pane of panes) {
       for (const tab of pane.tabs) {
         if (isBinaryPath(tab.path)) { hasBinaryTab = true; continue; }
-        if (tab.pending !== tab.content) continue;
+        if (isDirty(tab)) continue;
         try {
           const raw = await readFile(absolutePathOf(tab.path, worktreePath));
           if (raw === null) continue;
           const le = detectLineEndings(raw);
           const text = normalizeLineEndings(raw, le);
-          if (text === tab.content) continue;
-          tab.content = text;
-          tab.pending = text;
+          if (text === tab.savedDoc.toString()) continue;
+          tab.doc = tab.savedDoc = docFromString(text);
           tab.lineEndings = le;
           pane.editorStateCache.delete(tab.path);
           changed = true;
@@ -1925,13 +1976,14 @@ import { get } from 'svelte/store';
     }
   }
 
-  $: treeFilePaths = collectFilePaths(rawTree);
+  let treeFilePaths: Set<string> = new Set();
+  $: scheduleKeyed('background', 'tree-paths', () => { treeFilePaths = collectFilePaths(rawTree); });
   $: cutPaths = fileClipboard?.op === 'cut' ? new Set(fileClipboard.nodes.map(n => n.path)) : new Set<string>();
 
   $: openTabPaths = new Set(panes[0].tabs.map(t => t.path));
   $: activeTabPath = activeTabs[0]?.path ?? null;
   $: if (activeTabPath) syncActiveTabToTree();
-  $: dirtyTabPaths = new Set(panes.flatMap(pn => pn.tabs.filter(t => t.pending !== t.content).map(t => t.path)));
+  $: dirtyTabPaths = new Set(panes.flatMap(pn => pn.tabs.filter(t => isDirty(t)).map(t => t.path)));
   $: contextMenuTargetPath = contextMenu?.node?.path ?? null;
 
 
@@ -1965,7 +2017,7 @@ import { get } from 'svelte/store';
     if (($settings.saveOn) === 'blur') await flushSave(0);
 
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
       pane.activeTabIdx = pane.tabs.length - 1;
       pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
@@ -1980,7 +2032,8 @@ import { get } from 'svelte/store';
       const raw = await readFile(fullPath) ?? '';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
-      pane.tabs = [...pane.tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0, lineEndings: le }];
+      const opened = docFromString(text);
+      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
       pushRecentFile(node.path);
@@ -2003,7 +2056,7 @@ import { get } from 'svelte/store';
     if (loadingPaths.has(node.path)) return;
 
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, content: '', pending: '', cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
       return;
@@ -2015,7 +2068,8 @@ import { get } from 'svelte/store';
       const raw = await readFile(absolutePathOf(node.path, worktreePath)) ?? '';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
-      pane.tabs = [...pane.tabs, { path: node.path, content: text, pending: text, cursorPos: 0, scrollTop: 0, lineEndings: le }];
+      const opened = docFromString(text);
+      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le }];
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
     } catch (e) {
@@ -2046,8 +2100,9 @@ import { get } from 'svelte/store';
       pane.tabs = [...pane.tabs, { ...tab }];
     } else {
       try {
-        const text = await readFile(absolutePathOf(tab.path, worktreePath)) ?? tab.pending;
-        pane.tabs = [...pane.tabs, { ...tab, content: text, pending: text }];
+        const text = await readFile(absolutePathOf(tab.path, worktreePath)) ?? tab.doc.toString();
+        const reopened = docFromString(text);
+        pane.tabs = [...pane.tabs, { ...tab, doc: reopened, savedDoc: reopened }];
       } catch {
         pane.tabs = [...pane.tabs, { ...tab }];
       }
@@ -2167,7 +2222,7 @@ import { get } from 'svelte/store';
       pendingJumps[i] = null;
       // An anchor only resolves once the target file content is loaded.
       const line = jump.anchor
-        ? findHeadingLine(activeTabs[idx]?.content ?? '', jump.anchor) ?? jump.line
+        ? findHeadingLine(activeTabs[idx]?.savedDoc.toString() ?? '', jump.anchor) ?? jump.line
         : jump.line;
       setTimeout(() => panes[idx].editorRef?.jumpTo(line, jump.col), EDITOR_JUMP_DELAY_MS);
     }
@@ -2497,7 +2552,7 @@ import { get } from 'svelte/store';
           onTabClose={(idx, e) => closeTab(i, idx, e)}
           onTabUnpin={(idx) => togglePinTab(idx, i as 0 | 1)}
           onBreadcrumbClick={breadcrumbClickDir}
-          onChange={(value) => handleChange(i, value)}
+          onChange={(doc, changes) => handleChange(i, doc, changes)}
           onBlur={($settings.saveOn) === 'blur' ? () => flushSave(i) : undefined}
           onCursorChange={(l, c) => handleCursorChange(i, l, c)}
           onGoToDefinition={() => { focusedPane = i as 0 | 1; void runGoToDefinition(); }}

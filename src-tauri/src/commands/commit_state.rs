@@ -41,6 +41,6 @@ pub fn get_commit_state(project_id: String, instance_id: String) -> Result<Optio
 
 /// Called on every change of the commit options.
 #[tauri::command]
-pub fn save_commit_state(project_id: String, instance_id: String, state: CommitState) -> Result<(), String> {
+pub async fn save_commit_state(project_id: String, instance_id: String, state: CommitState) -> Result<(), String> {
     write_commit_state(&project_id, &instance_id, &state)
 }

@@ -211,7 +211,7 @@ pub fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let contents = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    let contents = serde_json::to_string(value).map_err(|e| e.to_string())?;
     // Include the pid so two processes never collide on the same temp path.
     let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
     fs::write(&tmp, contents).map_err(|e| e.to_string())?;

@@ -12,6 +12,8 @@
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
+  import type { Text } from '@codemirror/state';
+  import type { LspContentChange } from '$lib/utils/files/document-model';
   import HunkDiffPanel from './HunkDiffPanel.svelte';
   import { settings } from '$lib/stores/settings';
   import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
@@ -20,6 +22,7 @@
   import { previewKindFromPath } from '$lib/utils/files/files-preview';
   import { absolutePathOf, breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
   import type { Tab } from '$lib/utils/files/files-persistence';
+  import { isDirty as isTabDirty } from '$lib/utils/files/document-model';
   import LineHistoryPanel from './LineHistoryPanel.svelte';
   import { clickOutside } from '$lib/utils/click-outside';
 
@@ -81,7 +84,7 @@
   export let onTabClose: (idx: number, e: MouseEvent) => void;
   export let onTabUnpin: (idx: number) => void;
   export let onBreadcrumbClick: (path: string) => void;
-  export let onChange: (value: string) => void;
+  export let onChange: (doc: Text, changes: LspContentChange[]) => void;
   export let onBlur: (() => void) | undefined = undefined;
   export let onCursorChange: (line: number, col: number) => void;
   export let onChunkClick: (chunk: GutterChunk) => void;
@@ -146,7 +149,7 @@
         >
           {#if tab.pinned}<span class="tab-pin"><Icon name="pin" size={9}/></span>{/if}
           <span class="tab-name">{basename(tab.path)}</span>
-          {#if tab.pending !== tab.content}<span class="tab-dot">●</span>{/if}
+          {#if isTabDirty(tab)}<span class="tab-dot">●</span>{/if}
           {#if tab.pinned}
             <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); onTabUnpin(i); }} aria-label={t('files.unpinTab') as string} title={t('files.unpinTabTitle') as string}>
               <Icon name="x" size={11}/>
@@ -194,10 +197,9 @@
           <BinaryPreview path={activeAbsPath} kind={previewKindFromPath(activeTab.path)} reloadToken={binaryReloadToken} />
         {/key}
       {:else}
-        {#key activeTab.path}
           <CodeEditor
             bind:this={editorRef}
-            content={activeTab.pending}
+            content={activeTab.doc}
             language={activeLang}
             readonly={false}
             minimapEnabled={$settings.showMinimap}
@@ -223,11 +225,10 @@
             onBlur={onBlur}
             onCursorChange={onCursorChange}
           />
-        {/key}
       {/if}
       {#if isSvgTab && svgPreview}
         <div class="editor-preview-overlay">
-          <BinaryPreview path={activeAbsPath} kind="svg" source={activeTab.pending} />
+          <BinaryPreview path={activeAbsPath} kind="svg" source={activeTab.doc.toString()} />
         </div>
       {/if}
     </div>

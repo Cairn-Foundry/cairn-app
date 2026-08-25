@@ -117,6 +117,6 @@ pub fn get_ui_state() -> Result<UiState, String> {
 
 /// Called on every navigation change, debounced by the frontend.
 #[tauri::command]
-pub fn save_ui_state(state: UiState) -> Result<(), String> {
+pub async fn save_ui_state(state: UiState) -> Result<(), String> {
     write_ui_state(&state)
 }

@@ -14,7 +14,7 @@
   import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
   import { initTests, disposeTests } from '$lib/stores/tests';
-  import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, watchInstance, unwatchInstance } from '$lib/stores/integrations';
+  import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '$lib/stores/integrations';
   import { listInstances } from '$lib/services/instance-service';
   import { settings } from '$lib/stores/settings';
   import { getUiState, saveUiState } from '$lib/services/ui-state-service';
@@ -100,7 +100,7 @@
     }
   }
 
-  $: if (mounted && $activeProjectId) void loadProjectIntegrations($activeProjectId).catch(() => {});
+  $: if (mounted && $activeProjectId && !($activeProjectId in $bindingsByProject)) void loadProjectIntegrations($activeProjectId).catch(() => {});
   /**
    * The base instance carries no branch of its own, so the checked out branch is
    * what it is watched on - same fallback as the CI/CD step. Watching on an empty
@@ -147,16 +147,15 @@
     initTests();
     initIntegrations();
     void loadAgentActivity();
-    await settings.load();
+    // Small JSON files, read at once rather than one after the other.
+    const [, saved] = await Promise.all([settings.load(), getUiState(), loadProjects()]);
     stopUpdateChecks = startUpdateChecks();
 
-    const saved = await getUiState();
     screen = saved.screen;
     homeSection = saved.homeSection;
     homeSettingsTab = saved.homeSettingsTab;
     initViewStates(saved.projectStates ?? {});
 
-    await loadProjects();
     await loadListing();
 
     if (saved.openTabOrder.length > 0) reorderTabs(saved.openTabOrder);

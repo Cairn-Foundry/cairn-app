@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use serde::Serialize;
+use std::time::{Duration, Instant};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{Emitter, Manager};
 
@@ -19,7 +20,7 @@ use registry::{
     catalog, detect_version, find_def, manager_options, owning_manager, resolve_command,
     resolve_root, shares_removal_with, BinaryCache, LanguageServerDef, ManagerCommands,
 };
-use server::{emit_status, path_to_uri, uri_to_path, ServerHandle, ServerStatus};
+use server::{emit_status, path_to_uri, uri_to_path, OpenDoc, ServerHandle, ServerStatus};
 
 /// A server that failed to start three times in a row stays down: retrying
 /// forever would spawn a process on every keystroke that reopens the file.
@@ -44,22 +45,20 @@ enum Either {
     Err(ChildStderr),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
-struct ServerKey {
-    server_id: String,
-    root:      PathBuf,
-}
-
+/// One process per server id, whatever the number of worktrees it serves:
+/// the instances of a project are worktrees of the same repository, and a
+/// server indexes their shared dependencies once instead of once per root.
+/// Roots come and go through `workspace/didChangeWorkspaceFolders`.
 #[derive(Default)]
 pub struct LspState {
-    servers:  Mutex<HashMap<ServerKey, Arc<ServerHandle>>>,
-    attempts: Mutex<HashMap<ServerKey, u32>>,
-    /// One lock per server and root, held across the whole spawn. Opening two
-    /// files of the same language at once - a split view, or a session being
-    /// restored - otherwise has both calls find nothing running and start their
-    /// own process, and the second insert drops the first handle on the floor.
+    servers:  Mutex<HashMap<String, Arc<ServerHandle>>>,
+    attempts: Mutex<HashMap<String, u32>>,
+    /// One lock per server, held across the whole spawn. Opening two files of
+    /// the same language at once - a split view, or a session being restored -
+    /// otherwise has both calls find nothing running and start their own
+    /// process, and the second insert drops the first handle on the floor.
     /// The global map is never held while a server starts: that takes seconds.
-    starting: Mutex<HashMap<ServerKey, Arc<Mutex<()>>>>,
+    starting: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     running_commands: Mutex<HashMap<CommandKey, Arc<RunningCommand>>>,
 }
 
@@ -174,15 +173,55 @@ fn state(app: &tauri::AppHandle) -> tauri::State<'_, LspState> {
     app.state::<LspState>()
 }
 
+/// A server found dead is dropped from the map on the spot: a crashed handle
+/// left behind would never be reaped and would shadow the next start.
 fn running(app: &tauri::AppHandle, server_id: &str, root: &Path) -> Option<Arc<ServerHandle>> {
-    let key = ServerKey { server_id: server_id.to_string(), root: root.to_path_buf() };
-    let handle = state(app).servers.lock().ok()?.get(&key).cloned()?;
-    handle.is_alive().then_some(handle)
+    let handle = alive(app, server_id)?;
+    handle.serves(root).then_some(handle)
+}
+
+/// The live process of a server, whatever roots it holds.
+fn alive(app: &tauri::AppHandle, server_id: &str) -> Option<Arc<ServerHandle>> {
+    let lsp = state(app);
+    let mut servers = lsp.servers.lock().ok()?;
+    let handle = servers.get(server_id).cloned()?;
+    if handle.is_alive() {
+        return Some(handle);
+    }
+    servers.remove(server_id);
+    None
 }
 
 fn require(app: &tauri::AppHandle, server_id: &str, root: &str) -> Result<Arc<ServerHandle>, String> {
-    running(app, server_id, Path::new(root))
-        .ok_or_else(|| format!("{server_id} is not running on {root}"))
+    let handle = running(app, server_id, Path::new(root))
+        .ok_or_else(|| format!("{server_id} is not running on {root}"))?;
+    if let Ok(mut at) = handle.last_used.lock() {
+        *at = Instant::now();
+    }
+    Ok(handle)
+}
+
+/// A server nobody has talked to for this long is stopped; the next file
+/// that needs it starts it again lazily through `ensureDocument`.
+const IDLE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
+/// Reaps idle servers every minute for the life of the app.
+pub fn spawn_idle_reaper(app: tauri::AppHandle) {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(60));
+        let lsp = state(&app);
+        let idle: Vec<String> = match lsp.servers.lock() {
+            Ok(servers) => servers
+                .iter()
+                .filter(|(_, h)| h.last_used.lock().map(|at| at.elapsed() > IDLE_TIMEOUT).unwrap_or(true))
+                .map(|(k, _)| k.clone())
+                .collect(),
+            Err(_) => continue,
+        };
+        if !idle.is_empty() {
+            let _ = stop_matching(&app, |id| idle.iter().any(|i| i == id));
+        }
+    });
 }
 
 fn position_params(path: &str, line: u32, character: u32) -> Value {
@@ -277,11 +316,10 @@ pub async fn list_language_servers(
                 catalog
                     .iter()
                     .filter_map(|def| {
-                        let (key, handle) = servers
-                            .iter()
-                            .find(|(key, handle)| key.server_id == def.id && handle.is_alive())?;
+                        let handle = servers.get(&def.id).filter(|handle| handle.is_alive())?;
                         let status = handle.status.lock().map(|s| *s).unwrap_or(ServerStatus::Stopped);
-                        Some((def.id.clone(), (status, key.root.to_string_lossy().to_string())))
+                        let root = handle.roots.lock().ok().and_then(|roots| roots.iter().next().cloned())?;
+                        Some((def.id.clone(), (status, root.to_string_lossy().to_string())))
                     })
                     .collect()
             })
@@ -402,7 +440,7 @@ pub async fn install_language_server(
     // The binary that was missing is the reason the server failed to start, so
     // installing it has to lift the ban those failures put on it.
     if let Ok(mut attempts) = state(&app).attempts.lock() {
-        attempts.retain(|key, _| key.server_id != server_id);
+        attempts.remove(&server_id);
     }
     Ok(output)
 }
@@ -575,7 +613,7 @@ pub async fn update_language_server(
         run_manager_command(app.clone(), server_id.clone(), manager, "update", |def| &def.update)
             .await?;
     if let Ok(mut attempts) = state(&app).attempts.lock() {
-        attempts.retain(|key, _| key.server_id != server_id);
+        attempts.remove(&server_id);
     }
     Ok(output)
 }
@@ -646,7 +684,7 @@ fn manager_for(
 }
 
 fn stop_servers_with_id(app: &tauri::AppHandle, server_id: &str) -> Result<(), String> {
-    stop_matching(app, |key| key.server_id == server_id)
+    stop_matching(app, |id| id == server_id)
 }
 
 fn run_shell(
@@ -770,23 +808,25 @@ pub async fn start_language_server(
     blocking(move || {
         let def = find_def(&server_id).ok_or_else(|| format!("unknown language server: {server_id}"))?;
         let root = resolve_root(&def, Path::new(&worktree), Path::new(&file_path));
-        let key = ServerKey { server_id: server_id.clone(), root: root.clone() };
         let lsp = state(&app);
 
         let gate = {
             let mut starting = lsp.starting.lock().map_err(|e| e.to_string())?;
-            Arc::clone(starting.entry(key.clone()).or_default())
+            Arc::clone(starting.entry(server_id.clone()).or_default())
         };
         let _guard = gate.lock().map_err(|e| e.to_string())?;
 
         // Re-checked under the gate: whoever went first may have started it.
-        if running(&app, &server_id, &root).is_some() {
+        if let Some(handle) = alive(&app, &server_id) {
+            if handle.add_root(&root) {
+                emit_status(&app, &server_id, &root, ServerStatus::Ready, None);
+            }
             return Ok(root.to_string_lossy().to_string());
         }
 
         {
             let attempts = lsp.attempts.lock().map_err(|e| e.to_string())?;
-            if attempts.get(&key).copied().unwrap_or(0) >= MAX_START_ATTEMPTS {
+            if attempts.get(&server_id).copied().unwrap_or(0) >= MAX_START_ATTEMPTS {
                 return Err(format!("{server_id} failed to start too many times"));
             }
         }
@@ -795,14 +835,14 @@ pub async fn start_language_server(
 
         match server::start(&app, &def, &root, &command, &args) {
             Ok(handle) => {
-                lsp.servers.lock().map_err(|e| e.to_string())?.insert(key.clone(), handle);
-                lsp.attempts.lock().map_err(|e| e.to_string())?.remove(&key);
+                lsp.servers.lock().map_err(|e| e.to_string())?.insert(server_id.clone(), handle);
+                lsp.attempts.lock().map_err(|e| e.to_string())?.remove(&server_id);
                 emit_status(&app, &server_id, &root, ServerStatus::Ready, None);
                 Ok(root.to_string_lossy().to_string())
             }
             Err(e) => {
                 let mut attempts = lsp.attempts.lock().map_err(|e| e.to_string())?;
-                *attempts.entry(key).or_insert(0) += 1;
+                *attempts.entry(server_id.clone()).or_insert(0) += 1;
                 drop(attempts);
                 emit_status(&app, &server_id, &root, ServerStatus::Failed, Some(e.clone()));
                 Err(e)
@@ -823,44 +863,70 @@ pub async fn stop_language_servers_with_id(
     blocking(move || stop_servers_with_id(&app, &server_id)).await
 }
 
-/// Every server started for a worktree goes down with it: closing a project
-/// must not leave a process per language behind.
+/// A worktree leaving takes its roots out of every server; a server left
+/// with no root at all goes down with it, so closing a project never leaves
+/// a process per language behind.
 #[tauri::command]
 pub async fn stop_language_servers_for(app: tauri::AppHandle, worktree: String) -> Result<(), String> {
     blocking(move || {
         let worktree = PathBuf::from(worktree);
-        stop_matching(&app, |key| key.root.starts_with(&worktree))
+        let lsp = state(&app);
+        let handles: Vec<Arc<ServerHandle>> = lsp
+            .servers
+            .lock()
+            .map_err(|e| e.to_string())?
+            .values()
+            .cloned()
+            .collect();
+        let mut emptied = Vec::new();
+        for handle in handles {
+            let removed = handle.remove_roots_under(&worktree);
+            for root in &removed {
+                emit_status(&app, &handle.server_id, root, ServerStatus::Stopped, None);
+            }
+            if handle.roots.lock().map(|roots| roots.is_empty()).unwrap_or(true) {
+                emptied.push(handle.server_id.clone());
+            }
+        }
+        if emptied.is_empty() {
+            Ok(())
+        } else {
+            stop_matching(&app, |id| emptied.iter().any(|e| e == id))
+        }
     })
     .await
 }
 
-/// Takes down every server whose key the predicate accepts. The map is never
+/// Takes down every server whose id the predicate accepts. The map is never
 /// held while a server shuts down - that waits on the process.
 fn stop_matching(
     app: &tauri::AppHandle,
-    accept: impl Fn(&ServerKey) -> bool,
+    accept: impl Fn(&str) -> bool,
 ) -> Result<(), String> {
     let lsp = state(app);
-    let stopped: Vec<(ServerKey, Arc<ServerHandle>)> = {
+    let stopped: Vec<(String, Arc<ServerHandle>)> = {
         let mut servers = lsp.servers.lock().map_err(|e| e.to_string())?;
-        let keys: Vec<ServerKey> = servers.keys().filter(|key| accept(key)).cloned().collect();
-        keys.into_iter()
-            .filter_map(|key| servers.remove(&key).map(|handle| (key, handle)))
+        let ids: Vec<String> = servers.keys().filter(|id| accept(id)).cloned().collect();
+        ids.into_iter()
+            .filter_map(|id| servers.remove(&id).map(|handle| (id, handle)))
             .collect()
     };
     if let Ok(mut starting) = lsp.starting.lock() {
-        starting.retain(|key, _| !accept(key));
+        starting.retain(|id, _| !accept(id));
     }
     // A stop is the user's own signal to try again: a server that hit
     // MAX_START_ATTEMPTS and was banned for the session gets a clean slate
     // rather than requiring a full app restart to be usable again.
     if let Ok(mut attempts) = lsp.attempts.lock() {
-        attempts.retain(|key, _| !accept(key));
+        attempts.retain(|id, _| !accept(id));
     }
 
-    for (key, handle) in stopped {
+    for (id, handle) in stopped {
+        let roots: Vec<PathBuf> = handle.roots.lock().map(|r| r.iter().cloned().collect()).unwrap_or_default();
         server::stop(&handle);
-        emit_status(app, &key.server_id, &key.root, ServerStatus::Stopped, None);
+        for root in roots {
+            emit_status(app, &id, &root, ServerStatus::Stopped, None);
+        }
     }
     Ok(())
 }
@@ -881,7 +947,7 @@ pub async fn lsp_did_open(
         let claimed = match handle.open_docs.lock().map_err(|e| e.to_string())?.entry(PathBuf::from(&path)) {
             std::collections::hash_map::Entry::Occupied(_) => false,
             std::collections::hash_map::Entry::Vacant(slot) => {
-                slot.insert(1);
+                slot.insert(OpenDoc { version: 1, text: text.clone() });
                 true
             }
         };
@@ -901,27 +967,82 @@ pub async fn lsp_did_open(
     .await
 }
 
+/// One edit of `textDocument/didChange`; no range means the whole document.
+#[derive(Clone, Deserialize, Serialize)]
+pub struct ContentChange {
+    pub range: Option<Value>,
+    pub text:  String,
+}
+
+/// UTF-8 byte offset of an LSP position (line, UTF-16 column), clamped to the text.
+fn offset_of(text: &str, line: usize, character: usize) -> usize {
+    let mut start = 0;
+    for _ in 0..line {
+        match text[start..].find('\n') {
+            Some(n) => start += n + 1,
+            None => return text.len(),
+        }
+    }
+    let line_end = text[start..].find('\n').map(|n| start + n).unwrap_or(text.len());
+    let mut units = 0;
+    for (i, ch) in text[start..line_end].char_indices() {
+        if units >= character {
+            return start + i;
+        }
+        units += ch.len_utf16();
+    }
+    line_end
+}
+
+/// Applies the edits in order, the way a server does.
+fn apply_changes(text: &mut String, changes: &[ContentChange]) {
+    for change in changes {
+        let Some(range) = change.range.as_ref() else {
+            *text = change.text.clone();
+            continue;
+        };
+        let pos = |key: &str| -> Option<(usize, usize)> {
+            let p = range.get(key)?;
+            Some((p.get("line")?.as_u64()? as usize, p.get("character")?.as_u64()? as usize))
+        };
+        let (Some((sl, sc)), Some((el, ec))) = (pos("start"), pos("end")) else { continue };
+        let from = offset_of(text, sl, sc);
+        let to = offset_of(text, el, ec).max(from);
+        text.replace_range(from..to, &change.text);
+    }
+}
+
+/// Edits arrive as increments; a server that syncs whole documents is handed
+/// the text rebuilt from them, so the editor never stringifies a document
+/// per keystroke for either kind.
 #[tauri::command]
 pub async fn lsp_did_change(
     app: tauri::AppHandle,
     server_id: String,
     root: String,
     path: String,
-    text: String,
+    changes: Vec<ContentChange>,
 ) -> Result<(), String> {
     blocking(move || {
         let handle = require(&app, &server_id, &root)?;
         let file = PathBuf::from(&path);
-        let version = {
+        let incremental = handle.syncs_incrementally();
+        let (version, content_changes) = {
             let mut docs = handle.open_docs.lock().map_err(|e| e.to_string())?;
-            let Some(version) = docs.get_mut(&file) else { return Ok(()) };
-            *version += 1;
-            *version
+            let Some(doc) = docs.get_mut(&file) else { return Ok(()) };
+            doc.version += 1;
+            apply_changes(&mut doc.text, &changes);
+            let payload = if incremental {
+                serde_json::to_value(&changes).map_err(|e| e.to_string())?
+            } else {
+                json!([{ "text": doc.text }])
+            };
+            (doc.version, payload)
         };
 
         handle.notify("textDocument/didChange", json!({
             "textDocument": { "uri": path_to_uri(Path::new(&path)), "version": version },
-            "contentChanges": [{ "text": text }],
+            "contentChanges": content_changes,
         }))
     })
     .await
@@ -1182,6 +1303,19 @@ mod tests {
         let locations = to_locations(&value);
         assert_eq!(locations.len(), 1);
         assert_eq!(locations[0].path, "/a/ok.rs");
+    }
+
+    #[test]
+    fn applies_incremental_edits_with_utf16_columns() {
+        let mut text = "héllo wörld\nsecond".to_string();
+        let range = |sl, sc, el, ec| json!({ "start": { "line": sl, "character": sc }, "end": { "line": el, "character": ec } });
+        apply_changes(&mut text, &[
+            ContentChange { range: Some(range(1, 0, 1, 6)), text: "2nd".into() },
+            ContentChange { range: Some(range(0, 0, 0, 5)), text: "bye".into() },
+        ]);
+        assert_eq!(text, "bye wörld\n2nd");
+        apply_changes(&mut text, &[ContentChange { range: None, text: "all".into() }]);
+        assert_eq!(text, "all");
     }
 
     #[test]

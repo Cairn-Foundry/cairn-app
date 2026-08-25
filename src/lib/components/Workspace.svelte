@@ -17,6 +17,7 @@
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
   import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '$lib/stores/command-run';
   import { globalCommands, loadCommands, projectCommands } from '$lib/stores/custom-command';
+  import { cancelPrefetch, schedulePrefetch } from '$lib/utils/files/prefetch';
   import type { CustomCommand } from '$lib/services/custom-command-service';
   import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
   import { hasPendingUpdate, openUpdateModal } from '$lib/stores/update';
@@ -443,6 +444,8 @@
         role="tab"
         tabindex="0"
         on:pointerdown={(e) => tabPointerDown(e, i)}
+        on:pointerenter={() => { if (p.id !== activeProjectId) schedulePrefetch(p.id); }}
+        on:pointerleave={cancelPrefetch}
         on:pointermove={tabPointerMove}
         on:pointerup={tabPointerUp}
         on:contextmenu={(e) => tabContextMenu(e, i)}

@@ -28,6 +28,7 @@ import {
 	type LanguageServerDef,
 	serverForPath,
 } from "$lib/utils/languages/servers";
+import { schedule } from "$lib/utils/scheduler";
 
 /** Catalogue entries with their install state, as the backend reports them. */
 const _infos = writable<LanguageServerInfo[]>([]);
@@ -98,6 +99,8 @@ let unlisten: (() => void)[] = [];
 export function initLanguageServers(): void {
 	if (unlisten.length > 0) return;
 	void listen<LspStatusEvent>("lsp-status", ({ payload }) => {
+		if (payload.status === "stopped" || payload.status === "failed")
+			forgetRoots(payload.serverId, payload.root);
 		_statuses.update((current) => ({
 			...current,
 			[statusKey(payload.serverId, payload.root)]: payload.status,
@@ -111,11 +114,14 @@ export function initLanguageServers(): void {
 		}));
 	}).then((off) => unlisten.push(off));
 
-	void listen<LspDiagnosticsEvent>("lsp-diagnostics", ({ payload }) => {
-		_diagnostics.update((current) => ({
-			...current,
-			[payload.path]: payload.diagnostics,
-		}));
+	void listen<LspDiagnosticsEvent[]>("lsp-diagnostics-batch", ({ payload }) => {
+		schedule("background", () =>
+			_diagnostics.update((current) => {
+				const next = { ...current };
+				for (const event of payload) next[event.path] = event.diagnostics;
+				return next;
+			}),
+		);
 	}).then((off) => unlisten.push(off));
 }
 
@@ -251,6 +257,20 @@ export function shouldSuggestFor(
 }
 
 const starting = new Map<string, Promise<string | null>>();
+/** `serverId:worktree:file` -> root, so activating a tab costs no IPC once the server is up. */
+const knownRoots = new Map<string, string>();
+
+function forgetRoots(serverId: string, root: string): void {
+	for (const [key, known] of knownRoots) {
+		if (known === root && key.startsWith(`${serverId}:`))
+			knownRoots.delete(key);
+	}
+}
+
+/** Drops what is known about a server that stopped answering, so the next tab restarts it. */
+export function forgetDocument(doc: LspDocRef): void {
+	forgetRoots(doc.serverId, doc.root);
+}
 
 /**
  * Lazy start: the server for this file comes up on the first file of its
@@ -266,6 +286,8 @@ export async function ensureDocument(
 
 	const setting = settingFor(def.id);
 	const key = `${def.id}:${worktree}:${absolutePath}`;
+	const known = knownRoots.get(key);
+	if (known) return { serverId: def.id, root: known, path: absolutePath };
 	let pending = starting.get(key);
 	if (!pending) {
 		pending = startLanguageServer(
@@ -280,6 +302,7 @@ export async function ensureDocument(
 	}
 
 	const root = await pending;
+	if (root) knownRoots.set(key, root);
 	return root ? { serverId: def.id, root, path: absolutePath } : null;
 }
 

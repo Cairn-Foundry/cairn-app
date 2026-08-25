@@ -18,6 +18,6 @@ pub fn get_agent_activity() -> Result<HashMap<String, String>, String> {
 
 /// Replaces the whole map: dropping a key is how a marker gets cleared.
 #[tauri::command]
-pub fn save_agent_activity(done: HashMap<String, String>) -> Result<(), String> {
+pub async fn save_agent_activity(done: HashMap<String, String>) -> Result<(), String> {
     write_json_atomic(&agent_activity_file()?, &done)
 }

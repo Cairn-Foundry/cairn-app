@@ -1,13 +1,13 @@
 //! Starting, initializing and stopping one language server process, and the
 //! LSP <-> filesystem path conversions its protocol requires.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use lsp_types::{
     ClientCapabilities, CompletionClientCapabilities, CompletionItemCapability,
     DocumentSymbolClientCapabilities, GotoCapability, HoverClientCapabilities, InitializeParams,
@@ -36,6 +36,14 @@ pub enum ServerStatus {
     Stopped,
 }
 
+/// A document the server holds open: its sync version and the text as the
+/// server knows it, kept so incremental edits can be replayed into a full
+/// text for a server that only syncs whole documents.
+pub struct OpenDoc {
+    pub version: i32,
+    pub text:    String,
+}
+
 /// A running server: its client, its process, and the workspace it indexed.
 pub struct ServerHandle {
     pub server_id:    String,
@@ -43,9 +51,12 @@ pub struct ServerHandle {
     pub command:      String,
     pub client:       Arc<LspClient>,
     pub child:        Mutex<Child>,
-    pub open_docs:    Mutex<HashMap<PathBuf, i32>>,
+    pub open_docs:    Mutex<HashMap<PathBuf, OpenDoc>>,
     pub status:       Mutex<ServerStatus>,
     pub capabilities: Mutex<Value>,
+    pub last_used:    Mutex<Instant>,
+    /// The workspace folders the process currently serves.
+    pub roots:        Mutex<HashSet<PathBuf>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -56,6 +67,9 @@ struct StatusEvent {
     status:    ServerStatus,
     message:   Option<String>,
 }
+
+static DIAGNOSTICS: crate::commands::coalesce::Coalescer<DiagnosticsEvent> =
+    crate::commands::coalesce::Coalescer::new("lsp-diagnostics-batch");
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -117,10 +131,17 @@ pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     Some(PathBuf::from(String::from_utf8(out).ok()?))
 }
 
+fn workspace_folder(root: &Path) -> Value {
+    json!({
+        "uri": path_to_uri(root),
+        "name": root.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "workspace".to_string()),
+    })
+}
+
 /// Declares the capabilities the editor actually implements. A server trims
 /// what it sends to match, so overstating this produces responses we drop.
 #[allow(deprecated)]
-fn initialize_params(root: &Path) -> Result<InitializeParams, String> {
+fn initialize_params(def: &LanguageServerDef, root: &Path) -> Result<InitializeParams, String> {
     let uri = Uri::from_str(&path_to_uri(root)).map_err(|e| e.to_string())?;
     let name = root
         .file_name()
@@ -185,6 +206,10 @@ fn initialize_params(root: &Path) -> Result<InitializeParams, String> {
             name:    "Cairn".to_string(),
             version: Some(env!("CARGO_PKG_VERSION").to_string()),
         }),
+        // typescript-language-server otherwise forks a second tsserver for
+        // syntax-only requests: one extra node process per worktree.
+        initialization_options: (def.id == "typescript")
+            .then(|| json!({ "tsserver": { "useSyntaxServer": "never" } })),
         ..Default::default()
     })
 }
@@ -241,7 +266,7 @@ pub fn start(
         }
         let Some(uri) = params.get("uri").and_then(Value::as_str) else { return };
         let Some(path) = uri_to_path(uri) else { return };
-        let _ = app_events.emit("lsp-diagnostics", DiagnosticsEvent {
+        DIAGNOSTICS.push(&app_events, DiagnosticsEvent {
             server_id:   server_id.clone(),
             root:        event_root.to_string_lossy().to_string(),
             path:        path.to_string_lossy().to_string(),
@@ -258,13 +283,15 @@ pub fn start(
         open_docs:    Mutex::new(HashMap::new()),
         status:       Mutex::new(ServerStatus::Starting),
         capabilities: Mutex::new(Value::Null),
+        last_used:    Mutex::new(Instant::now()),
+        roots:        Mutex::new(HashSet::from([root.to_path_buf()])),
     });
 
     // `Child` does not kill on drop: an `initialize` that errors or times out
     // would otherwise leave the process running with nobody holding a handle
     // to it, and rust-analyzer indexing a repository is not a quiet orphan.
     let handshake = (|| {
-        let params = serde_json::to_value(initialize_params(root)?).map_err(|e| e.to_string())?;
+        let params = serde_json::to_value(initialize_params(def, root)?).map_err(|e| e.to_string())?;
         let result = client.request("initialize", params, INITIALIZE_TIMEOUT)?;
         client.notify("initialized", json!({}))?;
         Ok::<Value, String>(result)
@@ -313,6 +340,52 @@ impl ServerHandle {
     /// Fire and forget, used for document sync.
     pub fn notify(&self, method: &str, params: Value) -> Result<(), String> {
         self.client.notify(method, params)
+    }
+
+    pub fn serves(&self, root: &Path) -> bool {
+        self.roots.lock().map(|roots| roots.contains(root)).unwrap_or(false)
+    }
+
+    /// Adds a workspace folder to a running server; false when it already had it.
+    pub fn add_root(&self, root: &Path) -> bool {
+        let added = self.roots.lock().map(|mut roots| roots.insert(root.to_path_buf())).unwrap_or(false);
+        if added {
+            let _ = self.notify("workspace/didChangeWorkspaceFolders", json!({
+                "event": { "added": [workspace_folder(root)], "removed": [] }
+            }));
+        }
+        added
+    }
+
+    /// Drops every workspace folder inside `worktree`, telling the server, and answers with what left.
+    pub fn remove_roots_under(&self, worktree: &Path) -> Vec<PathBuf> {
+        let removed: Vec<PathBuf> = self
+            .roots
+            .lock()
+            .map(|mut roots| {
+                let gone: Vec<PathBuf> = roots.iter().filter(|r| r.starts_with(worktree)).cloned().collect();
+                for r in &gone {
+                    roots.remove(r);
+                }
+                gone
+            })
+            .unwrap_or_default();
+        if !removed.is_empty() {
+            let folders: Vec<Value> = removed.iter().map(|r| workspace_folder(r)).collect();
+            let _ = self.notify("workspace/didChangeWorkspaceFolders", json!({
+                "event": { "added": [], "removed": folders }
+            }));
+        }
+        removed
+    }
+
+    /// Whether the server takes `textDocument/didChange` as ranges (kind 2) rather than whole texts.
+    pub fn syncs_incrementally(&self) -> bool {
+        let caps = self.capabilities.lock().map(|c| c.clone()).unwrap_or(Value::Null);
+        let sync = caps.get("textDocumentSync");
+        let kind = sync
+            .and_then(|s| s.as_i64().or_else(|| s.get("change").and_then(Value::as_i64)));
+        kind == Some(2)
     }
 
     /// False once the process has exited, however it exited.

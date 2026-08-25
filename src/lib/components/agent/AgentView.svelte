@@ -92,7 +92,25 @@
    * of itself in the cache. Callers that know which block they are rendering pass
    * its id, so the block keeps a single entry that its own growth overwrites.
    */
-  const markdownCache = new Map<string, { source: string; html: string }>();
+  const markdownCache = new Map<string, { source: string; html: string; headSource?: string; headHtml?: string }>();
+
+  /**
+   * A streaming block only ever grows at its end, so the paragraphs before the
+   * last blank line are parsed once and their HTML kept; only the tail is
+   * parsed again. The cut is skipped while a code fence is open across it.
+   * ponytail: a loose list split at its blank line renders as two lists while streaming
+   */
+  function renderMarkdownBlock(content: string, hit?: { source: string; headSource?: string; headHtml?: string }): string {
+    const cut = content.length > MARKDOWN_THROTTLE_BYTES ? content.lastIndexOf('\n\n') : -1;
+    if (cut <= 0 || !hit || !content.startsWith(hit.source)) return marked.parse(content, { async: false }) as string;
+    const head = content.slice(0, cut + 2);
+    if (((head.match(/```/g)?.length ?? 0) & 1) === 1) return marked.parse(content, { async: false }) as string;
+    if (hit.headSource !== head) {
+      hit.headSource = head;
+      hit.headHtml = marked.parse(head, { async: false }) as string;
+    }
+    return hit.headHtml + (marked.parse(content.slice(cut + 2), { async: false }) as string);
+  }
   const MARKDOWN_CACHE_MAX = 200;
 
   /**
@@ -121,12 +139,12 @@
     if (hit !== undefined && content.length > MARKDOWN_THROTTLE_BYTES && markdownPending.has(key)) {
       return hit.html;
     }
-    const html = marked.parse(content, { async: false }) as string;
+    const html = renderMarkdownBlock(content, hit);
     if (hit === undefined && markdownCache.size >= MARKDOWN_CACHE_MAX) {
       const oldest = markdownCache.keys().next();
       if (!oldest.done) markdownCache.delete(oldest.value);
     }
-    markdownCache.set(key, { source: content, html });
+    markdownCache.set(key, { source: content, html, headSource: hit?.headSource, headHtml: hit?.headHtml });
     if (content.length > MARKDOWN_THROTTLE_BYTES) scheduleMarkdown(key);
     return html;
   }
@@ -1158,7 +1176,7 @@
     // The composer completes from these, so they cannot wait for the Agents
     // section to be opened first.
     void loadNativeAgents();
-    unlisten = await listen<{
+    type AgentOutput = {
       line: string;
       source: string;
       summary?: string;
@@ -1167,8 +1185,9 @@
       data?: Record<string, unknown>;
       agent?: string;
       toolId?: string;
-    }>('claude-output', (e) => {
-      const { source, line, summary, runId, data, agent, toolId } = e.payload;
+    };
+    const onOutput = (payload: AgentOutput) => {
+      const { source, line, summary, runId, data, agent, toolId } = payload;
       if (!runId) return;
 
       // Routing goes through the run, never through the open conversation:
@@ -1297,6 +1316,9 @@
 
       persistRun(inst, run);
       if (isLive) autoscroll();
+    };
+    unlisten = await listen<AgentOutput[]>('claude-output-batch', (e) => {
+      for (const payload of e.payload) onOutput(payload);
     });
 
     // onDestroy runs synchronously, so a fast unmount lands before the listen

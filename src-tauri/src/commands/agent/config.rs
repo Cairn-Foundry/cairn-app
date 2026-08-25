@@ -120,7 +120,7 @@ pub fn get_ai_providers_config() -> Result<AiProvidersConfig, String> {
 
 /// Replaces the whole configuration file.
 #[tauri::command]
-pub fn save_ai_providers_config(config: AiProvidersConfig) -> Result<(), String> {
+pub async fn save_ai_providers_config(config: AiProvidersConfig) -> Result<(), String> {
     write_json_atomic(&ai_providers_file()?, &config)?;
     if let Ok(mut cache) = PROVIDERS_CACHE.write() {
         *cache = Some(config);

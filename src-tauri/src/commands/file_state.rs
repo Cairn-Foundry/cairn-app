@@ -44,7 +44,7 @@ pub fn get_file_state(project_id: String, instance_id: String) -> Result<Option<
 
 /// Called as tabs, cursor and scroll change.
 #[tauri::command]
-pub fn save_file_state(project_id: String, instance_id: String, state: FileState) -> Result<(), String> {
+pub async fn save_file_state(project_id: String, instance_id: String, state: FileState) -> Result<(), String> {
     write_file_state(&project_id, &instance_id, &state)
 }
 
