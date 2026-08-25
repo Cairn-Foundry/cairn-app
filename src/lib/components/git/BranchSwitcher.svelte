@@ -6,6 +6,7 @@
    */
   import BranchInUseModal from '$lib/components/git/BranchInUseModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { checkoutBranch, clearGitError, git, loadBranches } from '$lib/stores/git';
@@ -18,6 +19,7 @@
 
   let isOpen = false;
   let isSwitching = false;
+  let isLoadingBranches = false;
   let inUse: { branch: string; worktreePath: string; instance: Instance | null } | null = null;
   let query = '';
   let searchEl: HTMLInputElement | null = null;
@@ -38,8 +40,23 @@
     isOpen = !isOpen;
     query = '';
     if (!isOpen) return;
-    if ($activeProject?.path) void loadBranches($activeProject.path);
+    void refreshBranches();
     queueMicrotask(() => searchEl?.focus());
+  }
+
+  /**
+   * The lists come from a fetch, which is slow enough to be seen: without this
+   * the freshly opened menu reads "No branch" until the answer lands.
+   */
+  async function refreshBranches() {
+    const path = $activeProject?.path;
+    if (!path) return;
+    isLoadingBranches = true;
+    try {
+      await loadBranches(path);
+    } finally {
+      isLoadingBranches = false;
+    }
   }
 
   async function pick(branch: string, isRemote = false) {
@@ -134,7 +151,9 @@
             </button>
           {/each}
         {/if}
-        {#if matches.length === 0 && remoteMatches.length === 0}
+        {#if isLoadingBranches && matches.length === 0 && remoteMatches.length === 0}
+          <div class="branch-menu-loading"><Skeleton lines={4} height={13} gap={11}/></div>
+        {:else if matches.length === 0 && remoteMatches.length === 0}
           <div class="branch-menu-empty">{t('git.branchSwitcher.empty')}</div>
         {/if}
       </div>
@@ -224,6 +243,8 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+
+  .branch-menu-loading { padding: 5px 7px; }
 
   .branch-menu-empty {
     padding: 8px 7px;

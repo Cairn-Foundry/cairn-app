@@ -9,6 +9,7 @@
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, activeInstance } from '$lib/stores/instance';
+  import { git } from '$lib/stores/git';
   import { initTerminals } from '$lib/stores/terminal';
   import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
@@ -100,9 +101,16 @@
   }
 
   $: if (mounted && $activeProjectId) void loadProjectIntegrations($activeProjectId).catch(() => {});
+  /**
+   * The base instance carries no branch of its own, so the checked out branch is
+   * what it is watched on - same fallback as the CI/CD step. Watching on an empty
+   * ref makes the provider answer for the whole project, and its newest pipeline
+   * lands in the list as one of the branch's own.
+   */
+  $: watchedBranch = $activeInstance?.branch || $git.currentBranch;
   $: if (mounted) void syncWatchedInstance(
-    screen === 'workspace' && $activeInstance
-      ? { projectId: $activeInstance.projectId, instanceId: $activeInstance.id, branch: $activeInstance.branch }
+    screen === 'workspace' && $activeInstance && watchedBranch
+      ? { projectId: $activeInstance.projectId, instanceId: $activeInstance.id, branch: watchedBranch }
       : null,
   );
 
