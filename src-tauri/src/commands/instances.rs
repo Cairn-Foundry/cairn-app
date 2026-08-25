@@ -354,6 +354,21 @@ pub fn update_instance_ticket(id: String, project_id: String, ticket: InstanceTi
     Ok(updated.with_project(project_id))
 }
 
+/// Records the branch the instance's work is measured against. The worktree is
+/// not touched: rebasing onto the new base is the caller's move, this only keeps
+/// the diffs, the divergence counts and the merge request target in step with it.
+#[tauri::command]
+pub fn update_instance_base_branch(id: String, project_id: String, base_branch: String) -> Result<Instance, String> {
+    let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut instances = read_instances(&project_id)?;
+    let instance = instances.iter_mut().find(|i| i.id == id)
+        .ok_or_else(|| format!("Instance '{}' not found", id))?;
+    instance.base_branch = base_branch;
+    let updated = instance.clone();
+    write_instances(&project_id, &instances)?;
+    Ok(updated.with_project(project_id))
+}
+
 /// Removes the worktree directory, prunes the git worktree entry, deletes the
 /// branch, then drops the instance and its editor state. The git cleanup is
 /// best effort: a missing worktree or branch must not block the deletion.

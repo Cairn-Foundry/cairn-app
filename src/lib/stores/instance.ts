@@ -7,6 +7,7 @@ import {
 	deleteInstance,
 	duplicateInstance as duplicateInstanceService,
 	listInstances,
+	updateInstanceBaseBranch,
 	updateInstanceStatus,
 	updateInstanceTicket,
 } from "$lib/services/instance-service";
@@ -206,6 +207,18 @@ export async function setInstanceTicket(
 	ticket: InstanceTicket,
 ): Promise<void> {
 	const updated = await updateInstanceTicket(id, projectId, ticket);
+	patchProject(projectId, (list) =>
+		list.map((i) => (i.id === id ? updated : i)),
+	);
+}
+
+/** Points the instance at another base branch; the worktree itself is rebased separately. */
+export async function setInstanceBaseBranch(
+	id: string,
+	projectId: string,
+	baseBranch: string,
+): Promise<void> {
+	const updated = await updateInstanceBaseBranch(id, projectId, baseBranch);
 	patchProject(projectId, (list) =>
 		list.map((i) => (i.id === id ? updated : i)),
 	);

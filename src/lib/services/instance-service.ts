@@ -56,6 +56,18 @@ export async function updateInstanceStatus(
 	return invoke<Instance>("update_instance_status", { id, projectId, status });
 }
 
+export async function updateInstanceBaseBranch(
+	id: string,
+	projectId: string,
+	baseBranch: string,
+): Promise<Instance> {
+	return invoke<Instance>("update_instance_base_branch", {
+		id,
+		projectId,
+		baseBranch,
+	});
+}
+
 export async function updateInstanceTicket(
 	id: string,
 	projectId: string,

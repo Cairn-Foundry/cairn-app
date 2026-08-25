@@ -23,7 +23,16 @@
   let searchEl: HTMLInputElement | null = null;
 
   $: current = $git.currentBranch;
-  $: matches = $git.branches.filter((b) => b.toLowerCase().includes(query.trim().toLowerCase()));
+  $: needle = query.trim().toLowerCase();
+  $: matches = $git.branches.filter((b) => b.toLowerCase().includes(needle));
+  $: remoteMatches = $git.remoteBranches.filter(
+    (b) => b.toLowerCase().includes(needle) && !$git.branches.includes(localNameOf(b)),
+  );
+
+  /** `origin/feat/x` checks out as `feat/x`; git creates the tracking branch on the spot. */
+  function localNameOf(remote: string): string {
+    return remote.split('/').slice(1).join('/');
+  }
 
   function open() {
     isOpen = !isOpen;
@@ -33,14 +42,15 @@
     queueMicrotask(() => searchEl?.focus());
   }
 
-  async function pick(branch: string) {
+  async function pick(branch: string, isRemote = false) {
     isOpen = false;
-    if (branch === current || isSwitching) return;
+    const target = isRemote ? localNameOf(branch) : branch;
+    if (target === current || isSwitching) return;
     isSwitching = true;
     try {
-      await checkoutBranch(branch);
+      await checkoutBranch(target);
     } catch (e) {
-      showInUseOrKeepBanner(branch, e);
+      showInUseOrKeepBanner(target, e);
     } finally {
       isSwitching = false;
     }
@@ -114,9 +124,19 @@
             <Icon name="branch" size={11}/>
             <span class="branch-name">{branch}</span>
           </button>
-        {:else}
-          <div class="branch-menu-empty">{t('git.branchSwitcher.empty')}</div>
         {/each}
+        {#if remoteMatches.length > 0}
+          <div class="branch-menu-group">{t('git.remoteBranches')}</div>
+          {#each remoteMatches as branch (branch)}
+            <button class="branch-menu-item" on:click={() => pick(branch, true)}>
+              <Icon name="branch" size={11}/>
+              <span class="branch-name">{branch}</span>
+            </button>
+          {/each}
+        {/if}
+        {#if matches.length === 0 && remoteMatches.length === 0}
+          <div class="branch-menu-empty">{t('git.branchSwitcher.empty')}</div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -196,6 +216,14 @@
   }
   .branch-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .branch-menu-item.active { color: var(--accent); }
+
+  .branch-menu-group {
+    padding: 6px 7px 3px;
+    color: var(--fg-3);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
   .branch-menu-empty {
     padding: 8px 7px;

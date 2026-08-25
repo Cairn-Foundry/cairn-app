@@ -1881,6 +1881,7 @@ export const fr = {
 			"Ramène la cible dans cette branche via un commit de fusion. Conserve les deux historiques.",
 		targetBranch: "Branche cible",
 		pickStrategyAndBranch: "Choisissez une stratégie et une branche cible.",
+		setAsBaseBranch: "Définir comme nouvelle base",
 		summaryRebase: (head: string, target: string) =>
 			`Rebaser ${head} sur ${target}`,
 		summaryMerge: (target: string, head: string) =>

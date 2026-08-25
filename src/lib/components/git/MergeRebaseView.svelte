@@ -24,7 +24,7 @@
   import type { GitOpResult } from '$lib/services/git-service';
   import { readFile } from '$lib/services/file-service';
   import { activeProject } from '$lib/stores/project';
-  import { activeInstance } from '$lib/stores/instance';
+  import { activeInstance, setInstanceBaseBranch } from '$lib/stores/instance';
   import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
 
   const dispatch = createEventDispatcher<{ openFile: string; filesChanged: void }>();
@@ -66,6 +66,7 @@
   }
 
   let strategy: 'rebase' | 'merge' | null = null;
+  let setAsBase = true;
   let target: string | null = null;
   let branchQuery = '';
   let running = false;
@@ -93,15 +94,25 @@
     }
   }
 
-  /** Runs the selected strategy against the selected target branch. */
+  /**
+   * Runs the selected strategy against the selected target branch. A rebase moves
+   * where the instance's work starts, so the recorded base branch follows it -
+   * otherwise the diffs, the divergence counts and the merge request target would
+   * keep pointing at the branch it no longer sits on.
+   */
   async function run() {
     if (!strategy || !target || running) return;
     running = true;
+    const onto = target;
     try {
       const result =
         strategy === 'rebase'
-          ? await rebaseOnto(target)
-          : await mergeBranch(target);
+          ? await rebaseOnto(onto)
+          : await mergeBranch(onto);
+      if (result?.ok && strategy === 'rebase' && setAsBase && $activeInstance) {
+        await setInstanceBaseBranch($activeInstance.id, $activeInstance.projectId, onto)
+          .catch(() => {});
+      }
       afterOp(result);
       dispatch('filesChanged');
     } finally {
@@ -338,6 +349,12 @@
           {t('git.pickStrategyAndBranch')}
         {/if}
       </span>
+      {#if strategy === 'rebase' && $activeInstance && target && target !== $activeInstance.baseBranch}
+        <label class="mr-set-base">
+          <input type="checkbox" bind:checked={setAsBase} />
+          <span>{t('git.setAsBaseBranch')}</span>
+        </label>
+      {/if}
       <button class="btn primary" disabled={!canRun} on:click={run}>
         {#if running}
           <Spinner size={12} trackColor="oklch(1 0 0 / 0.3)" color="var(--accent-fg)" />
@@ -379,6 +396,22 @@
 {/if}
 
 <style>
+  .mr-set-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 4px 9px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: 999px;
+    color: var(--fg-2);
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+  .mr-set-base:hover { background: var(--bg-3); color: var(--fg-1); }
+  .mr-set-base input { width: 12px; height: 12px; margin: 0; flex: none; }
+
   .mr-root {
     display: flex;
     flex-direction: column;

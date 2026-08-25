@@ -12,6 +12,7 @@
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
   import { listBranchesDetailed } from '$lib/services/instance-service';
+  import { fetch as gitFetch } from '$lib/services/git-service';
   import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '$lib/stores/integrations';
   import { settings } from '$lib/stores/settings';
   import {
@@ -154,6 +155,7 @@
     if (!$activeProject) return;
     refreshingBranches = true;
     try {
+      await gitFetch($activeProject.path).catch(() => {});
       const { local, remote } = await listBranchesDetailed($activeProject.path);
       availableBranches = local;
       remoteBranches = remote;

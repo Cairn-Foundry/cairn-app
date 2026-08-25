@@ -52,6 +52,26 @@ function patch(key: string, changes: Partial<InstanceTicketState>): void {
 	}));
 }
 
+/**
+ * The same ticket can be linked to an instance in several projects, each under
+ * its own key. A status read here is the status everywhere, so the fresh ticket
+ * is written to every entry pointing at the same one. Matched on `url`, the only
+ * identity that holds across two projects served by different trackers. Their
+ * transitions are left stale on purpose: those depend on the project's tracker
+ * config, and each view reloads them when it needs them.
+ */
+function propagateTicket(sourceKey: string, ticket: Ticket): void {
+	if (!ticket.url) return;
+	_tickets.update((current) => {
+		const next = { ...current };
+		for (const [key, state] of Object.entries(current)) {
+			if (key === sourceKey || state.ticket?.url !== ticket.url) continue;
+			next[key] = { ...state, ticket };
+		}
+		return next;
+	});
+}
+
 export interface TicketSearchState {
 	query: TicketQuery;
 	results: Ticket[];
@@ -142,6 +162,7 @@ export async function loadTicket(
 			isRefreshing: false,
 			error: null,
 		});
+		propagateTicket(stateKey, ticket);
 	} catch (error) {
 		patch(stateKey, {
 			isLoaded: true,
@@ -181,6 +202,7 @@ export async function transitionTicket(
 			transitionId,
 		);
 		patch(stateKey, { ticket: updated, error: null });
+		propagateTicket(stateKey, updated);
 		await loadTransitions(projectId, instanceId);
 	} catch (error) {
 		patch(stateKey, { error: toIntegrationError(error) });
@@ -213,12 +235,14 @@ export function setTicket(
 	instanceId: string,
 	ticket: Ticket | null,
 ): void {
-	patch(integrationKey(projectId, instanceId), {
+	const stateKey = integrationKey(projectId, instanceId);
+	patch(stateKey, {
 		ticket,
 		transitions: [],
 		isLoaded: true,
 		error: null,
 	});
+	if (ticket) propagateTicket(stateKey, ticket);
 }
 
 export function clearTicket(projectId: string, instanceId: string): void {

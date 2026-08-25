@@ -349,7 +349,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-external { transform: translate(1.5px, -1.5px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-undo path:first-of-type { transform: translate(-2px, -1px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-undo path:last-of-type { transform: scaleX(1.08); transform-origin: right center; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-refresh { transform: rotate(180deg); transition-duration: .45s; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-refresh { transform: rotate(360deg); transition-duration: .6s; }
 
 /* --- Transport --- */
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-play { transform: translateX(2px) scale(1.08); }

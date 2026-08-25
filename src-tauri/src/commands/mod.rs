@@ -84,7 +84,7 @@ pub use git::{
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_revert_commit, git_discard_file,
 };
-pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status, update_instance_ticket};
+pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status, update_instance_ticket, update_instance_base_branch};
 pub use integrations::{
     IntegrationState, integration_kinds, list_integration_connections, save_integration_connection,
     delete_integration_connection, test_integration_connection,

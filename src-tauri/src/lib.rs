@@ -117,6 +117,7 @@ pub fn run() {
             delete_instance,
             update_instance_status,
             update_instance_ticket,
+            update_instance_base_branch,
             set_active_instance,
             get_listing,
             save_folders,

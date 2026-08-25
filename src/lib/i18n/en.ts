@@ -1843,6 +1843,7 @@ export const en = {
 			"Bring the target into this branch with a merge commit. Keeps both histories.",
 		targetBranch: "Target branch",
 		pickStrategyAndBranch: "Choose a strategy and a target branch.",
+		setAsBaseBranch: "Set as new base",
 		summaryRebase: (head: string, target: string) =>
 			`Rebase ${head} onto ${target}`,
 		summaryMerge: (target: string, head: string) =>

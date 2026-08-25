@@ -566,9 +566,15 @@ export async function getBranchDivergence(
 	return gitService.getBranchDivergence(wt, base).catch(() => null);
 }
 
-/** Loads the branch lists from the project path rather than a worktree, so every branch shows. */
+/**
+ * Loads the branch lists from the project path rather than a worktree, so every
+ * branch shows. Fetches first: remote branches are read from local refs, so a
+ * branch pushed from elsewhere is invisible until the refs are refreshed. The
+ * fetch is best-effort - offline, the stale refs are still worth listing.
+ */
 export async function loadBranches(projectPath: string): Promise<void> {
 	try {
+		await gitService.fetch(projectPath).catch(() => {});
 		const { local, remote } = await listBranchesDetailed(projectPath);
 		_git.update((s) => ({ ...s, branches: local, remoteBranches: remote }));
 	} catch {
