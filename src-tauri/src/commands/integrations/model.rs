@@ -320,6 +320,8 @@ pub struct MergeRequestDraft {
     #[serde(default)]
     pub reviewers: Vec<String>,
     #[serde(default)]
+    pub assignees: Vec<String>,
+    #[serde(default)]
     pub labels: Vec<String>,
     #[serde(default)]
     pub remove_source_branch: bool,

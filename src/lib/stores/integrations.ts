@@ -69,6 +69,16 @@ export const hasTracker = derived(capabilities, ($c) => $c.tracker !== null);
 export const hasForge = derived(capabilities, ($c) => $c.forge !== null);
 export const hasCi = derived(capabilities, ($c) => $c.ci !== null);
 
+/** The account the forge connection authenticates as, for defaulting an assignee to oneself. */
+export const forgeIdentity = derived(
+	[connections, projectBindings],
+	([$connections, $bindings]) => {
+		const id = $bindings.forge?.connectionId;
+		if (!id) return null;
+		return $connections.find((c) => c.id === id)?.identity ?? null;
+	},
+);
+
 /** Which i18n vocabulary the forge speaks: `integrations.terms.mr.*` or `.pr.*`. */
 export const forgeTerms = derived(
 	capabilities,

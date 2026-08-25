@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toGitError } from "$lib/services/git-service";
-import { describeGitError } from "./git-error";
+import { describeGitError, worktreeInUsePath } from "./git-error";
 
 describe("toGitError", () => {
 	it("passes a classified error through untouched", () => {
@@ -46,5 +46,25 @@ describe("describeGitError", () => {
 		});
 		expect(described.title).toBe("Git operation failed");
 		expect(described.raw).toBe("fatal: whatever");
+	});
+});
+
+describe("worktreeInUsePath", () => {
+	it("pulls the worktree path out of the git message", () => {
+		expect(
+			worktreeInUsePath(
+				"fatal: 'feat/PORE-3078/x' is already used by worktree at '/home/u/.cairn/worktrees/feat-x'",
+			),
+		).toBe("/home/u/.cairn/worktrees/feat-x");
+	});
+
+	it("reads the wording git2 uses as well", () => {
+		expect(
+			worktreeInUsePath("fatal: 'main' is already checked out at '/repo/wt'"),
+		).toBe("/repo/wt");
+	});
+
+	it("returns null when the message is about something else", () => {
+		expect(worktreeInUsePath("fatal: branch 'x' already exists")).toBeNull();
 	});
 });

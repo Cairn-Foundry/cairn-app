@@ -565,6 +565,9 @@ impl ForgeProvider for GitLabApi {
         if !draft.reviewers.is_empty() {
             body["reviewer_ids"] = json!(self.user_ids(&draft.reviewers).await?);
         }
+        if !draft.assignees.is_empty() {
+            body["assignee_ids"] = json!(self.user_ids(&draft.assignees).await?);
+        }
         let created = self.http.post_json(&self.project("merge_requests"), &body).await?;
         match created.get("iid").and_then(Value::as_u64) {
             Some(iid) => self.get_merge_request(iid).await,

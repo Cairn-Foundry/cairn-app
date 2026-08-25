@@ -45,6 +45,7 @@
   import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
   import TicketPanel from '$lib/components/layout/TicketPanel.svelte';
+  import BranchSwitcher from '$lib/components/git/BranchSwitcher.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
@@ -225,7 +226,76 @@
 
   const DRAG_THRESHOLD = 6;
 
+  /**
+   * Right-clicking a tab arms the reorder without holding the button down: the
+   * tab then follows the pointer and the next click drops it. Escape or another
+   * right-click puts it back.
+   */
+  let isStickyTabDrag = false;
+
+  function tabContextMenu(e: MouseEvent, index: number) {
+    e.preventDefault();
+    if (isStickyTabDrag) { cancelStickyTabDrag(); return; }
+    if ((e.target as Element).closest('button')) return;
+    dragSrcIndex = index;
+    insertIndex = index;
+    didDrag = false;
+    dragActive = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    isStickyTabDrag = true;
+    document.body.classList.add('dragging');
+    window.addEventListener('pointermove', onStickyTabMove);
+    window.addEventListener('click', onStickyTabClick, true);
+    window.addEventListener('contextmenu', onStickyTabContextMenu, true);
+    window.addEventListener('keydown', onStickyTabKeydown, true);
+  }
+
+  function stopStickyTabListeners() {
+    isStickyTabDrag = false;
+    window.removeEventListener('pointermove', onStickyTabMove);
+    window.removeEventListener('click', onStickyTabClick, true);
+    window.removeEventListener('contextmenu', onStickyTabContextMenu, true);
+    window.removeEventListener('keydown', onStickyTabKeydown, true);
+  }
+
+  function onStickyTabMove(e: PointerEvent) {
+    tabPointerMove(e);
+  }
+
+  /** Swallows the drop click, which would otherwise switch to the project underneath. */
+  function onStickyTabClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    stopStickyTabListeners();
+    tabPointerUp();
+    didDrag = false;
+  }
+
+  function onStickyTabContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStickyTabDrag();
+  }
+
+  function onStickyTabKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStickyTabDrag();
+  }
+
+  function cancelStickyTabDrag() {
+    stopStickyTabListeners();
+    dragSrcIndex = null;
+    insertIndex = null;
+    dragActive = false;
+    didDrag = false;
+    document.body.classList.remove('dragging');
+  }
+
   function tabPointerDown(e: PointerEvent, index: number) {
+    if (e.button !== 0 || isStickyTabDrag) return;
     if ((e.target as Element).closest('button')) return;
     e.preventDefault();
     dragSrcIndex = index;
@@ -307,6 +377,7 @@
     unlistenFullscreen?.();
     stopGitPolling?.();
     if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
+    if (isStickyTabDrag) cancelStickyTabDrag();
   });
 
   $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
@@ -374,6 +445,7 @@
         on:pointerdown={(e) => tabPointerDown(e, i)}
         on:pointermove={tabPointerMove}
         on:pointerup={tabPointerUp}
+        on:contextmenu={(e) => tabContextMenu(e, i)}
         on:click={() => { if (!didDrag) dispatch('projectChange', p.id); didDrag = false; }}
         on:keydown={(e) => e.key === 'Enter' && dispatch('projectChange', p.id)}
       >
@@ -473,7 +545,9 @@
         {/if}
       </div>
 
-      {#if !isBaseInstance(activeInstance.id)}
+      {#if isBaseInstance(activeInstance.id)}
+        <BranchSwitcher />
+      {:else}
         <div class="instance-title">
           <span class="ticket-name">{activeInstance.ticket.title}</span>
         </div>

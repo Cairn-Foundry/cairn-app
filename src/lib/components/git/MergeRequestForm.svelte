@@ -6,6 +6,7 @@
    */
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import ActorPicker from '$lib/components/git/ActorPicker.svelte';
   import Select from '$lib/components/Select.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
@@ -13,12 +14,8 @@
   import { git, loadBranches } from '$lib/stores/git';
   import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
   import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
-  import { forgeTerms } from '$lib/stores/integrations';
-  import {
-    createMergeRequest,
-    loadForgeLabels,
-    searchForgeMembers,
-  } from '$lib/stores/merge-request';
+  import { forgeIdentity, forgeTerms } from '$lib/stores/integrations';
+  import { createMergeRequest, loadForgeLabels } from '$lib/stores/merge-request';
   import { settings } from '$lib/stores/settings';
   import type { Actor, IntegrationError, MergeRequest } from '$lib/types/integrations';
   import { readOnlyPermissionMode, readOnlyTools, resolveAiFeature } from '$lib/utils/home/ai-features';
@@ -42,13 +39,22 @@
   let selectedTarget = targetBranch;
   let hasLinkedTicket = ticket !== null;
   let reviewers: Actor[] = [];
+  let assignees: Actor[] = [];
   let labels: string[] = [];
 
-  let reviewerQuery = '';
-  let reviewerResults: Actor[] = [];
-  let isSearchingReviewers = false;
-  let reviewerSearchTimer: ReturnType<typeof setTimeout> | null = null;
-  let hasSearchedReviewers = false;
+  /**
+   * The forge account the connection authenticates as: the merge request is
+   * assigned to whoever opens it unless that is changed here.
+   */
+  let hasDefaultedAssignee = false;
+  $: if (!hasDefaultedAssignee && $forgeIdentity) {
+    hasDefaultedAssignee = true;
+    assignees = [{
+      login: $forgeIdentity.login,
+      displayName: $forgeIdentity.displayName,
+      avatarUrl: $forgeIdentity.avatarUrl,
+    }];
+  }
 
   let availableLabels: string[] = [];
   let areLabelsLoaded = false;
@@ -87,43 +93,6 @@
       .catch(() => { availableLabels = []; })
       .finally(() => { areLabelsLoaded = true; });
   });
-
-  function scheduleReviewerSearch() {
-    if (reviewerSearchTimer) clearTimeout(reviewerSearchTimer);
-    const text = reviewerQuery.trim();
-    if (text === '') {
-      reviewerResults = [];
-      hasSearchedReviewers = false;
-      return;
-    }
-    reviewerSearchTimer = setTimeout(() => void runReviewerSearch(text), 250);
-  }
-
-  async function runReviewerSearch(text: string) {
-    isSearchingReviewers = true;
-    try {
-      const found = await searchForgeMembers(projectId, text);
-      if (reviewerQuery.trim() !== text) return;
-      reviewerResults = found.filter((a) => !reviewers.some((r) => r.login === a.login));
-      hasSearchedReviewers = true;
-    } catch {
-      reviewerResults = [];
-      hasSearchedReviewers = true;
-    } finally {
-      isSearchingReviewers = false;
-    }
-  }
-
-  function addReviewer(actor: Actor) {
-    reviewers = [...reviewers, actor];
-    reviewerResults = reviewerResults.filter((a) => a.login !== actor.login);
-    reviewerQuery = '';
-    hasSearchedReviewers = false;
-  }
-
-  function removeReviewer(login: string) {
-    reviewers = reviewers.filter((r) => r.login !== login);
-  }
 
   function toggleLabel(label: string) {
     labels = labels.includes(label) ? labels.filter((l) => l !== label) : [...labels, label];
@@ -209,6 +178,7 @@
         sourceBranch,
         targetBranch: selectedTarget,
         reviewers: reviewers.map((r) => r.login),
+        assignees: assignees.map((a) => a.login),
         labels,
         removeSourceBranch,
         isSquash,
@@ -286,48 +256,21 @@
     </div>
   </div>
 
-  <div class="form-row">
-    <label for="mr-reviewers">{t('mergeRequest.reviewers')}</label>
-    {#if reviewers.length > 0}
-      <div class="mr-chips">
-        {#each reviewers as reviewer (reviewer.login)}
-          <span class="chip active">
-            {reviewer.displayName || reviewer.login}
-            <button type="button" class="chip-x" aria-label={t('common.close') as string} on:click={() => removeReviewer(reviewer.login)}>
-              <Icon name="x" size={10}/>
-            </button>
-          </span>
-        {/each}
-      </div>
-    {/if}
-    <div class="mr-search">
-      <input
-        id="mr-reviewers"
-        type="text"
-        placeholder={t('mergeRequest.searchReviewers') as string}
-        bind:value={reviewerQuery}
-        on:input={scheduleReviewerSearch}
-        autocomplete="off"
-      />
-      {#if isSearchingReviewers}
-        <span class="mr-search-spinner"><Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)"/></span>
-      {/if}
-    </div>
-    {#if reviewerResults.length > 0}
-      <ul class="mr-results" role="listbox">
-        {#each reviewerResults as actor (actor.login)}
-          <li>
-            <button type="button" role="option" aria-selected="false" on:click={() => addReviewer(actor)}>
-              <span class="mr-result-name">{actor.displayName || actor.login}</span>
-              <span class="mr-result-login">@{actor.login}</span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {:else if hasSearchedReviewers && !isSearchingReviewers}
-      <span class="mr-hint">{t('mergeRequest.noMatch')}</span>
-    {/if}
-  </div>
+  <ActorPicker
+    id="mr-reviewers"
+    label={t('mergeRequest.reviewers') as string}
+    placeholder={t('mergeRequest.searchReviewers') as string}
+    {projectId}
+    bind:selected={reviewers}
+  />
+
+  <ActorPicker
+    id="mr-assignees"
+    label={t('mergeRequest.assignees') as string}
+    placeholder={t('mergeRequest.searchAssignees') as string}
+    {projectId}
+    bind:selected={assignees}
+  />
 
   <div class="form-row">
     <span class="mr-label">{t('mergeRequest.labels')}</span>
@@ -465,58 +408,6 @@
   }
   .label-chip { cursor: pointer; }
   .label-chip:hover { color: var(--fg-0); }
-  .chip-x {
-    display: inline-grid;
-    place-items: center;
-    padding: 0;
-    margin-left: 2px;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-  }
-  .mr-search {
-    position: relative;
-    display: flex;
-  }
-  .mr-search input { flex: 1; }
-  .mr-search-spinner {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: inline-flex;
-  }
-  .mr-results {
-    list-style: none;
-    margin: 0;
-    padding: 4px;
-    max-height: 160px;
-    overflow-y: auto;
-    border: 1px solid var(--stroke-1);
-    border-radius: var(--r-sm);
-    background: var(--bg-2);
-  }
-  .mr-results button {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 8px;
-    border: none;
-    border-radius: var(--r-sm);
-    background: transparent;
-    color: var(--fg-0);
-    font-size: 12px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .mr-results button:hover { background: var(--bg-3); }
-  .mr-result-login {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-3);
-  }
   .mr-hint {
     font-size: 11.5px;
     color: var(--fg-3);

@@ -37,3 +37,15 @@ export function describeGitError(error: GitError): DescribedGitError {
 		action: ACTIONS[code] ?? null,
 	};
 }
+
+/**
+ * Path of the worktree holding the branch, from the git message behind a
+ * `branch_in_use` failure. git quotes it, and both wordings ("is already used
+ * by worktree at", "is already checked out at") end with the same path.
+ */
+export function worktreeInUsePath(raw: string): string | null {
+	const match = raw.match(
+		/(?:is already used by worktree at|is already checked out at)\s+'([^']+)'/,
+	);
+	return match ? match[1] : null;
+}

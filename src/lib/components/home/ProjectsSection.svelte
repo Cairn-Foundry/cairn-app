@@ -4,7 +4,7 @@
    * both folders and cards (a card dropped on a folder joins it). Dispatches `openProject`,
    * `addProject`, `editProject` and `closeProject`.
    */
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import { pickGreeting, pickTagline } from '$lib/utils/home/greeting';
@@ -80,6 +80,77 @@
   let dragOverUngrouped = false;
 
   const PROJ_DRAG_THRESHOLD = 6;
+
+  /**
+   * Right-clicking a card arms the reorder without holding the button down: the
+   * card then follows the pointer and the next click drops it. Escape or another
+   * right-click puts it back.
+   */
+  let isStickyDrag = false;
+
+  function onProjCardContextMenu(e: MouseEvent, idx: number, ctx: ProjDragCtx, projectId: string) {
+    e.preventDefault();
+    if (isStickyDrag) { cancelStickyDrag(); return; }
+    if ((e.target as HTMLElement).closest('button, input')) return;
+    projDragSrcIndex   = idx;
+    projDragProjectId  = projectId;
+    projInsertIndex    = idx;
+    projDragCtx        = ctx;
+    projDragDidDrag    = false;
+    projDragActive     = true;
+    projDragStartX     = e.clientX;
+    projDragStartY     = e.clientY;
+    dragOverFolderId   = null;
+    dragOverUngrouped  = false;
+    projDragBarEl      = (e.currentTarget as HTMLElement).parentElement;
+    isStickyDrag       = true;
+    document.body.classList.add('dragging');
+    window.addEventListener('pointermove', onStickyMove);
+    window.addEventListener('click', onStickyClick, true);
+    window.addEventListener('contextmenu', onStickyContextMenu, true);
+    window.addEventListener('keydown', onStickyKeydown, true);
+  }
+
+  function stopStickyListeners() {
+    isStickyDrag = false;
+    window.removeEventListener('pointermove', onStickyMove);
+    window.removeEventListener('click', onStickyClick, true);
+    window.removeEventListener('contextmenu', onStickyContextMenu, true);
+    window.removeEventListener('keydown', onStickyKeydown, true);
+  }
+
+  function onStickyMove(e: PointerEvent) {
+    onProjCardPointerMove(e);
+  }
+
+  /** Swallows the drop click, which would otherwise open the project underneath. */
+  function onStickyClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    stopStickyListeners();
+    onProjCardPointerUp(e as unknown as PointerEvent);
+    projDragJustEnded = false;
+  }
+
+  function onStickyContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStickyDrag();
+  }
+
+  function onStickyKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStickyDrag();
+  }
+
+  function cancelStickyDrag() {
+    stopStickyListeners();
+    onProjCardPointerCancel();
+  }
+
+  onDestroy(() => { if (isStickyDrag) cancelStickyDrag(); });
 
   /** Parent directory name of a project path, shown instead of the full path. */
   function parentFolderName(path: string): string {
@@ -209,7 +280,7 @@
 
   // -- project card reorder handlers ----------------------------------------
   function onProjCardPointerDown(e: PointerEvent, idx: number, ctx: ProjDragCtx, projectId: string) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || isStickyDrag) return;
     if ((e.target as HTMLElement).closest('button, input')) return;
     e.preventDefault();
     projDragSrcIndex   = idx;
@@ -625,6 +696,7 @@
                       on:pointermove={onProjCardPointerMove}
                       on:pointerup={onProjCardPointerUp}
                       on:pointercancel={onProjCardPointerCancel}
+                      on:contextmenu={(e) => onProjCardContextMenu(e, projIdx, { type: 'folder', folderId: folder.id }, p.id)}
                       on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
                       on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
                     >
@@ -688,6 +760,7 @@
               on:pointermove={onProjCardPointerMove}
               on:pointerup={onProjCardPointerUp}
               on:pointercancel={onProjCardPointerCancel}
+              on:contextmenu={(e) => onProjCardContextMenu(e, projIdx, { type: 'ungrouped' }, p.id)}
               on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
               on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
             >

@@ -719,6 +719,11 @@ impl ForgeProvider for GitHubApi {
                 .post_json(&self.repo(&format!("pulls/{number}/requested_reviewers")), &json!({ "reviewers": draft.reviewers }))
                 .await?;
         }
+        if !draft.assignees.is_empty() {
+            self.http
+                .post_json(&self.repo(&format!("issues/{number}/assignees")), &json!({ "assignees": draft.assignees }))
+                .await?;
+        }
         if !draft.labels.is_empty() {
             self.http
                 .post_json(&self.repo(&format!("issues/{number}/labels")), &json!({ "labels": draft.labels }))

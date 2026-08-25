@@ -194,6 +194,10 @@ pub fn classify(raw: &str) -> &'static str {
         // HEAD points at a commit rather than a branch.
         return "detached_head";
     }
+    if contains_any(&s, &["is already used by worktree at", "is already checked out at"]) {
+        // The branch is checked out in another worktree, which owns it exclusively.
+        return "branch_in_use";
+    }
     if contains_all(&s, &["branch", "already exists"]) || s.contains("already exists and is not a valid") {
         // The branch name is already taken.
         return "branch_exists";
@@ -287,6 +291,10 @@ mod tests {
             "identity_missing"
         );
         assert_eq!(classify("nothing to commit, working tree clean"), "nothing_to_commit");
+        assert_eq!(
+            classify("fatal: 'feat/x' is already used by worktree at '/home/u/.cairn/worktrees/feat-x'"),
+            "branch_in_use"
+        );
         assert_eq!(
             classify("error: pathspec 'nope' did not match any file(s) known to git"),
             "ref_not_found"

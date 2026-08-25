@@ -99,6 +99,7 @@ export const GIT_ERROR_CODES = [
 	"nothing_to_commit",
 	"detached_head",
 	"branch_exists",
+	"branch_in_use",
 	"branch_not_merged",
 	"ref_not_found",
 	"no_disk_space",

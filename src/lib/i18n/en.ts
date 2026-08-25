@@ -1135,6 +1135,8 @@ export const en = {
 		markDraft: "Mark as draft",
 		reviewers: "Reviewers",
 		searchReviewers: "Search a reviewer...",
+		assignees: "Assignees",
+		searchAssignees: "Search an assignee...",
 		labels: "Labels",
 		removeSourceBranch: "Delete source branch when merged",
 		squash: "Squash commits when merged",
@@ -1647,6 +1649,19 @@ export const en = {
 	},
 
 	git: {
+		branchSwitcher: {
+			searchPlaceholder: "Filter branches",
+			empty: "No branch",
+		},
+		branchInUse: {
+			heading: "Branch in use",
+			title: (branch: string) => `${branch} is already checked out`,
+			descriptionInstance:
+				"An instance is already working on this branch. Open it to carry on there.",
+			descriptionUnknown:
+				"This branch is checked out in a worktree that matches no known instance:",
+			openInstance: "Open the instance",
+		},
 		unstagedChanges: "Unstaged changes",
 		stagedForCommit: "Staged for commit",
 		collapseAll: "Collapse all",
@@ -1938,6 +1953,10 @@ export const en = {
 				branch_exists: {
 					title: "Branch already exists",
 					hint: "Pick another name.",
+				},
+				branch_in_use: {
+					title: "Branch already in use",
+					hint: "This branch is already checked out in another worktree. Open the matching instance to work on it.",
 				},
 				branch_not_merged: {
 					title: "Branch not fully merged",

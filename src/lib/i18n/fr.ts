@@ -1158,6 +1158,8 @@ export const fr = {
 		markDraft: "Marquer comme brouillon",
 		reviewers: "Relecteurs",
 		searchReviewers: "Rechercher un relecteur...",
+		assignees: "Assignés",
+		searchAssignees: "Rechercher un assigné...",
 		labels: "Labels",
 		removeSourceBranch: "Supprimer la branche source après fusion",
 		squash: "Regrouper les commits à la fusion",
@@ -1674,6 +1676,19 @@ export const fr = {
 	},
 
 	git: {
+		branchSwitcher: {
+			searchPlaceholder: "Filtrer les branches",
+			empty: "Aucune branche",
+		},
+		branchInUse: {
+			heading: "Branche occupée",
+			title: (branch: string) => `${branch} est déjà extraite`,
+			descriptionInstance:
+				"Une instance travaille déjà sur cette branche. Ouvrez-la pour continuer dessus.",
+			descriptionUnknown:
+				"Cette branche est extraite dans un worktree qui ne correspond à aucune instance connue :",
+			openInstance: "Ouvrir l'instance",
+		},
 		unstagedChanges: "Modifications non indexées",
 		stagedForCommit: "Indexé pour le commit",
 		collapseAll: "Tout réduire",
@@ -1976,6 +1991,10 @@ export const fr = {
 				branch_exists: {
 					title: "La branche existe déjà",
 					hint: "Choisissez un autre nom.",
+				},
+				branch_in_use: {
+					title: "Branche déjà utilisée",
+					hint: "Cette branche est déjà extraite dans un autre worktree. Ouvrez l'instance correspondante pour y travailler.",
 				},
 				branch_not_merged: {
 					title: "Branche non entièrement fusionnée",

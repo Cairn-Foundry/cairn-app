@@ -123,25 +123,6 @@
     tick().then(() => { el.focus(); el.select(); });
   }
 
-  $: revealActiveInTree(activeTabPath);
-
-  /**
-   * Scrolls the row of the active tab into view. The row may be outside the
-   * rendered window, so its position comes from its index in the flattened
-   * tree rather than from the DOM.
-   */
-  function revealActiveInTree(path: string | null) {
-    if (!path || !scrollEl) return;
-    const index = flatNodes.findIndex((n) => n.node.path === path);
-    if (index < 0) return;
-    const top = index * ROW_HEIGHT;
-    const bottom = top + ROW_HEIGHT;
-    const viewTop = scrollEl.scrollTop;
-    const viewBottom = viewTop + scrollEl.clientHeight;
-    if (top < viewTop) scrollEl.scrollTop = top;
-    else if (bottom > viewBottom) scrollEl.scrollTop = bottom - scrollEl.clientHeight;
-  }
-
   /**
    * A repo with `show_ignored` on reaches tens of thousands of nodes, and one
    * DOM row each is what makes the tree crawl. The visible nodes are flattened
@@ -202,6 +183,37 @@
   $: visibleNodes = flatNodes.slice(firstVisible, lastVisible);
   $: padTop = firstVisible * ROW_HEIGHT;
   $: padBottom = Math.max(0, (flatNodes.length - lastVisible) * ROW_HEIGHT);
+
+  /**
+   * Scrolls the row of the active tab into view. The row may be outside the
+   * rendered window, so its position comes from its index in the flattened
+   * tree rather than from the DOM. The ancestors are expanded by FilesView
+   * after the tab changes, so this reruns on `flatNodes` too - on the tab
+   * change alone the row is not in the list yet.
+   */
+  $: revealActiveInTree(activeTabPath, flatNodes, scrollEl, viewportHeight);
+
+  let revealedPath: string | null = null;
+
+  function revealActiveInTree(
+    path: string | null,
+    nodes: FlatNode[],
+    el: HTMLElement | null,
+    _viewportHeight: number,
+  ) {
+    if (!path || !el) return;
+    const index = nodes.findIndex((n) => n.node.path === path);
+    if (index < 0) return;
+    const top = index * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    const viewTop = el.scrollTop;
+    const viewBottom = viewTop + el.clientHeight;
+    if (top >= viewTop && bottom <= viewBottom) { revealedPath = path; return; }
+    if (revealedPath !== path) el.scrollTop = Math.max(0, top - (el.clientHeight - ROW_HEIGHT) / 2);
+    else if (top < viewTop) el.scrollTop = top;
+    else el.scrollTop = bottom - el.clientHeight;
+    revealedPath = path;
+  }
 
   function handleEditKey(e: KeyboardEvent) {
     if (e.key === 'Enter') onCommitEdit();

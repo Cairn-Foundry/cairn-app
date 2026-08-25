@@ -187,6 +187,7 @@ export interface MergeRequestDraft {
 	sourceBranch: string;
 	targetBranch: string;
 	reviewers: string[];
+	assignees: string[];
 	labels: string[];
 	removeSourceBranch: boolean;
 	/** GitLab only: squash the commits when the merge request is merged. */
