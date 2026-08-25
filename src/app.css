@@ -3242,7 +3242,7 @@ html[data-theme="paper"] body { background: var(--bg-0); }
 html[data-theme="paper"] .os-window { background: var(--bg-0); }
 
 /* ==============================
-   Theme: glass - translucent over the desktop (macOS)
+   Theme: glass - translucent over the desktop (macOS, Linux)
    ============================== */
 html[data-theme="glass"] {
   --bg-0: oklch(0.18 0.010 265 / 0.34);

@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "Appearance: the Transparent theme is now available on Linux. The window is see-through on any compositing desktop; the blur behind it comes from the compositor (Blur my Shell on GNOME, KWin on KDE).",
+					"fr": "Apparence : le thème Transparent est désormais disponible sur Linux. La fenêtre est translucide sur tout bureau avec compositeur ; le flou derrière elle vient du compositeur (Blur my Shell sur GNOME, KWin sur KDE)."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Editor: the document now lives in the editor itself - a keystroke no longer copies the whole file into the tab, the dirty marker is a structural compare, and language servers receive incremental edits instead of the full text.",
