@@ -30,6 +30,10 @@ export default defineConfig(async () => ({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   test: vitestConfig,
 
+  optimizeDeps: {
+    include: ["@codemirror/language-data", "@codemirror/language-data > *"],
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
