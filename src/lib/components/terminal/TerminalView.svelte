@@ -122,10 +122,7 @@
   $effect(() => {
     void splitRatio;
     void isSplit;
-    requestAnimationFrame(() => {
-      if (activeTid) manager.refit(activeTid);
-      if (splitTid) manager.refit(splitTid);
-    });
+    onResize();
   });
 
   $effect(() => {

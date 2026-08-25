@@ -3,6 +3,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 import { osDropPoint } from "$lib/utils/files/files-editor-drop";
 import { IS_MAC } from "$lib/utils/platform";
@@ -211,6 +212,22 @@ function enqueueWrite(id: string, data: string): void {
 	});
 }
 
+/**
+ * The DOM renderer repaints every cell as an element and cannot keep up with a
+ * verbose build. WebGL is loaded on top of it and takes over; if the context is
+ * lost (GPU reset, driver hiccup) the addon disposes itself and xterm silently
+ * falls back to the DOM renderer, so there is nothing to rebuild.
+ */
+function loadRenderer(term: Terminal): void {
+	try {
+		const webgl = new WebglAddon();
+		webgl.onContextLoss(() => webgl.dispose());
+		term.loadAddon(webgl);
+	} catch {
+		// No WebGL in this webview; the DOM renderer stays in place.
+	}
+}
+
 /** Builds a terminal and wires its I/O; does nothing if `id` already exists. */
 export function create(id: string): void {
 	if (managed.has(id)) return;
@@ -219,7 +236,7 @@ export function create(id: string): void {
 		fontFamily: cssFontVar("--font-mono", FALLBACK_FONT),
 		fontSize: 12.5,
 		cursorBlink: true,
-		scrollback: 5000,
+		scrollback: 2000,
 		allowProposedApi: true,
 		theme: buildTheme(),
 	});
@@ -261,18 +278,28 @@ export function attach(id: string, slot: HTMLElement): void {
 	if (moved) slot.replaceChildren(m.el);
 	if (!m.opened) {
 		m.term.open(m.el);
+		loadRenderer(m.term);
 		m.opened = true;
 	}
-	requestAnimationFrame(() => {
-		refit(id);
-		if (moved) m.term.focus();
-	});
+	refit(id);
+	if (moved) requestAnimationFrame(() => m.term.focus());
 }
 
-/** Recomputes rows and columns from the current slot size. */
+const pendingRefits = new Set<string>();
+let refitFrame = 0;
+
+/** Recomputes rows and columns from the current slot size, once per frame. */
 export function refit(id: string): void {
-	const m = managed.get(id);
-	if (m) refitTerminal(m);
+	pendingRefits.add(id);
+	if (refitFrame) return;
+	refitFrame = requestAnimationFrame(() => {
+		refitFrame = 0;
+		for (const pending of pendingRefits) {
+			const m = managed.get(pending);
+			if (m) refitTerminal(m);
+		}
+		pendingRefits.clear();
+	});
 }
 
 /** Gives the terminal keyboard focus. */
@@ -293,5 +320,6 @@ export function dispose(id: string): void {
 	m.term.dispose();
 	m.el.remove();
 	managed.delete(id);
+	pendingRefits.delete(id);
 	writeQueues.delete(id);
 }

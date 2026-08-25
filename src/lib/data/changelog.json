@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Terminal: output is now drawn on the GPU, which keeps a verbose command readable instead of stalling the pane, and resizing the window no longer refits on every pixel.",
+					"fr": "Terminal : la sortie est désormais dessinée par le GPU, ce qui garde une commande verbeuse lisible au lieu de bloquer le panneau, et le redimensionnement de la fenêtre ne réajuste plus à chaque pixel."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Finalize instance: the merge request target branch can be chosen from every branch of the project, instead of always being the base branch.",
