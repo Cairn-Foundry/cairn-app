@@ -9,31 +9,24 @@ default:
     key:
       files:
         - bun.lock
-        - package.json
-      prefix: bun-v2
     paths:
       - node_modules/
-    policy: pull
+    policy: pull-push
 
 # ─── Test ─────────────────────────────────────────────────────────────────────
 
 typecheck:
   stage: test
-  cache:
-    key:
-      files:
-        - bun.lock
-        - package.json
-      prefix: bun-v2
-    paths:
-      - node_modules/
-    policy: pull-push
   script:
     - bun install --frozen-lockfile
     - bun run check
 
 unit:
   stage: test
+  # The shared node_modules cache is restored instead of installed, and the
+  # tree it carries makes rolldown's dep optimizer fail to resolve node:module.
+  # A real install takes seconds here and is the only thing that reproduces green.
+  cache: []
   script:
     - bun install --frozen-lockfile
     - bunx svelte-kit sync
