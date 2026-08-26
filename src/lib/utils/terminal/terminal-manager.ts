@@ -317,6 +317,7 @@ function wake(id: string, m: ManagedTerminal): void {
 	m.fit = fit;
 	m.serialize = serialize;
 	term.open(m.el);
+	refitTerminal(m);
 	if (m.frozen) {
 		term.write(m.frozen);
 		m.frozen = "";

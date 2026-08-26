@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "Terminal: coming back to a project no longer leaves broken rows of wrapped text behind. The restored screen is measured against the real width before being replayed.",
+					"fr": "Terminal : revenir sur un projet ne laisse plus de lignes cassées de texte replié. L'écran restauré est mesuré à la largeur réelle avant d'être rejoué."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Appearance: the Transparent theme is now available on Linux. The window is see-through on any compositing desktop; the blur behind it comes from the compositor (Blur my Shell on GNOME, KWin on KDE).",

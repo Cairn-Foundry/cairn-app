@@ -141,7 +141,10 @@ fn clone_dependency_dirs(repo: &Repository, source: &Path, target: &Path) {
         if !same_volume(&from, target) {
             continue;
         }
-        let status = clone_command(&from, &to).status();
+        let status = clone_command(&from, &to)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
         if !matches!(status, Ok(s) if s.success()) {
             let _ = fs::remove_dir_all(&to);
         }
