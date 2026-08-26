@@ -109,6 +109,15 @@ describe("loadPaneBase", () => {
 		expect(state.baseContent).toBe("head text");
 	});
 
+	it("keeps the baseline when the ignore check fails", async () => {
+		vi.mocked(gitService.checkIgnore).mockRejectedValueOnce(
+			new Error("check-ignore failed"),
+		);
+		vi.mocked(gitService.getFileInIndex).mockResolvedValueOnce("head text");
+		const state = await loadPaneBase("/wt", "file.ts", undefined);
+		expect(state.baseContent).toBe("head text");
+	});
+
 	it("handles gitBlame failure gracefully", async () => {
 		vi.mocked(fileService.gitBlame).mockRejectedValueOnce(
 			new Error("blame failed"),

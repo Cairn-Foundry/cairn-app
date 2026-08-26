@@ -121,7 +121,6 @@ export function gitStatusIndex(
 		const normalized = normalizeGitStatus(status);
 		if (!normalized || normalized === "deleted") continue;
 		const idx = GIT_STATUS_PRIORITY.indexOf(normalized);
-		if (idx === -1) continue;
 		let dir = parentPathOf(path);
 		while (dir) {
 			const current = best.get(dir);
@@ -151,7 +150,7 @@ export function breadcrumbSegments(
 /** Directories reflect their expanded state; files are typed by extension. */
 export function fileIcon(node: FileNode, expanded: Set<string>): string {
 	if (node.isDir) return expanded.has(node.path) ? "folder-open" : "folder";
-	const ext = node.name.split(".").pop()?.toLowerCase() ?? "";
+	const ext = (node.name.split(".").pop() as string).toLowerCase();
 	if (["ts", "tsx", "js", "jsx"].includes(ext)) return "file-code";
 	if (["json", "yaml", "yml", "toml"].includes(ext)) return "file-code";
 	return "file";
@@ -195,7 +194,7 @@ export function parentPathOf(path: string): string {
 
 /** The last segment of a path. */
 export function basename(path: string): string {
-	return path.split("/").pop() ?? path;
+	return path.split("/").pop() as string;
 }
 
 /**

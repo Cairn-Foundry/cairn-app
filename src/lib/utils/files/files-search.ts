@@ -24,7 +24,7 @@ export function splitSearchTerms(q: string): string[] {
  * which rejects the path outright.
  */
 function scoreTerm(lPath: string, term: string): number {
-	const filename = lPath.split("/").pop() ?? lPath;
+	const filename = lPath.split("/").pop() as string;
 
 	if (filename.startsWith(term)) return 100;
 	if (filename.includes(term)) return 80;

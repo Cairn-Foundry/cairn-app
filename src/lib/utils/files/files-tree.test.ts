@@ -223,6 +223,15 @@ describe("resolveDestName", () => {
 		expect(name).toBe("a.ts");
 	});
 
+	it("treats an unknown target dir as having no siblings", () => {
+		expect(resolveDestName(tree, "src/index.ts", "nope")).toBe("index.ts");
+	});
+
+	it("treats a childless target dir as having no siblings", () => {
+		const childless: FileNode = { name: "empty", path: "empty", isDir: true };
+		expect(resolveDestName([childless], "a.ts", "empty")).toBe("a.ts");
+	});
+
 	it("uses root-level siblings when targetDir is empty", () => {
 		// moving to root: siblings are src and README.md
 		const name = resolveDestName(tree, "other/src", "");

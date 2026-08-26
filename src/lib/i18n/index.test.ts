@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { getLocale, setLocale, t } from "./index";
+import { getGreetingPools, getLocale, setLocale, t } from "./index";
 
 const reloadMock = vi.fn();
 
@@ -34,6 +34,29 @@ describe("t", () => {
 	});
 });
 
+describe("t", () => {
+	it("falls back to the key itself and logs when the key is unknown", () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		expect(t("nope.missing" as Parameters<typeof t>[0])).toBe("nope.missing");
+		expect(spy).toHaveBeenCalledOnce();
+		spy.mockRestore();
+	});
+});
+
+describe("getGreetingPools", () => {
+	it("returns the English pools by default", () => {
+		const pools = getGreetingPools();
+		expect(pools.morning.length).toBeGreaterThan(0);
+		expect(pools.splashes.length).toBeGreaterThan(0);
+	});
+
+	it("returns the French pools when French is stored", () => {
+		const english = getGreetingPools();
+		localStorage.setItem("cairn:locale", "fr");
+		expect(getGreetingPools()).not.toEqual(english);
+	});
+});
+
 describe("getLocale", () => {
 	it("returns the default locale when nothing is stored", () => {
 		expect(getLocale()).toBe("en");
@@ -47,6 +70,17 @@ describe("getLocale", () => {
 	it("falls back to default for unknown stored value", () => {
 		localStorage.setItem("cairn:locale", "xx");
 		expect(getLocale()).toBe("en");
+	});
+});
+
+describe("without localStorage", () => {
+	it("falls back to the default locale and still reloads", () => {
+		vi.stubGlobal("localStorage", undefined);
+		expect(getLocale()).toBe("en");
+		setLocale("fr");
+		expect(reloadMock).toHaveBeenCalledOnce();
+		vi.unstubAllGlobals();
+		vi.stubGlobal("location", { ...window.location, reload: reloadMock });
 	});
 });
 
