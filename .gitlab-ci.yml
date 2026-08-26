@@ -9,14 +9,25 @@ default:
     key:
       files:
         - bun.lock
+        - package.json
+      prefix: bun-v2
     paths:
       - node_modules/
-    policy: pull-push
+    policy: pull
 
 # ─── Test ─────────────────────────────────────────────────────────────────────
 
 typecheck:
   stage: test
+  cache:
+    key:
+      files:
+        - bun.lock
+        - package.json
+      prefix: bun-v2
+    paths:
+      - node_modules/
+    policy: pull-push
   script:
     - bun install --frozen-lockfile
     - bun run check
@@ -24,7 +35,6 @@ typecheck:
 unit:
   stage: test
   script:
-    - rm -rf node_modules/.vite .svelte-kit
     - bun install --frozen-lockfile
     - bunx svelte-kit sync
     - bun run test:coverage
