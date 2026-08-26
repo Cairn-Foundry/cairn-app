@@ -7,6 +7,7 @@ import {
 	getUsageEntries,
 	type UsageEntry,
 } from "$lib/services/usage-service";
+import { reportPersistError } from "$lib/utils/persist-error";
 
 /** The token ledger, kept sorted by timestamp. Written only through recordUsage(). */
 export const usageEntries = writable<UsageEntry[]>([]);
@@ -54,7 +55,7 @@ export function recordUsage(entry: UsageEntry): void {
 			: [...list, entry].sort((a, b) => a.ts - b.ts),
 	);
 	pending.push(entry);
-	void flush();
+	flush().catch((e) => reportPersistError("the usage ledger", e));
 }
 
 /** Recovers the turns already on disk that the ledger never saw. */
