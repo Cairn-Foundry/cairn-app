@@ -25,14 +25,20 @@ const vitestConfig = {
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [sveltekit()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   test: vitestConfig,
 
-  optimizeDeps: {
-    include: ["@codemirror/language-data", "@codemirror/language-data > *"],
-  },
+  optimizeDeps:
+    command === "serve"
+      ? {
+          include: [
+            "@codemirror/language-data",
+            "@codemirror/language-data > *",
+          ],
+        }
+      : undefined,
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
