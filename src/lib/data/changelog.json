@@ -10,6 +10,34 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "The line history panel no longer closes on the very click that opens it.",
+					"fr": "Le panneau d'historique de ligne ne se referme plus sur le clic même qui l'ouvre."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Git: an error message now stays on screen instead of being wiped by the next background refresh.",
+					"fr": "Git : un message d'erreur reste maintenant affiché au lieu d'être effacé par le rafraîchissement suivant en arrière-plan."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "New instance: clearing the branch name no longer snaps it back to the generated default. The field only follows the ticket until you edit it yourself.",
+					"fr": "Nouvelle instance : effacer le nom de branche ne le fait plus revenir au modèle généré. Le champ ne suit le ticket que tant que vous ne l'avez pas modifié vous-même."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Markdown: mermaid diagrams now render inline in the editor. A mermaid code block is drawn as the diagram itself, and shows its parse error when the source is invalid.",
+					"fr": "Markdown : les diagrammes mermaid s'affichent désormais directement dans l'éditeur. Un bloc de code mermaid est dessiné comme le diagramme lui-même, et affiche son erreur d'analyse quand la source est invalide."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "Terminal: coming back to a project no longer leaves broken rows of wrapped text behind. The restored screen is measured against the real width before being replayed.",
 					"fr": "Terminal : revenir sur un projet ne laisse plus de lignes cassées de texte replié. L'écran restauré est mesuré à la largeur réelle avant d'être rejoué."
 				}

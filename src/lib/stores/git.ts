@@ -236,8 +236,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			diffs !== null &&
 			JSON.stringify(diffs) !==
 				JSON.stringify([current.unstagedDiffs, current.stagedDiffs]);
-		if (!snap && !diffsChanged && !bump && !current.isLoading)
-			return;
+		if (!snap && !diffsChanged && !bump && !current.isLoading) return;
 		_git.update((s) => ({
 			...s,
 			...(snap

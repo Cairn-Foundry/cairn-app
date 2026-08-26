@@ -132,6 +132,26 @@ describe("collectBlockRanges", () => {
 		expect(collectBlockRanges(state)).toHaveLength(0);
 	});
 
+	it("replaces a mermaid block whole, with only its body as source", () => {
+		const doc = "```mermaid\ngraph TD;\n  A-->B;\n```\n";
+		const state = stateOf(doc);
+		const ranges = collectBlockRanges(state);
+
+		expect(ranges).toHaveLength(1);
+		expect(state.doc.sliceString(ranges[0].from, ranges[0].to)).toBe(
+			"```mermaid\ngraph TD;\n  A-->B;\n```",
+		);
+		expect(ranges[0].value.spec.widget.source).toBe("graph TD;\n  A-->B;\n");
+	});
+
+	it("falls back to a plain fence for an empty mermaid block", () => {
+		const state = stateOf("```mermaid\n```\n");
+		const ranges = collectBlockRanges(state);
+
+		expect(ranges).toHaveLength(2);
+		expect(ranges[0].value.spec.widget.source).toBeUndefined();
+	});
+
 	it("hides only the opening fence when the block is never closed", () => {
 		const state = EditorState.create({
 			doc: "intro\n\n```\nloose\n",

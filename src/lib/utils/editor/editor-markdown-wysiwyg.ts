@@ -16,6 +16,7 @@ import {
 } from "@codemirror/view";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { parentPathOf } from "$lib/utils/files/files-tree";
+import { renderMermaid } from "./mermaid";
 
 // Markdown rendered inline in the editor: headings, emphasis, links, rules,
 // bullets, task boxes, images and tables are decorated and their markup hidden.
@@ -331,6 +332,31 @@ class ImageWidget extends WidgetType {
 			other.image.width === this.image.width &&
 			other.image.height === this.image.height
 		);
+	}
+}
+
+class MermaidWidget extends WidgetType {
+	constructor(readonly source: string) {
+		super();
+	}
+
+	toDOM(): HTMLElement {
+		const el = document.createElement("div");
+		el.className = "cm-md-mermaid";
+		void renderMermaid(el, this.source);
+		return el;
+	}
+
+	eq(other: MermaidWidget): boolean {
+		return other.source === this.source;
+	}
+
+	get estimatedHeight(): number {
+		return 120;
+	}
+
+	ignoreEvent(): boolean {
+		return false;
 	}
 }
 
@@ -688,6 +714,21 @@ export function collectBlockRanges(state: EditorState): Range<Decoration>[] {
 				const info = node.node.getChild("CodeInfo");
 				const language = info ? doc.sliceString(info.from, info.to) : "";
 
+				if (language.trim().toLowerCase() === "mermaid") {
+					const body = doc
+						.sliceString(openLine.to, closeLine.from)
+						.replace(/^\n/, "");
+					if (body.trim()) {
+						ranges.push(
+							Decoration.replace({
+								widget: new MermaidWidget(body),
+								block: true,
+							}).range(node.from, node.to),
+						);
+						return false;
+					}
+				}
+
 				ranges.push(
 					Decoration.replace({
 						widget: new CodeFenceWidget(language),
@@ -868,6 +909,22 @@ const wysiwygTheme = EditorView.theme({
 		alignItems: "center",
 		minHeight: "0",
 		background: "var(--bg-2)",
+	},
+	".cm-md-mermaid": {
+		display: "flex",
+		justifyContent: "center",
+		padding: "12px",
+		background: "var(--bg-2)",
+		borderRadius: "6px",
+		overflowX: "auto",
+	},
+	".cm-md-mermaid svg": { maxWidth: "100%", height: "auto" },
+	".cm-md-mermaid-error": {
+		justifyContent: "flex-start",
+		whiteSpace: "pre-wrap",
+		fontFamily: "monospace",
+		fontSize: "11px",
+		color: "var(--danger, #e5534b)",
 	},
 	".cm-md-fence-lang": {
 		padding: "0 8px",
