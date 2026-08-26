@@ -10,6 +10,20 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "Glass theme: menus and dropdowns are now opaque enough to read, instead of letting the content behind them show through.",
+					"fr": "Thème verre : les menus et listes déroulantes sont désormais assez opaques pour être lisibles, au lieu de laisser transparaître le contenu situé derrière."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Glass theme on Linux and Windows: a stronger blur and a denser tint make up for the native vibrancy layer that only macOS provides.",
+					"fr": "Thème verre sous Linux et Windows : un flou plus marqué et une teinte plus dense compensent la couche de vibrance native que seul macOS fournit."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "The line history panel no longer closes on the very click that opens it.",
 					"fr": "Le panneau d'historique de ligne ne se referme plus sur le clic même qui l'ouvre."
 				}
