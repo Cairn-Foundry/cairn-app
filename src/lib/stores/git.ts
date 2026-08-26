@@ -236,7 +236,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			diffs !== null &&
 			JSON.stringify(diffs) !==
 				JSON.stringify([current.unstagedDiffs, current.stagedDiffs]);
-		if (!snap && !diffsChanged && !bump && !current.isLoading && !current.error)
+		if (!snap && !diffsChanged && !bump && !current.isLoading)
 			return;
 		_git.update((s) => ({
 			...s,
@@ -256,7 +256,6 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			unstagedDiffs: diffsChanged && diffs ? diffs[0] : s.unstagedDiffs,
 			stagedDiffs: diffsChanged && diffs ? diffs[1] : s.stagedDiffs,
 			isLoading: false,
-			error: null,
 		}));
 	} catch (e) {
 		_git.update((s) => ({

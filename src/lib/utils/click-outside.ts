@@ -17,7 +17,9 @@ export const clickOutside: Action<
 	(() => void) | ClickOutsideOptions
 > = (node, callback) => {
 	let opts = normalize(callback);
+	const armedAt = performance.now();
 	const handler = (e: PointerEvent) => {
+		if (e.timeStamp <= armedAt) return;
 		const target = e.target as Element | null;
 		if (node.contains(target)) return;
 		if (opts.exclude && target?.closest(opts.exclude)) return;

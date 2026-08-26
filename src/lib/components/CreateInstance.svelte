@@ -215,7 +215,7 @@
     const generated = selectedTicket
       ? renderBranchTemplate($settings.branchTemplate, { key: selectedTicket.key, slug, kind: selectedTicket.kind })
       : `feat/${slug}`;
-    if (!branchName || branchName === prevSlug) branchName = generated;
+    if (branchName === prevSlug) branchName = generated;
     prevSlug = generated;
   }
 
