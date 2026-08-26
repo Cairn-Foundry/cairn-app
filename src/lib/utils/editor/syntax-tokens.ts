@@ -107,5 +107,9 @@ export function normalizeSyntaxTokens(
 export function isSyntaxTheme(value: unknown): value is SyntaxTheme {
 	if (!value || typeof value !== "object") return false;
 	const theme = value as SyntaxTheme;
-	return typeof theme.name === "string" && typeof theme.tokens === "object";
+	return (
+		typeof theme.name === "string" &&
+		typeof theme.tokens === "object" &&
+		theme.tokens !== null
+	);
 }

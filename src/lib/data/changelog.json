@@ -10,6 +10,13 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "Importing a syntax theme file whose tokens are empty no longer passes the format check and leaves the editor without colours.",
+          "fr": "L'import d'un fichier de thème de coloration dont les tokens sont vides ne passe plus la validation de format et ne laisse plus l'éditeur sans couleurs."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "Sizes, durations, counts and amounts no longer display as \"NaN\" when the underlying value is missing or corrupted; they fall back to zero.",
           "fr": "Les tailles, durées, décomptes et montants ne s'affichent plus en « NaN » quand la valeur sous-jacente est absente ou corrompue ; ils retombent à zéro."
         }

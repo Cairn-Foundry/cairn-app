@@ -4,6 +4,9 @@
  * only while the tick still has budget, so a tree index or a persistence write
  * never lands in the frame the user is typing in.
  * ponytail: budget is measured from the tick, not from the frame start; a rAF-anchored budget if profiling shows background work still stealing paint time
+ * ponytail: yielding restarts the drain, which re-reads `start`, so each task
+ * gets a fresh BUDGET_MS instead of sharing one tick's worth; carry the
+ * deadline across drains if background work ever needs a real cap
  */
 type Queue = "input" | "visible" | "background";
 
