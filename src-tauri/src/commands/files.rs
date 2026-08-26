@@ -2,7 +2,7 @@
 //! fuzzy path search, content search, and the read/write/rename primitives.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use grep_matcher::Matcher;
@@ -12,7 +12,7 @@ use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher as NucleoMatcher};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 const SEARCH_RESULT_CAP: usize = 2000;
 
@@ -209,13 +209,72 @@ pub async fn quick_search(
     Ok(matches.into_iter().map(|(hit, _)| hit.clone()).collect())
 }
 
+/// The tree as one string plus one parent index per entry, in display order:
+/// a fraction of the nested JSON, and the webview rebuilds the hierarchy in a
+/// single pass. Directories carry a trailing separator in `names`.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FlatTree {
+    pub names:   String,
+    pub parents: Vec<i32>,
+    pub sep:     String,
+}
+
+fn flatten_tree(nodes: &[FileNode]) -> FlatTree {
+    fn walk(nodes: &[FileNode], parent: i32, names: &mut String, parents: &mut Vec<i32>) {
+        for node in nodes {
+            if !names.is_empty() {
+                names.push('\n');
+            }
+            names.push_str(&node.name);
+            if node.is_dir {
+                names.push('/');
+            }
+            parents.push(parent);
+            let index = parents.len() as i32 - 1;
+            if let Some(children) = &node.children {
+                walk(children, index, names, parents);
+            }
+        }
+    }
+    let mut names = String::new();
+    let mut parents = Vec::new();
+    walk(nodes, -1, &mut names, &mut parents);
+    FlatTree { names, parents, sep: std::path::MAIN_SEPARATOR.to_string() }
+}
+
+fn tree_cache_path(root: &Path, show_ignored: bool) -> Result<PathBuf, String> {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    root.hash(&mut hasher);
+    Ok(crate::storage::cairn_dir()?
+        .join("tree-cache")
+        .join(format!("{:016x}-{}.json", hasher.finish(), u8::from(show_ignored))))
+}
+
 #[tauri::command]
-/// Full recursive tree of the directory.
-pub async fn read_dir_tree(path: String, show_ignored: bool) -> Result<Vec<FileNode>, String> {
+/// Full recursive tree of the directory. The result is also written to the
+/// tree cache, so the next launch paints it before any walk.
+pub async fn read_dir_tree(path: String, show_ignored: bool) -> Result<FlatTree, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let root = PathBuf::from(&expanded);
     if !root.exists() { return Err(format!("Path does not exist: {}", path)); }
-    Ok(build_gitignore_tree(&root, show_ignored))
+    let flat = flatten_tree(&build_gitignore_tree(&root, show_ignored));
+    if let Ok(cache) = tree_cache_path(&root, show_ignored) {
+        let snapshot = flat.clone();
+        std::thread::spawn(move || {
+            let _ = crate::storage::write_json_atomic(&cache, &snapshot);
+        });
+    }
+    Ok(flat)
+}
+
+#[tauri::command]
+/// The last tree walked for this directory, from disk; `None` when never walked.
+pub async fn read_dir_tree_cached(path: String, show_ignored: bool) -> Result<Option<FlatTree>, String> {
+    let expanded = shellexpand::tilde(&path).into_owned();
+    let cache = tree_cache_path(&PathBuf::from(&expanded), show_ignored)?;
+    let Ok(text) = fs::read_to_string(&cache) else { return Ok(None) };
+    Ok(serde_json::from_str(&text).ok())
 }
 
 #[tauri::command]
@@ -238,27 +297,7 @@ pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
 /// Past this, a file is not something the editor can usefully hold: the bytes cross
 /// the IPC boundary as JSON and land in the webview heap whole. A stray build artifact
 /// left untracked in a worktree would otherwise freeze the window on its own.
-const MAX_TEXT_FILE_BYTES: u64 = 10 * 1024 * 1024;
-
-#[tauri::command]
-/// File contents, or `None` when the bytes are not valid UTF-8 (binary).
-pub async fn read_file(path: String) -> Result<Option<String>, String> {
-    let expanded = shellexpand::tilde(&path).into_owned();
-    let p = PathBuf::from(&expanded);
-    if !p.exists() { return Err(format!("File not found: {}", path)); }
-
-    let meta = fs::metadata(&p).map_err(|e| e.to_string())?;
-    if meta.len() > MAX_TEXT_FILE_BYTES {
-        return Err(format!("File too large to open: {} bytes", meta.len()));
-    }
-
-    // Return None for binary files
-    let bytes = fs::read(&p).map_err(|e| e.to_string())?;
-    match String::from_utf8(bytes) {
-        Ok(text) => Ok(Some(text)),
-        Err(_) => Ok(None), // binary
-    }
-}
+pub const MAX_TEXT_FILE_BYTES: u64 = 10 * 1024 * 1024;
 
 #[tauri::command]
 /// Last-modified time in milliseconds for each path; a path that cannot be

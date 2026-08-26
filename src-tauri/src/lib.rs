@@ -57,14 +57,19 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .register_asynchronous_uri_scheme_protocol("cairn", |_ctx, request, responder| {
+            std::thread::spawn(move || responder.respond(commands::file_protocol::respond(&request)));
+        })
         .manage(AgentState::new())
         .manage(TerminalState::new())
         .manage(TestState::new())
         .manage(LspState::new())
+        .manage(commands::WatchState::default())
         .manage(QuickSearchCache::default())
         .manage(IntegrationState::default())
         .manage(PendingCliPaths::from_args())
-        .setup(|_app| {
+        .setup(|app| {
+            commands::lsp::spawn_idle_reaper(app.handle().clone());
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};
@@ -125,7 +130,6 @@ pub fn run() {
             read_dir_tree,
             quick_search,
             list_dir_names,
-            read_file,
         file_mtimes,
             read_file_preview,
             read_file_base64,
@@ -189,6 +193,10 @@ pub fn run() {
             git_stash_push,
             git_stash_pop,
             git_stash_apply,
+            git_snapshot,
+            read_dir_tree_cached,
+            watch_worktree,
+            unwatch_worktree,
             git_stash_drop,
             git_stash_show,
             git_stash_clear,

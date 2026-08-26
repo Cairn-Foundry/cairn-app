@@ -3242,15 +3242,15 @@ html[data-theme="paper"] body { background: var(--bg-0); }
 html[data-theme="paper"] .os-window { background: var(--bg-0); }
 
 /* ==============================
-   Theme: glass - translucent over the desktop (macOS)
+   Theme: glass - translucent over the desktop (macOS, Linux)
    ============================== */
 html[data-theme="glass"] {
   --bg-0: oklch(0.18 0.010 265 / 0.34);
   --bg-1: oklch(0.22 0.011 265 / 0.44);
-  --bg-2: oklch(0.26 0.012 265 / 0.52);
-  --bg-3: oklch(0.32 0.013 265 / 0.60);
-  --bg-4: oklch(0.38 0.014 265 / 0.68);
-  --bg-5: oklch(0.44 0.015 265 / 0.74);
+  --bg-2: oklch(0.24 0.012 265 / 0.94);
+  --bg-3: oklch(0.28 0.013 265 / 0.96);
+  --bg-4: oklch(0.33 0.014 265 / 0.97);
+  --bg-5: oklch(0.39 0.015 265 / 0.98);
 
   --fg-0: oklch(0.985 0.004 265);
   --fg-1: oklch(0.905 0.006 265);
@@ -3288,6 +3288,19 @@ html[data-theme="glass"] .os-window {
   background: var(--bg-0);
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+/*
+ * Only macOS puts a native vibrancy layer behind the webview; everywhere else
+ * the sole blur is the CSS one above, so the window reads far more see-through.
+ * Compensate with a heavier blur and a denser base tint off macOS.
+ */
+html[data-theme="glass"]:not([data-os="macos"]) {
+  --bg-0: oklch(0.18 0.010 265 / 0.72);
+  --bg-1: oklch(0.22 0.011 265 / 0.80);
+}
+html[data-theme="glass"]:not([data-os="macos"]) .os-window {
+  backdrop-filter: blur(60px) saturate(160%);
+  -webkit-backdrop-filter: blur(60px) saturate(160%);
 }
 
 /*

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as fileService from "../../../lib/services/file-service";
 import * as fileStateService from "../../../lib/services/file-state-service";
+import { docFromString } from "./document-model";
 import {
 	type InstanceTabState,
 	loadEditorState,
@@ -71,8 +72,8 @@ describe("saveEditorState", () => {
 					tabs: [
 						{
 							path: "a.ts",
-							content: "on disk",
-							pending: "edited",
+							doc: docFromString("edited"),
+							savedDoc: docFromString("on disk"),
 							cursorPos: 12,
 							scrollTop: 40,
 							pinned: true,
@@ -154,8 +155,8 @@ describe("rehydrateFromPersisted", () => {
 			"/wt",
 			statePersisting(["a.ts"], 0),
 		);
-		expect(result.panes[0].tabs[0].content).toBe("hello");
-		expect(result.panes[0].tabs[0].pending).toBe("hello");
+		expect(result.panes[0].tabs[0].savedDoc.toString()).toBe("hello");
+		expect(result.panes[0].tabs[0].doc).toBe(result.panes[0].tabs[0].savedDoc);
 	});
 
 	it("normalizes CRLF content and records the original line endings", async () => {
@@ -165,7 +166,7 @@ describe("rehydrateFromPersisted", () => {
 			statePersisting(["a.ts"], 0),
 		);
 		expect(result.panes[0].tabs[0].lineEndings).toBe("CRLF");
-		expect(result.panes[0].tabs[0].content).toBe("a\nb");
+		expect(result.panes[0].tabs[0].savedDoc.toString()).toBe("a\nb");
 	});
 
 	it("opens a binary tab empty without reading it", async () => {
@@ -174,7 +175,7 @@ describe("rehydrateFromPersisted", () => {
 			"/wt",
 			statePersisting(["a.png"], 0),
 		);
-		expect(result.panes[0].tabs[0].content).toBe("");
+		expect(result.panes[0].tabs[0].savedDoc.toString()).toBe("");
 		expect(fileService.readFile).not.toHaveBeenCalled();
 	});
 

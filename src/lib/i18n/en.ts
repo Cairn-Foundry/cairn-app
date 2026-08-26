@@ -1653,6 +1653,13 @@ export const en = {
 			searchPlaceholder: "Filter branches",
 			empty: "No branch",
 		},
+		dirtyWorktree: {
+			heading: "Uncommitted changes",
+			title: (branch: string) => `Cannot switch to ${branch}`,
+			description:
+				"The current branch has uncommitted changes that would be lost by the switch. Stash them, or commit them from the Git view, then try again.",
+			stashAndSwitch: "Stash and switch",
+		},
 		branchInUse: {
 			heading: "Branch in use",
 			title: (branch: string) => `${branch} is already checked out`,

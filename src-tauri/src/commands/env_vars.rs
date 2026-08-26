@@ -111,7 +111,7 @@ pub fn get_global_env() -> Result<EnvFile, String> {
 
 /// Replaces the global scope.
 #[tauri::command]
-pub fn save_global_env(state: EnvFile) -> Result<(), String> {
+pub async fn save_global_env(state: EnvFile) -> Result<(), String> {
     write_json_atomic(&global_env_file()?, &state)
 }
 
@@ -123,7 +123,7 @@ pub fn get_project_env(project_id: String) -> Result<EnvFile, String> {
 
 /// Replaces the project scope.
 #[tauri::command]
-pub fn save_project_env(project_id: String, state: EnvFile) -> Result<(), String> {
+pub async fn save_project_env(project_id: String, state: EnvFile) -> Result<(), String> {
     write_json_atomic(&project_env_file(&project_id)?, &state)
 }
 
@@ -135,7 +135,7 @@ pub fn get_instance_env(project_id: String, instance_id: String) -> Result<EnvFi
 
 /// Replaces the instance scope.
 #[tauri::command]
-pub fn save_instance_env(
+pub async fn save_instance_env(
     project_id: String,
     instance_id: String,
     state: EnvFile,

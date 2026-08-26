@@ -5,6 +5,9 @@
 //! list them in a single `generate_handler!`.
 
 pub mod agent;
+pub mod coalesce;
+pub mod file_protocol;
+pub mod fs_watch;
 pub mod agent_activity;
 pub mod agent_runs;
 pub mod cli;
@@ -64,7 +67,7 @@ pub use formatting::{
     uninstall_manager_for_formatter, update_manager_for_formatter,
 };
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
-pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files};
+pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
 pub use git::{
     list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
     git_diff_unstaged, git_diff_staged, git_diff_file, git_blame_file, git_file_at_head, git_file_in_index,
@@ -82,8 +85,7 @@ pub use git::{
     git_diff_files_between, git_diff_file_between, git_commit_exists,
     git_stash_list, git_stash_push, git_stash_pop, git_stash_apply,
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
-    git_revert_commit, git_discard_file,
-};
+    git_revert_commit, git_discard_file, git_snapshot};
 pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status, update_instance_ticket, update_instance_base_branch};
 pub use integrations::{
     IntegrationState, integration_kinds, list_integration_connections, save_integration_connection,
@@ -127,3 +129,4 @@ pub use tests::{TestState, has_cargo_nextest, run_tests, stop_tests};
 pub use tests::state::{get_test_state, save_test_state};
 pub use ui_state::{get_ui_state, save_ui_state};
 pub use usage::{get_usage_entries, append_usage_entries, backfill_usage_entries, clear_usage_entries};
+pub use fs_watch::{watch_worktree, unwatch_worktree, WatchState};

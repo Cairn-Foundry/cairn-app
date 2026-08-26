@@ -367,7 +367,7 @@ pub fn get_terminal_state(project_id: String, instance_id: String) -> Result<Opt
 
 /// Persists the tab layout only; the PTYs themselves die with the app.
 #[tauri::command]
-pub fn save_terminal_state(project_id: String, instance_id: String, state: TerminalLayout) -> Result<(), String> {
+pub async fn save_terminal_state(project_id: String, instance_id: String, state: TerminalLayout) -> Result<(), String> {
     write_json_atomic(&instance_terminal_state_file(&project_id, &instance_id)?, &state)
 }
 
@@ -401,6 +401,6 @@ pub fn get_project_terminal_state(project_id: String) -> Result<Option<ProjectTe
 
 /// Persists the shared tab list only.
 #[tauri::command]
-pub fn save_project_terminal_state(project_id: String, state: ProjectTerminalLayout) -> Result<(), String> {
+pub async fn save_project_terminal_state(project_id: String, state: ProjectTerminalLayout) -> Result<(), String> {
     write_json_atomic(&project_terminal_state_file(&project_id)?, &state)
 }

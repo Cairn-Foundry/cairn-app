@@ -74,7 +74,7 @@ pub fn get_project_commands(project_id: String) -> Result<CommandsFile, String> 
 
 /// Replaces the project's whole command list.
 #[tauri::command]
-pub fn save_project_commands(project_id: String, state: CommandsFile) -> Result<(), String> {
+pub async fn save_project_commands(project_id: String, state: CommandsFile) -> Result<(), String> {
     write_json_atomic(&project_commands_file(&project_id)?, &state)
 }
 
@@ -86,7 +86,7 @@ pub fn get_global_commands() -> Result<CommandsFile, String> {
 
 /// Replaces the global command list.
 #[tauri::command]
-pub fn save_global_commands(state: CommandsFile) -> Result<(), String> {
+pub async fn save_global_commands(state: CommandsFile) -> Result<(), String> {
     write_json_atomic(&global_commands_file()?, &state)
 }
 
@@ -101,7 +101,7 @@ pub fn get_command_state(project_id: String, instance_id: String) -> Result<Inst
 
 /// Records the port allocation after a command starts.
 #[tauri::command]
-pub fn save_command_state(
+pub async fn save_command_state(
     project_id: String,
     instance_id: String,
     state: InstanceCommandState,

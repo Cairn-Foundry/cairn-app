@@ -54,17 +54,26 @@ function loadLocale(): Locale {
 	return DEFAULT_LOCALE;
 }
 
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-	return path.split(".").reduce((acc: unknown, key) => {
-		if (acc === undefined || acc === null) return undefined;
-		return (acc as Record<string, unknown>)[key];
-	}, obj);
+type Leaf = string | ((...args: never[]) => string);
+
+/** Flattened once: t() runs thousands of times per frame in templates. */
+function flatten(
+	obj: Record<string, unknown>,
+	prefix = "",
+): Record<string, Leaf> {
+	const out: Record<string, Leaf> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		const path = prefix ? `${prefix}.${key}` : key;
+		if (value && typeof value === "object")
+			Object.assign(out, flatten(value as Record<string, unknown>, path));
+		else out[path] = value as Leaf;
+	}
+	return out;
 }
 
-const currentDict = dictionaries[loadLocale()] as unknown as Record<
-	string,
-	unknown
->;
+const currentDict = flatten(
+	dictionaries[loadLocale()] as unknown as Record<string, unknown>,
+);
 
 // --- Locale metadata ---
 export const LOCALE_META: Record<
@@ -79,12 +88,12 @@ export const LOCALE_META: Record<
 export function t(
 	key: TranslationKey,
 ): string | ((...args: never[]) => string) {
-	const value = getNestedValue(currentDict, key);
+	const value = currentDict[key];
 	if (value === undefined) {
 		console.error(`[i18n] Missing translation key: "${key}"`);
 		return key as string;
 	}
-	return value as string | ((...args: never[]) => string);
+	return value;
 }
 
 export function getLocale(): Locale {

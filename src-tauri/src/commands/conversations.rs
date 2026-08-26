@@ -114,7 +114,7 @@ pub fn get_conversation_index(
 
 /// Replaces the whole index of the scope.
 #[tauri::command]
-pub fn save_conversation_index(
+pub async fn save_conversation_index(
     project_id: String,
     instance_id: Option<String>,
     index: ConversationIndex,
@@ -137,7 +137,7 @@ pub fn get_conversation_body(
 
 /// A streaming answer rewrites this one file, never the whole scope.
 #[tauri::command]
-pub fn save_conversation_body(
+pub async fn save_conversation_body(
     project_id: String,
     instance_id: Option<String>,
     conversation_id: String,

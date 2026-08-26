@@ -2,6 +2,7 @@
 // the editor sends once one is running.
 
 import { invoke } from "@tauri-apps/api/core";
+import type { LspContentChange } from "$lib/utils/files/document-model";
 
 /** Lifecycle of one server on one root. */
 export type LanguageServerStatus = "starting" | "ready" | "failed" | "stopped";
@@ -263,9 +264,12 @@ export function lspDidOpen(
 	return invoke("lsp_did_open", { ...doc, languageId, text });
 }
 
-/** Sends the whole new text, not an incremental change. */
-export function lspDidChange(doc: LspDocRef, text: string): Promise<void> {
-	return invoke("lsp_did_change", { ...doc, text });
+/** Incremental edits, in the order the server must apply them; a change without a range replaces the whole text. */
+export function lspDidChange(
+	doc: LspDocRef,
+	changes: LspContentChange[],
+): Promise<void> {
+	return invoke("lsp_did_change", { ...doc, changes });
 }
 
 /** Signals a save, which is what some servers wait for before rechecking. */

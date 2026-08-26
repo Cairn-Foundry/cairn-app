@@ -21,6 +21,16 @@ const stageFile = vi.hoisted(() => vi.fn());
 
 vi.mock("$lib/services/git-service", () => ({
 	getStatusFull,
+	getSnapshot: (() => {
+		let version = 0;
+		return async (worktreePath: string) => ({
+			version: ++version,
+			status: await getStatusFull(worktreePath),
+			currentBranch: "main",
+			remoteStatus: null,
+			operationState: null,
+		});
+	})(),
 	stageFile,
 	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),

@@ -105,7 +105,7 @@ fn trim_history(runs: Vec<AgentRun>) -> Vec<AgentRun> {
 }
 
 #[tauri::command]
-pub fn save_agent_runs(project_id: String, runs: Vec<AgentRun>) -> Result<(), String> {
+pub async fn save_agent_runs(project_id: String, runs: Vec<AgentRun>) -> Result<(), String> {
     write_json_atomic(&project_agent_runs_file(&project_id)?, &trim_history(runs))
 }
 

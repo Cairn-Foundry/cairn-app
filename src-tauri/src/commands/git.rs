@@ -478,6 +478,62 @@ pub async fn git_status_full(worktree_path: String) -> Result<GitStatusFull, Git
     })
 }
 
+/// Everything the status poll needs, in one round trip. Branch and upstream
+/// counts come from git2 without a process; the status itself still goes
+/// through porcelain so its codes stay exactly what parse_status expects.
+/// `version` hashes the content: a caller passing the version it already
+/// holds gets `None` back when nothing changed, and parses nothing.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitSnapshot {
+    pub version:         u64,
+    pub status:          GitStatusFull,
+    pub current_branch:  String,
+    pub remote_status:   RemoteStatus,
+    pub operation_state: GitOperationState,
+}
+
+fn head_branch_git2(expanded: &str) -> Option<String> {
+    let repo = git2::Repository::open(expanded).ok()?;
+    let head = repo.find_reference("HEAD").ok()?;
+    let target = head.symbolic_target().ok().flatten()?;
+    Some(target.strip_prefix("refs/heads/").unwrap_or(target).to_string())
+}
+
+fn remote_status_git2(expanded: &str) -> RemoteStatus {
+    let none = RemoteStatus { ahead: 0, behind: 0, remote: String::new(), has_upstream: false };
+    let Ok(repo) = git2::Repository::open(expanded) else { return none };
+    let Ok(head) = repo.head() else { return none };
+    if !head.is_branch() {
+        return none;
+    }
+    let branch = git2::Branch::wrap(head);
+    let Ok(upstream) = branch.upstream() else { return none };
+    let remote = upstream.name().ok().flatten().unwrap_or("").to_string();
+    let (Some(local), Some(up)) = (branch.get().target(), upstream.get().target()) else { return none };
+    match repo.graph_ahead_behind(local, up) {
+        Ok((ahead, behind)) => RemoteStatus { ahead, behind, remote, has_upstream: true },
+        Err(_) => none,
+    }
+}
+
+#[tauri::command]
+pub async fn git_snapshot(worktree_path: String, known_version: u64) -> Result<Option<GitSnapshot>, GitError> {
+    let expanded = expand(&worktree_path);
+    let status = git_status_full(worktree_path.clone()).await?;
+    let mut snapshot = GitSnapshot {
+        version:         0,
+        current_branch:  if status.is_git_repo { head_branch_git2(&expanded).unwrap_or_default() } else { String::new() },
+        remote_status:   if status.is_git_repo { remote_status_git2(&expanded) } else { remote_status_git2("") },
+        operation_state: git_operation_state(worktree_path).await?,
+        status,
+    };
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&serde_json::to_string(&snapshot).unwrap_or_default(), &mut hasher);
+    snapshot.version = std::hash::Hasher::finish(&hasher);
+    Ok((snapshot.version != known_version).then_some(snapshot))
+}
+
 #[tauri::command]
 /// Subset of the given paths that git ignores.
 pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Result<Vec<String>, GitError> {

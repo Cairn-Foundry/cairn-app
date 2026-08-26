@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 pub mod config;
 pub mod platform;
@@ -150,6 +150,10 @@ struct AgentOutputEvent {
     tool_id:     Option<String>,
 }
 
+/// Every agent event leaves through this queue, one `claude-output-batch` per frame.
+static AGENT_OUTPUT: super::coalesce::Coalescer<AgentOutputEvent> =
+    super::coalesce::Coalescer::new("claude-output-batch");
+
 /// A line of text attributed to the main thread of the run.
 pub fn emit_agent(
     app: &tauri::AppHandle,
@@ -171,7 +175,7 @@ pub fn emit_agent_for(
     run_id: Option<String>,
     agent: Option<String>,
 ) {
-    let _ = app.emit("claude-output", AgentOutputEvent {
+    AGENT_OUTPUT.push(app, AgentOutputEvent {
         line,
         source: source.to_string(),
         summary: None,
@@ -205,7 +209,7 @@ pub fn emit_agent_tool_for(
     agent: Option<String>,
     tool_id: Option<String>,
 ) {
-    let _ = app.emit("claude-output", AgentOutputEvent {
+    AGENT_OUTPUT.push(app, AgentOutputEvent {
         line:    label,
         source:  "tool".to_string(),
         summary: Some(tool.to_string()),
@@ -237,7 +241,7 @@ pub fn emit_agent_data_for(
     run_id: Option<String>,
     agent: Option<String>,
 ) {
-    let _ = app.emit("claude-output", AgentOutputEvent {
+    AGENT_OUTPUT.push(app, AgentOutputEvent {
         line: String::new(),
         source: source.to_string(),
         summary: None,

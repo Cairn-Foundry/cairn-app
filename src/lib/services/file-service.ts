@@ -1,7 +1,8 @@
 // Filesystem access for the editor: tree, read and write, search, and the git
 // views built by shelling out to `git` rather than by a dedicated Rust command.
 
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { dedupeInflight } from "./inflight";
 
 /** One entry of the file tree; `children` is only filled for expanded directories. */
 export interface FileNode {
@@ -11,12 +12,56 @@ export interface FileNode {
 	children?: FileNode[];
 }
 
-/** One directory level, gitignored entries excluded unless `showIgnored`. */
+/** The tree as the backend ships it: one string of names, one parent index per entry. */
+export interface FlatTree {
+	names: string;
+	parents: number[];
+	sep: string;
+}
+
+/** Rebuilds the nested tree in one pass; the backend already sorted it for display. */
+export function inflateTree(flat: FlatTree): FileNode[] {
+	const names = flat.names === "" ? [] : flat.names.split("\n");
+	const nodes: FileNode[] = new Array(names.length);
+	const roots: FileNode[] = [];
+	for (let i = 0; i < names.length; i++) {
+		const raw = names[i];
+		const isDir = raw.endsWith("/");
+		const name = isDir ? raw.slice(0, -1) : raw;
+		const parent = flat.parents[i] >= 0 ? nodes[flat.parents[i]] : null;
+		const node: FileNode = {
+			name,
+			path: parent ? `${parent.path}${flat.sep}${name}` : name,
+			isDir,
+			...(isDir ? { children: [] } : {}),
+		};
+		nodes[i] = node;
+		if (parent) parent.children?.push(node);
+		else roots.push(node);
+	}
+	return roots;
+}
+
+/** Whole tree of a worktree, gitignored entries excluded unless `showIgnored`. */
 export async function readDirTree(
 	path: string,
 	showIgnored = false,
 ): Promise<FileNode[]> {
-	return invoke<FileNode[]>("read_dir_tree", { path, showIgnored });
+	return dedupeInflight(`tree:${path}:${showIgnored}`, async () =>
+		inflateTree(await invoke<FlatTree>("read_dir_tree", { path, showIgnored })),
+	);
+}
+
+/** What the last walk of this directory found, from the disk cache; null when it was never walked. */
+export async function readDirTreeCached(
+	path: string,
+	showIgnored = false,
+): Promise<FileNode[] | null> {
+	const flat = await invoke<FlatTree | null>("read_dir_tree_cached", {
+		path,
+		showIgnored,
+	});
+	return flat ? inflateTree(flat) : null;
 }
 
 /** Bare entry names of one directory, without the tree walk. */
@@ -51,8 +96,45 @@ export async function quickSearch(
 }
 
 /** Text content of a file, or null when it is not valid UTF-8. */
+/**
+ * Files come through the `cairn://` protocol as raw bytes with an ETag: a
+ * file already held here is answered with a 304 and costs the backend a stat.
+ */
+const FILE_CACHE_MAX = 64;
+const fileCache = new Map<string, { etag: string; text: string | null }>();
+
 export async function readFile(path: string): Promise<string | null> {
-	return invoke<string | null>("read_file", { path });
+	return dedupeInflight(`read:${path}`, async () => {
+		const known = fileCache.get(path);
+		const response = await fetch(convertFileSrc(path, "cairn"), {
+			headers: known ? { "If-None-Match": known.etag } : {},
+		});
+		if (response.status === 304 && known) {
+			fileCache.delete(path);
+			fileCache.set(path, known);
+			return known.text;
+		}
+		if (!response.ok) throw await response.text();
+		const bytes = await response.arrayBuffer();
+		let text: string | null;
+		try {
+			text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+				bytes,
+			);
+		} catch {
+			text = null;
+		}
+		const etag = response.headers.get("etag") ?? "";
+		if (etag) {
+			fileCache.delete(path);
+			fileCache.set(path, { etag, text });
+			for (const oldest of fileCache.keys()) {
+				if (fileCache.size <= FILE_CACHE_MAX) break;
+				fileCache.delete(oldest);
+			}
+		}
+		return text;
+	});
 }
 
 /** Last-modified time in milliseconds per path; a missing file has no entry. */
@@ -167,7 +249,9 @@ export async function searchInFiles(
 
 /** Status of every changed file, for the badges in the file tree. */
 export async function gitStatus(worktreePath: string): Promise<GitStatusMap> {
-	return invoke<GitStatusMap>("git_status", { worktreePath });
+	return dedupeInflight(`status:${worktreePath}`, () =>
+		invoke<GitStatusMap>("git_status", { worktreePath }),
+	);
 }
 
 /** How a line is marked in the editor gutter. */

@@ -141,14 +141,14 @@ export async function runOneShot(
 
 		// The listener has to be live before the run is spawned, or a fast
 		// provider answers into a void and the promise never settles.
-		void listen<{
+		type Output = {
 			source: string;
 			line: string;
 			runId?: string;
 			data?: Record<string, unknown>;
 			agent?: string;
-		}>("claude-output", (e) => {
-			const payload = e.payload;
+		};
+		const onOutput = (payload: Output) => {
 			if (payload.runId !== runId) return;
 			// Text produced inside a subagent is that thread's reasoning, not the
 			// answer: only what the main thread says is the result.
@@ -169,6 +169,9 @@ export async function runOneShot(
 				if (text === "") fail(new AiAssistError("runFailed"));
 				else finish(text);
 			}
+		};
+		void listen<Output[]>("claude-output-batch", (e) => {
+			for (const payload of e.payload) onOutput(payload);
 		})
 			.then((fn) => {
 				if (settled) {

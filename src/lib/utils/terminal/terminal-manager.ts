@@ -2,6 +2,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { FitAddon } from "@xterm/addon-fit";
+import { SerializeAddon } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
@@ -13,16 +14,26 @@ import {
 	writeToTerminal,
 } from "$lib/services/terminal-service";
 
-// The xterm instances, kept alive outside the component tree so a terminal
-// survives switching view: the DOM node is moved into a slot, never rebuilt.
+// The terminals, kept outside the component tree so one survives switching
+// view. Only a terminal on screen holds an xterm instance: the others are
+// hibernated as a serialized screen, and whatever the PTY prints meanwhile is
+// kept as raw text and replayed on the next attach - no VT parsing, no DOM
+// and no GPU context for something nobody is looking at.
 
-/** One live terminal and the element it renders into. */
+/** One terminal: live (`term`) when attached, otherwise `frozen` holds its state. */
 interface ManagedTerminal {
-	term: Terminal;
-	fit: FitAddon;
+	term: Terminal | null;
+	fit: FitAddon | null;
+	serialize: SerializeAddon | null;
 	el: HTMLDivElement;
-	opened: boolean;
+	webgl: WebglAddon | null;
+	frozen: string;
+	cols: number;
+	rows: number;
 }
+
+/** What a hibernated terminal keeps of its output: the newest bytes, up to this many. */
+const FROZEN_MAX = 1_000_000;
 
 const managed = new Map<string, ManagedTerminal>();
 
@@ -64,7 +75,7 @@ function buildTheme() {
 
 /** Refits to the slot; a terminal in a hidden view has no size to fit to. */
 function refitTerminal(m: ManagedTerminal): void {
-	if (!m.opened) return;
+	if (!m.fit) return;
 	try {
 		m.fit.fit();
 	} catch {
@@ -77,6 +88,7 @@ function applyTheme(): void {
 	const theme = buildTheme();
 	const fontFamily = cssFontVar("--font-mono", FALLBACK_FONT);
 	for (const m of managed.values()) {
+		if (!m.term) continue;
 		m.term.options.theme = theme;
 		if (m.term.options.fontFamily !== fontFamily) {
 			m.term.options.fontFamily = fontFamily;
@@ -155,7 +167,7 @@ export function onTerminalExit(
 
 const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	listen<{ id: string; data: string }>("terminal-output", (e) => {
-		managed.get(e.payload.id)?.term.write(e.payload.data);
+		write(e.payload.id, e.payload.data);
 	}),
 	listen<TerminalExit>("terminal-exit", (e) => {
 		const { exitCode } = e.payload;
@@ -163,7 +175,7 @@ const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 			exitCode === null || exitCode === 0
 				? "[process exited]"
 				: `[process exited with code ${exitCode}]`;
-		managed.get(e.payload.id)?.term.write(`\r\n\x1b[2m${label}\x1b[0m\r\n`);
+		write(e.payload.id, `\r\n\x1b[2m${label}\x1b[0m\r\n`);
 		for (const handler of exitHandlers) handler(e.payload);
 	}),
 ]);
@@ -188,7 +200,7 @@ if (typeof window !== "undefined") {
 			const r = m.el.getBoundingClientRect();
 			if (r.width === 0 || r.height === 0) continue;
 			if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-				m.term.focus();
+				m.term?.focus();
 				void writeToTerminal(id, paths.map(quotePath).join(" "));
 				return;
 			}
@@ -217,21 +229,62 @@ function enqueueWrite(id: string, data: string): void {
  * verbose build. WebGL is loaded on top of it and takes over; if the context is
  * lost (GPU reset, driver hiccup) the addon disposes itself and xterm silently
  * falls back to the DOM renderer, so there is nothing to rebuild.
+ *
+ * Only terminals on screen hold a context: WebKit caps active contexts at
+ * about sixteen and evicts the oldest, which used to hit exactly the hidden
+ * terminals still scrolling in the background.
  */
-function loadRenderer(term: Terminal): void {
+function loadRenderer(m: ManagedTerminal): void {
+	if (m.webgl || !m.term) return;
 	try {
 		const webgl = new WebglAddon();
-		webgl.onContextLoss(() => webgl.dispose());
-		term.loadAddon(webgl);
+		webgl.onContextLoss(() => {
+			webgl.dispose();
+			if (m.webgl === webgl) m.webgl = null;
+		});
+		m.term.loadAddon(webgl);
+		m.webgl = webgl;
 	} catch {
 		// No WebGL in this webview; the DOM renderer stays in place.
 	}
 }
 
-/** Builds a terminal and wires its I/O; does nothing if `id` already exists. */
+function unloadRenderer(m: ManagedTerminal): void {
+	m.webgl?.dispose();
+	m.webgl = null;
+}
+
+/** Writes PTY output to the live instance, or keeps it for the next attach. */
+function write(id: string, data: string): void {
+	const m = managed.get(id);
+	if (!m) return;
+	if (m.term) {
+		m.term.write(data);
+		return;
+	}
+	m.frozen += data;
+	if (m.frozen.length > FROZEN_MAX) m.frozen = m.frozen.slice(-FROZEN_MAX);
+}
+
+/** Registers a terminal; its xterm instance is only built on the first attach. */
 export function create(id: string): void {
 	if (managed.has(id)) return;
+	const el = document.createElement("div");
+	el.className = "terminal-host";
+	managed.set(id, {
+		term: null,
+		fit: null,
+		serialize: null,
+		el,
+		webgl: null,
+		frozen: "",
+		cols: 80,
+		rows: 24,
+	});
+}
 
+/** Builds the xterm instance of a terminal and wires its I/O. */
+function wake(id: string, m: ManagedTerminal): void {
 	const term = new Terminal({
 		fontFamily: cssFontVar("--font-mono", FALLBACK_FONT),
 		fontSize: 12.5,
@@ -246,9 +299,8 @@ export function create(id: string): void {
 	const unicode11 = new Unicode11Addon();
 	term.loadAddon(unicode11);
 	term.unicode.activeVersion = "11";
-
-	const el = document.createElement("div");
-	el.className = "terminal-host";
+	const serialize = new SerializeAddon();
+	term.loadAddon(serialize);
 
 	term.attachCustomKeyEventHandler((e) => handleClipboardKey(term, e));
 
@@ -256,10 +308,20 @@ export function create(id: string): void {
 		enqueueWrite(id, data);
 	});
 	term.onResize(({ cols, rows }) => {
+		m.cols = cols;
+		m.rows = rows;
 		void resizeTerminal(id, cols, rows);
 	});
 
-	managed.set(id, { term, fit, el, opened: false });
+	m.term = term;
+	m.fit = fit;
+	m.serialize = serialize;
+	term.open(m.el);
+	refitTerminal(m);
+	if (m.frozen) {
+		term.write(m.frozen);
+		m.frozen = "";
+	}
 }
 
 /**
@@ -276,13 +338,23 @@ export function attach(id: string, slot: HTMLElement): void {
 	if (!m) return;
 	const moved = slot.firstChild !== m.el;
 	if (moved) slot.replaceChildren(m.el);
-	if (!m.opened) {
-		m.term.open(m.el);
-		loadRenderer(m.term);
-		m.opened = true;
-	}
+	if (!m.term) wake(id, m);
+	loadRenderer(m);
 	refit(id);
-	if (moved) requestAnimationFrame(() => m.term.focus());
+	if (moved) requestAnimationFrame(() => m.term?.focus());
+}
+
+/** Hibernates a terminal that left the screen: its screen and scrollback become a string, the instance goes. */
+export function detach(id: string): void {
+	const m = managed.get(id);
+	if (!m?.term) return;
+	unloadRenderer(m);
+	m.frozen = (m.serialize?.serialize({ scrollback: 2000 }) ?? "") + m.frozen;
+	m.term.dispose();
+	m.term = null;
+	m.fit = null;
+	m.serialize = null;
+	m.el.replaceChildren();
 }
 
 const pendingRefits = new Set<string>();
@@ -304,20 +376,20 @@ export function refit(id: string): void {
 
 /** Gives the terminal keyboard focus. */
 export function focus(id: string): void {
-	managed.get(id)?.term.focus();
+	managed.get(id)?.term?.focus();
 }
 
 /** Current dimensions, falling back to 80x24 for an unknown id. */
 export function size(id: string): { cols: number; rows: number } {
 	const m = managed.get(id);
-	return m ? { cols: m.term.cols, rows: m.term.rows } : { cols: 80, rows: 24 };
+	return m ? { cols: m.cols, rows: m.rows } : { cols: 80, rows: 24 };
 }
 
 /** Tears the terminal down and forgets it. */
 export function dispose(id: string): void {
 	const m = managed.get(id);
 	if (!m) return;
-	m.term.dispose();
+	m.term?.dispose();
 	m.el.remove();
 	managed.delete(id);
 	pendingRefits.delete(id);

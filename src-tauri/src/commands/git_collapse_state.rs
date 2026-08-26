@@ -37,6 +37,6 @@ pub fn get_git_collapse_state(project_id: String, instance_id: String) -> Result
 
 /// Called on every fold or unfold in the git view.
 #[tauri::command]
-pub fn save_git_collapse_state(project_id: String, instance_id: String, state: GitCollapseState) -> Result<(), String> {
+pub async fn save_git_collapse_state(project_id: String, instance_id: String, state: GitCollapseState) -> Result<(), String> {
     write_git_collapse_state(&project_id, &instance_id, &state)
 }

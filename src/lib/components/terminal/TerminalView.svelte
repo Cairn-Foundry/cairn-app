@@ -105,12 +105,16 @@
     if (!$terminalActive || !slotEl) return;
     if (activeTid) manager.attach(activeTid, slotEl);
     else slotEl.replaceChildren();
+    const tid = activeTid;
+    return () => { if (tid) manager.detach(tid); };
   });
 
   $effect(() => {
     if (!$terminalActive || !splitSlotEl) return;
     if (splitTid) manager.attach(splitTid, splitSlotEl);
     else splitSlotEl.replaceChildren();
+    const tid = splitTid;
+    return () => { if (tid) manager.detach(tid); };
   });
 
   $effect(() => {

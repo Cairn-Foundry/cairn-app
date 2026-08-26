@@ -35,6 +35,8 @@ type GitState = {
 	 * from the status alone that its base is stale - it watches this instead.
 	 */
 	indexVersion: number;
+	/** Hash of the last snapshot read, handed back so an unchanged poll answers with nothing. */
+	snapshotVersion: number;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
@@ -65,6 +67,7 @@ const INITIAL: GitState = {
 	status: {},
 	statusWorktree: null,
 	indexVersion: 0,
+	snapshotVersion: 0,
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	changedPaths: { staged: [], unstaged: [] },
@@ -182,35 +185,34 @@ export function setDiffsWanted(wanted: boolean): void {
 	}
 }
 
-/** The actual read: status, badge counts, branch, remote and operation state, in parallel. */
+/**
+ * The actual read: one snapshot round trip for status, branch, remote and
+ * operation state, plus the diffs when the git view shows them. A poll that
+ * finds nothing changed does not touch the store, so nobody re-renders.
+ */
 async function runRefreshStatus(silent: boolean): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
 	try {
-		// Everything starts at once; the repo check now rides along with the
-		// status instead of gating the rest behind its own git process.
-		const fullPromise = gitService.getStatusFull(wt);
+		const before = get(_git);
+		const known = before.statusWorktree === wt ? before.snapshotVersion : 0;
+		const snapshotPromise = gitService.getSnapshot(wt, known);
 		const diffsPromise = diffsWanted
 			? Promise.all([
 					gitService.getDiffUnstaged(wt),
 					gitService.getDiffStaged(wt),
 				])
 			: Promise.resolve(null);
-		const branchPromise = gitService.getCurrentBranch(wt);
-		// Awaited only when the path is a repository; keep the rejection handled
-		// so the early return below never leaves an unhandled one behind.
-		branchPromise.catch(() => {});
 		diffsPromise.catch(() => {});
-		const remotePromise = gitService.getRemoteStatus(wt).catch(() => null);
-		const operationPromise = gitService.getOperationState(wt).catch(() => null);
 
-		const full = await fullPromise;
-		if (!full.isGitRepo) {
+		const snap = await snapshotPromise;
+		if (snap && !snap.status.isGitRepo) {
 			_git.update((s) => ({
 				...s,
 				status: {},
 				statusWorktree: wt,
+				snapshotVersion: snap.version,
 				unstagedDiffs: [],
 				stagedDiffs: [],
 				changedPaths: { staged: [], unstaged: [] },
@@ -226,28 +228,32 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			}));
 			return;
 		}
-		const { status, changedPaths } = full;
-		const [diffs, currentBranch, remoteStatus, operationState] =
-			await Promise.all([
-				diffsPromise,
-				branchPromise,
-				remotePromise,
-				operationPromise,
-			]);
+		const diffs = await diffsPromise;
 		const bump = indexDirty ? 1 : 0;
 		indexDirty = false;
+		const current = get(_git);
+		const diffsChanged =
+			diffs !== null &&
+			JSON.stringify(diffs) !==
+				JSON.stringify([current.unstagedDiffs, current.stagedDiffs]);
+		if (!snap && !diffsChanged && !bump && !current.isLoading) return;
 		_git.update((s) => ({
 			...s,
-			status,
-			statusWorktree: wt,
+			...(snap
+				? {
+						status: snap.status.status,
+						statusWorktree: wt,
+						snapshotVersion: snap.version,
+						changedPaths: snap.status.changedPaths,
+						currentBranch: snap.currentBranch,
+						remoteStatus: snap.remoteStatus,
+						operationState: snap.operationState,
+						isGitRepo: true,
+					}
+				: {}),
 			indexVersion: s.indexVersion + bump,
-			changedPaths,
-			unstagedDiffs: diffs ? diffs[0] : s.unstagedDiffs,
-			stagedDiffs: diffs ? diffs[1] : s.stagedDiffs,
-			currentBranch,
-			remoteStatus,
-			operationState,
-			isGitRepo: true,
+			unstagedDiffs: diffsChanged && diffs ? diffs[0] : s.unstagedDiffs,
+			stagedDiffs: diffsChanged && diffs ? diffs[1] : s.stagedDiffs,
 			isLoading: false,
 		}));
 	} catch (e) {
@@ -655,6 +661,15 @@ export function clearGitData(): void {
  * the screen on display and the window has the focus - a git process spawned for
  * a window nobody is looking at buys nothing.
  */
+/** Safety-net cadence while a filesystem watcher reports changes itself. */
+const GIT_REFRESH_WATCHED_INTERVAL_MS = 60_000;
+let watched = false;
+
+/** Told by the files view whether the active worktree has a live watcher. */
+export function setGitWatched(active: boolean): void {
+	watched = active;
+}
+
 export function startGitPolling(): () => void {
 	let visible = get(activeScreen) === "workspace";
 	let focused = typeof document === "undefined" || document.hasFocus();
@@ -670,9 +685,11 @@ export function startGitPolling(): () => void {
 	// is closed and the slower interval has not elapsed yet, so reopening the
 	// view goes back to full speed without restarting anything.
 	const timer = setInterval(() => {
-		const due = diffsWanted
-			? GIT_REFRESH_INTERVAL_MS
-			: GIT_REFRESH_IDLE_INTERVAL_MS;
+		const due = watched
+			? GIT_REFRESH_WATCHED_INTERVAL_MS
+			: diffsWanted
+				? GIT_REFRESH_INTERVAL_MS
+				: GIT_REFRESH_IDLE_INTERVAL_MS;
 		// Half-interval tolerance: setInterval drifts by a few ms, and an exact
 		// comparison would skip a whole cycle every time it fires early.
 		if (Date.now() - lastRun < due - GIT_REFRESH_INTERVAL_MS / 2) return;

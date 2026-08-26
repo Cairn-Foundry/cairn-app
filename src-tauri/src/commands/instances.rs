@@ -3,7 +3,7 @@
 //! one takes both away again.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use git2::{Repository, BranchType};
 use serde::{Deserialize, Serialize};
@@ -125,6 +125,60 @@ pub fn list_instances(project_id: String) -> Result<Vec<Instance>, String> {
 /// worktree entry or leftover directory under the same slug is cleared first,
 /// and a branch this call created is deleted again if the worktree fails.
 /// Async: worktree creation blocks long enough to freeze the UI thread.
+/// Dependency folders are git-ignored and take minutes and gigabytes to
+/// rebuild per worktree; APFS, btrfs and XFS copy a directory in milliseconds,
+/// copy-on-write, so a new instance starts with the base's. Only attempted on
+/// the same volume, and a failed clone leaves nothing behind.
+const DEPENDENCY_DIRS: &[&str] = &["node_modules", ".venv", "vendor", "target"];
+
+fn clone_dependency_dirs(repo: &Repository, source: &Path, target: &Path) {
+    for name in DEPENDENCY_DIRS {
+        let from = source.join(name);
+        let to = target.join(name);
+        if !from.is_dir() || to.exists() || !repo.is_path_ignored(Path::new(name)).unwrap_or(false) {
+            continue;
+        }
+        if !same_volume(&from, target) {
+            continue;
+        }
+        let status = clone_command(&from, &to)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        if !matches!(status, Ok(s) if s.success()) {
+            let _ = fs::remove_dir_all(&to);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn same_volume(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (fs::metadata(a), fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_volume(_a: &Path, _b: &Path) -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn clone_command(from: &Path, to: &Path) -> std::process::Command {
+    let mut cmd = std::process::Command::new("cp");
+    cmd.args(["-c", "-R"]).arg(from).arg(to);
+    cmd
+}
+
+#[cfg(not(target_os = "macos"))]
+fn clone_command(from: &Path, to: &Path) -> std::process::Command {
+    let mut cmd = std::process::Command::new("cp");
+    cmd.args(["-R", "--reflink=always"]).arg(from).arg(to);
+    cmd
+}
+
 #[tauri::command]
 pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -207,6 +261,8 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                 let _ = fs::remove_dir_all(&worktree_path);
                 return Err(format!("Failed to create worktree: {}", e));
             }
+
+            clone_dependency_dirs(&repo, Path::new(&expanded_project), &worktree_path);
 
             (branch, worktree_path.to_string_lossy().to_string())
         };

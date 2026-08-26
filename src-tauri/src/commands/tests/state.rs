@@ -43,7 +43,7 @@ pub fn get_test_state(
 
 /// Overwrites the whole state atomically; called debounced after a run.
 #[tauri::command]
-pub fn save_test_state(
+pub async fn save_test_state(
     project_id: String,
     instance_id: String,
     state: TestPersistedState,

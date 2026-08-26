@@ -20,7 +20,8 @@
   import { t } from '$lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { EditorView, keymap } from '@codemirror/view';
-  import { EditorState, EditorSelection, Prec, type Extension } from '@codemirror/state';
+  import { EditorState, EditorSelection, Prec, Text, type Extension } from '@codemirror/state';
+  import { lspChangesOf, type LspContentChange } from '$lib/utils/files/document-model';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import {
     buildEditorTheme, buildHighlight, buildDiffGutterTheme, diffColors,
@@ -61,8 +62,8 @@
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
-  export let content: string = '';
-  export let onChange: ((value: string) => void) | undefined = undefined;
+  export let content: Text = Text.empty;
+  export let onChange: ((doc: Text, changes: LspContentChange[]) => void) | undefined = undefined;
   export let onBlur: (() => void) | undefined = undefined;
   export let onCursorChange: ((line: number, col: number) => void) | undefined = undefined;
   export let initialCursorPos: number = 0;
@@ -94,7 +95,7 @@
    * file opens as plain text so it stays typable; below it nothing changes.
    */
   const HUGE_DOC_BYTES = 2 * 1024 * 1024;
-  const isHugeDoc = (savedState ? savedState.doc.length : content.length) > HUGE_DOC_BYTES;
+  $: isHugeDoc = (savedState ? savedState.doc.length : content.length) > HUGE_DOC_BYTES;
 
   $: if (isHugeDoc) {
     minimapEnabled = false;
@@ -416,7 +417,10 @@
       EditorView.lineWrapping,
       EditorState.readOnly.of(readonly),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) onChange?.(update.state.doc.toString());
+        if (update.docChanged) {
+          lastEmitted = update.state.doc;
+          onChange?.(lastEmitted, lspChangesOf(update.startState.doc, update.changes));
+        }
         if (update.docChanged || update.transactions.some(tr => tr.effects.length > 0)) {
           queueMicrotask(() => syncMinimap($settings.theme, minimapEnabled));
         }
@@ -460,10 +464,18 @@
 
   $: if (view) syncDocAndBase(content, baseContent);
 
-  /** Pushes an externally changed document and its diff base into the view in one dispatch. */
-  function syncDocAndBase(nextContent: string, nextBase: string | null) {
-    const current = view.state.doc.toString();
-    const docChanged = current !== nextContent;
+  /** The document the view last handed out: the pane gives it back as `content`, and identity is the whole compare. */
+  let lastEmitted: Text | null = null;
+
+  /**
+   * Pushes an externally changed document and its diff base into the view in
+   * one dispatch. A `Text` the view itself produced is skipped by identity; a
+   * new one (reload from disk, rename edits, the twin pane) replaces the
+   * document without ever going through a string.
+   */
+  function syncDocAndBase(nextContent: Text, nextBase: string | null) {
+    const current = view.state.doc;
+    const docChanged = nextContent !== current && nextContent !== lastEmitted && !nextContent.eq(current);
     const baseChanged = nextBase !== syncedBase;
     if (!docChanged && !baseChanged) return;
     const applyBase = baseChanged || docChanged;
@@ -474,6 +486,48 @@
         : undefined,
     });
     syncedBase = nextBase;
+  }
+
+  /**
+   * The pane keeps one view for all its tabs: a tab change swaps the state in
+   * place - the cached one when the tab was open before, with its parse tree,
+   * undo history and selection, otherwise a fresh one - instead of tearing
+   * the editor down and building another. Every "synced" marker is reset so
+   * the reactive blocks below reapply what the new state needs.
+   */
+  let shownDocPath: string | null | undefined = undefined;
+  $: if (view && docPath !== shownDocPath) {
+    const first = shownDocPath === undefined;
+    shownDocPath = docPath;
+    if (!first) swapDocument();
+  }
+
+  function swapDocument() {
+    lastEmitted = null;
+    const cached = savedState;
+    view.setState(cached ?? EditorState.create({ doc: content, extensions: buildExtensions() }));
+    view.dispatch({ effects: [
+      instanceCompartment.reconfigure(buildInstanceExtensions()),
+      fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)),
+      shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)),
+      themeCompartment.reconfigure(buildEditorTheme($settings.theme)),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight($settings.theme, $activeSyntaxTokens))),
+      whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []),
+    ] });
+    syncedLang = undefined;
+    syncedBase = undefined;
+    syncedDiagnostics = undefined;
+    syncedDocPath = undefined;
+    syncedStickyScroll = !stickyScrollEnabled;
+    minimapDiffKey = '';
+    if (!cached) {
+      if (initialCursorPos > 0) {
+        const pos = Math.min(initialCursorPos, view.state.doc.length);
+        view.dispatch({ selection: { anchor: pos, head: pos } });
+      }
+      if (initialScrollTop > 0) view.scrollDOM.scrollTop = initialScrollTop;
+    }
+    syncMinimap($settings.theme, minimapEnabled, true);
   }
 
   let syncedDocPath: string | null | undefined = undefined;

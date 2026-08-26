@@ -5,11 +5,12 @@
    * repository's own rather than a worktree the instance owns.
    */
   import BranchInUseModal from '$lib/components/git/BranchInUseModal.svelte';
+  import DirtyWorktreeModal from '$lib/components/git/DirtyWorktreeModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
-  import { checkoutBranch, clearGitError, git, loadBranches } from '$lib/stores/git';
+  import { checkoutBranch, clearGitError, git, loadBranches, pushStash } from '$lib/stores/git';
   import { instances } from '$lib/stores/instance';
   import { activateInstance, activeProject } from '$lib/stores/project';
   import { toGitError } from '$lib/services/git-service';
@@ -21,6 +22,8 @@
   let isSwitching = false;
   let isLoadingBranches = false;
   let inUse: { branch: string; worktreePath: string; instance: Instance | null } | null = null;
+  let dirty: string | null = null;
+  let isStashing = false;
   let query = '';
   let searchEl: HTMLInputElement | null = null;
 
@@ -67,23 +70,46 @@
     try {
       await checkoutBranch(target);
     } catch (e) {
-      showInUseOrKeepBanner(target, e);
+      showModalOrKeepBanner(target, e);
     } finally {
       isSwitching = false;
     }
   }
 
+  /** Stashes what blocks the checkout, then retries it. */
+  async function stashAndSwitch() {
+    const target = dirty;
+    if (!target) return;
+    isStashing = true;
+    try {
+      await pushStash((t('git.dirtyWorktree.heading') as string), true, false);
+      await checkoutBranch(target);
+      dirty = null;
+    } catch (e) {
+      dirty = null;
+      showModalOrKeepBanner(target, e);
+    } finally {
+      isStashing = false;
+    }
+  }
+
   /**
-   * A branch held by another worktree is not a failure to report but an
-   * instance to open, so the banner the store raised is dropped in favour of
-   * the modal. Anything else stays in the banner.
+   * A branch held by another worktree is an instance to open, and uncommitted
+   * changes are a choice to make, so both drop the banner the store raised in
+   * favour of a modal. Anything else stays in the banner.
    */
-  function showInUseOrKeepBanner(branch: string, error: unknown) {
-    const raw = toGitError(error).raw;
-    const path = worktreeInUsePath(raw);
-    if (!path) return;
-    clearGitError();
-    inUse = { branch, worktreePath: path, instance: instanceAt(path) };
+  function showModalOrKeepBanner(branch: string, error: unknown) {
+    const err = toGitError(error);
+    const path = worktreeInUsePath(err.raw);
+    if (path) {
+      clearGitError();
+      inUse = { branch, worktreePath: path, instance: instanceAt(path) };
+      return;
+    }
+    if (err.code === 'dirty_worktree') {
+      clearGitError();
+      dirty = branch;
+    }
   }
 
   /** The instance owning a worktree, matched on its path as git printed it. */
@@ -109,6 +135,15 @@
     instance={inUse.instance}
     on:close={() => (inUse = null)}
     on:open={(e) => openInUseInstance(e.detail)}
+  />
+{/if}
+
+{#if dirty}
+  <DirtyWorktreeModal
+    branch={dirty}
+    {isStashing}
+    on:close={() => (dirty = null)}
+    on:stash={stashAndSwitch}
   />
 {/if}
 

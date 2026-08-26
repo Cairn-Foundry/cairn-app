@@ -87,7 +87,7 @@ pub fn get_project_formatting(project_id: String) -> Result<FormattingConfig, St
 }
 
 #[tauri::command]
-pub fn save_project_formatting(
+pub async fn save_project_formatting(
     project_id: String,
     config: FormattingConfig,
 ) -> Result<(), String> {

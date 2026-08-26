@@ -30,6 +30,10 @@
 
   $: if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', $settings.theme);
+    document.documentElement.setAttribute(
+      'data-os',
+      /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'macos' : 'other',
+    );
     document.documentElement.style.setProperty('--accent', $settings.accentColor);
     document.documentElement.style.setProperty('--accent-fg', foregroundOn($settings.accentColor));
     document.documentElement.style.setProperty('--font-mono', $settings.fontFamily);

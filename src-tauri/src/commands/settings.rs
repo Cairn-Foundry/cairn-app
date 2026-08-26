@@ -331,7 +331,7 @@ pub fn get_settings() -> Result<CairnSettings, String> {
 
 /// Replaces the whole settings object and echoes back what was stored.
 #[tauri::command]
-pub fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
+pub async fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     write_settings(&settings)?;
     Ok(settings)
 }

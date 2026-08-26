@@ -2,6 +2,7 @@
 // Rust command that classifies its failures into a GitError.
 
 import { invoke } from "@tauri-apps/api/core";
+import { dedupeInflight } from "./inflight";
 
 /** One line of a diff, already classified by the Rust side. */
 export type DiffLine = {
@@ -184,11 +185,31 @@ export interface GitStatusFull {
 	changedPaths: GitChangedPaths;
 }
 
+/** The poll's whole read in one round trip; null when nothing changed since `knownVersion`. */
+export interface GitSnapshot {
+	version: number;
+	status: GitStatusFull;
+	currentBranch: string;
+	remoteStatus: RemoteStatus;
+	operationState: GitOperationState;
+}
+
+export async function getSnapshot(
+	worktreePath: string,
+	knownVersion: number,
+): Promise<GitSnapshot | null> {
+	return dedupeInflight(`snapshot:${worktreePath}:${knownVersion}`, () =>
+		invoke("git_snapshot", { worktreePath, knownVersion }),
+	);
+}
+
 /** What the status poll reads: everything above in one call. */
 export async function getStatusFull(
 	worktreePath: string,
 ): Promise<GitStatusFull> {
-	return invoke("git_status_full", { worktreePath });
+	return dedupeInflight(`status-full:${worktreePath}`, () =>
+		invoke("git_status_full", { worktreePath }),
+	);
 }
 
 /** Keeps only the paths git actually ignores. */
