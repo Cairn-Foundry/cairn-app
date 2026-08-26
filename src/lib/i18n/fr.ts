@@ -1680,6 +1680,13 @@ export const fr = {
 			searchPlaceholder: "Filtrer les branches",
 			empty: "Aucune branche",
 		},
+		dirtyWorktree: {
+			heading: "Modifications non validées",
+			title: (branch: string) => `Impossible de basculer sur ${branch}`,
+			description:
+				"La branche courante contient des modifications non validées qui seraient perdues par le changement. Remisez-les, ou validez-les depuis la vue Git, puis réessayez.",
+			stashAndSwitch: "Remiser et basculer",
+		},
 		branchInUse: {
 			heading: "Branche occupée",
 			title: (branch: string) => `${branch} est déjà extraite`,

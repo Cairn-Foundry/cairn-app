@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching branch with uncommitted changes now opens a modal offering to stash them, instead of showing a git error banner.",
+					"fr": "Changer de branche avec des modifications non validées ouvre désormais une fenêtre proposant de les remiser, au lieu d'afficher un bandeau d'erreur git."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Glass theme: menus and dropdowns are now opaque enough to read, instead of letting the content behind them show through.",
