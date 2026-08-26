@@ -24,6 +24,7 @@ typecheck:
 unit:
   stage: test
   script:
+    - rm -rf node_modules/.vite .svelte-kit
     - bun install --frozen-lockfile
     - bunx svelte-kit sync
     - bun run test:coverage
