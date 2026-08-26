@@ -40,3 +40,65 @@ pub fn get_git_collapse_state(project_id: String, instance_id: String) -> Result
 pub async fn save_git_collapse_state(project_id: String, instance_id: String, state: GitCollapseState) -> Result<(), String> {
     write_git_collapse_state(&project_id, &instance_id, &state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn from_json(json: &str) -> GitCollapseState {
+        serde_json::from_str(json).expect("collapse state should parse")
+    }
+
+    #[test]
+    fn an_instance_that_never_folded_anything_starts_expanded() {
+        let state = from_json("{}");
+        assert!(state.collapsed_unstaged.is_empty());
+        assert!(state.collapsed_staged.is_empty());
+        assert!(state.expanded_staged.is_empty());
+    }
+
+    #[test]
+    fn a_state_predating_a_group_gains_its_default() {
+        let state = from_json(r#"{"collapsedUnstaged": ["src"]}"#);
+        assert_eq!(state.collapsed_unstaged, vec!["src"]);
+        assert!(state.collapsed_staged.is_empty());
+    }
+
+    #[test]
+    fn the_folded_groups_survive_a_round_trip() {
+        let original = GitCollapseState {
+            collapsed_unstaged: vec!["src".to_string(), "dossier été".to_string()],
+            collapsed_staged: vec!["tests".to_string()],
+            expanded_staged: vec!["docs".to_string()],
+        };
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+        assert_eq!(back.collapsed_unstaged, original.collapsed_unstaged);
+        assert_eq!(back.collapsed_staged, original.collapsed_staged);
+        assert_eq!(back.expanded_staged, original.expanded_staged);
+    }
+
+    #[test]
+    fn the_two_sides_of_the_index_stay_apart() {
+        let state = from_json(r#"{"collapsedUnstaged": ["a"], "collapsedStaged": ["b"]}"#);
+        assert_eq!(state.collapsed_unstaged, vec!["a"]);
+        assert_eq!(state.collapsed_staged, vec!["b"]);
+    }
+
+    #[test]
+    fn it_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(GitCollapseState::default()).expect("should serialize");
+        let object = json.as_object().expect("state should be an object");
+        for key in ["collapsedUnstaged", "collapsedStaged", "expandedStaged"] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_corrupted_file_is_reported_rather_than_panicking() {
+        assert!(serde_json::from_str::<GitCollapseState>("not json").is_err());
+        assert!(
+            serde_json::from_str::<GitCollapseState>(r#"{"collapsedStaged": "tests"}"#).is_err()
+        );
+    }
+}

@@ -467,3 +467,149 @@ pub async fn delete_instance(id: String, project_id: String) -> Result<(), Strin
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stored(id: &str) -> StoredInstance {
+        StoredInstance {
+            id: id.to_string(),
+            ticket: InstanceTicket {
+                id: "CAIRN-1".to_string(),
+                title: "Ajouter une chose".to_string(),
+                key: None,
+                url: None,
+                source: None,
+                connection_id: None,
+            },
+            branch: "feat/x".to_string(),
+            worktree_path: "/worktrees/p1/i1".to_string(),
+            status: "idle".to_string(),
+            created_at: 1_700_000_000,
+            base_branch: "main".to_string(),
+            parent_instance_id: None,
+        }
+    }
+
+    fn from_json(json: &str) -> StoredInstance {
+        serde_json::from_str(json).expect("instance should parse")
+    }
+
+    #[test]
+    fn attaching_the_project_id_loses_nothing_else() {
+        let original = stored("i1");
+        let instance = original.clone().with_project("p1".to_string());
+        assert_eq!(instance.project_id, "p1");
+        assert_eq!(instance.id, original.id);
+        assert_eq!(instance.branch, original.branch);
+        assert_eq!(instance.worktree_path, original.worktree_path);
+        assert_eq!(instance.status, original.status);
+        assert_eq!(instance.created_at, original.created_at);
+        assert_eq!(instance.base_branch, original.base_branch);
+        assert_eq!(instance.ticket.title, original.ticket.title);
+    }
+
+    #[test]
+    fn a_branched_instance_keeps_the_instance_it_came_from() {
+        let mut original = stored("i2");
+        original.parent_instance_id = Some("i1".to_string());
+        let instance = original.with_project("p1".to_string());
+        assert_eq!(instance.parent_instance_id.as_deref(), Some("i1"));
+    }
+
+    /// The project id is implied by where the file lives, so it must never be
+    /// written into the stored form.
+    #[test]
+    fn the_stored_form_carries_no_project_id() {
+        let json = serde_json::to_value(stored("i1")).expect("should serialize");
+        let object = json.as_object().expect("instance should be an object");
+        assert!(!object.contains_key("projectId"));
+    }
+
+    #[test]
+    fn the_frontend_form_carries_the_project_id() {
+        let json = serde_json::to_value(stored("i1").with_project("p1".to_string()))
+            .expect("should serialize");
+        assert_eq!(json["projectId"], "p1");
+    }
+
+    #[test]
+    fn a_stored_instance_survives_a_round_trip() {
+        let original = stored("i1");
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+        assert_eq!(back.id, "i1");
+        assert_eq!(back.branch, "feat/x");
+        assert_eq!(back.worktree_path, "/worktrees/p1/i1");
+        assert_eq!(back.created_at, 1_700_000_000);
+        assert_eq!(back.ticket.title, "Ajouter une chose");
+    }
+
+    #[test]
+    fn an_instance_predating_the_base_branch_gains_an_empty_one() {
+        let back = from_json(
+            r#"{"id":"i1","ticket":{"id":"t","title":"t"},"branch":"b",
+                "worktreePath":"/w","status":"idle","createdAt":1}"#,
+        );
+        assert_eq!(back.base_branch, "");
+        assert!(back.parent_instance_id.is_none());
+    }
+
+    #[test]
+    fn a_ticket_from_an_integration_keeps_its_key_and_url() {
+        let back = from_json(
+            r#"{"id":"i1","ticket":{"id":"1","title":"t","key":"CAIRN-42",
+                "url":"https://example.test/1","source":"gitlab"},
+                "branch":"b","worktreePath":"/w","status":"idle","createdAt":1}"#,
+        );
+        assert_eq!(back.ticket.key.as_deref(), Some("CAIRN-42"));
+        assert_eq!(back.ticket.url.as_deref(), Some("https://example.test/1"));
+        assert_eq!(back.ticket.source.as_deref(), Some("gitlab"));
+    }
+
+    #[test]
+    fn a_ticket_typed_by_hand_carries_no_integration_field() {
+        let json = serde_json::to_value(stored("i1")).expect("should serialize");
+        let ticket = json["ticket"].as_object().expect("ticket should be an object");
+        assert!(!ticket.contains_key("key"));
+        assert!(!ticket.contains_key("url"));
+        assert!(!ticket.contains_key("connectionId"));
+    }
+
+    #[test]
+    fn a_branch_and_a_worktree_with_accents_come_back_unchanged() {
+        let mut original = stored("i1");
+        original.branch = "feat/été".to_string();
+        original.worktree_path = "/worktrees/mon projet/i1".to_string();
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+        assert_eq!(back.branch, "feat/été");
+        assert_eq!(back.worktree_path, "/worktrees/mon projet/i1");
+    }
+
+    #[test]
+    fn an_instance_missing_an_identifying_field_is_refused() {
+        assert!(serde_json::from_str::<StoredInstance>(r#"{"id":"i1"}"#).is_err());
+        assert!(serde_json::from_str::<StoredInstance>("not json").is_err());
+    }
+
+    #[test]
+    fn it_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(stored("i1").with_project("p1".to_string()))
+            .expect("should serialize");
+        let object = json.as_object().expect("instance should be an object");
+        for key in [
+            "id",
+            "projectId",
+            "ticket",
+            "branch",
+            "worktreePath",
+            "status",
+            "createdAt",
+            "baseBranch",
+        ] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+}

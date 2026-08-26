@@ -120,3 +120,142 @@ pub fn get_ui_state() -> Result<UiState, String> {
 pub async fn save_ui_state(state: UiState) -> Result<(), String> {
     write_ui_state(&state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn from_json(json: &str) -> UiState {
+        serde_json::from_str(json).expect("ui state should parse")
+    }
+
+    fn project_from_json(json: &str) -> ProjectUiState {
+        serde_json::from_str(json).expect("project state should parse")
+    }
+
+    #[test]
+    fn an_empty_file_opens_the_app_on_its_defaults() {
+        let state = from_json("{}");
+        let defaults = UiState::default();
+        assert_eq!(state.screen, defaults.screen);
+        assert_eq!(state.home_section, defaults.home_section);
+        assert!(state.active_project_id.is_none());
+        assert!(state.project_states.is_empty());
+    }
+
+    #[test]
+    fn a_project_that_was_never_opened_starts_on_the_files_step() {
+        let state = project_from_json("{}");
+        assert_eq!(state.active_step, default_step());
+        assert_eq!(state.git_left_tab, default_git_left_tab());
+    }
+
+    #[test]
+    fn a_project_state_predating_a_field_gains_its_default() {
+        let state = project_from_json(r#"{"activeStep": "git"}"#);
+        assert_eq!(state.active_step, "git");
+        assert!(!state.references_panel_open);
+        assert_eq!(state.open_agent_id, "");
+        assert_eq!(state.git_left_tab, default_git_left_tab());
+    }
+
+    #[test]
+    fn every_tool_flag_starts_closed() {
+        let state = project_from_json("{}");
+        assert!(!state.terminal_active);
+        assert!(!state.commands_active);
+        assert!(!state.env_active);
+        assert!(!state.formatting_active);
+    }
+
+    #[test]
+    fn the_view_of_a_project_survives_a_round_trip() {
+        let original = ProjectUiState {
+            active_step: "tests".to_string(),
+            git_left_tab: "graph".to_string(),
+            terminal_active: true,
+            open_agent_id: "agent-7".to_string(),
+            references_query: r#"{"symbol":"foo"}"#.to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = project_from_json(&json);
+
+        assert_eq!(back.active_step, "tests");
+        assert_eq!(back.git_left_tab, "graph");
+        assert!(back.terminal_active);
+        assert_eq!(back.open_agent_id, "agent-7");
+        assert_eq!(back.references_query, r#"{"symbol":"foo"}"#);
+    }
+
+    #[test]
+    fn several_projects_keep_their_own_view() {
+        let state = from_json(
+            r#"{"projectStates": {
+                "p1": {"activeStep": "git"},
+                "p2": {"activeStep": "agent"}
+            }}"#,
+        );
+        assert_eq!(state.project_states["p1"].active_step, "git");
+        assert_eq!(state.project_states["p2"].active_step, "agent");
+    }
+
+    #[test]
+    fn the_whole_state_survives_a_round_trip() {
+        let mut original = UiState {
+            screen: "workspace".to_string(),
+            active_project_id: Some("p1".to_string()),
+            open_tab_order: vec!["p1".to_string(), "p2".to_string()],
+            ..Default::default()
+        };
+        original
+            .project_states
+            .insert("p1".to_string(), ProjectUiState::default());
+
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+
+        assert_eq!(back.screen, "workspace");
+        assert_eq!(back.active_project_id.as_deref(), Some("p1"));
+        assert_eq!(back.open_tab_order, vec!["p1", "p2"]);
+        assert!(back.project_states.contains_key("p1"));
+    }
+
+    #[test]
+    fn the_project_view_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(ProjectUiState::default()).expect("should serialize");
+        let object = json.as_object().expect("state should be an object");
+        for key in [
+            "activeStep",
+            "gitLeftTab",
+            "terminalActive",
+            "commandsActive",
+            "envActive",
+            "formattingActive",
+            "openAgentId",
+            "referencesPanelOpen",
+            "referencesQuery",
+        ] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_corrupted_file_is_reported_rather_than_panicking() {
+        assert!(serde_json::from_str::<UiState>("not json").is_err());
+        assert!(serde_json::from_str::<UiState>("[]").is_err());
+    }
+
+    #[test]
+    fn a_project_state_of_the_wrong_shape_is_reported() {
+        let result = serde_json::from_str::<UiState>(r#"{"projectStates": {"p1": "git"}}"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn an_unknown_field_from_a_newer_release_is_ignored() {
+        let state = project_from_json(r#"{"activeStep": "git", "shippedLater": true}"#);
+        assert_eq!(state.active_step, "git");
+    }
+}

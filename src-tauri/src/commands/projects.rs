@@ -175,3 +175,130 @@ pub async fn save_project_order(ids: Vec<String>) -> Result<(), String> {
     listing.project_order = ids;
     write_listing(&listing)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn project_from_json(json: &str) -> Result<Project, serde_json::Error> {
+        serde_json::from_str(json)
+    }
+
+    fn listing_from_json(json: &str) -> ListingConfig {
+        serde_json::from_str(json).expect("listing should parse")
+    }
+
+    #[test]
+    fn a_project_round_trips_through_json() {
+        let original = Project {
+            id: "p1".to_string(),
+            name: "Mon projet".to_string(),
+            path: "/repos/mon été".to_string(),
+            color: "#ff0000".to_string(),
+            active_instance_id: Some("i1".to_string()),
+        };
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = project_from_json(&json).expect("should parse");
+        assert_eq!(back.id, "p1");
+        assert_eq!(back.name, "Mon projet");
+        assert_eq!(back.path, "/repos/mon été");
+        assert_eq!(back.active_instance_id.as_deref(), Some("i1"));
+    }
+
+    #[test]
+    fn a_project_with_no_active_instance_round_trips_too() {
+        let original = Project {
+            id: "p1".to_string(),
+            name: "p1".to_string(),
+            path: "/repos/p1".to_string(),
+            color: "#fff".to_string(),
+            active_instance_id: None,
+        };
+        let json = serde_json::to_string(&original).expect("should serialize");
+        assert!(project_from_json(&json)
+            .expect("should parse")
+            .active_instance_id
+            .is_none());
+    }
+
+    /// The identifying fields carry no serde default, so a truncated entry is
+    /// refused rather than silently loaded as a project with an empty path.
+    #[test]
+    fn a_project_missing_an_identifying_field_is_refused() {
+        assert!(project_from_json(r#"{"id": "p1"}"#).is_err());
+        assert!(
+            project_from_json(r##"{"id": "p1", "name": "n", "color": "#fff"}"##).is_err()
+        );
+    }
+
+    #[test]
+    fn a_project_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(Project {
+            id: "p1".to_string(),
+            name: "p1".to_string(),
+            path: "/repos/p1".to_string(),
+            color: "#fff".to_string(),
+            active_instance_id: None,
+        })
+        .expect("should serialize");
+        let object = json.as_object().expect("project should be an object");
+        for key in ["id", "name", "path", "color", "activeInstanceId"] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_first_launch_has_no_folder_and_no_explicit_order() {
+        let listing = listing_from_json("{}");
+        assert!(listing.folders.is_empty());
+        assert!(listing.project_order.is_empty());
+    }
+
+    #[test]
+    fn a_listing_predating_the_folders_gains_an_empty_list() {
+        let listing = listing_from_json(r#"{"projectOrder": ["p1", "p2"]}"#);
+        assert_eq!(listing.project_order, vec!["p1", "p2"]);
+        assert!(listing.folders.is_empty());
+    }
+
+    #[test]
+    fn the_home_arrangement_survives_a_round_trip() {
+        let original = ListingConfig {
+            folders: vec![ProjectFolder {
+                id: "f1".to_string(),
+                name: "Travail".to_string(),
+                project_ids: vec!["p1".to_string()],
+                collapsed: true,
+            }],
+            project_order: vec!["p2".to_string(), "p1".to_string()],
+        };
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = listing_from_json(&json);
+        assert_eq!(back.project_order, vec!["p2", "p1"]);
+        assert_eq!(back.folders.len(), 1);
+        assert_eq!(back.folders[0].name, "Travail");
+        assert!(back.folders[0].collapsed);
+        assert_eq!(back.folders[0].project_ids, vec!["p1"]);
+    }
+
+    #[test]
+    fn a_folder_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(ProjectFolder {
+            id: "f1".to_string(),
+            name: "f".to_string(),
+            project_ids: vec![],
+            collapsed: false,
+        })
+        .expect("should serialize");
+        let object = json.as_object().expect("folder should be an object");
+        for key in ["id", "name", "projectIds", "collapsed"] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_corrupted_listing_is_reported_rather_than_panicking() {
+        assert!(serde_json::from_str::<ListingConfig>("not json").is_err());
+        assert!(serde_json::from_str::<ListingConfig>(r#"{"folders": "none"}"#).is_err());
+    }
+}

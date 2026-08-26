@@ -359,3 +359,110 @@ pub fn set_window_vibrancy(window: tauri::WebviewWindow, enabled: bool) -> Resul
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// What a settings file written by an older release looks like: the fields
+    /// that shipped later are simply absent.
+    fn from_json(json: &str) -> CairnSettings {
+        serde_json::from_str(json).expect("settings should parse")
+    }
+
+    #[test]
+    fn an_empty_file_loads_as_the_factory_settings() {
+        let settings = from_json("{}");
+        let defaults = CairnSettings::default();
+        assert_eq!(settings.editor_font_size, defaults.editor_font_size);
+        assert_eq!(settings.show_minimap, defaults.show_minimap);
+        assert_eq!(settings.save_on, defaults.save_on);
+    }
+
+    #[test]
+    fn a_file_predating_a_field_gains_its_default() {
+        let settings = from_json(r#"{"editorFontSize": 20}"#);
+        assert_eq!(settings.editor_font_size, 20);
+        assert_eq!(settings.save_on, default_save_on());
+        assert_eq!(settings.auto_check_updates, default_auto_check_updates());
+    }
+
+    #[test]
+    fn a_stored_value_wins_over_the_default() {
+        let settings = from_json(r#"{"showMinimap": false, "autoCheckUpdates": false}"#);
+        assert!(!settings.show_minimap);
+        assert!(!settings.auto_check_updates);
+    }
+
+    #[test]
+    fn a_field_the_app_no_longer_knows_is_ignored() {
+        let settings = from_json(r#"{"removedInV2": "gone", "editorFontSize": 15}"#);
+        assert_eq!(settings.editor_font_size, 15);
+    }
+
+    #[test]
+    fn the_workflow_tabs_are_restored_when_the_file_has_none() {
+        let settings = from_json("{}");
+        assert_eq!(settings.workflow_tabs.len(), default_workflow_tabs().len());
+    }
+
+    #[test]
+    fn settings_survive_a_round_trip_through_json() {
+        let original = CairnSettings {
+            editor_font_size: 17,
+            save_on: "change".to_string(),
+            show_whitespace: true,
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+
+        assert_eq!(back.editor_font_size, 17);
+        assert_eq!(back.save_on, "change");
+        assert!(back.show_whitespace);
+    }
+
+    #[test]
+    fn settings_serialize_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(CairnSettings::default()).expect("should serialize");
+        let object = json.as_object().expect("settings should be an object");
+        for key in [
+            "treePanelWidth",
+            "showMinimap",
+            "editorFontSize",
+            "workflowTabs",
+            "saveOn",
+            "autoCheckUpdates",
+        ] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_corrupted_file_is_reported_rather_than_panicking() {
+        assert!(serde_json::from_str::<CairnSettings>("not json at all").is_err());
+        assert!(serde_json::from_str::<CairnSettings>("{").is_err());
+    }
+
+    #[test]
+    fn a_field_of_the_wrong_type_is_reported() {
+        let result = serde_json::from_str::<CairnSettings>(r#"{"editorFontSize": "big"}"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn the_defaults_agree_with_the_serde_defaults() {
+        let from_default_impl = CairnSettings::default();
+        let from_empty_file = from_json("{}");
+        assert_eq!(
+            from_default_impl.editor_font_size,
+            from_empty_file.editor_font_size
+        );
+        assert_eq!(from_default_impl.ui_scale, from_empty_file.ui_scale);
+        assert_eq!(
+            from_default_impl.editor_font_family,
+            from_empty_file.editor_font_family
+        );
+    }
+}

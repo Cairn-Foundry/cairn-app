@@ -44,3 +44,69 @@ pub fn get_commit_state(project_id: String, instance_id: String) -> Result<Optio
 pub async fn save_commit_state(project_id: String, instance_id: String, state: CommitState) -> Result<(), String> {
     write_commit_state(&project_id, &instance_id, &state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn from_json(json: &str) -> CommitState {
+        serde_json::from_str(json).expect("commit state should parse")
+    }
+
+    #[test]
+    fn an_instance_that_never_committed_starts_with_every_flag_off() {
+        let state = from_json("{}");
+        assert!(!state.no_verify);
+        assert!(!state.sign_off);
+        assert!(!state.allow_empty);
+        assert!(!state.append_ticket_id);
+        assert_eq!(state.selected_profile_id, "");
+    }
+
+    #[test]
+    fn a_state_predating_a_flag_gains_its_default() {
+        let state = from_json(r#"{"noVerify": true}"#);
+        assert!(state.no_verify);
+        assert!(!state.sign_off);
+        assert!(!state.append_ticket_id);
+    }
+
+    #[test]
+    fn the_sticky_flags_survive_a_round_trip() {
+        let original = CommitState {
+            no_verify: true,
+            sign_off: true,
+            allow_empty: false,
+            selected_profile_id: "work".to_string(),
+            append_ticket_id: true,
+        };
+        let json = serde_json::to_string(&original).expect("should serialize");
+        let back = from_json(&json);
+        assert!(back.no_verify);
+        assert!(back.sign_off);
+        assert!(!back.allow_empty);
+        assert_eq!(back.selected_profile_id, "work");
+        assert!(back.append_ticket_id);
+    }
+
+    #[test]
+    fn it_serializes_under_the_names_the_frontend_reads() {
+        let json = serde_json::to_value(CommitState::default()).expect("should serialize");
+        let object = json.as_object().expect("state should be an object");
+        for key in [
+            "noVerify",
+            "signOff",
+            "allowEmpty",
+            "selectedProfileId",
+            "appendTicketId",
+        ] {
+            assert!(object.contains_key(key), "{key} is missing from the payload");
+        }
+    }
+
+    #[test]
+    fn a_corrupted_file_is_reported_rather_than_panicking() {
+        assert!(serde_json::from_str::<CommitState>("not json").is_err());
+        assert!(serde_json::from_str::<CommitState>(r#"{"noVerify": "yes"}"#).is_err());
+    }
+}
