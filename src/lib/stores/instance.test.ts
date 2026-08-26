@@ -1,8 +1,7 @@
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { activeProjectId, projects } from "$lib/stores/project";
-import type { Instance } from "$lib/types/instance";
-import type { Project } from "$lib/types/project";
+import { instance, project } from "../../test/fixtures";
 import {
 	activeInstance,
 	BASE_INSTANCE_ID,
@@ -27,33 +26,13 @@ vi.mock("./terminal", () => ({
 
 vi.mock("./agent-activity", () => ({ clearProjectAgentActivity: vi.fn() }));
 
-function project(id: string, activeInstanceId: string | null): Project {
-	return {
-		id,
-		name: id,
-		path: `/repos/${id}`,
-		color: "#fff",
-		activeInstanceId,
-	} as Project;
-}
-
-function instance(id: string, projectId: string): Instance {
-	return {
-		id,
-		projectId,
-		ticket: { id, title: id },
-		branch: id,
-		worktreePath: `/worktrees/${projectId}/${id}`,
-		status: "idle",
-		createdAt: 0,
-		baseBranch: "main",
-	};
-}
-
 describe("activeInstance across a project switch", () => {
 	beforeEach(() => {
 		listInstances.mockReset();
-		projects.set([project("a", "a1"), project("b", "b1")]);
+		projects.set([
+			project("a", { activeInstanceId: "a1" }),
+			project("b", { activeInstanceId: "b1" }),
+		]);
 		activeProjectId.set(null);
 	});
 
@@ -85,7 +64,7 @@ describe("activeInstance across a project switch", () => {
 
 	it("falls back to the base instance only once the project is known", async () => {
 		listInstances.mockResolvedValue([]);
-		projects.set([project("a", BASE_INSTANCE_ID)]);
+		projects.set([project("a", { activeInstanceId: BASE_INSTANCE_ID })]);
 		await loadInstances("a");
 		activeProjectId.set("a");
 		expect(get(activeInstance)?.worktreePath).toBe("/repos/a");

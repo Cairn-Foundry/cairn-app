@@ -112,12 +112,37 @@ describe("htmlEscape", () => {
 		expect(htmlEscape("a > b")).toBe("a &gt; b");
 	});
 
+	it("escapes the double quote that would break out of an attribute", () => {
+		expect(htmlEscape('say "hi"')).toBe("say &quot;hi&quot;");
+	});
+
+	it("escapes the single quote that would break out of an attribute", () => {
+		expect(htmlEscape("it's")).toBe("it&#39;s");
+	});
+
 	it("escapes all together", () => {
 		expect(htmlEscape("<a & b>")).toBe("&lt;a &amp; b&gt;");
 	});
 
+	it("neutralises an injected tag with its attributes", () => {
+		expect(htmlEscape("<img src=\"x\" onerror='alert(1)'>")).toBe(
+			"&lt;img src=&quot;x&quot; onerror=&#39;alert(1)&#39;&gt;",
+		);
+	});
+
+	it("escapes the ampersand once, not twice", () => {
+		expect(htmlEscape("&amp;")).toBe("&amp;amp;");
+		expect(htmlEscape("&lt;")).toBe("&amp;lt;");
+	});
+
 	it("leaves plain text untouched", () => {
 		expect(htmlEscape("hello")).toBe("hello");
+		expect(htmlEscape("")).toBe("");
+	});
+
+	it("leaves accents and emoji intact", () => {
+		expect(htmlEscape("café")).toBe("café");
+		expect(htmlEscape("dossier/été")).toBe("dossier/été");
 	});
 });
 

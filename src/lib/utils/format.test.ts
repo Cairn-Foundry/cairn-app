@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	formatBytes,
+	formatClock,
 	formatCount,
 	formatDate,
 	formatDuration,
@@ -42,6 +43,19 @@ describe("slugify", () => {
 	it("typical ticket title", () => {
 		expect(slugify("Add TOTP authentication")).toBe("add-totp-authentication");
 	});
+
+	it("drops accented letters rather than transliterating them", () => {
+		expect(slugify("Créer une instance")).toBe("cr-er-une-instance");
+	});
+
+	it("drops emoji and non-latin scripts", () => {
+		expect(slugify("fix: café")).toBe("fix-caf");
+		expect(slugify("日本語")).toBe("");
+	});
+
+	it("collapses a newline or a tab like any other separator", () => {
+		expect(slugify("foo\n\tbar")).toBe("foo-bar");
+	});
 });
 
 describe("formatBytes", () => {
@@ -67,15 +81,75 @@ describe("formatBytes", () => {
 	it("clamps negative values", () => {
 		expect(formatBytes(-10)).toBe("0 B");
 	});
+
+	it("falls back to zero rather than rendering NaN", () => {
+		expect(formatBytes(Number.NaN)).toBe("0 B");
+		expect(formatBytes(Number.NEGATIVE_INFINITY)).toBe("0 B");
+	});
+
+	it("keeps a positive infinity out of the unit ladder", () => {
+		expect(formatBytes(Number.POSITIVE_INFINITY)).toBe("0 B");
+	});
 });
 
 describe("formatDate", () => {
-	it("returns a non-empty string", () => {
-		expect(formatDate(Date.now()).length).toBeGreaterThan(0);
+	const parts = (ts: number) =>
+		new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+			timeStyle: "short",
+		}).formatToParts(new Date(ts));
+
+	it("carries the date and the time of the timestamp", () => {
+		const ts = Date.UTC(2024, 2, 14, 15, 9);
+		const out = formatDate(ts);
+		const wanted = parts(ts).filter((p) => p.type !== "literal");
+		expect(wanted.length).toBeGreaterThan(0);
+		for (const part of wanted) expect(out).toContain(part.value);
 	});
 
-	it("formats a known timestamp without throwing", () => {
-		expect(() => formatDate(0)).not.toThrow();
+	it("renders the epoch rather than todays date", () => {
+		expect(formatDate(0)).not.toBe(formatDate(Date.UTC(2024, 2, 14)));
+		for (const part of parts(0).filter((p) => p.type !== "literal")) {
+			expect(formatDate(0)).toContain(part.value);
+		}
+	});
+
+	it("says nothing when the timestamp is not a number", () => {
+		expect(formatDate(Number.NaN)).toBe("");
+		expect(formatDate(Number.POSITIVE_INFINITY)).toBe("");
+	});
+});
+
+describe("formatClock", () => {
+	const utc = (ts: number, locale: string) =>
+		new Intl.DateTimeFormat(locale, {
+			hour: "2-digit",
+			minute: "2-digit",
+			timeZone: "UTC",
+		}).format(new Date(ts));
+
+	it("stamps a message with hours and minutes", () => {
+		const ts = Date.UTC(2024, 0, 1, 9, 5);
+		expect(formatClock(ts, "en-GB")).toMatch(/^\d{2}:\d{2}$/);
+		expect(utc(ts, "en-GB")).toBe("09:05");
+	});
+
+	it("follows the locale it is given", () => {
+		const ts = Date.UTC(2024, 0, 1, 13, 30);
+		expect(utc(ts, "en-GB")).toBe("13:30");
+		expect(utc(ts, "en-US")).toBe("01:30 PM");
+	});
+
+	it("pads a single digit hour", () => {
+		expect(utc(Date.UTC(2024, 0, 1, 0, 0), "en-GB")).toBe("00:00");
+		expect(formatClock(Date.UTC(2024, 0, 1, 0, 0), "en-GB")).toMatch(
+			/^\d{2}:\d{2}$/,
+		);
+	});
+
+	it("says nothing when the timestamp is not a number", () => {
+		expect(formatClock(Number.NaN, "en-GB")).toBe("");
+		expect(formatClock(Number.NEGATIVE_INFINITY, "en-GB")).toBe("");
 	});
 });
 
@@ -91,6 +165,21 @@ describe("formatCount", () => {
 
 	it("keeps the sign in front of the groups", () => {
 		expect(formatCount(-12345)).toBe("-12 345");
+	});
+
+	it("groups exactly at each thousand boundary", () => {
+		expect(formatCount(100)).toBe("100");
+		expect(formatCount(999999)).toBe("999 999");
+		expect(formatCount(1000000)).toBe("1 000 000");
+	});
+
+	it("rounds a fractional count", () => {
+		expect(formatCount(1000.6)).toBe("1 001");
+	});
+
+	it("falls back to zero rather than rendering NaN", () => {
+		expect(formatCount(Number.NaN)).toBe("0");
+		expect(formatCount(Number.POSITIVE_INFINITY)).toBe("0");
 	});
 });
 
@@ -115,6 +204,22 @@ describe("formatDuration", () => {
 		expect(formatDuration(3600000)).toBe("1h");
 		expect(formatDuration(3900000)).toBe("1h5min");
 	});
+
+	it("switches unit exactly at each boundary", () => {
+		expect(formatDuration(9999)).toBe("10.0s");
+		expect(formatDuration(10000)).toBe("10s");
+		expect(formatDuration(59999)).toBe("60s");
+		expect(formatDuration(60000)).toBe("1min");
+	});
+
+	it("clamps a negative duration", () => {
+		expect(formatDuration(-5000)).toBe("0.0s");
+	});
+
+	it("falls back to zero rather than rendering NaN", () => {
+		expect(formatDuration(Number.NaN)).toBe("0.0s");
+		expect(formatDuration(Number.POSITIVE_INFINITY)).toBe("0.0s");
+	});
 });
 
 describe("formatUsd", () => {
@@ -133,6 +238,23 @@ describe("formatUsd", () => {
 	it("says nothing rather than $0.0000 when nothing was spent", () => {
 		expect(formatUsd(0)).toBe("$0");
 	});
+
+	it("switches precision exactly at each boundary", () => {
+		expect(formatUsd(0.0099)).toBe("$0.0099");
+		expect(formatUsd(0.01)).toBe("$0.01");
+		expect(formatUsd(99.99)).toBe("$99.99");
+		expect(formatUsd(100)).toBe("$100");
+	});
+
+	it("keeps a refund negative", () => {
+		expect(formatUsd(-4.5)).toBe("$-4.50");
+		expect(formatUsd(-0.0032)).toBe("$-0.0032");
+	});
+
+	it("falls back to zero rather than rendering NaN", () => {
+		expect(formatUsd(Number.NaN)).toBe("$0");
+		expect(formatUsd(Number.NEGATIVE_INFINITY)).toBe("$0");
+	});
 });
 
 describe("formatTokens", () => {
@@ -147,5 +269,24 @@ describe("formatTokens", () => {
 	it("abbreviates millions with a decimal until ten million", () => {
 		expect(formatTokens(1_250_000)).toBe("1.3M");
 		expect(formatTokens(12_500_000)).toBe("13M");
+	});
+
+	it("switches unit exactly at each boundary", () => {
+		expect(formatTokens(9999)).toBe("9 999");
+		expect(formatTokens(10000)).toBe("10k");
+		expect(formatTokens(999_999)).toBe("1000k");
+		expect(formatTokens(1_000_000)).toBe("1.0M");
+		expect(formatTokens(9_999_999)).toBe("10.0M");
+		expect(formatTokens(10_000_000)).toBe("10M");
+	});
+
+	it("keeps a negative count negative", () => {
+		expect(formatTokens(-1500)).toBe("-1 500");
+		expect(formatTokens(-2_000_000)).toBe("-2.0M");
+	});
+
+	it("falls back to zero rather than rendering NaN", () => {
+		expect(formatTokens(Number.NaN)).toBe("0");
+		expect(formatTokens(Number.POSITIVE_INFINITY)).toBe("0");
 	});
 });

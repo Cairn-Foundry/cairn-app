@@ -10,14 +10,12 @@ const vitestConfig = {
   coverage: {
     provider: "istanbul",
     reporter: ["text", "cobertura"],
-    include: [
-      "src/lib/utils/format.ts",
-      "src/lib/utils/syntax.ts",
-      "src/lib/utils/files/files-indent.ts",
-      "src/lib/utils/files/files-search.ts",
-      "src/lib/utils/files/files-tree.ts",
-      "src/lib/utils/files/files-diff.ts",
-      "src/lib/i18n/index.ts",
+    all: true,
+    include: ["src/lib/**/*.ts"],
+    exclude: [
+      "src/lib/**/*.test.ts",
+      "src/lib/**/*.d.ts",
+      "src/lib/utils/git/diff-highlight.worker.ts",
     ],
   },
 };

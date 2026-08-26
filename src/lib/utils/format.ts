@@ -6,10 +6,19 @@ export function slugify(text: string): string {
 		.replace(/^-|-$/g, "");
 }
 
+/**
+ * Clamps to a finite lower bound: a NaN or an Infinity reaching a formatter
+ * comes from corrupted upstream data, and "NaN B" on screen helps nobody.
+ */
+function finite(value: number, min = 0): number {
+	if (!Number.isFinite(value)) return min;
+	return Math.max(min, value);
+}
+
 /** A byte count for display, one decimal above the byte unit. */
 export function formatBytes(bytes: number): string {
 	const units = ["B", "KB", "MB", "GB"];
-	let value = Math.max(0, bytes);
+	let value = finite(bytes);
 	let unit = 0;
 	while (value >= 1024 && unit < units.length - 1) {
 		value /= 1024;
@@ -20,6 +29,7 @@ export function formatBytes(bytes: number): string {
 
 /** Date and time in the system locale, for anything read outside a transcript. */
 export function formatDate(ts: number): string {
+	if (!Number.isFinite(ts)) return "";
 	return new Intl.DateTimeFormat(undefined, {
 		dateStyle: "medium",
 		timeStyle: "short",
@@ -28,6 +38,7 @@ export function formatDate(ts: number): string {
 
 /** The time of day of a timestamp, as the clock a message is stamped with. */
 export function formatClock(ts: number, locale?: string): string {
+	if (!Number.isFinite(ts)) return "";
 	return new Intl.DateTimeFormat(locale, {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -40,6 +51,7 @@ export function formatClock(ts: number, locale?: string): string {
  * on plain ASCII.
  */
 export function formatCount(value: number): string {
+	if (!Number.isFinite(value)) return "0";
 	const rounded = Math.round(value);
 	const sign = rounded < 0 ? "-" : "";
 	const digits = Math.abs(rounded).toString();
@@ -57,6 +69,7 @@ export function formatCount(value: number): string {
  * work must not drag four decimals behind it.
  */
 export function formatUsd(value: number): string {
+	if (!Number.isFinite(value)) return "$0";
 	const abs = Math.abs(value);
 	if (abs === 0) return "$0";
 	if (abs < 0.01) return `$${value.toFixed(4)}`;
@@ -69,6 +82,7 @@ export function formatUsd(value: number): string {
  * chart axis reading "12 480 000" says less than "12.5M".
  */
 export function formatTokens(value: number): string {
+	if (!Number.isFinite(value)) return "0";
 	const abs = Math.abs(value);
 	if (abs >= 1_000_000)
 		return `${(value / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
@@ -81,7 +95,7 @@ export function formatTokens(value: number): string {
  * seconds, then hours and minutes. "122s" says much less than "2min2s".
  */
 export function formatDuration(ms: number): string {
-	const totalSeconds = Math.max(0, ms) / 1000;
+	const totalSeconds = finite(ms) / 1000;
 	if (totalSeconds < 60) {
 		return `${totalSeconds < 10 ? totalSeconds.toFixed(1) : Math.round(totalSeconds)}s`;
 	}

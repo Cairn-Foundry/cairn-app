@@ -54,9 +54,18 @@ export function scorePathMatch(path: string, q: string): number {
 	return Math.round(total / terms.length);
 }
 
-/** Escapes before the <mark> tags go in - the result is injected as HTML. */
+/**
+ * Escapes before the <mark> tags go in - the result is injected as HTML.
+ * Quotes are escaped too: the result is only ever placed in text content
+ * today, but an unescaped quote turns the first attribute use into an XSS.
+ */
 export function htmlEscape(s: string): string {
-	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	return s
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
 /** Marks the contiguous match if there is one, otherwise the matched letters. */

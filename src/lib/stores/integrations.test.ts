@@ -1,8 +1,8 @@
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MergeRequest, Pipeline } from "$lib/types/integrations";
-import type { Project } from "$lib/types/project";
 import { integrationKey } from "$lib/utils/integrations/instance-key";
+import { instance, project } from "../../test/fixtures";
 import { activeProjectId, projects } from "./project";
 
 const listeners = vi.hoisted(() => ({
@@ -117,28 +117,6 @@ function mergeRequest(id: string, title: string): MergeRequest {
 	};
 }
 
-function project(id: string, activeInstanceId: string): Project {
-	return {
-		id,
-		name: id,
-		path: `/repo/${id}`,
-		activeInstanceId,
-	} as unknown as Project;
-}
-
-function instance(projectId: string, id: string) {
-	return {
-		id,
-		projectId,
-		ticket: { id: "", title: "" },
-		branch: "feat/x",
-		worktreePath: `/repo/${projectId}/${id}`,
-		status: "idle",
-		createdAt: 0,
-		baseBranch: "main",
-	};
-}
-
 const A = integrationKey("p1", "i1");
 const B = integrationKey("p1", "i2");
 
@@ -207,11 +185,11 @@ describe("integration-update reduction", () => {
 
 	it("lands a late event on its instance after the user switched to another", async () => {
 		listInstances.mockResolvedValue([
-			instance("p1", "i1"),
-			instance("p1", "i2"),
+			instance("i1", "p1", { branch: "feat/x" }),
+			instance("i2", "p1", { branch: "feat/x" }),
 		]);
 		await loadInstances("p1");
-		projects.set([project("p1", "i2")]);
+		projects.set([project("p1", { activeInstanceId: "i2" })]);
 		activeProjectId.set("p1");
 		ciListPipelines.mockResolvedValue({
 			items: [pipeline("9", "running")],

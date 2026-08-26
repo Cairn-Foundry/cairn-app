@@ -2,11 +2,11 @@ import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { activeProjectId, projects } from "$lib/stores/project";
 import { activeScreen } from "$lib/stores/ui";
-import type { Project } from "$lib/types/project";
 import {
 	GIT_REFRESH_IDLE_INTERVAL_MS,
 	GIT_REFRESH_INTERVAL_MS,
 } from "$lib/utils/timing";
+import { project } from "../../test/fixtures";
 import {
 	git,
 	refreshStatus,
@@ -54,16 +54,6 @@ vi.mock("$lib/services/instance-service", () => ({
 	updateInstanceStatus: vi.fn(),
 }));
 
-function project(id: string): Project {
-	return {
-		id,
-		name: id,
-		path: `/repos/${id}`,
-		color: "#fff",
-		activeInstanceId: BASE_INSTANCE_ID,
-	} as Project;
-}
-
 describe("refreshStatus", () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
@@ -72,7 +62,7 @@ describe("refreshStatus", () => {
 			status: { "a.txt": "modified" },
 			changedPaths: { staged: [], unstaged: [] },
 		});
-		projects.set([project("a")]);
+		projects.set([project("a", { activeInstanceId: BASE_INSTANCE_ID })]);
 		const { loadInstances } = await import("./instance");
 		await loadInstances("a");
 		activeProjectId.set("a");
@@ -139,7 +129,7 @@ describe("indexVersion", () => {
 			changedPaths: { staged: [], unstaged: [] },
 		});
 		stageFile.mockResolvedValue(undefined);
-		projects.set([project("a")]);
+		projects.set([project("a", { activeInstanceId: BASE_INSTANCE_ID })]);
 		const { loadInstances } = await import("./instance");
 		await loadInstances("a");
 		activeProjectId.set("a");
@@ -182,7 +172,7 @@ describe("startGitPolling", () => {
 			status: {},
 			changedPaths: { staged: [], unstaged: [] },
 		});
-		projects.set([project("a")]);
+		projects.set([project("a", { activeInstanceId: BASE_INSTANCE_ID })]);
 		const { loadInstances } = await import("./instance");
 		await loadInstances("a");
 		activeProjectId.set("a");
