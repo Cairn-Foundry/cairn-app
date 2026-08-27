@@ -497,3 +497,182 @@ fn read_version(path: &Path) -> Option<String> {
     let line = text.lines().find(|l| !l.trim().is_empty())?;
     Some(line.trim().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_version_is_read_out_of_whatever_the_tool_prints() {
+        assert_eq!(parse_version("1.2.3"), Some(vec![1, 2, 3]));
+        assert_eq!(parse_version("v1.2.3"), Some(vec![1, 2, 3]));
+        assert_eq!(parse_version("node v20.11.0"), Some(vec![20, 11, 0]));
+        assert_eq!(
+            parse_version("rustc 1.75.0 (82e1608df 2023-12-21)"),
+            Some(vec![1, 75, 0])
+        );
+    }
+
+    #[test]
+    fn a_two_part_version_is_read_as_it_is() {
+        assert_eq!(parse_version("1.2"), Some(vec![1, 2]));
+    }
+
+    #[test]
+    fn a_trailing_dot_is_not_taken_for_a_component() {
+        assert_eq!(parse_version("1.2."), Some(vec![1, 2]));
+    }
+
+    #[test]
+    fn a_number_with_no_dot_is_not_a_version() {
+        assert_eq!(parse_version("42"), None);
+        assert_eq!(parse_version("tool 7"), None);
+    }
+
+    #[test]
+    fn text_carrying_no_version_answers_nothing() {
+        assert_eq!(parse_version(""), None);
+        assert_eq!(parse_version("command not found"), None);
+    }
+
+    #[test]
+    fn the_first_version_shaped_run_wins() {
+        assert_eq!(parse_version("tool 1.2.3 built with 4.5.6"), Some(vec![1, 2, 3]));
+    }
+
+    #[test]
+    fn a_version_with_many_components_keeps_them_all() {
+        assert_eq!(parse_version("1.2.3.4"), Some(vec![1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn an_update_is_reported_when_the_latest_is_ahead() {
+        assert_eq!(is_newer("1.2.3", "1.2.4"), Some(true));
+        assert_eq!(is_newer("1.2.3", "1.3.0"), Some(true));
+        assert_eq!(is_newer("1.2.3", "2.0.0"), Some(true));
+    }
+
+    #[test]
+    fn no_update_is_reported_when_the_versions_match() {
+        assert_eq!(is_newer("1.2.3", "1.2.3"), Some(false));
+    }
+
+    #[test]
+    fn no_update_is_reported_when_the_installed_one_is_ahead() {
+        assert_eq!(is_newer("2.0.0", "1.9.9"), Some(false));
+    }
+
+    /// A version with fewer components is padded with zeroes rather than
+    /// compared by length, so 1.2 and 1.2.0 are the same release.
+    #[test]
+    fn a_shorter_version_is_padded_rather_than_ranked_by_length() {
+        assert_eq!(is_newer("1.2", "1.2.0"), Some(false));
+        assert_eq!(is_newer("1.2.0", "1.2"), Some(false));
+        assert_eq!(is_newer("1.2", "1.2.1"), Some(true));
+    }
+
+    #[test]
+    fn a_double_digit_component_is_compared_as_a_number() {
+        assert_eq!(is_newer("1.9.0", "1.10.0"), Some(true));
+        assert_eq!(is_newer("1.10.0", "1.9.0"), Some(false));
+    }
+
+    /// A pre-release suffix says nothing that can be ordered, so only the
+    /// numeric core is compared rather than guessing.
+    #[test]
+    fn a_pre_release_suffix_is_left_out_of_the_comparison() {
+        assert_eq!(is_newer("1.2.3", "1.2.3-beta.1"), Some(false));
+        assert_eq!(is_newer("1.2.3-alpha", "1.2.4"), Some(true));
+    }
+
+    #[test]
+    fn nothing_is_reported_when_a_version_cannot_be_read() {
+        assert_eq!(is_newer("not a version", "1.2.3"), None);
+        assert_eq!(is_newer("1.2.3", "unknown"), None);
+        assert_eq!(is_newer("", ""), None);
+    }
+
+    #[test]
+    fn homebrew_is_the_one_manager_that_answers_with_a_flag() {
+        assert!(answers_with_a_flag("brew"));
+        for manager in ["npm", "cargo", "gem", "go", "apt"] {
+            assert!(!answers_with_a_flag(manager), "{manager} should report a version");
+        }
+    }
+
+    /// The order matters: a gem's bin directory can sit inside a Homebrew
+    /// prefix, and a formula whose payload is a node package lands in both
+    /// Cellar and node_modules. Whoever put the binary there owns it.
+    #[test]
+    fn a_gem_wins_over_the_prefix_it_sits_in() {
+        assert_eq!(
+            owning_manager(Path::new("/opt/homebrew/lib/ruby/gems/3.2.0/bin/rubocop")),
+            Some("gem")
+        );
+    }
+
+    #[test]
+    fn homebrew_owns_what_lives_in_its_cellar() {
+        assert_eq!(
+            owning_manager(Path::new("/opt/homebrew/Cellar/node/20.0.0/bin/node")),
+            Some("brew")
+        );
+    }
+
+    #[test]
+    fn a_formula_whose_payload_is_a_node_package_still_belongs_to_homebrew() {
+        assert_eq!(
+            owning_manager(Path::new("/opt/homebrew/Cellar/x/1.0/lib/node_modules/x/bin/x")),
+            Some("brew")
+        );
+    }
+
+    #[test]
+    fn npm_owns_what_it_installed_globally() {
+        assert_eq!(
+            owning_manager(Path::new("/usr/local/lib/node_modules/typescript/bin/tsc")),
+            Some("npm")
+        );
+    }
+
+    #[test]
+    fn cargo_owns_what_it_installed() {
+        assert_eq!(
+            owning_manager(Path::new("/home/ada/.cargo/bin/ripgrep")),
+            Some("cargo")
+        );
+        assert_eq!(
+            owning_manager(Path::new("/home/ada/.rustup/toolchains/stable/bin/rustc")),
+            Some("cargo")
+        );
+    }
+
+    #[test]
+    fn go_owns_what_it_installed() {
+        assert_eq!(
+            owning_manager(Path::new("/home/ada/go/bin/gopls")),
+            Some("go")
+        );
+    }
+
+    #[test]
+    fn a_homebrew_prefix_outside_the_cellar_still_reads_as_homebrew() {
+        assert_eq!(
+            owning_manager(Path::new("/home/linuxbrew/.linuxbrew/homebrew/bin/tool")),
+            Some("brew")
+        );
+    }
+
+    #[test]
+    fn a_binary_no_manager_claims_answers_nothing() {
+        assert_eq!(owning_manager(Path::new("/opt/hand-built/bin/tool")), None);
+    }
+
+    #[test]
+    fn manager_commands_are_listed_with_their_manager() {
+        let commands = ManagerCommands::default();
+        for (manager, _) in manager_commands(&commands) {
+            assert!(!manager.is_empty());
+        }
+    }
+}
