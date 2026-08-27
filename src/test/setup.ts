@@ -1,4 +1,9 @@
-import { vi } from "vitest";
+import { cleanup } from "@testing-library/svelte";
+import { afterEach, vi } from "vitest";
+
+// Every rendered component is unmounted after its test, so the next one starts
+// on an empty document rather than finding two of everything.
+afterEach(cleanup);
 
 vi.mock("@tauri-apps/api/core", () => ({
 	invoke: vi.fn(),

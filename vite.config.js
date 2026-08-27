@@ -11,7 +11,7 @@ const vitestConfig = {
     provider: "istanbul",
     reporter: ["text", "cobertura"],
     all: true,
-    include: ["src/lib/**/*.ts"],
+    include: ["src/lib/**/*.{ts,svelte}"],
     exclude: [
       "src/lib/**/*.test.ts",
       "src/lib/**/*.d.ts",
@@ -27,6 +27,11 @@ export default defineConfig(async () => ({
   plugins: [sveltekit()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   test: vitestConfig,
+
+  // Svelte 5 ships a server build and a client one; rendering a component in a
+  // test needs the client entry, which this condition selects. It has to sit at
+  // the root of the config: inside `test` the SvelteKit plugin wins over it.
+  resolve: process.env.VITEST ? { conditions: ["browser"] } : {},
 
   optimizeDeps: {
     include: ["@codemirror/language-data", "@codemirror/language-data > *"],
