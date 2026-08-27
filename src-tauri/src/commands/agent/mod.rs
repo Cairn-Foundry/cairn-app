@@ -453,3 +453,154 @@ pub async fn stop_agent(app: tauri::AppHandle, run_id: String) -> Result<(), Str
     emit_agent(&app, "[session stopped]".into(), "system", None, Some(run_id));
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A run handle with no process behind it: the registry only ever holds
+    /// and hands back these, so the child slot can stay empty.
+    fn handle() -> RunningChild {
+        Arc::new(RunningAgent {
+            child: Mutex::new(None),
+            stdin: Mutex::new(None),
+            cancelled: AtomicBool::new(false),
+        })
+    }
+
+    fn register(state: &AgentState, run_id: &str) -> RunningChild {
+        let child = handle();
+        state
+            .running
+            .lock()
+            .unwrap()
+            .insert(run_id.to_string(), Arc::clone(&child));
+        child
+    }
+
+    /// What `stop_agent` does to the registry, without the Tauri handle it
+    /// needs to emit the event afterwards.
+    fn stop(state: &AgentState, run_id: &str) -> bool {
+        let removed = state.running.lock().unwrap().remove(run_id);
+        match removed {
+            Some(handle) => {
+                handle.cancelled.store(true, Ordering::SeqCst);
+                true
+            }
+            None => false,
+        }
+    }
+
+    #[test]
+    fn a_fresh_state_has_no_run_going() {
+        let state = AgentState::new();
+        assert!(state.running.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_default_state_is_the_new_one() {
+        assert!(AgentState::default().running.lock().unwrap().is_empty());
+    }
+
+    /// The registry is keyed by run id rather than by instance, which is what
+    /// lets several conversations of one instance answer at the same time.
+    #[test]
+    fn several_runs_live_side_by_side() {
+        let state = AgentState::new();
+        register(&state, "run-1");
+        register(&state, "run-2");
+        register(&state, "run-3");
+        assert_eq!(state.running.lock().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn stopping_one_run_leaves_its_siblings_going() {
+        let state = AgentState::new();
+        let first = register(&state, "run-1");
+        let second = register(&state, "run-2");
+
+        assert!(stop(&state, "run-1"));
+
+        assert!(first.cancelled.load(Ordering::SeqCst));
+        assert!(!second.cancelled.load(Ordering::SeqCst));
+        let running = state.running.lock().unwrap();
+        assert!(!running.contains_key("run-1"));
+        assert!(running.contains_key("run-2"));
+    }
+
+    #[test]
+    fn a_stopped_run_is_marked_cancelled_so_it_is_not_reported_as_a_failure() {
+        let state = AgentState::new();
+        let child = register(&state, "run-1");
+        assert!(!child.cancelled.load(Ordering::SeqCst));
+        stop(&state, "run-1");
+        assert!(child.cancelled.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn stopping_a_run_nobody_started_changes_nothing() {
+        let state = AgentState::new();
+        register(&state, "run-1");
+        assert!(!stop(&state, "never-started"));
+        assert_eq!(state.running.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn stopping_the_same_run_twice_is_harmless() {
+        let state = AgentState::new();
+        register(&state, "run-1");
+        assert!(stop(&state, "run-1"));
+        assert!(!stop(&state, "run-1"));
+        assert!(state.running.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_run_that_finished_leaves_the_registry() {
+        let state = AgentState::new();
+        register(&state, "run-1");
+        state.running.lock().unwrap().remove("run-1");
+        assert!(state.running.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_worker_and_the_registry_share_one_handle() {
+        let state = AgentState::new();
+        let held_by_worker = register(&state, "run-1");
+        let held_by_registry = state
+            .running
+            .lock()
+            .unwrap()
+            .get("run-1")
+            .cloned()
+            .expect("the run should be registered");
+        assert!(Arc::ptr_eq(&held_by_worker, &held_by_registry));
+
+        stop(&state, "run-1");
+        assert!(held_by_worker.cancelled.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn shutting_down_clears_every_run() {
+        let state = AgentState::new();
+        let first = register(&state, "run-1");
+        let second = register(&state, "run-2");
+
+        for (_, handle) in state.running.lock().unwrap().drain() {
+            handle.cancelled.store(true, Ordering::SeqCst);
+        }
+
+        assert!(state.running.lock().unwrap().is_empty());
+        assert!(first.cancelled.load(Ordering::SeqCst));
+        assert!(second.cancelled.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn registering_the_same_id_twice_keeps_only_the_latest() {
+        let state = AgentState::new();
+        register(&state, "run-1");
+        let second = register(&state, "run-1");
+        let running = state.running.lock().unwrap();
+        assert_eq!(running.len(), 1);
+        assert!(Arc::ptr_eq(running.get("run-1").unwrap(), &second));
+    }
+}
