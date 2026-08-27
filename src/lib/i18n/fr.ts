@@ -494,7 +494,6 @@ export const fr = {
 		showOlderMessages: (n: string) => `Afficher les ${n} messages précédents`,
 		agentStarted: (name: string) => `${name} a démarré`,
 		seeAgentWork: "voir le détail",
-		waitingWorktree: "En attente d'un agent qui écrit dans ce worktree",
 		inputPlaceholder:
 			"Mentionner un agent, poser une question ou ajouter du contexte...",
 		sendBtn: "Envoyer",
