@@ -1,5 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { EditorState } from "@codemirror/state";
+import { EditorState, RangeSetBuilder } from "@codemirror/state";
+import { Decoration } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import {
 	collectBlockRanges,
@@ -387,5 +388,113 @@ describe("fillTableCell", () => {
 		const cell = cellFor("[x](javascript:alert(1))");
 		expect(cell.querySelector("[data-cm-md-href]")).toBeNull();
 		expect(cell.textContent).toBe("[x](javascript:alert(1))");
+	});
+});
+
+/**
+ * Both traps documented in CLAUDE.md have the same symptom: the markdown
+ * rendering silently disappears, because CodeMirror tears the plugin down
+ * rather than reporting anything. They are covered here explicitly.
+ */
+describe("the two ways the rendering silently disappears", () => {
+	/**
+	 * Trap one: tree iteration yields a parent before its children, so ranges
+	 * arrive out of order. A RangeSetBuilder throws on that; Decoration.set with
+	 * sort: true is what the module relies on. A document mixing nested inline
+	 * markup is what actually produces the out-of-order emission.
+	 */
+	const nested = [
+		"# A *heading* with `code` and [a link](https://example.com)",
+		"",
+		"> A quote with **bold**, *emphasis* and `code` inside it",
+		"",
+		"- A bullet with [link](./other.md) and **bold**",
+		"- Another with `code`",
+		"",
+		"| a | b |",
+		"| - | - |",
+		"| **x** | [y](https://example.com) |",
+		"",
+		"```ts",
+		"const x = 1;",
+		"```",
+		"",
+	].join("\n");
+
+	it("emits inline ranges the set constructor has to sort", () => {
+		const state = stateOf(nested);
+		const ranges = collectInlineRanges(state, 0, state.doc.length);
+		expect(ranges.length).toBeGreaterThan(0);
+		// A parent emitted before its children shares their start and ends
+		// later, which is precisely the order a builder refuses.
+		const ordered = ranges.every(
+			(r, i) =>
+				i === 0 ||
+				ranges[i - 1].from < r.from ||
+				(ranges[i - 1].from === r.from && ranges[i - 1].to <= r.to),
+		);
+		expect(
+			ordered,
+			"the fixture no longer produces out-of-order ranges, so it stops testing the sort",
+		).toBe(false);
+	});
+
+	it("builds a decoration set from those unsorted ranges", () => {
+		const state = stateOf(nested);
+		const ranges = collectInlineRanges(state, 0, state.doc.length);
+		expect(() => Decoration.set(ranges, true)).not.toThrow();
+		expect(Decoration.set(ranges, true).size).toBe(ranges.length);
+	});
+
+	/** A builder is what the module must not use: it rejects the same input. */
+	it("would throw through a range set builder, which is why one is not used", () => {
+		const state = stateOf(nested);
+		const ranges = collectInlineRanges(state, 0, state.doc.length);
+		expect(() => {
+			const builder = new RangeSetBuilder<Decoration>();
+			for (const r of ranges) builder.add(r.from, r.to, r.value);
+			builder.finish();
+		}).toThrow();
+	});
+
+	it("sorts block ranges too", () => {
+		const state = stateOf(nested);
+		const ranges = collectBlockRanges(state);
+		expect(ranges.length).toBeGreaterThan(0);
+		expect(() => Decoration.set(ranges, true)).not.toThrow();
+	});
+
+	/**
+	 * Trap two: a decoration replacing a line break may only come from a
+	 * StateField. Anything the ViewPlugin emits is viewport-scoped, and a
+	 * viewport-scoped range across a line break tears the plugin down.
+	 */
+	it("keeps every range that spans a line break in the block collector", () => {
+		const state = stateOf(nested);
+		const spansBreak = (r: { from: number; to: number }) =>
+			state.doc.lineAt(r.from).number !== state.doc.lineAt(r.to).number;
+
+		expect(collectBlockRanges(state).some(spansBreak)).toBe(true);
+		expect(
+			collectInlineRanges(state, 0, state.doc.length).some(spansBreak),
+			"an inline range crossing a line break belongs in the block field",
+		).toBe(false);
+	});
+
+	it("collects block ranges over the whole document, not a viewport slice", () => {
+		const long = `${"filler\n".repeat(400)}| a | b |\n| - | - |\n| x | y |\n`;
+		const state = stateOf(long);
+		const ranges = collectBlockRanges(state);
+		const lastLine = state.doc.lines;
+		expect(
+			ranges.some((r) => state.doc.lineAt(r.from).number > lastLine - 5),
+		).toBe(true);
+	});
+
+	it("takes a from/to window for the inline ranges only", () => {
+		const state = stateOf(nested);
+		const whole = collectInlineRanges(state, 0, state.doc.length);
+		const head = collectInlineRanges(state, 0, 40);
+		expect(head.length).toBeLessThan(whole.length);
 	});
 });

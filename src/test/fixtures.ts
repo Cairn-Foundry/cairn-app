@@ -1,3 +1,4 @@
+import type { ConversationMeta } from "$lib/services/conversation-service";
 import type { Instance, InstanceStatus } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 
@@ -31,6 +32,28 @@ export function instance(
 		status: "idle" as InstanceStatus,
 		createdAt: 0,
 		baseBranch: "main",
+		...overrides,
+	};
+}
+
+/** A plain, unpinned, unarchived conversation whose id doubles as its title. */
+export function conversation(
+	id: string,
+	overrides: Partial<ConversationMeta> = {},
+): ConversationMeta {
+	return {
+		id,
+		title: id,
+		createdAt: 0,
+		updatedAt: 0,
+		lastMessageAt: 0,
+		providerId: "claude",
+		pinned: false,
+		archived: false,
+		sessions: {},
+		lastProviderId: "claude",
+		messageCount: 2,
+		preview: "",
 		...overrides,
 	};
 }
