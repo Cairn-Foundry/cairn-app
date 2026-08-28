@@ -20,10 +20,15 @@
   }>();
 
   /** `editorconfig` is not a formatter of the catalogue, but it is a source. */
-  function sourceName(formatterId: string): string {
+  /**
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so a plain one would keep the old names once
+   * `formatters` is resupplied.
+   */
+  $: sourceName = (formatterId: string): string => {
     if (formatterId === 'editorconfig') return 'EditorConfig';
     return formatters.find((f) => f.id === formatterId)?.name ?? formatterId;
-  }
+  };
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->

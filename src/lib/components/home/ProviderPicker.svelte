@@ -31,15 +31,19 @@
    * Why an agent cannot be picked, or nothing. An agent that is missing from
    * this machine still shows the entries already written for it, so they can be
    * cleaned up - only adding is refused.
+   *
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so a plain function never noticed `unavailable`
+   * changing and a scope switch left the refused agents looking pickable.
    */
-  function blockedReason(id: CliProviderId): string {
+  $: blockedReason = (id: CliProviderId): string => {
     if (unavailable[id]) return unavailable[id] as string;
     const known = $cliProviders.find((p) => p.id === id);
     if (known && !known.installed && !selected.includes(id)) {
       return (t('cliProviders.notInstalled') as (name: string) => string)(known.label);
     }
     return '';
-  }
+  };
 
   function toggle(id: CliProviderId) {
     if (disabled) return;

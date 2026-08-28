@@ -80,11 +80,16 @@
     }
   }
 
-  function statusOf(connection: IntegrationConnection): 'ok' | 'noToken' | 'failed' {
+  /**
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so a plain one never noticed `failedTests`
+   * gaining an entry and the badge kept reading "ok" after a test had failed.
+   */
+  $: statusOf = (connection: IntegrationConnection): 'ok' | 'noToken' | 'failed' => {
     if (!connection.hasCredentials) return 'noToken';
     if (failedTests[connection.id]) return 'failed';
     return 'ok';
-  }
+  };
 
   function blank(kind: IntegrationKindDescriptor): IntegrationConnection {
     return {

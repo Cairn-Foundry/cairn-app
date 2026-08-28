@@ -10,6 +10,20 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "Switching the MCP import scope to the local one now greys out the agents that have no local list, instead of leaving them apparently selectable.",
+          "fr": "Basculer la portée d'import MCP sur locale grise désormais les agents sans liste locale, au lieu de les laisser apparemment sélectionnables."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "An integration whose connection test fails now shows the failed status, instead of keeping the one it had before the test.",
+          "fr": "Une intégration dont le test de connexion échoue affiche désormais le statut en échec, au lieu de conserver celui qu'elle avait avant le test."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "The eye button on a secret environment variable now actually reveals its value; it previously did nothing.",
           "fr": "Le bouton œil d'une variable d'environnement secrète révèle désormais réellement sa valeur ; il ne faisait rien auparavant."
         }
