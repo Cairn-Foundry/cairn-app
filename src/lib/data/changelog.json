@@ -10,6 +10,13 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "The eye button next to an MCP environment variable or header now actually reveals the masked value; it previously did nothing.",
+          "fr": "Le bouton œil d'une variable d'environnement ou d'un en-tête MCP révèle désormais réellement la valeur masquée ; il ne faisait rien auparavant."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "A failed write of the token usage ledger is now reported instead of being lost silently.",
           "fr": "Un échec d'écriture du journal de consommation de tokens est désormais signalé au lieu d'être perdu silencieusement."
         }

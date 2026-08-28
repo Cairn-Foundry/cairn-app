@@ -54,10 +54,14 @@
     newValue = '';
   }
 
-  /** A token pasted here should not sit in plain sight on a shared screen. */
-  function isHidden(key: string): boolean {
-    return secret && !revealed[key] && pairs[key] !== '';
-  }
+  /**
+   * A token pasted here should not sit in plain sight on a shared screen.
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so a plain `isHidden(key)` never noticed the
+   * reveal toggling and the eye button did nothing.
+   */
+  $: isHidden = (key: string): boolean =>
+    secret && !revealed[key] && pairs[key] !== '';
 </script>
 
 <div class="kv">
