@@ -10,6 +10,13 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "The eye button on a secret environment variable now actually reveals its value; it previously did nothing.",
+          "fr": "Le bouton œil d'une variable d'environnement secrète révèle désormais réellement sa valeur ; il ne faisait rien auparavant."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "The eye button next to an MCP environment variable or header now actually reveals the masked value; it previously did nothing.",
           "fr": "Le bouton œil d'une variable d'environnement ou d'un en-tête MCP révèle désormais réellement la valeur masquée ; il ne faisait rien auparavant."
         }

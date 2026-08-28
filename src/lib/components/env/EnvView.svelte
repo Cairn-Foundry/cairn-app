@@ -107,12 +107,16 @@
     revealed = next;
   }
 
-  /** Masks a secret value unless the row has been revealed. */
-  function displayValue(variable: EnvVariable, value: string): string {
+  /**
+   * Masks a secret value unless the row has been revealed. Reactive rather than
+   * a plain function: the template only re-reads a call when its arguments
+   * change, so reading `revealed` from inside one leaves the eye button inert.
+   */
+  $: displayValue = (variable: EnvVariable, value: string): string => {
     if (!value) return '';
     if (!variable.secret || revealed.has(variable.id)) return value;
     return '*'.repeat(Math.min(value.length, 12));
-  }
+  };
 
   function startNew(scope: EnvScope) {
     editing = { scope, variable: newVariable(), isNew: true };
