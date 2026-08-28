@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/svelte";
+import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
