@@ -6,6 +6,8 @@
    * including the pointer-event drag handlers.
    */
   import { tick } from 'svelte';
+  import { virtualWindow } from '$lib/utils/virtual-window';
+  import { flattenTree, soleDifference, spliceFolder, type FlatTreeNode } from '$lib/utils/files/flat-tree';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -132,34 +134,30 @@
   const ROW_HEIGHT = 25;
   const OVERSCAN = 12;
 
-  interface FlatNode { node: FileNode; depth: number; }
-
-  function flatten(
-    nodes: FileNode[],
-    depth: number,
-    open: Set<string>,
-    out: FlatNode[],
-  ) {
-    for (const node of nodes) {
-      out.push({ node, depth });
-      if (node.isDir && open.has(node.path) && node.children) {
-        flatten(node.children, depth + 1, open, out);
-      }
-    }
-  }
+  type FlatNode = FlatTreeNode<FileNode>;
 
   /**
    * `expanded` is passed in rather than read from the closure: a function body
-   * is opaque to the compiler, so a dependency only reached inside `flatten`
+   * is opaque to the compiler, so a dependency only reached inside the flatten
    * would never invalidate this and folding a directory would do nothing.
+   *
+   * Opening or closing one folder splices that folder's rows in or out of the
+   * previous array; every other change - a new tree, several folders at once -
+   * falls back to the full walk.
    */
-  function buildFlatNodes(nodes: FileNode[], open: Set<string>): FlatNode[] {
-    const out: FlatNode[] = [];
-    flatten(nodes, 0, open, out);
-    return out;
+  let prevTree: FileNode[] | null = null;
+  let prevExpanded: Set<string> | null = null;
+  let flatNodes: FlatNode[] = [];
+  $: {
+    const change =
+      prevTree === tree && prevExpanded !== null
+        ? soleDifference(prevExpanded, expanded)
+        : null;
+    const spliced = change ? spliceFolder(flatNodes, expanded, change) : null;
+    flatNodes = spliced ?? flattenTree(tree, expanded);
+    prevTree = tree;
+    prevExpanded = expanded;
   }
-
-  $: flatNodes = buildFlatNodes(tree, expanded);
 
   let scrollTop = 0;
   let viewportHeight = 0;
@@ -175,14 +173,12 @@
     return { destroy: () => observer.disconnect() };
   }
 
-  $: firstVisible = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  $: lastVisible = Math.min(
-    flatNodes.length,
-    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN,
-  );
+  $: win = virtualWindow(flatNodes.length, scrollTop, viewportHeight, ROW_HEIGHT, OVERSCAN);
+  $: firstVisible = win.first;
+  $: lastVisible = win.last;
   $: visibleNodes = flatNodes.slice(firstVisible, lastVisible);
-  $: padTop = firstVisible * ROW_HEIGHT;
-  $: padBottom = Math.max(0, (flatNodes.length - lastVisible) * ROW_HEIGHT);
+  $: padTop = win.padTop;
+  $: padBottom = win.padBottom;
 
   /**
    * Scrolls the row of the active tab into view. The row may be outside the
@@ -389,6 +385,7 @@
 
   /* Height is fixed: the virtualised tree positions rows by multiplying it. */
   .file-tree-item {
+    contain: content;
     display: flex;
     align-items: center;
     gap: 7px;

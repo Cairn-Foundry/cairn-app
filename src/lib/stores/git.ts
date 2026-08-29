@@ -49,8 +49,6 @@ type GitState = {
 	stashes: GitStash[];
 	remoteStatus: RemoteStatus | null;
 	operationState: GitOperationState | null;
-	commitMessage: string;
-	commitBody: string;
 	logHasMore: boolean;
 	graphHasMore: boolean;
 	isLoading: boolean;
@@ -79,14 +77,22 @@ const INITIAL: GitState = {
 	stashes: [],
 	remoteStatus: null,
 	operationState: null,
-	commitMessage: "",
-	commitBody: "",
 	logHasMore: false,
 	graphHasMore: false,
 	isLoading: false,
 	isGitRepo: true,
 	error: null,
 };
+
+/**
+ * The commit fields live outside `GitState` on purpose: they change on every
+ * keystroke, and while they sat in the monolith each one woke the ~48 reactive
+ * statements of GitView - the diff lists and their reduces included.
+ */
+export const commitDraft = writable<{ message: string; body: string }>({
+	message: "",
+	body: "",
+});
 
 const _git = writable<GitState>(INITIAL);
 
@@ -411,7 +417,7 @@ export async function commitChanges(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.commit(wt, message, options));
-	_git.update((s) => ({ ...s, commitMessage: "", commitBody: "" }));
+	commitDraft.set({ message: "", body: "" });
 	await refreshStatus();
 	await refreshLog();
 }
@@ -617,16 +623,17 @@ export async function deleteBranch(branchName: string): Promise<void> {
 
 /** Commit subject being typed; kept in the store so it survives leaving the view. */
 export function setCommitMessage(msg: string): void {
-	_git.update((s) => ({ ...s, commitMessage: msg }));
+	commitDraft.update((d) => ({ ...d, message: msg }));
 }
 
 /** Commit body being typed. */
 export function setCommitBody(body: string): void {
-	_git.update((s) => ({ ...s, commitBody: body }));
+	commitDraft.update((d) => ({ ...d, body }));
 }
 
 /** Back to the initial state, message fields included. */
 export function resetGitStore(): void {
+	commitDraft.set({ message: "", body: "" });
 	_git.set(INITIAL);
 }
 

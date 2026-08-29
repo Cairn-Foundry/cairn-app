@@ -106,6 +106,8 @@ export const fr = {
 		localBranches: "Locales",
 		remoteBranches: "Distantes",
 		noBranchesMatch: (q: string) => `Aucune branche ne correspond à "${q}"`,
+		branchesHidden: (n: number) =>
+			`${n} branches de plus - affinez la recherche pour les voir`,
 		baseBranchPlaceholder: "main",
 		newBranchName: "Nom de la nouvelle branche",
 		duplicateBranch: (name: string) =>
@@ -1861,6 +1863,8 @@ export const fr = {
 		remoteBranches: "Distantes",
 		filterBranches: "Filtrer les branches...",
 		noBranchesMatch: (q: string) => `Aucune branche ne correspond à "${q}"`,
+		branchesHidden: (n: number) =>
+			`${n} branches de plus - affinez la recherche pour les voir`,
 		noOtherBranches: "Aucune autre branche",
 		rebaseInProgress: "Rebase en cours",
 		mergeInProgress: "Fusion en cours",
@@ -2667,6 +2671,9 @@ export const fr = {
 			fontDesc: "Police à espacement fixe pour l'éditeur de code",
 			customColor: "Couleur personnalisée",
 			resetAppearance: "Réinitialiser l'apparence",
+			transparencyEffects: "Effets de transparence",
+			transparencyEffectsDesc:
+				"Laisse le bureau transparaître à travers la fenêtre. Les désactiver rend le défilement plus fluide ; effectif après un redémarrage.",
 			accentColors: {
 				blue: "Bleu",
 				purple: "Violet",

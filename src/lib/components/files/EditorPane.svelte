@@ -126,7 +126,7 @@
   {/if}
   {#if tabs.length > 0}
     <div class="tabs-bar" role="tablist" bind:this={tabsBarEl}>
-      {#each tabs as tab, i}
+      {#each tabs as tab, i (tab.path)}
         {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
           <div class="drop-indicator"></div>
         {/if}

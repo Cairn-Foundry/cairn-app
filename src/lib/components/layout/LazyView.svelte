@@ -7,6 +7,7 @@
    */
   import type { Component } from 'svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import Deferred from '$lib/components/Deferred.svelte';
 
   /**
    * A view compiles to a class, or to a function under runes, and the two type
@@ -19,10 +20,13 @@
   /** Whether the view is the one on screen right now. */
   export let active: boolean = false;
 
+  /** Fetch the chunk without mounting it, so the first open costs no import. */
+  export let prewarm: boolean = false;
+
   let Comp: AnyComponent | null = null;
   let pending = false;
 
-  $: if (active && !Comp && !pending) {
+  $: if ((active || prewarm) && !Comp && !pending) {
     pending = true;
     load().then((m) => {
       Comp = m.default;
@@ -34,7 +38,9 @@
 {#if Comp}
   <svelte:component this={Comp} {...$$restProps} on:openFile on:fileDiscarded on:filesChanged on:goGitSettings on:createInstanceFromRef on:goIntegrations/>
 {:else if active}
-  <div class="lazy-pending"><Spinner size={16}/></div>
+  <Deferred>
+    <div class="lazy-pending"><Spinner size={16}/></div>
+  </Deferred>
 {/if}
 
 <style>

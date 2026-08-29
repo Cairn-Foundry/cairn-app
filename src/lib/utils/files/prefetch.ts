@@ -26,6 +26,20 @@ export function cancelPrefetch(): void {
 	timer = null;
 }
 
+/**
+ * Same idea for an instance row of the switcher: its worktree is known, so the
+ * tree and the snapshot are read straight away while the pointer is still on
+ * the row.
+ */
+export function scheduleWorktreePrefetch(worktreePath: string): void {
+	cancelPrefetch();
+	timer = setTimeout(() => {
+		timer = null;
+		void readDirTree(worktreePath).catch(() => {});
+		void getSnapshot(worktreePath, 0).catch(() => {});
+	}, HOVER_DELAY_MS);
+}
+
 async function prefetchProject(projectId: string): Promise<void> {
 	const project = get(projects).find((p) => p.id === projectId);
 	if (!project) return;

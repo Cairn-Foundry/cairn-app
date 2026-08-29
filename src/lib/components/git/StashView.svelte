@@ -615,7 +615,7 @@
     border: 1px solid var(--stroke-0);
     border-radius: var(--r-sm);
     cursor: pointer;
-    transition: all .1s;
+    transition: background-color .1s, color .1s, border-color .1s;
     white-space: nowrap;
   }
   .stash-action-btn:hover {

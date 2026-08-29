@@ -50,6 +50,7 @@ vi.mock("$lib/services/file-service", async (importOriginal) => ({
 }));
 
 const gitState = writable<Record<string, unknown>>({});
+const draftState = writable({ message: "", body: "" });
 const stageFile = vi.fn<(...a: unknown[]) => unknown>();
 const stageFiles = vi.fn<(...a: unknown[]) => unknown>();
 const unstageFile = vi.fn<(...a: unknown[]) => unknown>();
@@ -67,6 +68,7 @@ const noop = () => vi.fn(async (..._a: unknown[]) => undefined);
 vi.mock("$lib/stores/git", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	git: { subscribe: gitState.subscribe },
+	commitDraft: { subscribe: draftState.subscribe },
 	stageFile: (...a: unknown[]) => stageFile(...a),
 	stageFiles: (...a: unknown[]) => stageFiles(...a),
 	unstageFile: (...a: unknown[]) => unstageFile(...a),
@@ -144,6 +146,7 @@ function diff(filePath: string, added = 1, removed = 0, truncated = false) {
 }
 
 function setGit(overrides: Record<string, unknown> = {}) {
+	const { commitMessage, commitBody, ...rest } = overrides;
 	gitState.set({
 		isGitRepo: true,
 		status: {},
@@ -158,10 +161,12 @@ function setGit(overrides: Record<string, unknown> = {}) {
 		currentBranch: "main",
 		remoteStatus: { hasUpstream: true, ahead: 0, behind: 0 },
 		operationState: null,
-		commitMessage: "",
-		commitBody: "",
 		error: null,
-		...overrides,
+		...rest,
+	});
+	draftState.set({
+		message: (commitMessage as string | undefined) ?? "",
+		body: (commitBody as string | undefined) ?? "",
 	});
 }
 

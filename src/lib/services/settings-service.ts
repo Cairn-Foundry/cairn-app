@@ -80,6 +80,7 @@ export interface CairnSettings {
 	sidebarPosition: "left" | "right";
 	workspaceSidebarPosition: "left" | "right";
 	showPinnedCommandsSidebar: boolean;
+	transparencyEffects: boolean;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

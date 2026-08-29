@@ -1,4 +1,8 @@
 <script lang="ts">
+
+  /** The DOM holds at most this many branch rows per group; a repository with
+     thousands of them would otherwise build the whole list on every keystroke. */
+  const BRANCH_RENDER_MAX = 100;
   /**
    * Multi-step modal creating an instance: ticket, then a new branch or an
    * existing one, then its git configuration. Dispatches `create` with the new
@@ -470,8 +474,11 @@
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
-            {@const localMatches = availableBranches.filter(b => matchesSearch(b, branchSearch))}
-            {@const remoteMatches = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const localAll = availableBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const remoteAll = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const localMatches = localAll.slice(0, BRANCH_RENDER_MAX)}
+            {@const remoteMatches = remoteAll.slice(0, BRANCH_RENDER_MAX)}
+            {@const hiddenBranches = (localAll.length - localMatches.length) + (remoteAll.length - remoteMatches.length)}
             <div class="branch-list-wrap">
               <div class="branch-search-row">
                 <Icon name="search" size={13}/>
@@ -502,7 +509,7 @@
                 {/if}
                 {#if localMatches.length > 0}
                   <div class="branch-group-label">{t('createInstance.localBranches')}</div>
-                  {#each localMatches as b}
+                  {#each localMatches as b (b)}
                     <button
                       class="branch-item {baseBranch === b ? 'active' : ''}"
                       on:click={() => baseBranch = b}
@@ -515,7 +522,7 @@
                 {/if}
                 {#if remoteMatches.length > 0}
                   <div class="branch-group-label">{t('createInstance.remoteBranches')}</div>
-                  {#each remoteMatches as b}
+                  {#each remoteMatches as b (b)}
                     <button
                       class="branch-item {baseBranch === b ? 'active' : ''}"
                       on:click={() => baseBranch = b}
@@ -525,6 +532,11 @@
                       {#if baseBranch === b}<Icon name="check" size={12}/>{/if}
                     </button>
                   {/each}
+                {/if}
+                {#if hiddenBranches > 0}
+                  <div class="branch-empty">
+                    {(t('createInstance.branchesHidden') as (n: number) => string)(hiddenBranches)}
+                  </div>
                 {/if}
               </div>
             </div>
@@ -561,8 +573,11 @@
         <div class="form-row">
           <div class="field-label">{t('createInstance.selectExistingBranch')}</div>
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
-            {@const localMatches = availableBranches.filter(b => matchesSearch(b, branchSearch))}
-            {@const remoteMatches = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const localAll = availableBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const remoteAll = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
+            {@const localMatches = localAll.slice(0, BRANCH_RENDER_MAX)}
+            {@const remoteMatches = remoteAll.slice(0, BRANCH_RENDER_MAX)}
+            {@const hiddenBranches = (localAll.length - localMatches.length) + (remoteAll.length - remoteMatches.length)}
             <div class="branch-list-wrap">
               <div class="branch-search-row">
                 <Icon name="search" size={13}/>
@@ -593,7 +608,7 @@
                 {/if}
                 {#if localMatches.length > 0}
                   <div class="branch-group-label">{t('createInstance.localBranches')}</div>
-                  {#each localMatches as b}
+                  {#each localMatches as b (b)}
                     {@const inUse = $instances.some(i => i.branch === b)}
                     <button
                       class="branch-item {existingBranch === b ? 'active' : ''}"
@@ -609,7 +624,7 @@
                 {/if}
                 {#if remoteMatches.length > 0}
                   <div class="branch-group-label">{t('createInstance.remoteBranches')}</div>
-                  {#each remoteMatches as b}
+                  {#each remoteMatches as b (b)}
                     <button
                       class="branch-item {existingBranch === b ? 'active' : ''}"
                       on:click={() => existingBranch = b}
@@ -619,6 +634,11 @@
                       {#if existingBranch === b}<Icon name="check" size={12}/>{/if}
                     </button>
                   {/each}
+                {/if}
+                {#if hiddenBranches > 0}
+                  <div class="branch-empty">
+                    {(t('createInstance.branchesHidden') as (n: number) => string)(hiddenBranches)}
+                  </div>
                 {/if}
               </div>
             </div>

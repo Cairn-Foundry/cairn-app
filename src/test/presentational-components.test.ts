@@ -287,9 +287,14 @@ describe("LazyView", () => {
 		await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 	});
 
-	it("shows a spinner rather than a word while it loads", () => {
+	/** A load that resolves in a few ms shows nothing at all: the spinner is
+	    held back 150 ms so a fast open never flashes a loading state. */
+	it("shows a spinner rather than a word once the load drags on", async () => {
 		render(LazyView, { load: () => new Promise(() => {}), active: true });
-		expect(document.querySelector(".lazy-pending .spinner")).not.toBeNull();
+		expect(document.querySelector(".lazy-pending .spinner")).toBeNull();
+		await vi.waitFor(() =>
+			expect(document.querySelector(".lazy-pending .spinner")).not.toBeNull(),
+		);
 		expect(document.body.textContent?.toLowerCase()).not.toContain("loading");
 	});
 

@@ -115,6 +115,20 @@
       </button>
     </div>
   </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.appearance.transparencyEffects')}</span>
+      <span class="settings-row-desc">{t('settings.appearance.transparencyEffectsDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.appearance.transparencyEffects') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.transparencyEffects}
+        on:change={(e) => settings.save({ transparencyEffects: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
 </div>
 <div class="settings-section-reset">
   <button

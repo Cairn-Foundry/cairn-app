@@ -103,6 +103,31 @@ describe("FileTreeView", () => {
 			expect(paths()).toEqual(["src", "src/main.ts"]);
 		});
 
+		/* Toggling on a mounted tree takes the incremental path, which splices
+		   the folder's rows in and out instead of walking the tree again. It
+		   has to land on exactly what a full rebuild would have produced. */
+		it("shows the children when a directory is unfolded after mounting", async () => {
+			const view = mount({
+				tree: [dir("src", [dir("src/lib", [file("src/lib/a.ts")])])],
+				expanded: new Set<string>(),
+			});
+			expect(paths()).toEqual(["src"]);
+			await view.rerender({ expanded: new Set(["src"]) });
+			expect(paths()).toEqual(["src", "src/lib"]);
+			await view.rerender({ expanded: new Set(["src", "src/lib"]) });
+			expect(paths()).toEqual(["src", "src/lib", "src/lib/a.ts"]);
+		});
+
+		it("takes the whole subtree away when a directory is folded again", async () => {
+			const view = mount({
+				tree: [dir("src", [dir("src/lib", [file("src/lib/a.ts")])])],
+				expanded: new Set(["src", "src/lib"]),
+			});
+			expect(paths()).toHaveLength(3);
+			await view.rerender({ expanded: new Set<string>() });
+			expect(paths()).toEqual(["src"]);
+		});
+
 		it("indents each level deeper than the one above", () => {
 			mount({
 				tree: [dir("src", [dir("src/lib", [file("src/lib/a.ts")])])],

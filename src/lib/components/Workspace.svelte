@@ -17,7 +17,7 @@
   import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
   import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '$lib/stores/command-run';
   import { globalCommands, loadCommands, projectCommands } from '$lib/stores/custom-command';
-  import { cancelPrefetch, schedulePrefetch } from '$lib/utils/files/prefetch';
+  import { cancelPrefetch, schedulePrefetch, scheduleWorktreePrefetch } from '$lib/utils/files/prefetch';
   import type { CustomCommand } from '$lib/services/custom-command-service';
   import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
   import { hasPendingUpdate, openUpdateModal } from '$lib/stores/update';
@@ -27,6 +27,7 @@
   import type { ShortcutId } from '$lib/types/shortcuts';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
+  import { withViewTransition } from '$lib/utils/view-transition';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
   import { matchesSearch } from '$lib/utils/files/files-search';
@@ -118,8 +119,10 @@
   }
 
   function openStep(id: string) {
-    activeStep.set(id as any);
-    showTool(null);
+    withViewTransition(() => {
+      activeStep.set(id as any);
+      showTool(null);
+    });
   }
 
   async function toggleFullscreen() {
@@ -364,6 +367,16 @@
   let stopGitPolling: (() => void) | null = null;
   onMount(() => { stopGitPolling = startGitPolling(); });
 
+  /* The workflow views are code-split, so the first Cmd+3 used to pay for an
+     import. Fetching the chunks once the workspace is painted makes every
+     later open instant, and the spinner never gets a chance to appear. */
+  let prewarmViews = false;
+  onMount(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 400));
+    const id = idle(() => (prewarmViews = true));
+    return () => (window.cancelIdleCallback ?? clearTimeout)(id as number);
+  });
+
   onMount(async () => {
     isMac = navigator.userAgent.includes('Mac');
     if (!isMac) return;
@@ -434,7 +447,7 @@
     </button>
     <div class="tab-divider"></div>
     <div class="tabs-scroll">
-    {#each openProjects as p, i}
+    {#each openProjects as p, i (p.id)}
       {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
         <div class="drop-indicator"></div>
       {/if}
@@ -518,11 +531,13 @@
             <div class="instance-menu-divider"></div>
             {#if instanceGroupsFiltered.length > 0}
               <div class="instance-menu-group">{t('workspace.instancesGroup')}</div>
-              {#each instanceGroupsFiltered as { inst, depth }}
+              {#each instanceGroupsFiltered as { inst, depth } (inst.id)}
                 <button
                   class="instance-menu-item {inst.id === activeInstance?.id ? 'active' : ''}"
                   style="padding-left: {10 + depth * 12}px"
                   on:click={() => selectInstance(inst.id)}
+                  on:pointerenter={() => { if (inst.id !== activeInstance?.id) scheduleWorktreePrefetch(inst.worktreePath); }}
+                  on:pointerleave={cancelPrefetch}
                 >
                   <span class="mono">{inst.ticket.id}</span>
                   <span class="instance-menu-title">{inst.ticket.title}</span>
@@ -666,14 +681,14 @@
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={!reviewActive}><LazyView active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!testsActive}><LazyView active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
-      <div class="step-view" class:step-hidden={!gitActive}><LazyView active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
-      <div class="step-view" class:step-hidden={!cicdActive}><LazyView active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => dispatch('goIntegrations')}/></div>
-      <div class="step-view" class:step-hidden={!$terminalActive}><LazyView active={$terminalActive} load={() => import('$lib/components/terminal/TerminalView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$commandsActive}><LazyView active={$commandsActive} load={() => import('$lib/components/commands/CommandsView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$envActive}><LazyView active={$envActive} load={() => import('$lib/components/env/EnvView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$formattingActive}><LazyView active={$formattingActive} load={() => import('$lib/components/formatting/FormattingView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
+      <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
+      <div class="step-view" class:step-hidden={!cicdActive}><LazyView prewarm={prewarmViews} active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => dispatch('goIntegrations')}/></div>
+      <div class="step-view" class:step-hidden={!$terminalActive}><LazyView prewarm={prewarmViews} active={$terminalActive} load={() => import('$lib/components/terminal/TerminalView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$commandsActive}><LazyView prewarm={prewarmViews} active={$commandsActive} load={() => import('$lib/components/commands/CommandsView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$envActive}><LazyView prewarm={prewarmViews} active={$envActive} load={() => import('$lib/components/env/EnvView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$formattingActive}><LazyView prewarm={prewarmViews} active={$formattingActive} load={() => import('$lib/components/formatting/FormattingView.svelte')}/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">
@@ -815,6 +830,7 @@
   .instance-menu-search-input::placeholder { color: var(--fg-4); }
 
   .instance-menu-item {
+    contain: content;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -842,6 +858,7 @@
     border-radius: 50%;
     background: var(--accent);
     animation: agent-pulse 1.5s ease-in-out infinite;
+    will-change: opacity;
   }
   @keyframes agent-pulse {
     0%, 100% { opacity: 1; }

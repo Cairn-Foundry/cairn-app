@@ -2,8 +2,117 @@
   {
     "version": "0.18.0",
     "date": "",
-    "summary": {},
-    "changes": []
+    "summary": {
+      "en": "Rendering pass: the interface answers the pointer without micro-stutter, switching workflow tab no longer rebuilds the view, and nothing flashes a loading state that lasts a few milliseconds.",
+      "fr": "Passe de rendu : l'interface repond au pointeur sans micro-saccade, changer d'onglet de workflow ne reconstruit plus la vue, et plus rien n'affiche un etat de chargement qui dure quelques millisecondes."
+    },
+    "changes": [
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Moving the pointer over the file tree, the git list or any dense list no longer costs a style recalculation of the whole window: icon animations are armed only while their control is hovered.",
+          "fr": "Deplacer le pointeur sur l'arbre de fichiers, la liste git ou n'importe quelle liste dense ne coute plus un recalcul de style de toute la fenetre : les animations d'icones ne sont armees que pendant le survol de leur controle."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Switching workflow tab keeps the hidden views laid out instead of tearing them down: the editor and the terminal are no longer re-measured on every return.",
+          "fr": "Changer d'onglet de workflow conserve la mise en page des vues masquees au lieu de les detruire : l'editeur et le terminal ne sont plus re-mesures a chaque retour."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The workflow views are fetched in the background once the workspace is on screen, so opening Review, Tests, Git, CI/CD or the terminal for the first time is immediate.",
+          "fr": "Les vues de workflow sont chargees en tache de fond une fois l'espace de travail affiche, si bien qu'ouvrir Review, Tests, Git, CI/CD ou le terminal pour la premiere fois est immediat."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "A loading state is only shown once the wait exceeds 150 ms: a fast open no longer flashes a spinner.",
+          "fr": "Un etat de chargement n'apparait que si l'attente depasse 150 ms : une ouverture rapide ne fait plus clignoter un indicateur."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "A streaming agent answer no longer forces a layout of the whole conversation on every chunk, so a long answer stays smooth.",
+          "fr": "Une reponse d'agent en cours de diffusion ne force plus une mise en page de toute la conversation a chaque bloc : une longue reponse reste fluide."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Reordering project tabs or editor tabs by drag no longer rebuilds every tab in the bar.",
+          "fr": "Reordonner les onglets de projet ou d'editeur par glisser ne reconstruit plus tous les onglets de la barre."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Cairn now follows the system setting for reduced motion: every animation and transition stops when macOS asks for it.",
+          "fr": "Cairn suit desormais le reglage systeme de mouvement reduit : toute animation et toute transition s'arretent quand macOS le demande."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Switching screen or workflow tab cross-fades instead of cutting, which also hides any frame the switch still goes through. The system setting for reduced motion turns it off.",
+          "fr": "Changer d'ecran ou d'onglet de workflow se fait en fondu plutot qu'en coupure, ce qui masque aussi toute image intermediaire que la bascule traverse encore. Le reglage systeme de mouvement reduit le desactive."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Hovering an instance in the switcher starts reading its worktree, so selecting it paints from data already there.",
+          "fr": "Survoler une instance dans le selecteur lance la lecture de son worktree, si bien que la selectionner peint a partir de donnees deja presentes."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "The git changes list no longer shows a row of dots while it loads: a slow read now shows a skeleton, a fast one shows nothing at all.",
+          "fr": "La liste des changements git n'affiche plus une suite de points pendant son chargement : une lecture lente montre desormais un squelette, une lecture rapide ne montre rien du tout."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The commit history only builds the rows the list can show, so a long history scrolls as smoothly as a short one.",
+          "fr": "L'historique des commits ne construit que les lignes que la liste peut afficher, si bien qu'un long historique defile aussi bien qu'un court."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Unfolding or folding a directory updates just that directory's rows instead of rebuilding the whole tree, which is felt on a large repository.",
+          "fr": "Deplier ou replier un dossier ne met a jour que les lignes de ce dossier au lieu de reconstruire tout l'arbre, ce qui se sent sur un gros depot."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The branch pickers show at most a hundred branches per group and say how many are left, rather than building thousands of rows on each keystroke.",
+          "fr": "Les selecteurs de branche affichent au plus cent branches par groupe et indiquent combien il en reste, plutot que de construire des milliers de lignes a chaque frappe."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "A \"Transparency effects\" setting under Appearance. Turning it off makes the window opaque, which gives scrolling back its fast path; it takes effect after a restart.",
+          "fr": "Un reglage \"Effets de transparence\" dans Apparence. Le desactiver rend la fenetre opaque, ce qui redonne au defilement son chemin rapide ; effectif apres un redemarrage."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The glass theme now blurs only the sidebar, the title bar and the tab strip, leaving the editor area opaque - the way Xcode and Finder do it. The blur was the heaviest thing the app asked of the GPU.",
+          "fr": "Le theme verre ne floute plus que la barre laterale, la barre de titre et la barre d'onglets, en laissant la zone d'edition opaque - comme le font Xcode et le Finder. Le flou etait ce que l'application demandait de plus lourd au GPU."
+        }
+      }
+    ]
   },
   {
     "version": "0.17.0",

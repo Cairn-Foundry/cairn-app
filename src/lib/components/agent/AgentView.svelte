@@ -18,6 +18,7 @@
   import { prepareInstanceEnv } from '$lib/stores/env';
   import { settings } from '$lib/stores/settings';
   import { respondPermission, sendMessage, stopAgent, type RunOptions } from '$lib/services/agent-service';
+  import { scheduleKeyed } from '$lib/utils/scheduler';
   import { mentionToken } from '$lib/utils/agent/mention';
   import { messageClock, messageDate } from '$lib/utils/agent/message-time';
   import { buildHandoffTranscript, priorTurns, withHandoffContext } from '$lib/utils/agent/handoff';
@@ -863,12 +864,22 @@
     settings.save({ agentActivityWidth: Math.round(activityWidth) });
   }
 
+  /** `scrollTo` writes without reading; jsdom and older engines lack it. */
+  function toBottom(el: HTMLElement | undefined) {
+    if (!el) return;
+    if (el.scrollTo) el.scrollTo({ top: 1e9 });
+    else el.scrollTop = el.scrollHeight;
+  }
+
   async function autoscroll() {
     await tick();
-    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-    if (activityEl && get(settings).agentActivityAutoScroll) {
-      activityEl.scrollTop = activityEl.scrollHeight;
-    }
+    /* One scroll per frame, and `scrollTo` past the end rather than reading
+       `scrollHeight`: a streaming answer fires this dozens of times a second,
+       and each read forced a synchronous layout of the whole conversation. */
+    scheduleKeyed('visible', 'agent-scroll', () => {
+      toBottom(scrollEl);
+      if (get(settings).agentActivityAutoScroll) toBottom(activityEl);
+    });
   }
 
   let chipOpen = $state<'' | 'provider' | 'model' | 'effort' | 'perm' | 'stats'>('');
@@ -2847,6 +2858,7 @@
   }
 
   .turn-blocks {
+    contain: content;
     display: flex;
     flex-direction: column;
     gap: 14px;

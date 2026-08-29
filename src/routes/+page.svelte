@@ -5,6 +5,7 @@
    */
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
+  import { withViewTransition } from '$lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
@@ -139,8 +140,25 @@
     }, 300);
   }
 
+  let longtaskObs: PerformanceObserver | null = null;
+  onDestroy(() => longtaskObs?.disconnect());
+
   onMount(async () => {
     removeCopyHandler = installCopySelectionHandler();
+
+    /* In dev only: names the frames that blew the budget, so a slow switch has
+       a number attached to it instead of a feeling. */
+    if (import.meta.env.DEV && 'PerformanceObserver' in window) {
+      try {
+        const obs = new PerformanceObserver((list) => {
+          for (const e of list.getEntries()) {
+            console.warn(`[longtask] ${Math.round(e.duration)}ms`, e);
+          }
+        });
+        obs.observe({ entryTypes: ['longtask'] });
+        longtaskObs = obs;
+      } catch {}
+    }
 
     initTerminals();
     initLanguageServers();
@@ -230,10 +248,15 @@
     await switchTo(newId);
   }
 
+  /** Screen changes go through the cross-fade so no intermediate frame shows. */
+  function goScreen(next: 'home' | 'workspace') {
+    withViewTransition(() => { screen = next; });
+  }
+
   async function handleOpenProject(id: string) {
     openProject(id);
     await switchTo(id);
-    screen = 'workspace';
+    goScreen('workspace');
   }
 
   function handleCloseProject(id: string) {
@@ -251,7 +274,7 @@
   async function handleProjectCreated(id: string) {
     openProject(id);
     await switchTo(id);
-    screen = 'workspace';
+    goScreen('workspace');
   }
 
   /**
@@ -341,13 +364,13 @@
       on:projectChange={(e) => handleProjectChange(e.detail)}
       on:closeProject={(e) => handleCloseProject(e.detail)}
       on:reorderTabs={(e) => reorderTabs(e.detail)}
-      on:addProject={() => { homeOpenSection = null; screen = 'home'; }}
-      on:goHome={() => { homeOpenSection = null; screen = 'home'; }}
-      on:goSettings={() => { homeOpenSection = 'settings'; screen = 'home'; }}
-      on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; screen = 'home'; }}
-      on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; screen = 'home'; }}
-      on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; screen = 'home'; }}
-      on:goIntegrations={() => { homeOpenSection = 'integrations'; screen = 'home'; }}
+      on:addProject={() => { homeOpenSection = null; goScreen('home'); }}
+      on:goHome={() => { homeOpenSection = null; goScreen('home'); }}
+      on:goSettings={() => { homeOpenSection = 'settings'; goScreen('home'); }}
+      on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; goScreen('home'); }}
+      on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; goScreen('home'); }}
+      on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; goScreen('home'); }}
+      on:goIntegrations={() => { homeOpenSection = 'integrations'; goScreen('home'); }}
       on:createInstance={(e) => { createFromBranch = e.detail?.branch ?? ''; showCreate = true; }}
     />
     {/if}

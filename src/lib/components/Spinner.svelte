@@ -56,6 +56,7 @@
 
   .arc {
     animation: spinner-rotate 0.6s linear infinite;
+    will-change: transform;
     transform-box: view-box;
     transform-origin: 50% 50%;
   }

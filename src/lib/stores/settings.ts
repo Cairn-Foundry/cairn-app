@@ -29,6 +29,7 @@ const DEFAULTS: CairnSettings = {
 	sidebarPosition: "left",
 	workspaceSidebarPosition: "left",
 	showPinnedCommandsSidebar: true,
+	transparencyEffects: true,
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],

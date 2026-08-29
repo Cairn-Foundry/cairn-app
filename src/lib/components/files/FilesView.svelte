@@ -1721,12 +1721,14 @@ import { get } from 'svelte/store';
       currentInstanceId = id;
       currentProjectId = pid;
       currentScope = scope;
-      recentFiles = [];
-      panes = [makePane(), makePane()];
       editState = null;
       contextMenu = null;
       const saved = scope !== null ? savedState.get(scope) ?? null : null;
       if (!saved) selectedDir = '';
+      /* `panes` and `recentFiles` are deliberately left alone here: blanking
+         them before the restore flushed an empty editor for one frame, which
+         is the flash seen when switching instance or project. The old scope
+         stays on screen until `restored` is ready, one assignment later. */
       if (id !== null && wtp !== null && pid !== null) {
         const load = saved
           ? Promise.resolve({ persisted: saved.persisted, recentFiles: saved.recentFiles })
@@ -1735,6 +1737,7 @@ import { get } from 'svelte/store';
           if (currentScope !== scope) return;
           recentFiles = rf;
           if (!persisted) {
+            panes = [makePane(), makePane()];
             expanded = new Set();
             splitMode = false;
             splitLeftWidth = 0;
@@ -1748,6 +1751,8 @@ import { get } from 'svelte/store';
           refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
         });
       } else {
+        recentFiles = [];
+        panes = [makePane(), makePane()];
         expanded = new Set();
         splitMode = false;
         splitLeftWidth = 0;

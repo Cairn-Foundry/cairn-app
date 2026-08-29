@@ -6,6 +6,9 @@
    */
   import { onMount, createEventDispatcher, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { virtualWindow } from '$lib/utils/virtual-window';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import Deferred from '$lib/components/Deferred.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';
   import GitDiff from '$lib/components/git/GitDiff.svelte';
@@ -48,6 +51,7 @@
     revertCommit,
     clearGitError,
     recoverFromGitError,
+    commitDraft,
   } from '$lib/stores/git';
   import type { GitStash } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
@@ -276,11 +280,11 @@
 
   let commitTitleEl: HTMLInputElement;
   let commitBodyEl: HTMLTextAreaElement;
-  $: if (commitTitleEl && document.activeElement !== commitTitleEl && commitTitleEl.value !== state.commitMessage) {
-    commitTitleEl.value = state.commitMessage;
+  $: if (commitTitleEl && document.activeElement !== commitTitleEl && commitTitleEl.value !== $commitDraft.message) {
+    commitTitleEl.value = $commitDraft.message;
   }
-  $: if (commitBodyEl && document.activeElement !== commitBodyEl && commitBodyEl.value !== state.commitBody) {
-    commitBodyEl.value = state.commitBody;
+  $: if (commitBodyEl && document.activeElement !== commitBodyEl && commitBodyEl.value !== $commitDraft.body) {
+    commitBodyEl.value = $commitDraft.body;
     resizeCommitBody();
   }
 
@@ -615,9 +619,29 @@
 
   let isLoadingMoreLog = false;
   /** Pages the log in when the scroller comes within 120px of the bottom. */
+  /* The log is virtualised the same way the file tree is: rows have a fixed
+     height, so only the ones the viewport can show are put in the DOM and two
+     spacers stand in for the rest. */
+  const LOG_ROW_H = 56;
+  const LOG_OVERSCAN = 4;
+  let logScrollTop = 0;
+  let logViewportH = 0;
+  /* Until the ResizeObserver has measured the list, assume a tall viewport
+     rather than none: a zero would leave only the overscan on screen. */
+  $: logWin = virtualWindow(filteredLog.length, logScrollTop, logViewportH || 2000, LOG_ROW_H, LOG_OVERSCAN);
+  $: visibleLog = filteredLog.slice(logWin.first, logWin.last);
+
+  function measureLogViewport(node: HTMLElement) {
+    const observer = new ResizeObserver(() => { logViewportH = node.clientHeight; });
+    observer.observe(node);
+    logViewportH = node.clientHeight;
+    return { destroy: () => observer.disconnect() };
+  }
+
   async function handleLogScroll(e: Event) {
-    if (isLoadingMoreLog || !state.logHasMore) return;
     const el = e.currentTarget as HTMLElement;
+    logScrollTop = el.scrollTop;
+    if (isLoadingMoreLog || !state.logHasMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
       isLoadingMoreLog = true;
       try {
@@ -702,7 +726,7 @@
     if (prevWorktree) {
       if (selectedCommit) commitByWorktree[prevWorktree] = selectedCommit;
       else delete commitByWorktree[prevWorktree];
-      draftByWorktree[prevWorktree] = { title: state.commitMessage, body: state.commitBody };
+      draftByWorktree[prevWorktree] = { title: $commitDraft.message, body: $commitDraft.body };
     }
     lastWorktreePath = nextWorktree;
     // The git store is global, so without this the message being written for
@@ -739,7 +763,7 @@
   }
 
   $: stagedCount = stagedCards.length;
-  $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && state.commitMessage.trim().length > 0;
+  $: canCommit = (stagedCount > 0 || amendMode || allowEmpty) && $commitDraft.message.trim().length > 0;
 
   /**
    * Grows the body with its content up to the CSS max-height, past which it
@@ -991,12 +1015,12 @@
 
   /** Joins title and body, appending the instance ticket id to the subject when asked. */
   function buildCommitMessage(): string {
-    let title = state.commitMessage;
+    let title = $commitDraft.message;
     const ticketId = instance?.ticket?.id;
     if (appendTicketId && ticketId) {
       title = `${title}, ${ticketId}`;
     }
-    const body = state.commitBody.trim();
+    const body = $commitDraft.body.trim();
     return body ? `${title}\n\n${body}` : title;
   }
 
@@ -1186,7 +1210,7 @@
         {#if unstagedCards.length === 0}
           <div class="empty-hint">
             {#if state.isLoading}
-              ...
+              <Deferred when={state.isLoading}><Skeleton lines={3}/></Deferred>
             {:else if stagedCards.length > 0}
               {t('git.cleanAllStaged')}
             {:else}
@@ -1293,13 +1317,14 @@
           <Icon name="refresh" size={13}/>
         </button>
       </div>
-      <div class="log-list" on:scroll={handleLogScroll}>
+      <div class="log-list" use:measureLogViewport on:scroll={handleLogScroll}>
         {#if state.log.length === 0}
           <div class="empty-hint">{t('git.noHistory')}</div>
         {:else if filteredLog.length === 0}
           <div class="empty-hint">{t('git.logNoResults')}</div>
         {:else}
-          {#each filteredLog as commit (commit.hash)}
+          <div style="height: {logWin.padTop}px; flex: none;"></div>
+          {#each visibleLog as commit (commit.hash)}
             <div
               class="log-entry"
               class:is-ahead={aheadHashes.has(commit.hash)}
@@ -1320,6 +1345,7 @@
               </div>
             </div>
           {/each}
+          <div style="height: {logWin.padBottom}px; flex: none;"></div>
           {#if state.logHasMore && !$currentProjectViewState.gitLogSearch.trim()}
             <div class="log-loading-more">
               <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
@@ -1758,7 +1784,7 @@
         />
         {#if generating}
           <span class="ai-sweep" aria-hidden="true"></span>
-          {#if !state.commitMessage}
+          {#if !$commitDraft.message}
             <span class="ai-ghost" aria-hidden="true"><i style="width: 62%"></i></span>
           {/if}
         {/if}
@@ -1775,7 +1801,7 @@
         ></textarea>
         {#if generating}
           <span class="ai-sweep" aria-hidden="true"></span>
-          {#if !state.commitBody}
+          {#if !$commitDraft.body}
             <span class="ai-ghost" aria-hidden="true"><i style="width: 88%"></i><i style="width: 74%"></i><i style="width: 46%"></i></span>
           {/if}
         {/if}
@@ -2263,6 +2289,7 @@
   .log-refresh-btn:hover { color: var(--fg-0); border-color: var(--stroke-1); background: var(--bg-1); }
 
   .log-list {
+    --log-row-h: 56px;
     flex: 1;
     overflow-y: auto;
     display: flex;
@@ -2276,15 +2303,22 @@
     padding: 12px;
   }
 
+  /* Fixed height on purpose: the list is virtualised, and the window maths can
+     only place rows it knows the size of. The subject already ellipses on one
+     line, so nothing wraps and nothing is cut off by pinning it. */
   .log-entry {
+    box-sizing: border-box;
+    height: var(--log-row-h);
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 3px;
-    padding: 9px 14px;
+    padding: 0 14px;
     border-bottom: 1px solid var(--stroke-0);
     border-left: 3px solid transparent;
     transition: background .1s;
     cursor: pointer;
+    contain: content;
   }
   .log-entry:hover { background: var(--bg-2); }
   .log-entry.is-ahead { border-left-color: var(--accent); }
@@ -2486,6 +2520,7 @@
 
   /* Diff body */
   .card-diff {
+    contain: content;
     position: relative;
     background: var(--bg-0);
     border-top: 1px solid var(--stroke-0);

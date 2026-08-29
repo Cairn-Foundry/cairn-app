@@ -231,6 +231,7 @@
   .agent-block.failed .agent-mark { color: var(--danger); }
 
   .agent-result {
+    contain: content;
     border-left: 2px solid color-mix(in srgb, var(--agent) 45%, transparent);
     color: var(--fg-1);
     font-size: 12px;

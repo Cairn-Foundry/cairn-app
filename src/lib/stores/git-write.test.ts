@@ -51,6 +51,7 @@ import {
 	amendLastCommit,
 	clearGitError,
 	commitChanges,
+	commitDraft,
 	fetchRemote,
 	git,
 	mergeBranch,
@@ -128,15 +129,15 @@ describe("commitChanges", () => {
 		setCommitMessage("subject");
 		setCommitBody("body");
 		await commitChanges("subject");
-		expect(get(git).commitMessage).toBe("");
-		expect(get(git).commitBody).toBe("");
+		expect(get(commitDraft).message).toBe("");
+		expect(get(commitDraft).body).toBe("");
 	});
 
 	it("keeps the message on screen when the commit fails", async () => {
 		setCommitMessage("subject");
 		service.commit.mockRejectedValue({ code: "nothing_to_commit", raw: "x" });
 		await expect(commitChanges("subject")).rejects.toBeDefined();
-		expect(get(git).commitMessage).toBe("subject");
+		expect(get(commitDraft).message).toBe("subject");
 	});
 
 	it("publishes the failure for the banner to show", async () => {
@@ -180,7 +181,7 @@ describe("amendLastCommit", () => {
 	it("leaves the message fields alone, unlike a fresh commit", async () => {
 		setCommitMessage("kept");
 		await amendLastCommit("reworded");
-		expect(get(git).commitMessage).toBe("kept");
+		expect(get(commitDraft).message).toBe("kept");
 	});
 
 	it("publishes a failure and rethrows", async () => {

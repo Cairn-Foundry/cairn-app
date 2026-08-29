@@ -104,6 +104,8 @@ export const en = {
 		localBranches: "Local",
 		remoteBranches: "Remote",
 		noBranchesMatch: (q: string) => `No branches match "${q}"`,
+		branchesHidden: (n: number) =>
+			`${n} more branches - refine the search to see them`,
 		baseBranchPlaceholder: "main",
 		newBranchName: "New branch name",
 		duplicateBranch: (name: string) =>
@@ -1825,6 +1827,8 @@ export const en = {
 		remoteBranches: "Remote",
 		filterBranches: "Filter branches...",
 		noBranchesMatch: (q: string) => `No branches match "${q}"`,
+		branchesHidden: (n: number) =>
+			`${n} more branches - refine the search to see them`,
 		noOtherBranches: "No other branches",
 		rebaseInProgress: "Rebase in progress",
 		mergeInProgress: "Merge in progress",
@@ -2616,6 +2620,9 @@ export const en = {
 			fontDesc: "Monospace font for code editor",
 			customColor: "Custom color",
 			resetAppearance: "Reset appearance",
+			transparencyEffects: "Transparency effects",
+			transparencyEffectsDesc:
+				"Lets the desktop show through the window. Turning it off makes scrolling smoother; takes effect after a restart.",
 			accentColors: {
 				blue: "Blue",
 				purple: "Purple",
