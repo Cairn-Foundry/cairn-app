@@ -1,7 +1,7 @@
 [
   {
     "version": "0.17.0",
-    "date": "",
+    "date": "2026-08-29",
     "summary": {
       "en": "Integrations: GitLab, GitHub and Jira come into Cairn - tickets, merge requests, pipelines and reviews, without leaving the workspace.",
       "fr": "Intégrations : GitLab, GitHub et Jira entrent dans Cairn - tickets, merge requests, pipelines et reviews, sans quitter l'espace de travail."
