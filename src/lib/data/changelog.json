@@ -433,6 +433,34 @@
           "en": "Deleting a project now clears everything the app still held for it: cached conversations, terminals, environment variables, agent runs and integration state. A write still queued for the deleted project is cancelled instead of recreating its folder on disk moments later.",
           "fr": "Supprimer un projet efface desormais tout ce que l'application retenait encore de lui : conversations en cache, terminaux, variables d'environnement, executions d'agent et etat des integrations. Une ecriture encore en attente pour le projet supprime est annulee au lieu de recreer son dossier sur le disque quelques instants plus tard."
         }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Push and pull each carry a dropdown next to them, to pick force-with-lease or a plain force push, and rebase, merge or fast-forward-only for a pull.",
+          "fr": "Push et pull ont chacun un menu déroulant à côté d'eux, pour choisir force-with-lease ou un push force simple, et rebase, merge ou fast-forward uniquement pour un pull."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The list of target branches of the merge and rebase panel shows a placeholder while the branches load, instead of looking empty.",
+          "fr": "La liste des branches cibles du panneau merge et rebase affiche un indicateur pendant le chargement des branches, au lieu de paraître vide."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Searching the git graph and the git history no longer loads the whole history on the first keystroke: the load waits for the typing to settle.",
+          "fr": "La recherche dans le graphe et l'historique git ne charge plus tout l'historique dès la première frappe : le chargement attend la fin de la saisie."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Searching in files stays responsive on a large number of matches: only the visible results are rendered, and the search itself no longer has its walker threads contend on a shared list.",
+          "fr": "La recherche dans les fichiers reste réactive sur un grand nombre de correspondances : seuls les résultats visibles sont rendus, et la recherche elle-même ne fait plus se disputer ses threads sur une liste partagée."
+        }
       }
     ]
   },

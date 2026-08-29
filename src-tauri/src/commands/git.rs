@@ -1031,13 +1031,17 @@ pub async fn git_delete_branch(worktree_path: String, branch_name: String) -> Re
 #[tauri::command]
 /// Pushes, blocking on the network. Force uses `--force-with-lease`; stdout and
 /// stderr are merged because git reports progress on stderr.
-pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String, force: bool) -> Result<String, GitError> {
+pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String, force: bool, mode: Option<String>) -> Result<String, GitError> {
     reject_option_like(&branch)?;
     let expanded = expand(&worktree_path);
     let mut args = vec!["push"];
 
-    if force {
-        args.push("--force-with-lease");
+    // `force` stays for the plain button; `mode` is what the dropdown picks.
+    match mode.as_deref() {
+        Some("force") => args.push("--force"),
+        Some("force-with-lease") => args.push("--force-with-lease"),
+        _ if force => args.push("--force-with-lease"),
+        _ => {}
     }
     if set_upstream {
         args.extend(["--set-upstream", "origin", branch.as_str()]);
@@ -1056,11 +1060,16 @@ pub async fn git_push(worktree_path: String, set_upstream: bool, branch: String,
 
 #[tauri::command]
 /// Pulls with rebase; conflicts come back as a non-ok result rather than an error.
-pub async fn git_pull(worktree_path: String) -> Result<GitOpResult, GitError> {
+pub async fn git_pull(worktree_path: String, mode: Option<String>) -> Result<GitOpResult, GitError> {
     let expanded = expand(&worktree_path);
+    let strategy = match mode.as_deref() {
+        Some("merge") => "--no-rebase",
+        Some("ff-only") => "--ff-only",
+        _ => "--rebase",
+    };
     let out = git_cmd(&expanded)
         .env("GIT_EDITOR", "true")
-        .args(["pull", "--rebase"])
+        .args(["pull", strategy])
         .output()?;
     finish_op(&expanded, out)
 }

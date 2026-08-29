@@ -201,7 +201,13 @@ describe("amendLastCommit", () => {
 describe("pushBranch", () => {
 	it("sets the upstream when the branch has none", async () => {
 		await pushBranch();
-		expect(service.push).toHaveBeenCalledWith(WORKTREE, true, "", false);
+		expect(service.push).toHaveBeenCalledWith(
+			WORKTREE,
+			true,
+			"",
+			false,
+			"normal",
+		);
 	});
 
 	it("does not set it again when the branch already has one", async () => {
@@ -218,7 +224,13 @@ describe("pushBranch", () => {
 		});
 		await refreshStatus();
 		await pushBranch();
-		expect(service.push).toHaveBeenCalledWith(WORKTREE, false, "main", false);
+		expect(service.push).toHaveBeenCalledWith(
+			WORKTREE,
+			false,
+			"main",
+			false,
+			"normal",
+		);
 	});
 
 	it("sets the upstream on request even when one exists", async () => {
@@ -228,6 +240,7 @@ describe("pushBranch", () => {
 			true,
 			expect.any(String),
 			false,
+			"normal",
 		);
 	});
 
@@ -238,6 +251,7 @@ describe("pushBranch", () => {
 			true,
 			expect.any(String),
 			true,
+			"normal",
 		);
 	});
 
@@ -346,6 +360,7 @@ describe("recoverFromGitError", () => {
 			true,
 			expect.any(String),
 			false,
+			"normal",
 		);
 	});
 

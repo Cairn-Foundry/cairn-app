@@ -70,6 +70,7 @@
   import { readOnlyPermissionMode, readOnlyTools, resolveAiFeature } from '$lib/utils/home/ai-features';
   import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
   import { parseCommitMessage, renderCommitPrompt } from '$lib/utils/git/commit-message';
+  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
 
@@ -799,18 +800,33 @@
   }
 
   $: syncLogSearchMode($currentProjectViewState.gitLogSearch);
-  /** Searching needs the whole log, so entering search loads it all and leaving it pages again. */
+  /**
+   * Searching needs the whole log, so entering search loads it all and leaving it
+   * pages again. Debounced: the full load walks the entire history, and firing it
+   * on the first keystroke made every subsequent one wait on a request the user
+   * had already typed past.
+   */
+  let logSearchTimer: ReturnType<typeof setTimeout>;
   function syncLogSearchMode(q: string) {
     const active = q.trim().length > 0;
-    if (active && !logSearchLoaded) { logSearchLoaded = true; loadAllLog(); }
-    else if (!active && logSearchLoaded) { logSearchLoaded = false; refreshLog(); }
+    if (active === logSearchLoaded) return;
+    clearTimeout(logSearchTimer);
+    logSearchTimer = setTimeout(() => {
+      logSearchLoaded = active;
+      if (active) loadAllLog();
+      else refreshLog();
+    }, SEARCH_DEBOUNCE_MS);
   }
 
-  /** Same trade for the graph: search over the full history, otherwise back to the paged view. */
+  /** Same trade, and the same debounce, for the graph. */
+  let graphSearchTimer: ReturnType<typeof setTimeout>;
   function handleGraphSearchToggle(active: boolean) {
-    graphSearchActive = active;
-    if (active) loadAllGraph();
-    else refreshGraph();
+    clearTimeout(graphSearchTimer);
+    graphSearchTimer = setTimeout(() => {
+      graphSearchActive = active;
+      if (active) loadAllGraph();
+      else refreshGraph();
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   $: stagedCount = stagedCards.length;

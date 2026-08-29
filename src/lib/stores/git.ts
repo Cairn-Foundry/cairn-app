@@ -10,6 +10,8 @@ import type {
 	GitOperationState,
 	GitOpResult,
 	GitStash,
+	PullMode,
+	PushMode,
 	RemoteStatus,
 } from "$lib/services/git-service";
 import * as gitService from "$lib/services/git-service";
@@ -45,6 +47,7 @@ type GitState = {
 	currentBranch: string;
 	branches: string[];
 	remoteBranches: string[];
+	isLoadingBranches: boolean;
 	log: GitCommit[];
 	graph: GitGraphCommit[];
 	stashes: GitStash[];
@@ -74,6 +77,7 @@ const INITIAL: GitState = {
 	currentBranch: "",
 	branches: [],
 	remoteBranches: [],
+	isLoadingBranches: false,
 	log: [],
 	graph: [],
 	stashes: [],
@@ -432,6 +436,7 @@ export async function amendLastCommit(
 export async function pushBranch(
 	forceSetUpstream = false,
 	force = false,
+	mode: PushMode = "normal",
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
@@ -439,16 +444,18 @@ export async function pushBranch(
 	const hasUpstream = state.remoteStatus?.hasUpstream ?? false;
 	const setUpstream = forceSetUpstream || !hasUpstream;
 	await mutate(() =>
-		gitService.push(wt, setUpstream, state.currentBranch, force),
+		gitService.push(wt, setUpstream, state.currentBranch, force, mode),
 	);
 	await refreshStatus();
 }
 
 /** Pulls; the result says whether it left conflicts behind. */
-export async function pullBranch(): Promise<GitOpResult | null> {
+export async function pullBranch(
+	mode: PullMode = "rebase",
+): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
-	const result = await mutate(() => gitService.pull(wt));
+	const result = await mutate(() => gitService.pull(wt, mode));
 	await refreshStatus();
 	return result;
 }
@@ -576,12 +583,15 @@ export async function getBranchDivergence(
  * fetch is best-effort - offline, the stale refs are still worth listing.
  */
 export async function loadBranches(projectPath: string): Promise<void> {
+	_git.update((s) => ({ ...s, isLoadingBranches: true }));
 	try {
 		await gitService.fetch(projectPath).catch(() => {});
 		const { local, remote } = await listBranchesDetailed(projectPath);
 		_git.update((s) => ({ ...s, branches: local, remoteBranches: remote }));
 	} catch {
 		// Non-fatal
+	} finally {
+		_git.update((s) => ({ ...s, isLoadingBranches: false }));
 	}
 }
 

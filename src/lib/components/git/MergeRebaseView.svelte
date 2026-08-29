@@ -7,6 +7,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
   import { t } from '$lib/i18n';
   import {
     git,
@@ -284,7 +285,9 @@
 
     <div class="mr-section mr-section-grow">
       <div class="mr-section-title">{t('git.targetBranch')}</div>
-      {#if !hasTargets}
+      {#if !hasTargets && state.isLoadingBranches}
+        <Skeleton lines={6} height={22} gap={6} />
+      {:else if !hasTargets}
         <div class="mr-empty">{t('git.noOtherBranches')}</div>
       {:else}
         <div class="mr-search">

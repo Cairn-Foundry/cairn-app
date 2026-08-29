@@ -20,6 +20,7 @@
   } from '$lib/stores/merge-request';
   import { activeStep } from '$lib/stores/ui';
   import { clickOutside } from '$lib/utils/click-outside';
+  import type { PullMode, PushMode } from '$lib/services/git-service';
   import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
   import {
     git,
@@ -148,11 +149,12 @@
   }
 
   /** Pulls, then tells the parent the worktree may have changed and opens the merge tab if it left conflicts. */
-  async function doPull() {
+  async function doPull(mode: PullMode = 'rebase') {
     if (busy) return;
+    isPullMenuOpen = false;
     pulling = true;
     try {
-      await pullBranch();
+      await pullBranch(mode);
       dispatch('filesChanged');
       openTabIfConflicted();
     } finally {
@@ -160,16 +162,30 @@
     }
   }
 
-  async function doPush() {
+  async function doPush(mode: PushMode = 'normal') {
     if (busy) return;
+    isPushMenuOpen = false;
     pushing = true;
     try {
-      await pushBranch();
+      await pushBranch(false, false, mode);
       openTabIfConflicted();
     } finally {
       pushing = false;
     }
   }
+
+  let isPullMenuOpen = false;
+  let isPushMenuOpen = false;
+  const PULL_MODES: { mode: PullMode; icon: string }[] = [
+    { mode: 'rebase', icon: 'branch' },
+    { mode: 'merge', icon: 'git' },
+    { mode: 'ff-only', icon: 'chev-r' },
+  ];
+  const PUSH_MODES: { mode: PushMode; icon: string }[] = [
+    { mode: 'normal', icon: 'send' },
+    { mode: 'force-with-lease', icon: 'shield' },
+    { mode: 'force', icon: 'warning' },
+  ];
 </script>
 
 {#if state.isGitRepo}
@@ -285,39 +301,87 @@
       <span>{t('git.fetch')}</span>
     </button>
 
-    <button
-      class="op-btn"
-      title={t('git.pullTitle') as string}
-      disabled={busy || inOperation || !remote?.hasUpstream}
-      on:click={doPull}
-    >
-      {#if pulling}
-        <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)" />
-      {:else}
-        <Icon name="download" size={13} />
+    <div class="op-split" use:clickOutside={() => (isPullMenuOpen = false)}>
+      <button
+        class="op-btn split-main"
+        title={t('git.pullTitle') as string}
+        disabled={busy || inOperation || !remote?.hasUpstream}
+        on:click={() => doPull()}
+      >
+        {#if pulling}
+          <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)" />
+        {:else}
+          <Icon name="download" size={13} />
+        {/if}
+        <span>{t('git.pull')}</span>
+        {#if behind > 0}
+          <span class="op-count">{behind}</span>
+        {/if}
+      </button>
+      <button
+        class="op-btn split-more"
+        aria-label={t('git.pullMoreActions') as string}
+        aria-expanded={isPullMenuOpen}
+        disabled={busy || inOperation || !remote?.hasUpstream}
+        on:click={() => (isPullMenuOpen = !isPullMenuOpen)}
+      >
+        <Icon name="chev-d" size={11} />
+      </button>
+      {#if isPullMenuOpen}
+        <div class="op-menu" role="menu">
+          {#each PULL_MODES as { mode, icon } (mode)}
+            <button role="menuitem" on:click={() => doPull(mode)}>
+              <Icon name={icon} size={12} />
+              <span class="op-menu-text">
+                <span class="op-menu-label">{t(`git.pullMode.${mode}`)}</span>
+                <span class="op-menu-hint">{t(`git.pullModeHint.${mode}`)}</span>
+              </span>
+            </button>
+          {/each}
+        </div>
       {/if}
-      <span>{t('git.pull')}</span>
-      {#if behind > 0}
-        <span class="op-count">{behind}</span>
-      {/if}
-    </button>
+    </div>
 
-    <button
-      class="op-btn primary"
-      title={t('git.pushTitle') as string}
-      disabled={busy || inOperation || !canPush}
-      on:click={doPush}
-    >
-      {#if pushing}
-        <Spinner size={12} trackColor="oklch(1 0 0 / 0.3)" color="var(--accent-fg)" />
-      {:else}
-        <Icon name="send" size={13} />
+    <div class="op-split" use:clickOutside={() => (isPushMenuOpen = false)}>
+      <button
+        class="op-btn primary split-main"
+        title={t('git.pushTitle') as string}
+        disabled={busy || inOperation || !canPush}
+        on:click={() => doPush()}
+      >
+        {#if pushing}
+          <Spinner size={12} trackColor="oklch(1 0 0 / 0.3)" color="var(--accent-fg)" />
+        {:else}
+          <Icon name="send" size={13} />
+        {/if}
+        <span>{t('git.push')}</span>
+        {#if ahead > 0}
+          <span class="op-count on-primary">{ahead}</span>
+        {/if}
+      </button>
+      <button
+        class="op-btn primary split-more"
+        aria-label={t('git.pushMoreActions') as string}
+        aria-expanded={isPushMenuOpen}
+        disabled={busy || inOperation || !canPush}
+        on:click={() => (isPushMenuOpen = !isPushMenuOpen)}
+      >
+        <Icon name="chev-d" size={11} />
+      </button>
+      {#if isPushMenuOpen}
+        <div class="op-menu" role="menu">
+          {#each PUSH_MODES as { mode, icon } (mode)}
+            <button role="menuitem" class:danger={mode === 'force'} on:click={() => doPush(mode)}>
+              <Icon name={icon} size={12} />
+              <span class="op-menu-text">
+                <span class="op-menu-label">{t(`git.pushMode.${mode}`)}</span>
+                <span class="op-menu-hint">{t(`git.pushModeHint.${mode}`)}</span>
+              </span>
+            </button>
+          {/each}
+        </div>
       {/if}
-      <span>{t('git.push')}</span>
-      {#if ahead > 0}
-        <span class="op-count on-primary">{ahead}</span>
-      {/if}
-    </button>
+    </div>
   </div>
 {/if}
 
@@ -410,6 +474,60 @@
   }
   .mr-chip-menu-btn:hover { background: var(--bg-3); color: var(--fg-0); }
   .mr-chip-pending { display: inline-flex; padding: 0 4px; }
+  .op-split {
+    position: relative;
+    display: flex;
+  }
+  .op-split .split-main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .op-split .split-more {
+    padding-left: 4px;
+    padding-right: 4px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 1px solid var(--stroke-1);
+  }
+  .op-split .split-more.primary {
+    border-left-color: oklch(1 0 0 / 0.25);
+  }
+  .op-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    min-width: 230px;
+    padding: 4px;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-md);
+    background: var(--bg-2);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.25);
+  }
+  .op-menu button {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .op-menu button:hover { background: var(--bg-3); }
+  .op-menu button.danger { color: var(--danger, var(--fg-1)); }
+  .op-menu-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .op-menu-label { font-size: 12px; }
+  .op-menu-hint { font-size: 11px; color: var(--fg-3); }
+
   .mr-menu {
     position: absolute;
     top: calc(100% + 4px);

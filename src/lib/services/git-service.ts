@@ -434,18 +434,27 @@ export async function deleteBranch(
 }
 
 /** Pushes and answers with git's own output; `force` is a lease-less force. */
+/** How hard a push may overwrite the remote; the dropdown next to the button picks it. */
+export type PushMode = "normal" | "force-with-lease" | "force";
+/** Which strategy reconciles the divergence on pull. */
+export type PullMode = "rebase" | "merge" | "ff-only";
+
 export async function push(
 	worktreePath: string,
 	setUpstream: boolean,
 	branch: string,
 	force = false,
+	mode: PushMode = "normal",
 ): Promise<string> {
-	return invoke("git_push", { worktreePath, setUpstream, branch, force });
+	return invoke("git_push", { worktreePath, setUpstream, branch, force, mode });
 }
 
 /** Pulls; conflicts come back in the result rather than as a rejection. */
-export async function pull(worktreePath: string): Promise<GitOpResult> {
-	return invoke("git_pull", { worktreePath });
+export async function pull(
+	worktreePath: string,
+	mode: PullMode = "rebase",
+): Promise<GitOpResult> {
+	return invoke("git_pull", { worktreePath, mode });
 }
 
 /** Updates the remote refs without touching the worktree. */

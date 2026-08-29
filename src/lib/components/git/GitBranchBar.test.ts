@@ -100,8 +100,10 @@ const branchName = () => document.querySelector(".branch-name")?.textContent;
 const buttons = () =>
 	Array.from(document.querySelectorAll<HTMLButtonElement>(".op-btn"));
 const fetchBtn = () => buttons()[0];
-const pullBtn = () => buttons()[1];
-const pushBtn = () => buttons()[2];
+const pullBtn = () =>
+	document.querySelector(".op-split .split-main") as HTMLButtonElement;
+const pushBtn = () =>
+	document.querySelector(".op-split .split-main.primary") as HTMLButtonElement;
 const countIn = (b: HTMLElement) => b.querySelector(".op-count")?.textContent;
 const syncLabel = () => document.querySelector(".sync-clean")?.textContent;
 

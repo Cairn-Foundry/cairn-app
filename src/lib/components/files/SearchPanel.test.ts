@@ -45,7 +45,7 @@ function mount(props: Record<string, unknown> = {}) {
 const queryField = () =>
 	document.querySelector(".search-input") as HTMLInputElement;
 const groups = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".result-group"));
+	Array.from(document.querySelectorAll<HTMLElement>(".result-file-header"));
 const groupNames = () =>
 	groups().map((g) => g.querySelector(".result-filename")?.textContent);
 const matchRows = () =>
@@ -231,13 +231,9 @@ describe("SearchPanel", () => {
 			mount();
 			await search("value");
 			expect(matchRows()).toHaveLength(3);
-			await user.click(
-				groups()[0].querySelector(".result-file-header") as HTMLElement,
-			);
+			await user.click(groups()[0]);
 			expect(matchRows()).toHaveLength(1);
-			await user.click(
-				groups()[0].querySelector(".result-file-header") as HTMLElement,
-			);
+			await user.click(groups()[0]);
 			expect(matchRows()).toHaveLength(3);
 		});
 

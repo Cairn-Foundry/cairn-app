@@ -9,6 +9,7 @@
   import { t } from '$lib/i18n';
   import { searchInFiles, type SearchMatch } from '$lib/services/file-service';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
+  import { virtualWindow } from '$lib/utils/virtual-window';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
 
   export let worktreePath: string | null;
@@ -149,6 +150,37 @@
     groups = groups.map(g => g.path === path ? { ...g, collapsed: !g.collapsed } : g);
   }
 
+  /**
+   * The result list is capped at 2000 matches, and rendering them all was what
+   * made a search feel slow - the backend walk was never the cost. Groups and
+   * their matches are flattened into one uniform row list so a single virtual
+   * window covers both; `RESULT_ROW_H` is what the CSS pins each row to.
+   */
+  type ResultRow =
+    | { kind: 'header'; group: GroupedResult }
+    | { kind: 'match'; match: SearchMatch };
+  const RESULT_ROW_H = 22;
+  const RESULT_OVERSCAN = 12;
+  let resultsEl: HTMLElement | null = null;
+  let resultsScrollTop = 0;
+  let resultsViewportH = 0;
+
+  $: rows = groups.flatMap((group): ResultRow[] => [
+    { kind: 'header', group },
+    ...(group.collapsed ? [] : group.matches.map((match): ResultRow => ({ kind: 'match', match }))),
+  ]);
+  $: resultWin = virtualWindow(rows.length, resultsScrollTop, resultsViewportH || 600, RESULT_ROW_H, RESULT_OVERSCAN);
+  $: visibleRows = rows.slice(resultWin.first, resultWin.last);
+  $: groups, (resultsScrollTop = resultsEl ? resultsEl.scrollTop : 0);
+
+  function measureResultsViewport(node: HTMLElement) {
+    resultsViewportH = node.clientHeight;
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => { resultsViewportH = node.clientHeight; });
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
+
   /** Splits the line into before/match/after; the offsets shift with the trimmed indentation. */
   function highlightMatch(match: SearchMatch): [string, string, string] {
     const trimmed = match.text.trimStart();
@@ -251,40 +283,43 @@
     {/if}
   </div>
 
-  <div class="search-results">
-    {#each groups as group (group.path)}
-      <div class="result-group">
+  <div
+    class="search-results"
+    bind:this={resultsEl}
+    use:measureResultsViewport
+    on:scroll={() => (resultsScrollTop = resultsEl?.scrollTop ?? 0)}
+  >
+    <div style="height:{resultWin.padTop}px"></div>
+    {#each visibleRows as row (row.kind === 'header' ? `h:${row.group.path}` : `m:${row.match.path}:${row.match.line}:${row.match.col}`)}
+      {#if row.kind === 'header'}
         <button
           type="button"
           class="result-file-header"
-          on:click={() => toggleGroup(group.path)}
-          title={group.path}
+          on:click={() => toggleGroup(row.group.path)}
+          title={row.group.path}
         >
-          <Icon name={group.collapsed ? 'chev-r' : 'chev-d'} size={12} />
+          <Icon name={row.group.collapsed ? 'chev-r' : 'chev-d'} size={12} />
           <Icon name="file-code" size={13} />
-          <span class="result-filename">{group.filename}</span>
-          <span class="result-dir">{parentPathOf(group.path)}</span>
-          <span class="result-count">{group.matches.length}</span>
+          <span class="result-filename">{row.group.filename}</span>
+          <span class="result-dir">{parentPathOf(row.group.path)}</span>
+          <span class="result-count">{row.group.matches.length}</span>
         </button>
-
-        {#if !group.collapsed}
-          {#each group.matches as match}
-            {@const [pre, hit, post] = highlightMatch(match)}
-            <button
-              type="button"
-              class="result-match"
-              on:click={() => onOpen(match.path, match.line, match.col)}
-              title="{match.path}:{match.line}:{match.col}"
-            >
-              <span class="result-lineno">{match.line}</span>
-              <span class="result-text">
-                <span class="result-pre">{pre}</span><span class="result-hit">{hit}</span><span class="result-post">{post}</span>
-              </span>
-            </button>
-          {/each}
-        {/if}
-      </div>
+      {:else}
+        {@const [pre, hit, post] = highlightMatch(row.match)}
+        <button
+          type="button"
+          class="result-match"
+          on:click={() => onOpen(row.match.path, row.match.line, row.match.col)}
+          title="{row.match.path}:{row.match.line}:{row.match.col}"
+        >
+          <span class="result-lineno">{row.match.line}</span>
+          <span class="result-text">
+            <span class="result-pre">{pre}</span><span class="result-hit">{hit}</span><span class="result-post">{post}</span>
+          </span>
+        </button>
+      {/if}
     {/each}
+    <div style="height:{resultWin.padBottom}px"></div>
   </div>
 </div>
 
@@ -430,13 +465,15 @@
   .search-results::-webkit-scrollbar-track { background: transparent; }
   .search-results::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 3px; }
 
-  .result-group { border-bottom: 1px solid var(--stroke-0); }
+  .result-file-header { border-top: 1px solid var(--stroke-0); }
   .result-file-header {
     display: flex;
     align-items: center;
     gap: 5px;
     width: 100%;
-    padding: 5px 8px 5px 6px;
+    height: 22px;
+    flex-shrink: 0;
+    padding: 0 8px 0 6px;
     background: var(--bg-2);
     border: none;
     cursor: pointer;
@@ -478,10 +515,12 @@
 
   .result-match {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0;
     width: 100%;
-    padding: 2px 8px 2px 0;
+    height: 22px;
+    flex-shrink: 0;
+    padding: 0 8px 0 0;
     background: none;
     border: none;
     cursor: pointer;

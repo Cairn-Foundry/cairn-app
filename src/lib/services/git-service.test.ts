@@ -243,6 +243,7 @@ describe("push", () => {
 			setUpstream: true,
 			branch: "main",
 			force: false,
+			mode: "normal",
 		});
 	});
 

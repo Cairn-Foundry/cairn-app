@@ -429,8 +429,26 @@ pub struct SearchMatch {
 struct MatchSink<'a, M: Matcher> {
     matcher: &'a M,
     rel: &'a str,
-    results: &'a Mutex<Vec<SearchMatch>>,
+    results: &'a mut Vec<SearchMatch>,
     count: &'a AtomicUsize,
+}
+
+/// Merges a walker thread's buffer into the shared list when the thread ends,
+/// whichever way it ends - the walk running out of entries, or the cap quitting it.
+struct ThreadResults {
+    local: Vec<SearchMatch>,
+    collected: Arc<Mutex<Vec<Vec<SearchMatch>>>>,
+}
+
+impl Drop for ThreadResults {
+    fn drop(&mut self) {
+        if self.local.is_empty() {
+            return;
+        }
+        if let Ok(mut all) = self.collected.lock() {
+            all.push(std::mem::take(&mut self.local));
+        }
+    }
 }
 
 impl<'a, M: Matcher> Sink for MatchSink<'a, M> {
@@ -450,16 +468,14 @@ impl<'a, M: Matcher> Sink for MatchSink<'a, M> {
                     if self.count.fetch_add(1, Ordering::Relaxed) >= SEARCH_RESULT_CAP {
                         return Ok(false);
                     }
-                    if let Ok(mut results) = self.results.lock() {
-                        results.push(SearchMatch {
-                            path: self.rel.to_string(),
-                            line: line_num,
-                            col: (m.start() + 1) as u32,
-                            text: line_text.clone(),
-                            match_start: m.start() as u32,
-                            match_end: m.end() as u32,
-                        });
-                    }
+                    self.results.push(SearchMatch {
+                        path: self.rel.to_string(),
+                        line: line_num,
+                        col: (m.start() + 1) as u32,
+                        text: line_text.clone(),
+                        match_start: m.start() as u32,
+                        match_end: m.end() as u32,
+                    });
                     start = if m.end() > m.start() { m.end() } else { m.end() + 1 };
                 }
                 _ => break,
@@ -509,7 +525,10 @@ pub async fn search_in_files(
         }
         let overrides = override_builder.build().map_err(|e| e.to_string())?;
 
-        let results: Arc<Mutex<Vec<SearchMatch>>> = Arc::new(Mutex::new(Vec::new()));
+        // Each walker thread fills its own buffer and merges once at the end: a
+        // shared Mutex locked per match had every thread contending on a hot
+        // search, which cost more than the walk itself.
+        let collected: Arc<Mutex<Vec<Vec<SearchMatch>>>> = Arc::new(Mutex::new(Vec::new()));
         let count = Arc::new(AtomicUsize::new(0));
 
         WalkBuilder::new(&root_path)
@@ -517,9 +536,15 @@ pub async fn search_in_files(
             .build_parallel()
             .run(|| {
                 let matcher = Arc::clone(&matcher);
-                let results = Arc::clone(&results);
+                let collected = Arc::clone(&collected);
                 let count = Arc::clone(&count);
                 let root_path = root_path.clone();
+                let mut buffer = ThreadResults { local: Vec::new(), collected };
+                // Built once per thread rather than once per file.
+                let mut searcher = SearcherBuilder::new()
+                    .binary_detection(BinaryDetection::quit(0))
+                    .line_number(true)
+                    .build();
                 Box::new(move |entry| {
                     use ignore::WalkState;
                     if count.load(Ordering::Relaxed) >= SEARCH_RESULT_CAP {
@@ -531,11 +556,7 @@ pub async fn search_in_files(
                     }
                     let path = entry.path();
                     let rel = path.strip_prefix(&root_path).unwrap_or(path).to_string_lossy().into_owned();
-                    let mut searcher = SearcherBuilder::new()
-                        .binary_detection(BinaryDetection::quit(0))
-                        .line_number(true)
-                        .build();
-                    let sink = MatchSink { matcher: matcher.as_ref(), rel: &rel, results: &results, count: &count };
+                    let sink = MatchSink { matcher: matcher.as_ref(), rel: &rel, results: &mut buffer.local, count: &count };
                     let _ = searcher.search_path(matcher.as_ref(), path, sink);
                     if count.load(Ordering::Relaxed) >= SEARCH_RESULT_CAP {
                         WalkState::Quit
@@ -545,9 +566,12 @@ pub async fn search_in_files(
                 })
             });
 
-        let mut results = Arc::try_unwrap(results)
+        let mut results: Vec<SearchMatch> = Arc::try_unwrap(collected)
             .map(|m| m.into_inner().unwrap())
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            .flatten()
+            .collect();
         results.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)).then(a.col.cmp(&b.col)));
         results.truncate(SEARCH_RESULT_CAP);
         Ok(results)

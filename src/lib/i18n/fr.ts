@@ -1905,6 +1905,28 @@ export const fr = {
 		pull: "Pull",
 		pullTitle: "Récupérer et rebaser sur l'amont",
 		pushTitle: "Pousser vers le distant",
+		pullMoreActions: "Plus d'options de pull",
+		pushMoreActions: "Plus d'options de push",
+		pullMode: {
+			rebase: "Pull (rebase)",
+			merge: "Pull (merge)",
+			"ff-only": "Pull (fast-forward uniquement)",
+		},
+		pullModeHint: {
+			rebase: "Rejoue vos commits au-dessus de l'amont",
+			merge: "Cree un commit de merge si les historiques ont diverge",
+			"ff-only": "Refuse le pull s'il n'est pas en fast-forward",
+		},
+		pushMode: {
+			normal: "Push",
+			"force-with-lease": "Push force (avec lease)",
+			force: "Push force",
+		},
+		pushModeHint: {
+			normal: "Refuse d'ecraser le travail present sur le remote",
+			"force-with-lease": "N'ecrase que si le remote est la ou vous l'avez vu",
+			force: "Ecrase la branche distante sans condition",
+		},
 		upToDate: "À jour",
 		noUpstreamShort: "pas d'amont",
 		branchActions: "Actions de branche",

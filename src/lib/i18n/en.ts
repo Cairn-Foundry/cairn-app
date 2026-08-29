@@ -1868,6 +1868,29 @@ export const en = {
 		pull: "Pull",
 		pullTitle: "Pull and rebase onto upstream",
 		pushTitle: "Push to remote",
+		pullMoreActions: "More pull options",
+		pushMoreActions: "More push options",
+		pullMode: {
+			rebase: "Pull (rebase)",
+			merge: "Pull (merge)",
+			"ff-only": "Pull (fast-forward only)",
+		},
+		pullModeHint: {
+			rebase: "Replays your commits on top of upstream",
+			merge: "Creates a merge commit when histories diverged",
+			"ff-only": "Refuses to pull if it would not fast-forward",
+		},
+		pushMode: {
+			normal: "Push",
+			"force-with-lease": "Force push (with lease)",
+			force: "Force push",
+		},
+		pushModeHint: {
+			normal: "Refuses to overwrite work on the remote",
+			"force-with-lease":
+				"Overwrites only if the remote is where you last saw it",
+			force: "Overwrites the remote branch unconditionally",
+		},
 		upToDate: "Up to date",
 		noUpstreamShort: "no upstream",
 		branchActions: "Branch actions",
