@@ -240,36 +240,6 @@ pub async fn list_branches_detailed(project_path: String) -> Result<BranchList, 
     Ok(BranchList { local, remote })
 }
 
-#[tauri::command]
-/// Resolves the path to its worktree root, rejecting missing paths and bare repositories.
-pub async fn validate_git_repo(path: String) -> Result<String, GitError> {
-    let expanded = expand(&path);
-    let repo_path = std::path::PathBuf::from(&expanded);
-
-    if !repo_path.exists() {
-        return Err(GitError::new("path_missing", format!("Path does not exist: {}", path))
-            .with_context(&path));
-    }
-    if !repo_path.is_dir() {
-        return Err(GitError::new("path_not_directory", format!("Path is not a directory: {}", path))
-            .with_context(&path));
-    }
-
-    Repository::discover(&repo_path)
-        .map_err(|_| {
-            GitError::new("not_a_repository", format!("Not a git repository: {}", path))
-                .with_context(&path)
-        })
-        .and_then(|repo| {
-            repo.workdir()
-                .ok_or_else(|| {
-                    GitError::new("bare_repository", "Bare repositories are not supported")
-                        .with_context(&path)
-                })
-                .map(|p| p.to_string_lossy().trim_end_matches('/').to_string())
-        })
-}
-
 /// Paths already proven to be worktree roots. The status poll revalidates on every
 /// tick a property that only changes when the worktree is created or removed, and
 /// each check costs a git process plus two canonicalisations. Only the positive is
@@ -650,19 +620,6 @@ pub async fn git_file_in_index(
         return Ok(None);
     }
     Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
-}
-
-#[tauri::command]
-/// Hunks for a single file, staged or unstaged.
-pub async fn git_diff_file(worktree_path: String, file_path: String, staged: bool) -> Result<Vec<GitDiffHunk>, GitError> {
-    let expanded = expand(&worktree_path);
-    let mut args = vec!["diff", "--unified=3"];
-    if staged { args.push("--cached"); }
-    args.push("--");
-    args.push(&file_path);
-    let raw = run(git_cmd(&expanded).args(&args))?;
-    let files = parse_diff(&raw);
-    Ok(files.into_iter().next().map(|f| f.hunks).unwrap_or_default())
 }
 
 /// Files past this are not blamed: the walk costs more than the status bar line is worth.

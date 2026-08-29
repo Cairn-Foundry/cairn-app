@@ -160,11 +160,6 @@ export async function isGitRepo(worktreePath: string): Promise<boolean> {
 	return invoke("is_git_repo", { worktreePath });
 }
 
-/** Status of every changed file, staged and unstaged alike. */
-export async function getStatus(worktreePath: string): Promise<GitFileStatus> {
-	return invoke("git_status", { worktreePath });
-}
-
 /** The paths behind the change badges, with no diff content attached. */
 export interface GitChangedPaths {
 	staged: string[];
@@ -245,15 +240,6 @@ export async function getDiffStaged(
 	worktreePath: string,
 ): Promise<GitFileDiff[]> {
 	return invoke("git_diff_staged", { worktreePath });
-}
-
-/** One file's diff, on either side of the index. */
-export async function getDiffFile(
-	worktreePath: string,
-	filePath: string,
-	staged: boolean,
-): Promise<GitDiffHunk[]> {
-	return invoke("git_diff_file", { worktreePath, filePath, staged });
 }
 
 export type GitChangedFile = {

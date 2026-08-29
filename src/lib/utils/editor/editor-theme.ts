@@ -646,14 +646,6 @@ export function buildEditorTheme(theme: string): Extension {
 	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT);
 }
 
-/** The highlighter for a theme, using the user's tokens when there are any. */
-export function buildSyntaxHighlighting(
-	theme: string,
-	tokens?: SyntaxTokens,
-): Extension {
-	return syntaxHighlighting(buildHighlight(theme, tokens));
-}
-
 /** Sizing of the diff gutter; its colours come from CSS variables. */
 export function buildDiffGutterTheme(): Extension {
 	return EditorView.theme({

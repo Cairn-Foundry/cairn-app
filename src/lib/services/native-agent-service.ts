@@ -90,8 +90,3 @@ export async function duplicateNativeAgent(
 ): Promise<string> {
 	return await invoke("duplicate_native_agent", { path, name });
 }
-
-/** The providers that have a subagent roster at all. */
-export async function agentCapableProviders(): Promise<CliProviderId[]> {
-	return await invoke("agent_capable_providers");
-}

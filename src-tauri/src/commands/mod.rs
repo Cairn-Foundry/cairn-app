@@ -55,12 +55,12 @@ pub use custom_commands::{
 pub use env_vars::{
     get_global_env, save_global_env, get_project_env, save_project_env,
     get_instance_env, save_instance_env,
-    env_file_status, read_env_file, write_env_file, delete_env_file, ensure_env_ignored,
+    read_env_file, write_env_file, delete_env_file, ensure_env_ignored,
 };
 pub use file_state::{get_file_state, save_file_state};
 pub use formatting::{
     get_project_formatting, save_project_formatting,
-    list_formatters, list_style_options, list_formattable_languages,
+    list_formatters, list_style_options,
     format_document, detect_repo_formatters,
     import_formatting_config, export_formatting_config,
     install_formatter, uninstall_formatter, update_formatter,
@@ -69,8 +69,8 @@ pub use formatting::{
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
 pub use git::{
-    list_branches, list_branches_detailed, validate_git_repo, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
-    git_diff_unstaged, git_diff_staged, git_diff_file, git_blame_file, git_file_at_head, git_file_in_index,
+    list_branches, list_branches_detailed, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
+    git_diff_unstaged, git_diff_staged, git_blame_file, git_file_at_head, git_file_in_index,
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
@@ -108,7 +108,7 @@ pub use lsp::{
     lsp_references, lsp_rename, lsp_format,
 };
 pub use cli::{PendingCliPaths, get_cli_status, install_cli, uninstall_cli, take_pending_cli_paths};
-pub use cli_providers::{list_cli_providers, reached_providers, agent_capable_providers};
+pub use cli_providers::{list_cli_providers, reached_providers};
 pub use mcp::{
     list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,
     import_mcp_servers, export_mcp_servers, test_mcp_server,

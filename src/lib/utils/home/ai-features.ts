@@ -109,10 +109,6 @@ export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
  * which is what lets the commit assist read the staged diff instead of being
  * handed one, and it needs no API key.
  */
-export function isAssignableProvider(providerId: string): boolean {
-	return PROVIDERS.some((p) => p.id === providerId && p.kind === "cli");
-}
-
 /**
  * The CLI providers a picker offers, in registry order. `enabled` defaults to
  * false for everything but Claude Code - it means "configured on the Providers

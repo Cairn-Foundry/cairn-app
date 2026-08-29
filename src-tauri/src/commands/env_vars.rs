@@ -62,13 +62,6 @@ impl Default for EnvFile {
     }
 }
 
-/// Whether the target file exists, and whether Cairn is the one that wrote it.
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct EnvFileStatus {
-    pub exists: bool,
-    pub managed: bool,
-}
-
 /// Empty defaults for a scope that has no variables yet.
 fn read_env(path: &Path) -> Result<EnvFile, String> {
     if !path.exists() { return Ok(EnvFile::default()); }
@@ -146,16 +139,6 @@ pub async fn save_instance_env(
 // ---------------------------------------------------------------------------
 // Generated file in the worktree
 // ---------------------------------------------------------------------------
-
-/// Lets the UI warn before overwriting a file the user wrote by hand.
-#[tauri::command]
-pub fn env_file_status(worktree_path: String, file_name: String) -> Result<EnvFileStatus, String> {
-    let target = resolve_target(&worktree_path, &file_name)?;
-    if !target.is_file() {
-        return Ok(EnvFileStatus { exists: false, managed: false });
-    }
-    Ok(EnvFileStatus { exists: true, managed: is_managed(&target) })
-}
 
 /// Empty string for a missing file, so the caller can show it either way.
 #[tauri::command]
@@ -277,9 +260,8 @@ mod tests {
         assert!(!write_env_file(path.clone(), ".env".into(), "A=1".into(), None).unwrap());
         assert_eq!(fs::read_to_string(dir.join(".env")).unwrap(), "A=kept\n");
 
-        let status = env_file_status(path.clone(), ".env".into()).unwrap();
-        assert!(status.exists);
-        assert!(!status.managed);
+        assert!(dir.join(".env").is_file());
+        assert!(!is_managed(&dir.join(".env")));
     }
 
     #[test]
@@ -290,7 +272,7 @@ mod tests {
 
         assert!(write_env_file(path.clone(), ".env".into(), "A=1".into(), Some(true)).unwrap());
 
-        assert!(env_file_status(path, ".env".into()).unwrap().managed);
+        assert!(is_managed(&dir.join(".env")));
     }
 
     #[test]
@@ -303,7 +285,7 @@ mod tests {
 
         let content = fs::read_to_string(dir.join(".env")).unwrap();
         assert_eq!(content, format!("{ENV_FILE_MARKER}\nA=2\n"));
-        assert!(env_file_status(path, ".env".into()).unwrap().managed);
+        assert!(is_managed(&dir.join(".env")));
     }
 
     #[test]

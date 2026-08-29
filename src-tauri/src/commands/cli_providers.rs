@@ -186,17 +186,6 @@ pub fn agent_reach(scope: &str, project_path: &str, targets: &[String]) -> Vec<S
     )
 }
 
-/// The providers that have a roster at all. The Agents section says so rather
-/// than showing four tiles that can never be ticked.
-#[tauri::command]
-pub async fn agent_capable_providers() -> Vec<String> {
-    CLI_PROVIDERS
-        .iter()
-        .filter(|p| !agent_roots(p.id, "global", "").is_empty() || !agent_roots(p.id, "project", "/x").is_empty())
-        .map(|p| p.id.to_string())
-        .collect()
-}
-
 /// How a config file holds its servers. The shape decides how an entry is read
 /// and written back; the dialect decides what its keys are called.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -402,13 +402,6 @@ export async function unstageAll(): Promise<void> {
 	await refreshStatus();
 }
 
-/** The identity commits would be attributed to in this worktree. */
-export async function getGitIdentity(): Promise<gitService.GitIdentity> {
-	const wt = worktree();
-	if (!wt) return { name: "", email: "" };
-	return gitService.getIdentity(wt);
-}
-
 /** Commits the index and clears the message fields. */
 export async function commitChanges(
 	message: string,

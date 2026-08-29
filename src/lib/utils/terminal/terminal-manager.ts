@@ -120,14 +120,6 @@ if (typeof document !== "undefined") {
 	});
 }
 
-/** Releases the root observer; the module owns it for the lifetime of the app. */
-export function disposeTerminalTheming(): void {
-	themeObserver?.disconnect();
-	themeObserver = null;
-	if (themeFrame) cancelAnimationFrame(themeFrame);
-	themeFrame = 0;
-}
-
 const isMac = IS_MAC;
 
 /**

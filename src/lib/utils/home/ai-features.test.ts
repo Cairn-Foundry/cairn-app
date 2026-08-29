@@ -4,7 +4,6 @@ import type { AiProvidersConfig } from "$lib/services/ai-provider-service";
 import {
 	AI_FEATURES,
 	assignableProviders,
-	isAssignableProvider,
 	readOnlyPermissionMode,
 	readOnlyTools,
 	resolveAiFeature,
@@ -18,22 +17,13 @@ function config(overrides: Partial<AiProvidersConfig> = {}): AiProvidersConfig {
 	};
 }
 
-describe("isAssignableProvider", () => {
-	it("accepts a CLI provider", () => {
-		expect(isAssignableProvider("claude-code-cli")).toBe(true);
-	});
-
-	it("rejects an unknown provider", () => {
-		expect(isAssignableProvider("nope")).toBe(false);
-	});
-});
-
 describe("assignableProviders", () => {
 	it("offers only CLI providers", () => {
 		const offered = assignableProviders(config());
 		expect(offered.length).toBeGreaterThan(0);
+		const cliIds = PROVIDERS.filter((p) => p.kind === "cli").map((p) => p.id);
 		for (const provider of offered) {
-			expect(isAssignableProvider(provider.id)).toBe(true);
+			expect(cliIds).toContain(provider.id);
 		}
 	});
 

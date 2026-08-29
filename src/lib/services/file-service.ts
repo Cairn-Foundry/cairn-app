@@ -378,43 +378,6 @@ function parseUnifiedDiff(diff: string): DiffResult {
 	return { lineMap, hunks };
 }
 
-/** What one commit changed in one file. */
-export async function gitCommitFileDiff(
-	worktreePath: string,
-	hash: string,
-	relPath: string,
-): Promise<DiffHunk[]> {
-	const result = await invoke<{
-		stdout: string;
-		stderr: string;
-		success: boolean;
-	}>("run_shell_command", {
-		program: "git",
-		args: ["show", `${hash}`, "--", relPath],
-		cwd: worktreePath,
-	});
-	return parseUnifiedDiff(result.stdout).hunks;
-}
-
-/** Full content of a file as of a commit; throws when the path did not exist there. */
-export async function gitFileAtCommit(
-	worktreePath: string,
-	hash: string,
-	relPath: string,
-): Promise<string> {
-	const result = await invoke<{
-		stdout: string;
-		stderr: string;
-		success: boolean;
-	}>("run_shell_command", {
-		program: "git",
-		args: ["show", `${hash}:${relPath}`],
-		cwd: worktreePath,
-	});
-	if (!result.success) throw new Error(result.stderr || "git show failed");
-	return result.stdout;
-}
-
 /** Diff of the index against HEAD for one file: the staged half only. */
 export async function gitStagedFileDiff(
 	worktreePath: string,
@@ -577,32 +540,6 @@ export function hunkToPatch(relPath: string, hunk: DiffHunk): string {
 	const newCount = addCount + ctxCount;
 	const body = `${hunk.lines.map((l) => l.type + l.content).join("\n")}\n`;
 	return `--- a/${relPath}\n+++ b/${relPath}\n@@ -${hunk.oldStart},${oldCount} +${hunk.newStart},${newCount} @@\n${body}`;
-}
-
-/**
- * Feeds a patch to `git apply` on stdin: `cached` stages it, `reverse` undoes
- * it. A rejected patch comes back as `success: false`, it does not throw.
- */
-export async function applyHunkPatch(
-	worktreePath: string,
-	patch: string,
-	opts: { cached?: boolean; reverse?: boolean } = {},
-): Promise<{ success: boolean; stderr: string }> {
-	const args = ["apply", "--whitespace=nowarn", "--unidiff-zero"];
-	if (opts.cached) args.push("--cached");
-	if (opts.reverse) args.push("--reverse");
-	args.push("-");
-	const result = await invoke<{
-		stdout: string;
-		stderr: string;
-		success: boolean;
-	}>("run_shell_command_with_stdin", {
-		program: "git",
-		args,
-		cwd: worktreePath,
-		stdin: patch,
-	});
-	return { success: result.success, stderr: result.stderr };
 }
 
 // Extension to syntax mode. The values are the modes the editor knows, so

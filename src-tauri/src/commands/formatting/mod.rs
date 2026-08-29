@@ -17,7 +17,7 @@ use crate::commands::toolchain::{
 };
 use crate::storage::{project_formatting_file, write_json_atomic};
 use catalog::{
-    find_formatter, formatters_for_extension, known_languages, language_for_extension,
+    find_formatter, formatters_for_extension, language_for_extension,
     StyleSet, FORMATTERS, LSP_FORMATTER_ID, STYLE_OPTIONS,
 };
 
@@ -231,11 +231,6 @@ pub fn list_style_options() -> Vec<StyleOptionInfo> {
             languages: o.languages.to_vec(),
         })
         .collect()
-}
-
-#[tauri::command]
-pub fn list_formattable_languages() -> Vec<&'static str> {
-    known_languages()
 }
 
 fn extension_of(path: &str) -> String {

@@ -138,11 +138,6 @@ export function listStyleOptions(): Promise<StyleOptionInfo[]> {
 	return invoke<StyleOptionInfo[]>("list_style_options");
 }
 
-/** Language ids at least one catalogue formatter covers. */
-export function listFormattableLanguages(): Promise<string[]> {
-	return invoke<string[]>("list_formattable_languages");
-}
-
 /** Formats text and hands it back. Never writes to disk. */
 export function formatDocument(args: {
 	projectId: string | null;

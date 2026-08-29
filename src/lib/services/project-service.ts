@@ -69,11 +69,6 @@ export async function cloneRepository(
 	return invoke<string>("clone_repository", { url, destParent, name });
 }
 
-/** Returns the repo root, discovered from a subdirectory too; throws when there is no repo. */
-export async function validateGitRepo(path: string): Promise<string> {
-	return invoke<string>("validate_git_repo", { path });
-}
-
 /** Folders and order of the home list; a project absent from `projectOrder` still exists. */
 export async function getListing(): Promise<ListingConfig> {
 	return invoke<ListingConfig>("get_listing");

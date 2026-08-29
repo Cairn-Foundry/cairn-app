@@ -398,20 +398,6 @@ pub fn language_for_extension(ext: &str) -> Option<&'static str> {
     by_pair.iter().find(|(e, _)| *e == ext).map(|(_, lang)| *lang)
 }
 
-/// Every language the catalogue can format, in a stable order, so the settings
-/// list never reshuffles between two openings.
-pub fn known_languages() -> Vec<&'static str> {
-    let mut seen: Vec<&'static str> = Vec::new();
-    for def in FORMATTERS {
-        for lang in def.language_ids {
-            if !seen.contains(lang) {
-                seen.push(lang);
-            }
-        }
-    }
-    seen
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

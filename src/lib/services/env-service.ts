@@ -27,12 +27,6 @@ export interface EnvFile {
 	envFileName: string;
 }
 
-/** State of the `.env` on disk. `managed` means Cairn wrote it and may rewrite it. */
-export interface EnvFileStatus {
-	exists: boolean;
-	managed: boolean;
-}
-
 export const DEFAULT_ENV_FILE_NAME = ".env";
 
 /** The state a scope starts from before anything is stored for it. */
@@ -83,14 +77,6 @@ export async function saveInstanceEnv(
 	state: EnvFile,
 ): Promise<void> {
 	await invoke("save_instance_env", { projectId, instanceId, state });
-}
-
-/** Whether a `.env` sits there and whether Cairn owns it. The command is `env_file_status`. */
-export async function getEnvFileStatus(
-	worktreePath: string,
-	fileName: string,
-): Promise<EnvFileStatus> {
-	return await invoke("env_file_status", { worktreePath, fileName });
 }
 
 /** Raw text of the file, so an unmanaged one can be imported before being taken over. */

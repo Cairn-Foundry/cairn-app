@@ -47,10 +47,6 @@ const _capabilitiesByProject = writable<Record<string, ResolvedCapabilities>>(
 );
 
 export const bindingsByProject = { subscribe: _bindingsByProject.subscribe };
-export const capabilitiesByProject = {
-	subscribe: _capabilitiesByProject.subscribe,
-};
-
 /** Bindings of the active project; empty until loaded, and for a project without any. */
 export const projectBindings = derived(
 	[_bindingsByProject, activeProjectId],
@@ -87,12 +83,6 @@ export const forgeTerms = derived(
 
 export function capabilitiesOf(projectId: string): ResolvedCapabilities {
 	return get(_capabilitiesByProject)[projectId] ?? NO_CAPABILITIES;
-}
-
-export function kindDescriptor(
-	kind: string,
-): IntegrationKindDescriptor | undefined {
-	return get(kindDescriptors).find((d) => d.kind === kind);
 }
 
 export async function loadKinds(): Promise<void> {
@@ -140,19 +130,6 @@ export async function saveProjectIntegrations(
 		...current,
 		[projectId]: resolved ?? NO_CAPABILITIES,
 	}));
-}
-
-export function forgetProjectIntegrations(projectId: string): void {
-	_bindingsByProject.update((current) => {
-		const next = { ...current };
-		delete next[projectId];
-		return next;
-	});
-	_capabilitiesByProject.update((current) => {
-		const next = { ...current };
-		delete next[projectId];
-		return next;
-	});
 }
 
 /** Routes one update to the store owning its kind, by instance key. */
