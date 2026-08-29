@@ -10,6 +10,13 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "The integrations form and the merge request form no longer break when the backend answers nothing: an unreadable connection, kind or label list now leaves them empty instead of blank.",
+          "fr": "Le formulaire d'intégrations et celui de merge request ne cassent plus quand le back ne répond rien : une liste de connexions, de types ou d'étiquettes illisible les laisse vides plutôt que blancs."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "Searching the changed files in Git now filters the list again; it did nothing once the untracked files had been scanned.",
           "fr": "La recherche dans les fichiers modifiés de Git filtre à nouveau la liste : elle restait sans effet dès que les fichiers non suivis avaient été analysés."
         }

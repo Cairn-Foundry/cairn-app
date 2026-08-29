@@ -5,8 +5,11 @@ import { afterEach, vi } from "vitest";
 // on an empty document rather than finding two of everything.
 afterEach(cleanup);
 
+// Resolved rather than bare: a fire-and-forget caller does `invoke(...).catch()`
+// on the result, so returning `undefined` throws asynchronously, escapes as an
+// unhandled error and fails the whole run even though every test passes.
 vi.mock("@tauri-apps/api/core", () => ({
-	invoke: vi.fn(),
+	invoke: vi.fn().mockResolvedValue(undefined),
 	convertFileSrc: (path: string, protocol = "asset") =>
 		`${protocol}://localhost/${encodeURIComponent(path)}`,
 }));

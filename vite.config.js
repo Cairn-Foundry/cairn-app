@@ -18,10 +18,10 @@ const vitestConfig = {
       "src/lib/utils/git/diff-highlight.worker.ts",
     ],
     thresholds: {
-      statements: 70,
-      branches: 56,
-      functions: 67,
-      lines: 68,
+      statements: 72,
+      branches: 58,
+      functions: 69,
+      lines: 70,
     },
   },
 };

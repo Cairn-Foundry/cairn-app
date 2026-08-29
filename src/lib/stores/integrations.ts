@@ -97,12 +97,12 @@ export function kindDescriptor(
 
 export async function loadKinds(): Promise<void> {
 	if (get(kindDescriptors).length > 0) return;
-	kindDescriptors.set(await integrationKinds());
+	kindDescriptors.set((await integrationKinds()) ?? []);
 }
 
 export async function loadConnections(): Promise<void> {
 	try {
-		connections.set(await listIntegrationConnections());
+		connections.set((await listIntegrationConnections()) ?? []);
 		connectionsError.set(null);
 	} catch (error) {
 		connectionsError.set(toIntegrationError(error));

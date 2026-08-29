@@ -89,7 +89,7 @@
     void loadAiProviders();
     if ($activeProject?.path) void loadBranches($activeProject.path);
     void loadForgeLabels(projectId)
-      .then((list) => { availableLabels = list; })
+      .then((list) => { availableLabels = list ?? []; })
       .catch(() => { availableLabels = []; })
       .finally(() => { areLabelsLoaded = true; });
   });
