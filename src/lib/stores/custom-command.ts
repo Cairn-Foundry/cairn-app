@@ -8,8 +8,10 @@ import {
 	saveGlobalCommands,
 	saveProjectCommands,
 } from "$lib/services/custom-command-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
 import { persist as persistToDisk } from "$lib/utils/persist-error";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { moveItem } from "$lib/utils/terminal/terminal-order";
 
 /** Commands defined by a project, keyed by project id; only loaded projects appear. */
@@ -177,3 +179,10 @@ export function reorderCommand(
 		moveItem(list, fromIndex, insertIndex),
 	);
 }
+
+/** Forgets the commands cached for a removed project. */
+export function forgetProject(projectId: string): void {
+	projectCommands.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

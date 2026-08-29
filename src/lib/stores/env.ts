@@ -16,6 +16,7 @@ import {
 	writeEnvFile,
 } from "$lib/services/env-service";
 import { getIdentity } from "$lib/services/git-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type { Instance } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import {
@@ -29,6 +30,11 @@ import {
 	toEnvRecord,
 } from "$lib/utils/env/env-resolve";
 import { persist } from "$lib/utils/persist-error";
+import {
+	belongsToProject,
+	dropProjectKeys,
+	purgeProjectEntries,
+} from "$lib/utils/project-scope";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 
@@ -520,3 +526,29 @@ export async function prepareInstanceEnv(
 	await syncEnvFile(project, instance, record);
 	return record;
 }
+
+/**
+ * Forgets the variables cached for a removed project and cancels its queued
+ * writes. The debounce map mixes two key shapes - `project:<id>` for the
+ * project file and `<id>:<instanceId>` for each instance - so both are matched
+ * here rather than through the shared prefix rule alone.
+ *
+ * `envInterpolationValues` is left alone: it holds the tokens of whichever
+ * instance is active, keyed by token name, not by project.
+ */
+export function forgetProject(projectId: string): void {
+	for (const key of [...timers.keys()]) {
+		if (key !== `project:${projectId}` && !belongsToProject(key, projectId)) {
+			continue;
+		}
+		clearTimeout(timers.get(key));
+		timers.delete(key);
+	}
+	loadedProjects.delete(projectId);
+	purgeProjectEntries(loadedInstances, projectId);
+	projectEnvs.update((m) => dropProjectKeys(m, projectId));
+	instanceEnvs.update((m) => dropProjectKeys(m, projectId));
+	envFileConflicts.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

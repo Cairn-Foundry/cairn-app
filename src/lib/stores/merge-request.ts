@@ -11,6 +11,7 @@ import {
 	forgeResolve,
 	toIntegrationError,
 } from "$lib/services/integration-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type {
 	Actor,
 	Discussion,
@@ -19,6 +20,7 @@ import type {
 	MergeRequestDraft,
 } from "$lib/types/integrations";
 import { integrationKey } from "$lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 
 export interface InstanceMergeRequestState {
 	mergeRequest: MergeRequest | null;
@@ -259,3 +261,11 @@ export async function loadForgeLabels(projectId: string): Promise<string[]> {
 	labelsByProject.set(projectId, labels);
 	return labels;
 }
+
+/** Forgets the merge-request state of every instance of a removed project. */
+export function forgetProject(projectId: string): void {
+	_mergeRequests.update((m) => dropProjectKeys(m, projectId));
+	labelsByProject.delete(projectId);
+}
+
+onProjectRemoved(forgetProject);

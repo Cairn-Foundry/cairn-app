@@ -7,8 +7,10 @@ import {
 	getAgentRuns,
 	saveAgentRuns,
 } from "$lib/services/agent-runs-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type { PendingPermission } from "$lib/utils/agent/permission-response";
 import { persist as persistToDisk } from "$lib/utils/persist-error";
+import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
 
 export type { AgentBlock, AgentRun, AgentRunStatus };
 
@@ -70,6 +72,26 @@ export function findAgentRun(runId: string): AgentRun | null {
 		if (run) return run;
 	}
 	return null;
+}
+
+/**
+ * Forgets a removed project's runs and cancels its queued write, which would
+ * otherwise recreate the project directory it was deleted with.
+ */
+export function forgetProject(projectId: string): void {
+	purgeProjectEntries(persistTimers, projectId, (v) =>
+		clearTimeout(v as ReturnType<typeof setTimeout>),
+	);
+	purgeProjectEntries(persistDeadlines, projectId);
+	const runIds = new Set((get(agentRuns)[projectId] ?? []).map((r) => r.id));
+	agentRuns.update((m) => dropProjectKeys(m, projectId));
+	agentPermissionRequests.update((m) => {
+		const next: typeof m = {};
+		for (const [runId, request] of Object.entries(m)) {
+			if (!runIds.has(runId)) next[runId] = request;
+		}
+		return next;
+	});
 }
 
 /** Schedules a debounced write of the project's runs. */
@@ -283,3 +305,5 @@ export function agentTurnsOf(
 		.filter((run) => run.result.trim() !== "")
 		.map((run) => ({ prompt: run.prompt, result: run.result }));
 }
+
+onProjectRemoved(forgetProject);

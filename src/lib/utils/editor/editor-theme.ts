@@ -1,5 +1,5 @@
 import { javascript } from "@codemirror/lang-javascript";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";

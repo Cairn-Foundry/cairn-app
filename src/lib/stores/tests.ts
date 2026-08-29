@@ -8,6 +8,7 @@ import {
 	saveTestState,
 	stopTests as stopTestsService,
 } from "$lib/services/test-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type {
 	TestEvent,
 	TestPersistedState,
@@ -15,6 +16,7 @@ import type {
 	TestRunSummary,
 	TestSuite,
 } from "$lib/types/tests";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { detectTestRunners } from "$lib/utils/tests/test-detect";
 import {
 	buildTree,
@@ -395,3 +397,10 @@ export async function stopTests(
 	if (!current.activeRunId) return;
 	await stopTestsService(current.activeRunId);
 }
+
+/** Forgets the test state of every instance of a removed project. */
+export function forgetProject(projectId: string): void {
+	_tests.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

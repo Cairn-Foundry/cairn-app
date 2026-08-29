@@ -9,6 +9,7 @@ import {
 	ciRetryJob,
 	toIntegrationError,
 } from "$lib/services/integration-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import {
 	EMPTY_PIPELINE_QUERY,
 	type IntegrationError,
@@ -19,6 +20,7 @@ import {
 	type PipelineStatus,
 } from "$lib/types/integrations";
 import { integrationKey } from "$lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { activeInstance } from "./instance";
 
 export { PIPELINE_PAGE_SIZE };
@@ -396,3 +398,10 @@ export function clearPipelines(projectId: string, instanceId: string): void {
 		return next;
 	});
 }
+
+/** Forgets the pipeline state of every instance of a removed project. */
+export function forgetProject(projectId: string): void {
+	_pipelines.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

@@ -11,12 +11,14 @@ import {
 	updateInstanceStatus,
 	updateInstanceTicket,
 } from "$lib/services/instance-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type {
 	Instance,
 	InstanceStatus,
 	InstanceTicket,
 } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { clearProjectAgentActivity } from "./agent-activity";
 import { removeInstanceConversations } from "./conversation";
 import { activateInstance, activeProject } from "./project";
@@ -235,3 +237,11 @@ export async function removeInstance(
 	await deleteInstance(id, projectId);
 	patchProject(projectId, (list) => list.filter((i) => i.id !== id));
 }
+
+/** Forgets the instances cached for a removed project, and its base pseudo-instance. */
+export function forgetProject(projectId: string): void {
+	instancesByProject.update((m) => dropProjectKeys(m, projectId));
+	baseInstances.delete(projectId);
+}
+
+onProjectRemoved(forgetProject);

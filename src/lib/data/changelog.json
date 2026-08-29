@@ -111,6 +111,13 @@
           "en": "The glass theme now blurs only the sidebar, the title bar and the tab strip, leaving the editor area opaque - the way Xcode and Finder do it. The blur was the heaviest thing the app asked of the GPU.",
           "fr": "Le theme verre ne floute plus que la barre laterale, la barre de titre et la barre d'onglets, en laissant la zone d'edition opaque - comme le font Xcode et le Finder. Le flou etait ce que l'application demandait de plus lourd au GPU."
         }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Deleting a project now clears everything the app still held for it: cached conversations, terminals, environment variables, agent runs and integration state. A write still queued for the deleted project is cancelled instead of recreating its folder on disk moments later.",
+          "fr": "Supprimer un projet efface desormais tout ce que l'application retenait encore de lui : conversations en cache, terminaux, variables d'environnement, executions d'agent et etat des integrations. Une ecriture encore en attente pour le projet supprime est annulee au lieu de recreer son dossier sur le disque quelques instants plus tard."
+        }
       }
     ]
   },

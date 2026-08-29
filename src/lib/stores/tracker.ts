@@ -8,6 +8,7 @@ import {
 	trackerResolveUrl,
 	trackerTransition,
 } from "$lib/services/integration-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type {
 	IntegrationError,
 	Ticket,
@@ -15,6 +16,7 @@ import type {
 	TicketTransition,
 } from "$lib/types/integrations";
 import { integrationKey } from "$lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 
 export interface InstanceTicketState {
 	ticket: Ticket | null;
@@ -252,3 +254,10 @@ export function clearTicket(projectId: string, instanceId: string): void {
 		return next;
 	});
 }
+
+/** Forgets the ticket state of every instance of a removed project. */
+export function forgetProject(projectId: string): void {
+	_tickets.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

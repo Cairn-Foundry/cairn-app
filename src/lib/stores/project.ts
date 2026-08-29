@@ -11,6 +11,7 @@ import {
 	updateProject,
 } from "$lib/services/project-service";
 import { projectFolders } from "$lib/stores/project-folders";
+import { runProjectTeardowns } from "$lib/stores/project-teardown";
 import type { Project } from "$lib/types/project";
 
 /** Every registered project, in home-list order. */
@@ -89,12 +90,21 @@ export async function activateInstance(
 	);
 }
 
-/** Removes a project and everything that referenced it: active id and folder membership. */
+/**
+ * Removes a project and every trace of it the app still holds: the backend
+ * deletes its data directory, then each per-project cache is torn down.
+ *
+ * The teardown is not merely housekeeping. Several stores debounce their writes,
+ * and `write_json_atomic` recreates missing parent directories, so a timer left
+ * running would write the project's directory back moments after it was deleted.
+ * Every `forgetProject` cancels its queued writes before dropping its entries.
+ */
 export async function unregisterProject(id: string): Promise<void> {
 	const updated = await removeProject(id);
 	projects.set(updated);
 	activeProjectId.update((current) => (current === id ? null : current));
 	projectFolders.purgeProject(id);
+	await runProjectTeardowns(id);
 }
 
 /** Renames and recolors a project. */

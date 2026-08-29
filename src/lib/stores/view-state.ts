@@ -5,6 +5,7 @@
 import { derived, get, writable } from "svelte/store";
 import type { ProjectUiState } from "$lib/services/ui-state-service";
 import { activeProjectId } from "$lib/stores/project";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import {
 	activeStep,
 	commandsActive,
@@ -18,6 +19,7 @@ import {
 	terminalActive,
 } from "$lib/stores/ui";
 import type { WorkflowStep } from "$lib/types/instance";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 
 /** The state a project that has never been opened starts from. */
 const DEFAULT: ProjectUiState = {
@@ -140,3 +142,10 @@ export function updateProjectViewState(
 export function getAllProjectStates(): Record<string, ProjectUiState> {
 	return get(_states);
 }
+
+/** Forgets the view state of a removed project. */
+export function forgetProject(projectId: string): void {
+	_states.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

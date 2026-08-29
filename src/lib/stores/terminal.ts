@@ -9,7 +9,13 @@ import {
 	saveProjectTerminalState,
 	saveTerminalState,
 } from "$lib/services/terminal-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import { persist as persistToDisk } from "$lib/utils/persist-error";
+import {
+	belongsToProject,
+	dropProjectKeys,
+	purgeProjectEntries,
+} from "$lib/utils/project-scope";
 import * as manager from "$lib/utils/terminal/terminal-manager";
 import { insertAt, moveItem } from "$lib/utils/terminal/terminal-order";
 
@@ -443,6 +449,32 @@ export function unshareTerminal(
 	persistProject(projectId);
 }
 
+/**
+ * Kills and forgets every terminal of a project being removed: the shared ones
+ * and those of each of its instances alike. The PTYs must be closed, not merely
+ * dropped from the maps, or the processes outlive the project that owned them.
+ */
+export async function forgetProject(projectId: string): Promise<void> {
+	const owned = [
+		...Object.entries(get(terminalSessions)),
+		...Object.entries(get(projectTerminals)),
+	].filter(([key]) => belongsToProject(key, projectId));
+	for (const [, list] of owned) {
+		for (const s of list) {
+			await closeTerminalCmd(s.id).catch(() => {});
+			manager.dispose(s.id);
+		}
+	}
+	purgeProjectEntries(restored, projectId);
+	purgeProjectEntries(restoredProjects, projectId);
+	const drop = <T>(m: Record<string, T>) => dropProjectKeys(m, projectId);
+	terminalSessions.update(drop);
+	projectTerminals.update(drop);
+	activeTerminalId.update(drop);
+	splitTerminalId.update(drop);
+	splitTerminalRatio.update(drop);
+}
+
 /** Kills and forgets every terminal of an instance being deleted; shared terminals are untouched. */
 export async function removeInstanceTerminals(
 	projectId: string,
@@ -469,3 +501,5 @@ export async function removeInstanceTerminals(
 	splitTerminalId.update(forget);
 	splitTerminalRatio.update(forget);
 }
+
+onProjectRemoved(forgetProject);

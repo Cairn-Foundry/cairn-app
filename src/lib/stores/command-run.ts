@@ -8,6 +8,7 @@ import {
 	saveCommandState,
 } from "$lib/services/custom-command-service";
 import { getIdentity } from "$lib/services/git-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type { Instance } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import {
@@ -20,6 +21,7 @@ import {
 	type Resolution,
 } from "$lib/utils/commands/command-variables";
 import { reportPersistError } from "$lib/utils/persist-error";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { onTerminalExit } from "$lib/utils/terminal/terminal-manager";
 import { prepareInstanceEnv } from "./env";
 import {
@@ -259,3 +261,14 @@ export async function stopCommand(key: string): Promise<void> {
 	if (!run) return;
 	await removeTerminal(run.projectId, run.instanceId, run.terminalId);
 }
+
+/**
+ * Forgets the runs of a removed project. The processes themselves are killed
+ * with the terminals owning them, which the terminal store closes.
+ */
+export function forgetProject(projectId: string): void {
+	commandRuns.update((m) => dropProjectKeys(m, projectId));
+	if (get(pendingLaunch)?.project.id === projectId) pendingLaunch.set(null);
+}
+
+onProjectRemoved(forgetProject);

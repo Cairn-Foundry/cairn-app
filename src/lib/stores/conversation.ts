@@ -12,8 +12,10 @@ import {
 	saveConversationBody,
 	saveConversationIndex,
 } from "$lib/services/conversation-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import { conversationPreview } from "$lib/utils/agent/conversation-export";
 import { persist, reportPersistError } from "$lib/utils/persist-error";
+import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
 
 export type { ConversationMeta, ConversationScope };
 
@@ -398,6 +400,25 @@ export function updateConversationContent(
 	);
 }
 
+/**
+ * Forgets every conversation of a project being removed, cancelling the queued
+ * writes first: `write_json_atomic` recreates missing parents, so a debounced
+ * transcript firing after the project directory was deleted would write it back.
+ */
+export function forgetProject(projectId: string): void {
+	const clear = (v: unknown) =>
+		clearTimeout(v as ReturnType<typeof setTimeout>);
+	purgeProjectEntries(indexTimers, projectId, clear);
+	purgeProjectEntries(bodyTimers, projectId, clear);
+	purgeProjectEntries(bodyDeadlines, projectId);
+	purgeProjectEntries(lastSync, projectId);
+	purgeProjectEntries(restored, projectId);
+	const drop = <T>(m: Record<string, T>) => dropProjectKeys(m, projectId);
+	instanceConversations.update(drop);
+	projectConversations.update(drop);
+	activeConversationId.update(drop);
+}
+
 /** Deletes a conversation, its transcript and any write still queued for it. */
 export function deleteConversation(ref: ConversationRef, id: string): void {
 	updateList(ref, (list) => list.filter((c) => c.id !== id));
@@ -520,3 +541,5 @@ export function removeInstanceConversations(
 		return next;
 	});
 }
+
+onProjectRemoved(forgetProject);

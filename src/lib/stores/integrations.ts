@@ -11,6 +11,7 @@ import {
 	saveProjectIntegrations as saveProjectIntegrationsService,
 	toIntegrationError,
 } from "$lib/services/integration-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
 import type {
 	IntegrationConnection,
 	IntegrationError,
@@ -20,6 +21,7 @@ import type {
 	ResolvedCapabilities,
 } from "$lib/types/integrations";
 import { integrationKey } from "$lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 import { applyUpdate as applyMergeRequestUpdate } from "./merge-request";
 import { applyUpdate as applyPipelineUpdate } from "./pipelines";
 import { activeProjectId } from "./project";
@@ -173,3 +175,11 @@ export function unwatchInstance(
 ): Promise<void> {
 	return integrationUnwatch(projectId, instanceId);
 }
+
+/** Forgets the bindings and capabilities cached for a removed project. */
+export function forgetProject(projectId: string): void {
+	_bindingsByProject.update((m) => dropProjectKeys(m, projectId));
+	_capabilitiesByProject.update((m) => dropProjectKeys(m, projectId));
+}
+
+onProjectRemoved(forgetProject);

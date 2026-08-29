@@ -7,6 +7,8 @@ import {
 	getAgentActivity,
 	saveAgentActivity,
 } from "$lib/services/agent-activity-service";
+import { onProjectRemoved } from "$lib/stores/project-teardown";
+import { dropProjectKeys } from "$lib/utils/project-scope";
 
 /**
  * Running conversations per instance key, in memory only: a conversation is the
@@ -122,3 +124,20 @@ export function clearProjectAgentActivity(
 	});
 	setAgentDone(projectId, instanceId, false);
 }
+
+/**
+ * Forgets the activity markers of a removed project. The done markers are
+ * persisted app-wide, so the file is rewritten without them.
+ */
+export function forgetProject(projectId: string): void {
+	agentBusyConversations.update((m) => dropProjectKeys(m, projectId));
+	let changed = false;
+	agentDoneConversation.update((m) => {
+		const next = dropProjectKeys(m, projectId);
+		changed = Object.keys(next).length !== Object.keys(m).length;
+		return next;
+	});
+	if (changed) saveAgentActivity(get(agentDoneConversation));
+}
+
+onProjectRemoved(forgetProject);
