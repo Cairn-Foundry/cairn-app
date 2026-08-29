@@ -1,7 +1,7 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
-import { get, writable } from "svelte/store";
+import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitChangedFile } from "$lib/services/git-service";
 import type { InstanceMergeRequestState } from "$lib/stores/merge-request";
@@ -52,16 +52,40 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 	hasForge: { subscribe: hasForge.subscribe },
 }));
 
+const reviewStates = writable<Record<string, unknown>>({});
+const openReview = vi.fn<(...a: unknown[]) => unknown>();
+const loadReview = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("$lib/stores/review", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	reviewStates: { subscribe: reviewStates.subscribe },
+	openReview: (...a: unknown[]) => openReview(...a),
+	loadReview: (...a: unknown[]) => loadReview(...a),
+	// The view reads the panel flag back out of the store, so the stub has to
+	// write it there rather than only recording the call.
+	setSelectedPath: (...a: unknown[]) => setSelectedPath(...a),
+	setDiscussionFilter: (...a: unknown[]) => setDiscussionFilter(...a),
+	setDiscussionsOpen: (_scope: unknown, isOpen: boolean) =>
+		reviewStates.update((m) => ({
+			...m,
+			"p1:i1": {
+				...(m["p1:i1"] as Record<string, unknown>),
+				isDiscussionsOpen: isOpen,
+			},
+		})),
+}));
+
+const setSelectedPath = vi.fn<(...a: unknown[]) => unknown>();
+const setDiscussionFilter = vi.fn<(...a: unknown[]) => unknown>();
+const fileMtimes = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("$lib/services/file-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	fileMtimes: (...a: unknown[]) => fileMtimes(...a),
+}));
+
 const activeInstance = writable<unknown>(null);
 vi.mock("$lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
-}));
-
-const requestAgentDraft = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/agent-draft", async (importOriginal) => ({
-	...(await importOriginal<Record<string, unknown>>()),
-	requestAgentDraft: (...a: unknown[]) => requestAgentDraft(...a),
 }));
 
 const { activeStep } = await import("$lib/stores/ui");
@@ -163,8 +187,11 @@ const inCard = (card: HTMLElement, re: RegExp) =>
 	Array.from(card.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
 		re.test(b.textContent ?? ""),
 	) as HTMLButtonElement;
-const generalPanel = () => document.querySelector(".general-panel");
-const anchoredPanel = () => document.querySelector(".anchored-panel");
+const discPanel = () => document.querySelector(".disc-panel");
+const discRail = () => document.querySelector(".disc-rail");
+/** Threads anchored somewhere other than the file on screen. */
+const elsewhereCards = () =>
+	Array.from(document.querySelectorAll<HTMLElement>(".disc-elsewhere"));
 const banners = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".banner")).map(
 		(b) => b.textContent ?? "",
@@ -197,7 +224,6 @@ beforeEach(() => {
 	replyToDiscussion.mockReset().mockResolvedValue(undefined);
 	selectDiscussion.mockReset();
 	setDiscussionResolved.mockReset().mockResolvedValue(undefined);
-	requestAgentDraft.mockReset();
 	hasForge.set(true);
 	activeInstance.set({
 		id: "i1",
@@ -208,6 +234,23 @@ beforeEach(() => {
 		ticket: { id: "T-1", key: "", title: "Login", url: "" },
 	});
 	activeStep.set("review");
+	openReview.mockReset().mockResolvedValue(undefined);
+	loadReview.mockReset().mockResolvedValue(undefined);
+	fileMtimes.mockReset().mockResolvedValue({ "/wt/src/a.ts": 1 });
+	setSelectedPath.mockReset();
+	setDiscussionFilter.mockReset();
+	// The diff is the mode these tests exercise; the guide has its own.
+	reviewStates.set({
+		"p1:i1": {
+			guide: null,
+			seenHunks: [],
+			comments: [],
+			currentChapterId: "",
+			currentExcerptIndex: 0,
+			isDiffMode: true,
+			isDiscussionsOpen: true,
+		},
+	});
 	setState();
 });
 
@@ -525,12 +568,11 @@ describe("ReviewView", () => {
 		});
 
 		/** A general comment belongs in its own panel, not on a line. */
-		it("keeps the general comments apart from the anchored ones", async () => {
+		it("gathers the general and the anchored comments in one panel", async () => {
 			setState({ discussions: [discussion({ id: "d-general" }), anchored] });
 			mount();
 			await settle();
-			expect(generalPanel()?.querySelectorAll(".discussion")).toHaveLength(1);
-			expect(anchoredPanel()?.querySelectorAll(".discussion")).toHaveLength(1);
+			expect(discPanel()?.querySelectorAll(".discussion")).toHaveLength(2);
 		});
 
 		it("shows only the discussions of the open file", async () => {
@@ -554,13 +596,34 @@ describe("ReviewView", () => {
 			});
 			mount();
 			await settle();
-			expect(anchoredPanel()?.querySelectorAll(".discussion")).toHaveLength(1);
+			// Both are listed - a thread on another file is still the reviewer's
+			// to answer - but only the one off-screen is marked as elsewhere.
+			expect(discPanel()?.querySelectorAll(".discussion")).toHaveLength(2);
+			expect(elsewhereCards()).toHaveLength(1);
 		});
 
 		it("says when a merge request has no discussion", async () => {
 			mount();
 			await settle();
-			expect(generalPanel()?.textContent).toMatch(/no|aucun/i);
+			expect(discPanel()?.textContent).toMatch(/no|aucun/i);
+		});
+
+		it("collapses to a rail and comes back", async () => {
+			setState({ discussions: [discussion({ id: "d-general" })] });
+			mount();
+			await settle();
+			expect(discPanel()).not.toBeNull();
+
+			await userEvent.click(
+				discPanel()?.querySelector(".disc-toggle") as HTMLButtonElement,
+			);
+			await settle();
+			expect(discPanel()).toBeNull();
+			expect(discRail()).not.toBeNull();
+
+			await userEvent.click(discRail() as HTMLButtonElement);
+			await settle();
+			expect(discPanel()).not.toBeNull();
 		});
 
 		/** Without a merge request there is no discussion panel at all. */
@@ -568,7 +631,7 @@ describe("ReviewView", () => {
 			setState({ mergeRequest: null });
 			mount();
 			await settle();
-			expect(generalPanel()).toBeNull();
+			expect(discPanel()).toBeNull();
 		});
 
 		/** Two markers on the same file: only the one clicked may be selected. */
@@ -641,23 +704,239 @@ describe("ReviewView", () => {
 		});
 	});
 
-	describe("handing a comment to the agent", () => {
-		it("drafts a prompt with the comment and opens the agent", async () => {
-			setState({ discussions: [discussion({ id: "d-general" })] });
+	describe("what the forge refused", () => {
+		it("shows the forge's own error", async () => {
+			setState({
+				error: { code: "forbidden", message: "" } as never,
+			});
 			mount();
 			await settle();
-			await userEvent.click(inCard(discussionCards()[0], /agent/i));
+			expect(document.querySelector(".banner.error")).not.toBeNull();
+		});
+	});
+
+	describe("opening the file under review", () => {
+		const openButton = () =>
+			document.querySelector(".open-file-btn") as HTMLButtonElement | null;
+
+		it("offers to open a file that is on disk", async () => {
+			mount();
 			await settle();
-			expect(requestAgentDraft).toHaveBeenCalledTimes(1);
-			expect(requestAgentDraft.mock.calls[0][0]).toBe("i1");
-			expect(requestAgentDraft.mock.calls[0][1]).toContain(
-				"please rename this",
-			);
-			expect(get(activeStep)).toBe("agent");
+			expect(openButton()).not.toBeNull();
+			expect(openButton()?.disabled).toBe(false);
 		});
 
-		/** An anchored comment carries the code it is about. */
-		it("includes the code an anchored comment points at", async () => {
+		/** A file the diff deleted has nothing to open. */
+		it("refuses a file the worktree no longer has", async () => {
+			fileMtimes.mockResolvedValue({});
+			mount();
+			await settle();
+			expect(openButton()?.disabled).toBe(true);
+		});
+
+		it("checks the file inside the worktree, not the repository root", async () => {
+			mount();
+			await settle();
+			expect(fileMtimes).toHaveBeenCalledWith(["/wt/src/a.ts"]);
+		});
+	});
+
+	describe("remembering the file being read", () => {
+		const twoFiles = () => {
+			getDiffFilesBetween.mockResolvedValue([
+				changedFile({ filePath: "src/a.ts" }),
+				changedFile({ filePath: "src/b.ts" }),
+			]);
+		};
+
+		it("opens the first file when nothing was remembered", async () => {
+			twoFiles();
+			mount();
+			await settle();
+			expect(fileNames()[0]).toBe("src/a.ts");
+			expect(getDiffFileBetween.mock.calls[0][3]).toBe("src/a.ts");
+		});
+
+		it("reopens on the file left open last time", async () => {
+			twoFiles();
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					selectedPath: "src/b.ts",
+				},
+			}));
+			mount();
+			await settle();
+			expect(getDiffFileBetween.mock.calls[0][3]).toBe("src/b.ts");
+		});
+
+		/** A file the branch no longer changes cannot be reopened. */
+		it("falls back to the first file when the remembered one is gone", async () => {
+			twoFiles();
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					selectedPath: "src/vanished.ts",
+				},
+			}));
+			mount();
+			await settle();
+			expect(getDiffFileBetween.mock.calls[0][3]).toBe("src/a.ts");
+		});
+
+		it("saves the file the reviewer picks", async () => {
+			twoFiles();
+			mount();
+			await settle();
+			const other = fileItems().find((f) =>
+				f.textContent?.includes("src/b.ts"),
+			) as HTMLElement;
+			await userEvent.click(other);
+			await settle();
+			expect(setSelectedPath).toHaveBeenCalled();
+			const last = setSelectedPath.mock.calls.at(-1);
+			expect(last?.[1]).toBe("src/b.ts");
+		});
+
+		/** Restoring must not write back the value it just read. */
+		it("saves nothing when it merely restored the remembered file", async () => {
+			twoFiles();
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					selectedPath: "src/b.ts",
+				},
+			}));
+			mount();
+			await settle();
+			expect(setSelectedPath).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("filtering the discussions", () => {
+		const filterTab = (re: RegExp) =>
+			Array.from(
+				document.querySelectorAll<HTMLButtonElement>(".disc-filter"),
+			).find((b) => re.test(b.textContent ?? "")) as HTMLButtonElement;
+		const cards = () => document.querySelectorAll(".discussion");
+
+		/** What the forge records itself: never resolvable, never answerable. */
+		const systemNote = (id: string) =>
+			discussion({
+				id,
+				resolvable: false,
+				comments: [
+					{
+						id: `${id}-c`,
+						author: actor,
+						body: "changed the milestone",
+						createdAt: "2026-01-01T00:00:00Z",
+						isSystem: true,
+					},
+				],
+			});
+
+		const mixed = () => {
+			setState({
+				discussions: [
+					discussion({ id: "d-open" }),
+					discussion({ id: "d-done", resolved: true }),
+				],
+			});
+		};
+
+		const withActivity = () => {
+			setState({
+				discussions: [
+					discussion({ id: "d-open" }),
+					discussion({ id: "d-done", resolved: true }),
+					systemNote("d-log"),
+				],
+			});
+		};
+
+		it("lists every discussion by default", async () => {
+			mixed();
+			mount();
+			await settle();
+			expect(cards()).toHaveLength(2);
+		});
+
+		it("keeps only the open ones", async () => {
+			mixed();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/open|ouvert/i));
+			await settle();
+			expect(cards()).toHaveLength(1);
+		});
+
+		it("keeps only the resolved ones", async () => {
+			mixed();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/resolved|résolue/i));
+			await settle();
+			expect(cards()).toHaveLength(1);
+		});
+
+		/** The counts describe the whole set, not the filtered view. */
+		it("counts every filter against the full set", async () => {
+			mixed();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/open|ouvert/i));
+			await settle();
+			expect(filterTab(/^all|toutes/i).textContent).toContain("2");
+			expect(filterTab(/resolved|résolue/i).textContent).toContain("1");
+		});
+
+		/**
+		 * A log the forge wrote can never be resolved, so counting it as open
+		 * would show work that does not exist and never reaches zero.
+		 */
+		it("leaves the forge's own logs out of the open count", async () => {
+			withActivity();
+			mount();
+			await settle();
+			expect(filterTab(/^open|ouvert/i).textContent).toContain("1");
+			expect(filterTab(/activity|activité/i).textContent).toContain("1");
+		});
+
+		it("keeps the logs out of the open list", async () => {
+			withActivity();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/^open|ouvert/i));
+			await settle();
+			expect(cards()).toHaveLength(1);
+		});
+
+		it("lists only the logs under activity", async () => {
+			withActivity();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/activity|activité/i));
+			await settle();
+			expect(cards()).toHaveLength(1);
+			expect(discPanel()?.textContent).toContain("changed the milestone");
+		});
+
+		it("still counts everything under all", async () => {
+			withActivity();
+			mount();
+			await settle();
+			expect(filterTab(/^all|toutes/i).textContent).toContain("3");
+		});
+
+		/**
+		 * The label above the diff describes the file, so it counts every thread
+		 * on it whatever lens the panel is set to.
+		 */
+		it("keeps the file's discussion count whatever the filter", async () => {
 			setState({
 				discussions: [
 					discussion({
@@ -673,54 +952,181 @@ describe("ReviewView", () => {
 			});
 			mount();
 			await settle();
-			await userEvent.click(inCard(discussionCards()[0], /agent/i));
+			const label = () =>
+				document.querySelector(".anchored-count")?.textContent ?? "";
+			expect(label()).toMatch(/1/);
+
+			await userEvent.click(filterTab(/activity|activité/i));
 			await settle();
-			expect(requestAgentDraft.mock.calls[0][1]).toContain("TWO");
+			expect(label()).toMatch(/1/);
+
+			await userEvent.click(filterTab(/resolved|résolue/i));
+			await settle();
+			expect(label()).toMatch(/1/);
 		});
 
-		/** A system note is machinery, not something to answer. */
-		it("leaves the system notes out of the prompt", async () => {
-			setState({
-				discussions: [
-					discussion({
-						id: "d-general",
-						comments: [
-							{
-								id: "c0",
-								author: actor,
-								body: "changed the milestone",
-								createdAt: "2026-01-01T00:00:00Z",
-								isSystem: true,
-							},
-							{
-								id: "c1",
-								author: actor,
-								body: "please rename this",
-								createdAt: "2026-01-01T00:00:00Z",
-								isSystem: false,
-							},
-						],
-					}),
-				],
-			});
+		it("saves the filter that was picked", async () => {
+			mixed();
 			mount();
 			await settle();
-			await userEvent.click(inCard(discussionCards()[0], /agent/i));
+			await userEvent.click(filterTab(/^open|ouvert/i));
 			await settle();
-			expect(requestAgentDraft.mock.calls[0][1]).not.toContain(
-				"changed the milestone",
-			);
+			expect(setDiscussionFilter).toHaveBeenCalled();
+			expect(setDiscussionFilter.mock.calls.at(-1)?.[1]).toBe("open");
+		});
+
+		/** Coming back to the step must land on the filter it was left on. */
+		it("reopens on the filter it was left on", async () => {
+			mixed();
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					discussionFilter: "resolved",
+				},
+			}));
+			mount();
+			await settle();
+			expect(filterTab(/resolved|résolue/i).className).toContain("active");
+			expect(cards()).toHaveLength(1);
+		});
+
+		it("falls back to all for a filter it does not know", async () => {
+			mixed();
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					discussionFilter: "whatever",
+				},
+			}));
+			mount();
+			await settle();
+			expect(filterTab(/^all|toutes/i).className).toContain("active");
+			expect(cards()).toHaveLength(2);
+		});
+
+		/** A late-arriving stored value must not undo a choice just made. */
+		it("keeps the filter the reviewer picked after restoring", async () => {
+			mixed();
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/resolved|résolue/i));
+			await settle();
+			expect(filterTab(/resolved|résolue/i).className).toContain("active");
+			expect(cards()).toHaveLength(1);
+		});
+
+		it("says which list is empty rather than claiming there is none", async () => {
+			setState({ discussions: [discussion({ id: "d-open" })] });
+			mount();
+			await settle();
+			await userEvent.click(filterTab(/resolved|résolue/i));
+			await settle();
+			expect(discPanel()?.textContent).toMatch(/resolved|résolue/i);
+			expect(cards()).toHaveLength(0);
 		});
 	});
 
-	describe("what the forge refused", () => {
-		it("shows the forge's own error", async () => {
-			setState({
-				error: { code: "forbidden", message: "" } as never,
-			});
+	describe("the loading placeholder", () => {
+		const skeleton = () => document.querySelector(".diff-skeleton");
+
+		/** A read that returns at once would flash the placeholder for a frame. */
+		it("shows nothing for a read that returns quickly", async () => {
 			mount();
 			await settle();
-			expect(document.querySelector(".banner.error")).not.toBeNull();
+			expect(skeleton()).toBeNull();
+		});
+
+		it("does not claim the file is empty while it is still loading", async () => {
+			// A read that never settles: the pane must stay quiet, not report
+			// that there is nothing to show.
+			getDiffFileBetween.mockImplementation(() => new Promise(() => {}));
+			mount();
+			await settle();
+			expect(document.body.textContent).not.toMatch(/nothing to show|rien/i);
+		});
+
+		it("shows the placeholder once the read outlives the threshold", async () => {
+			getDiffFileBetween.mockImplementation(() => new Promise(() => {}));
+			mount();
+			await settle();
+			await vi.waitFor(() => expect(skeleton()).not.toBeNull(), {
+				timeout: 1000,
+			});
+		});
+	});
+
+	describe("following a discussion to its line", () => {
+		const anchoredOn = (path: string, line: number, id = "d-anchor") =>
+			discussion({
+				id,
+				anchor: { path, line, side: "new", sha: "sha-head" },
+			});
+
+		/**
+		 * The whole card is the target, not only the small line tag on it. The
+		 * jump itself lives in the editor, so what is observable here is that the
+		 * thread was selected by the click on the card body.
+		 */
+		it("selects the thread when the card itself is clicked", async () => {
+			setState({ discussions: [anchoredOn("src/a.ts", 2)] });
+			mount();
+			await settle();
+			const card = discussionCards()[0];
+			expect(card).not.toBeUndefined();
+			await userEvent.click(card);
+			await settle();
+			expect(selectDiscussion).toHaveBeenCalledWith("p1", "i1", "d-anchor");
+		});
+
+		it("opens the file of a thread anchored elsewhere", async () => {
+			getDiffFilesBetween.mockResolvedValue([
+				changedFile({ filePath: "src/a.ts" }),
+				changedFile({ filePath: "src/b.ts" }),
+			]);
+			setState({ discussions: [anchoredOn("src/b.ts", 7, "d-else")] });
+			mount();
+			await settle();
+			const card = discussionCards()[0];
+			await userEvent.click(card);
+			await settle();
+			// The diff moved onto the file the thread belongs to.
+			expect(getDiffFileBetween.mock.calls.at(-1)?.[3]).toBe("src/b.ts");
+		});
+	});
+
+	describe("carrying the panel state across a switch", () => {
+		/**
+		 * The stored state has to be in place before the diff resolves: a closed
+		 * panel that flashes open on every instance switch is the symptom, and on
+		 * a branch with no base it would never load at all.
+		 */
+		it("reads the stored state without waiting for a diff", async () => {
+			// The state on disk says the panel was left closed.
+			reviewStates.update((m) => ({
+				...m,
+				"p1:i1": {
+					...(m["p1:i1"] as Record<string, unknown>),
+					isDiscussionsOpen: false,
+				},
+			}));
+			mount();
+			await settle();
+			expect(loadReview).toHaveBeenCalled();
+			expect(discPanel()).toBeNull();
+			expect(discRail()).not.toBeNull();
+		});
+
+		it("asks for the state of the instance it is showing", async () => {
+			mount();
+			await settle();
+			const scope = loadReview.mock.calls[0]?.[0] as {
+				projectId: string;
+				instanceId: string;
+			};
+			expect(scope.projectId).toBe("p1");
+			expect(scope.instanceId).toBe("i1");
 		});
 	});
 });

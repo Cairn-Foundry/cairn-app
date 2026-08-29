@@ -8,6 +8,139 @@
     },
     "changes": [
       {
+        "kind": "changed",
+        "text": {
+          "en": "The forge's own records - a label changed, a pipeline run - no longer count as open discussions in the Review step: they can never be resolved, and are listed under their own Activity filter.",
+          "fr": "Les enregistrements de la forge - un label modifié, un pipeline lancé - ne comptent plus comme des discussions ouvertes dans la step Review : ils ne peuvent pas être résolus, et sont listés sous leur propre filtre Activité."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The Review diff shows a placeholder shaped like the diff itself while a file loads, instead of a single column of lines.",
+          "fr": "Le diff de la step Review affiche un placeholder à la forme du diff lui-même pendant le chargement d'un fichier, au lieu d'une simple colonne de lignes."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The discussion panel of the Review step filters between all, open and resolved threads, each tab carrying its count.",
+          "fr": "Le panneau des discussions de la step Review filtre entre toutes les discussions, les ouvertes et les résolues, chaque onglet portant son compte."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The Review step reopens on the file that was being read, per project and per instance.",
+          "fr": "La step Review rouvre sur le fichier en cours de lecture, par projet et par instance."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The discussions of a merge request are gathered in one panel of the Review diff instead of being split between a strip under the diff and a side list. A thread anchored in another file stays listed and opens that file when picked.",
+          "fr": "Les discussions d'une merge request sont réunies dans un seul panneau du diff de la step Review au lieu d'être séparées entre un bandeau sous le diff et une liste latérale. Une discussion ancrée dans un autre fichier reste listée et ouvre ce fichier quand on la sélectionne."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The discussion panel of the Review diff can be collapsed to give the diff the full width, and reopened from the rail that stays in place. Its state is remembered per instance.",
+          "fr": "Le panneau des discussions du diff de la step Review peut être replié pour laisser toute la largeur au diff, et rouvert depuis le rail qui reste en place. Son état est mémorisé par instance."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Switching between files in the Review diff no longer shows the previous file's content under the new file's name: the editor was built asynchronously and kept whatever content it had captured when its language mode finished loading.",
+          "fr": "Passer d'un fichier à l'autre dans le diff de la step Review n'affiche plus le contenu du fichier précédent sous le nom du nouveau : l'éditeur était construit de façon asynchrone et gardait le contenu capturé au moment où son mode de langage finissait de charger."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "A file shorter than the pane now fills the height of the Review diff instead of stopping mid-way and leaving the background visible under it.",
+          "fr": "Un fichier plus court que le panneau occupe désormais toute la hauteur du diff de la step Review au lieu de s'arrêter à mi-chemin en laissant le fond visible en dessous."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The Review diff offers to open the file under review in the editor, disabled when the worktree no longer has it.",
+          "fr": "Le diff de la step Review propose d'ouvrir dans l'éditeur le fichier en cours de review, désactivé quand le worktree ne le contient plus."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "An instance created from an existing branch no longer takes that same branch as its base, which compared the branch with itself and left the Review and Git diffs empty. The base is now a field of its own, prefilled from the merge request's target branch when there is one, otherwise from a merge commit or the fork point, and always editable.",
+          "fr": "Une instance créée depuis une branche existante ne prend plus cette même branche comme base, ce qui comparait la branche avec elle-même et laissait les diffs des steps Review et Git vides. La base est désormais un champ à part, prérempli depuis la branche cible de la merge request quand il y en a une, sinon depuis un commit de merge ou le point de divergence, et toujours modifiable."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The base branch of an instance can be changed after the fact: from the branch bar of the Git step, and from the instance settings. Changing it re-points the diffs; the worktree is left alone.",
+          "fr": "La branche de base d'une instance peut être changée après coup : depuis la barre de branche de la step Git, et depuis les réglages de l'instance. La modifier réoriente les diffs ; le worktree n'est pas touché."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The Review step says when an instance has no base branch to compare against, instead of showing an empty diff with no explanation.",
+          "fr": "La step Review indique quand une instance n'a pas de branche de base à comparer, au lieu d'afficher un diff vide sans explication."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The Review step opens on a guide written by the AI: what the branch does, then chapter by chapter, each with its extracts of the diff and the points worth your attention.",
+          "fr": "La step Review s'ouvre sur un guide rédigé par l'IA : ce que fait la branche, puis chapitre par chapitre, chacun avec ses extraits du diff et les points qui méritent votre attention."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Remarks of the guide are anchored to a line and typed - issue, question, refactor, note - and can be dismissed or turned into a comment, with an AI draft you edit before keeping it.",
+          "fr": "Les remarques du guide sont ancrées à une ligne et typées - problème, question, simplification, remarque - et peuvent être ignorées ou transformées en commentaire, avec un brouillon IA que vous modifiez avant de le garder."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Comments accumulate locally and go up to GitLab or GitHub as a single review, with a verdict: approve, request changes, or comment only. Without a forge, the review is copied as markdown.",
+          "fr": "Les commentaires s'accumulent en local et partent sur GitLab ou GitHub en une seule review, avec un verdict : approuver, demander des changements, ou commentaire seul. Sans forge, la review se copie en markdown."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Reading is tracked by chapter and by hunk: a chapter you read goes back to unread when its author pushes a correction to the code it covers.",
+          "fr": "La lecture est suivie par chapitre et par section de diff : un chapitre lu redevient non lu quand son auteur pousse une correction sur le code qu'il couvre."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Keyboard navigation across the guide: next and previous extract, next and previous chapter, mark as seen, comment, dismiss, and switch between guide and diff.",
+          "fr": "Navigation clavier dans le guide : extrait suivant et précédent, chapitre suivant et précédent, marquer comme vu, commenter, ignorer, et basculer entre guide et diff."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The raw diff becomes the secondary mode of the Review step, reachable from the header, and shows the guide's remarks in its gutter.",
+          "fr": "Le diff brut devient le mode secondaire de la step Review, accessible depuis l'en-tête, et affiche les remarques du guide dans sa gouttière."
+        }
+      },
+      {
+        "kind": "removed",
+        "text": {
+          "en": "\"Address with agent\" is gone from the Review step: the reviewer reads and comments, they do not write the author's code.",
+          "fr": "\"Traiter avec l'agent\" disparaît de la step Review : le reviewer lit et commente, il n'écrit pas le code de l'auteur."
+        }
+      },
+      {
         "kind": "fixed",
         "text": {
           "en": "Switching project while the Git view is open no longer shows untracked files of the previous project among the changes of the new one, and the new list appears in one go instead of its untracked files dropping in a moment later.",

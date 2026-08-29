@@ -7,6 +7,7 @@ import {
 	type Actor,
 	type Comment,
 	type Discussion,
+	type DiscussionAnchor,
 	EMPTY_PIPELINE_QUERY,
 	INTEGRATION_ERROR_CODES,
 	type IntegrationConnection,
@@ -238,6 +239,47 @@ export async function forgeApprove(
 	approve: boolean,
 ): Promise<MergeRequest> {
 	return invoke("forge_approve", { projectId, mrId, approve });
+}
+
+/** One comment of a review, as the reviewer wrote it locally. */
+export interface ReviewCommentDraft {
+	id: string;
+	path: string;
+	line: number;
+	side: "old" | "new";
+	body: string;
+}
+
+/** What actually reached the forge; a half-posted review reports both halves. */
+export interface ReviewOutcome {
+	/** Local comment id -> the id the forge gave it. */
+	published: Record<string, string>;
+	failed: { id: string; message: string }[];
+}
+
+export async function forgeCreateDiscussion(
+	projectId: string,
+	mrId: string,
+	anchor: DiscussionAnchor,
+	body: string,
+): Promise<Discussion> {
+	return invoke("forge_create_discussion", { projectId, mrId, anchor, body });
+}
+
+export async function forgeSubmitReview(
+	projectId: string,
+	mrId: string,
+	comments: ReviewCommentDraft[],
+	verdict: "approve" | "changes" | "comment",
+	body: string,
+): Promise<ReviewOutcome> {
+	return invoke("forge_submit_review", {
+		projectId,
+		mrId,
+		comments,
+		verdict,
+		body,
+	});
 }
 
 export async function forgeListMembers(

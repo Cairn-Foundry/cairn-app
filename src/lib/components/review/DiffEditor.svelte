@@ -33,11 +33,13 @@
       this.marker = marker;
     }
     eq(other: DiscussionMarker): boolean {
-      return other.marker.count === this.marker.count && other.marker.isResolved === this.marker.isResolved;
+      return other.marker.count === this.marker.count
+        && other.marker.isResolved === this.marker.isResolved
+        && other.marker.kind === this.marker.kind;
     }
     toDOM(): Node {
       const el = document.createElement('span');
-      el.className = `cm-review-marker ${this.marker.isResolved ? 'is-resolved' : ''}`;
+      el.className = `cm-review-marker kind-${this.marker.kind ?? 'discussion'} ${this.marker.isResolved ? 'is-resolved' : ''}`;
       el.textContent = String(this.marker.count);
       el.dataset.line = String(this.marker.line);
       el.dataset.side = this.marker.side;
@@ -119,12 +121,59 @@
     mergeView.b.dispatch({ effects: newMarkersCompartment.reconfigure(markerGutter('new', markers)) });
   }
 
-  let cleanupScroll: (() => void) | undefined;
   let destroyed = false;
 
+  // MergeView misaligns the last chunk when one side lacks its trailing newline.
+  const normalize = (s: string) => (s.endsWith('\n') ? s : s + '\n');
+
+  /**
+   * Replaces both documents when the props no longer match what is on screen.
+   *
+   * The view is built inside an async mount - the language mode is a dynamic
+   * import - so the content it captured can already be stale by the time it
+   * exists: switching files while a mode is still loading built the editor on
+   * the props of a file the user had already left. Reconciling here makes the
+   * props the single source of truth rather than the mount's timing.
+   */
+  function syncDocs(
+    _view: MergeView | null,
+    _old: string,
+    _new: string,
+  ) {
+    if (!mergeView) return;
+    const wantA = normalize(oldContent);
+    const wantB = normalize(newContent);
+    const haveA = mergeView.a.state.doc.toString();
+    const haveB = mergeView.b.state.doc.toString();
+    if (haveA !== wantA) {
+      mergeView.a.dispatch({
+        changes: { from: 0, to: mergeView.a.state.doc.length, insert: wantA },
+      });
+    }
+    if (haveB !== wantB) {
+      mergeView.b.dispatch({
+        changes: { from: 0, to: mergeView.b.state.doc.length, insert: wantB },
+      });
+    }
+    // The documents were replaced, so this is another file: the offset the
+    // reader left in the previous one means nothing here, and keeping it drops
+    // them into the middle of a file they have not started.
+    if (haveA !== wantA || haveB !== wantB) scrollToTop();
+  }
+
+  /**
+   * The pair shares one scroller - `mergeView.dom` is the `.cm-mergeView`
+   * element that carries the overflow - so the whole view goes back to the top.
+   */
+  function scrollToTop() {
+    if (mergeView) (mergeView.dom as HTMLElement).scrollTop = 0;
+  }
+
+  // Named dependencies, so the statement re-runs on either document changing
+  // and on the view coming into existence.
+  $: syncDocs(mergeView, oldContent, newContent);
+
   onMount(async () => {
-    // MergeView misaligns the last chunk when one side lacks its trailing newline.
-    const normalize = (s: string) => s.endsWith('\n') ? s : s + '\n';
     // The language mode is fetched on demand, so the view is built once it is in hand.
     const exts = await buildExtensions();
     if (destroyed) return;
@@ -136,35 +185,10 @@
       gutter: true,
     });
 
-    const [elA, elB] = Array.from(
-      mergeView.dom.querySelectorAll<HTMLElement>('.cm-mergeViewEditor')
-    );
-    if (elA && elB) {
-      let syncing = false;
-      const syncA = () => {
-        if (syncing) return;
-        syncing = true;
-        elB.scrollTop = elA.scrollTop;
-        syncing = false;
-      };
-      const syncB = () => {
-        if (syncing) return;
-        syncing = true;
-        elA.scrollTop = elB.scrollTop;
-        syncing = false;
-      };
-      elA.addEventListener('scroll', syncA);
-      elB.addEventListener('scroll', syncB);
-      cleanupScroll = () => {
-        elA.removeEventListener('scroll', syncA);
-        elB.removeEventListener('scroll', syncB);
-      };
-    }
   });
 
   onDestroy(() => {
     destroyed = true;
-    cleanupScroll?.();
     mergeView?.destroy();
   });
 </script>
@@ -177,22 +201,27 @@
     inset: 0;
     overflow: hidden;
   }
+  /* One scrollbar for the pair. `@codemirror/merge` is built for this: it lets
+     both editors grow to their full content height and expects the container to
+     scroll them together. Giving each pane its own `overflow` instead produced
+     two scrollbars that had to be kept in step by hand, and the two sides drift
+     apart whenever their line heights differ. */
   .diff-mount :global(.cm-mergeView) {
     width: 100%;
     position: absolute;
-      inset: 0;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .diff-mount :global(.cm-mergeViewEditors) {
+    align-items: stretch;
+    /* Short files still fill the pane rather than stopping mid-way. */
+    min-height: 100%;
   }
   .diff-mount :global(.cm-mergeViewEditor) {
     flex: 1 1 0% !important;
-    overflow: auto;
     min-width: 0;
-  }
-  .diff-mount :global(.cm-mergeViewEditor .cm-editor) {
-    height: 100%;
-    width: 100%;
-  }
-  .diff-mount :global(.cm-mergeViewEditor .cm-scroller) {
-    min-height: 100%;
+    overflow: visible;
   }
   .diff-mount :global(.cm-mergeGutter) {
     background: oklch(0.14 0.008 70);
@@ -222,6 +251,15 @@
   }
   .diff-mount :global(.cm-review-marker.is-resolved) {
     background: var(--fg-3);
+  }
+  .diff-mount :global(.cm-review-marker.kind-issue) { background: var(--danger); }
+  .diff-mount :global(.cm-review-marker.kind-question) { background: oklch(0.82 0.14 60); }
+  .diff-mount :global(.cm-review-marker.kind-refactor) { background: oklch(0.7 0.14 280); }
+  .diff-mount :global(.cm-review-marker.kind-note) { background: var(--fg-3); }
+  .diff-mount :global(.cm-review-marker.kind-comment) {
+    background: transparent;
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
   }
   .diff-mount :global(.cm-deletedChunk) {
     background: oklch(0.70 0.18 15 / 0.12);

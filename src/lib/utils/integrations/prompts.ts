@@ -52,25 +52,6 @@ export function buildCiFixPrompt(
 	});
 }
 
-export interface ReviewAddressInput {
-	path: string;
-	line: number | null;
-	excerpt: string;
-	comment: string;
-}
-
-export function buildReviewAddressPrompt(
-	input: ReviewAddressInput,
-	assignments?: Record<string, AiFeatureAssignment>,
-): string {
-	return renderPromptTemplate(templateOf("reviewReply", assignments), {
-		path: input.path,
-		line: input.line === null ? "-" : String(input.line),
-		excerpt: input.excerpt.trim(),
-		comment: input.comment.trim(),
-	});
-}
-
 export function buildMrDescriptionPrompt(
 	base: string,
 	ticket: Pick<Ticket, "key" | "title" | "url"> | null,
@@ -104,3 +85,125 @@ export function buildTicketStartPrompt(
 	);
 	return parts.join("\n");
 }
+
+export interface ReviewGuideInput {
+	base: string;
+	head: string;
+	diff: string;
+	truncated: boolean;
+	/** The merge request title and description, when the branch has one. */
+	mrTitle?: string;
+	mrDescription?: string;
+	ticket?: Pick<Ticket, "key" | "title"> | null;
+	/** The interface language, so the guide reads in the reviewer's language. */
+	language: string;
+}
+
+/**
+ * The context block: merge request and ticket when they exist, nothing when the
+ * branch is reviewed locally. It is the only part of the prompt that says what
+ * the author meant, so it goes in whole rather than summarised.
+ */
+function guideContext(input: ReviewGuideInput): string {
+	const parts: string[] = [];
+	if (input.mrTitle?.trim())
+		parts.push(`Merge request: ${input.mrTitle.trim()}`);
+	if (input.mrDescription?.trim())
+		parts.push(`Description:\n${input.mrDescription.trim()}`);
+	if (input.ticket)
+		parts.push(`Ticket ${input.ticket.key}: ${input.ticket.title}`);
+	return parts.length === 0 ? "" : `\n${parts.join("\n\n")}\n`;
+}
+
+export function buildReviewGuidePrompt(
+	input: ReviewGuideInput,
+	assignments?: Record<string, AiFeatureAssignment>,
+): string {
+	return renderPromptTemplate(templateOf("reviewGuide", assignments), {
+		base: input.base,
+		head: input.head,
+		diff: input.diff.trim(),
+		context: guideContext(input),
+		truncated: input.truncated
+			? "\nThis diff was too large to include whole: it was cut on hunk boundaries. Say so for a file you could not read entirely rather than guessing what the rest holds.\n"
+			: "",
+		language: input.language,
+	});
+}
+
+export interface ReviewCommentInput {
+	path: string;
+	line: number;
+	excerpt: string;
+	title: string;
+	body: string;
+	language: string;
+}
+
+export function buildReviewCommentPrompt(
+	input: ReviewCommentInput,
+	assignments?: Record<string, AiFeatureAssignment>,
+): string {
+	return renderPromptTemplate(templateOf("reviewComment", assignments), {
+		path: input.path,
+		line: String(input.line),
+		excerpt: input.excerpt.trim(),
+		title: input.title.trim(),
+		body: input.body.trim(),
+		language: input.language,
+	});
+}
+
+/**
+ * The shape the guide has to come back in. Hashes are absent on purpose: the
+ * model produces paths and lines, the frontend attaches them to hunks.
+ */
+export const REVIEW_GUIDE_SCHEMA = {
+	type: "object",
+	required: ["overview", "chapters"],
+	properties: {
+		overview: { type: "string" },
+		chapters: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["title", "summary", "excerpts", "remarks"],
+				properties: {
+					title: { type: "string" },
+					summary: { type: "string" },
+					excerpts: {
+						type: "array",
+						items: {
+							type: "object",
+							required: ["path", "side", "from", "to"],
+							properties: {
+								path: { type: "string" },
+								side: { type: "string", enum: ["old", "new"] },
+								from: { type: "integer" },
+								to: { type: "integer" },
+							},
+						},
+					},
+					remarks: {
+						type: "array",
+						items: {
+							type: "object",
+							required: ["kind", "path", "side", "line", "title", "body"],
+							properties: {
+								kind: {
+									type: "string",
+									enum: ["issue", "question", "refactor", "note"],
+								},
+								path: { type: "string" },
+								side: { type: "string", enum: ["old", "new"] },
+								line: { type: "integer" },
+								title: { type: "string" },
+								body: { type: "string" },
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+} as const;

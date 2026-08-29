@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	buildCiFixPrompt,
 	buildMrDescriptionPrompt,
-	buildReviewAddressPrompt,
+	buildReviewCommentPrompt,
+	buildReviewGuidePrompt,
 	buildTicketStartPrompt,
 	renderPromptTemplate,
 } from "./prompts";
@@ -36,28 +37,65 @@ describe("buildCiFixPrompt", () => {
 	});
 });
 
-describe("buildReviewAddressPrompt", () => {
-	it("renders the file, line, excerpt and comment", () => {
-		const prompt = buildReviewAddressPrompt({
+describe("buildReviewGuidePrompt", () => {
+	const input = {
+		base: "main",
+		head: "feature",
+		diff: "diff --git a/src/a.ts b/src/a.ts",
+		truncated: false,
+		language: "en",
+	};
+
+	it("carries the refs and the diff", () => {
+		const prompt = buildReviewGuidePrompt(input);
+		expect(prompt).toContain("Base: main");
+		expect(prompt).toContain("Head: feature");
+		expect(prompt).toContain("diff --git a/src/a.ts");
+	});
+
+	it("says nothing about a merge request the branch does not have", () => {
+		const prompt = buildReviewGuidePrompt(input);
+		expect(prompt).not.toContain("Merge request:");
+		expect(prompt).not.toContain("Ticket");
+	});
+
+	it("hands over the merge request and the ticket when they exist", () => {
+		const prompt = buildReviewGuidePrompt({
+			...input,
+			mrTitle: "Add login",
+			mrDescription: "It adds login.",
+			ticket: { key: "CAI-1", title: "Login" },
+		});
+		expect(prompt).toContain("Merge request: Add login");
+		expect(prompt).toContain("It adds login.");
+		expect(prompt).toContain("Ticket CAI-1: Login");
+	});
+
+	it("warns the model when the diff was cut", () => {
+		expect(buildReviewGuidePrompt({ ...input, truncated: true })).toContain(
+			"too large to include whole",
+		);
+		expect(buildReviewGuidePrompt(input)).not.toContain(
+			"too large to include whole",
+		);
+	});
+});
+
+describe("buildReviewCommentPrompt", () => {
+	it("carries the anchor, the excerpt and the remark", () => {
+		const prompt = buildReviewCommentPrompt({
 			path: "src/a.ts",
 			line: 12,
 			excerpt: "const a = 1;",
-			comment: "Rename this.",
+			title: "Off by one",
+			body: "The loop runs once too many times.",
+			language: "fr",
 		});
 		expect(prompt).toContain("File: src/a.ts");
 		expect(prompt).toContain("Line: 12");
-		expect(prompt).toContain("> Rename this.");
-	});
-
-	it("marks a general comment with no line", () => {
-		expect(
-			buildReviewAddressPrompt({
-				path: "",
-				line: null,
-				excerpt: "",
-				comment: "hi",
-			}),
-		).toContain("Line: -");
+		expect(prompt).toContain("Off by one");
+		expect(prompt).toContain("once too many times");
+		expect(prompt).toContain("Write in fr.");
 	});
 });
 

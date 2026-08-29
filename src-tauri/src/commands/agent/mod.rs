@@ -11,6 +11,7 @@ use tauri::Manager;
 
 pub mod config;
 pub mod platform;
+pub mod oneshot;
 pub mod providers;
 pub use providers::{ClaudeCliProvider, ProviderRegistry};
 

@@ -10,7 +10,9 @@
   import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
   import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
   import { t } from '$lib/i18n';
-  import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus } from '$lib/stores/instance';
+  import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus, setInstanceBaseBranch } from '$lib/stores/instance';
+  import { listBranchesDetailed, suggestBaseBranches } from '$lib/services/instance-service';
+  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
   import { agentBusy, agentDone, agentActivityKey } from '$lib/stores/agent-activity';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
@@ -31,6 +33,43 @@
   let reopeningId: string | null = null;
   let copiedId: string | null = null;
   let moreMenuPos = { top: 0, right: 0 };
+
+  /**
+   * Changing the base only re-points what the diffs are measured against; the
+   * worktree is never touched. Instances created from an existing branch can
+   * arrive with no base at all, which is what makes every diff come out empty.
+   */
+  let baseEditInst: Instance | null = null;
+  let baseEditValue = '';
+  let baseChoices: string[] = [];
+  let baseSaving = false;
+
+  async function startBaseEdit(inst: Instance) {
+    moreOpenId = null;
+    baseEditInst = inst;
+    baseEditValue = inst.baseBranch ?? '';
+    baseChoices = [];
+    if (!$activeProject) return;
+    const { local, remote } = await listBranchesDetailed($activeProject.path).catch(
+      () => ({ local: [] as string[], remote: [] as string[] }),
+    );
+    baseChoices = [...local, ...remote].filter((b) => b !== inst.branch);
+    if (baseEditValue.trim() === '' || baseEditValue === inst.branch) {
+      const [best] = await suggestBaseBranches($activeProject.path, inst.branch);
+      if (baseEditInst?.id === inst.id && best) baseEditValue = best.branch;
+    }
+  }
+
+  async function saveBaseEdit() {
+    if (!baseEditInst || baseSaving) return;
+    baseSaving = true;
+    try {
+      await setInstanceBaseBranch(baseEditInst.id, baseEditInst.projectId, baseEditValue.trim());
+      baseEditInst = null;
+    } finally {
+      baseSaving = false;
+    }
+  }
 
   function openMore(inst: Instance, btn: HTMLElement) {
     if (moreOpenId === inst.id) { moreOpenId = null; return; }
@@ -224,6 +263,13 @@
                     <Icon name="branch" size={10}/>
                     {inst.branch}
                   </span>
+                  {@const baseUnset = !(inst.baseBranch ?? '').trim() || inst.baseBranch === inst.branch}
+                  <span class="mi-branch mi-base" class:unset={baseUnset}>
+                    <Icon name={baseUnset ? 'alert' : 'branch'} size={10}/>
+                    {baseUnset
+                      ? t('manageInstances.baseUnset')
+                      : (t('manageInstances.baseIs') as (b: string) => string)(inst.baseBranch)}
+                  </span>
                 {/if}
               </div>
 
@@ -323,6 +369,13 @@
           </button>
           <div class="more-sep"></div>
         {/if}
+        {#if !isBaseInstance(moreInst.id)}
+          <button class="more-item" on:click={() => startBaseEdit(moreInst)}>
+            <Icon name="branch" size={13}/>
+            {t('manageInstances.actions.setBase')}
+          </button>
+          <div class="more-sep"></div>
+        {/if}
         <button class="more-item" on:click={() => handleReveal(moreInst)}>
           <Icon name="folder" size={13}/>
           {t('manageInstances.actions.reveal')}
@@ -368,8 +421,51 @@
   />
 {/if}
 
+{#if baseEditInst}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={() => (baseEditInst = null)}
+    on:keydown={(e) => e.key === 'Escape' && (baseEditInst = null)}
+  >
+    <div class="modal base-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <h3>{t('manageInstances.actions.setBase')}</h3>
+        <button class="icon-btn close" on:click={() => (baseEditInst = null)} aria-label={t('common.close') as string}>
+          <Icon name="x" size={16}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="base-help">{t('manageInstances.baseHelp')}</p>
+        <BaseBranchSelect
+          bind:value={baseEditValue}
+          branches={baseChoices}
+          exclude={baseEditInst.branch}
+          placeholder={t('manageInstances.basePlaceholder') as string}
+        />
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button class="btn" on:click={() => (baseEditInst = null)}>{t('common.cancel')}</button>
+        <button class="btn primary" on:click={saveBaseEdit} disabled={baseSaving}>
+          {#if baseSaving}<Spinner size={12}/>{/if}
+          {t('common.save')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .mi-modal { width: min(580px, 94vw); }
+  .base-modal { width: min(460px, 92vw); }
+  .base-modal .modal-head { display: flex; align-items: center; }
+  .base-modal .modal-head h3 { margin: 0; flex: 1; font-size: 14px; }
+  .base-help { margin: 0 0 10px; font-size: 12px; line-height: 1.55; color: var(--fg-2); }
+  .mi-base.unset { color: oklch(0.82 0.14 60); }
 
   .mi-search-bar {
     display: flex;

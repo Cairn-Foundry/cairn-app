@@ -435,6 +435,55 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "app",
 		default: { key: "u", mod: true, shift: true, alt: false, ctrl: false },
 	},
+	// -- Review group -----------------------------------------------------------
+	{
+		id: "reviewNextExcerpt",
+		...d("reviewNextExcerpt"),
+		group: "app",
+		default: { key: "j", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewPrevExcerpt",
+		...d("reviewPrevExcerpt"),
+		group: "app",
+		default: { key: "k", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewNextChapter",
+		...d("reviewNextChapter"),
+		group: "app",
+		default: { key: "]", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewPrevChapter",
+		...d("reviewPrevChapter"),
+		group: "app",
+		default: { key: "[", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewMarkSeen",
+		...d("reviewMarkSeen"),
+		group: "app",
+		default: { key: "m", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewComment",
+		...d("reviewComment"),
+		group: "app",
+		default: { key: "c", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewDismiss",
+		...d("reviewDismiss"),
+		group: "app",
+		default: { key: "x", mod: true, shift: false, alt: true, ctrl: false },
+	},
+	{
+		id: "reviewToggleMode",
+		...d("reviewToggleMode"),
+		group: "app",
+		default: { key: "d", mod: true, shift: false, alt: true, ctrl: false },
+	},
 ];
 
 /** Localized headings of the shortcut groups, in settings and in the command palette. */

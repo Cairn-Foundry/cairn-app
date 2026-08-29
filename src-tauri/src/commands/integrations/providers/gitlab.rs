@@ -198,6 +198,26 @@ pub fn map_comment(note: &Value) -> Comment {
     }
 }
 
+/// The `position` object GitLab wants when opening a discussion: the three shas
+/// of the diff, and the path and line on the side the comment sits on. The
+/// other side's path is sent too - GitLab rejects a position without it.
+fn gitlab_position(diff_refs: &Value, anchor: &DiscussionAnchor) -> Value {
+    let mut position = json!({
+        "position_type": "text",
+        "base_sha": str_of(diff_refs, "base_sha"),
+        "start_sha": str_of(diff_refs, "start_sha"),
+        "head_sha": str_of(diff_refs, "head_sha"),
+        "new_path": anchor.path,
+        "old_path": anchor.path,
+    });
+    let key = match anchor.side {
+        DiffSide::New => "new_line",
+        DiffSide::Old => "old_line",
+    };
+    position[key] = json!(anchor.line);
+    position
+}
+
 fn map_anchor(position: &Value) -> Option<DiscussionAnchor> {
     let sha = str_of(position, "head_sha");
     if let Some(line) = position.get("new_line").and_then(Value::as_u64) {
@@ -614,6 +634,78 @@ impl ForgeProvider for GitLabApi {
         self.get_merge_request(iid).await
     }
 
+    /// GitLab anchors a discussion with the three shas of the diff plus the
+    /// side's path and line. They come from the merge request's `diff_refs`,
+    /// which is why the merge request is read before posting.
+    async fn create_discussion(
+        &self,
+        mr: &str,
+        anchor: &DiscussionAnchor,
+        body: &str,
+    ) -> Result<Discussion, IntegrationError> {
+        let iid = parse_iid(mr)?;
+        let raw = self.http.get_json(&self.project(&format!("merge_requests/{iid}")), &[]).await?;
+        let refs = raw.get("diff_refs").cloned().unwrap_or(Value::Null);
+        let created = self
+            .http
+            .post_json(
+                &self.project(&format!("merge_requests/{iid}/discussions")),
+                &json!({ "body": body, "position": gitlab_position(&refs, anchor) }),
+            )
+            .await?;
+        map_discussion(&created)
+            .ok_or_else(|| IntegrationError::not_found("The forge did not return the discussion it created"))
+    }
+
+    /// GitLab has no review object: the discussions go up one by one, the body
+    /// becomes a general note, and the verdict becomes an approval. Whatever was
+    /// posted before a failure is reported as posted, so a retry does not
+    /// duplicate it.
+    async fn submit_review(
+        &self,
+        mr: &str,
+        comments: &[ReviewCommentDraft],
+        verdict: ReviewVerdict,
+        body: &str,
+    ) -> Result<ReviewOutcome, IntegrationError> {
+        let iid = parse_iid(mr)?;
+        let raw = self.http.get_json(&self.project(&format!("merge_requests/{iid}")), &[]).await?;
+        let refs = raw.get("diff_refs").cloned().unwrap_or(Value::Null);
+        let mut outcome = ReviewOutcome::default();
+        for comment in comments {
+            let anchor = DiscussionAnchor {
+                path: comment.path.clone(),
+                line: comment.line,
+                side: comment.side,
+                sha: String::new(),
+            };
+            let posted = self
+                .http
+                .post_json(
+                    &self.project(&format!("merge_requests/{iid}/discussions")),
+                    &json!({ "body": comment.body, "position": gitlab_position(&refs, &anchor) }),
+                )
+                .await;
+            match posted {
+                Ok(value) => {
+                    outcome.published.insert(comment.id.clone(), id_of(&value, "id"));
+                }
+                Err(error) => outcome
+                    .failed
+                    .push(ReviewFailure { id: comment.id.clone(), message: error.to_string() }),
+            }
+        }
+        if !body.trim().is_empty() {
+            self.http
+                .post_json(&self.project(&format!("merge_requests/{iid}/notes")), &json!({ "body": body }))
+                .await?;
+        }
+        if verdict == ReviewVerdict::Approve {
+            self.http.post_json(&self.project(&format!("merge_requests/{iid}/approve")), &json!({})).await?;
+        }
+        Ok(outcome)
+    }
+
     async fn list_members(&self, text: &str) -> Result<Vec<Actor>, IntegrationError> {
         let mut query = vec![("per_page", "50".to_string())];
         if !text.trim().is_empty() {
@@ -902,5 +994,56 @@ mod tests {
         assert_eq!(parse_iid("#42").unwrap(), 42);
         assert_eq!(parse_iid("!12").unwrap(), 12);
         assert_eq!(parse_iid("CAIRN-42").unwrap_err().code, IntegrationErrorCode::NotFound);
+    }
+
+    #[test]
+    fn a_position_anchors_the_new_side_on_the_diff_refs() {
+        let mr = parse(MERGE_REQUEST);
+        let refs = mr.get("diff_refs").unwrap();
+        let anchor = DiscussionAnchor {
+            path: "src/a.ts".to_string(),
+            line: 12,
+            side: DiffSide::New,
+            sha: String::new(),
+        };
+        let position = gitlab_position(refs, &anchor);
+        assert_eq!(position["position_type"], "text");
+        assert_eq!(position["base_sha"], "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0");
+        assert_eq!(position["start_sha"], "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0");
+        assert_eq!(position["head_sha"], "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b");
+        assert_eq!(position["new_path"], "src/a.ts");
+        assert_eq!(position["new_line"], 12);
+        // The old side must be absent, or GitLab reads the position as a move.
+        assert!(position.get("old_line").is_none());
+    }
+
+    #[test]
+    fn a_position_on_the_old_side_carries_the_old_line() {
+        let mr = parse(MERGE_REQUEST);
+        let refs = mr.get("diff_refs").unwrap();
+        let anchor = DiscussionAnchor {
+            path: "src/a.ts".to_string(),
+            line: 7,
+            side: DiffSide::Old,
+            sha: String::new(),
+        };
+        let position = gitlab_position(refs, &anchor);
+        assert_eq!(position["old_line"], 7);
+        assert_eq!(position["old_path"], "src/a.ts");
+        assert!(position.get("new_line").is_none());
+    }
+
+    #[test]
+    fn a_position_round_trips_through_the_anchor_mapping() {
+        let mr = parse(MERGE_REQUEST);
+        let refs = mr.get("diff_refs").unwrap();
+        let anchor = DiscussionAnchor {
+            path: "src/a.ts".to_string(),
+            line: 12,
+            side: DiffSide::New,
+            sha: "8f3a1c2d4e5b6a7f8091a2b3c4d5e6f708192a3b".to_string(),
+        };
+        let back = map_anchor(&gitlab_position(refs, &anchor)).expect("should map back");
+        assert_eq!(back, anchor);
     }
 }

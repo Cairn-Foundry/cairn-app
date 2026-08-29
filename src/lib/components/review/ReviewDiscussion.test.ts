@@ -30,7 +30,6 @@ function mount(props: Record<string, unknown> = {}) {
 	const spies = {
 		reply: vi.fn(),
 		resolve: vi.fn(),
-		address: vi.fn(),
 		jump: vi.fn(),
 		select: vi.fn(),
 	};
@@ -211,20 +210,6 @@ describe("ReviewDiscussion", () => {
 			const { select } = mount();
 			await userEvent.click(buttonNamed(/^resolve|résoudre/i));
 			expect(select).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("handing the thread to the agent", () => {
-		it("offers to address it with the agent", async () => {
-			const { address, select } = mount({ canAddress: true });
-			await userEvent.click(buttonNamed(/agent/i));
-			expect(address).toHaveBeenCalled();
-			expect(select).not.toHaveBeenCalled();
-		});
-
-		it("offers nothing where the caller cannot", () => {
-			mount({ canAddress: false });
-			expect(buttonNamed(/agent/i)).toBeUndefined();
 		});
 	});
 

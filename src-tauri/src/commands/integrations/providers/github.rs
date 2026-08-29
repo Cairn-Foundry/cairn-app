@@ -17,6 +17,23 @@ const TICKETS_PER_PAGE: u32 = 20;
 const MAX_LOG_CHARS: usize = 400_000;
 const GENERAL_DISCUSSION_PREFIX: &str = "general-";
 
+/// The side name GitHub uses in a review comment.
+fn github_side(side: DiffSide) -> &'static str {
+    match side {
+        DiffSide::New => "RIGHT",
+        DiffSide::Old => "LEFT",
+    }
+}
+
+/// The review event a verdict submits as.
+fn github_event(verdict: ReviewVerdict) -> &'static str {
+    match verdict {
+        ReviewVerdict::Approve => "APPROVE",
+        ReviewVerdict::Changes => "REQUEST_CHANGES",
+        ReviewVerdict::Comment => "COMMENT",
+    }
+}
+
 pub struct GitHubApi {
     http: HttpClient,
     base_url: String,
@@ -806,6 +823,76 @@ impl ForgeProvider for GitHubApi {
         self.get_pull(number).await
     }
 
+    /// GitHub anchors a review comment on the head commit, the path, the line
+    /// and the side of the diff.
+    async fn create_discussion(
+        &self,
+        mr: &str,
+        anchor: &DiscussionAnchor,
+        body: &str,
+    ) -> Result<Discussion, IntegrationError> {
+        let number = parse_number(mr)?;
+        let head = self.http.get_json(&self.repo(&format!("pulls/{number}")), &[]).await?;
+        let commit = head.get("head").map(|h| str_of(h, "sha")).unwrap_or_default();
+        let created = self
+            .http
+            .post_json(
+                &self.repo(&format!("pulls/{number}/comments")),
+                &json!({
+                    "body": body,
+                    "commit_id": commit,
+                    "path": anchor.path,
+                    "line": anchor.line,
+                    "side": github_side(anchor.side),
+                }),
+            )
+            .await?;
+        Ok(Discussion {
+            id: id_of(&created, "id"),
+            resolved: false,
+            resolvable: true,
+            anchor: Some(anchor.clone()),
+            comments: vec![map_comment(&created)],
+        })
+    }
+
+    /// GitHub takes the whole review in one request, so nothing can land half
+    /// way: either every comment is posted or none is.
+    async fn submit_review(
+        &self,
+        mr: &str,
+        comments: &[ReviewCommentDraft],
+        verdict: ReviewVerdict,
+        body: &str,
+    ) -> Result<ReviewOutcome, IntegrationError> {
+        let number = parse_number(mr)?;
+        let payload: Vec<Value> = comments
+            .iter()
+            .map(|comment| {
+                json!({
+                    "path": comment.path,
+                    "line": comment.line,
+                    "side": github_side(comment.side),
+                    "body": comment.body,
+                })
+            })
+            .collect();
+        let created = self
+            .http
+            .post_json(
+                &self.repo(&format!("pulls/{number}/reviews")),
+                &json!({ "event": github_event(verdict), "body": body, "comments": payload }),
+            )
+            .await?;
+        // The review is one object: its id stands for every comment it carries.
+        let review_id = id_of(&created, "id");
+        let mut outcome = ReviewOutcome::default();
+        for comment in comments {
+            outcome.published.insert(comment.id.clone(), review_id.clone());
+        }
+        Ok(outcome)
+    }
+
     async fn list_members(&self, text: &str) -> Result<Vec<Actor>, IntegrationError> {
         let query = vec![("per_page", "100".to_string()), ("affiliation", "all".to_string())];
         let members = match self.http.get_paged(&self.repo("collaborators"), &query).await {
@@ -1172,5 +1259,18 @@ mod tests {
     fn graphql_endpoint_per_host() {
         assert_eq!(graphql_url("https://api.github.com"), "https://api.github.com/graphql");
         assert_eq!(graphql_url("https://ghe.corp.net/api/v3"), "https://ghe.corp.net/api/graphql");
+    }
+
+    #[test]
+    fn a_side_maps_to_the_name_github_uses() {
+        assert_eq!(github_side(DiffSide::New), "RIGHT");
+        assert_eq!(github_side(DiffSide::Old), "LEFT");
+    }
+
+    #[test]
+    fn a_verdict_maps_to_the_review_event() {
+        assert_eq!(github_event(ReviewVerdict::Approve), "APPROVE");
+        assert_eq!(github_event(ReviewVerdict::Changes), "REQUEST_CHANGES");
+        assert_eq!(github_event(ReviewVerdict::Comment), "COMMENT");
     }
 }

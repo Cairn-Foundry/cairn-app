@@ -367,6 +367,45 @@ pub struct Discussion {
     pub comments: Vec<Comment>,
 }
 
+/// One comment of a review, as the reviewer wrote it locally.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewCommentDraft {
+    /// The local id, echoed back so the frontend knows which one landed.
+    pub id: String,
+    pub path: String,
+    pub line: u32,
+    pub side: DiffSide,
+    pub body: String,
+}
+
+/// What a submitted review says overall.
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum ReviewVerdict {
+    Approve,
+    Changes,
+    Comment,
+}
+
+/// What actually reached the forge. A submission that fails halfway still
+/// reports what it managed to post, so a second attempt sends only the rest.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewOutcome {
+    /// Local comment id -> the id the forge gave it.
+    pub published: std::collections::HashMap<String, String>,
+    /// Local comment ids that could not be posted, with the reason.
+    pub failed: Vec<ReviewFailure>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFailure {
+    pub id: String,
+    pub message: String,
+}
+
 // ---------------------------------------------------------------------------
 // Pipelines
 // ---------------------------------------------------------------------------

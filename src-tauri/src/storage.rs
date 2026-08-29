@@ -194,6 +194,16 @@ pub fn instance_git_collapse_state_file(project_id: &str, instance_id: &str) -> 
         .join("git-collapse-state.json"))
 }
 
+/// The review guide, the seen hunks and the pending comments of one instance.
+pub fn instance_review_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
+    Ok(cairn_dir()?
+        .join("projects")
+        .join(project_id)
+        .join("instances")
+        .join(instance_id)
+        .join("review-state.json"))
+}
+
 /// The last test run of one instance, with its selection and filters.
 pub fn instance_test_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?

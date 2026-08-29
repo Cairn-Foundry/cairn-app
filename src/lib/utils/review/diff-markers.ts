@@ -1,10 +1,24 @@
 import type { Discussion } from "$lib/types/integrations";
 
+/**
+ * What a gutter marker stands for. Discussions came first and stay the default;
+ * the guide adds its remarks, coloured by kind, and the reviewer's own pending
+ * comments. They share one gutter so a line never carries two.
+ */
+export type MarkerKind =
+	| "discussion"
+	| "issue"
+	| "question"
+	| "refactor"
+	| "note"
+	| "comment";
+
 export interface DiffMarker {
 	line: number;
 	side: "old" | "new";
 	count: number;
 	isResolved: boolean;
+	kind?: MarkerKind;
 }
 
 /** Anchors are compared with forward slashes whatever the platform produced. */
@@ -49,6 +63,7 @@ export function diffMarkersFor(
 				side: d.anchor.side,
 				count: 1,
 				isResolved: d.resolved,
+				kind: "discussion",
 			});
 		}
 	}
@@ -68,4 +83,54 @@ export function excerptAround(
 		.slice(start, end)
 		.map((text, i) => `${start + i + 1}: ${text}`)
 		.join("\n");
+}
+
+/**
+ * The guide's remarks and the reviewer's comments as gutter markers. A line
+ * that already carries a discussion keeps it: the thread on the forge is what
+ * the reviewer has to answer, the remark is only a suggestion.
+ */
+export function guideMarkersFor(
+	remarks: {
+		path: string;
+		side: "old" | "new";
+		line: number;
+		kind: MarkerKind;
+		status: string;
+	}[],
+	comments: { path: string; side: "old" | "new"; line: number }[],
+	filePath: string,
+	taken: DiffMarker[],
+): DiffMarker[] {
+	const target = normalizeAnchorPath(filePath);
+	const used = new Set(taken.map((m) => `${m.side}:${m.line}`));
+	const out: DiffMarker[] = [];
+	const add = (marker: DiffMarker) => {
+		const key = `${marker.side}:${marker.line}`;
+		if (used.has(key)) return;
+		used.add(key);
+		out.push(marker);
+	};
+	for (const comment of comments) {
+		if (normalizeAnchorPath(comment.path) !== target) continue;
+		add({
+			line: comment.line,
+			side: comment.side,
+			count: 1,
+			isResolved: false,
+			kind: "comment",
+		});
+	}
+	for (const remark of remarks) {
+		if (normalizeAnchorPath(remark.path) !== target) continue;
+		if (remark.status === "dismissed") continue;
+		add({
+			line: remark.line,
+			side: remark.side,
+			count: 1,
+			isResolved: false,
+			kind: remark.kind,
+		});
+	}
+	return out;
 }

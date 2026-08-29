@@ -24,3 +24,9 @@ export const GIT_REFRESH_INTERVAL_MS = 5000;
  * halved without the user perceiving it.
  */
 export const GIT_REFRESH_IDLE_INTERVAL_MS = 10000;
+/**
+ * How long a load may take before it is worth showing a placeholder. Below it
+ * the content is already there, and a skeleton that appears and vanishes in the
+ * same breath reads as a flicker rather than as progress.
+ */
+export const SKELETON_DELAY_MS = 150;

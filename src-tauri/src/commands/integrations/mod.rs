@@ -393,6 +393,37 @@ pub async fn forge_approve(
 }
 
 #[tauri::command]
+pub async fn forge_create_discussion(
+    state: State<'_, IntegrationState>,
+    project_id: String,
+    mr_id: String,
+    anchor: DiscussionAnchor,
+    body: String,
+) -> Result<Discussion, IntegrationError> {
+    let discussion = Backend::for_capability(&project_id, Capability::Forge)?
+        .create_discussion(&mr_id, &anchor, &body)
+        .await?;
+    state.invalidate_project(&project_id);
+    Ok(discussion)
+}
+
+#[tauri::command]
+pub async fn forge_submit_review(
+    state: State<'_, IntegrationState>,
+    project_id: String,
+    mr_id: String,
+    comments: Vec<ReviewCommentDraft>,
+    verdict: ReviewVerdict,
+    body: String,
+) -> Result<ReviewOutcome, IntegrationError> {
+    let outcome = Backend::for_capability(&project_id, Capability::Forge)?
+        .submit_review(&mr_id, &comments, verdict, &body)
+        .await?;
+    state.invalidate_project(&project_id);
+    Ok(outcome)
+}
+
+#[tauri::command]
 pub async fn forge_list_members(
     state: State<'_, IntegrationState>,
     project_id: String,

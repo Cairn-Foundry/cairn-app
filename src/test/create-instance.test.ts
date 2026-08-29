@@ -600,9 +600,31 @@ describe("CreateInstance", () => {
 			await settle();
 			expect(spawnInstance.mock.calls[0][0]).toMatchObject({
 				branch: "origin/main",
-				baseBranch: "main",
 				linkExisting: true,
 			});
+		});
+
+		/**
+		 * The base of a linked branch is never the branch itself: that compares a
+		 * branch with itself and every diff of the instance comes out empty.
+		 */
+		it("never bases a linked branch on itself", async () => {
+			mount();
+			await settle();
+			await toExistingStep();
+			const remote = branchItems().find((b) =>
+				b.textContent?.includes("origin/main"),
+			) as HTMLElement;
+			await userEvent.click(remote);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			const sent = spawnInstance.mock.calls[0][0] as {
+				branch: string;
+				baseBranch: string;
+			};
+			expect(sent.baseBranch).not.toBe(sent.branch);
+			expect(sent.baseBranch).not.toBe("main");
 		});
 	});
 

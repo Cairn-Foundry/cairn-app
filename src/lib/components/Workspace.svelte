@@ -39,6 +39,7 @@
   import { gitFileCounts, gitHasConflicts, startGitPolling, getRemoteUrl } from '$lib/stores/git';
   import { activeCiBusy, activeCiFailing, retryLatestPipeline } from '$lib/stores/pipelines';
   import { requestMergeRequestForm } from '$lib/stores/merge-request';
+  import { requestReviewAction } from '$lib/stores/review';
   import { forgeLink } from '$lib/utils/integrations/links';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -144,6 +145,8 @@
     'toggleFullscreen', 'toggleTools', 'openTerminal', 'openCommands',
     'openEnv', 'openFormatting', 'goHome', 'reloadEditor', 'reloadProject',
     'createMergeRequest', 'openBranchOnForge', 'retryLastPipeline',
+    'reviewNextExcerpt', 'reviewPrevExcerpt', 'reviewNextChapter', 'reviewPrevChapter',
+    'reviewMarkSeen', 'reviewComment', 'reviewDismiss', 'reviewToggleMode',
   ];
 
   async function openBranchOnForge() {
@@ -164,6 +167,14 @@
       case 'createMergeRequest': if (activeInstance) requestMergeRequestForm(); break;
       case 'openBranchOnForge':  await openBranchOnForge(); break;
       case 'retryLastPipeline':  if (activeInstance) await retryLatestPipeline(activeProjectId, activeInstance.id); break;
+      case 'reviewNextExcerpt':
+      case 'reviewPrevExcerpt':
+      case 'reviewNextChapter':
+      case 'reviewPrevChapter':
+      case 'reviewMarkSeen':
+      case 'reviewComment':
+      case 'reviewDismiss':
+      case 'reviewToggleMode': if (reviewActive) requestReviewAction(id); break;
       default:                 await filesView?.executeAction(id); break;
     }
   }
@@ -683,7 +694,7 @@
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
-      <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
       <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
       <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
       <div class="step-view" class:step-hidden={!cicdActive}><LazyView prewarm={prewarmViews} active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => dispatch('goIntegrations')}/></div>

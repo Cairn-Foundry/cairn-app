@@ -14,12 +14,10 @@
   export let isSelected = false;
   export let isReplying = false;
   export let isResolving = false;
-  export let canAddress = true;
 
   const dispatch = createEventDispatcher<{
     reply: { body: string };
     resolve: { resolved: boolean };
-    address: void;
     jump: void;
     select: void;
   }>();
@@ -66,11 +64,6 @@
       >
         {#if isResolving}<Spinner size={10}/>{/if}
         {discussion.resolved ? t('review.unresolve') : t('review.resolve')}
-      </button>
-    {/if}
-    {#if canAddress}
-      <button class="btn ghost tiny" on:click|stopPropagation={() => dispatch('address')} title={t('review.addressWithAgent') as string}>
-        <Icon name="agent" size={11}/> {t('review.addressWithAgent')}
       </button>
     {/if}
   </div>
@@ -154,8 +147,24 @@
 
   .comment { display: flex; flex-direction: column; gap: 2px; }
   .comment.system { opacity: 0.6; font-style: italic; }
-  .comment-meta { display: flex; gap: 8px; font-size: 10.5px; color: var(--fg-3); }
-  .author { color: var(--fg-1); font-weight: 600; }
+  /* The date pins to the right edge so it lines up down the thread whatever the
+     length of the author name. */
+  .comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 10.5px;
+    color: var(--fg-3);
+  }
+  .author {
+    color: var(--fg-1);
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .date { margin-left: auto; flex-shrink: 0; white-space: nowrap; }
   .comment-body { font-size: 12px; line-height: 1.5; color: var(--fg-0); overflow-wrap: anywhere; }
   .comment-body :global(p) { margin: 0 0 4px; }
   .comment-body :global(pre) {

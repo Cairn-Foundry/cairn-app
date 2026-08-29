@@ -53,6 +53,7 @@ describe("diffMarkersFor", () => {
 		expect(markers).toHaveLength(2);
 		const newSide = markers.find((m) => m.side === "new");
 		expect(newSide).toEqual({
+			kind: "discussion",
 			line: 3,
 			side: "new",
 			count: 2,

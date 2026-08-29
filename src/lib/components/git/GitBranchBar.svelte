@@ -10,7 +10,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
   import { t } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
+  import { activeInstance, isBaseInstance, setInstanceBaseBranch } from '$lib/stores/instance';
   import { capabilities, forgeTerms, hasForge } from '$lib/stores/integrations';
   import {
     loadMergeRequest,
@@ -20,6 +20,7 @@
   } from '$lib/stores/merge-request';
   import { activeStep } from '$lib/stores/ui';
   import { clickOutside } from '$lib/utils/click-outside';
+  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
   import {
     git,
     loadBranches,
@@ -30,6 +31,22 @@
   import { activeProject } from '$lib/stores/project';
 
   const dispatch = createEventDispatcher<{ openMergeRebase: void; filesChanged: void }>();
+
+  /**
+   * The base branch is what every diff of this instance is measured against, so
+   * it is editable here rather than only as a side effect of a rebase. Changing
+   * it never touches the worktree: it re-points the comparison, nothing else.
+   */
+  // Remote branches count: a base is very often `origin/main` rather than a
+  // local ref the worktree happens to have.
+  $: baseChoices = [...(state.branches ?? []), ...(state.remoteBranches ?? [])]
+    .filter(b => b !== state.currentBranch);
+
+  async function applyBase(branch: string) {
+    if (!$activeInstance) return;
+    await setInstanceBaseBranch($activeInstance.id, $activeInstance.projectId, branch)
+      .catch(() => {});
+  }
 
   $: state = $git;
   $: op = state.operationState;
@@ -212,6 +229,21 @@
       {/if}
     {/if}
 
+    {#if $activeInstance && !isBaseInstance($activeInstance.id)}
+      <!-- An instance stored before the base branch existed carries no field at all. -->
+      {@const base = $activeInstance.baseBranch ?? ''}
+      {@const isUnset = base.trim() === '' || base === state.currentBranch}
+      <BaseBranchSelect
+        compact
+        value={base}
+        branches={baseChoices}
+        exclude={state.currentBranch}
+        {isUnset}
+        unsetLabel={t('git.baseUnset') as string}
+        on:change={(e) => applyBase(e.detail.branch)}
+      />
+    {/if}
+
     {#if inOperation && op}
       <button class="op-chip" on:click={() => dispatch('openMergeRebase')}>
         <Icon name="alert" size={12} />
@@ -328,6 +360,7 @@
 {/if}
 
 <style>
+
   .mr-modal { width: min(560px, 92vw); }
 
   .mr-chip-wrap {

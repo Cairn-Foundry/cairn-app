@@ -29,6 +29,7 @@ pub mod mcp;
 pub mod native_agents;
 pub mod ports;
 pub mod projects;
+pub mod review;
 pub mod settings;
 pub mod skills;
 pub mod shell;
@@ -39,6 +40,7 @@ pub mod ui_state;
 pub mod usage;
 
 pub use agent::{AgentState, send_message, stop_agent, respond_permission};
+pub use agent::oneshot::run_oneshot;
 pub use agent::config::{
     get_ai_providers_config, save_ai_providers_config,
     set_provider_api_key, get_api_key_statuses, delete_provider_api_key,
@@ -47,6 +49,7 @@ pub use agent::config::{
 pub use agent_activity::{get_agent_activity, save_agent_activity};
 pub use agent_runs::{get_agent_runs, save_agent_runs};
 pub use commit_state::{get_commit_state, save_commit_state};
+pub use review::{get_diff_unified, get_diff_hunks, load_review_state, save_review_state};
 pub use conversations::{get_conversation_index, save_conversation_index, get_conversation_body, save_conversation_body, delete_conversation_body};
 pub use custom_commands::{
     get_project_commands, save_project_commands, get_global_commands, save_global_commands,
@@ -69,7 +72,7 @@ pub use formatting::{
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
 pub use git::{
-    list_branches, list_branches_detailed, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
+    list_branches, list_branches_detailed, suggest_base_branches, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
     git_diff_unstaged, git_diff_staged, git_blame_file, git_file_at_head, git_file_in_index,
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
@@ -95,6 +98,7 @@ pub use integrations::{
     tracker_list_tickets, tracker_get_ticket, tracker_resolve_url, tracker_list_transitions, tracker_list_statuses, tracker_transition,
     forge_find_merge_request, forge_create_merge_request, forge_list_discussions, forge_reply, forge_resolve,
     forge_approve, forge_list_members, forge_list_labels, forge_web_link,
+    forge_create_discussion, forge_submit_review,
     ci_list_pipelines, ci_get_pipeline, ci_job_log, ci_retry_job, ci_cancel_pipeline, ci_play_job,
     integration_watch, integration_unwatch,
 };

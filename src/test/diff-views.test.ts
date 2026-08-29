@@ -134,6 +134,114 @@ describe("DiffEditor", () => {
 		return { line, side, count: 1, isResolved: false, ...overrides };
 	}
 
+	/**
+	 * The view is built inside an async mount, so the content it captured could
+	 * be stale by the time it existed: switching files while a language mode was
+	 * still loading showed the previous file's diff under the new file's name.
+	 */
+	it("shows the content it was last given, not the one it mounted with", async () => {
+		const view = mount({ oldContent: "first old", newContent: "first new" });
+		await mounted();
+		expect(text()).toContain("first new");
+
+		await view.rerender({
+			oldContent: "second old",
+			newContent: "second new",
+			language: "ts",
+			markers: [],
+		});
+		await tick();
+
+		expect(text()).toContain("second new");
+		expect(text()).toContain("second old");
+		expect(text()).not.toContain("first new");
+		expect(text()).not.toContain("first old");
+	});
+
+	it("leaves the documents alone when the content did not change", async () => {
+		const view = mount({ oldContent: "same old", newContent: "same new" });
+		await mounted();
+		const before = editors().length;
+
+		await view.rerender({
+			oldContent: "same old",
+			newContent: "same new",
+			language: "ts",
+			markers: [],
+		});
+		await tick();
+
+		expect(editors().length).toBe(before);
+		expect(text()).toContain("same new");
+	});
+
+	/**
+	 * Switching file replaces the documents in place, so without an explicit
+	 * reset the reader keeps the offset of the file they just left and lands in
+	 * the middle of one they have not started.
+	 */
+	it("returns to the top when it is handed another file", async () => {
+		const long = Array.from({ length: 200 }, (_, i) => `line ${i}`).join("\n");
+		const view = mount({ oldContent: long, newContent: long });
+		await mounted();
+
+		const scroller = document.querySelector<HTMLElement>(".cm-mergeView");
+		if (!scroller) throw new Error("the merge view should have rendered");
+		scroller.scrollTop = 500;
+
+		await view.rerender({
+			oldContent: "another file",
+			newContent: "another file entirely",
+			language: "ts",
+			markers: [],
+		});
+		await tick();
+
+		expect(scroller.scrollTop).toBe(0);
+	});
+
+	/**
+	 * The two sides share one scrollbar: the container scrolls, the panes do
+	 * not. Two independent scrollers had to be kept in step by hand and drifted
+	 * apart whenever the sides differed in height.
+	 */
+	it("scrolls both sides from a single scroller", async () => {
+		mount();
+		await mounted();
+
+		const scroller = document.querySelector<HTMLElement>(".cm-mergeView");
+		expect(scroller).not.toBeNull();
+		expect(scroller?.style.overflowY || "").not.toBe("hidden");
+
+		const panes = Array.from(
+			document.querySelectorAll<HTMLElement>(".cm-mergeViewEditor"),
+		);
+		expect(panes.length).toBe(2);
+		// Neither pane declares an overflow of its own any more.
+		for (const pane of panes)
+			expect(pane.style.overflow || "").not.toBe("auto");
+	});
+
+	it("leaves the scroll alone when the content did not change", async () => {
+		const long = Array.from({ length: 200 }, (_, i) => `line ${i}`).join("\n");
+		const view = mount({ oldContent: long, newContent: long });
+		await mounted();
+
+		const pane = document.querySelector<HTMLElement>(".cm-mergeView");
+		if (!pane) throw new Error("the merge view should have rendered");
+		pane.scrollTop = 320;
+
+		await view.rerender({
+			oldContent: long,
+			newContent: long,
+			language: "ts",
+			markers: [],
+		});
+		await tick();
+
+		expect(pane.scrollTop).toBe(320);
+	});
+
 	function mount(props: Record<string, unknown> = {}) {
 		return render(DiffEditor, {
 			oldContent: "one\ntwo\nthree",

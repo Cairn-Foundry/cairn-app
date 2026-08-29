@@ -240,6 +240,112 @@ pub async fn list_branches_detailed(project_path: String) -> Result<BranchList, 
     Ok(BranchList { local, remote })
 }
 
+/// A candidate base branch for an existing branch, and why it was proposed.
+#[derive(Serialize)]
+pub struct BaseSuggestion {
+    /// The branch name, as it would be stored on the instance.
+    pub branch: String,
+    /// `merge` when a merge commit names it, `fork` when only the fork point
+    /// points at it. The caller shows the stronger one first.
+    pub reason: String,
+    /// Commits the branch carries since it forked from this candidate: the
+    /// smaller, the closer the fork.
+    pub distance: usize,
+}
+
+/// Candidate bases for `branch`, best first.
+///
+/// Git does not record where a branch was cut from, so this is inference, never
+/// a fact: the caller offers the result as a prefill the user can overrule, and
+/// must not store it silently. Two signals are used - a `Merge branch 'x'`
+/// commit on the branch, which is explicit, and the fork point, which is not.
+#[tauri::command]
+pub async fn suggest_base_branches(
+    project_path: String,
+    branch: String,
+) -> Result<Vec<BaseSuggestion>, GitError> {
+    reject_option_like(&branch)?;
+    let expanded = expand(&project_path);
+
+    // Branches that merged into this one are named outright in the subject, so
+    // they beat anything the topology merely suggests.
+    let merged: Vec<String> = run(git_cmd(&expanded).args([
+        "log", "--merges", "--pretty=%s", "-n", "50", &branch,
+    ]))
+    .unwrap_or_default()
+    .lines()
+    .filter_map(|line| {
+        let rest = line.strip_prefix("Merge branch '")?;
+        let name = rest.split('\'').next()?;
+        (!name.is_empty() && name != branch).then(|| name.to_string())
+    })
+    .collect();
+
+    let remotes: Vec<String> = run(git_cmd(&expanded).args(["remote"]))
+        .unwrap_or_default()
+        .lines()
+        .map(|r| r.trim().to_string())
+        .filter(|r| !r.is_empty())
+        .collect();
+
+    let candidates = run(git_cmd(&expanded).args([
+        "for-each-ref", "--format=%(refname:short)",
+        "refs/heads", "refs/remotes",
+    ]))
+    .unwrap_or_default();
+
+    let mut out: Vec<BaseSuggestion> = Vec::new();
+    for candidate in candidates.lines() {
+        let candidate = candidate.trim();
+        // A branch is never its own base, and `origin/HEAD` is a pointer.
+        // A bare remote name (`origin`) is the remote's own HEAD alias, not a
+        // branch anyone bases work on.
+        if candidate.is_empty()
+            || candidate.ends_with("/HEAD")
+            || !candidate.contains('/') && remotes.iter().any(|r| r == candidate)
+            || candidate == branch
+            || candidate.trim_start_matches("origin/") == branch
+        {
+            continue;
+        }
+        let Ok(merge_base) = run(git_cmd(&expanded).args(["merge-base", candidate, &branch]))
+        else {
+            continue;
+        };
+        let merge_base = merge_base.trim();
+        if merge_base.is_empty() {
+            continue;
+        }
+        // An unrelated line shares no history worth calling a base.
+        let Ok(count) = run(git_cmd(&expanded).args([
+            "rev-list", "--count", &format!("{merge_base}..{branch}"),
+        ])) else {
+            continue;
+        };
+        let Ok(distance) = count.trim().parse::<usize>() else { continue };
+        let short = candidate.trim_start_matches("origin/");
+        let reason = if merged.iter().any(|m| m == short || m == candidate) {
+            "merge"
+        } else {
+            "fork"
+        };
+        out.push(BaseSuggestion {
+            branch: candidate.to_string(),
+            reason: reason.to_string(),
+            distance,
+        });
+    }
+
+    // An explicit merge wins; within a reason, the nearest fork point wins.
+    out.sort_by(|a, b| match (a.reason.as_str(), b.reason.as_str()) {
+        ("merge", "fork") => std::cmp::Ordering::Less,
+        ("fork", "merge") => std::cmp::Ordering::Greater,
+        _ => a.distance.cmp(&b.distance),
+    });
+    out.truncate(5);
+    Ok(out)
+}
+
 /// Paths already proven to be worktree roots. The status poll revalidates on every
 /// tick a property that only changes when the worktree is created or removed, and
 /// each check costs a git process plus two canonicalisations. Only the positive is
@@ -2203,5 +2309,76 @@ diff --git a/two.txt b/two.txt
         let repo = TempRepo::new();
         repo.commit("a.txt", "a\n", "init");
         assert!(git_checkout_branch(repo.wt(), "-rf".into()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_branch_never_suggests_itself_as_its_own_base() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["checkout", "-q", "-b", "feature"]);
+        repo.commit("b.txt", "two\n", "work");
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        assert!(
+            out.iter().all(|s| s.branch != "feature"),
+            "a branch compared with itself can never produce a diff",
+        );
+    }
+
+    #[tokio::test]
+    async fn the_nearest_fork_point_is_offered_first() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        // `old` forks early, `recent` forks late: the later fork is the closer base.
+        repo.git(&["checkout", "-q", "-b", "old"]);
+        repo.git(&["checkout", "-q", "master"]);
+        repo.commit("b.txt", "two\n", "more on master");
+        repo.commit("c.txt", "three\n", "still more");
+        repo.git(&["checkout", "-q", "-b", "recent"]);
+        repo.git(&["checkout", "-q", "-b", "feature"]);
+        repo.commit("d.txt", "four\n", "the work");
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        let first = &out.first().expect("a candidate should be found").branch;
+        assert!(first == "recent" || first == "master", "got {first}");
+        let old = out.iter().find(|s| s.branch == "old").expect("old should be offered too");
+        let recent = out.iter().find(|s| s.branch == "recent").unwrap();
+        assert!(recent.distance < old.distance, "the later fork must rank closer");
+    }
+
+    #[tokio::test]
+    async fn a_merge_commit_outranks_a_nearer_fork_point() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["checkout", "-q", "-b", "release"]);
+        repo.commit("r.txt", "rel\n", "release work");
+        repo.git(&["checkout", "-q", "master"]);
+        repo.git(&["checkout", "-q", "-b", "feature"]);
+        // A sibling that forks nearer than the branch this one actually merges.
+        repo.git(&["checkout", "-q", "-b", "sibling"]);
+        repo.git(&["checkout", "-q", "feature"]);
+        repo.commit("f.txt", "feat\n", "the work");
+        repo.git(&["merge", "-q", "--no-ff", "-m", "Merge branch 'release' into feature", "release"]);
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!(first.branch, "release", "the named merge is explicit evidence");
+        assert_eq!(first.reason, "merge");
+    }
+
+    #[tokio::test]
+    async fn a_repository_with_nothing_to_compare_yields_nothing() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+
+        let out = suggest_base_branches(repo.wt(), "master".into()).await.unwrap();
+        assert!(out.is_empty(), "the only branch cannot be its own base");
+    }
+
+    #[tokio::test]
+    async fn a_ref_that_looks_like_an_option_is_refused() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        assert!(suggest_base_branches(repo.wt(), "--upload-pack=evil".into()).await.is_err());
     }
 }

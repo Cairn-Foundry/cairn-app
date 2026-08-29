@@ -105,3 +105,32 @@ export async function listBranchesDetailed(
 ): Promise<BranchList> {
 	return invoke<BranchList>("list_branches_detailed", { projectPath });
 }
+
+/**
+ * A branch this one may have been cut from. Git records no such link, so this
+ * is inference: `merge` means a merge commit named it, `fork` means only the
+ * topology suggests it. Always offered as a prefill, never stored on its own.
+ */
+export interface BaseSuggestion {
+	branch: string;
+	reason: "merge" | "fork";
+	distance: number;
+}
+
+/** Candidate bases for an existing branch, best first; empty when nothing fits. */
+export async function suggestBaseBranches(
+	projectPath: string,
+	branch: string,
+): Promise<BaseSuggestion[]> {
+	try {
+		// A backend that answers with nothing must not take the form down: the
+		// base is a prefill, and a missing one only means the user types it.
+		const found = await invoke<BaseSuggestion[]>("suggest_base_branches", {
+			projectPath,
+			branch,
+		});
+		return Array.isArray(found) ? found : [];
+	} catch {
+		return [];
+	}
+}

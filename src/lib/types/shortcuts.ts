@@ -63,7 +63,16 @@ export type ShortcutId =
 	// Integrations (global)
 	| "createMergeRequest"
 	| "openBranchOnForge"
-	| "retryLastPipeline";
+	| "retryLastPipeline"
+	// Review guide
+	| "reviewNextExcerpt"
+	| "reviewPrevExcerpt"
+	| "reviewNextChapter"
+	| "reviewPrevChapter"
+	| "reviewMarkSeen"
+	| "reviewComment"
+	| "reviewDismiss"
+	| "reviewToggleMode";
 
 /** Placeholder key of a binding triggered by a click instead of a keystroke. */
 export const MOUSE_KEY = "Click";

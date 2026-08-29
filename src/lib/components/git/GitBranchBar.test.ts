@@ -42,8 +42,11 @@ vi.mock("$lib/stores/git", () => ({
 }));
 
 const activeInstanceStore = writable<unknown>(null);
-vi.mock("$lib/stores/instance", () => ({
+const setInstanceBaseBranch = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("$lib/stores/instance", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
+	setInstanceBaseBranch: (...a: unknown[]) => setInstanceBaseBranch(...a),
 }));
 
 const hasForge = writable(false);

@@ -14,7 +14,8 @@ export type AiFeatureId =
 	| "testFix"
 	| "mrDescription"
 	| "ciFix"
-	| "reviewReply";
+	| "reviewGuide"
+	| "reviewComment";
 
 interface AiFeatureDef {
 	id: AiFeatureId;
@@ -52,20 +53,40 @@ Log excerpt:
 
 Reproduce the failure locally when you can, fix the cause rather than the symptom, and say what you changed.`;
 
-const DEFAULT_REVIEW_REPLY_TEMPLATE = `A reviewer left a comment on the merge request of this branch. Address it in this worktree.
+const DEFAULT_REVIEW_GUIDE_TEMPLATE = `You are guiding a reviewer through a branch they did not write. Read the diff below and write the guided tour of it.
+
+Base: {{base}}
+Head: {{head}}
+{{context}}
+Diff:
+\`\`\`diff
+{{diff}}
+\`\`\`
+{{truncated}}
+Write an overview of what the branch does, then split the change into chapters ordered the way the reviewer should read them: intention first, then what it required. A chapter is one intention, not one file - a change spread over five files is one chapter, and one file touched for two unrelated reasons is two.
+
+For each chapter give a title, a summary of two to six lines saying what changed and why, the extracts of the diff it covers, and the remarks worth raising.
+
+An extract is a real path and a real line range taken from the diff above. Never invent a path or a line number: an extract that is not in the diff is dropped.
+
+A remark is anchored to one line and carries a kind: \`issue\` for something that looks wrong, \`question\` for something you cannot tell from the diff alone, \`refactor\` for something that works but could be simpler, \`note\` for something the reviewer should know. Raise what is worth a reviewer's attention, nothing for the sake of filling the list - a chapter with no remark is a fine chapter.
+
+Write in {{language}}.`;
+
+const DEFAULT_REVIEW_COMMENT_TEMPLATE = `Write the review comment for the remark below, as the reviewer would leave it on the merge request.
 
 File: {{path}}
 Line: {{line}}
 
-Code under review:
+Code:
 \`\`\`
 {{excerpt}}
 \`\`\`
 
-Comment:
-> {{comment}}
+Remark: {{title}}
+{{body}}
 
-Make the change the reviewer asks for when it is right, or explain in one paragraph why the current code should stay. Say what you changed.`;
+Answer with the comment itself and nothing else: no preamble, no code fence around the whole answer. Address the author directly, stay short and concrete, and say what you would like changed or ask the question plainly. Write in {{language}}.`;
 
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
@@ -93,10 +114,16 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		defaultPromptTemplate: DEFAULT_CI_FIX_TEMPLATE,
 	},
 	{
-		id: "reviewReply",
+		id: "reviewGuide",
 		icon: "review",
-		runsProvider: false,
-		defaultPromptTemplate: DEFAULT_REVIEW_REPLY_TEMPLATE,
+		runsProvider: true,
+		defaultPromptTemplate: DEFAULT_REVIEW_GUIDE_TEMPLATE,
+	},
+	{
+		id: "reviewComment",
+		icon: "review",
+		runsProvider: true,
+		defaultPromptTemplate: DEFAULT_REVIEW_COMMENT_TEMPLATE,
 	},
 ];
 

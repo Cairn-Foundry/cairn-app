@@ -99,6 +99,13 @@ export const en = {
 		notGitRepo:
 			"This project is not a git repository, so instances are unavailable. Work directly in the base folder instead.",
 		baseBranch: "Base branch",
+		baseOptional: "(optional)",
+		basePlaceholder: "Branch this one was cut from",
+		baseFromForge: "Taken from the merge request's target branch.",
+		baseFromMerge: "Guessed from a merge commit on this branch. Check it.",
+		baseFromFork: "Guessed from where the branch forked. Check it.",
+		baseEmptyHint:
+			"Left empty, the Review and Git steps will ask for a base before showing a diff.",
 		filterBranches: "Filter branches...",
 		refreshBranches: "Refresh branches",
 		localBranches: "Local",
@@ -141,6 +148,11 @@ export const en = {
 	},
 
 	manageInstances: {
+		baseUnset: "no base",
+		baseIs: (b: string) => `base ${b}`,
+		baseHelp:
+			"The branch this instance's changes are measured against. Changing it re-points the diffs of the Review and Git steps; the worktree itself is left alone.",
+		basePlaceholder: "e.g. main, origin/develop",
 		heading: "Project instances",
 		subheading: "Manage instances",
 		searchPlaceholder: "Search by ticket ID or title...",
@@ -158,6 +170,7 @@ export const en = {
 		archivedHint: "Reopen an instance to work on it again.",
 		fromBranch: "from",
 		actions: {
+			setBase: "Set base branch...",
 			switch: "Switch",
 			duplicate: "Duplicate",
 			copyPath: "Copy worktree path",
@@ -445,6 +458,39 @@ export const en = {
 			retryLastPipeline: {
 				label: "Retry last pipeline",
 				description: "Retry the failed jobs of the last pipeline of the branch",
+			},
+			reviewNextExcerpt: {
+				label: "Next extract",
+				description: "Move to the next extract of the review guide",
+			},
+			reviewPrevExcerpt: {
+				label: "Previous extract",
+				description: "Move back to the previous extract of the review guide",
+			},
+			reviewNextChapter: {
+				label: "Next chapter",
+				description: "Move to the next chapter of the review guide",
+			},
+			reviewPrevChapter: {
+				label: "Previous chapter",
+				description: "Move back to the previous chapter of the review guide",
+			},
+			reviewMarkSeen: {
+				label: "Mark chapter as seen",
+				description: "Mark the current chapter of the guide as read",
+			},
+			reviewComment: {
+				label: "Comment the remark",
+				description: "Write a comment on the remark of the current extract",
+			},
+			reviewDismiss: {
+				label: "Dismiss the remark",
+				description: "Set aside the remark of the current extract",
+			},
+			reviewToggleMode: {
+				label: "Guide or diff",
+				description:
+					"Switch the review step between the guide and the raw diff",
 			},
 		},
 	},
@@ -1651,6 +1697,12 @@ export const en = {
 	},
 
 	git: {
+		clearBase: "No base branch",
+		baseUnset: "No base",
+		baseUnsetHint:
+			"This instance has no base branch, so there is nothing to compare against. Pick one.",
+		baseIs: (b: string) => `Compared against ${b}`,
+		setBaseBranch: "Compare against",
 		branchSwitcher: {
 			searchPlaceholder: "Filter branches",
 			empty: "No branch",
@@ -2015,6 +2067,23 @@ export const en = {
 	},
 
 	review: {
+		filter: {
+			all: "All",
+			open: "Open",
+			resolved: "Resolved",
+			activity: "Activity",
+		},
+		noOpenDiscussions: "No open discussion.",
+		noResolvedDiscussions: "No resolved discussion.",
+		noActivity: "No activity recorded.",
+		hideDiscussions: "Hide the discussions",
+		showDiscussions: "Show the discussions",
+		openFileGone: "This file is not in the worktree.",
+		noBase: "No base branch to compare against",
+		noBaseBody:
+			"This instance was created from an existing branch without a base, so there is nothing to compare it with: a branch measured against itself has no diff.",
+		noBaseWhere:
+			"Set one from the branch bar of the Git step, or in the instance settings.",
 		changedFiles: (n: number) => `Changed files · ${n}`,
 		agentNotes: "Agent notes",
 		openFile: "Open",
@@ -2030,7 +2099,6 @@ export const en = {
 		resolve: "Resolve",
 		unresolve: "Unresolve",
 		resolved: "Resolved",
-		addressWithAgent: "Address with agent",
 		fetchHead: "Fetch",
 		fetchHeadBody:
 			"The head commit of the merge request is not in this worktree yet.",
@@ -2047,6 +2115,67 @@ export const en = {
 		selectFile: "Select a file to see its diff.",
 		anchoredDiscussions: (n: number) =>
 			`${n} discussion${n > 1 ? "s" : ""} on this file`,
+		guide: "Guide",
+		diff: "Diff",
+		generateGuide: "Generate the guide",
+		generateGuideBody:
+			"Cairn reads the branch diff and writes a guided tour of it: what the branch does, chapter by chapter, with the points worth your attention.",
+		generating: "Writing the guide",
+		regenerate: "Regenerate",
+		guideStale:
+			"The branch moved since this guide was written. Regenerate it to cover the new commits.",
+		guideFailed: "The guide could not be written.",
+		overview: "Overview",
+		chapters: "Chapters",
+		chapterProgress: (seen: number, total: number) =>
+			`${seen} of ${total} chapters`,
+		hunkProgress: (seen: number, total: number) => `${seen} of ${total} hunks`,
+		seen: "Seen",
+		markSeen: "Mark as seen",
+		markUnseen: "Mark as unread",
+		excerptOf: (index: number, total: number) => `Extract ${index} of ${total}`,
+		remark: {
+			issue: "Issue",
+			question: "Question",
+			refactor: "Refactor",
+			note: "Note",
+		},
+		openRemarks: (n: number) => `${n} remark${n > 1 ? "s" : ""}`,
+		dismiss: "Dismiss",
+		dismissed: "Dismissed",
+		undismiss: "Reopen",
+		comment: "Comment",
+		draftComment: "Draft with AI",
+		commentPlaceholder: "Write your comment...",
+		save: "Save",
+		cancel: "Cancel",
+		edit: "Edit",
+		delete: "Delete",
+		pendingComments: "Pending comments",
+		noPendingComments: "No comment yet.",
+		submitReview: "Submit review",
+		copyReview: "Copy the review as markdown",
+		copied: "Copied",
+		verdict: {
+			approve: "Approve",
+			changes: "Request changes",
+			comment: "Comment only",
+		},
+		summaryTitle: "Your review",
+		summaryBody: "Optional message accompanying the review",
+		remarksHandled: (n: number) => `${n} handled`,
+		remarksDismissed: (n: number) => `${n} dismissed`,
+		remarksOpen: (n: number) => `${n} still open`,
+		noHunkForExcerpt: "This extract is no longer in the diff.",
+		diffTruncated:
+			"The diff was too large to be read whole: the guide may not cover every file.",
+		publishPartial:
+			"Some comments were posted before the error. Submitting again will only send the rest.",
+		nextExcerpt: "Next extract",
+		previousExcerpt: "Previous extract",
+		nextChapter: "Next chapter",
+		previousChapter: "Previous chapter",
+		toggleGuideDiff: "Switch between guide and diff",
 	},
 
 	tests: {
@@ -2260,9 +2389,13 @@ export const en = {
 					label: "CI fix",
 					desc: "Turns a failed CI job and its log excerpt into a prompt and hands it to the Agent step.",
 				},
-				reviewReply: {
-					label: "Review reply",
-					desc: "Turns a review comment into a prompt to address it and hands it to the Agent step.",
+				reviewGuide: {
+					label: "Review guide",
+					desc: "Reads the branch diff and writes the guided tour of it: chapters, extracts and remarks.",
+				},
+				reviewComment: {
+					label: "Review comment",
+					desc: "Turns a remark of the guide into the comment draft the reviewer edits before sending.",
 				},
 			},
 		},

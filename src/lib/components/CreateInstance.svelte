@@ -15,8 +15,10 @@
   import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
   import { spawnInstance, instances } from '$lib/stores/instance';
-  import { listBranchesDetailed } from '$lib/services/instance-service';
+  import { type BaseSuggestion, listBranchesDetailed, suggestBaseBranches } from '$lib/services/instance-service';
   import { fetch as gitFetch } from '$lib/services/git-service';
+  import { forgeFindMergeRequest } from '$lib/services/integration-service';
+  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
   import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '$lib/stores/integrations';
   import { settings } from '$lib/stores/settings';
   import {
@@ -223,6 +225,56 @@
     prevSlug = generated;
   }
 
+  /**
+   * The base of a branch that already exists. Git records nothing about where a
+   * branch was cut from, so this is resolved on a best-effort basis and left
+   * editable: a merge request states its target outright, a merge commit names
+   * the branch it took, and the fork point is only a hint. Empty is allowed -
+   * the Review and Git steps then say so rather than comparing the branch with
+   * itself.
+   */
+  let existingBase = '';
+  let baseSuggestions: BaseSuggestion[] = [];
+  let baseSource: 'forge' | 'merge' | 'fork' | '' = '';
+  let resolvingBase = false;
+  let resolvedFor = '';
+
+  $: if (mode === 'existing' && existingBranch && resolvedFor !== existingBranch) {
+    resolvedFor = existingBranch;
+    void resolveBase(existingBranch);
+  }
+
+  /** Fills the base field from the strongest signal available, without locking it. */
+  async function resolveBase(branch: string) {
+    if (!$activeProject) return;
+    resolvingBase = true;
+    existingBase = '';
+    baseSource = '';
+    baseSuggestions = [];
+    const local = remoteBranches.includes(branch)
+      ? branch.split('/').slice(1).join('/')
+      : branch;
+    try {
+      // The forge is the only source that knows rather than guesses.
+      const mr = await forgeFindMergeRequest($activeProject.id, local).catch(() => null);
+      if (resolvedFor !== branch) return;
+      if (mr?.targetBranch) {
+        existingBase = mr.targetBranch;
+        baseSource = 'forge';
+        return;
+      }
+      const suggestions = await suggestBaseBranches($activeProject.path, branch);
+      if (resolvedFor !== branch) return;
+      baseSuggestions = suggestions;
+      if (suggestions.length > 0) {
+        existingBase = suggestions[0].branch;
+        baseSource = suggestions[0].reason;
+      }
+    } finally {
+      if (resolvedFor === branch) resolvingBase = false;
+    }
+  }
+
   $: existingLocalName = remoteBranches.includes(existingBranch)
     ? existingBranch.split('/').slice(1).join('/')
     : existingBranch;
@@ -294,7 +346,7 @@
         ticket,
         ...(mode === 'create'
           ? { branch: branchName.trim(), baseBranch, linkExisting: false }
-          : { branch: existingBranch, baseBranch: existingLocalName, linkExisting: true }),
+          : { branch: existingBranch, baseBranch: existingBase.trim(), linkExisting: true }),
       });
       if (selectedTicket) {
         setTicket(instance.projectId, instance.id, selectedTicket);
@@ -655,6 +707,43 @@
             </div>
           {/if}
         </div>
+
+        {#if existingBranch.length > 0}
+          <div class="form-row">
+            <div class="field-label">
+              {t('createInstance.baseBranch')}
+              <span class="field-optional">{t('createInstance.baseOptional')}</span>
+            </div>
+            <BaseBranchSelect
+              bind:value={existingBase}
+              branches={[...availableBranches, ...remoteBranches]}
+              exclude={existingLocalName}
+              placeholder={t('createInstance.basePlaceholder') as string}
+              loading={resolvingBase}
+            />
+            {#if baseSource === 'forge'}
+              <div class="field-hint"><Icon name="check" size={11}/> {t('createInstance.baseFromForge')}</div>
+            {:else if baseSource === 'merge'}
+              <div class="field-hint"><Icon name="info" size={11}/> {t('createInstance.baseFromMerge')}</div>
+            {:else if baseSource === 'fork'}
+              <div class="field-hint"><Icon name="info" size={11}/> {t('createInstance.baseFromFork')}</div>
+            {/if}
+            {#if baseSuggestions.length > 1}
+              <div class="base-suggestions">
+                {#each baseSuggestions.slice(0, 4) as s (s.branch)}
+                  <button
+                    class="base-chip {existingBase === s.branch ? 'active' : ''}"
+                    type="button"
+                    on:click={() => { existingBase = s.branch; baseSource = s.reason; }}
+                  >{s.branch}</button>
+                {/each}
+              </div>
+            {/if}
+            {#if existingBase.trim() === ''}
+              <div class="field-hint">{t('createInstance.baseEmptyHint')}</div>
+            {/if}
+          </div>
+        {/if}
         {#if existingBranch.length > 0}
           <div class="info-box">
             <div class="info-icon"><Icon name="info" size={14}/></div>
@@ -928,6 +1017,36 @@
     color: var(--fg-3);
     letter-spacing: 0.04em;
   }
+  .field-optional {
+    margin-left: 6px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--fg-3);
+    opacity: 0.75;
+  }
+  .field-hint {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 11px;
+    color: var(--fg-3);
+    line-height: 1.45;
+  }
+
+  .base-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .base-chip {
+    border: 1px solid var(--stroke-1);
+    background: transparent;
+    color: var(--fg-2);
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+  .base-chip:hover { background: var(--bg-3); }
+  .base-chip.active { border-color: var(--accent); color: var(--fg-0); }
 
   /* Branch list */
   .branch-list-wrap {

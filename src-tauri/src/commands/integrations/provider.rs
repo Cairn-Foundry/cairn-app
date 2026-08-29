@@ -29,6 +29,23 @@ pub trait ForgeProvider {
     async fn approve(&self, mr: &str, approve: bool) -> Result<MergeRequest, IntegrationError>;
     async fn list_members(&self, text: &str) -> Result<Vec<Actor>, IntegrationError>;
     async fn list_labels(&self) -> Result<Vec<String>, IntegrationError>;
+    /// Opens a discussion anchored to a line of the merge request diff.
+    async fn create_discussion(
+        &self,
+        mr: &str,
+        anchor: &DiscussionAnchor,
+        body: &str,
+    ) -> Result<Discussion, IntegrationError>;
+    /// Posts a whole review at once: every comment, the overall body, and the
+    /// verdict. GitHub has the object natively; GitLab is composed from the
+    /// pieces it does have.
+    async fn submit_review(
+        &self,
+        mr: &str,
+        comments: &[ReviewCommentDraft],
+        verdict: ReviewVerdict,
+        body: &str,
+    ) -> Result<ReviewOutcome, IntegrationError>;
     fn web_links(&self) -> WebLinks;
 }
 
@@ -357,6 +374,31 @@ impl ForgeProvider for Backend {
         match self {
             Backend::GitLab(api) => api.list_labels().await,
             Backend::GitHub(api) => api.list_labels().await,
+            Backend::Jira(_) => Err(IntegrationError::unsupported()),
+        }
+    }
+    async fn create_discussion(
+        &self,
+        mr: &str,
+        anchor: &DiscussionAnchor,
+        body: &str,
+    ) -> Result<Discussion, IntegrationError> {
+        match self {
+            Backend::GitLab(api) => api.create_discussion(mr, anchor, body).await,
+            Backend::GitHub(api) => api.create_discussion(mr, anchor, body).await,
+            Backend::Jira(_) => Err(IntegrationError::unsupported()),
+        }
+    }
+    async fn submit_review(
+        &self,
+        mr: &str,
+        comments: &[ReviewCommentDraft],
+        verdict: ReviewVerdict,
+        body: &str,
+    ) -> Result<ReviewOutcome, IntegrationError> {
+        match self {
+            Backend::GitLab(api) => api.submit_review(mr, comments, verdict, body).await,
+            Backend::GitHub(api) => api.submit_review(mr, comments, verdict, body).await,
             Backend::Jira(_) => Err(IntegrationError::unsupported()),
         }
     }
