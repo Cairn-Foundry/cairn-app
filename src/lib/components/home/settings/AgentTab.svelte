@@ -63,9 +63,13 @@
 
   $: activityDisabled = !$settings.agentShowLiveActivity;
 
-  function isDimmed(key: BooleanKey): boolean {
-    return activityDisabled && key.startsWith('agentActivity');
-  }
+  /**
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so `disabled` kept the value it had at mount and
+   * the dimmed toggles stayed clickable once live activity was turned off.
+   */
+  $: isDimmed = (key: BooleanKey): boolean =>
+    activityDisabled && key.startsWith('agentActivity');
 
   /** Keeps the selected response stats in the order RESPONSE_STAT_FIELDS declares them. */
   function toggleStat(id: string) {

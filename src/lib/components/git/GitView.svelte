@@ -173,8 +173,16 @@
   /** An untracked file past this is listed but not diffed - its content stays on disk. */
   const UNTRACKED_MAX_BYTES = 512 * 1024;
 
-  let untrackedPaths: string[] = [];
-  let untrackedContent: Record<string, string> = {};
+  /**
+   * Published as one value: assigning the paths and their content separately
+   * makes `unstagedCards` recompute between the two awaits of the scan, and the
+   * search filter downstream then settles on the slice it saw mid-scan - the
+   * changes search stopped filtering anything at all.
+   */
+  let untracked: { paths: string[]; content: Record<string, string> } = {
+    paths: [],
+    content: {},
+  };
 
   $: void loadUntrackedContent(state.status, instance?.worktreePath ?? null);
 
@@ -184,8 +192,7 @@
     wt: string | null,
   ): Promise<void> {
     if (!wt) {
-      untrackedPaths = [];
-      untrackedContent = {};
+      untracked = { paths: [], content: {} };
       return;
     }
     const all = Object.entries(status)
@@ -193,7 +200,6 @@
       .map(([p]) => p);
     const ignored = new Set(await checkIgnore(wt, all).catch(() => []));
     const visible = all.filter(p => !ignored.has(p));
-    untrackedPaths = visible;
     const next: Record<string, string> = {};
     const readable = visible.filter(p => !isBinaryPath(p));
     // Sized before being read: an untracked build artifact would otherwise be pulled
@@ -210,7 +216,7 @@
     for (const entry of entries) {
       if (entry) next[entry[0]] = entry[1];
     }
-    untrackedContent = next;
+    untracked = { paths: visible, content: next };
   }
 
   $: unstagedCards = (() => {
@@ -218,9 +224,9 @@
       makeCard(f.filePath, f.hunks, null, f.truncated),
     );
     const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
-    for (const p of untrackedPaths) {
+    for (const p of untracked.paths) {
       if (seen.has(p)) continue;
-      cards.push(makeCard(p, untrackedHunks(untrackedContent[p] ?? ''), 'untracked'));
+      cards.push(makeCard(p, untrackedHunks(untracked.content[p] ?? ''), 'untracked'));
     }
     return cards.sort((a, b) => a.basename.localeCompare(b.basename));
   })();

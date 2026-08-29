@@ -39,9 +39,8 @@
     moreOpenId = inst.id;
   }
 
-  function matchesQuery(inst: Instance): boolean {
-    return matchesSearch(inst.ticket.id, search) || matchesSearch(inst.ticket.title, search);
-  }
+  $: matchesQuery = (inst: Instance): boolean =>
+    matchesSearch(inst.ticket.id, search) || matchesSearch(inst.ticket.title, search);
 
   $: filtered = $instancesWithBase.filter(i =>
     !isArchivedInstance(i) && (isBaseInstance(i.id) || matchesQuery(i))

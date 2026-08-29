@@ -10,6 +10,27 @@
       {
         "kind": "fixed",
         "text": {
+          "en": "Searching the changed files in Git now filters the list again; it did nothing once the untracked files had been scanned.",
+          "fr": "La recherche dans les fichiers modifiés de Git filtre à nouveau la liste : elle restait sans effet dès que les fichiers non suivis avaient été analysés."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Creating an instance no longer accepts a branch another instance already uses, or no branch at all: the button now follows the error it was already showing.",
+          "fr": "La création d'une instance n'accepte plus une branche déjà utilisée par une autre instance, ni l'absence de branche : le bouton suit désormais l'erreur qu'il affichait déjà."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "The search in the instance manager now filters the list as you type.",
+          "fr": "La recherche du gestionnaire d'instances filtre désormais la liste au fil de la frappe."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
           "en": "Switching the MCP import scope to the local one now greys out the agents that have no local list, instead of leaving them apparently selectable.",
           "fr": "Basculer la portée d'import MCP sur locale grise désormais les agents sans liste locale, au lieu de les laisser apparemment sélectionnables."
         }

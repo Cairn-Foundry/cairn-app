@@ -29,9 +29,13 @@
   $: available = assignableProviders($aiProviders);
   $: assignments = $settings.aiFeatures ?? {};
 
-  function assignmentOf(id: AiFeatureId): AiFeatureAssignment {
-    return assignments[id] ?? { providerId: '', model: '', promptTemplate: '' };
-  }
+  /**
+   * Reactive rather than a plain function: the template only re-reads a call
+   * when its arguments change, so a plain one kept the assignments it saw at
+   * mount and a feature changed from here stopped refreshing its own card.
+   */
+  $: assignmentOf = (id: AiFeatureId): AiFeatureAssignment =>
+    assignments[id] ?? { providerId: '', model: '', promptTemplate: '' };
 
   function setAssignment(id: AiFeatureId, fields: Partial<AiFeatureAssignment>) {
     const next = { ...assignmentOf(id), ...fields };
@@ -78,9 +82,8 @@
     templateDraft = AI_FEATURES.find((f) => f.id === id)?.defaultPromptTemplate ?? '';
   }
 
-  function isCustomTemplate(id: AiFeatureId): boolean {
-    return (assignmentOf(id).promptTemplate ?? '').trim() !== '';
-  }
+  $: isCustomTemplate = (id: AiFeatureId): boolean =>
+    (assignmentOf(id).promptTemplate ?? '').trim() !== '';
 </script>
 
 <div class="features">

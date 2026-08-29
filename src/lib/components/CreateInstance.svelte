@@ -681,7 +681,7 @@
           {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
       {:else}
-        <button class="btn primary" on:click={handleCreate} disabled={creating || !isGitRepo}>
+        <button class="btn primary" on:click={handleCreate} disabled={creating || !canNext}>
           {#if creating}
             <Spinner /> {t('common.creating')}
           {:else}

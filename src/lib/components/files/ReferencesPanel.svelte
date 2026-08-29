@@ -75,8 +75,17 @@
     return pathWithinWorktree(path, worktreePath);
   }
 
-  /** Buckets locations by worktree-relative path, line-sorted, keeping the collapsed state. */
-  function group(locations: LspLocation[], sectionId: string): Group[] {
+  /**
+   * Buckets locations by worktree-relative path, line-sorted, keeping the
+   * collapsed state. `collapsed` is passed in rather than read from the
+   * closure: a function body is opaque to the compiler, so `sections` would
+   * never be invalidated by a fold and clicking a file header did nothing.
+   */
+  function group(
+    locations: LspLocation[],
+    sectionId: string,
+    collapsed: Set<string>,
+  ): Group[] {
     const byPath = new Map<string, LspLocation[]>();
     for (const location of locations) {
       const path = relative(location.path);
@@ -88,7 +97,7 @@
       filename: basename(path),
       dir: parentPathOf(path),
       hits: hits.slice().sort((a, b) => a.line - b.line),
-      collapsed: collapsedFiles.has(`${sectionId}:${path}`),
+      collapsed: collapsed.has(`${sectionId}:${path}`),
     }));
   }
 
@@ -128,7 +137,7 @@
   ).map(s => ({
     id: s.id,
     label: s.label,
-    groups: group(s.locations, s.id),
+    groups: group(s.locations, s.id, collapsedFiles),
     count: s.locations.length,
   })) as Section[];
 

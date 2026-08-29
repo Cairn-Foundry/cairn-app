@@ -21,9 +21,10 @@
 
   /** `editorconfig` is not a formatter of the catalogue, but it is a source. */
   /**
-   * Reactive rather than a plain function: the template only re-reads a call
-   * when its arguments change, so a plain one would keep the old names once
-   * `formatters` is resupplied.
+   * Reactive by consistency with the other components of this shape, not out of
+   * necessity: the call sits inside an `{#each detected}` block that re-renders
+   * whenever any prop changes, so a plain function keeps up here. Written this
+   * way so the pattern reads the same everywhere.
    */
   $: sourceName = (formatterId: string): string => {
     if (formatterId === 'editorconfig') return 'EditorConfig';
