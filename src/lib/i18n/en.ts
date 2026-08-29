@@ -2067,6 +2067,15 @@ export const en = {
 	},
 
 	review: {
+		submitBlocked: (n: number, total: number) =>
+			`Read every chapter first - ${n} of ${total} seen.`,
+		whatThisBranchDoes: "What this branch does",
+		startReading: "Start reading",
+		continueReading: "Continue reading",
+		remarksWord: "remarks",
+		hunksWord: "hunks",
+		chapterOf: (i: number, n: number) => `Chapter ${i} of ${n}`,
+		noRemarkOfKind: "Nothing of that kind on this extract.",
 		filter: {
 			all: "All",
 			open: "Open",

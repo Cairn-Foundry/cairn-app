@@ -57,6 +57,10 @@ export const reviewHunks = { subscribe: _hunks.subscribe };
 const _generating = writable<Record<string, string>>({});
 export const guideGenerating = { subscribe: _generating.subscribe };
 
+/** The run id of a comment draft in flight, per instance; empty when idle. */
+const _drafting = writable<Record<string, string>>({});
+export const commentDrafting = { subscribe: _drafting.subscribe };
+
 const _errors = writable<Record<string, string>>({});
 export const reviewErrors = { subscribe: _errors.subscribe };
 
@@ -406,7 +410,9 @@ export async function draftCommentFor(
 		binaryPath?: string;
 	} = {},
 ): Promise<string> {
-	const runId = `draft-${keyOf(scope)}-${Date.now()}`;
+	const key = keyOf(scope);
+	const runId = `draft-${key}-${Date.now()}`;
+	_drafting.update((map) => ({ ...map, [key]: runId }));
 	const prompt = buildReviewCommentPrompt(
 		{
 			path: remark.path,
@@ -418,19 +424,29 @@ export async function draftCommentFor(
 		},
 		options.assignments,
 	);
-	const answer = await runOneshot<{ comment?: unknown }>(
-		scope.worktreePath,
-		prompt,
-		{
-			type: "object",
-			required: ["comment"],
-			properties: { comment: { type: "string" } },
-		},
-		runId,
-		options.model,
-		options.binaryPath,
-	);
-	return typeof answer.comment === "string" ? answer.comment : "";
+	try {
+		const answer = await runOneshot<{ comment?: unknown }>(
+			scope.worktreePath,
+			prompt,
+			{
+				type: "object",
+				required: ["comment"],
+				properties: { comment: { type: "string" } },
+			},
+			runId,
+			options.model,
+			options.binaryPath,
+		);
+		return typeof answer.comment === "string" ? answer.comment : "";
+	} finally {
+		_drafting.update((map) => ({ ...map, [key]: "" }));
+	}
+}
+
+/** Kills the draft in flight; whatever was in the box stays. */
+export async function cancelCommentDraft(scope: ReviewScope): Promise<void> {
+	const runId = get(_drafting)[keyOf(scope)];
+	if (runId) await stopOneshot(runId);
 }
 
 export function setCurrentPosition(
@@ -544,6 +560,7 @@ function forgetProject(projectId: string): void {
 	_states.update((map) => dropProjectKeys(map, projectId));
 	_hunks.update((map) => dropProjectKeys(map, projectId));
 	_generating.update((map) => dropProjectKeys(map, projectId));
+	_drafting.update((map) => dropProjectKeys(map, projectId));
 	_mergeRequestIds.update((map) => dropProjectKeys(map, projectId));
 	_errors.update((map) => dropProjectKeys(map, projectId));
 }

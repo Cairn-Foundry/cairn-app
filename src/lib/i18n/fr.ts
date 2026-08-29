@@ -2105,6 +2105,15 @@ export const fr = {
 	},
 
 	review: {
+		submitBlocked: (n: number, total: number) =>
+			`Lisez d'abord tous les chapitres - ${n} sur ${total} vus.`,
+		whatThisBranchDoes: "Ce que fait cette branche",
+		startReading: "Commencer la lecture",
+		continueReading: "Reprendre la lecture",
+		remarksWord: "remarques",
+		hunksWord: "sections",
+		chapterOf: (i: number, n: number) => `Chapitre ${i} sur ${n}`,
+		noRemarkOfKind: "Rien de ce type sur cet extrait.",
 		filter: {
 			all: "Toutes",
 			open: "Ouvertes",

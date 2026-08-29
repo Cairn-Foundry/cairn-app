@@ -8,6 +8,76 @@
     },
     "changes": [
       {
+        "kind": "added",
+        "text": {
+          "en": "Commenting a remark of the review guide brings the composer into view and puts the cursor in it, and picking a pending comment points the diff at the line it is about - moving to the chapter that covers it, or to the raw diff when no chapter does.",
+          "fr": "Commenter une remarque du guide de review amène le champ de rédaction à l'écran et y place le curseur, et sélectionner un commentaire en attente pointe le diff sur la ligne concernée - en passant au chapitre qui la couvre, ou au diff brut quand aucun ne la couvre."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "\"Draft with AI\" in the review guide wears the same pending treatment as the merge request assist - the field itself shows the work - and the button becomes the way to stop the run.",
+          "fr": "\"Rédiger avec l'IA\" dans le guide de review adopte le même traitement d'attente que l'assistant de merge request - le champ lui-même montre le travail en cours - et le bouton devient le moyen d'arrêter la génération."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The review guide offers the same Submit review action in its sidebar as in the comments panel, held back until every chapter has been read and saying how far off the reading is.",
+          "fr": "Le guide de review propose la même action Rendre la review dans sa barre latérale que dans le panneau des commentaires, retenue tant que tous les chapitres n'ont pas été lus et indiquant ce qu'il reste à lire."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "No chapter is shown as current while the review guide is on its overview.",
+          "fr": "Aucun chapitre n'est marqué comme courant tant que le guide de review est sur sa vue d'ensemble."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "A remark of the guide and its line in the code point at each other: picking a remark scrolls the diff to its line, and clicking the marker on that line brings the remark forward, revealing it even when the kind filter was hiding it.",
+          "fr": "Une remarque du guide et sa ligne dans le code se désignent mutuellement : sélectionner une remarque fait défiler le diff jusqu'à sa ligne, et cliquer sur le marqueur de cette ligne met la remarque en avant, y compris quand le filtre par type la masquait."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "The review guide renders the markdown it is written in: paths and symbols read as code rather than as text wrapped in backticks, in the overview, the chapter summaries and the remarks.",
+          "fr": "Le guide de review affiche le markdown dans lequel il est rédigé : les chemins et les symboles se lisent comme du code au lieu d'un texte entouré de backticks, dans la vue d'ensemble, les résumés de chapitre et les remarques."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The review guide opens on a full-width overview page - what the branch does, how many chapters, remarks and hunks await - instead of squeezing that text into the sidebar and dropping the reader straight into the first extract.",
+          "fr": "Le guide de review s'ouvre sur une page de présentation pleine largeur - ce que fait la branche, combien de chapitres, de remarques et de sections attendent - au lieu de comprimer ce texte dans la barre latérale et de plonger le lecteur directement dans le premier extrait."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The remarks of the guide sit beside the code rather than stacked under it, so the diff keeps its height whatever the chapter has to say.",
+          "fr": "Les remarques du guide se placent à côté du code au lieu d'être empilées en dessous, pour que le diff garde sa hauteur quel que soit ce que le chapitre a à dire."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The guide shows which chapter of how many, with the reading progress beside the code, and filters the remarks of an extract by kind.",
+          "fr": "Le guide indique le chapitre en cours sur le total, avec la progression de lecture à côté du code, et filtre les remarques d'un extrait par type."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "The guide's navigation buttons carry their keyboard shortcut.",
+          "fr": "Les boutons de navigation du guide portent leur raccourci clavier."
+        }
+      },
+      {
         "kind": "changed",
         "text": {
           "en": "The forge's own records - a label changed, a pipeline run - no longer count as open discussions in the Review step: they can never be resolved, and are listed under their own Activity filter.",
