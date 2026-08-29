@@ -26,6 +26,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 	getCurrentWindow: () => ({
 		listen: vi.fn().mockResolvedValue(() => {}),
 		onDragDropEvent: vi.fn().mockResolvedValue(() => {}),
+		onFocusChanged: vi.fn().mockResolvedValue(() => {}),
 	}),
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
@@ -42,3 +43,7 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 // "Not implemented" line per call. The probe result is unused by these tests.
 HTMLCanvasElement.prototype.getContext = (() =>
 	null) as HTMLCanvasElement["getContext"];
+
+// jsdom lays nothing out, so it ships no scrollIntoView; several views call it
+// to keep the active item in sight.
+Element.prototype.scrollIntoView = () => {};
