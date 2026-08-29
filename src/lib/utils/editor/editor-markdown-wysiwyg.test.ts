@@ -498,3 +498,47 @@ describe("the two ways the rendering silently disappears", () => {
 		expect(head.length).toBeLessThan(whole.length);
 	});
 });
+
+describe("code fence widget", () => {
+	function fenceWidget(doc: string) {
+		const state = stateOf(doc);
+		for (const range of collectBlockRanges(state)) {
+			const widget = (range.value.spec as { widget?: { toDOM(): HTMLElement } })
+				.widget;
+			const dom = widget?.toDOM();
+			if (dom?.classList.contains("cm-md-fence")) return dom;
+		}
+		return null;
+	}
+
+	it("offers a copy button carrying the body of the block, fences excluded", () => {
+		const dom = fenceWidget("```ts\nconst a = 1;\nconst b = 2;\n```\n");
+		const button = dom?.querySelector<HTMLElement>(".cm-md-fence-copy");
+		expect(button).toBeTruthy();
+
+		let copied: string | null = null;
+		const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: {
+				writeText: (v: string) => {
+					copied = v;
+					return Promise.resolve();
+				},
+			},
+		});
+		try {
+			button?.click();
+			expect(copied).toBe("const a = 1;\nconst b = 2;\n");
+		} finally {
+			if (original) Object.defineProperty(navigator, "clipboard", original);
+			else Reflect.deleteProperty(navigator, "clipboard");
+		}
+	});
+
+	it("still offers the button on a fence with no language", () => {
+		const dom = fenceWidget("```\nplain\n```\n");
+		expect(dom?.querySelector(".cm-md-fence-copy")).toBeTruthy();
+		expect(dom?.querySelector(".cm-md-fence-lang")).toBeNull();
+	});
+});

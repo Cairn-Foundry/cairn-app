@@ -99,6 +99,17 @@ export function buildStickyScroll(enabled: boolean): Extension {
 					const text = document.createElement("span");
 					text.textContent = line.text;
 					row.append(number, text);
+					row.onclick = () => {
+						const target = view.state.doc.line(line.number);
+						view.dispatch({
+							selection: { anchor: target.from },
+							effects: EditorView.scrollIntoView(target.from, {
+								y: "start",
+								yMargin: this.dom.offsetHeight,
+							}),
+						});
+						view.focus();
+					};
 					this.dom.appendChild(row);
 				}
 			}
@@ -109,8 +120,8 @@ export function buildStickyScroll(enabled: boolean): Extension {
 /**
  * The header overlays the top of the editor rather than sitting in the
  * scroller: the scroller's children are the content itself, so a sticky child
- * there would scroll away with the lines it is meant to outlive. Pointer events
- * pass through - it is a reminder of where the caret is, not a target.
+ * there would scroll away with the lines it is meant to outlive. Each row jumps
+ * the caret back to the scope it names.
  */
 export const stickyScrollTheme: Extension = EditorView.theme({
 	"&": { position: "relative" },
@@ -120,7 +131,6 @@ export const stickyScrollTheme: Extension = EditorView.theme({
 		left: "0",
 		right: "0",
 		zIndex: "3",
-		pointerEvents: "none",
 		whiteSpace: "pre",
 		overflow: "hidden",
 		backgroundColor: "var(--bg-2)",
@@ -135,6 +145,10 @@ export const stickyScrollTheme: Extension = EditorView.theme({
 		lineHeight: "1.65",
 		textOverflow: "ellipsis",
 		overflow: "hidden",
+		cursor: "pointer",
+	},
+	".cm-sticky-scroll-line:hover": {
+		backgroundColor: "var(--bg-3)",
 	},
 	".cm-sticky-scroll-number": {
 		flex: "none",

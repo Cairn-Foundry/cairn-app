@@ -89,8 +89,18 @@ pub fn new_command(path: &Path) -> Command {
 }
 
 /// Terminate a spawned CLI and every child it spawned.
+///
+/// The exit status is claimed first: on a process that already exited, the pid
+/// is free for the kernel to reuse, and the negative-pid signal below would hit
+/// whatever process group inherited it - up to the app's own.
 pub fn kill_tree(child: &mut Child) {
+    if !matches!(child.try_wait(), Ok(None)) {
+        return;
+    }
     let pid = child.id();
+    if pid <= 1 {
+        return;
+    }
     #[cfg(target_os = "windows")]
     {
         let _ = Command::new("taskkill")
@@ -104,4 +114,5 @@ pub fn kill_tree(child: &mut Child) {
             .output();
     }
     let _ = child.kill();
+    let _ = child.wait();
 }

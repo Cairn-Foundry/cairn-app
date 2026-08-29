@@ -353,7 +353,7 @@
    */
   function buildInstanceExtensions(): Extension[] {
     return [
-      buildLspExtensions(() => lspDoc),
+      buildLspExtensions(() => lspDoc, (path) => onOpenLink?.(path, null)),
       buildSymbolClickAffordance(isArmedForSymbol),
       EditorView.domEventHandlers({
         blur: () => { onBlur?.(); return false; },

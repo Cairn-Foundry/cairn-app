@@ -283,6 +283,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
    an icon's markup changes.
    ============================== */
 
+/* Icon motion is a setting: one attribute on the root turns the whole set off,
+   since every animation is CSS driven by a hover on the interactive host. */
+[data-no-icon-animations] .ic,
+[data-no-icon-animations] .ic * {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
 /* A glyph that reports a state rather than offering an action never moves:
    it belongs to the row, not to the pointer. Same for disabled controls. */
 :disabled:hover .ic,

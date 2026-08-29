@@ -117,6 +117,20 @@
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.appearance.iconAnimations')}</span>
+      <span class="settings-row-desc">{t('settings.appearance.iconAnimationsDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.appearance.iconAnimations') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.iconAnimations}
+        on:change={(e) => settings.save({ iconAnimations: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
       <span class="settings-row-label">{t('settings.appearance.transparencyEffects')}</span>
       <span class="settings-row-desc">{t('settings.appearance.transparencyEffectsDesc')}</span>
     </div>

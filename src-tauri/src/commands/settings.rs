@@ -119,6 +119,8 @@ pub struct CairnSettings {
     pub show_pinned_commands_sidebar: bool,
     #[serde(rename = "transparencyEffects", default = "default_true")]
     pub transparency_effects: bool,
+    #[serde(rename = "iconAnimations", default = "default_true")]
+    pub icon_animations: bool,
     #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
@@ -282,6 +284,7 @@ impl Default for CairnSettings {
             workspace_sidebar_position: default_sidebar_position(),
             show_pinned_commands_sidebar: true,
             transparency_effects: true,
+            icon_animations: true,
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),

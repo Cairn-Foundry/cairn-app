@@ -1189,7 +1189,7 @@ export const en = {
 		removeSourceBranch: "Delete source branch when merged",
 		squash: "Squash commits when merged",
 		linkTicket: "Link the ticket",
-		generateWithAi: "Generate with AI",
+		generateWithAi: "Generate",
 		approvals: (n: number, total: number | null) =>
 			total === null
 				? `${n} approval${n > 1 ? "s" : ""}`
@@ -1735,7 +1735,7 @@ export const en = {
 		workingTreeClean: "Working tree clean - nothing to commit.",
 		noStagedChanges: "No staged changes - stage hunks to commit.",
 		commitMessage: "Commit message",
-		generateWithAi: "Generate with AI",
+		generateWithAi: "Generate",
 		aiCancel: "Cancel",
 		aiGenerating: "Writing the commit title and description",
 		aiGenerated: "Commit message ready",
@@ -2154,7 +2154,7 @@ export const en = {
 		dismissed: "Dismissed",
 		undismiss: "Reopen",
 		comment: "Comment",
-		draftComment: "Draft with AI",
+		draftComment: "Draft",
 		commentPlaceholder: "Write your comment...",
 		save: "Save",
 		cancel: "Cancel",
@@ -2212,7 +2212,7 @@ export const en = {
 		resetView: "Clear filters",
 		resultCount: (n: number) => `${n} result${n === 1 ? "" : "s"}`,
 		reRunTest: "Re-run this test",
-		fixWithAi: "Fix with AI",
+		fixWithAi: "Fix",
 		reRunFile: "Re-run this file",
 		collapseAll: "Collapse all",
 		expandAll: "Expand all",
@@ -2765,6 +2765,9 @@ export const en = {
 			transparencyEffects: "Transparency effects",
 			transparencyEffectsDesc:
 				"Lets the desktop show through the window. Turning it off makes scrolling smoother; takes effect after a restart.",
+			iconAnimations: "Icon animations",
+			iconAnimationsDesc:
+				"Animates icons when the button or row under the pointer is hovered.",
 			accentColors: {
 				blue: "Blue",
 				purple: "Purple",

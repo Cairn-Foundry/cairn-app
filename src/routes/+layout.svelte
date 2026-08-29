@@ -38,6 +38,7 @@
     document.documentElement.style.setProperty('--accent-fg', foregroundOn($settings.accentColor));
     document.documentElement.style.setProperty('--font-mono', $settings.fontFamily);
     document.documentElement.style.setProperty('--font-ui', $settings.fontFamily);
+    document.documentElement.toggleAttribute('data-no-icon-animations', !$settings.iconAnimations);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
   }

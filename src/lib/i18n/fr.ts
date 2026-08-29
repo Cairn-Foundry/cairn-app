@@ -1212,7 +1212,7 @@ export const fr = {
 		removeSourceBranch: "Supprimer la branche source après fusion",
 		squash: "Regrouper les commits à la fusion",
 		linkTicket: "Lier le ticket",
-		generateWithAi: "Générer avec l'IA",
+		generateWithAi: "Générer",
 		approvals: (n: number, total: number | null) =>
 			total === null
 				? `${n} approbation${n > 1 ? "s" : ""}`
@@ -1763,7 +1763,7 @@ export const fr = {
 		noStagedChanges:
 			"Aucune modification indexée - indexez des hunks pour commiter.",
 		commitMessage: "Message de commit",
-		generateWithAi: "Générer avec l'IA",
+		generateWithAi: "Générer",
 		aiCancel: "Annuler",
 		aiGenerating: "Rédaction du titre et de la description du commit",
 		aiGenerated: "Message de commit prêt",
@@ -2195,7 +2195,7 @@ export const fr = {
 		dismissed: "Ignorée",
 		undismiss: "Rouvrir",
 		comment: "Commenter",
-		draftComment: "Rédiger avec l'IA",
+		draftComment: "Rédiger",
 		commentPlaceholder: "Écrivez votre commentaire...",
 		save: "Enregistrer",
 		cancel: "Annuler",
@@ -2253,7 +2253,7 @@ export const fr = {
 		resetView: "Effacer les filtres",
 		resultCount: (n: number) => `${n} résultat${n === 1 ? "" : "s"}`,
 		reRunTest: "Relancer ce test",
-		fixWithAi: "Corriger avec l'IA",
+		fixWithAi: "Corriger",
 		reRunFile: "Relancer ce fichier",
 		collapseAll: "Tout replier",
 		expandAll: "Tout deplier",
@@ -2819,6 +2819,9 @@ export const fr = {
 			transparencyEffects: "Effets de transparence",
 			transparencyEffectsDesc:
 				"Laisse le bureau transparaître à travers la fenêtre. Les désactiver rend le défilement plus fluide ; effectif après un redémarrage.",
+			iconAnimations: "Animations des icônes",
+			iconAnimationsDesc:
+				"Anime les icônes au survol du bouton ou de la ligne qui les contient.",
 			accentColors: {
 				blue: "Bleu",
 				purple: "Violet",

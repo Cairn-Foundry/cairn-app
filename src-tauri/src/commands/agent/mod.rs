@@ -429,6 +429,9 @@ pub fn shutdown(app: &tauri::AppHandle) {
     };
     for (_, handle) in running.drain() {
         handle.cancelled.store(true, Ordering::SeqCst);
+        if let Ok(mut stdin) = handle.stdin.lock() {
+            stdin.take();
+        }
         if let Ok(mut slot) = handle.child.lock()
             && let Some(mut child) = slot.take() {
                 platform::kill_tree(&mut child);
@@ -445,6 +448,9 @@ pub async fn stop_agent(app: tauri::AppHandle, run_id: String) -> Result<(), Str
     let handle = state.running.lock().map_err(|e| e.to_string())?.remove(&run_id);
     if let Some(handle) = handle {
         handle.cancelled.store(true, Ordering::SeqCst);
+        if let Ok(mut stdin) = handle.stdin.lock() {
+            stdin.take();
+        }
         if let Ok(mut slot) = handle.child.lock()
             && let Some(mut child) = slot.take() {
                 platform::kill_tree(&mut child);

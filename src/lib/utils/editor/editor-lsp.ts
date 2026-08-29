@@ -34,12 +34,16 @@ import {
 	lspSignatureHelp,
 } from "$lib/services/lsp-service";
 import type { ModifierState } from "$lib/types/shortcuts";
+import { parseLinkTarget } from "$lib/utils/editor/editor-markdown-wysiwyg";
+import { renderRemoteMarkdown } from "$lib/utils/integrations/markdown";
 
 // The bridge between the language server protocol and CodeMirror: offset and
 // position conversion, then completion, hover, signature help and go-to-symbol.
 
 /** The document to query, or null while no server covers the open file. */
 export type LspDocGetter = () => LspDocRef | null;
+/** Opens a path a documentation link points at, as an editor tab. */
+export type LspOpenFile = (path: string) => void;
 
 // -- Position conversion -------------------------------------------------------
 
@@ -129,19 +133,75 @@ export function toEditorDiagnostics(
 // -- Markup rendering ----------------------------------------------------------
 
 /**
- * Server documentation arrives as markdown. It is rendered as text nodes and
- * `code` elements rather than injected as HTML: a language server is a third
- * party, and nothing it returns is worth an innerHTML.
+ * Server documentation arrives as markdown. Code fences stay text nodes inside a
+ * `pre`; the prose around them goes through the shared sanitiser, so a link or a
+ * bold word reads as one instead of as its source - a language server is a third
+ * party, and nothing it returns reaches innerHTML unsanitised.
  */
-function renderMarkup(target: HTMLElement, markup: string): void {
+function renderMarkup(
+	target: HTMLElement,
+	markup: string,
+	onOpenFile?: LspOpenFile,
+): void {
 	markup.split("```").forEach((block, index) => {
 		if (!block.trim()) return;
 		const isCode = index % 2 === 1;
 		const el = document.createElement(isCode ? "pre" : "div");
 		el.className = isCode ? "cm-lsp-code" : "cm-lsp-prose";
-		el.textContent = isCode ? block.replace(/^[a-zA-Z]*\n/, "") : block.trim();
+		if (isCode) {
+			el.textContent = block.replace(/^[a-zA-Z]*\n/, "");
+		} else {
+			el.innerHTML = renderRemoteMarkdown(block.trim());
+			wireMarkupLinks(el, block, onOpenFile);
+		}
 		target.appendChild(el);
 	});
+}
+
+/**
+ * The sanitiser drops any href outside http/mailto, so `file://` documentation
+ * links arrive stripped. The destinations are read back from the markdown
+ * source and routed here instead: a file opens as a tab, anything else goes to
+ * the system browser.
+ */
+function wireMarkupLinks(
+	el: HTMLElement,
+	source: string,
+	onOpenFile?: LspOpenFile,
+): void {
+	const hrefs = Array.from(source.matchAll(MARKDOWN_LINK)).map((m) => m[1]);
+	const anchors = Array.from(el.querySelectorAll("a"));
+	anchors.forEach((anchor, index) => {
+		const href = anchor.getAttribute("href") ?? hrefs[index];
+		if (!href) return;
+		anchor.removeAttribute("href");
+		anchor.onclick = (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			openDocLink(href, onOpenFile);
+		};
+	});
+}
+
+const MARKDOWN_LINK = /\[[^\]]*\]\(\s*<?([^)\s>]+)>?[^)]*\)/g;
+const FILE_URL = /^file:\/\//i;
+
+function openDocLink(href: string, onOpenFile?: LspOpenFile): void {
+	const clean = href.trim();
+	if (FILE_URL.test(clean)) {
+		const path = decodeURIComponent(clean.replace(FILE_URL, "").split("#")[0]);
+		if (path && onOpenFile) onOpenFile(path);
+		return;
+	}
+
+	const target = parseLinkTarget(clean);
+	if (target.kind === "external") {
+		void import("@tauri-apps/plugin-opener")
+			.then((m) => m.openUrl(target.href))
+			.catch(() => {});
+	} else if (target.kind === "file" && onOpenFile) {
+		onOpenFile(target.path);
+	}
 }
 
 /** Flattens the several shapes markup content can take into plain text. */
@@ -283,7 +343,7 @@ async function completionSource(
 // -- Hover ---------------------------------------------------------------------
 
 /** Hover tooltips; a server that errors or says nothing shows nothing. */
-function buildHover(getDoc: LspDocGetter): Extension {
+function buildHover(getDoc: LspDocGetter, onOpenFile?: LspOpenFile): Extension {
 	return hoverTooltip(async (view, pos) => {
 		const doc = getDoc();
 		if (!doc) return null;
@@ -306,7 +366,7 @@ function buildHover(getDoc: LspDocGetter): Extension {
 			create: () => {
 				const dom = document.createElement("div");
 				dom.className = "cm-lsp-hover";
-				renderMarkup(dom, markup);
+				renderMarkup(dom, markup, onOpenFile);
 				return { dom };
 			},
 		};
@@ -564,7 +624,10 @@ export function buildSymbolClickAffordance(
  * inert while `getDoc` answers null, so a file no server covers pays nothing.
  */
 /** Everything the language server contributes to the editor, in one extension. */
-export function buildLspExtensions(getDoc: LspDocGetter): Extension {
+export function buildLspExtensions(
+	getDoc: LspDocGetter,
+	onOpenFile?: LspOpenFile,
+): Extension {
 	return [
 		EditorState.languageData.of(() => [
 			{
@@ -572,11 +635,17 @@ export function buildLspExtensions(getDoc: LspDocGetter): Extension {
 					completionSource(context, getDoc),
 			},
 		]),
-		buildHover(getDoc),
+		buildHover(getDoc, onOpenFile),
 		buildSignatureHelp(getDoc),
 		EditorView.theme({
+			// A server can answer with a whole page of documentation. Capped to a
+			// fraction of the viewport and scrolled, so the end of it is reachable
+			// instead of being clipped off the window.
 			".cm-lsp-hover, .cm-lsp-info, .cm-lsp-signature": {
 				maxWidth: "460px",
+				maxHeight: "min(50vh, 420px)",
+				overflowY: "auto",
+				overscrollBehavior: "contain",
 				padding: "6px 8px",
 				fontSize: "12px",
 				lineHeight: "1.5",
@@ -589,7 +658,36 @@ export function buildLspExtensions(getDoc: LspDocGetter): Extension {
 				color: "var(--accent)",
 				fontWeight: "600",
 			},
-			".cm-lsp-prose": { whiteSpace: "pre-wrap" },
+			".cm-lsp-prose": { whiteSpace: "normal" },
+			// Markdown block elements carry browser margins that the plain-text
+			// rendering never had; they are stripped back to the old flat spacing.
+			".cm-lsp-prose :is(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote)": {
+				margin: "0",
+			},
+			".cm-lsp-prose :is(p, ul, ol, blockquote) + *": { marginTop: "4px" },
+			".cm-lsp-prose :is(h1, h2, h3, h4, h5, h6)": {
+				fontSize: "inherit",
+				fontWeight: "600",
+			},
+			".cm-lsp-prose :is(ul, ol)": { paddingLeft: "18px" },
+			".cm-lsp-prose hr": {
+				margin: "6px 0",
+				border: "none",
+				borderTop: "1px solid var(--stroke-1)",
+			},
+			".cm-lsp-prose a": {
+				color: "var(--accent)",
+				cursor: "pointer",
+				textDecoration: "none",
+			},
+			".cm-lsp-prose a:hover": { textDecoration: "underline" },
+			".cm-lsp-prose code": {
+				padding: "0 3px",
+				borderRadius: "3px",
+				background: "var(--bg-3)",
+				fontFamily: "var(--font-mono)",
+			},
+			".cm-lsp-prose pre": { margin: "0" },
 			".cm-lsp-code": {
 				margin: "4px 0 0",
 				padding: "4px 6px",

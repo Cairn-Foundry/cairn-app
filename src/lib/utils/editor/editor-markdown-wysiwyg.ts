@@ -15,7 +15,10 @@ import {
 	WidgetType,
 } from "@codemirror/view";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { ICONS } from "$lib/components/icon-paths";
+import { t } from "$lib/i18n";
 import { parentPathOf } from "$lib/utils/files/files-tree";
+import { CLIPBOARD_CLEAR_DELAY } from "$lib/utils/timing";
 import { renderMermaid } from "./mermaid";
 
 // Markdown rendered inline in the editor: headings, emphasis, links, rules,
@@ -360,8 +363,15 @@ class MermaidWidget extends WidgetType {
 	}
 }
 
+function iconSvg(name: string): string {
+	return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]?.body ?? ""}</svg>`;
+}
+
 class CodeFenceWidget extends WidgetType {
-	constructor(readonly language: string) {
+	constructor(
+		readonly language: string,
+		readonly body: string,
+	) {
 		super();
 	}
 
@@ -374,11 +384,40 @@ class CodeFenceWidget extends WidgetType {
 			badge.textContent = this.language;
 			el.appendChild(badge);
 		}
+
+		const copy = document.createElement("button");
+		copy.className = "cm-md-fence-copy";
+		copy.type = "button";
+		copy.title = t("common.copy") as string;
+		copy.setAttribute("aria-label", t("common.copy") as string);
+		copy.innerHTML = iconSvg("copy");
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		copy.onmousedown = (e) => e.preventDefault();
+		copy.onclick = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			navigator.clipboard.writeText(this.body).then(() => {
+				copy.classList.add("copied");
+				copy.innerHTML = iconSvg("check");
+				copy.title = t("common.copied") as string;
+				clearTimeout(timer);
+				timer = setTimeout(() => {
+					copy.classList.remove("copied");
+					copy.innerHTML = iconSvg("copy");
+					copy.title = t("common.copy") as string;
+				}, CLIPBOARD_CLEAR_DELAY);
+			});
+		};
+		el.appendChild(copy);
 		return el;
 	}
 
 	eq(other: CodeFenceWidget): boolean {
-		return other.language === this.language;
+		return other.language === this.language && other.body === this.body;
+	}
+
+	ignoreEvent(): boolean {
+		return false;
 	}
 }
 
@@ -713,11 +752,11 @@ export function collectBlockRanges(state: EditorState): Range<Decoration>[] {
 				const closeLine = doc.lineAt(node.to);
 				const info = node.node.getChild("CodeInfo");
 				const language = info ? doc.sliceString(info.from, info.to) : "";
+				const body = doc
+					.sliceString(openLine.to, closeLine.from)
+					.replace(/^\n/, "");
 
 				if (language.trim().toLowerCase() === "mermaid") {
-					const body = doc
-						.sliceString(openLine.to, closeLine.from)
-						.replace(/^\n/, "");
 					if (body.trim()) {
 						ranges.push(
 							Decoration.replace({
@@ -731,7 +770,7 @@ export function collectBlockRanges(state: EditorState): Range<Decoration>[] {
 
 				ranges.push(
 					Decoration.replace({
-						widget: new CodeFenceWidget(language),
+						widget: new CodeFenceWidget(language, body),
 						block: true,
 					}).range(openLine.from, openLine.to),
 				);
@@ -894,7 +933,11 @@ const wysiwygTheme = EditorView.theme({
 		color: "var(--fg-2)",
 		fontStyle: "italic",
 	},
-	".cm-md-code-block": { background: "var(--bg-2)" },
+	// The selection layer is painted behind the content, so an opaque line
+	// background would hide it: the block tints the editor instead of covering it.
+	".cm-md-code-block": {
+		background: "color-mix(in oklab, var(--bg-2) 70%, transparent)",
+	},
 	".cm-md-link": {
 		color: "var(--accent)",
 		textDecoration: "underline",
@@ -903,12 +946,14 @@ const wysiwygTheme = EditorView.theme({
 	},
 	".cm-md-link:hover": { textDecorationColor: "var(--accent)" },
 	"&.cm-md-link-armed .cm-md-link": { cursor: "pointer" },
+	// The opening fence is a zero-height strip when it only carries a language
+	// badge; the copy button needs room, so the row is sized to it.
 	".cm-md-fence": {
 		display: "flex",
 		justifyContent: "flex-end",
 		alignItems: "center",
-		minHeight: "0",
-		background: "var(--bg-2)",
+		minHeight: "20px",
+		background: "color-mix(in oklab, var(--bg-2) 70%, transparent)",
 	},
 	".cm-md-mermaid": {
 		display: "flex",
@@ -933,6 +978,25 @@ const wysiwygTheme = EditorView.theme({
 		textTransform: "uppercase",
 		color: "var(--fg-3)",
 	},
+	".cm-md-fence-copy": {
+		display: "grid",
+		placeItems: "center",
+		width: "18px",
+		height: "18px",
+		marginRight: "6px",
+		padding: "0",
+		border: "none",
+		background: "transparent",
+		borderRadius: "var(--r-sm)",
+		color: "var(--fg-3)",
+		cursor: "pointer",
+		transition: "color .12s, background .12s",
+	},
+	".cm-md-fence-copy:hover": {
+		background: "var(--bg-3)",
+		color: "var(--fg-0)",
+	},
+	".cm-md-fence-copy.copied": { color: "var(--success)" },
 	".cm-md-bullet": {
 		display: "inline-block",
 		width: "5px",

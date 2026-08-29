@@ -10,6 +10,48 @@
       {
         "kind": "added",
         "text": {
+          "en": "Icon animations can be turned off in the appearance settings.",
+          "fr": "Les animations des icônes peuvent être désactivées dans les réglages d'apparence."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Cancelling a request to an AI no longer risks signalling an unrelated process group: the run is only killed while its process is still alive, and its input pipe is closed with it.",
+          "fr": "Annuler une demande à une IA ne risque plus de signaler un groupe de processus étranger : le run n'est tué que tant que son processus est vivant, et son entrée est fermée avec lui."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "The text selection is visible again inside a markdown code block, which no longer paints over it.",
+          "fr": "La sélection de texte est de nouveau visible dans un bloc de code markdown, qui ne la recouvre plus."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "A copy button on every markdown code block.",
+          "fr": "Un bouton de copie sur chaque bloc de code markdown."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "The documentation shown when hovering a symbol renders its markdown instead of its raw source, scrolls rather than overflowing the window, and its links open: a file as an editor tab, anything else in the browser.",
+          "fr": "La documentation affichée au survol d'un symbole rend son markdown au lieu de sa source brute, défile au lieu de déborder de la fenêtre, et ses liens s'ouvrent : un fichier comme onglet de l'éditeur, le reste dans le navigateur."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Clicking a line of the parent scopes pinned above the code jumps back to it.",
+          "fr": "Cliquer une ligne des blocs parents épinglés au-dessus du code y ramène."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
           "en": "Commenting a remark of the review guide brings the composer into view and puts the cursor in it, and picking a pending comment points the diff at the line it is about - moving to the chapter that covers it, or to the raw diff when no chapter does.",
           "fr": "Commenter une remarque du guide de review amène le champ de rédaction à l'écran et y place le curseur, et sélectionner un commentaire en attente pointe le diff sur la ligne concernée - en passant au chapitre qui la couvre, ou au diff brut quand aucun ne la couvre."
         }
