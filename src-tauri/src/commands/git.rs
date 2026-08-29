@@ -576,6 +576,32 @@ pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>
     Ok(parse_diff(&raw))
 }
 
+/// Both diffs the git view shows, behind a version hashed from the raw diff
+/// text: a poll that holds the version gets `None` back, and nothing is parsed
+/// or serialised for a change that did not happen.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDiffs {
+    pub version:  u64,
+    pub unstaged: Vec<GitFileDiff>,
+    pub staged:   Vec<GitFileDiff>,
+}
+
+#[tauri::command]
+pub async fn git_diffs(worktree_path: String, known_version: u64) -> Result<Option<GitDiffs>, GitError> {
+    let expanded = expand(&worktree_path);
+    let unstaged = run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"]))?;
+    let staged = run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"]))?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&unstaged, &mut hasher);
+    std::hash::Hash::hash(&staged, &mut hasher);
+    let version = std::hash::Hasher::finish(&hasher).max(1);
+    if version == known_version {
+        return Ok(None);
+    }
+    Ok(Some(GitDiffs { version, unstaged: parse_diff(&unstaged), staged: parse_diff(&staged) }))
+}
+
 #[tauri::command]
 /// Index changes against HEAD.
 pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, GitError> {

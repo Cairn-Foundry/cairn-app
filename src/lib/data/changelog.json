@@ -8,6 +8,76 @@
     },
     "changes": [
       {
+        "kind": "fixed",
+        "text": {
+          "en": "Switching project while the Git view is open no longer shows untracked files of the previous project among the changes of the new one, and the new list appears in one go instead of its untracked files dropping in a moment later.",
+          "fr": "Changer de projet avec la vue Git ouverte n'affiche plus les fichiers non suivis du projet précédent parmi les changements du nouveau, et la nouvelle liste apparaît d'un bloc au lieu de voir ses fichiers non suivis s'insérer un instant plus tard."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Diff lines in the Git view keep their syntax colouring across project switches instead of flashing as plain text while they are highlighted again.",
+          "fr": "Les lignes de diff de la vue Git gardent leur coloration syntaxique d'un projet à l'autre au lieu de réapparaître en texte brut le temps d'être recolorées."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The Git view's background poll no longer re-reads and re-compares every diff and every untracked file each time: diffs come back only when they changed, untracked files are re-read only when their modification time moved, and unchanged cards are kept as they are.",
+          "fr": "L'interrogation de fond de la vue Git ne relit et ne recompare plus tous les diffs et tous les fichiers non suivis à chaque fois : les diffs ne reviennent que s'ils ont changé, les fichiers non suivis ne sont relus que si leur date de modification a bougé, et les cartes inchangées sont conservées telles quelles."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "The main window is built at launch from the transparency effects setting, so turning the effects off really gives an opaque window - and a smoother scroll in the editor, the tree and the terminal.",
+          "fr": "La fenêtre principale est construite au lancement d'après le réglage des effets de transparence : les désactiver donne vraiment une fenêtre opaque, et un défilement plus fluide dans l'éditeur, l'arbre et le terminal."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Switching project tab, workflow tab, tool or home section cross-fades like the home / workspace switch.",
+          "fr": "Changer d'onglet de projet, d'onglet de workflow, d'outil ou de section d'accueil se fait en fondu, comme la bascule accueil / espace de travail."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Typing in the editor no longer re-evaluates the whole Files view twice per key; the minimap is redrawn once per typing pause instead of once per keystroke.",
+          "fr": "Taper dans l'éditeur ne réévalue plus toute la vue Fichiers deux fois par touche ; la minimap est redessinée une fois par pause de frappe au lieu d'une fois par touche."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Editor setting to wrap long lines, off by default: without wrapping, large files scroll without the height remeasuring that made them jump.",
+          "fr": "Réglage de l'éditeur pour le retour à la ligne automatique, désactivé par défaut : sans retour à la ligne, les gros fichiers défilent sans les remesures de hauteur qui les faisaient sauter."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "Switching back to a project you already visited keeps its open documents in memory and its instances loaded: the switch no longer waits on reading every open file and the instance list from disk.",
+          "fr": "Revenir sur un projet déjà visité garde ses documents ouverts en mémoire et ses instances chargées : le changement n'attend plus la relecture de chaque fichier ouvert et de la liste des instances sur disque."
+        }
+      },
+      {
+        "kind": "changed",
+        "text": {
+          "en": "While a build or an agent writes many files, the repository is walked again at most every three seconds instead of after every change.",
+          "fr": "Pendant qu'un build ou un agent écrit beaucoup de fichiers, le dépôt n'est reparcouru qu'au plus toutes les trois secondes au lieu d'après chaque changement."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Opening or closing a folder in the file tree no longer walks the whole visible tree a second time; the Ports section stops polling while the workspace is on screen; the glass theme no longer stacks a CSS blur on top of the native macOS vibrancy.",
+          "fr": "Ouvrir ou fermer un dossier dans l'arbre ne reparcourt plus tout l'arbre visible une seconde fois ; la section Ports cesse d'interroger le système tant que l'espace de travail est à l'écran ; le thème glass n'empile plus un flou CSS sur la vibrancy native de macOS."
+        }
+      },
+      {
         "kind": "changed",
         "text": {
           "en": "Moving the pointer over the file tree, the git list or any dense list no longer costs a style recalculation of the whole window: icon animations are armed only while their control is hovered.",

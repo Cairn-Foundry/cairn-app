@@ -47,6 +47,7 @@ vi.mock("$lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readFile: (...a: unknown[]) => readFile(...a),
 	readFilePreview: (...a: unknown[]) => readFilePreview(...a),
+	fileMtimes: async () => ({}),
 }));
 
 const gitState = writable<Record<string, unknown>>({});
@@ -150,6 +151,7 @@ function setGit(overrides: Record<string, unknown> = {}) {
 	gitState.set({
 		isGitRepo: true,
 		status: {},
+		statusWorktree: "/wt",
 		changedPaths: { staged: [], unstaged: [] },
 		unstagedDiffs: [],
 		stagedDiffs: [],

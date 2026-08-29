@@ -6,6 +6,7 @@
    */
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from '$lib/i18n';
+  import { withViewTransition } from '$lib/utils/view-transition';
   import AddProject from '$lib/components/AddProject.svelte';
   import EditProject from '$lib/components/EditProject.svelte';
   import HomeSidebar, { type HomeSection } from '$lib/components/home/HomeSidebar.svelte';
@@ -44,6 +45,10 @@
 
   onMount(() => { mounted = true; });
 
+  function showSection(section: HomeSection) {
+    withViewTransition(() => { activeSection = section; });
+  }
+
   $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });
 
   $: if (openSection !== null) {
@@ -69,7 +74,7 @@
 <div class="home">
   <HomeSidebar
     {activeSection}
-    on:select={(e) => activeSection = e.detail}
+    on:select={(e) => showSection(e.detail)}
   />
 
   <main class="home-main">
@@ -171,7 +176,7 @@
       </div>
 
     {:else if activeSection === 'settings'}
-      <SettingsPanel bind:settingsTab on:openSection={(e) => (activeSection = e.detail as HomeSection)}/>
+      <SettingsPanel bind:settingsTab on:openSection={(e) => showSection(e.detail as HomeSection)}/>
     {/if}
   </main>
 </div>

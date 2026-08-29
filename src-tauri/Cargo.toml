@@ -18,6 +18,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [workspace]
 members = ["cli"]
 
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
 [[bin]]
 name = "cairn"
 path = "src/main.rs"

@@ -2660,6 +2660,10 @@ export const en = {
 			stickyScrollDesc:
 				"Keep the enclosing scopes - function, class, block - pinned at the top of the editor while scrolling.",
 			toggleStickyScroll: "Toggle sticky scroll",
+			lineWrap: "Wrap long lines",
+			lineWrapDesc:
+				"Break lines at the editor width instead of scrolling sideways. Off, scrolling large files is smoother.",
+			toggleLineWrap: "Toggle line wrapping",
 			quickSearchGroup: "Quick Search",
 			quickSearchGitignored: "Show gitignored files in quick search",
 			quickSearchGitignoredDesc:

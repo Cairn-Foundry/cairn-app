@@ -7,7 +7,7 @@
   import { t } from '$lib/i18n';
   import { langFromPath } from '$lib/services/file-service';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
-  import { highlightLineToHtml } from '$lib/utils/git/diff-syntax-highlight';
+  import { cachedLineHtml, highlightLineToHtml } from '$lib/utils/git/diff-syntax-highlight';
   import { activeSyntaxTokens } from '$lib/stores/settings';
 
   export let hunks: GitDiffHunk[] = [];
@@ -27,7 +27,7 @@
    */
   function highlightedLine(content: string, _tick: number): string {
     const key = `${lang}:${content}`;
-    const cached = highlightCache.get(key);
+    const cached = highlightCache.get(key) ?? cachedLineHtml(content, lang, $activeSyntaxTokens);
     if (cached !== undefined) return cached;
     const fallback = content
       .replace(/&/g, '&amp;')

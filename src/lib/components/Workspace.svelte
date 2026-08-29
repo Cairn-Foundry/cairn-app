@@ -106,8 +106,10 @@
   }
 
   function selectTool(id: string) {
-    showTool(id as 'terminal' | 'commands' | 'env' | 'formatting');
-    showTools = false;
+    withViewTransition(() => {
+      showTool(id as 'terminal' | 'commands' | 'env' | 'formatting');
+      showTools = false;
+    });
   }
 
   function closeSidebarPanels() {

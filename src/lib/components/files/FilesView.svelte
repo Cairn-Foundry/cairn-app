@@ -51,6 +51,7 @@ import { get } from 'svelte/store';
   import type { EditorState } from '@codemirror/state';
   import {
     type Tab,
+    type PaneTabState,
     type PersistedState,
     type InstanceTabState,
     toPersistedState,
@@ -187,7 +188,7 @@ import { get } from 'svelte/store';
    * editor followed by its content. Unsaved buffers of a scope left earlier
    * take precedence over the file on disk.
    */
-  async function rehydrateTabs(wtp: string, persisted: PersistedState, dirty?: Map<string, Tab>) {
+  async function rehydrateTabs(wtp: string, persisted: PersistedState) {
     restoring = true;
     expanded = new Set(persisted.expanded);
     splitMode = persisted.splitMode ?? false;
@@ -195,21 +196,24 @@ import { get } from 'svelte/store';
     tick().then(() => { restoring = false; });
 
     const result = await rehydrateFromPersisted(wtp, persisted);
-    return result.panes.map(r => {
-      const tabs = r.tabs.map(t => dirty?.get(t.path) ?? t);
-      for (const t of dirty?.values() ?? []) {
-        if (!tabs.some(x => x.path === t.path)) tabs.push(t);
-      }
-      return { ...makePane(), tabs, activeTabIdx: r.activeTabIdx };
-    });
+    return result.panes.map(r => ({ ...makePane(), tabs: r.tabs, activeTabIdx: r.activeTabIdx }));
+  }
+
+  function restoreTabsFromMemory(persisted: PersistedState, kept: PaneTabState[]) {
+    restoring = true;
+    expanded = new Set(persisted.expanded);
+    splitMode = persisted.splitMode ?? false;
+    splitLeftWidth = persisted.splitLeftWidth ?? 0;
+    tick().then(() => { restoring = false; });
+    return kept.map(r => ({ ...makePane(), tabs: r.tabs, activeTabIdx: r.activeTabIdx }));
   }
 
   /**
-   * What a scope left behind: its layout, its unsaved buffers, and nothing
-   * else. Clean tabs are read back from disk on return, so a session that
-   * visited many instances does not pin every file it ever showed in memory.
+   * What a scope left behind: its layout and its open documents, bounded to
+   * the last few scopes so a session that visited many instances does not
+   * pin every file it ever showed in memory.
    */
-  interface SavedScope { persisted: PersistedState; dirty: Map<string, Tab>; recentFiles: string[] }
+  interface SavedScope { persisted: PersistedState; dirty: Map<string, Tab>; recentFiles: string[]; panes: PaneTabState[] }
   const SAVED_SCOPES_MAX = 4;
   const savedState = new Map<string, SavedScope>();
 
@@ -507,7 +511,22 @@ import { get } from 'svelte/store';
         if (tab.path === changedPath) tab.doc = doc;
       }
     }
-    panes = panes;
+    invalidatePanes();
+  }
+
+  /**
+   * A keystroke and its cursor move each used to reassign `panes`, which
+   * re-evaluates every reactive block of this component and re-passes every
+   * prop to the panes and the tree, twice per key, before the frame paints.
+   * The reassignment is folded into one per frame, after the editor drew.
+   */
+  let paneInvalidation = 0;
+  function invalidatePanes() {
+    if (paneInvalidation) return;
+    paneInvalidation = requestAnimationFrame(() => {
+      paneInvalidation = 0;
+      panes = panes;
+    });
   }
 
   /** Writes the pane's pending content to disk, optionally formatting first, and refreshes git state. */
@@ -1315,7 +1334,7 @@ import { get } from 'svelte/store';
   function handleCursorChange(i: number, line: number, col: number) {
     cursorLines[i] = line;
     cursorCols[i] = col;
-    panes = panes;
+    invalidatePanes();
   }
 
   $: tooltipSearch = `Search (${bindingToLabels($shortcuts.searchFiles).join('')})`;
@@ -1699,7 +1718,7 @@ import { get } from 'svelte/store';
     for (const p of state.panes) for (const t of p.tabs) if (isDirty(t)) dirty.set(t.path, t);
     const scope = `${currentProjectId}:${currentInstanceId}`;
     savedState.delete(scope);
-    savedState.set(scope, { persisted: toPersistedState(state), dirty, recentFiles });
+    savedState.set(scope, { persisted: toPersistedState(state), dirty, recentFiles, panes: state.panes });
     for (const key of savedState.keys()) {
       if (savedState.size <= SAVED_SCOPES_MAX) break;
       if (savedState.get(key)!.dirty.size === 0) savedState.delete(key);
@@ -1743,7 +1762,12 @@ import { get } from 'svelte/store';
             splitLeftWidth = 0;
             return;
           }
-          const restored = await rehydrateTabs(wtp, persisted, saved?.dirty);
+          /* A scope left this session keeps its documents: coming back to it
+             costs no read of every open file through the IPC bridge. The mtime
+             poll catches a file edited meanwhile. */
+          const restored = saved
+            ? restoreTabsFromMemory(persisted, saved.panes)
+            : await rehydrateTabs(wtp, persisted);
           if (currentScope !== scope) return;
           panes = restored;
           syncActiveTabToTree();
@@ -1798,7 +1822,7 @@ import { get } from 'svelte/store';
   let unlistenFsChanged: (() => void) | null = null;
   void onFsChanged(({ worktree, gitOnly }) => {
     if (worktree === worktreePath) {
-      if (!gitOnly) scheduleKeyed('background', `walk:${worktree}`, () => { void loadTree(worktree, { silent: true }); });
+      if (!gitOnly) scheduleWalk(worktree);
       void refreshGitStore(true);
       return;
     }
@@ -1809,6 +1833,27 @@ import { get } from 'svelte/store';
     unlistenFsChanged?.();
     for (const root of [...watchedRoots]) unwatchRoot(root);
   });
+
+  /**
+   * A build or an agent writing files fires the watcher every 300 ms, and each
+   * event used to walk the whole repository again. Walks are spaced out while
+   * the events keep coming, with a trailing one so the last change still lands.
+   * ponytail: a full walk per burst; patch the tree from the event paths if a
+   * profile still shows the walk during long builds
+   */
+  const WALK_MIN_INTERVAL_MS = 3000;
+  let lastWalkAt = 0;
+  let walkTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleWalk(root: string) {
+    if (walkTimer) return;
+    const wait = Math.max(0, lastWalkAt + WALK_MIN_INTERVAL_MS - Date.now());
+    walkTimer = setTimeout(() => {
+      walkTimer = null;
+      lastWalkAt = Date.now();
+      if (worktreePath === root) void loadTree(root, { silent: true });
+    }, wait);
+  }
+  onDestroy(() => { if (walkTimer) clearTimeout(walkTimer); });
 
   function countNodes(nodes: FileNode[]): number {
     let total = 0;

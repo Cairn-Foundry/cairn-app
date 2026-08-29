@@ -17,7 +17,7 @@
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import GitignoreView from '$lib/components/git/GitignoreView.svelte';
-  import { readFile, readFilePreview, isBinaryPath } from '$lib/services/file-service';
+  import { readFile, readFilePreview, fileMtimes, isBinaryPath } from '$lib/services/file-service';
   import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '$lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk, GitError } from '$lib/services/git-service';
   import { describeGitError } from '$lib/utils/git/git-error';
@@ -183,55 +183,106 @@
    * search filter downstream then settles on the slice it saw mid-scan - the
    * changes search stopped filtering anything at all.
    */
-  let untracked: { paths: string[]; content: Record<string, string> } = {
+  let untracked: { worktree: string | null; paths: string[]; content: Record<string, string> } = {
+    worktree: null,
     paths: [],
     content: {},
   };
 
-  $: void loadUntrackedContent(state.status, instance?.worktreePath ?? null);
+  /* The status and the worktree move separately across a project switch, so a
+     scan is only started once the status belongs to the worktree on screen,
+     and only its latest run may publish: an older one landing after a switch
+     used to drop the previous project's files into the new list. */
+  $: void loadUntrackedContent(state.status, state.statusWorktree, instance?.worktreePath ?? null);
+
+  let untrackedScan = 0;
+  /** Content and mtime of every untracked file already read, so a poll only re-reads what moved. */
+  let untrackedRead = new Map<string, { mtime: number; text: string }>();
 
   /** Reads the text of every untracked, non-ignored, non-binary file so it can be diffed. */
   async function loadUntrackedContent(
     status: typeof state.status,
+    statusWorktree: string | null,
     wt: string | null,
   ): Promise<void> {
-    if (!wt) {
-      untracked = { paths: [], content: {} };
+    const scan = ++untrackedScan;
+    if (!wt || statusWorktree !== wt) {
+      untracked = { worktree: null, paths: [], content: {} };
       return;
     }
     const all = Object.entries(status)
       .filter(([, s]) => s === 'untracked')
       .map(([p]) => p);
     const ignored = new Set(await checkIgnore(wt, all).catch(() => []));
+    if (scan !== untrackedScan) return;
     const visible = all.filter(p => !ignored.has(p));
     const next: Record<string, string> = {};
     const readable = visible.filter(p => !isBinaryPath(p));
+    const mtimes = await fileMtimes(readable.map(p => `${wt}/${p}`)).catch(() => ({}) as Record<string, number>);
+    if (scan !== untrackedScan) return;
     // Sized before being read: an untracked build artifact would otherwise be pulled
     // into the webview whole just to render a diff nobody asked for.
     const entries = await Promise.all(
       readable.map(async p => {
         const full = `${wt}/${p}`;
+        const mtime = mtimes[full] ?? -1;
+        const known = untrackedRead.get(full);
+        if (known && known.mtime === mtime) return [p, full, known] as const;
         const preview = await readFilePreview(full).catch(() => null);
         if (!preview || preview.size > UNTRACKED_MAX_BYTES) return null;
-        const text = await readFile(full).catch(() => '');
-        return [p, text ?? ''] as const;
+        const text = (await readFile(full).catch(() => '')) ?? '';
+        return [p, full, { mtime, text }] as const;
       }),
     );
+    if (scan !== untrackedScan) return;
+    const read = new Map<string, { mtime: number; text: string }>();
     for (const entry of entries) {
-      if (entry) next[entry[0]] = entry[1];
+      if (!entry) continue;
+      next[entry[0]] = entry[2].text;
+      read.set(entry[1], entry[2]);
     }
-    untracked = { paths: visible, content: next };
+    untrackedRead = read;
+    const unchanged =
+      untracked.worktree === wt &&
+      untracked.paths.length === visible.length &&
+      untracked.paths.every((p, i) => p === visible[i] && untracked.content[p] === next[p]);
+    if (unchanged) return;
+    untracked = { worktree: wt, paths: visible, content: next };
   }
 
+  /* A diff the store hands back unchanged keeps its card: the store only
+     replaces the arrays when the diffs moved, so identity is the whole check. */
+  const cardByHunks = new WeakMap<GitDiffHunk[], FileCard>();
+  function cardFor(f: GitFileDiff, status: string | null): FileCard {
+    let card = cardByHunks.get(f.hunks);
+    if (!card) {
+      card = makeCard(f.filePath, f.hunks, status, f.truncated);
+      cardByHunks.set(f.hunks, card);
+    }
+    return card;
+  }
+  const untrackedCardByText = new Map<string, FileCard>();
+
+  /* The diffs and the untracked scan land at different times after a switch;
+     the list waits for both, or the second batch drops into the sorted first. */
   $: unstagedCards = (() => {
-    const cards = state.unstagedDiffs.map(f =>
-      makeCard(f.filePath, f.hunks, null, f.truncated),
-    );
+    if (untracked.worktree !== state.statusWorktree) return [];
+    const cards = state.unstagedDiffs.map(f => cardFor(f, null));
     const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
+    const live = new Set<string>();
     for (const p of untracked.paths) {
       if (seen.has(p)) continue;
-      cards.push(makeCard(p, untrackedHunks(untracked.content[p] ?? ''), 'untracked'));
+      const text = untracked.content[p] ?? '';
+      const key = `${p}\0${text}`;
+      live.add(key);
+      let card = untrackedCardByText.get(key);
+      if (!card) {
+        card = makeCard(p, untrackedHunks(text), 'untracked');
+        untrackedCardByText.set(key, card);
+      }
+      cards.push(card);
     }
+    for (const key of untrackedCardByText.keys()) if (!live.has(key)) untrackedCardByText.delete(key);
     return cards.sort((a, b) => a.basename.localeCompare(b.basename));
   })();
 
@@ -240,7 +291,7 @@
     : unstagedCards;
 
   $: stagedCards = state.stagedDiffs
-    .map(f => makeCard(f.filePath, f.hunks, diffStatus(f.hunks), f.truncated))
+    .map(f => cardFor(f, diffStatus(f.hunks)))
     .sort((a, b) => a.basename.localeCompare(b.basename));
 
   $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()

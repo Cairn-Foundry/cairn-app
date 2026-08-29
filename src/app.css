@@ -3309,9 +3309,9 @@ html[data-theme="glass"] body { background: transparent; }
 html[data-theme="glass"] .os-window {
   background: transparent;
 }
-html[data-theme="glass"] :is(.title-bar, .sidebar, .tabs-row) {
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+html[data-theme="glass"][data-os="macos"] :is(.title-bar, .sidebar, .tabs-row) {
+  backdrop-filter: saturate(180%);
+  -webkit-backdrop-filter: saturate(180%);
 }
 html[data-theme="glass"] .main {
   background: var(--bg-0-solid);

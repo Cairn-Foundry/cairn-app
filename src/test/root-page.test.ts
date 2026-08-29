@@ -339,9 +339,26 @@ describe("application root", () => {
 			) as HTMLElement;
 			button.click();
 			await vi.advanceTimersByTimeAsync(300);
-			button.click();
+			(
+				document.querySelector(".stub-section-change-other") as HTMLElement
+			).click();
 			await vi.advanceTimersByTimeAsync(300);
 			expect(saveUiState).toHaveBeenCalledTimes(2);
+		});
+
+		it("does not write again when nothing changed", async () => {
+			render(Page);
+			await settle();
+			saveUiState.mockClear();
+			vi.useFakeTimers();
+			const button = document.querySelector(
+				".stub-section-change",
+			) as HTMLElement;
+			button.click();
+			await vi.advanceTimersByTimeAsync(300);
+			button.click();
+			await vi.advanceTimersByTimeAsync(300);
+			expect(saveUiState).toHaveBeenCalledTimes(1);
 		});
 	});
 

@@ -16,6 +16,7 @@
   const whitespaceCompartment = new Compartment();
   const languageCompartment = new Compartment();
   const instanceCompartment = new Compartment();
+  const lineWrapCompartment = new Compartment();
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -72,6 +73,7 @@
   export let readonly: boolean = true;
   export let minimapEnabled: boolean = true;
   export let stickyScrollEnabled: boolean = true;
+  export let lineWrap: boolean = false;
   export let fontSize: number = EDITOR_DEFAULTS.fontSize;
   export let baseContent: string | null = null;
   export let onChunkClick: ((chunk: GutterChunk) => void) | undefined = undefined;
@@ -414,7 +416,7 @@
       stickyScrollTheme,
       themeCompartment.of(buildEditorTheme(theme)),
       fontSizeCompartment.of(buildFontSizeTheme(fontSize)),
-      EditorView.lineWrapping,
+      lineWrapCompartment.of(lineWrap ? EditorView.lineWrapping : []),
       EditorState.readOnly.of(readonly),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -422,7 +424,7 @@
           onChange?.(lastEmitted, lspChangesOf(update.startState.doc, update.changes));
         }
         if (update.docChanged || update.transactions.some(tr => tr.effects.length > 0)) {
-          queueMicrotask(() => syncMinimap($settings.theme, minimapEnabled));
+          scheduleMinimapSync();
         }
         if (update.docChanged || update.selectionSet) {
           const head = update.state.selection.main.head;
@@ -513,6 +515,7 @@
       themeCompartment.reconfigure(buildEditorTheme($settings.theme)),
       highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight($settings.theme, $activeSyntaxTokens))),
       whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []),
+      lineWrapCompartment.reconfigure(lineWrap ? EditorView.lineWrapping : []),
     ] });
     syncedLang = undefined;
     syncedBase = undefined;
@@ -536,7 +539,24 @@
     view.dispatch({ effects: setMarkdownDocPath.of(docPath) });
   }
 
-  $: if (view) syncMinimap($settings.theme, minimapEnabled, true);
+  /* Reconfiguring the minimap compartment rebuilds its plugin, which redraws
+     the whole document: once per typing pause, not once per key. */
+  const MINIMAP_SYNC_DELAY_MS = 250;
+  let minimapTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleMinimapSync() {
+    if (minimapTimer) clearTimeout(minimapTimer);
+    minimapTimer = setTimeout(() => {
+      minimapTimer = null;
+      syncMinimap(editorTheme, minimapEnabled);
+    }, MINIMAP_SYNC_DELAY_MS);
+  }
+  onDestroy(() => { if (minimapTimer) clearTimeout(minimapTimer); });
+
+  /* Read once so the blocks below react to the theme, not to every settings save. */
+  let editorTheme = $settings.theme;
+  $: editorTheme = $settings.theme;
+
+  $: if (view) syncMinimap(editorTheme, minimapEnabled, true);
 
   let syncedStickyScroll = true;
   $: if (view && stickyScrollEnabled !== syncedStickyScroll) {
@@ -567,10 +587,9 @@
   $: if (view) view.dispatch({ effects: shortcutKeymapCompartment.reconfigure(buildShortcutKeymap($activeShortcuts)) });
 
   $: if (view) {
-    const theme = $settings.theme;
     view.dispatch({ effects: [
-      themeCompartment.reconfigure(buildEditorTheme(theme)),
-      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
+      themeCompartment.reconfigure(buildEditorTheme(editorTheme)),
+      highlightCompartment.reconfigure(syntaxHighlighting(buildHighlight(editorTheme, $activeSyntaxTokens))),
     ]});
   }
 
@@ -593,6 +612,8 @@
   }
 
   $: if (view) view.dispatch({ effects: whitespaceCompartment.reconfigure(showWhitespace ? highlightWhitespace() : []) });
+
+  $: if (view) view.dispatch({ effects: lineWrapCompartment.reconfigure(lineWrap ? EditorView.lineWrapping : []) });
 
   let syncedDiagnostics: LspDiagnostic[] | undefined = undefined;
   $: if (view && lspDiagnostics !== syncedDiagnostics) {

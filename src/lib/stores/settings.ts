@@ -17,6 +17,7 @@ const DEFAULTS: CairnSettings = {
 	treePanelWidth: 220,
 	showMinimap: true,
 	stickyScroll: true,
+	lineWrap: false,
 	editorFontSize: 13,
 	uiScale: 1,
 	fontFamily: "Menlo, ui-monospace, monospace",

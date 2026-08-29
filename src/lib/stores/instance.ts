@@ -135,6 +135,11 @@ export const instancesWithBase = derived(
 		$activeProject ? [baseInstance($activeProject), ...$instances] : $instances,
 );
 
+/** Whether a project's instances were already read this session. */
+export function hasInstances(projectId: string): boolean {
+	return projectId in get(instancesByProject);
+}
+
 /** Reads a project's instances; until this resolves the project has no key, and activeInstance stays null. */
 export async function loadInstances(projectId: string): Promise<void> {
 	const data = await listInstances(projectId);

@@ -91,6 +91,8 @@ pub struct CairnSettings {
     pub show_minimap: bool,
     #[serde(rename = "stickyScroll", default = "default_sticky_scroll")]
     pub sticky_scroll: bool,
+    #[serde(rename = "lineWrap", default)]
+    pub line_wrap: bool,
     #[serde(rename = "editorFontSize", default = "default_editor_font_size")]
     pub editor_font_size: u32,
     #[serde(rename = "uiScale", default = "default_ui_scale")]
@@ -266,6 +268,7 @@ impl Default for CairnSettings {
             tree_panel_width: default_tree_panel_width(),
             show_minimap: default_show_minimap(),
             sticky_scroll: default_sticky_scroll(),
+            line_wrap: false,
             editor_font_size: default_editor_font_size(),
             ui_scale: default_ui_scale(),
             editor_font_family: default_editor_font_family(),

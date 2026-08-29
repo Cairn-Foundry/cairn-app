@@ -37,6 +37,7 @@ type GitState = {
 	indexVersion: number;
 	/** Hash of the last snapshot read, handed back so an unchanged poll answers with nothing. */
 	snapshotVersion: number;
+	diffVersion: number;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
@@ -66,6 +67,7 @@ const INITIAL: GitState = {
 	statusWorktree: null,
 	indexVersion: 0,
 	snapshotVersion: 0,
+	diffVersion: 0,
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	changedPaths: { staged: [], unstaged: [] },
@@ -202,13 +204,11 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 	if (!silent) _git.update((s) => ({ ...s, isLoading: true, error: null }));
 	try {
 		const before = get(_git);
-		const known = before.statusWorktree === wt ? before.snapshotVersion : 0;
+		const sameWorktree = before.statusWorktree === wt;
+		const known = sameWorktree ? before.snapshotVersion : 0;
 		const snapshotPromise = gitService.getSnapshot(wt, known);
 		const diffsPromise = diffsWanted
-			? Promise.all([
-					gitService.getDiffUnstaged(wt),
-					gitService.getDiffStaged(wt),
-				])
+			? gitService.getDiffs(wt, sameWorktree ? before.diffVersion : 0)
 			: Promise.resolve(null);
 		diffsPromise.catch(() => {});
 
@@ -221,6 +221,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				snapshotVersion: snap.version,
 				unstagedDiffs: [],
 				stagedDiffs: [],
+				diffVersion: 0,
 				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
@@ -238,11 +239,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		const bump = indexDirty ? 1 : 0;
 		indexDirty = false;
 		const current = get(_git);
-		const diffsChanged =
-			diffs !== null &&
-			JSON.stringify(diffs) !==
-				JSON.stringify([current.unstagedDiffs, current.stagedDiffs]);
-		if (!snap && !diffsChanged && !bump && !current.isLoading) return;
+		if (!snap && !diffs && !bump && !current.isLoading) return;
 		_git.update((s) => ({
 			...s,
 			...(snap
@@ -258,8 +255,9 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 					}
 				: {}),
 			indexVersion: s.indexVersion + bump,
-			unstagedDiffs: diffsChanged && diffs ? diffs[0] : s.unstagedDiffs,
-			stagedDiffs: diffsChanged && diffs ? diffs[1] : s.stagedDiffs,
+			unstagedDiffs: diffs ? diffs.unstaged : s.unstagedDiffs,
+			stagedDiffs: diffs ? diffs.staged : s.stagedDiffs,
+			diffVersion: diffs ? diffs.version : s.diffVersion,
 			isLoading: false,
 		}));
 	} catch (e) {
@@ -638,6 +636,7 @@ export function clearGitData(): void {
 		statusWorktree: null,
 		unstagedDiffs: [],
 		stagedDiffs: [],
+		diffVersion: 0,
 		changedPaths: { staged: [], unstaged: [] },
 		currentBranch: "",
 		remoteStatus: null,

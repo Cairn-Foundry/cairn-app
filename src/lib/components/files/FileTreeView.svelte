@@ -13,7 +13,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import type { FileNode, GitStatusMap } from '$lib/services/file-service';
-  import { fileIcon as fileIconFor, flattenVisible, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
+  import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
 
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 
@@ -77,7 +77,7 @@
    * capture taken anywhere else would send the compatibility click to the wrong
    * element.
    */
-  $: visibleByPath = new Map(flattenVisible(tree, expanded).map((n) => [n.path, n]));
+  $: visibleByPath = new Map(flatNodes.map((f) => [f.node.path, f.node]));
 
   /** The tree node a delegated event landed on, or null outside any row. */
   function nodeFromEvent(e: Event): FileNode | null {

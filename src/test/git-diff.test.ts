@@ -7,6 +7,7 @@ import type { GitDiffHunk } from "$lib/services/git-service";
 const highlightLineToHtml = vi.fn();
 vi.mock("$lib/utils/git/diff-syntax-highlight", () => ({
 	highlightLineToHtml: (...a: unknown[]) => highlightLineToHtml(...a),
+	cachedLineHtml: () => undefined,
 }));
 
 const { default: GitDiff } = await import("$lib/components/git/GitDiff.svelte");

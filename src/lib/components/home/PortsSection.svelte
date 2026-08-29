@@ -12,6 +12,8 @@
   import KillProcessModal from '$lib/components/home/KillProcessModal.svelte';
   import { t } from '$lib/i18n';
   import { listListeningPorts, killProcess, type ListeningPort } from '$lib/services/ports-service';
+  import { activeScreen } from '$lib/stores/ui';
+  import { get } from 'svelte/store';
 
   const REFRESH_MS = 5000;
 
@@ -90,7 +92,7 @@
 
   onMount(() => {
     refresh();
-    timer = setInterval(refresh, REFRESH_MS);
+    timer = setInterval(() => { if (get(activeScreen) === 'home') void refresh(); }, REFRESH_MS);
   });
 
   onDestroy(() => {

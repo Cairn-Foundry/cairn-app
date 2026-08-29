@@ -2711,6 +2711,10 @@ export const fr = {
 			stickyScrollDesc:
 				"Garde les portées englobantes - fonction, classe, bloc - épinglées en haut de l'éditeur pendant le défilement.",
 			toggleStickyScroll: "Basculer le défilement contextuel",
+			lineWrap: "Retour à la ligne automatique",
+			lineWrapDesc:
+				"Coupe les lignes à la largeur de l'éditeur au lieu de défiler horizontalement. Désactivé, le défilement des gros fichiers est plus fluide.",
+			toggleLineWrap: "Basculer le retour à la ligne",
 			quickSearchGroup: "Recherche rapide",
 			quickSearchGitignored:
 				"Afficher les fichiers gitignorés dans la recherche rapide",

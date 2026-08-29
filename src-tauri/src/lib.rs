@@ -72,33 +72,29 @@ pub fn run() {
             commands::lsp::spawn_idle_reaper(app.handle().clone());
 
             /* Transparency is decided when the window is created and cannot be
-               changed afterwards, so the window declared in tauri.conf.json is
-               replaced by an opaque one when the user turned the effects off.
-               A transparent window is composited with alpha every frame, which
-               costs the webview its opaque fast path while scrolling. */
+               changed afterwards, so the window is built here rather than
+               declared in tauri.conf.json. A transparent window is composited
+               with alpha every frame, which costs the webview its opaque fast
+               path while scrolling, which is what the transparency effects
+               setting trades away. */
             let transparent = commands::settings::read_settings()
                 .map(|s| s.transparency_effects)
                 .unwrap_or(true);
-            if !transparent {
-                if let Some(existing) = app.get_webview_window("main") {
-                    let _ = existing.close();
-                }
-                let builder = tauri::WebviewWindowBuilder::new(
-                    app,
-                    "main",
-                    tauri::WebviewUrl::default(),
-                )
-                .title("Cairn")
-                .inner_size(1440.0, 900.0)
-                .min_inner_size(480.0, 360.0)
-                .resizable(true)
-                .transparent(false);
-                #[cfg(target_os = "macos")]
-                let builder = builder
-                    .title_bar_style(tauri::TitleBarStyle::Overlay)
-                    .hidden_title(true);
-                builder.build()?;
-            }
+            let builder = tauri::WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::default(),
+            )
+            .title("Cairn")
+            .inner_size(1440.0, 900.0)
+            .min_inner_size(480.0, 360.0)
+            .resizable(true)
+            .transparent(transparent);
+            #[cfg(target_os = "macos")]
+            let builder = builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+            builder.build()?;
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};
@@ -221,6 +217,7 @@ pub fn run() {
             git_stash_pop,
             git_stash_apply,
             git_snapshot,
+            git_diffs,
             read_dir_tree_cached,
             watch_worktree,
             unwatch_worktree,

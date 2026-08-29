@@ -235,6 +235,22 @@ export async function getDiffUnstaged(
 	return invoke("git_diff_unstaged", { worktreePath });
 }
 
+/** Both diffs behind a version; null when the caller already holds that version. */
+export interface GitDiffs {
+	version: number;
+	unstaged: GitFileDiff[];
+	staged: GitFileDiff[];
+}
+
+export async function getDiffs(
+	worktreePath: string,
+	knownVersion: number,
+): Promise<GitDiffs | null> {
+	return dedupeInflight(`diffs:${worktreePath}:${knownVersion}`, () =>
+		invoke("git_diffs", { worktreePath, knownVersion }),
+	);
+}
+
 /** Index against HEAD: what the next commit would contain. */
 export async function getDiffStaged(
 	worktreePath: string,

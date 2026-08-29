@@ -68,6 +68,7 @@ export interface CairnSettings {
 	treePanelWidth: number;
 	showMinimap: boolean;
 	stickyScroll: boolean;
+	lineWrap: boolean;
 	editorFontSize: number;
 	uiScale: number;
 	fontFamily: string;

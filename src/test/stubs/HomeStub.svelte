@@ -25,4 +25,8 @@
     class="stub-section-change"
     on:click={() => dispatch('sectionChange', { section: 'settings', settingsTab: 'git' })}
   ></button>
+  <button
+    class="stub-section-change-other"
+    on:click={() => dispatch('sectionChange', { section: 'settings', settingsTab: 'editor' })}
+  ></button>
 </div>

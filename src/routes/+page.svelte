@@ -9,7 +9,7 @@
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
-  import { loadInstances, activeInstance } from '$lib/stores/instance';
+  import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
   import { git } from '$lib/stores/git';
   import { initTerminals } from '$lib/stores/terminal';
   import { loadAgentActivity } from '$lib/stores/agent-activity';
@@ -124,19 +124,24 @@
   }
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastPersisted = '';
   function persistUiState() {
     if (!mounted) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       snapshotCurrentProject();
-      saveUiState({
+      const state = {
         screen,
         activeProjectId: get(activeProjectId),
         openTabOrder: get(openTabOrder),
         homeSection,
         homeSettingsTab,
         projectStates: getAllProjectStates(),
-      });
+      };
+      const serialized = JSON.stringify(state);
+      if (serialized === lastPersisted) return;
+      lastPersisted = serialized;
+      saveUiState(state);
     }, 300);
   }
 
@@ -175,6 +180,11 @@
     initViewStates(saved.projectStates ?? {});
 
     await loadListing();
+    /* The other open tabs are read in the background so switching to one of
+       them waits on nothing. */
+    for (const p of get(openProjects)) {
+      if (p.id !== saved?.activeProjectId && !hasInstances(p.id)) void loadInstances(p.id).catch(() => {});
+    }
 
     if (saved.openTabOrder.length > 0) reorderTabs(saved.openTabOrder);
 
@@ -238,10 +248,12 @@
    */
   async function switchTo(id: string) {
     snapshotCurrentProject();
-    await loadInstances(id);
-    activeProjectId.set(id);
-    lastOpenedProjectId.set(id);
-    applyProjectState(id);
+    if (!hasInstances(id)) await loadInstances(id);
+    withViewTransition(() => {
+      activeProjectId.set(id);
+      lastOpenedProjectId.set(id);
+      applyProjectState(id);
+    });
   }
 
   async function handleProjectChange(newId: string) {

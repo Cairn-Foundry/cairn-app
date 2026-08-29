@@ -196,6 +196,20 @@
   </div>
   <div class="settings-row">
     <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.editor.lineWrap')}</span>
+      <span class="settings-row-desc">{t('settings.editor.lineWrapDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.editor.toggleLineWrap') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.lineWrap}
+        on:change={(e) => settings.save({ lineWrap: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
       <span class="settings-row-label">{t('settings.editor.saveOn')}</span>
       <span class="settings-row-desc">{t('settings.editor.saveOnDesc')}</span>
     </div>

@@ -204,6 +204,7 @@
             readonly={false}
             minimapEnabled={$settings.showMinimap}
             stickyScrollEnabled={$settings.stickyScroll}
+            lineWrap={$settings.lineWrap}
             fontSize={$settings.editorFontSize}
             showWhitespace={$settings.showWhitespace}
             initialCursorPos={activeTab.cursorPos}
