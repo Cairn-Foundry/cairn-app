@@ -25,7 +25,7 @@ export const SYNTAX_TOKEN_KEYS = [
 export type SyntaxTokenKey = (typeof SYNTAX_TOKEN_KEYS)[number];
 
 /** One token's appearance; only the colour is required. */
-export interface SyntaxTokenStyle {
+interface SyntaxTokenStyle {
 	color: string;
 	bold?: boolean;
 	italic?: boolean;

@@ -56,7 +56,7 @@ export interface SkillProject {
 }
 
 /** A skill as submitted for writing; `originalPaths` are the copies it currently occupies. */
-export interface SkillInput {
+interface SkillInput {
 	originalPaths: string[];
 	targets: CliProviderId[];
 	scope: SkillScope;

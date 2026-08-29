@@ -8,7 +8,7 @@ import {
 } from "$lib/utils/editor/syntax-tokens";
 
 /** One coloured run of the syntax preview. */
-export interface PreviewSegment {
+interface PreviewSegment {
 	/** Omitted for plain text painted with the editor foreground. */
 	token?: SyntaxTokenKey;
 	text: string;

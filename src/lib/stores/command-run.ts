@@ -209,7 +209,7 @@ export async function launchCommand(
 }
 
 /** A launch held back until the user confirms or fills the prompts it declares. */
-export interface PendingLaunch {
+interface PendingLaunch {
 	command: CustomCommand;
 	project: Project;
 	instance: Instance;

@@ -14,7 +14,7 @@ export interface ResolvedEnvEntry {
 }
 
 /** The three scopes plus the per-instance answers to resolve them against. */
-export interface EnvResolutionInput {
+interface EnvResolutionInput {
 	global: EnvVariable[];
 	project: EnvVariable[];
 	instance: EnvVariable[];

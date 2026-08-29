@@ -4,7 +4,7 @@ import { formatCount, formatDuration } from "$lib/utils/format";
 export type ResponseStatField = "duration" | "tokens" | "cost" | "turns";
 
 /** A stat and the icon it is drawn with, before a value is known. */
-export interface ResponseStatDef {
+interface ResponseStatDef {
 	id: ResponseStatField;
 	icon: string;
 }

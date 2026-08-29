@@ -3,7 +3,7 @@ import { get, writable } from "svelte/store";
 import { trackerListTickets } from "$lib/services/integration-service";
 import { bindingsByProject, loadProjectIntegrations } from "./integrations";
 
-export interface ProjectInboxCount {
+interface ProjectInboxCount {
 	tickets: number;
 	hasMore: boolean;
 }

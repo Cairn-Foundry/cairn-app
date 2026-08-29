@@ -1,5 +1,5 @@
 /** Generated from the former Icon.svelte branches: one entry per icon, drawn by Icon.svelte with a single lookup. */
-export interface IconDef {
+interface IconDef {
 	solid: boolean;
 	body: string;
 }

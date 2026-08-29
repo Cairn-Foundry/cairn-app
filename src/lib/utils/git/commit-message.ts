@@ -2,7 +2,7 @@
 // building the prompt that asks for it.
 
 /** The commit form's two fields, as parsed out of one block of text. */
-export interface ParsedCommitMessage {
+interface ParsedCommitMessage {
 	title: string;
 	body: string;
 }

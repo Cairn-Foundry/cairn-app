@@ -8,7 +8,7 @@ export interface ParsedEnvEntry {
 }
 
 /** Parse result; `invalid` keeps the lines verbatim so they can be reported. */
-export interface ParsedEnvFile {
+interface ParsedEnvFile {
 	entries: ParsedEnvEntry[];
 	invalid: string[];
 }

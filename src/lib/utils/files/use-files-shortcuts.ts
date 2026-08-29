@@ -13,7 +13,7 @@ import {
 // action is injected, so the shortcut routing can be read and tested on its own.
 
 /** Everything the handler reads or calls back into, supplied by `FilesView`. */
-export interface FilesShortcutsContext {
+interface FilesShortcutsContext {
 	// -- Action getters/setters ---------------------------------------------
 	getActiveShortcuts: () => Record<ShortcutId, ShortcutBinding | null>;
 	isWorkspaceActive: () => boolean;

@@ -7,7 +7,7 @@ import { formatClock, formatDate } from "$lib/utils/format";
  * being shown exactly as it was written rather than being given a day it never
  * recorded.
  */
-export interface TimeStamped {
+interface TimeStamped {
 	ts?: number;
 	/** Legacy display time, read for what is already on disk, never written. */
 	time?: string;

@@ -114,7 +114,7 @@ export function candidateToCommand(candidate: ImportCandidate): CustomCommand {
 }
 
 /** The result of scanning one directory: the manager plus what it can offer. */
-export interface ImportScan {
+interface ImportScan {
 	manager: PackageManager;
 	candidates: ImportCandidate[];
 }

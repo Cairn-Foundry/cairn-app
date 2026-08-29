@@ -16,7 +16,7 @@ export type AiFeatureId =
 	| "ciFix"
 	| "reviewReply";
 
-export interface AiFeatureDef {
+interface AiFeatureDef {
 	id: AiFeatureId;
 	icon: string;
 	/** Whether the feature runs a provider itself, or only composes a prompt. */

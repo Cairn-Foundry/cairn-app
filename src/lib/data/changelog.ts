@@ -18,7 +18,7 @@ export interface ChangelogChange {
 	text: LocalizedText;
 }
 
-export interface ChangelogRelease {
+interface ChangelogRelease {
 	version: string;
 	/** ISO date, empty while the version is still in development. */
 	date: string;

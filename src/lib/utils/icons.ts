@@ -1,5 +1,5 @@
 /** One section of the icon picker. */
-export interface IconGroup {
+interface IconGroup {
 	id: string;
 	names: string[];
 }

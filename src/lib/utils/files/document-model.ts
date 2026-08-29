@@ -7,7 +7,7 @@ import { detectIndentStyle, detectSpaceSize } from "./files-indent";
 // A keystroke hands the pane the view's own `Text` - no copy, no O(n)
 // compare - and "dirty" is a structural equality the rope answers quickly.
 
-export interface DocumentState {
+interface DocumentState {
 	doc: Text;
 	savedDoc: Text;
 }

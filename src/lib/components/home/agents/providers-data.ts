@@ -43,7 +43,7 @@ export interface ProviderDef {
 	logo: string;
 }
 
-export interface ProviderConfig {
+interface ProviderConfig {
 	enabled: boolean;
 	baseUrl: string;
 	model: string;

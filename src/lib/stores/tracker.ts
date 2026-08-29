@@ -72,7 +72,7 @@ function propagateTicket(sourceKey: string, ticket: Ticket): void {
 	});
 }
 
-export interface TicketSearchState {
+interface TicketSearchState {
 	query: TicketQuery;
 	results: Ticket[];
 	hasMore: boolean;
