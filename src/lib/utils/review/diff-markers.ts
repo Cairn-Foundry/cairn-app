@@ -107,7 +107,11 @@ export function guideMarkersFor(
 	const out: DiffMarker[] = [];
 	const add = (marker: DiffMarker) => {
 		const key = `${marker.side}:${marker.line}`;
-		if (used.has(key)) return;
+		if (used.has(key)) {
+			const existing = out.find((m) => `${m.side}:${m.line}` === key);
+			if (existing && existing.kind === marker.kind) existing.count += 1;
+			return;
+		}
 		used.add(key);
 		out.push(marker);
 	};

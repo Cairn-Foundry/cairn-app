@@ -21,6 +21,7 @@
   import type { GuideRemark, ReviewComment, ReviewHunk } from '$lib/types/review';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { basename, parentPathOf } from '$lib/utils/files/files-tree';
+  import { anchorLabel } from '$lib/utils/review/review-guide';
   import { describeGitError } from '$lib/utils/git/git-error';
   import { fileMtimes } from '$lib/services/file-service';
   import { SKELETON_DELAY_MS } from '$lib/utils/timing';
@@ -115,6 +116,9 @@
     reply: { discussion: Discussion; body: string };
     resolve: { discussion: Discussion; resolved: boolean };
     commentLine: { path: string; side: 'old' | 'new'; line: number };
+    addComment: { path: string; side: 'old' | 'new'; line: number; startLine?: number; body: string };
+    deleteComment: { id: string };
+    editComment: { id: string; body: string };
     openRemark: { remarkId: string };
     openFile: string;
     discussionsToggle: { isOpen: boolean };
@@ -370,6 +374,14 @@
       dispatch('openRemark', { remarkId: remark.id });
       return;
     }
+    const comment = comments.find(c => c.path === selectedPath && c.line === e.detail.line && c.side === e.detail.side);
+    if (comment) {
+      selectedCommentId = comment.id;
+      requestAnimationFrame(() =>
+        document.getElementById(`diff-comment-${comment.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+      );
+      return;
+    }
     const hit = anchoredDiscussions.find(d => d.anchor?.line === e.detail.line && d.anchor?.side === e.detail.side);
     if (hit) {
       dispatch('selectDiscussion', { id: hit.id });
@@ -377,6 +389,38 @@
       return;
     }
     dispatch('commentLine', { path: selectedPath, side: e.detail.side, line: e.detail.line });
+  }
+
+  let commentLine: { path: string; side: 'old' | 'new'; line: number; startLine?: number } | null = null;
+  let commentDraft = '';
+  let editingId = '';
+  let selectedCommentId = '';
+
+  function onLineSelect(e: CustomEvent<{ side: 'old' | 'new'; from: number; to: number }>) {
+    commentLine = {
+      path: selectedPath,
+      side: e.detail.side,
+      line: e.detail.to,
+      startLine: e.detail.from < e.detail.to ? e.detail.from : undefined,
+    };
+    if (!isDiscussionsOpen) dispatch('discussionsToggle', { isOpen: true });
+    requestAnimationFrame(() => {
+      const box = document.getElementById('diff-composer');
+      box?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      box?.querySelector('textarea')?.focus();
+    });
+  }
+
+  function cancelComment() {
+    commentLine = null;
+    commentDraft = '';
+    diffEditor?.clearLineSelection();
+  }
+
+  function saveComment() {
+    if (!commentLine || commentDraft.trim() === '') return;
+    dispatch('addComment', { ...commentLine, body: commentDraft.trim() });
+    cancelComment();
   }
 
   function jumpTo(discussion: Discussion) {
@@ -481,6 +525,7 @@
               {language}
               {markers}
               on:markerClick={onMarkerClick}
+              on:lineSelect={onLineSelect}
             />
           {/key}
         {:else if isFileLoading}
@@ -513,6 +558,60 @@
             <Icon name="x" size={13}/>
           </button>
         </div>
+
+        {#if commentLine}
+          <div class="composer" id="diff-composer">
+            <div class="dim mono small">{anchorLabel({ ...commentLine, path: basename(commentLine.path) })}</div>
+            <textarea class="selectable" bind:value={commentDraft} placeholder={t('review.commentPlaceholder') as string} rows="4"></textarea>
+            <div class="composer-actions">
+              <span class="spacer"></span>
+              <button class="btn ghost tiny" on:click={cancelComment}>{t('review.cancel')}</button>
+              <button class="btn primary tiny" on:click={saveComment} disabled={commentDraft.trim() === ''}>{t('review.save')}</button>
+            </div>
+          </div>
+        {/if}
+
+        {#if comments.length > 0}
+          <div class="disc-head">
+            <span class="disc-title">{t('review.pendingComments')}</span>
+            <span class="disc-count">{comments.length}</span>
+          </div>
+          <div class="pending-list">
+            {#each comments as comment (comment.id)}
+              <div
+                class="comment"
+                id="diff-comment-{comment.id}"
+                class:selected={selectedCommentId === comment.id}
+                class:published={!!comment.publishedAs}
+                role="button"
+                tabindex="0"
+                on:click={() => goTo(comment.path, comment.line, comment.side)}
+                on:keydown={(e) => e.key === 'Enter' && goTo(comment.path, comment.line, comment.side)}
+              >
+                <div class="composer-actions">
+                  <span class="dim mono small">{anchorLabel({ ...comment, path: basename(comment.path) })}</span>
+                  <span class="spacer"></span>
+                  {#if !comment.publishedAs}
+                    <button class="btn ghost tiny" on:click|stopPropagation={() => (editingId = editingId === comment.id ? '' : comment.id)}>{t('review.edit')}</button>
+                    <button class="btn ghost tiny" on:click|stopPropagation={() => dispatch('deleteComment', { id: comment.id })}>{t('review.delete')}</button>
+                  {/if}
+                </div>
+                {#if editingId === comment.id}
+                  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                  <textarea
+                    class="selectable"
+                    rows="4"
+                    value={comment.body}
+                    on:click|stopPropagation
+                    on:input={(e) => dispatch('editComment', { id: comment.id, body: e.currentTarget.value })}
+                  ></textarea>
+                {:else}
+                  <p class="comment-body selectable">{comment.body}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
 
         <div class="disc-filters" role="tablist">
           {#each FILTERS as f (f)}
@@ -806,6 +905,43 @@
     min-height: 0;
     background: var(--bg-0);
   }
+  .composer {
+    margin: 4px 10px;
+    padding: 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 5px;
+    background: var(--bg-1);
+  }
+  .composer .small, .comment .small { font-size: 11px; }
+  .pending-list { max-height: 40%; overflow-y: auto; flex-shrink: 0; }
+  .comment {
+    margin: 4px 10px;
+    padding: 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 5px;
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+  .comment:hover { border-color: var(--stroke-1); }
+  .comment.selected { border-color: var(--accent); }
+  .comment.published { opacity: 0.6; }
+  .comment-body { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-1); white-space: pre-wrap; }
+  .composer textarea, .comment textarea {
+    width: 100%;
+    margin: 6px 0;
+    padding: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--fg-0);
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    outline: none;
+    resize: vertical;
+  }
+  .composer textarea:focus, .comment textarea:focus { border-color: var(--accent); }
+  .composer-actions { display: flex; align-items: center; gap: 4px; }
   .disc-head {
     display: flex;
     align-items: center;

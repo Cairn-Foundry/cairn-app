@@ -30,6 +30,9 @@
     setDiscussionResolved,
   } from '$lib/stores/merge-request';
   import {
+    addComment,
+    deleteComment,
+    editComment,
     loadReview,
     openReview,
     reviewAction,
@@ -369,6 +372,9 @@
       on:selectDiscussion={(e) => instance && selectDiscussion(instance.projectId, instance.id, e.detail.id)}
       on:reply={(e) => reply(e.detail.discussion, e.detail.body)}
       on:resolve={(e) => resolve(e.detail.discussion, e.detail.resolved)}
+      on:addComment={(e) => scope && addComment(scope, e.detail)}
+      on:deleteComment={(e) => scope && deleteComment(scope, e.detail.id)}
+      on:editComment={(e) => scope && editComment(scope, e.detail.id, e.detail.body)}
       on:openFile
     />
   {/if}

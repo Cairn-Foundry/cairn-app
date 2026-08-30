@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "In the Review step, clicking a line number in the diff - dragging or shift-clicking to extend to several lines - opens a comment on those lines, in the guide as in the raw diff; it leaves with the review as a line range on GitHub and GitLab.",
+					"fr": "Dans la step Review, un clic sur un numéro de ligne du diff - glisser ou shift+clic pour étendre à plusieurs lignes - ouvre un commentaire sur ces lignes, dans le guide comme dans le diff brut ; il part avec la review en plage de lignes sur GitHub et GitLab."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Searching the git graph waits for the typing to settle before filtering, so a long history no longer stutters on every keystroke; clearing the field still restores the full list at once.",

@@ -2,6 +2,7 @@
 //! discussions, approvals) and CI (pipelines, jobs, traces).
 
 use std::sync::Mutex;
+use sha1::Digest;
 use serde_json::{json, Value};
 use crate::commands::integrations::http::{host_of, HttpClient};
 use crate::commands::integrations::model::*;
@@ -216,6 +217,19 @@ fn gitlab_position(diff_refs: &Value, anchor: &DiscussionAnchor) -> Value {
     };
     position[key] = json!(anchor.line);
     position
+}
+
+/// A multi-line position: GitLab wants both ends as `line_code`s, `sha1(path)_old_new`.
+// ponytail: the same number fills both slots of the line code; the exact old/new
+// pairing needs the diff. Resolve it from the hunk if GitLab rejects a range.
+fn gitlab_line_range(position: &mut Value, anchor: &DiscussionAnchor, start: u32) {
+    let file_hash = format!("{:x}", sha1::Sha1::digest(anchor.path.as_bytes()));
+    let (kind, key) = match anchor.side {
+        DiffSide::New => ("new", "new_line"),
+        DiffSide::Old => ("old", "old_line"),
+    };
+    let end = |line: u32| json!({ "line_code": format!("{file_hash}_{line}_{line}"), "type": kind, key: line });
+    position["line_range"] = json!({ "start": end(start), "end": end(anchor.line) });
 }
 
 fn map_anchor(position: &Value) -> Option<DiscussionAnchor> {
@@ -679,11 +693,15 @@ impl ForgeProvider for GitLabApi {
                 side: comment.side,
                 sha: String::new(),
             };
+            let mut position = gitlab_position(&refs, &anchor);
+            if let Some(start) = comment.start_line.filter(|s| *s < comment.line) {
+                gitlab_line_range(&mut position, &anchor, start);
+            }
             let posted = self
                 .http
                 .post_json(
                     &self.project(&format!("merge_requests/{iid}/discussions")),
-                    &json!({ "body": comment.body, "position": gitlab_position(&refs, &anchor) }),
+                    &json!({ "body": comment.body, "position": position }),
                 )
                 .await;
             match posted {
@@ -1015,6 +1033,19 @@ mod tests {
         assert_eq!(position["new_line"], 12);
         // The old side must be absent, or GitLab reads the position as a move.
         assert!(position.get("old_line").is_none());
+    }
+
+    #[test]
+    fn a_line_range_names_both_ends_with_line_codes() {
+        let refs = &json!({ "base_sha": "a", "start_sha": "a", "head_sha": "b" });
+        let anchor = DiscussionAnchor { path: "src/a.ts".into(), line: 14, side: DiffSide::New, sha: String::new() };
+        let mut position = gitlab_position(refs, &anchor);
+        gitlab_line_range(&mut position, &anchor, 10);
+        let range = &position["line_range"];
+        assert_eq!(range["start"]["new_line"], 10);
+        assert_eq!(range["end"]["new_line"], 14);
+        assert_eq!(range["start"]["type"], "new");
+        assert_eq!(range["start"]["line_code"], "5a6d2e60b3cd1a8cfc6d0c2e8f2c8c1c7f3a8f7b_10_10".replace("5a6d2e60b3cd1a8cfc6d0c2e8f2c8c1c7f3a8f7b", &format!("{:x}", sha1::Sha1::digest(b"src/a.ts"))));
     }
 
     #[test]

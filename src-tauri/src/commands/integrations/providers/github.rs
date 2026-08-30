@@ -869,12 +869,17 @@ impl ForgeProvider for GitHubApi {
         let payload: Vec<Value> = comments
             .iter()
             .map(|comment| {
-                json!({
+                let mut payload = json!({
                     "path": comment.path,
                     "line": comment.line,
                     "side": github_side(comment.side),
                     "body": comment.body,
-                })
+                });
+                if let Some(start) = comment.start_line.filter(|s| *s < comment.line) {
+                    payload["start_line"] = json!(start);
+                    payload["start_side"] = json!(github_side(comment.side));
+                }
+                payload
             })
             .collect();
         let created = self

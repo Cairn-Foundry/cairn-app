@@ -57,6 +57,8 @@ export interface ReviewComment {
 	path: string;
 	side: DiffSide;
 	line: number;
+	/** First line of a multi-line comment; `line` is then the last one. */
+	startLine?: number;
 	body: string;
 	remarkId?: string;
 	createdAt: string;

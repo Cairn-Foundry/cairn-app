@@ -246,6 +246,7 @@ export interface ReviewCommentDraft {
 	id: string;
 	path: string;
 	line: number;
+	startLine?: number;
 	side: "old" | "new";
 	body: string;
 }

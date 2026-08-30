@@ -375,6 +375,9 @@ pub struct ReviewCommentDraft {
     pub id: String,
     pub path: String,
     pub line: u32,
+    /// First line of a multi-line comment; `line` is then the last one.
+    #[serde(default)]
+    pub start_line: Option<u32>,
     pub side: DiffSide,
     pub body: String,
 }

@@ -6,8 +6,8 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { MergeView } from '@codemirror/merge';
-  import { EditorState, Compartment, type Extension } from '@codemirror/state';
-  import { EditorView, GutterMarker, gutter, lineNumbers } from '@codemirror/view';
+  import { EditorState, Compartment, RangeSet, StateEffect, StateField, type Extension } from '@codemirror/state';
+  import { Decoration, type DecorationSet, EditorView, GutterMarker, gutter, gutterLineClass, lineNumbers } from '@codemirror/view';
   import { syntaxHighlighting, bracketMatching } from '@codemirror/language';
   import { settings, activeSyntaxTokens } from '$lib/stores/settings';
   import type { DiffMarker } from '$lib/utils/review/diff-markers';
@@ -24,7 +24,95 @@
   /** Discussion anchors shown as gutter markers, one per line and side. */
   export let markers: DiffMarker[] = [];
 
-  const dispatch = createEventDispatcher<{ markerClick: { line: number; side: 'old' | 'new' } }>();
+  const dispatch = createEventDispatcher<{
+    markerClick: { line: number; side: 'old' | 'new' };
+    /** Lines picked in the line-number gutter: a click, or shift+click to extend. */
+    lineSelect: { side: 'old' | 'new'; from: number; to: number };
+  }>();
+
+  const setSelectedLines = StateEffect.define<{ from: number; to: number } | null>();
+  const selectedLine = Decoration.line({ class: 'cm-comment-line' });
+  const selectedLinesField = StateField.define<DecorationSet>({
+    create: () => Decoration.none,
+    update(value, tr) {
+      for (const effect of tr.effects) {
+        if (!effect.is(setSelectedLines)) continue;
+        if (!effect.value) return Decoration.none;
+        const ranges = [];
+        for (let n = effect.value.from; n <= Math.min(effect.value.to, tr.state.doc.lines); n++) {
+          ranges.push(selectedLine.range(tr.state.doc.line(n).from));
+        }
+        return Decoration.set(ranges);
+      }
+      return value.map(tr.changes);
+    },
+    provide: (field) => EditorView.decorations.from(field),
+  });
+  class SelectedGutterMarker extends GutterMarker {
+    elementClass = 'cm-comment-gutter';
+  }
+  const selectedGutter = new SelectedGutterMarker();
+  const selectedGutterField = StateField.define<RangeSet<GutterMarker>>({
+    create: () => RangeSet.empty,
+    update(value, tr) {
+      for (const effect of tr.effects) {
+        if (!effect.is(setSelectedLines)) continue;
+        if (!effect.value) return RangeSet.empty;
+        const ranges = [];
+        for (let n = effect.value.from; n <= Math.min(effect.value.to, tr.state.doc.lines); n++) {
+          ranges.push(selectedGutter.range(tr.state.doc.line(n).from));
+        }
+        return RangeSet.of(ranges);
+      }
+      return value.map(tr.changes);
+    },
+    provide: (field) => gutterLineClass.from(field),
+  });
+
+  let lineSelection: { side: 'old' | 'new'; anchor: number; from: number; to: number } | null = null;
+
+  function paneOf(side: 'old' | 'new'): EditorView | undefined {
+    return side === 'old' ? mergeView?.a : mergeView?.b;
+  }
+
+  export function clearLineSelection(): void {
+    if (!lineSelection) return;
+    paneOf(lineSelection.side)?.dispatch({ effects: setSelectedLines.of(null) });
+    lineSelection = null;
+  }
+
+  let isDraggingLines = false;
+
+  function selectLines(view: EditorView, side: 'old' | 'new', anchor: number, number: number): void {
+    if (lineSelection && lineSelection.side !== side) clearLineSelection();
+    lineSelection = { side, anchor, from: Math.min(anchor, number), to: Math.max(anchor, number) };
+    view.dispatch({ effects: setSelectedLines.of({ from: lineSelection.from, to: lineSelection.to }) });
+  }
+
+  function selectableLineNumbers(side: 'old' | 'new'): Extension {
+    return lineNumbers({
+      domEventHandlers: {
+        mousedown(view, line, event) {
+          const number = view.state.doc.lineAt(line.from).number;
+          const isExtending = (event as MouseEvent).shiftKey && lineSelection?.side === side;
+          selectLines(view, side, isExtending && lineSelection ? lineSelection.anchor : number, number);
+          isDraggingLines = true;
+          document.addEventListener('mouseup', () => {
+            isDraggingLines = false;
+            if (lineSelection) dispatch('lineSelect', { side, from: lineSelection.from, to: lineSelection.to });
+          }, { once: true });
+          return true;
+        },
+        mousemove(view, line) {
+          if (!isDraggingLines || lineSelection?.side !== side) return false;
+          const number = view.state.doc.lineAt(line.from).number;
+          if (number === lineSelection.to || number === lineSelection.from) return false;
+          selectLines(view, side, lineSelection.anchor, number);
+          return true;
+        },
+      },
+    });
+  }
 
   class DiscussionMarker extends GutterMarker {
     marker: DiffMarker;
@@ -97,6 +185,8 @@
       bracketMatching(),
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),
+      selectedLinesField,
+      selectedGutterField,
       themeCompartment.of(buildEditorTheme(theme)),
       highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
       EditorView.theme({
@@ -179,7 +269,7 @@
     if (destroyed) return;
     mergeView = new MergeView({
       a: { doc: normalize(oldContent), extensions: [lineNumbers(), oldMarkersCompartment.of(markerGutter('old', markers)), ...exts] },
-      b: { doc: normalize(newContent), extensions: [lineNumbers(), newMarkersCompartment.of(markerGutter('new', markers)), ...exts] },
+      b: { doc: normalize(newContent), extensions: [selectableLineNumbers('new'), newMarkersCompartment.of(markerGutter('new', markers)), ...exts] },
       parent: container,
       highlightChanges: true,
       gutter: true,
@@ -232,6 +322,17 @@
   }
   .diff-mount :global(.cm-review-gutter) {
     width: 18px;
+  }
+  .diff-mount :global(.cm-mergeViewEditor:last-child .cm-lineNumbers .cm-gutterElement) {
+    cursor: pointer;
+  }
+  .diff-mount :global(.cm-mergeViewEditor:last-child .cm-lineNumbers .cm-gutterElement:hover),
+  .diff-mount :global(.cm-lineNumbers .cm-gutterElement.cm-comment-gutter) {
+    color: var(--accent);
+    background: oklch(0.75 0.15 240 / 0.18);
+  }
+  .diff-mount :global(.cm-comment-line) {
+    background: oklch(0.75 0.15 240 / 0.22) !important;
   }
   .diff-mount :global(.cm-review-marker) {
     display: inline-flex;

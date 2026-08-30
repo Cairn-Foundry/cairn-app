@@ -219,6 +219,19 @@ export function isGuideStale(
 }
 
 /** The review as markdown, for the reviewer with no forge to push it to. */
+/** `path:12` for one line, `path:10-14` for a range. */
+export function anchorLabel(anchor: {
+	path: string;
+	line: number;
+	startLine?: number;
+}): string {
+	const range =
+		anchor.startLine && anchor.startLine < anchor.line
+			? `${anchor.startLine}-${anchor.line}`
+			: String(anchor.line);
+	return `${anchor.path}:${range}`;
+}
+
 export function reviewAsMarkdown(
 	state: ReviewState,
 	verdict: string,
@@ -228,7 +241,7 @@ export function reviewAsMarkdown(
 	if (body.trim()) lines.push(body.trim(), "");
 	lines.push(`Verdict: ${verdict}`, "");
 	for (const comment of state.comments) {
-		lines.push(`### ${comment.path}:${comment.line}`, "", comment.body, "");
+		lines.push(`### ${anchorLabel(comment)}`, "", comment.body, "");
 	}
 	return lines.join("\n").trimEnd();
 }

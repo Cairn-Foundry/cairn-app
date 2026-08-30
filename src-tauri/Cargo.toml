@@ -60,6 +60,7 @@ getrandom = "0.4"
 tokio = { version = "1", features = ["time", "sync"] }
 toml_edit = { version = "0.25.13", features = ["parse", "display"] }
 notify = "8"
+sha1 = "0.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 window-vibrancy = "0.6"

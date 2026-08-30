@@ -339,6 +339,7 @@ export interface NewComment {
 	path: string;
 	side: "old" | "new";
 	line: number;
+	startLine?: number;
 	body: string;
 	remarkId?: string;
 }
@@ -510,6 +511,7 @@ export async function publishReview(
 			id: comment.id,
 			path: comment.path,
 			line: comment.line,
+			startLine: comment.startLine,
 			side: comment.side,
 			body: comment.body,
 		})),

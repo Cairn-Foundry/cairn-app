@@ -37,9 +37,9 @@
   } from '$lib/types/review';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
   import { basename } from '$lib/utils/files/files-tree';
-  import { excerptAround } from '$lib/utils/review/diff-markers';
+  import { excerptAround, guideMarkersFor } from '$lib/utils/review/diff-markers';
   import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
-  import { guideProgress, isGuideStale } from '$lib/utils/review/review-guide';
+  import { anchorLabel, guideProgress, isGuideStale } from '$lib/utils/review/review-guide';
   import DiffEditor from './DiffEditor.svelte';
   import ReviewSummary from './ReviewSummary.svelte';
 
@@ -239,13 +239,9 @@
   $: language = (currentExcerpt ? langFromPath(currentExcerpt.path) : 'text') as EditorLanguage;
   // Every remark of the extract is marked in the gutter, including one the kind
   // filter is hiding: the filter narrows the list, not the code.
-  $: markers = excerptRemarks.map(r => ({
-    line: r.line,
-    side: r.side,
-    count: 1,
-    isResolved: r.status === 'dismissed',
-    kind: r.kind,
-  }));
+  $: markers = currentExcerpt
+    ? guideMarkersFor(excerptRemarks, state.comments, currentExcerpt.path, [])
+    : [];
 
   // Every change of extract scrolls the editor onto it rather than leaving the
   // reviewer at the top of a file they have to find their way down.
@@ -261,7 +257,7 @@
 
   let commentDraft = '';
   let commentFor: GuideRemark | null = null;
-  let commentLine: { path: string; side: 'old' | 'new'; line: number } | null = null;
+  let commentLine: { path: string; side: 'old' | 'new'; line: number; startLine?: number } | null = null;
   let isDrafting = false;
   let editingId = '';
 
@@ -305,24 +301,28 @@
     // comment outside the guide's extracts needs the raw diff.
     for (const chapter of chapters) {
       const index = chapter.excerpts.findIndex(
-        e =>
-          e.path === comment.path &&
-          comment.line >= e.from &&
-          comment.line <= e.to,
+        e => e.path === comment.path && comment.line >= e.from && comment.line <= e.to,
       );
       if (index !== -1) {
         setCurrentPosition(scope, chapter.id, index);
-        requestAnimationFrame(() =>
-          diffEditor?.scrollToLine(comment.line, comment.side),
-        );
+        requestAnimationFrame(() => diffEditor?.scrollToLine(comment.line, comment.side));
         return;
       }
     }
-    dispatch('openInDiff', {
-      path: comment.path,
-      line: comment.line,
-      side: comment.side,
-    });
+    dispatch('openInDiff', { path: comment.path, line: comment.line, side: comment.side });
+  }
+
+  let selectedCommentId = '';
+
+  /** Brings the card of the comment sitting on that line forward. */
+  function selectCommentAt(path: string, line: number, side: 'old' | 'new'): boolean {
+    const hit = state.comments.find(c => c.path === path && c.line === line && c.side === side);
+    if (!hit) return false;
+    selectedCommentId = hit.id;
+    requestAnimationFrame(() =>
+      document.getElementById(`guide-comment-${hit.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+    );
+    return true;
   }
 
   async function draft() {
@@ -345,6 +345,7 @@
   function saveComment() {
     if (!commentLine || commentDraft.trim() === '') return;
     addComment(scope, { ...commentLine, body: commentDraft.trim(), remarkId: commentFor?.id });
+    diffEditor?.clearLineSelection();
     cancelComment();
   }
 
@@ -352,6 +353,19 @@
     commentFor = null;
     commentLine = null;
     commentDraft = '';
+    diffEditor?.clearLineSelection();
+  }
+
+  function onLineSelect(e: CustomEvent<{ side: 'old' | 'new'; from: number; to: number }>) {
+    if (!currentExcerpt) return;
+    commentFor = null;
+    commentLine = {
+      path: currentExcerpt.path,
+      side: e.detail.side,
+      line: e.detail.to,
+      startLine: e.detail.from < e.detail.to ? e.detail.from : undefined,
+    };
+    revealComposer();
   }
 
   function onMarkerClick(e: CustomEvent<{ line: number; side: 'old' | 'new' }>) {
@@ -367,6 +381,7 @@
       return;
     }
     if (!currentExcerpt) return;
+    if (selectCommentAt(currentExcerpt.path, e.detail.line, e.detail.side)) return;
     commentFor = null;
     commentLine = { path: currentExcerpt.path, side: e.detail.side, line: e.detail.line };
     commentDraft = '';
@@ -577,6 +592,7 @@
                   {language}
                   {markers}
                   on:markerClick={onMarkerClick}
+                  on:lineSelect={onLineSelect}
                 />
               {/key}
             {:else}
@@ -652,7 +668,7 @@
       <div class="section-title">{t('review.pendingComments')}</div>
       {#if commentLine}
         <div class="composer" id="guide-composer">
-          <div class="dim mono small">{basename(commentLine.path)}:{commentLine.line}</div>
+          <div class="dim mono small">{anchorLabel({ ...commentLine, path: basename(commentLine.path) })}</div>
           <!-- Same pending treatment as the merge request assist: the field
                itself shows the work, the button becomes the way to stop it. -->
           <div class="ai-field" class:is-generating={isDrafting}>
@@ -703,6 +719,8 @@
                the click from reaching it. -->
           <div
             class="comment"
+            id="guide-comment-{comment.id}"
+            class:selected={selectedCommentId === comment.id}
             class:published={!!comment.publishedAs}
             role="button"
             tabindex="0"
@@ -710,7 +728,7 @@
             on:keydown={(e) => e.key === 'Enter' && goToComment(comment)}
           >
             <div class="comment-head">
-              <span class="dim mono small">{basename(comment.path)}:{comment.line}</span>
+              <span class="dim mono small">{anchorLabel({ ...comment, path: basename(comment.path) })}</span>
               <span class="spacer"></span>
               {#if !comment.publishedAs}
                 <button class="btn ghost tiny" on:click|stopPropagation={() => (editingId = editingId === comment.id ? '' : comment.id)}>
@@ -1105,6 +1123,7 @@
   }
   .comment { cursor: pointer; }
   .comment:hover { border-color: var(--stroke-1); }
+  .comment.selected { border-color: var(--accent); }
   .comment.published { opacity: 0.6; }
   .comment-head, .composer-actions { display: flex; align-items: center; gap: 4px; }
   .comment-body { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-1); white-space: pre-wrap; }
