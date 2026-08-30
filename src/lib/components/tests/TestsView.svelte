@@ -7,6 +7,7 @@
   import { createEventDispatcher } from 'svelte';
   import { fade } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
+  import Select from '$lib/components/Select.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
@@ -233,9 +234,16 @@
     padding: 0; display: grid; place-items: center;
   }
   .list-search-clear:hover { color: var(--fg-0); }
-  .runner-select {
-    background: none; color: var(--fg-3); border: none;
-    font-size: 11px; font-family: var(--font-ui); cursor: pointer; max-width: 90px;
+  /* A toolbar control rather than a form field: the trigger loses its chrome
+     and shrinks to the size of the icons it sits between. */
+  .runner-select { max-width: 110px; min-width: 0; }
+  .runner-select :global(.select-trigger) {
+    padding: 2px 4px; gap: 4px;
+    background: none; border-color: transparent;
+    color: var(--fg-3); font-size: 11px;
+  }
+  .runner-select :global(.select-trigger:hover:not(:disabled)) {
+    background: var(--bg-3); color: var(--fg-0);
   }
 
   .filter-row { display: flex; gap: 4px; padding: 0 12px 8px; flex-wrap: wrap; }
@@ -363,28 +371,24 @@
         ><Icon name={allCollapsed ? 'expand-all' : 'collapse-all'} size={13}/></button>
       {/if}
       {#if environments.length > 1}
-        <select
-          class="runner-select"
-          value={selectedSubdir}
-          title={t('tests.environment') as string}
-          on:change={(e) => selectEnvironment(e.currentTarget.value)}
-        >
-          {#each environments as env (env.subdir)}
-            <option value={env.subdir}>{env.label}</option>
-          {/each}
-        </select>
+        <span class="runner-select">
+          <Select
+            value={selectedSubdir}
+            options={environments.map((env) => ({ value: env.subdir, label: env.label }))}
+            ariaLabel={t('tests.environment') as string}
+            on:change={(e) => selectEnvironment(e.detail)}
+          />
+        </span>
       {/if}
       {#if runnersHere.length > 1}
-        <select
-          class="runner-select"
-          value={state.selectedRunnerId}
-          title={t('tests.runner') as string}
-          on:change={(e) => instance && selectRunner(projectId, instance.id, e.currentTarget.value)}
-        >
-          {#each runnersHere as entry (runnerKey(entry))}
-            <option value={runnerKey(entry)}>{entry.label}</option>
-          {/each}
-        </select>
+        <span class="runner-select">
+          <Select
+            value={state.selectedRunnerId}
+            options={runnersHere.map((entry) => ({ value: runnerKey(entry), label: entry.label }))}
+            ariaLabel={t('tests.runner') as string}
+            on:change={(e) => instance && selectRunner(projectId, instance.id, e.detail)}
+          />
+        </span>
       {/if}
     </div>
 

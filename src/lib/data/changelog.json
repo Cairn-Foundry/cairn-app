@@ -10,6 +10,20 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Each AI assist picks the CLI that answers it and, if you want one, the model: the Features page brings back a provider and a model field per assist. The list holds the CLIs whose answer can be forced into a shape - Claude Code and Codex - since an assist is read back as fields rather than as text.",
+					"fr": "Chaque assistance IA choisit le CLI qui lui répond et, si vous le souhaitez, le modèle : la page Fonctionnalités retrouve un champ fournisseur et un champ modèle par assistance. La liste retient les CLI dont la réponse peut être contrainte à une forme - Claude Code et Codex - une assistance étant relue comme des champs et non comme du texte."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Every AI assist now hands its CLI the shape of the answer it expects, and the CLI is held to it. A generated commit message or merge request arrives as a subject and a body rather than as a block of text to be cut in two, so a model that explains itself before answering no longer turns its own reasoning into the commit subject.",
+					"fr": "Chaque assistance IA transmet désormais à son CLI la forme de réponse attendue, et le CLI y est contraint. Un message de commit ou une merge request générés arrivent sous forme de sujet et de corps plutôt que d'un bloc de texte à couper en deux : un modèle qui s'explique avant de répondre ne transforme donc plus son raisonnement en sujet de commit."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A Tickets page on the home screen gathers the open tickets of every project that has a tracker bound, grouped by project and filtered on those assigned to you or all of them. A plan written over the whole backlog orders them across projects, and each ticket starts its instance in one click.",
 					"fr": "Une page Tickets sur l'écran d'accueil rassemble les tickets ouverts de tous les projets ayant un tracker lié, groupés par projet et filtrés sur ceux qui vous sont assignés ou sur tous. Un plan rédigé sur l'ensemble du backlog les ordonne tous projets confondus, et chaque ticket démarre son instance en un clic."
 				}

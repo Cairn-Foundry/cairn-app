@@ -6,14 +6,16 @@ import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Asks the model one question in `workingDir` and returns the object it
- * answered with, shaped by `schema`. Rejects with "cancelled" when
- * `stopOneshot` killed the run.
+ * answered with. `schema` is handed to the CLI as a flag, so the shape is
+ * enforced rather than requested and the answer needs no parsing. Rejects with
+ * "cancelled" when `stopOneshot` killed the run.
  */
 export async function runOneshot<T>(
 	workingDir: string,
 	prompt: string,
 	schema: Record<string, unknown>,
 	runId: string,
+	provider?: string,
 	model?: string,
 	binaryPath?: string,
 	env: Record<string, string> = {},
@@ -24,6 +26,7 @@ export async function runOneshot<T>(
 			prompt,
 			schema,
 			runId,
+			provider: provider ?? null,
 			model: model ?? null,
 			binaryPath: binaryPath ?? null,
 			env,

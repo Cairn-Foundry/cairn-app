@@ -3,17 +3,19 @@
    * The AI assists Cairn offers outside the Agent step, and the prompt each one
    * asks with.
    *
-   * There is no provider to pick: an assist runs Claude Code headlessly, because
-   * it needs a documented one-shot mode and an answer it can parse back. The
-   * Agent step is the opposite - it runs whichever CLI the user chose, and reads
-   * none of its output.
+   * Each feature picks the CLI that answers it and, optionally, the model. The
+   * list is short on purpose: only a CLI that takes a JSON schema as a flag and
+   * is held to it can serve an assist, since the answer is read back as fields
+   * rather than as prose. The Agent step is the opposite - it runs whichever CLI
+   * the user chose, and reads none of its output.
    */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { AI_FEATURES, ASSIST_CLI, resolveAiFeature, type AiFeatureId } from '$lib/utils/home/ai-features';
-  import { assistCliInstalled, cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
+  import Select from '$lib/components/Select.svelte';
+  import { AI_FEATURES, ASSIST_CLIS, MODEL_SUGGESTIONS, resolveAiFeature, type AiFeatureId } from '$lib/utils/home/ai-features';
+  import { anyAssistCliInstalled, cliProviders, isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { settings } from '$lib/stores/settings';
   import type { AiFeatureAssignment } from '$lib/services/settings-service';
 
@@ -24,7 +26,7 @@
     void loadCliProviders();
   });
 
-  $: assistLabel = $cliProviders.find((p) => p.id === ASSIST_CLI)?.label ?? ASSIST_CLI;
+  $: labelOf = (id: string): string => $cliProviders.find((p) => p.id === id)?.label ?? id;
   $: assignments = $settings.aiFeatures ?? {};
 
   /**
@@ -41,7 +43,7 @@
   }
 
   function openTemplate(id: AiFeatureId) {
-    templateDraft = resolveAiFeature(id, assignments, $assistCliInstalled).promptTemplate;
+    templateDraft = resolveAiFeature(id, assignments, $isAssistCliInstalled).promptTemplate;
     editingTemplate = id;
   }
 
@@ -61,15 +63,23 @@
 </script>
 
 <div class="features">
-  {#if !$assistCliInstalled}
+  {#if !$anyAssistCliInstalled}
     <div class="feat-empty">
       <Icon name="alert" size={16}/>
-      <span>{(t('home.features.assistCliMissing') as (name: string) => string)(assistLabel)}</span>
+      <span>{t('home.features.noAssistCli')}</span>
     </div>
   {/if}
 
+  {#each ASSIST_CLIS as id (id)}
+    <datalist id={`models-${id}`}>
+      {#each MODEL_SUGGESTIONS[id] ?? [] as model (model)}
+        <option value={model}></option>
+      {/each}
+    </datalist>
+  {/each}
+
   {#each AI_FEATURES as feature (feature.id)}
-    {@const resolved = resolveAiFeature(feature.id, assignments, $assistCliInstalled)}
+    {@const resolved = resolveAiFeature(feature.id, assignments, $isAssistCliInstalled)}
     <div class="feat-card">
       <div class="feat-head">
         <span class="feat-icon"><Icon name={feature.icon} size={16}/></span>
@@ -83,17 +93,40 @@
       </div>
 
       {#if feature.runsProvider}
-        <div class="feat-resolved">
-          {#if resolved.unavailable}
-            <Icon name="alert" size={12}/>
-            <span class="bad">{(t('home.features.assistCliMissing') as (name: string) => string)(assistLabel)}</span>
-          {:else}
-            <span class="feat-logo">
-              <ProviderLogo id={ASSIST_CLI} size={13} fallback={assistLabel.slice(0, 1)}/>
+        <div class="feat-pickers">
+          <label class="feat-field">
+            <span class="feat-field-label">{t('home.features.provider')}</span>
+            <span class="feat-select">
+              <span class="feat-logo">
+                <ProviderLogo id={resolved.providerId} size={13} fallback={labelOf(resolved.providerId).slice(0, 1)}/>
+              </span>
+              <Select
+                value={resolved.providerId}
+                options={ASSIST_CLIS.map((id) => ({ value: id, label: labelOf(id) }))}
+                ariaLabel={t('home.features.provider') as string}
+                on:change={(e) => setAssignment(feature.id, { providerId: e.detail })}
+              />
             </span>
-            <span>{assistLabel}</span>
-          {/if}
+          </label>
+
+          <label class="feat-field">
+            <span class="feat-field-label">{t('home.features.model')}</span>
+            <input
+              class="selectable"
+              list={`models-${resolved.providerId}`}
+              value={assignmentOf(feature.id).model ?? ''}
+              placeholder={t('home.features.modelDefault') as string}
+              on:change={(e) => setAssignment(feature.id, { model: e.currentTarget.value.trim() })}
+            />
+          </label>
         </div>
+
+        {#if resolved.unavailable}
+          <div class="feat-resolved">
+            <Icon name="alert" size={12}/>
+            <span class="bad">{(t('home.features.assistCliMissing') as (name: string) => string)(labelOf(resolved.providerId))}</span>
+          </div>
+        {/if}
       {/if}
 
       {#if feature.defaultPromptTemplate}
@@ -197,6 +230,55 @@
     color: var(--fg-3);
   }
 
+  .feat-pickers {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .feat-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 180px;
+  }
+
+  .feat-field-label {
+    font-size: 11px;
+    color: var(--fg-3);
+  }
+
+  .feat-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* The logo sits beside the trigger, which takes the rest of the row. */
+  .feat-select :global(.select) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .feat-field input {
+    padding: 8px 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-size: 13px;
+    font-family: var(--font-ui);
+  }
+
+  .feat-field input:focus {
+    outline: none;
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px var(--accent-weak);
+  }
+
   .feat-badge {
     padding: 2px 7px;
     border: 1px solid var(--border);
@@ -204,24 +286,6 @@
     font-size: 10px;
     color: var(--fg-3);
     white-space: nowrap;
-  }
-
-  .feat-fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .feat-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .feat-label {
-    font-size: 11px;
-    color: var(--fg-3);
   }
 
   .feat-resolved {
@@ -235,11 +299,6 @@
   .feat-logo {
     display: flex;
     align-items: center;
-  }
-
-  .feat-resolved .dim {
-    color: var(--fg-3);
-    font-family: var(--font-mono);
   }
 
   .feat-resolved .bad {

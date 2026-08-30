@@ -17,7 +17,7 @@
   import { getLocale, t } from '$lib/i18n';
   import { projects } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { assistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
+  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import {
     loadTicketsOverview,
     ticketsByProject,
@@ -53,7 +53,7 @@
   $: totalTickets = groups.reduce((n, g) => n + g.tickets.length, 0);
   $: anyMore = groups.some((g) => g.hasMore);
 
-  $: resolvedFeature = resolveAiFeature('ticketPlan', $settings.aiFeatures, $assistCliInstalled);
+  $: resolvedFeature = resolveAiFeature('ticketPlan', $settings.aiFeatures, $isAssistCliInstalled);
   // The plan runs in a project directory, so it needs at least one project.
   $: canPlan = !resolvedFeature.unavailable && totalTickets > 0 && !isPlanning;
 

@@ -68,10 +68,10 @@
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
-  import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
-  import { resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { assistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
-  import { parseCommitMessage, renderCommitPrompt } from '$lib/utils/git/commit-message';
+  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
+  import { renderCommitPrompt } from '$lib/utils/git/commit-message';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
@@ -860,7 +860,7 @@
    */
   let aiStatusMessage = '';
 
-  $: resolvedCommitFeature = resolveAiFeature('commitMessage', $settings.aiFeatures, $assistCliInstalled);
+  $: resolvedCommitFeature = resolveAiFeature('commitMessage', $settings.aiFeatures, $isAssistCliInstalled);
   $: canGenerate = (stagedCount > 0 || amendMode) && !resolvedCommitFeature.unavailable;
 
   /**
@@ -879,17 +879,18 @@
     aiStatusMessage = t('git.aiGenerating') as string;
 
     try {
-      const answer = await runOneShot(
+      const answer = await runOneShotShaped<{ subject: string; body: string }>(
         renderCommitPrompt(feature.promptTemplate, appendTicketId ? (instance.ticket?.id ?? '') : '', instance.ticket ?? {}),
         instance.worktreePath,
         feature.providerId,
+        FEATURE_SCHEMAS.commitMessage,
         { model: feature.model || undefined, signal: generateAbort.signal },
       );
-      const parsed = parseCommitMessage(answer);
+      const subject = (answer.subject ?? '').trim();
       // A failed generation never clobbers what the user already typed.
-      if (parsed.title) {
-        setCommitMessage(parsed.title);
-        setCommitBody(parsed.body);
+      if (subject) {
+        setCommitMessage(subject);
+        setCommitBody((answer.body ?? '').trim());
         aiStatusMessage = t('git.aiGenerated') as string;
       } else {
         generateError = t('git.aiEmpty') as string;

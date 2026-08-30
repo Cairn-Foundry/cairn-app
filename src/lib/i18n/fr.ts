@@ -2344,9 +2344,12 @@ export const fr = {
 		},
 		features: {
 			title: "Fonctionnalités",
-			desc: "Le prompt avec lequel chaque assistance IA interroge le modele.",
+			desc: "Le CLI qui répond à chaque assistance IA, et le prompt qu'il utilise.",
 			provider: "Fournisseur",
 			model: "Modèle",
+			modelDefault: "Le modèle par défaut du CLI",
+			noAssistCli:
+				"Aucun CLI d'assistance n'est installé. Les assistances ont besoin d'un CLI que l'on peut contraindre à un schéma JSON : Claude Code ou Codex.",
 			handsToAgent: "S'exécute dans la step Agent",
 			assistCliMissing: (name: string) =>
 				`${name} n'est pas installé. Les assistances l'exécutent en mode headless : installez-le pour les utiliser.`,

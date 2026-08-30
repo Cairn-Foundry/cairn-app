@@ -34,6 +34,7 @@ const {
 	pendingComments,
 	progressFor,
 	publishReview,
+	setCurrentPosition,
 	setMergeRequestId,
 	stateFor,
 } = await import("./review");
@@ -160,10 +161,23 @@ describe("generateGuide", () => {
 		expect(guide?.headSha).toBe("head1");
 	});
 
-	it("opens the guide on its first chapter", async () => {
+	/**
+	 * The overview explains the branch before its code means anything, and an
+	 * empty `currentChapterId` is what the view reads as "not started".
+	 */
+	it("opens the guide on its overview, not on the first chapter", async () => {
 		await generate();
-		expect(stateFor(scope).currentChapterId).toBe("c1");
+		expect(stateFor(scope).currentChapterId).toBe("");
 		expect(stateFor(scope).currentExcerptIndex).toBe(0);
+	});
+
+	/** Regenerating from deep inside an old guide comes back to the overview. */
+	it("returns to the overview when a guide is regenerated", async () => {
+		await generate();
+		setCurrentPosition(scope, "c2", 0);
+		expect(stateFor(scope).currentChapterId).toBe("c2");
+		await generate();
+		expect(stateFor(scope).currentChapterId).toBe("");
 	});
 
 	it("reports a failure without wiping what was there", async () => {

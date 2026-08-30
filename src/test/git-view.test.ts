@@ -109,10 +109,22 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 	instances: { subscribe: instancesStore.subscribe },
 }));
 
+// The assists refuse to run when their CLI is not installed, so the detection
+// answers as if it were rather than leaving every AI button disabled.
+vi.mock("$lib/stores/cli-providers", async (importOriginal) => {
+	const { readable } = await import("svelte/store");
+	return {
+		...(await importOriginal<Record<string, unknown>>()),
+		loadCliProviders: vi.fn(async () => {}),
+		isAssistCliInstalled: readable(() => true),
+		anyAssistCliInstalled: readable(true),
+	};
+});
+
 const runOneShot = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
-	runOneShot: (...a: unknown[]) => runOneShot(...a),
+	runOneShotShaped: (...a: unknown[]) => runOneShot(...a),
 }));
 
 const settingsState = writable<Record<string, unknown>>({});
@@ -272,7 +284,7 @@ beforeEach(() => {
 		fn.mockReset().mockResolvedValue(undefined);
 	setCommitMessage.mockReset();
 	setCommitBody.mockReset();
-	runOneShot.mockReset().mockResolvedValue("");
+	runOneShot.mockReset().mockResolvedValue({ subject: "", body: "" });
 	settingsState.set({ gitProfiles: [], aiFeatures: {} });
 	activeInstance.set({
 		id: "i1",
@@ -628,6 +640,71 @@ describe("GitView", () => {
 			await settle();
 			expect(commitChanges).toHaveBeenCalled();
 			expect(pushBranch).toHaveBeenCalled();
+		});
+	});
+
+	describe("writing the commit message with the agent", () => {
+		const aiButton = () =>
+			document.querySelector(".ai-suggest") as HTMLButtonElement;
+
+		/**
+		 * The CLI is held to `{ subject, body }` by its schema flag, so both
+		 * fields arrive as fields - nothing is hunted for in a block of text.
+		 */
+		it("fills both fields from the answer's own fields", async () => {
+			runOneShot.mockResolvedValue({
+				subject: "feat(auth): add login",
+				body: "Why it matters.",
+			});
+			setGit({ stagedDiffs: [diff("src/a.ts")] });
+			mount();
+			await settle();
+			await userEvent.click(aiButton());
+			await settle();
+			expect(setCommitMessage).toHaveBeenCalledWith("feat(auth): add login");
+			expect(setCommitBody).toHaveBeenCalledWith("Why it matters.");
+		});
+
+		/** A body that itself looks like a subject line stays the body. */
+		it("never re-reads the subject out of the body", async () => {
+			runOneShot.mockResolvedValue({
+				subject: "chore: bump",
+				body: "feat: this line only describes the change",
+			});
+			setGit({ stagedDiffs: [diff("src/a.ts")] });
+			mount();
+			await settle();
+			await userEvent.click(aiButton());
+			await settle();
+			expect(setCommitMessage).toHaveBeenCalledWith("chore: bump");
+		});
+
+		it("asks the CLI for the commit shape", async () => {
+			runOneShot.mockResolvedValue({ subject: "chore: bump", body: "" });
+			setGit({ stagedDiffs: [diff("src/a.ts")] });
+			mount();
+			await settle();
+			await userEvent.click(aiButton());
+			await settle();
+			const schema = runOneShot.mock.calls[0][3] as { required: string[] };
+			expect(schema.required).toEqual(["subject", "body"]);
+		});
+
+		/**
+		 * An empty subject is a failed generation. Mounting restores the draft of
+		 * the worktree, so the fields are written once before the click: what
+		 * matters is that the answer adds nothing on top of it.
+		 */
+		it("leaves the fields alone when the subject is empty", async () => {
+			runOneShot.mockResolvedValue({ subject: "   ", body: "unwanted" });
+			setGit({ stagedDiffs: [diff("src/a.ts")] });
+			mount();
+			await settle();
+			const before = setCommitMessage.mock.calls.length;
+			await userEvent.click(aiButton());
+			await settle();
+			expect(setCommitMessage.mock.calls.length).toBe(before);
+			expect(setCommitBody).not.toHaveBeenCalledWith("unwanted");
 		});
 	});
 

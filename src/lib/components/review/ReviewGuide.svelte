@@ -40,6 +40,8 @@
   import { excerptAround, guideMarkersFor } from '$lib/utils/review/diff-markers';
   import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
   import { anchorLabel, guideProgress, isGuideStale } from '$lib/utils/review/review-guide';
+  import { resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { isAssistCliInstalled } from '$lib/stores/cli-providers';
   import DiffEditor from './DiffEditor.svelte';
   import ReviewSummary from './ReviewSummary.svelte';
 
@@ -137,6 +139,9 @@
       ? excerptRemarks.length
       : excerptRemarks.filter(r => r.kind === k).length;
 
+  $: guideFeature = resolveAiFeature('reviewGuide', $settings.aiFeatures, $isAssistCliInstalled);
+  $: commentFeature = resolveAiFeature('reviewComment', $settings.aiFeatures, $isAssistCliInstalled);
+
   async function generate() {
     await generateGuide(scope, {
       base,
@@ -147,6 +152,8 @@
       mrDescription,
       ticket,
       assignments: $settings.aiFeatures,
+      provider: guideFeature.providerId,
+      model: guideFeature.model || undefined,
     });
   }
 
@@ -333,7 +340,11 @@
         scope,
         commentFor,
         excerptAround(sourceFor(commentFor.side), commentFor.line),
-        { assignments: $settings.aiFeatures },
+        {
+          assignments: $settings.aiFeatures,
+          provider: commentFeature.providerId,
+          model: commentFeature.model || undefined,
+        },
       );
     } catch {
       // A failed draft leaves the box as it was: the reviewer writes it.

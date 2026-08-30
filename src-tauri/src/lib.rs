@@ -271,6 +271,7 @@ pub fn run() {
             get_project_commands,
             save_project_commands,
             run_oneshot,
+            list_oneshot_providers,
             stop_oneshot,
             list_cli_providers,
             discover_cli_session,

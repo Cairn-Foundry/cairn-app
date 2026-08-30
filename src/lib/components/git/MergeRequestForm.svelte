@@ -12,13 +12,13 @@
   import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
   import { git, loadBranches } from '$lib/stores/git';
-  import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
-  import { assistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
+  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
+  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { forgeIdentity, forgeTerms } from '$lib/stores/integrations';
   import { createMergeRequest, loadForgeLabels } from '$lib/stores/merge-request';
   import { settings } from '$lib/stores/settings';
   import type { Actor, IntegrationError, MergeRequest } from '$lib/types/integrations';
-  import { resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
   import { buildMrDescriptionPrompt } from '$lib/utils/integrations/prompts';
   import { toIntegrationError } from '$lib/services/integration-service';
 
@@ -68,7 +68,7 @@
   let aiStatusMessage = '';
 
   $: terms = $forgeTerms;
-  $: resolvedFeature = resolveAiFeature('mrDescription', $settings.aiFeatures, $assistCliInstalled);
+  $: resolvedFeature = resolveAiFeature('mrDescription', $settings.aiFeatures, $isAssistCliInstalled);
   $: canGenerate = !resolvedFeature.unavailable && !isGenerating && !isSubmitting;
   $: canSubmit = title.trim() !== '' && !isSubmitting && !isGenerating;
   $: targetOptions = buildTargetOptions($git.branches, $git.remoteBranches);
@@ -98,17 +98,6 @@
     labels = labels.includes(label) ? labels.filter((l) => l !== label) : [...labels, label];
   }
 
-  function parseGenerated(answer: string): { title: string; description: string } {
-    const lines = answer.replace(/\r\n/g, '\n').split('\n');
-    let index = 0;
-    while (index < lines.length && lines[index].trim() === '') index += 1;
-    const firstLine = lines[index] ?? '';
-    return {
-      title: firstLine.replace(/^\s*(?:title)\s*:\s*/i, '').replace(/^#+\s*/, '').trim(),
-      description: lines.slice(index + 1).join('\n').replace(/^\s*\n/, '').trimEnd(),
-    };
-  }
-
   async function generateWithAi() {
     if (!canGenerate || !worktreePath) return;
     const feature = resolvedFeature;
@@ -117,16 +106,17 @@
     generateAbort = new AbortController();
     aiStatusMessage = t('mergeRequest.aiGenerating') as string;
     try {
-      const answer = await runOneShot(
+      const answer = await runOneShotShaped<{ title: string; description: string }>(
         buildMrDescriptionPrompt(selectedTarget, ticket, $settings.aiFeatures),
         worktreePath,
         feature.providerId,
+        FEATURE_SCHEMAS.mrDescription,
         { model: feature.model || undefined, signal: generateAbort.signal },
       );
-      const parsed = parseGenerated(answer);
-      if (parsed.title) {
-        title = parsed.title;
-        description = parsed.description;
+      const generatedTitle = (answer.title ?? '').trim();
+      if (generatedTitle) {
+        title = generatedTitle;
+        description = (answer.description ?? '').trim();
       } else {
         generateError = t('mergeRequest.aiEmpty') as string;
       }

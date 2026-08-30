@@ -31,7 +31,7 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 const runOneShot = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
-	runOneShot: (...a: unknown[]) => runOneShot(...a),
+	runOneShotShaped: (...a: unknown[]) => runOneShot(...a),
 }));
 
 vi.mock("$lib/services/settings-service", async (importOriginal) => ({
@@ -308,11 +308,14 @@ describe("MergeRequestForm", () => {
 
 	describe("writing it with the agent", () => {
 		/**
-		 * The answer's first line is the title and the rest the description, with
-		 * a "Title:" prefix or a markdown heading stripped either way.
+		 * The CLI is held to `{ title, description }` by its schema flag, so the
+		 * two fields arrive as fields: nothing is split out of a block of text.
 		 */
-		it("takes the first line as the title and the rest as the description", async () => {
-			runOneShot.mockResolvedValue("Add login\n\nWhy this change matters.");
+		it("fills both fields from the answer's own fields", async () => {
+			runOneShot.mockResolvedValue({
+				title: "Add login",
+				description: "Why this change matters.",
+			});
 			mount();
 			await settle();
 			await userEvent.click(aiButton());
@@ -321,32 +324,44 @@ describe("MergeRequestForm", () => {
 			expect(descriptionField().value).toContain("Why this change matters.");
 		});
 
-		it("strips a Title: prefix from the first line", async () => {
-			runOneShot.mockResolvedValue("Title: Add login\n\nBody here.");
+		/** A description holding blank lines is a description, not a title to find. */
+		it("keeps a multi-line description whole", async () => {
+			runOneShot.mockResolvedValue({
+				title: "Add login",
+				description: "## Context\n\nWhy this change matters.",
+			});
 			mount();
 			await settle();
 			await userEvent.click(aiButton());
 			await settle();
 			expect(titleField().value).toBe("Add login");
+			expect(descriptionField().value).toBe(
+				"## Context\n\nWhy this change matters.",
+			);
 		});
 
-		it("strips a markdown heading from the first line", async () => {
-			runOneShot.mockResolvedValue("## Add login\n\nBody here.");
+		it("asks the CLI for the merge request shape", async () => {
+			runOneShot.mockResolvedValue({ title: "Add login", description: "" });
 			mount();
 			await settle();
 			await userEvent.click(aiButton());
 			await settle();
-			expect(titleField().value).toBe("Add login");
+			const schema = runOneShot.mock.calls[0][3] as {
+				required: string[];
+			};
+			expect(schema.required).toEqual(["title", "description"]);
 		});
 
-		/** Blank lines before the title are skipped rather than taken as it. */
-		it("skips the blank lines before the title", async () => {
-			runOneShot.mockResolvedValue("\n\n\nAdd login\n\nBody.");
+		/** An answer whose title is empty leaves what the user typed alone. */
+		it("reports an empty title without touching the fields", async () => {
+			runOneShot.mockResolvedValue({ title: "   ", description: "body" });
 			mount();
 			await settle();
+			await userEvent.clear(titleField());
+			await userEvent.type(titleField(), "typed by hand");
 			await userEvent.click(aiButton());
 			await settle();
-			expect(titleField().value).toBe("Add login");
+			expect(titleField().value).toBe("typed by hand");
 		});
 
 		it("reports a failed generation without touching the fields", async () => {

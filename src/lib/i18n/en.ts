@@ -2303,9 +2303,12 @@ export const en = {
 		},
 		features: {
 			title: "Features",
-			desc: "The prompt each AI assist asks with.",
+			desc: "Which CLI answers each AI assist, and the prompt it asks with.",
 			provider: "Provider",
 			model: "Model",
+			modelDefault: "The CLI's default",
+			noAssistCli:
+				"No assist CLI is installed. The assists need one that can be held to a JSON schema - Claude Code or Codex.",
 			handsToAgent: "Runs in the Agent step",
 			assistCliMissing: (name: string) =>
 				`${name} is not installed. The assists run it headlessly - install it to use them.`,

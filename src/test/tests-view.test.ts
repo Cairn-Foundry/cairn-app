@@ -496,10 +496,15 @@ describe("TestsView", () => {
 				runners: [RUNNER, { ...RUNNER, id: "jest", label: "Jest" }],
 			});
 			mount();
-			await userEvent.selectOptions(
-				document.querySelector(".runner-select") as HTMLSelectElement,
-				"jest",
+			// The dropdown is Cairn's own, so the panel opens on a click and the
+			// options are buttons rather than a native option list.
+			await userEvent.click(
+				document.querySelector(".runner-select button") as HTMLElement,
 			);
+			const option = [...document.querySelectorAll(".select-option")].find(
+				(el) => el.textContent?.includes("Jest"),
+			);
+			await userEvent.click(option as HTMLElement);
 			expect(selectRunner).toHaveBeenCalledWith("p1", "i1", "jest");
 		});
 

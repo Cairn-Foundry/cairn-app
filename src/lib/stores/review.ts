@@ -163,6 +163,8 @@ export interface GenerateGuideOptions {
 	mrDescription?: string;
 	ticket?: { key: string; title: string } | null;
 	assignments?: Record<string, AiFeatureAssignment>;
+	/** Which assist CLI answers; empty falls back to the default. */
+	provider?: string;
 	model?: string;
 	binaryPath?: string;
 }
@@ -206,6 +208,7 @@ export async function generateGuide(
 			prompt,
 			REVIEW_GUIDE_SCHEMA as unknown as Record<string, unknown>,
 			runId,
+			options.provider,
 			options.model,
 			options.binaryPath,
 		);
@@ -219,7 +222,9 @@ export async function generateGuide(
 		update(scope, (state) => ({
 			...state,
 			guide,
-			currentChapterId: guide.chapters[0]?.id ?? "",
+			// Empty rather than the first chapter: a fresh guide opens on its
+			// overview, which explains the branch before its code means anything.
+			currentChapterId: "",
 			currentExcerptIndex: 0,
 		}));
 	} catch (error) {
@@ -407,6 +412,7 @@ export async function draftCommentFor(
 	excerpt: string,
 	options: {
 		assignments?: Record<string, AiFeatureAssignment>;
+		provider?: string;
 		model?: string;
 		binaryPath?: string;
 	} = {},
@@ -435,6 +441,7 @@ export async function draftCommentFor(
 				properties: { comment: { type: "string" } },
 			},
 			runId,
+			options.provider,
 			options.model,
 			options.binaryPath,
 		);

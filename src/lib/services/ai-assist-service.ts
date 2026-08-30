@@ -38,13 +38,6 @@ function looksLikeAuthFailure(message: string): boolean {
 	);
 }
 
-/** Models like wrapping an answer in a fence even when told not to. */
-export function stripCodeFence(text: string): string {
-	const trimmed = text.trim();
-	const fenced = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*?)\n?```$/);
-	return (fenced ? fenced[1] : trimmed).trim();
-}
-
 /** Per-run overrides; everything is optional. */
 export interface OneShotOptions {
 	/** Model id to pass to the CLI, its own default when absent. */
@@ -55,24 +48,33 @@ export interface OneShotOptions {
 	timeoutMs?: number;
 }
 
-/** The only shape asked of the model: one field holding the whole answer. */
-const ANSWER_SCHEMA = {
+/**
+ * The shape for an assist whose answer really is one block of prose. A feature
+ * with fields of its own passes its own schema instead.
+ */
+export const ANSWER_SCHEMA = {
 	type: "object",
 	properties: { answer: { type: "string" } },
 	required: ["answer"],
+	additionalProperties: false,
 } as const;
 
 /**
- * Runs `prompt` once in `workingDir` and answers with the text the model
- * produced. Nothing is persisted and no conversation is created: a generated
- * commit message is not a conversation.
+ * Runs `prompt` once in `workingDir` and answers with the object the CLI was
+ * forced to produce. Nothing is persisted and no conversation is created: a
+ * generated commit message is not a conversation.
+ *
+ * The shape is enforced by the CLI through its schema flag, so the answer needs
+ * no parsing: a CLI that cannot honour the schema fails the run instead of
+ * returning prose to be picked apart.
  */
-export async function runOneShot(
+export async function runOneShotShaped<T>(
 	prompt: string,
 	workingDir: string,
 	providerId: string,
+	schema: Record<string, unknown>,
 	options: OneShotOptions = {},
-): Promise<string> {
+): Promise<T> {
 	const { signal, timeoutMs = 120_000, model } = options;
 	if (!providerId) throw new AiAssistError("unavailable");
 	if (signal?.aborted) throw new AiAssistError("cancelled");
@@ -90,20 +92,21 @@ export async function runOneShot(
 	const timer = timeoutMs > 0 ? setTimeout(cancel, timeoutMs) : null;
 
 	try {
-		const result = await invoke<{ answer?: string }>("run_oneshot", {
+		const result = await invoke<T>("run_oneshot", {
 			request: {
 				workingDir,
 				prompt,
-				schema: ANSWER_SCHEMA,
+				schema,
 				runId,
+				provider: providerId,
 				model: model || null,
 				binaryPath: null,
 				env: {},
 			},
 		});
-		const answer = stripCodeFence(result?.answer ?? "");
-		if (!answer) throw new AiAssistError("runFailed");
-		return answer;
+		if (result === null || result === undefined)
+			throw new AiAssistError("runFailed");
+		return result;
 	} catch (e) {
 		if (e instanceof AiAssistError) throw e;
 		if (cancelled) {
@@ -122,4 +125,27 @@ export async function runOneShot(
 		if (timer !== null) clearTimeout(timer);
 		signal?.removeEventListener("abort", cancel);
 	}
+}
+
+/**
+ * The prose assists: one field, guaranteed present by the schema. Kept as a
+ * wrapper so a call site that genuinely wants one block of markdown does not
+ * repeat the schema.
+ */
+export async function runOneShot(
+	prompt: string,
+	workingDir: string,
+	providerId: string,
+	options: OneShotOptions = {},
+): Promise<string> {
+	const result = await runOneShotShaped<{ answer?: string }>(
+		prompt,
+		workingDir,
+		providerId,
+		ANSWER_SCHEMA as unknown as Record<string, unknown>,
+		options,
+	);
+	const answer = (result.answer ?? "").trim();
+	if (!answer) throw new AiAssistError("runFailed");
+	return answer;
 }

@@ -40,6 +40,29 @@ meaningful data opts back in via the global `.selectable` class (inputs, `[conte
   diff content): add `class="selectable"`, and place a `CopyButton.svelte` next to it whenever the
   value is a single discrete token the user would want to copy.
 
+### Dropdowns
+
+**Never use a native `<select>`.** Its popup is drawn by the OS, so it ignores the app's theme,
+its own colours and fonts, and it cannot be positioned - inside a scrolling panel it detaches from
+its trigger. Use `Select.svelte` (`src/lib/components/`) instead:
+
+```svelte
+<Select
+  value={current}
+  options={items.map((i) => ({ value: i.id, label: i.label }))}
+  ariaLabel={t('some.label') as string}
+  on:change={(e) => apply(e.detail)}
+/>
+```
+
+It brings its own trigger styling, keyboard navigation and a panel positioned in fixed coordinates
+so it escapes overflow containers, and it dispatches `change` with the value in `e.detail` (it also
+supports `bind:value`). A wrapper around it must not redraw the border or the background - size it
+with `:global(.select)` and leave the chrome alone.
+
+A free-text field with suggestions is the exception: an `<input list=...>` with a `<datalist>` is
+not a dropdown and stays native, because the value must remain anything the user types.
+
 ### Drag and drop
 
 **Never use the HTML5 drag and drop API** (`draggable`, `dragstart`, `dragover`, `drop`,

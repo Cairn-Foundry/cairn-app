@@ -103,7 +103,7 @@ pub use lsp::{
 };
 pub use cli::{PendingCliPaths, get_cli_status, install_cli, uninstall_cli, take_pending_cli_paths};
 pub use cli_providers::{discover_cli_session, list_cli_providers, reached_providers};
-pub use oneshot::{OneshotState, run_oneshot, stop_oneshot};
+pub use oneshot::{OneshotState, list_oneshot_providers, run_oneshot, stop_oneshot};
 pub use secrets::{delete_provider_api_key, get_api_key_statuses, set_provider_api_key};
 pub use mcp::{
     list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,
