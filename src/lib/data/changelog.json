@@ -8,6 +8,48 @@
     },
     "changes": [
       {
+        "kind": "fixed",
+        "text": {
+          "en": "Searching the git graph waits for the typing to settle before filtering, so a long history no longer stutters on every keystroke; clearing the field still restores the full list at once.",
+          "fr": "La recherche dans le graphe git attend la fin de la frappe avant de filtrer, si bien qu'un long historique ne saccade plus à chaque touche ; vider le champ rétablit toujours la liste complète immédiatement."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Mermaid files (.mmd) render as a diagram in the editor, and show their source again as soon as the cursor enters them.",
+          "fr": "Les fichiers Mermaid (.mmd) s'affichent comme un diagramme dans l'éditeur, et redonnent leur source dès que le curseur y entre."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "A large Mermaid diagram is no longer squeezed into the width of the editor: it keeps its size and is explored by dragging, zooming with ctrl or cmd and the wheel, and a double click puts it back.",
+          "fr": "Un grand diagramme Mermaid n'est plus écrasé à la largeur de l'éditeur : il garde sa taille et s'explore en le faisant glisser, en zoomant avec ctrl ou cmd et la molette, et un double clic le remet en place."
+        }
+      },
+      {
+        "kind": "added",
+        "text": {
+          "en": "Tags are managed from the Git view: creating a lightweight or annotated tag, pushing it, and deleting it locally or on the remote. A commit only a tag points at now appears in the graph.",
+          "fr": "Les tags se gèrent depuis la vue Git : créer un tag léger ou annoté, le pousser, le supprimer en local ou sur le distant. Un commit sur lequel pointe seulement un tag apparaît désormais dans le graphe."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "Tests are detected in a monorepo: packages nested under a grouping directory are found, and an environment selector picks which one to run, next to the engine selector. Two packages using the same engine are no longer mixed up.",
+          "fr": "Les tests sont détectés dans un monorepo : les packages imbriqués sous un dossier de regroupement sont trouvés, et un sélecteur d'environnement choisit celui à lancer, à côté du sélecteur de moteur. Deux packages utilisant le même moteur ne sont plus confondus."
+        }
+      },
+      {
+        "kind": "fixed",
+        "text": {
+          "en": "A repository with many branches no longer hides its commit messages: the rails are capped in width and the message keeps its room, whatever the number of branches.",
+          "fr": "Un dépôt avec beaucoup de branches ne cache plus ses messages de commit : les rails sont bornés en largeur et le message garde sa place, quel que soit le nombre de branches."
+        }
+      },
+      {
         "kind": "added",
         "text": {
           "en": "Icon animations can be turned off in the appearance settings.",

@@ -16,7 +16,7 @@
     countCases, loadTests, runTests, selectCase, selectRunner, setFilter, setSearch,
     stopTests, tests, testStateFor,
   } from '$lib/stores/tests';
-  import type { TestCase } from '$lib/types/tests';
+  import { runnerKey, type TestCase } from '$lib/types/tests';
   import {
     caseLabel, countVisible, filterSuites, matchesFilter, parseQuery, splitHighlight,
     type TestFilter,
@@ -38,6 +38,21 @@
   $: projectId = $activeProjectId ?? '';
   $: instance = $activeInstance;
   $: state = testStateFor($tests, projectId, instance?.id ?? '');
+
+  // A monorepo exposes several packages, each with its own engines. The two
+  // selects split that: where to run, then what to run it with.
+  $: selectedRunner = state.runners.find((entry) => runnerKey(entry) === state.selectedRunnerId);
+  $: selectedSubdir = selectedRunner?.subdir ?? '';
+  $: environments = [...new Set(state.runners.map((entry) => entry.subdir))].map((subdir) => ({
+    subdir,
+    label: subdir || (t('tests.rootEnvironment') as string),
+  }));
+  $: runnersHere = state.runners.filter((entry) => entry.subdir === selectedSubdir);
+
+  function selectEnvironment(subdir: string): void {
+    const target = state.runners.find((entry) => entry.subdir === subdir);
+    if (target && instance) selectRunner(projectId, instance.id, runnerKey(target));
+  }
   $: busy = state.activeRunId !== '';
   $: counts = countCases(state.suites);
   $: runner = state.runners.find((entry) => entry.id === state.selectedRunnerId) ?? null;
@@ -346,15 +361,27 @@
           on:click={() => allCollapsed ? expandAll() : collapseAll()}
         ><Icon name={allCollapsed ? 'expand-all' : 'collapse-all'} size={13}/></button>
       {/if}
-      {#if state.runners.length > 1}
+      {#if environments.length > 1}
+        <select
+          class="runner-select"
+          value={selectedSubdir}
+          title={t('tests.environment') as string}
+          on:change={(e) => selectEnvironment(e.currentTarget.value)}
+        >
+          {#each environments as env (env.subdir)}
+            <option value={env.subdir}>{env.label}</option>
+          {/each}
+        </select>
+      {/if}
+      {#if runnersHere.length > 1}
         <select
           class="runner-select"
           value={state.selectedRunnerId}
           title={t('tests.runner') as string}
           on:change={(e) => instance && selectRunner(projectId, instance.id, e.currentTarget.value)}
         >
-          {#each state.runners as entry (entry.id + entry.subdir)}
-            <option value={entry.id}>{entry.label}</option>
+          {#each runnersHere as entry (runnerKey(entry))}
+            <option value={runnerKey(entry)}>{entry.label}</option>
           {/each}
         </select>
       {/if}

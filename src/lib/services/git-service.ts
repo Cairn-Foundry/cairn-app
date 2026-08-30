@@ -706,3 +706,64 @@ export async function discardFile(
 ): Promise<void> {
 	return invoke("git_discard_file", { worktreePath, filePath });
 }
+
+/**
+ * A tag. `hash` is always the commit it points at: an annotated tag is
+ * dereferenced backend-side, so it never reports its own tag object.
+ */
+export type GitTag = {
+	name: string;
+	hash: string;
+	shortHash: string;
+	subject: string;
+	message: string;
+	date: string;
+	tagger: string;
+	annotated: boolean;
+};
+
+/** Every tag, most recent first. */
+export async function getTagList(worktreePath: string): Promise<GitTag[]> {
+	return invoke("git_tag_list", { worktreePath });
+}
+
+/** Creates a tag; a non-empty `message` makes it annotated, HEAD when no commit. */
+export async function tagCreate(
+	worktreePath: string,
+	name: string,
+	message: string,
+	commitHash: string,
+): Promise<void> {
+	return invoke("git_tag_create", {
+		worktreePath,
+		name,
+		message,
+		commitHash,
+	});
+}
+
+/** Deletes a tag locally; the remote keeps its copy. */
+export async function tagDelete(
+	worktreePath: string,
+	name: string,
+): Promise<void> {
+	return invoke("git_tag_delete", { worktreePath, name });
+}
+
+/** Pushes one tag to the remote. */
+export async function tagPush(
+	worktreePath: string,
+	remote: string,
+	name: string,
+): Promise<void> {
+	return invoke("git_tag_push", { worktreePath, remote, name });
+}
+
+/** Deletes a tag on the remote, leaving the local one in place. */
+export async function tagDeleteRemote(
+	worktreePath: string,
+	remote: string,
+	name: string,
+): Promise<void> {
+	return invoke("git_tag_delete_remote", { worktreePath, remote, name });
+}

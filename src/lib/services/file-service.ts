@@ -561,6 +561,8 @@ const EXT_LANG: Record<string, string> = {
 	less: "css",
 	md: "markdown",
 	mdx: "markdown",
+	mmd: "mermaid",
+	mermaid: "mermaid",
 	xml: "xml",
 	svg: "xml",
 	yaml: "yaml",

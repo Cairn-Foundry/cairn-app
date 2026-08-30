@@ -20,6 +20,7 @@ import { t } from "$lib/i18n";
 import { parentPathOf } from "$lib/utils/files/files-tree";
 import { CLIPBOARD_CLEAR_DELAY } from "$lib/utils/timing";
 import { renderMermaid } from "./mermaid";
+import { attachMermaidZoom, type MermaidZoom } from "./mermaid-zoom";
 
 // Markdown rendered inline in the editor: headings, emphasis, links, rules,
 // bullets, task boxes, images and tables are decorated and their markup hidden.
@@ -338,7 +339,15 @@ class ImageWidget extends WidgetType {
 	}
 }
 
-class MermaidWidget extends WidgetType {
+/**
+ * The window a diagram is shown through. A large graph keeps its natural size
+ * and is explored by panning, rather than being scaled down to illegibility.
+ */
+const MERMAID_VIEW_HEIGHT = 320;
+
+export class MermaidWidget extends WidgetType {
+	private zoom: MermaidZoom | null = null;
+
 	constructor(readonly source: string) {
 		super();
 	}
@@ -346,7 +355,31 @@ class MermaidWidget extends WidgetType {
 	toDOM(): HTMLElement {
 		const el = document.createElement("div");
 		el.className = "cm-md-mermaid";
-		void renderMermaid(el, this.source);
+
+		const surface = document.createElement("div");
+		surface.className = "cm-md-mermaid-surface";
+		const stage = document.createElement("div");
+		stage.className = "cm-md-mermaid-stage";
+		surface.appendChild(stage);
+		el.appendChild(surface);
+
+		const reset = document.createElement("button");
+		reset.className = "cm-md-mermaid-reset";
+		reset.type = "button";
+		reset.title = "Reset zoom";
+		reset.setAttribute("aria-label", "Reset zoom");
+		reset.innerHTML = iconSvg("refresh");
+		el.appendChild(reset);
+
+		void renderMermaid(stage, this.source).then(() => {
+			if (stage.classList.contains("cm-md-mermaid-error")) {
+				el.classList.add("cm-md-mermaid-failed");
+				return;
+			}
+			this.zoom = attachMermaidZoom(surface, stage);
+			reset.addEventListener("click", () => this.zoom?.reset());
+		});
+
 		return el;
 	}
 
@@ -354,8 +387,13 @@ class MermaidWidget extends WidgetType {
 		return other.source === this.source;
 	}
 
+	destroy(): void {
+		this.zoom?.destroy();
+		this.zoom = null;
+	}
+
 	get estimatedHeight(): number {
-		return 120;
+		return MERMAID_VIEW_HEIGHT;
 	}
 
 	ignoreEvent(): boolean {
@@ -914,7 +952,7 @@ const linkArmedOnShift = ViewPlugin.fromClass(
 	},
 );
 
-const wysiwygTheme = EditorView.theme({
+export const wysiwygTheme = EditorView.theme({
 	".cm-md-heading": {
 		fontFamily: "var(--font-ui)",
 		fontWeight: "600",
@@ -956,14 +994,44 @@ const wysiwygTheme = EditorView.theme({
 		background: "color-mix(in oklab, var(--bg-2) 70%, transparent)",
 	},
 	".cm-md-mermaid": {
-		display: "flex",
-		justifyContent: "center",
-		padding: "12px",
+		position: "relative",
 		background: "var(--bg-2)",
 		borderRadius: "6px",
-		overflowX: "auto",
+		overflow: "hidden",
 	},
-	".cm-md-mermaid svg": { maxWidth: "100%", height: "auto" },
+	".cm-md-mermaid-surface": {
+		height: `${MERMAID_VIEW_HEIGHT}px`,
+		overflow: "hidden",
+		cursor: "grab",
+		touchAction: "none",
+	},
+	".cm-md-mermaid-panning": { cursor: "grabbing" },
+	".cm-md-mermaid-stage": {
+		transformOrigin: "0 0",
+		width: "fit-content",
+		padding: "12px",
+	},
+	".cm-md-mermaid-reset": {
+		position: "absolute",
+		top: "6px",
+		right: "6px",
+		display: "flex",
+		alignItems: "center",
+		padding: "4px",
+		border: "1px solid var(--border)",
+		borderRadius: "4px",
+		background: "var(--bg-1)",
+		color: "var(--fg-2)",
+		cursor: "pointer",
+		opacity: "0",
+		transition: "opacity 120ms",
+	},
+	".cm-md-mermaid:hover .cm-md-mermaid-reset": { opacity: "1" },
+	".cm-md-mermaid-failed .cm-md-mermaid-reset": { display: "none" },
+	".cm-md-mermaid-failed .cm-md-mermaid-surface": {
+		height: "auto",
+		cursor: "default",
+	},
 	".cm-md-mermaid-error": {
 		justifyContent: "flex-start",
 		whiteSpace: "pre-wrap",

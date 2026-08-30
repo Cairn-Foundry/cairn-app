@@ -10,6 +10,7 @@ import type {
 	GitOperationState,
 	GitOpResult,
 	GitStash,
+	GitTag,
 	PullMode,
 	PushMode,
 	RemoteStatus,
@@ -51,6 +52,7 @@ type GitState = {
 	log: GitCommit[];
 	graph: GitGraphCommit[];
 	stashes: GitStash[];
+	tags: GitTag[];
 	remoteStatus: RemoteStatus | null;
 	operationState: GitOperationState | null;
 	logHasMore: boolean;
@@ -81,6 +83,7 @@ const INITIAL: GitState = {
 	log: [],
 	graph: [],
 	stashes: [],
+	tags: [],
 	remoteStatus: null,
 	operationState: null,
 	logHasMore: false,
@@ -233,6 +236,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				log: [],
 				graph: [],
 				stashes: [],
+				tags: [],
 				isGitRepo: false,
 				isLoading: false,
 				error: null,
@@ -656,6 +660,7 @@ export function clearGitData(): void {
 		log: [],
 		graph: [],
 		stashes: [],
+		tags: [],
 		logHasMore: false,
 		graphHasMore: false,
 		isGitRepo: true,
@@ -769,6 +774,56 @@ export async function refreshStashes(): Promise<void> {
 	} catch {
 		// Non-fatal
 	}
+}
+
+/** Reloads the tag list. */
+export async function refreshTags(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	try {
+		const tags = await gitService.getTagList(wt);
+		_git.update((s) => ({ ...s, tags }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+/** Creates a tag on `commitHash`, or on HEAD when it is empty. */
+export async function createTag(
+	name: string,
+	message: string,
+	commitHash = "",
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.tagCreate(wt, name, message, commitHash));
+	await refreshTags();
+}
+
+/** Deletes a tag locally. */
+export async function deleteTag(name: string): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.tagDelete(wt, name));
+	await refreshTags();
+}
+
+/** Pushes one tag to the remote. */
+export async function pushTag(name: string, remote = "origin"): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.tagPush(wt, remote, name));
+}
+
+/** Deletes a tag on the remote, leaving the local one in place. */
+export async function deleteRemoteTag(
+	name: string,
+	remote = "origin",
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.tagDeleteRemote(wt, remote, name));
+	await refreshTags();
 }
 
 /** Stashes the changes, optionally limited to `paths`. */

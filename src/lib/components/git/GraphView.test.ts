@@ -1,7 +1,9 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { tick } from "svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitGraphCommit } from "$lib/services/git-service";
+import { SEARCH_DEBOUNCE_MS } from "$lib/utils/timing";
 import { instance } from "../../../test/fixtures";
 import GraphView from "./GraphView.svelte";
 
@@ -274,6 +276,21 @@ describe("GraphView", () => {
 	});
 
 	describe("searching", () => {
+		// The filter trails the input by a debounce window, so a test types and
+		// then lets that window elapse rather than asserting on the keystroke.
+		beforeEach(() => {
+			vi.useFakeTimers({ shouldAdvanceTime: true });
+		});
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		async function typeSearch(text: string) {
+			await userEvent.type(search(), text);
+			await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+			await tick();
+		}
+
 		const history = [
 			commit("aaa1", [], { message: "fix the parser", author: "alice" }),
 			commit("bbb2", [], { message: "add a button", author: "bob" }),
@@ -281,19 +298,19 @@ describe("GraphView", () => {
 
 		it("matches on the message", async () => {
 			mount({ commits: history });
-			await userEvent.type(search(), "parser");
+			await typeSearch("parser");
 			expect(messages()).toEqual(["fix the parser"]);
 		});
 
 		it("matches on the author", async () => {
 			mount({ commits: history });
-			await userEvent.type(search(), "bob");
+			await typeSearch("bob");
 			expect(messages()).toEqual(["add a button"]);
 		});
 
 		it("matches on the hash", async () => {
 			mount({ commits: history });
-			await userEvent.type(search(), "aaa1");
+			await typeSearch("aaa1");
 			expect(messages()).toEqual(["fix the parser"]);
 		});
 
@@ -304,7 +321,7 @@ describe("GraphView", () => {
 					commit("b", [], { message: "two" }),
 				],
 			});
-			await userEvent.type(search(), "release");
+			await typeSearch("release");
 			expect(messages()).toEqual(["one"]);
 		});
 
@@ -317,32 +334,57 @@ describe("GraphView", () => {
 				],
 				instances: [instance("PROJ-42", "p1", { branch: "feature" })],
 			});
-			await userEvent.type(search(), "proj-42");
+			await typeSearch("proj-42");
 			expect(messages()).toEqual(["one"]);
 		});
 
 		it("distinguishes no match from no history", async () => {
 			mount({ commits: history });
-			await userEvent.type(search(), "zzz");
+			await typeSearch("zzz");
 			expect(rows()).toHaveLength(0);
 			expect(empty()).toBeTruthy();
 		});
 
 		it("says when the search starts and when it stops", async () => {
 			const { searchToggle } = mount({ commits: history });
-			await userEvent.type(search(), "a");
+			await typeSearch("a");
 			expect(searchToggle).toHaveBeenLastCalledWith(true);
 			await userEvent.clear(search());
+			await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+			await tick();
 			expect(searchToggle).toHaveBeenLastCalledWith(false);
 		});
 
 		it("lists everything again once the search is cleared", async () => {
 			mount({ commits: history });
-			await userEvent.type(search(), "parser");
+			await typeSearch("parser");
 			await userEvent.click(
 				document.querySelector(".graph-search-clear") as HTMLElement,
 			);
+			await tick();
 			expect(rows()).toHaveLength(2);
+		});
+
+		/** The whole point of the debounce: typing does not filter on each key. */
+		it("waits for the typing to settle before filtering", async () => {
+			mount({ commits: history });
+			await userEvent.type(search(), "parser");
+			expect(messages()).toHaveLength(2);
+
+			await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+			await tick();
+			expect(messages()).toEqual(["fix the parser"]);
+		});
+
+		/** Clearing restores everything at once - a delay would read as stuck. */
+		it("restores the full list without waiting when the field is cleared", async () => {
+			mount({ commits: history });
+			await typeSearch("parser");
+			expect(messages()).toEqual(["fix the parser"]);
+
+			await userEvent.clear(search());
+			await tick();
+			expect(messages()).toHaveLength(2);
 		});
 	});
 

@@ -108,6 +108,27 @@ describe("detectTestRunners", () => {
 		expect(runners[0].subdir).toBe("frontend");
 	});
 
+	it("finds packages nested under a grouping directory", async () => {
+		mountTree(
+			{
+				"/w": ["packages"],
+				"/w/packages": ["app", "ui"],
+				"/w/packages/app": ["package.json"],
+				"/w/packages/ui": ["package.json"],
+			},
+			{
+				"/w/packages/app/package.json": PKG_VITEST,
+				"/w/packages/ui/package.json": PKG_VITEST,
+			},
+		);
+		const runners = await detectTestRunners("/w", false);
+
+		expect(runners.map((runner) => runner.subdir)).toEqual([
+			"packages/app",
+			"packages/ui",
+		]);
+	});
+
 	it("does not descend into node_modules or other build/VCS directories", async () => {
 		mountTree(
 			{

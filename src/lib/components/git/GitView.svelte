@@ -14,6 +14,7 @@
   import GitDiff from '$lib/components/git/GitDiff.svelte';
   import GraphView from '$lib/components/git/GraphView.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
+  import TagView from '$lib/components/git/TagView.svelte';
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import GitignoreView from '$lib/components/git/GitignoreView.svelte';
@@ -34,6 +35,7 @@
     loadMoreGraph,
     loadAllGraph,
     refreshStashes,
+    refreshTags,
     getStashDiff,
     getHeadCommitMessage,
     stageFile,
@@ -648,12 +650,13 @@
   }
 
   /** Switches the left tab, refreshing the data that tab owns and dropping stale selections. */
-  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'mergerebase' | 'gitignore') {
+  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'tag' | 'mergerebase' | 'gitignore') {
     gitLeftTab.set(tab);
     if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
     if (tab === 'log') { refreshLog(); selectedStash = null; }
     if (tab === 'graph') { refreshGraph(); selectedStash = null; }
     if (tab === 'stash') { clearSelectedCommit(); refreshStashes(); }
+    if (tab === 'tag') { clearSelectedCommit(); selectedStash = null; refreshTags(); }
     if (tab === 'gitignore') { clearSelectedCommit(); selectedStash = null; }
   }
 
@@ -797,6 +800,9 @@
     refreshStatus();
     if (!logSearchLoaded) refreshLog();
     if ($gitLeftTab === 'graph' && !graphSearchActive) refreshGraph();
+    // The tag count sits on the tab, so it has to be known before the panel is
+    // ever opened. One `for-each-ref`, cheap enough to run with the status.
+    refreshTags();
   }
 
   $: syncLogSearchMode($currentProjectViewState.gitLogSearch);
@@ -1201,6 +1207,16 @@
       </button>
       <button
         class="col-tab"
+        class:active={$gitLeftTab === 'tag'}
+        on:click={() => setLeftTab('tag')}
+      >
+        {t('git.tags')}
+        {#if state.tags.length > 0}
+          <span class="col-tab-count">{state.tags.length}</span>
+        {/if}
+      </button>
+      <button
+        class="col-tab"
         class:active={$gitLeftTab === 'log'}
         on:click={() => setLeftTab('log')}
       >
@@ -1439,6 +1455,8 @@
         selectedStashIndex={selectedStash?.index ?? null}
         on:selectStash={(e) => handleSelectStash(e.detail)}
       />
+    {:else if $gitLeftTab === 'tag'}
+      <TagView />
     {:else if $gitLeftTab === 'mergerebase'}
       <MergeRebaseView
         on:openFile={(e) => dispatch('openFile', e.detail)}

@@ -29,6 +29,15 @@ export interface TestRunner {
 	detectedFrom: string;
 }
 
+/**
+ * What identifies a runner in the UI and in the persisted state. A monorepo can
+ * expose the same engine in several packages, so the engine id alone would make
+ * two Vitest packages indistinguishable - the directory is part of the identity.
+ */
+export function runnerKey(runner: Pick<TestRunner, "id" | "subdir">): string {
+	return runner.subdir ? `${runner.id}:${runner.subdir}` : runner.id;
+}
+
 /** A frame of a failure's stack; frames outside the project are collapsed. */
 export interface StackFrame {
 	file: string;

@@ -26,6 +26,7 @@ export type EditorLanguage =
 	| "html"
 	| "css"
 	| "markdown"
+	| "mermaid"
 	| "xml"
 	| "yaml"
 	| "python"
@@ -99,6 +100,7 @@ export async function resolveLanguageExtension(
 			return (await import("@codemirror/lang-cpp")).cpp();
 		case "php":
 			return (await import("@codemirror/lang-php")).php();
+		case "mermaid":
 		case "text":
 			return [];
 		default:

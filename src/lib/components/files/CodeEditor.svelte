@@ -61,6 +61,7 @@
   import { buildConflictResolver } from '$lib/utils/editor/editor-conflict';
   import { buildStickyScroll, stickyScrollTheme } from '$lib/utils/editor/editor-sticky-scroll';
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
+  import { buildMermaidDoc } from '$lib/utils/editor/editor-mermaid-doc';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
   export let content: Text = Text.empty;
@@ -326,6 +327,9 @@
     const data = jsLang?.language.data;
 
     const exts: Extension[] = [lang];
+    if (language === 'mermaid') {
+      exts.push(buildMermaidDoc());
+    }
     if (language === 'markdown') {
       exts.push(buildMarkdownWysiwyg({ onOpenFile: (path, anchor) => onOpenLink?.(path, anchor) }));
     }

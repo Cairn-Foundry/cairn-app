@@ -10,6 +10,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
+  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
 
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
@@ -36,6 +37,25 @@
   $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
 
   let graphSearch = '';
+  /**
+   * What the filter actually runs on. It trails the input by one debounce
+   * window: filtering walks the whole loaded history, so doing it on every
+   * keystroke stutters the list while the user is still typing.
+   */
+  let appliedSearch = '';
+  let searchTimer: ReturnType<typeof setTimeout>;
+  $: scheduleSearch(graphSearch);
+
+  function scheduleSearch(typed: string) {
+    clearTimeout(searchTimer);
+    // Clearing the field restores the full list at once: there is nothing to
+    // wait for, and the delay would read as the list being stuck.
+    if (!typed.trim()) {
+      appliedSearch = typed;
+      return;
+    }
+    searchTimer = setTimeout(() => (appliedSearch = typed), SEARCH_DEBOUNCE_MS);
+  }
 
   let branchTip: { x: number; y: number; label: string } | null = null;
 
@@ -49,7 +69,7 @@
 
   let searchActive = false;
   $: {
-    const active = graphSearch.trim().length > 0;
+    const active = appliedSearch.trim().length > 0;
     if (active !== searchActive) {
       searchActive = active;
       dispatch('searchToggle', active);
@@ -57,8 +77,8 @@
   }
 
   $: processedCommits = (() => {
-    if (!graphSearch.trim()) return commits;
-    const q = graphSearch.toLowerCase();
+    if (!appliedSearch.trim()) return commits;
+    const q = appliedSearch.toLowerCase();
     return commits.filter(c =>
       c.message.toLowerCase().includes(q) ||
       c.author.toLowerCase().includes(q) ||
@@ -83,6 +103,7 @@
   const HALF   = COL_W / 2;
   const DOT_R  = 4;
   const STROKE = 2;
+  const MAX_RAIL_W = 180;
 
   const PALETTE = [
     '#6b9eff',
@@ -276,7 +297,13 @@
 
   $: rows = computeGraph(processedCommits);
   $: globalMaxLane = rows.reduce((acc, r) => Math.max(acc, r.maxLaneInRow), 0);
-  $: svgW = (globalMaxLane + 1) * COL_W + HALF + 4;
+  $: fullSvgW = (globalMaxLane + 1) * COL_W + HALF + 4;
+  // The rails are drawn at their full width so they stay aligned from one row
+  // to the next, but the column they sit in is capped: past a certain number
+  // of branches they would take the whole panel and squeeze the commit message
+  // out of existence. Beyond the cap the rails scroll horizontally instead.
+  $: railW = Math.min(fullSvgW, MAX_RAIL_W);
+  $: railsClipped = fullSvgW > railW;
 
   // Set of commit hashes reachable from the current branch HEAD
   $: currentBranchAncestors = (() => {
@@ -337,12 +364,17 @@
         on:keydown={(e) => e.key === 'Enter' && dispatch('selectCommit', row.commit)}
       >
         <div class="graph-row">
+          <div
+            class="graph-rails"
+            class:is-clipped={railsClipped}
+            style="width:{railW}px"
+          >
           <svg
             class="graph-svg"
-            width={svgW}
+            width={fullSvgW}
             height={ROW_H}
-            viewBox="0 0 {svgW} {ROW_H}"
-            style="width:{svgW}px"
+            viewBox="0 0 {fullSvgW} {ROW_H}"
+            style="width:{fullSvgW}px"
           >
             {#each row.paths as p}
               <path
@@ -372,6 +404,7 @@
               on:mouseleave={row.branch ? hideBranchTip : undefined}
             />
           </svg>
+          </div>
 
           <div class="row-body">
             <span class="commit-text">{row.commit.message}</span>
@@ -386,8 +419,8 @@
         </div>
 
         {#if chips.length > 0}
-          <div class="chips-strip" style="padding-left:{svgW + 4}px">
-            {#each row.belowLanes as bl}
+          <div class="chips-strip" style="padding-left:{railW + 4}px">
+            {#each row.belowLanes.filter((bl) => laneX(bl.idx) < railW) as bl}
               <div
                 class="chips-lane-line"
                 class:branch-line={!!bl.branch}
@@ -434,7 +467,7 @@
       <div class="graph-empty">{t('git.noHistory')}</div>
     {:else if rows.length === 0}
       <div class="graph-empty">{t('git.graphNoResults')}</div>
-    {:else if hasMore && !graphSearch.trim()}
+    {:else if hasMore && !appliedSearch.trim()}
       <div class="graph-loading-more">
         <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
       </div>
@@ -567,9 +600,30 @@
     height: 36px;
   }
 
+  .graph-rails {
+    flex-shrink: 0;
+    overflow: hidden;
+    height: 36px;
+    position: relative;
+  }
+  /* A fade marks the rails that do not fit, so a clipped graph does not read
+     as a graph that simply ends. */
+  .graph-rails.is-clipped::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 14px;
+    background: linear-gradient(to right, transparent, var(--bg-2));
+    pointer-events: none;
+  }
+
   .graph-svg {
     display: block;
     flex-shrink: 0;
+  }
+
+  .commit-text {
+    min-width: 12ch;
   }
 
   .row-body {
@@ -601,6 +655,9 @@
     gap: 4px;
     padding: 2px 10px 6px 0;
     position: relative;
+    /* The lane lines are positioned against the full rail width, so the strip
+       has to clip them the way the rail column does. */
+    overflow: hidden;
   }
   .chips-lane-line {
     position: absolute;

@@ -1468,7 +1468,9 @@ pub struct GitGraphCommit {
 pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitGraphCommit>, GitError> {
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args([
-        "log", "--all", "--topo-order",
+        // `--all` covers heads and remotes but not tags: without `--tags` a
+        // commit only a tag points at is missing from the graph entirely.
+        "log", "--all", "--tags", "--topo-order",
         &format!("--skip={}", offset),
         &format!("-{}", limit),
         "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%D\x1f%s",
@@ -1895,6 +1897,156 @@ pub async fn git_log(worktree_path: String, limit: usize, offset: usize) -> Resu
 }
 
 // ---------------------------------------------------------------------------
+// Tags
+// ---------------------------------------------------------------------------
+
+/// A tag, with the commit it points at. An annotated tag carries its own
+/// message and tagger; a lightweight one is just a name on a commit.
+#[derive(Serialize)]
+pub struct GitTag {
+    pub name: String,
+    pub hash: String,
+    #[serde(rename = "shortHash")]
+    pub short_hash: String,
+    pub subject: String,
+    pub message: String,
+    pub date: String,
+    pub tagger: String,
+    pub annotated: bool,
+}
+
+/// Every tag in the worktree, most recent first.
+#[tauri::command]
+pub async fn git_tag_list(worktree_path: String) -> Result<Vec<GitTag>, GitError> {
+    let expanded = expand(&worktree_path);
+    // `creatordate` sorts annotated and lightweight tags alike; `*objectname`
+    // dereferences an annotated tag to the commit it points at, which the bare
+    // `objectname` would report as the tag object itself.
+    //
+    // An annotated tag's body carries its own newlines, so records are split on
+    // a trailing RS rather than on line breaks: one tag is not one line.
+    //
+    // The date is `iso-strict`, not `iso`: the latter's "2026-08-30 12:06:42
+    // +0200" is not ISO 8601 and the webview parses it as an invalid date.
+    let out = run(git_cmd(&expanded).args([
+        "for-each-ref",
+        "--sort=-creatordate",
+        "--format=%(refname:short)\x1f%(objecttype)\x1f%(objectname)\x1f%(*objectname)\x1f%(creatordate:iso-strict)\x1f%(taggername)\x1f%(subject)\x1f%(contents:body)\x1e",
+        "refs/tags",
+    ]))?;
+
+    let tags = out
+        .split('\x1e')
+        .map(|record| record.trim_start_matches('\n'))
+        .filter(|record| !record.trim().is_empty())
+        .map(|record| {
+            let parts: Vec<&str> = record.splitn(8, '\x1f').collect();
+            let annotated = parts.get(1).copied().unwrap_or("") == "tag";
+            let tag_object = parts.get(2).copied().unwrap_or("");
+            let peeled = parts.get(3).copied().unwrap_or("");
+            let hash = if annotated && !peeled.is_empty() {
+                peeled
+            } else {
+                tag_object
+            };
+            GitTag {
+                name: parts.first().copied().unwrap_or("").to_string(),
+                hash: hash.to_string(),
+                short_hash: hash.chars().take(7).collect(),
+                subject: parts.get(6).copied().unwrap_or("").to_string(),
+                message: parts.get(7).map(|s| s.trim_end()).unwrap_or("").to_string(),
+                date: parts.get(4).copied().unwrap_or("").to_string(),
+                tagger: parts.get(5).copied().unwrap_or("").to_string(),
+                annotated,
+            }
+        })
+        .collect();
+
+    Ok(tags)
+}
+
+/// Creates a tag on `commit_hash`, or on HEAD when it is empty. A non-empty
+/// `message` makes it annotated.
+#[tauri::command]
+pub async fn git_tag_create(
+    worktree_path: String,
+    name: String,
+    message: String,
+    commit_hash: String,
+) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    reject_option_like(&name)?;
+
+    let mut args: Vec<String> = vec!["tag".into()];
+    if !message.trim().is_empty() {
+        args.push("-a".into());
+        args.push("-m".into());
+        args.push(message);
+    }
+    args.push(name);
+    if !commit_hash.trim().is_empty() {
+        reject_option_like(&commit_hash)?;
+        args.push(commit_hash);
+    }
+
+    let out = git_cmd(&expanded).args(&args).output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+/// Deletes a tag locally. The remote keeps its own copy until it is deleted too.
+#[tauri::command]
+pub async fn git_tag_delete(worktree_path: String, name: String) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    reject_option_like(&name)?;
+    let out = git_cmd(&expanded).args(["tag", "-d", &name]).output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+/// Pushes one tag to `remote`.
+#[tauri::command]
+pub async fn git_tag_push(
+    worktree_path: String,
+    remote: String,
+    name: String,
+) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    reject_option_like(&name)?;
+    reject_option_like(&remote)?;
+    let out = git_cmd(&expanded)
+        .args(["push", &remote, &format!("refs/tags/{name}")])
+        .output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+/// Deletes a tag on `remote`, leaving the local one alone.
+#[tauri::command]
+pub async fn git_tag_delete_remote(
+    worktree_path: String,
+    remote: String,
+    name: String,
+) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    reject_option_like(&name)?;
+    reject_option_like(&remote)?;
+    let out = git_cmd(&expanded)
+        .args(["push", &remote, "--delete", &format!("refs/tags/{name}")])
+        .output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -2172,6 +2324,88 @@ diff --git a/two.txt b/two.txt
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    #[tokio::test]
+    async fn tag_list_reports_lightweight_and_annotated_tags() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "first");
+
+        git_tag_create(repo.wt(), "v0.1.0".into(), String::new(), String::new())
+            .await
+            .unwrap();
+        repo.commit("b.txt", "two\n", "second");
+        git_tag_create(
+            repo.wt(),
+            "v0.2.0".into(),
+            "the second release".into(),
+            String::new(),
+        )
+        .await
+        .unwrap();
+
+        let tags = git_tag_list(repo.wt()).await.unwrap();
+        assert_eq!(tags.len(), 2);
+
+        let annotated = tags.iter().find(|t| t.name == "v0.2.0").unwrap();
+        assert!(annotated.annotated);
+        assert_eq!(annotated.subject, "the second release");
+
+        let lightweight = tags.iter().find(|t| t.name == "v0.1.0").unwrap();
+        assert!(!lightweight.annotated);
+
+        // An annotated tag must report the commit it points at, not the tag
+        // object, so both tags resolve to a real commit in the log.
+        let head = run(git_cmd(&repo.wt()).args(["rev-parse", "HEAD"])).unwrap();
+        assert_eq!(annotated.hash, head.trim());
+        assert_eq!(annotated.short_hash.len(), 7);
+
+        git_tag_delete(repo.wt(), "v0.1.0".into()).await.unwrap();
+        let after = git_tag_list(repo.wt()).await.unwrap();
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].name, "v0.2.0");
+    }
+
+    /// An annotated tag's body carries newlines: splitting the output on lines
+    /// turned one tag into several bogus entries, which inflated the count and
+    /// left the list unusable.
+    #[tokio::test]
+    async fn tag_list_keeps_one_entry_per_tag_with_a_multiline_message() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "first");
+
+        repo.git(&["tag", "-a", "v1.0.0", "-m", "title\n\nbody over\nseveral lines"]);
+        repo.git(&["tag", "v1.0.1"]);
+
+        let tags = git_tag_list(repo.wt()).await.unwrap();
+        assert_eq!(tags.len(), 2);
+
+        let names: Vec<&str> = tags.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"v1.0.0"));
+        assert!(names.contains(&"v1.0.1"));
+
+        let annotated = tags.iter().find(|t| t.name == "v1.0.0").unwrap();
+        assert_eq!(annotated.subject, "title");
+        // ISO 8601, the only form the webview parses: "YYYY-MM-DDTHH:MM:SS+HH:MM".
+        assert!(
+            annotated.date.contains('T'),
+            "date must be iso-strict, got {}",
+            annotated.date
+        );
+        assert!(annotated.message.contains("several lines"));
+        // Every entry must still resolve to a real commit, not to a body fragment.
+        assert!(tags.iter().all(|t| t.hash.len() == 40));
+    }
+
+    #[tokio::test]
+    async fn tag_create_rejects_an_option_like_name() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "first");
+        assert!(
+            git_tag_create(repo.wt(), "--force".into(), String::new(), String::new())
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

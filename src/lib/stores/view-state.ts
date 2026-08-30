@@ -105,6 +105,7 @@ export function applyProjectState(id: string): void {
 			| "log"
 			| "graph"
 			| "stash"
+			| "tag"
 			| "mergerebase"
 			| "gitignore",
 	);

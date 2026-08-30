@@ -16,6 +16,7 @@ import type {
 	TestRunSummary,
 	TestSuite,
 } from "$lib/types/tests";
+import { runnerKey } from "$lib/types/tests";
 import { dropProjectKeys } from "$lib/utils/project-scope";
 import { detectTestRunners } from "$lib/utils/tests/test-detect";
 import {
@@ -282,15 +283,20 @@ export async function loadTests(
 	const nextest = await hasCargoNextest(worktreePath);
 	const runners = await detectTestRunners(worktreePath, nextest);
 	const current = testStateFor(get(_tests), projectId, instanceId);
-	const stillValid = runners.some(
-		(runner) => runner.id === current.selectedRunnerId,
-	);
+	// A state saved before runners were keyed by directory holds a bare engine
+	// id; it still resolves, to the first package exposing that engine.
+	const savedId = current.selectedRunnerId;
+	const restored =
+		runners.find((runner) => runnerKey(runner) === savedId) ??
+		runners.find((runner) => runner.id === savedId);
 	patch(key, {
 		runners,
 		detecting: false,
-		selectedRunnerId: stillValid
-			? current.selectedRunnerId
-			: (runners[0]?.id ?? ""),
+		selectedRunnerId: restored
+			? runnerKey(restored)
+			: runners[0]
+				? runnerKey(runners[0])
+				: "",
 	});
 }
 
@@ -342,7 +348,7 @@ export async function runTests(
 	if (current.activeRunId) return;
 
 	const runner = current.runners.find(
-		(entry) => entry.id === current.selectedRunnerId,
+		(entry) => runnerKey(entry) === current.selectedRunnerId,
 	);
 	if (!runner) return;
 

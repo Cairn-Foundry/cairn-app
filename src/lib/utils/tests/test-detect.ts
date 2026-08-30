@@ -182,26 +182,40 @@ async function detectIn(
 }
 
 /**
- * Every runner a worktree exposes. A monorepo can keep its package anywhere,
- * so every immediate sub-directory of the root is tried, not just a hardcoded
+ * Every runner a worktree exposes. A monorepo can keep its packages anywhere,
+ * so sub-directories are swept rather than matched against a hardcoded
  * shortlist - `detectIn` is cheap to no-op (an empty `listDirNames`) on a
  * directory with neither `package.json` nor any other marker, and on a file
  * it is asked to `listDirNames` on, which resolves to nothing the same way.
  * `hasNextest` comes from the backend, which alone can look for the binary.
  */
+/** The directories of `root` worth descending into, in listing order. */
+async function childDirs(root: string, subdir: string): Promise<string[]> {
+	const dir = subdir ? `${root}/${subdir}` : root;
+	const names = await listDirNames(dir).catch(() => [] as string[]);
+	return names
+		.filter((name) => !name.startsWith(".") && !SKIP_DIRS.has(name))
+		.map((name) => (subdir ? `${subdir}/${name}` : name));
+}
+
 export async function detectTestRunners(
 	worktreePath: string,
 	hasNextest: boolean,
 ): Promise<TestRunner[]> {
-	const rootNames = await listDirNames(worktreePath).catch(
-		() => [] as string[],
-	);
-	const subdirs = rootNames.filter(
-		(name) => !name.startsWith(".") && !SKIP_DIRS.has(name),
-	);
+	const level1 = await childDirs(worktreePath, "");
+	// A monorepo usually keeps its packages one level further down, under a
+	// grouping directory (`packages/`, `apps/`, `services/`), so the sweep goes
+	// two levels deep. Deeper than that costs a directory listing per candidate
+	// for layouts nobody uses.
+	const level2 = (
+		await Promise.all(level1.map((dir) => childDirs(worktreePath, dir)))
+	).flat();
+
 	const found = await Promise.all([
 		detectIn(worktreePath, "", hasNextest),
-		...subdirs.map((dir) => detectIn(worktreePath, dir, hasNextest)),
+		...[...level1, ...level2].map((dir) =>
+			detectIn(worktreePath, dir, hasNextest),
+		),
 	]);
 	return found.flat();
 }
