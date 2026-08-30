@@ -338,10 +338,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-cairn ellipse:nth-of-type(3) { animation: ic-settle .3s ease 0s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-agent path:first-of-type { animation: ic-pulse .5s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-agent path:last-of-type { animation: ic-pulse .5s ease .12s; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(1) { animation: ic-pulse .35s ease; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(2) { animation: ic-pulse .35s ease .08s; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(3) { animation: ic-pulse .35s ease .16s; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-git circle:last-of-type { animation: ic-pulse .4s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(1) { animation: ic-tick .45s ease 0s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(2) { animation: ic-tick .45s ease .12s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(3) { animation: ic-tick .45s ease .24s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-review path:nth-of-type(4) { animation: ic-wipe .5s ease .1s backwards; transform-box: view-box; transform-origin: 11px 12px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-git-trunk { animation: ic-wipe-v .45s ease; transform-box: view-box; transform-origin: 6px 7px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-git-arm { animation: ic-wipe .45s ease .12s backwards; transform-box: view-box; transform-origin: 8px 5.5px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-git-tip { animation: ic-land .4s ease .34s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-tests { animation: ic-pour .6s ease; transform-origin: 50% 90%; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-tests-liquid { animation: ic-level .6s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-ci path:nth-of-type(1) { animation: ic-bob .4s ease; }
@@ -352,22 +355,25 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-check { animation: ic-draw-pop .4s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-plus-v { animation: ic-grow-v .35s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-plus-h { animation: ic-grow-h .35s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-x-a { animation: ic-grow-diag .35s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-x-b { animation: ic-grow-diag .35s ease .08s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-chev-r { transform: translateX(2px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-chev-d { transform: translateY(2px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-chev-u { transform: translateY(-2px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-back { transform: translateX(-2px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-download { animation: ic-drop .45s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-upload { animation: ic-lift .45s ease; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-send { transform: translate(2.5px, -2.5px); }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-external { transform: translate(1.5px, -1.5px); }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-send-plane { animation: ic-whoosh .55s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-send-trail { animation: ic-streak .55s ease; transform-box: view-box; transform-origin: 9px 18px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-external-arrow { animation: ic-eject .5s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-undo path:first-of-type { transform: translate(-2px, -1px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-undo path:last-of-type { transform: scaleX(1.08); transform-origin: right center; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-refresh { transform: rotate(360deg); transition-duration: .6s; }
 
 /* --- Transport --- */
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-play { transform: translateX(2px) scale(1.08); }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pause rect:first-of-type { transform: translateX(-1.5px); }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pause rect:last-of-type { transform: translateX(1.5px); }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-play-tri { animation: ic-grow-h .35s ease; transform-box: view-box; transform-origin: 7px 12px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pause-l { animation: ic-grow-v .35s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pause-r { animation: ic-grow-v .35s ease .08s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-stop rect { animation: ic-press .25s ease; }
 
 /* --- Files and containers --- */
@@ -384,18 +390,21 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-clipboard rect { transform: translateY(-2px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-box-lid { animation: ic-box-open .5s ease; transform-box: view-box; transform-origin: 3px 10px; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-box-tab { animation: ic-box-open .5s ease; transform-box: view-box; transform-origin: 3px 10px; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-package path { animation: ic-crate .5s ease; transform-box: view-box; transform-origin: 12px 21px; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-package-seam { animation: ic-crate-lid .5s ease; transform-box: view-box; transform-origin: 12px 7.5px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-package-hull { animation: ic-crate-land .55s ease; transform-box: view-box; transform-origin: 12px 21px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-package-seam { animation: ic-edge-in .4s ease .22s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-package-spine { animation: ic-edge-in .4s ease .34s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-container rect:nth-of-type(1) { animation: ic-settle .25s ease 0s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-container rect:nth-of-type(2) { animation: ic-settle .25s ease .05s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-container rect:nth-of-type(3) { animation: ic-settle .25s ease .1s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-layers path:first-of-type { animation: ic-settle .3s ease 0s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-layers path:last-of-type { animation: ic-settle .3s ease .08s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-database ellipse { animation: ic-settle .28s ease 0s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-database path:first-of-type { animation: ic-settle .28s ease .06s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-database path:last-of-type { animation: ic-settle .28s ease .12s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server rect:first-of-type { animation: ic-settle .25s ease 0s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server rect:last-of-type { animation: ic-settle .25s ease .06s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-layers-bot { animation: ic-stack .4s ease 0s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-layers-top { animation: ic-stack .4s ease .12s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-db-top { animation: ic-ring .5s ease 0s; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-db-mid { animation: ic-ring .5s ease .14s; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-db-body { animation: ic-squash .5s ease; transform-box: view-box; transform-origin: 12px 21px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server-bot { animation: ic-stack .3s ease 0s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server-top { animation: ic-stack .3s ease .08s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server-led-a { animation: ic-led .5s steps(1) .2s 2 backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-server-led-b { animation: ic-led .5s steps(1) .35s 2 backwards; }
 
 /* --- Tools --- */
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-search circle { animation: ic-scan .6s ease; }
@@ -455,11 +464,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pin { transform: rotate(-22deg); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-pin-off { transform: rotate(22deg); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-user circle { transform: translateY(1.5px); }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-at path {
-  transform: rotate(22deg);
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-at-ring {
+  animation: ic-orbit .6s ease;
   transform-box: view-box;
   transform-origin: 12px 12px;
 }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-at-dot { animation: ic-pulse .4s ease .18s; }
 
 /* --- Energy and motion --- */
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-zap { animation: ic-flicker .5s ease; }
@@ -469,35 +479,35 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-smoke-1 { animation: ic-puff-c .7s ease-out .1s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-smoke-2 { animation: ic-puff-l .7s ease-out .2s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-smoke-3 { animation: ic-puff-r .7s ease-out .28s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-cloud path { animation: ic-drift .8s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-cloud path { animation: ic-billow .7s ease; transform-box: view-box; transform-origin: 12px 18px; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-bug-legs-l { animation: ic-scuttle-l .3s ease 2; transform-box: view-box; transform-origin: 7px 14px; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-bug-legs-r { animation: ic-scuttle-r .3s ease 2; transform-box: view-box; transform-origin: 17px 14px; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-attach { animation: ic-shake .3s ease; }
 
 /* --- Structure --- */
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-branch circle:nth-of-type(3) { animation: ic-pulse .4s ease; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-branch-arm { animation: ic-wipe .4s ease; transform-box: view-box; transform-origin: 8px 5px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-branch-tip { animation: ic-land .4s ease .3s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-clock path {
   transform: rotate(45deg);
   transform-box: view-box;
   transform-origin: 12px 12px;
   transition-duration: .4s;
 }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-globe path:last-of-type {
-  transform: rotate(18deg);
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-globe-mer {
+  animation: ic-spin-mer .8s ease;
   transform-box: view-box;
   transform-origin: 12px 12px;
-  transition-duration: .45s;
 }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-book-cover { animation: ic-book-open .5s ease; transform-box: view-box; transform-origin: 4px 12px; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-book-page { animation: ic-page-slide .5s ease; transform-box: view-box; transform-origin: 4px 17px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-book-l { animation: ic-book-swing-l .5s ease; transform-box: view-box; transform-origin: 12px 12px; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-book-r { animation: ic-book-swing-r .5s ease; transform-box: view-box; transform-origin: 12px 12px; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-link path:first-of-type { transform: translate(1.5px, -1.5px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-link path:last-of-type { transform: translate(-1.5px, 1.5px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-columns rect:first-of-type { transform: translateX(-1.5px); }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-columns rect:last-of-type { transform: translateX(1.5px); }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(1) { animation: ic-settle .25s ease 0s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(2) { animation: ic-settle .25s ease .04s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(3) { animation: ic-settle .25s ease .08s backwards; }
-:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(4) { animation: ic-settle .25s ease .12s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(1) { animation: ic-deal-tl .45s ease 0s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(2) { animation: ic-deal-tr .45s ease .07s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(3) { animation: ic-deal-bl .45s ease .14s backwards; }
+:is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-grid rect:nth-of-type(4) { animation: ic-deal-br .45s ease .21s backwards; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-collapse-all path:first-of-type { animation: ic-fold-down .45s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-collapse-all path:last-of-type { animation: ic-fold-up .45s ease; }
 :is(:is(button, a, label, summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"], .ia):hover, .ic-replay) .ic-expand-all path:first-of-type { transform: translateY(-2.5px); }
@@ -632,10 +642,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   0%, 100% { transform: rotate(0deg); }
   55%      { transform: rotate(-5deg); }
 }
-@keyframes ic-page-slide {
-  0%, 100% { transform: translateX(0); opacity: 1; }
-  55%      { transform: translateX(1.5px); opacity: .6; }
-}
 @keyframes ic-scuttle-l {
   0%, 100% { transform: rotate(0deg); }
   50%      { transform: rotate(-12deg); }
@@ -643,11 +649,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 @keyframes ic-scuttle-r {
   0%, 100% { transform: rotate(0deg); }
   50%      { transform: rotate(12deg); }
-}
-@keyframes ic-drift {
-  0%   { transform: translateX(-2.5px) scale(.94); opacity: .5; }
-  55%  { transform: translateX(1px) scale(1.04); opacity: 1; }
-  100% { transform: translateX(0) scale(1); opacity: 1; }
 }
 @keyframes ic-fold-down {
   0%, 100% { transform: translateY(0); }
@@ -690,14 +691,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   35%  { transform: translate(.4px, .3px) scale(1); opacity: 1; }
   100% { transform: translate(1.8px, 2px) scale(1.5); opacity: 0; }
 }
-@keyframes ic-crate {
-  0%, 100% { transform: translateY(0); }
-  55%      { transform: translateY(1px); }
-}
-@keyframes ic-crate-lid {
-  0%, 100% { transform: translateY(0); }
-  55%      { transform: translateY(-1.5px); }
-}
 @keyframes ic-snip-a {
   0%   { transform: rotate(0deg); }
   45%  { transform: rotate(10deg); }
@@ -730,10 +723,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   0%, 100% { transform: rotate(0deg) translateX(0); }
   50%      { transform: rotate(-7deg) translateX(.8px); }
 }
-@keyframes ic-lid-off {
-  0%   { transform: translateY(0) rotate(0deg); }
-  55%  { transform: translateY(-1.5px) rotate(-13deg); }
-  100% { transform: translateY(0) rotate(0deg); }
+@keyframes ic-edge-in {
+  0%   { opacity: 0; transform: scale(.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* The two leaves swing open from the spine, then settle back. */
+@keyframes ic-book-swing-l {
+  0%, 100% { transform: scaleX(1) rotate(0deg); }
+  55%      { transform: scaleX(1.14) rotate(-5deg); }
+}
+@keyframes ic-book-swing-r {
+  0%, 100% { transform: scaleX(1) rotate(0deg); }
+  55%      { transform: scaleX(1.14) rotate(5deg); }
 }
 @keyframes ic-ribs {
   0%, 100% { transform: translateY(0); opacity: 1; }
@@ -3583,4 +3584,102 @@ html[data-theme="glass"]:not([data-os="macos"]) :is(.title-bar, .sidebar, .tabs-
   ::view-transition-new(root) {
     animation-duration: 120ms;
   }
+}
+
+/* Keyframes added for the reworked set: each one names the gesture it plays. */
+@keyframes ic-tick {
+  0%   { transform: scale(.2); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes ic-land {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes ic-whoosh {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  45%  { transform: translate(5px, -5px) scale(.9); opacity: 0; }
+  46%  { transform: translate(-4px, 4px) scale(.9); opacity: 0; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+@keyframes ic-streak {
+  0%   { transform: scaleX(0); opacity: 0; }
+  40%  { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+@keyframes ic-eject {
+  0%   { transform: translate(0, 0); opacity: 1; }
+  45%  { transform: translate(3.5px, -3.5px); opacity: 0; }
+  46%  { transform: translate(-3px, 3px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+@keyframes ic-grow-diag {
+  50% { transform: scale(1.3); }
+}
+@keyframes ic-crate-land {
+  0%   { transform: translateY(-4px); opacity: .4; }
+  55%  { transform: translateY(0) scaleY(.9) scaleX(1.06); opacity: 1; }
+  75%  { transform: translateY(0) scaleY(1.04) scaleX(.98); }
+  100% { transform: translateY(0) scaleY(1) scaleX(1); }
+}
+@keyframes ic-lid-off {
+  0%, 100% { transform: translateY(0); }
+  45%      { transform: translateY(-3px); }
+}
+@keyframes ic-stack {
+  0%   { transform: translateY(-4px) scale(.9); opacity: 0; }
+  70%  { transform: translateY(.5px) scale(1); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes ic-ring {
+  0%       { transform: scaleX(1) scaleY(1); opacity: 1; }
+  40%      { transform: scaleX(1.3) scaleY(1.5); opacity: .3; }
+  70%      { transform: scaleX(.92) scaleY(.85); opacity: 1; }
+  100%     { transform: scaleX(1) scaleY(1); opacity: 1; }
+}
+@keyframes ic-squash {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  35%      { transform: scaleY(.86) scaleX(1.06); }
+  65%      { transform: scaleY(1.05) scaleX(.98); }
+}
+@keyframes ic-led {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: .15; }
+}
+@keyframes ic-orbit {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes ic-billow {
+  0%   { transform: translateY(1.5px) scale(.86); opacity: .4; }
+  55%  { transform: translateY(-1px) scale(1.06); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes ic-spin-mer {
+  0%   { transform: scaleX(1); }
+  25%  { transform: scaleX(.1); }
+  50%  { transform: scaleX(-1); }
+  75%  { transform: scaleX(-.1); }
+  100% { transform: scaleX(1); }
+}
+@keyframes ic-page-turn {
+  0%, 100% { transform: rotate(0deg) translateX(0); opacity: 1; }
+  50%      { transform: rotate(-9deg) translateX(1.5px); opacity: .45; }
+}
+@keyframes ic-deal-tl {
+  0%   { transform: translate(3px, 3px) scale(.5); opacity: 0; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+@keyframes ic-deal-tr {
+  0%   { transform: translate(-3px, 3px) scale(.5); opacity: 0; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+@keyframes ic-deal-bl {
+  0%   { transform: translate(3px, -3px) scale(.5); opacity: 0; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+@keyframes ic-deal-br {
+  0%   { transform: translate(-3px, -3px) scale(.5); opacity: 0; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
 }

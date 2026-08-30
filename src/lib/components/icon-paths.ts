@@ -19,7 +19,7 @@ export const ICONS: Record<string, IconDef> = {
 	},
 	git: {
 		solid: false,
-		body: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10"/><path d="M8 5.5Q13 5.5 18 9"/>',
+		body: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle class="ic-git-tip" cx="18" cy="9" r="2"/><path class="ic-git-trunk" d="M6 7v10"/><path class="ic-git-arm" d="M8 5.5Q13 5.5 18 9"/>',
 	},
 	tests: {
 		solid: false,
@@ -41,10 +41,10 @@ export const ICONS: Record<string, IconDef> = {
 	"chev-r": { solid: false, body: '<path d="M9 6l6 6-6 6"/>' },
 	"chev-d": { solid: false, body: '<path d="M6 9l6 6 6-6"/>' },
 	"chev-u": { solid: false, body: '<path d="M18 15l-6-6-6 6"/>' },
-	play: { solid: true, body: '<path d="M7 5.5v13l11-6.5z"/>' },
+	play: { solid: true, body: '<path class="ic-play-tri" d="M7 5.5v13l11-6.5z"/>' },
 	pause: {
 		solid: true,
-		body: '<rect x="7" y="5" width="3.5" height="14"/><rect x="13.5" y="5" width="3.5" height="14"/>',
+		body: '<rect class="ic-pause-l" x="7" y="5" width="3.5" height="14"/><rect class="ic-pause-r" x="13.5" y="5" width="3.5" height="14"/>',
 	},
 	stop: {
 		solid: true,
@@ -81,7 +81,7 @@ export const ICONS: Record<string, IconDef> = {
 	bookmark: { solid: false, body: '<path d="M6 3h12v18l-6-4-6 4V3z"/>' },
 	branch: {
 		solid: false,
-		body: '<circle cx="6" cy="5" r="1.8"/><circle cx="6" cy="19" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M6 7v10M8 5h6a4 4 0 014 4v1"/>',
+		body: '<circle cx="6" cy="5" r="1.8"/><circle cx="6" cy="19" r="1.8"/><circle class="ic-branch-tip" cx="18" cy="10" r="1.8"/><path d="M6 7v10"/><path class="ic-branch-arm" d="M8 5h6a4 4 0 014 4v1"/>',
 	},
 	clock: {
 		solid: false,
@@ -140,15 +140,15 @@ export const ICONS: Record<string, IconDef> = {
 	},
 	external: {
 		solid: false,
-		body: '<path d="M14 4h6v6M20 4L10 14M18 13v5a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h5"/>',
+		body: '<path d="M18 13v5a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h5"/><path class="ic-external-arrow" d="M14 4h6v6M20 4l-9 9"/>',
 	},
 	send: {
 		solid: false,
-		body: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>',
+		body: '<path class="ic-send-plane" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/><path class="ic-send-trail" d="M2 20h4M2 16h7" stroke-width="1.4"/>',
 	},
 	at: {
 		solid: false,
-		body: '<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-4 8"/>',
+		body: '<circle class="ic-at-dot" cx="12" cy="12" r="4"/><path class="ic-at-ring" d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-4 8"/>',
 	},
 	attach: {
 		solid: false,
@@ -234,15 +234,15 @@ export const ICONS: Record<string, IconDef> = {
 	},
 	server: {
 		solid: false,
-		body: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h0M7 16.5h0"/>',
+		body: '<rect class="ic-server-top" x="3" y="4" width="18" height="7" rx="2"/><rect class="ic-server-bot" x="3" y="13" width="18" height="7" rx="2"/><path class="ic-server-led-a" d="M7 7.5h0"/><path class="ic-server-led-b" d="M7 16.5h0"/>',
 	},
 	database: {
 		solid: false,
-		body: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>',
+		body: '<ellipse class="ic-db-top" cx="12" cy="6" rx="8" ry="3"/><path class="ic-db-body" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path class="ic-db-mid" d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>',
 	},
 	package: {
 		solid: false,
-		body: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path class="ic-package-seam" d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/>',
+		body: '<path class="ic-package-hull" d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path class="ic-package-seam" d="M4 7.5l8 4.5 8-4.5"/><path class="ic-package-spine" d="M12 12v9"/>',
 	},
 	box: {
 		solid: false,
@@ -266,11 +266,11 @@ export const ICONS: Record<string, IconDef> = {
 	},
 	layers: {
 		solid: false,
-		body: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
+		body: '<path class="ic-layers-top" d="M12 3l9 5-9 5-9-5 9-5z"/><path class="ic-layers-bot" d="M3 13l9 5 9-5"/>',
 	},
 	globe: {
 		solid: false,
-		body: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 010 18 14 14 0 010-18z"/>',
+		body: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path class="ic-globe-mer" d="M12 3a14 14 0 010 18 14 14 0 010-18z"/>',
 	},
 	beaker: {
 		solid: false,
@@ -303,7 +303,7 @@ export const ICONS: Record<string, IconDef> = {
 	},
 	book: {
 		solid: false,
-		body: '<path class="ic-book-cover" d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 004 22V4.5z"/><path class="ic-book-page" d="M4 17.5A2.5 2.5 0 016.5 15H20"/>',
+		body: '<path class="ic-book-l" d="M12 6.5C10 4.7 7.4 4 4 4v13c3.4 0 6 .7 8 2.5"/><path class="ic-book-r" d="M12 6.5C14 4.7 16.6 4 20 4v13c-3.4 0-6 .7-8 2.5"/><path class="ic-book-spine" d="M12 6.5v13"/>',
 	},
 	cloud: {
 		solid: false,
