@@ -51,6 +51,7 @@
   import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
   import ReviewDiff from './ReviewDiff.svelte';
   import ReviewGuide from './ReviewGuide.svelte';
+  import { aiEnabled } from '$lib/stores/settings';
 
   const renderMarkdown = renderRemoteMarkdown;
 
@@ -219,6 +220,8 @@
     return '';
   }
 
+  $: if (!$aiEnabled && !reviewState.isDiffMode) showMode(true);
+
   function showMode(isDiff: boolean) {
     if (scope) setDiffMode(scope, isDiff);
   }
@@ -289,10 +292,12 @@
         </button>
       {/if}
     {/if}
-    <div class="mode-toggle" role="group" aria-label={t('review.toggleGuideDiff') as string}>
-      <button class="mode" class:active={!reviewState.isDiffMode} on:click={() => showMode(false)}>{t('review.guide')}</button>
-      <button class="mode" class:active={reviewState.isDiffMode} on:click={() => showMode(true)}>{t('review.diff')}</button>
-    </div>
+    {#if $aiEnabled}
+      <div class="mode-toggle" role="group" aria-label={t('review.toggleGuideDiff') as string}>
+        <button class="mode" class:active={!reviewState.isDiffMode} on:click={() => showMode(false)}>{t('review.guide')}</button>
+        <button class="mode" class:active={reviewState.isDiffMode} on:click={() => showMode(true)}>{t('review.diff')}</button>
+      </div>
+    {/if}
     <button class="btn ghost small icon-only" on:click={refresh} title={t('integrations.refresh') as string} disabled={areFilesLoading || !!mrState?.isRefreshing}>
       {#if areFilesLoading || mrState?.isRefreshing}<Spinner size={11}/>{:else}<Icon name="refresh" size={12}/>{/if}
     </button>
@@ -328,7 +333,7 @@
       <p class="base-note">{t('review.noBaseBody')}</p>
       <p class="base-note dim">{t('review.noBaseWhere')}</p>
     </div>
-  {:else if scope && !reviewState.isDiffMode}
+  {:else if scope && !reviewState.isDiffMode && $aiEnabled}
     <ReviewGuide
       bind:this={guideView}
       {scope}

@@ -2559,6 +2559,12 @@ export const en = {
 			git: "Git",
 		},
 		general: {
+			ai: {
+				groupTitle: "Artificial intelligence",
+				enable: "Enable AI features",
+				enableDesc:
+					"The Agent step, the providers, agents, skills and MCP pages, the review guide and every assisted draft. Turned off, none of it is shown or run.",
+			},
 			cli: {
 				groupTitle: "Command line",
 				install: "Install the cairn command",

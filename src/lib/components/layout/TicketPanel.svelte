@@ -12,6 +12,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { requestAgentDraft } from '$lib/stores/agent-draft';
+  import { aiEnabled } from '$lib/stores/settings';
   import { setInstanceTicket } from '$lib/stores/instance';
   import { capabilities, hasTracker, projectBindings } from '$lib/stores/integrations';
   import {
@@ -234,9 +235,11 @@
         </div>
 
         <div class="ticket-actions">
-          <button class="btn primary" on:click={startFromTicket}>
-            <Icon name="agent" size={12}/> {t('ticket.startFromTicket')}
-          </button>
+          {#if $aiEnabled}
+            <button class="btn primary" on:click={startFromTicket}>
+              <Icon name="agent" size={12}/> {t('ticket.startFromTicket')}
+            </button>
+          {/if}
           {#if ticket.url}
             <button class="btn" on:click={openOnTracker}>
               <Icon name="external" size={12}/> {(t('ticket.openOn') as (s: string) => string)(trackerLabel)}

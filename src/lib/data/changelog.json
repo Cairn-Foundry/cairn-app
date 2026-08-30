@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A single switch in Settings > General turns every AI feature off: the Agent step, the providers, features, agents, skills and MCP pages, the review guide and every assisted draft disappear, and nothing of them is run.",
+					"fr": "Un seul interrupteur dans Réglages > Général désactive toutes les fonctionnalités IA : l'étape Agent, les pages fournisseurs, fonctionnalités, agents, skills et MCP, le guide de revue et chaque brouillon assisté disparaissent, et plus rien n'en est exécuté."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "Five more coding CLIs can be launched from the Agent step: Cursor CLI, Amp, Goose, Qwen Code and Factory Droid. Each opens as it is in the worktree, and each is reopened on the exact conversation you picked. Their skills and MCP servers can be written from the hub too, except Goose's, which states its servers as YAML extensions Cairn does not write.",
 					"fr": "Cinq CLI de code supplementaires peuvent etre lances depuis la step Agent : Cursor CLI, Amp, Goose, Qwen Code et Factory Droid. Chacun s'ouvre tel quel dans le worktree, et chacun est rouvert sur la conversation exacte que vous avez choisie. Leurs skills et leurs serveurs MCP s'ecrivent aussi depuis le hub, sauf ceux de Goose, qui declare ses serveurs en extensions YAML que Cairn n'ecrit pas."
 				}

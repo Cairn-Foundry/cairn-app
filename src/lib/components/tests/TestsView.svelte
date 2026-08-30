@@ -24,6 +24,7 @@
   import { supportsFileScope } from '$lib/utils/tests/test-scope';
   import { buildTestFixPrompt } from '$lib/utils/tests/test-fix-prompt';
   import { requestAgentDraft } from '$lib/stores/agent-draft';
+  import { aiEnabled } from '$lib/stores/settings';
   import { activeStep } from '$lib/stores/ui';
   import { IS_WINDOWS } from '$lib/utils/platform';
 
@@ -564,7 +565,7 @@
         {/if}
 
         <div class="actions-row">
-          {#if selected.status === 'fail'}
+          {#if selected.status === 'fail' && $aiEnabled}
             <button class="btn ai-btn" on:click={fixWithAi} disabled={!runner}>
               <Icon name="sparkles" size={13}/> {t('tests.fixWithAi')}
             </button>

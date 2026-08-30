@@ -36,6 +36,7 @@ const DEFAULTS: CairnSettings = {
 	gitProfiles: [],
 	quickSearchShowGitignored: false,
 	autoCheckUpdates: true,
+	aiEnabled: true,
 	integrationsPollSeconds: 10,
 	branchTemplate: "feat/{{key}}-{{slug}}",
 	syntaxThemes: [],
@@ -120,3 +121,6 @@ export const activeSyntaxTokens = derived({ subscribe }, ($s) =>
 		$s.theme,
 	),
 );
+
+/** Master AI switch; every AI surface reads this rather than the raw setting. */
+export const aiEnabled = derived({ subscribe }, ($s) => $s.aiEnabled);

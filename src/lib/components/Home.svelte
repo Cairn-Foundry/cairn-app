@@ -22,6 +22,7 @@
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '$lib/components/home/IntegrationsSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
+  import { aiEnabled } from '$lib/stores/settings';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
@@ -47,6 +48,9 @@
   function showSection(section: HomeSection) {
     withViewTransition(() => { activeSection = section; });
   }
+
+  const AI_SECTIONS: HomeSection[] = ['providers', 'features', 'agents', 'skills', 'mcp'];
+  $: if (!$aiEnabled && AI_SECTIONS.includes(activeSection)) activeSection = 'projects';
 
   $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });
 

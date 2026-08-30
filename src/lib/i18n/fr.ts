@@ -2606,6 +2606,12 @@ export const fr = {
 			git: "Git",
 		},
 		general: {
+			ai: {
+				groupTitle: "Intelligence artificielle",
+				enable: "Activer les fonctionnalités IA",
+				enableDesc:
+					"L'étape Agent, les pages fournisseurs, agents, skills et MCP, le guide de revue et chaque brouillon assisté. Désactivée, plus rien de tout cela n'est affiché ni exécuté.",
+			},
 			cli: {
 				groupTitle: "Ligne de commande",
 				install: "Installer la commande cairn",

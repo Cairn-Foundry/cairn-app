@@ -342,10 +342,12 @@
     document.body.classList.remove('dragging');
   }
 
+  $: if (!$settings.aiEnabled && $activeStep === 'agent') activeStep.set('files');
+
   $: STEPS = $settings.workflowTabs
     .slice()
     .sort((a, b) => a.order - b.order)
-    .filter(t => t.enabled)
+    .filter(t => t.enabled && ($settings.aiEnabled || t.key !== 'agent'))
     .map(t => ({ id: t.key, label: t.name, icon: t.icon }));
 
   const doneSteps = new Set<string>();
@@ -665,7 +667,9 @@
 
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoProviders={() => dispatch('goProviders')}/></div>
+      {#if $settings.aiEnabled}
+        <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoProviders={() => dispatch('goProviders')}/></div>
+      {/if}
       <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
       <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
       <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>

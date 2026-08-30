@@ -131,6 +131,8 @@ pub struct CairnSettings {
     pub quick_search_show_gitignored: bool,
     #[serde(rename = "autoCheckUpdates", default = "default_auto_check_updates")]
     pub auto_check_updates: bool,
+    #[serde(rename = "aiEnabled", default = "default_ai_enabled")]
+    pub ai_enabled: bool,
     #[serde(rename = "syntaxThemes", default)]
     pub syntax_themes: Vec<SyntaxTheme>,
     #[serde(rename = "activeSyntaxThemeId", default)]
@@ -211,6 +213,7 @@ fn default_true() -> bool { true }
 // Keep in sync with RESPONSE_STAT_FIELDS in src/lib/utils/agent/response-stats.ts.
 fn default_suggest_language_servers() -> bool { true }
 fn default_auto_check_updates() -> bool { true }
+fn default_ai_enabled() -> bool { true }
 fn default_quick_search_show_gitignored() -> bool { false }
 fn default_sidebar_position() -> String { "left".to_string() }
 fn default_show_whitespace() -> bool { false }
@@ -254,6 +257,7 @@ impl Default for CairnSettings {
             git_profiles: Vec::new(),
             quick_search_show_gitignored: default_quick_search_show_gitignored(),
             auto_check_updates: default_auto_check_updates(),
+            ai_enabled: default_ai_enabled(),
             syntax_themes: Vec::new(),
             active_syntax_theme_id: String::new(),
             language_servers: Vec::new(),

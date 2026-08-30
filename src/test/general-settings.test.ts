@@ -56,7 +56,11 @@ function cliStatus(overrides: Partial<CliStatus> = {}): CliStatus {
 
 const rows = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".settings-row"));
-const cliRow = () => rows()[0];
+const rowLabelled = (label: string) =>
+	rows().find((r) =>
+		r.querySelector(".settings-row-label")?.textContent?.includes(label),
+	) as HTMLElement;
+const cliRow = () => rowLabelled("cairn command");
 const updateRow = () => rows()[rows().length - 1];
 const buttonIn = (row: HTMLElement) =>
 	row.querySelector("button") as HTMLButtonElement | null;
@@ -196,7 +200,7 @@ describe("GeneralTab updates", () => {
 	it("stores the automatic check setting when toggled", async () => {
 		render(GeneralTab, {});
 		await settle();
-		const toggle = document.querySelector(
+		const toggle = rowLabelled("Check automatically").querySelector(
 			'input[type="checkbox"]',
 		) as HTMLInputElement;
 		expect(toggle.checked).toBe(true);
@@ -205,6 +209,22 @@ describe("GeneralTab updates", () => {
 		let stored = true;
 		settings.subscribe((s) => {
 			stored = s.autoCheckUpdates;
+		})();
+		expect(stored).toBe(false);
+	});
+
+	it("stores the AI master switch when toggled", async () => {
+		render(GeneralTab, {});
+		await settle();
+		const toggle = rowLabelled("Enable AI features").querySelector(
+			'input[type="checkbox"]',
+		) as HTMLInputElement;
+		expect(toggle.checked).toBe(true);
+		await userEvent.click(toggle);
+		await tick();
+		let stored = true;
+		settings.subscribe((s) => {
+			stored = s.aiEnabled;
 		})();
 		expect(stored).toBe(false);
 	});

@@ -1,6 +1,7 @@
 <script lang="ts">
   /**
-   * General settings: app updates and the installation of the `cairn` command line helper.
+   * General settings: the AI master switch, app updates and the installation of
+   * the `cairn` command line helper.
    */
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
@@ -31,6 +32,24 @@
 
   $: update = $updateState;
 </script>
+
+<div class="settings-group">
+  <div class="settings-group-title">{t('settings.general.ai.groupTitle')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.general.ai.enable')}</span>
+      <span class="settings-row-desc">{t('settings.general.ai.enableDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.general.ai.enable') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.aiEnabled}
+        on:change={(e) => settings.save({ aiEnabled: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
+</div>
 
 <div class="settings-group">
   <div class="settings-group-title">{t('settings.general.cli.groupTitle')}</div>

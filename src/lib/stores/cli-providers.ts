@@ -6,6 +6,7 @@ import {
 	type CliProviderId,
 	listCliProviders,
 } from "$lib/services/cli-provider-service";
+import { aiEnabled } from "$lib/stores/settings";
 
 /** The agent CLIs the backend knows how to drive. Static for the lifetime of the app. */
 export const cliProviders = writable<CliProviderDef[]>([]);
@@ -20,11 +21,14 @@ export async function loadCliProviders(): Promise<void> {
 }
 
 /**
- * Whether the CLI the headless assists run on is installed. A drafted commit
- * message needs it; an assist offered without it only fails at the click.
+ * Whether the headless assists can run at all: the CLI they use is installed
+ * and the user has not turned AI off. An assist offered without either only
+ * fails at the click, so every assist reads this before offering itself.
  */
-export const assistCliInstalled = derived(cliProviders, ($providers) =>
-	$providers.some((p) => p.id === CLAUDE_CODE && p.installed),
+export const assistCliInstalled = derived(
+	[cliProviders, aiEnabled],
+	([$providers, $ai]) =>
+		$ai && $providers.some((p) => p.id === CLAUDE_CODE && p.installed),
 );
 
 /** Display label of a provider, falling back to the raw id for a provider no longer known. */

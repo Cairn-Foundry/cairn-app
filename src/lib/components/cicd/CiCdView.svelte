@@ -15,7 +15,7 @@
   import { activeInstance } from '$lib/stores/instance';
   import { activeProjectId } from '$lib/stores/project';
   import { activeStep } from '$lib/stores/ui.js';
-  import { settings } from '$lib/stores/settings';
+  import { aiEnabled, settings } from '$lib/stores/settings';
   import { capabilities, hasCi } from '$lib/stores/integrations';
   import { git } from '$lib/stores/git';
   import {
@@ -508,9 +508,11 @@
                   <span class="excerpt selectable">{stripAnsi(state.jobLog.failureExcerpt)}</span>
                 {/if}
               </div>
-              <button class="fix-with-agent" style="padding: 6px 10px; font-size: 12px;" on:click={() => fixWithAgentFromBanner(pipeline, failedJob)}>
-                <Icon name="sparkles" size={12}/> {t('cicd.fixWithAgent')}
-              </button>
+              {#if $aiEnabled}
+                <button class="fix-with-agent" style="padding: 6px 10px; font-size: 12px;" on:click={() => fixWithAgentFromBanner(pipeline, failedJob)}>
+                  <Icon name="sparkles" size={12}/> {t('cicd.fixWithAgent')}
+                </button>
+              {/if}
             </div>
           {/if}
         </div>

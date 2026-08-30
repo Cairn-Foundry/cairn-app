@@ -13,6 +13,7 @@
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
   import UpdateCard from '$lib/components/layout/UpdateCard.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
+  import { aiEnabled } from '$lib/stores/settings';
 
   export let activeSection: HomeSection;
 
@@ -36,6 +37,7 @@
     <Icon name="clock" size={15}/> {t('home.sidebar.activity')}
   </button>
 
+  {#if $aiEnabled}
   <div class="section">{t('home.sidebar.ai')}</div>
   <button class="home-nav-item {activeSection === 'providers'  ? 'active' : ''}" on:click={() => dispatch('select', 'providers')}>
     <Icon name="cloud" size={15}/> {t('home.sidebar.providers')}
@@ -52,6 +54,7 @@
   <button class="home-nav-item {activeSection === 'mcp'        ? 'active' : ''}" on:click={() => dispatch('select', 'mcp')}>
     <Icon name="link" size={15}/> {t('home.sidebar.mcp')}
   </button>
+  {/if}
   <div class="section">{t('home.sidebar.system')}</div>
   <button class="home-nav-item {activeSection === 'ports'      ? 'active' : ''}" on:click={() => dispatch('select', 'ports')}>
     <Icon name="server" size={15}/> {t('home.sidebar.ports')}

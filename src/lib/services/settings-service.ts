@@ -93,6 +93,8 @@ export interface CairnSettings {
 	gitProfiles: GitProfile[];
 	quickSearchShowGitignored: boolean;
 	autoCheckUpdates: boolean;
+	/** Master switch: false hides every AI surface and disables every assist. */
+	aiEnabled: boolean;
 	integrationsPollSeconds: number;
 	/** Branch name built from a ticket: `{{key}}`, `{{slug}}`, `{{kind}}`. */
 	branchTemplate: string;
