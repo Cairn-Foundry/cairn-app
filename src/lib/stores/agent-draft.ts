@@ -13,8 +13,9 @@ export interface AgentDraftRequest {
 const { subscribe, set } = writable<AgentDraftRequest | null>(null);
 
 /**
- * Hands `text` to the Agent step. It fills the draft and never sends: the user
- * reads the prompt and adds what only they know before running it.
+ * Hands `text` to the Agent step, which types it into the CLI's prompt without
+ * pressing Enter: the user reads it and adds what only they know before running
+ * it. Cairn never submits a prompt on the user's behalf.
  */
 export function requestAgentDraft(instanceId: string, text: string): void {
 	set({ instanceId, text });

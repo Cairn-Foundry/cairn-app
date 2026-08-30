@@ -4,13 +4,12 @@
 //! All Tauri commands, one module per domain, re-exported flat so `lib.rs` can
 //! list them in a single `generate_handler!`.
 
-pub mod agent;
 pub mod coalesce;
 pub mod file_protocol;
 pub mod fs_watch;
-pub mod agent_activity;
-pub mod agent_runs;
 pub mod cli;
+pub mod oneshot;
+pub mod secrets;
 pub mod cli_providers;
 pub mod commit_state;
 pub mod conversations;
@@ -37,20 +36,10 @@ pub mod terminal;
 pub mod tests;
 pub mod toolchain;
 pub mod ui_state;
-pub mod usage;
 
-pub use agent::{AgentState, send_message, stop_agent, respond_permission};
-pub use agent::oneshot::run_oneshot;
-pub use agent::config::{
-    get_ai_providers_config, save_ai_providers_config,
-    set_provider_api_key, get_api_key_statuses, delete_provider_api_key,
-    probe_provider, list_agent_commands, discover_provider,
-};
-pub use agent_activity::{get_agent_activity, save_agent_activity};
-pub use agent_runs::{get_agent_runs, save_agent_runs};
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use review::{get_diff_unified, get_diff_hunks, load_review_state, save_review_state};
-pub use conversations::{get_conversation_index, save_conversation_index, get_conversation_body, save_conversation_body, delete_conversation_body};
+pub use conversations::{get_conversation_index, save_conversation_index};
 pub use custom_commands::{
     get_project_commands, save_project_commands, get_global_commands, save_global_commands,
     get_command_state, save_command_state, allocate_port,
@@ -113,7 +102,9 @@ pub use lsp::{
     lsp_references, lsp_rename, lsp_format,
 };
 pub use cli::{PendingCliPaths, get_cli_status, install_cli, uninstall_cli, take_pending_cli_paths};
-pub use cli_providers::{list_cli_providers, reached_providers};
+pub use cli_providers::{discover_cli_session, list_cli_providers, reached_providers};
+pub use oneshot::{OneshotState, run_oneshot, stop_oneshot};
+pub use secrets::{delete_provider_api_key, get_api_key_statuses, set_provider_api_key};
 pub use mcp::{
     list_mcp_servers, save_mcp_server, delete_mcp_server, set_mcp_approval,
     import_mcp_servers, export_mcp_servers, test_mcp_server,
@@ -129,9 +120,8 @@ pub use ports::{list_listening_ports, kill_process};
 pub use projects::{list_projects, add_project, remove_project, update_project, duplicate_project, set_active_instance, get_listing, save_folders, save_project_order};
 pub use settings::{get_settings, set_window_vibrancy, update_settings};
 pub use shell::{run_shell_command, run_shell_command_with_stdin, open_in_terminal, reveal_in_file_manager, copy_path, validate_directory, clone_repository};
-pub use terminal::{TerminalState, terminal_create, terminal_write, terminal_resize, terminal_close, terminal_close_all, get_terminal_state, save_terminal_state, get_project_terminal_state, save_project_terminal_state};
+pub use terminal::{TerminalState, terminal_create, terminal_has_children, terminal_write, terminal_resize, terminal_close, terminal_close_all, get_terminal_state, save_terminal_state, get_project_terminal_state, save_project_terminal_state};
 pub use tests::{TestState, has_cargo_nextest, run_tests, stop_tests};
 pub use tests::state::{get_test_state, save_test_state};
 pub use ui_state::{get_ui_state, save_ui_state};
-pub use usage::{get_usage_entries, append_usage_entries, backfill_usage_entries, clear_usage_entries};
 pub use fs_watch::{watch_worktree, unwatch_worktree, WatchState};

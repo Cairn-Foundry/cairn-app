@@ -348,7 +348,7 @@ pub async fn stop_tests(app: tauri::AppHandle, run_id: String) -> Result<(), Str
         {
             // The shell is only the parent: the runner it launched is what has
             // to die, or the pipes stay open and the run never ends.
-            crate::commands::agent::platform::kill_tree(child);
+            crate::commands::cli_providers::kill_tree(child);
         }
     }
     Ok(())
@@ -399,7 +399,7 @@ mod kill_tests {
         let pid = child.id();
         assert!(pid > 0);
 
-        crate::commands::agent::platform::kill_tree(&mut child);
+        crate::commands::cli_providers::kill_tree(&mut child);
         let status = child.wait().expect("the child must be reapable");
         assert!(!status.success(), "a killed run does not exit cleanly");
     }

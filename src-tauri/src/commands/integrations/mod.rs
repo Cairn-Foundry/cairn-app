@@ -16,7 +16,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, State};
-use crate::commands::agent::config::{delete_provider_api_key, get_api_key, set_provider_api_key};
+use crate::commands::secrets::{delete_provider_api_key, get_api_key, set_provider_api_key};
 use connections::*;
 use model::*;
 use provider::{Backend, CiProvider, ForgeProvider, TrackerProvider, PIPELINES_PER_PAGE};

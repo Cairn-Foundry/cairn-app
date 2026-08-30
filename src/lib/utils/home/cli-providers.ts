@@ -1,31 +1,14 @@
 import type { CliProviderId } from "$lib/services/cli-provider-service";
 
 /**
- * The agent ids used by the skills, MCP and agents registry are not the ones the
- * provider catalogue uses. Brand marks and provider capabilities - which models,
- * efforts and permission modes an agent accepts - are both reached through this
- * map rather than duplicated.
- */
-const CATALOGUE_IDS: Record<CliProviderId, string> = {
-	"claude-code": "claude-code-cli",
-	codex: "codex-cli",
-	copilot: "copilot-cli",
-	antigravity: "antigravity-cli",
-	vibe: "mistral-vibe",
-};
-
-/** Registry id to catalogue id, unchanged when the two already agree. */
-export function catalogueIdOf(provider: CliProviderId): string {
-	return CATALOGUE_IDS[provider] ?? provider;
-}
-
-/**
  * Sorts a provider list the way the registry declares them, so two rows never
  * show the same agents in a different order.
  */
 const ORDER: CliProviderId[] = [
 	"claude-code",
 	"codex",
+	"gemini",
+	"opencode",
 	"copilot",
 	"antigravity",
 	"vibe",

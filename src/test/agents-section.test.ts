@@ -47,16 +47,6 @@ vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
 	loadCliProviders: (...a: unknown[]) => loadCliProviders(...a),
 }));
 
-const providerCapabilities = writable<Record<string, unknown>>({});
-const loadAiProviders = vi.fn<(...a: unknown[]) => unknown>();
-const refreshProviderModels = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/ai-providers", async (importOriginal) => ({
-	...(await importOriginal<Record<string, unknown>>()),
-	providerCapabilities: { subscribe: providerCapabilities.subscribe },
-	loadAiProviders: (...a: unknown[]) => loadAiProviders(...a),
-	refreshProviderModels: (...a: unknown[]) => refreshProviderModels(...a),
-}));
-
 const skillList = writable<{ name: string }[]>([]);
 const loadSkills = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/stores/skills", async (importOriginal) => ({
@@ -73,6 +63,9 @@ vi.mock("$lib/stores/project", async (importOriginal) => ({
 
 const { projects } = await import("$lib/stores/project");
 const { project } = await import("./fixtures");
+const { effortsOf, permissionModesOf } = await import(
+	"$lib/components/home/agents/cli-options"
+);
 const { default: AgentsSection } = await import(
 	"$lib/components/home/agents/AgentsSection.svelte"
 );
@@ -164,14 +157,11 @@ beforeEach(() => {
 	reachedProviders.mockReset().mockResolvedValue(["claude-code"]);
 	loadNativeAgents.mockReset().mockResolvedValue(undefined);
 	loadCliProviders.mockReset().mockResolvedValue(undefined);
-	loadAiProviders.mockReset().mockResolvedValue(undefined);
-	refreshProviderModels.mockReset().mockResolvedValue(undefined);
 	loadSkills.mockReset().mockResolvedValue(undefined);
 	loadProjects.mockReset().mockResolvedValue(undefined);
 	nativeAgentsError.set("");
 	nativeAgentsLoading.set(false);
 	cliProviders.set([{ id: "claude-code", label: "Claude Code" }]);
-	providerCapabilities.set({});
 	skillList.set([]);
 	projects.set([project("p1")]);
 	nativeAgents.set([agent()]);
@@ -618,27 +608,21 @@ describe("AgentsSection", () => {
 		});
 	});
 
-	describe("the model and effort catalogues", () => {
-		/** A catalogue already read is not fetched again. */
-		it("fetches no catalogue it already holds", async () => {
-			providerCapabilities.set({
-				"claude-code-cli": {
-					models: [{ id: "opus", label: "Opus" }],
-					efforts: [],
-					permissionModes: [],
-				},
-			});
-			mount();
-			await settle();
-			expect(refreshProviderModels).not.toHaveBeenCalled();
-		});
+	describe("the option vocabularies", () => {
+		/**
+		 * Declared by the registry rather than probed: Cairn no longer runs a
+		 * provider to ask what it accepts, so a definition's fields are filled
+		 * from the CLI's own documented flags.
+		 */
+		it("gives every CLI a permission vocabulary, and efforts only where they exist", () => {
+			// Claude Code states an approval mode, Codex the sandbox its tools run
+			// in: offering one CLI's words for the other would be silently wrong.
+			expect(permissionModesOf("claude-code")).toContain("acceptEdits");
+			expect(permissionModesOf("codex")).toContain("read-only");
+			expect(permissionModesOf("claude-code")).not.toContain("read-only");
 
-		/** A catalogue not yet read is fetched, under its catalogue id. */
-		it("fetches a catalogue it has not read", async () => {
-			providerCapabilities.set({});
-			mount();
-			await settle();
-			expect(refreshProviderModels).toHaveBeenCalledWith("claude-code-cli");
+			expect(effortsOf("claude-code").length).toBeGreaterThan(0);
+			expect(effortsOf("opencode")).toEqual([]);
 		});
 	});
 });

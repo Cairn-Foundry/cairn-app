@@ -23,10 +23,10 @@ pub struct ProjectUiState {
     pub env_active: bool,
     #[serde(rename = "formattingActive", default)]
     pub formatting_active: bool,
-    /// The agent whose thread is open in the Agent view, empty when the
-    /// conversation shows.
-    #[serde(rename = "openAgentId", default)]
-    pub open_agent_id: String,
+    /// The CLI the Agent step last started a conversation with, so its picker
+    /// offers it first. Empty until one has been started.
+    #[serde(rename = "lastCli", default)]
+    pub last_cli: String,
     #[serde(rename = "gitChangesSearch", default)]
     pub git_changes_search: String,
     #[serde(rename = "gitLogSearch", default)]
@@ -48,7 +48,7 @@ impl Default for ProjectUiState {
             commands_active: false,
             env_active: false,
             formatting_active: false,
-            open_agent_id: String::new(),
+            last_cli: String::new(),
             git_changes_search: String::new(),
             git_log_search: String::new(),
             git_staged_search: String::new(),
@@ -155,7 +155,7 @@ mod tests {
         let state = project_from_json(r#"{"activeStep": "git"}"#);
         assert_eq!(state.active_step, "git");
         assert!(!state.references_panel_open);
-        assert_eq!(state.open_agent_id, "");
+        assert_eq!(state.last_cli, "");
         assert_eq!(state.git_left_tab, default_git_left_tab());
     }
 
@@ -174,7 +174,7 @@ mod tests {
             active_step: "tests".to_string(),
             git_left_tab: "graph".to_string(),
             terminal_active: true,
-            open_agent_id: "agent-7".to_string(),
+            last_cli: "claude-code".to_string(),
             references_query: r#"{"symbol":"foo"}"#.to_string(),
             ..Default::default()
         };
@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(back.active_step, "tests");
         assert_eq!(back.git_left_tab, "graph");
         assert!(back.terminal_active);
-        assert_eq!(back.open_agent_id, "agent-7");
+        assert_eq!(back.last_cli, "claude-code");
         assert_eq!(back.references_query, r#"{"symbol":"foo"}"#);
     }
 
@@ -233,7 +233,7 @@ mod tests {
             "commandsActive",
             "envActive",
             "formattingActive",
-            "openAgentId",
+            "lastCli",
             "referencesPanelOpen",
             "referencesQuery",
         ] {

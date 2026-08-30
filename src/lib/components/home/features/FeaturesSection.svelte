@@ -1,32 +1,30 @@
 <script lang="ts">
   /**
-   * Which provider serves each AI assist. Only CLI providers are offered: they
-   * explore the worktree themselves, which is what lets the commit assist read
-   * the staged diff instead of being handed one, and they need no API key.
+   * The AI assists Cairn offers outside the Agent step, and the prompt each one
+   * asks with.
+   *
+   * There is no provider to pick: an assist runs Claude Code headlessly, because
+   * it needs a documented one-shot mode and an answer it can parse back. The
+   * Agent step is the opposite - it runs whichever CLI the user chose, and reads
+   * none of its output.
    */
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { AI_FEATURES, assignableProviders, resolveAiFeature, type AiFeatureId } from '$lib/utils/home/ai-features';
-  import { providerById } from '$lib/components/home/agents/providers-data';
-  import { groupModelFamilies } from '$lib/utils/agent/model-families';
-  import { aiProviders, loadAiProviders, modelsOf, providerCapabilities, refreshProviderModels } from '$lib/stores/ai-providers';
+  import { AI_FEATURES, ASSIST_CLI, resolveAiFeature, type AiFeatureId } from '$lib/utils/home/ai-features';
+  import { assistCliInstalled, cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
   import { settings } from '$lib/stores/settings';
   import type { AiFeatureAssignment } from '$lib/services/settings-service';
 
   let editingTemplate: AiFeatureId | null = null;
   let templateDraft = '';
 
-  onMount(async () => {
-    await loadAiProviders();
-    for (const provider of assignableProviders($aiProviders)) {
-      void refreshProviderModels(provider.id);
-    }
+  onMount(() => {
+    void loadCliProviders();
   });
 
-  $: available = assignableProviders($aiProviders);
+  $: assistLabel = $cliProviders.find((p) => p.id === ASSIST_CLI)?.label ?? ASSIST_CLI;
   $: assignments = $settings.aiFeatures ?? {};
 
   /**
@@ -42,32 +40,8 @@
     void settings.save({ aiFeatures: { ...assignments, [id]: next } });
   }
 
-  /** Changing provider drops the model with it: a model id belongs to one CLI. */
-  function pickProvider(id: AiFeatureId, providerId: string) {
-    setAssignment(id, { providerId, model: '' });
-  }
-
-  function providerOptions(): { value: string; label: string }[] {
-    return [
-      { value: '', label: t('home.features.useDefaultProvider') as string },
-      ...available.map((p) => ({ value: p.id, label: p.name })),
-    ];
-  }
-
-  /** Families first, then anything already pinned that the CLI no longer reports. */
-  function modelOptions(providerId: string, current: string): { value: string; label: string }[] {
-    const options = [{ value: '', label: t('home.features.useProviderModel') as string }];
-    for (const family of groupModelFamilies(modelsOf(providerId, $providerCapabilities))) {
-      options.push({ value: family.models[0].id, label: family.label });
-    }
-    if (current && !options.some((o) => o.value === current)) {
-      options.push({ value: current, label: current });
-    }
-    return options;
-  }
-
   function openTemplate(id: AiFeatureId) {
-    templateDraft = resolveAiFeature(id, assignments, $aiProviders).promptTemplate;
+    templateDraft = resolveAiFeature(id, assignments, $assistCliInstalled).promptTemplate;
     editingTemplate = id;
   }
 
@@ -87,17 +61,15 @@
 </script>
 
 <div class="features">
-  {#if available.length === 0}
+  {#if !$assistCliInstalled}
     <div class="feat-empty">
       <Icon name="alert" size={16}/>
-      <span>{t('home.features.noProvider')}</span>
+      <span>{(t('home.features.assistCliMissing') as (name: string) => string)(assistLabel)}</span>
     </div>
   {/if}
 
   {#each AI_FEATURES as feature (feature.id)}
-    {@const assignment = assignmentOf(feature.id)}
-    {@const resolved = resolveAiFeature(feature.id, assignments, $aiProviders)}
-    {@const def = providerById(resolved.providerId)}
+    {@const resolved = resolveAiFeature(feature.id, assignments, $assistCliInstalled)}
     <div class="feat-card">
       <div class="feat-head">
         <span class="feat-icon"><Icon name={feature.icon} size={16}/></span>
@@ -111,41 +83,15 @@
       </div>
 
       {#if feature.runsProvider}
-        <div class="feat-fields">
-          <div class="feat-field">
-            <span class="feat-label">{t('home.features.provider')}</span>
-            <Select
-              value={assignment.providerId}
-              options={providerOptions()}
-              ariaLabel={t('home.features.provider') as string}
-              disabled={available.length === 0}
-              on:change={(e) => pickProvider(feature.id, e.detail)}
-            />
-          </div>
-          <div class="feat-field">
-            <span class="feat-label">{t('home.features.model')}</span>
-            <Select
-              value={assignment.model}
-              options={modelOptions(resolved.providerId, assignment.model)}
-              ariaLabel={t('home.features.model') as string}
-              disabled={resolved.unavailable}
-              on:change={(e) => setAssignment(feature.id, { model: e.detail })}
-            />
-          </div>
-        </div>
-
         <div class="feat-resolved">
           {#if resolved.unavailable}
             <Icon name="alert" size={12}/>
-            <span class="bad">{t('home.features.noProvider')}</span>
+            <span class="bad">{(t('home.features.assistCliMissing') as (name: string) => string)(assistLabel)}</span>
           {:else}
             <span class="feat-logo">
-              <ProviderLogo id={resolved.providerId} size={13} fallback={def?.logo ?? ''}/>
+              <ProviderLogo id={ASSIST_CLI} size={13} fallback={assistLabel.slice(0, 1)}/>
             </span>
-            <span>{def?.name ?? resolved.providerId}</span>
-            <span class="dim">
-              {resolved.model || t('home.features.useProviderModel')}
-            </span>
+            <span>{assistLabel}</span>
           {/if}
         </div>
       {/if}

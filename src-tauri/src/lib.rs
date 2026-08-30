@@ -7,7 +7,7 @@
 pub mod storage;
 pub mod commands;
 
-use commands::{AgentState, LspState, TerminalState, TestState};
+use commands::{LspState, OneshotState, TerminalState, TestState};
 use commands::*;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
@@ -60,7 +60,7 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol("cairn", |_ctx, request, responder| {
             std::thread::spawn(move || responder.respond(commands::file_protocol::respond(&request)));
         })
-        .manage(AgentState::new())
+        .manage(OneshotState::new())
         .manage(TerminalState::new())
         .manage(TestState::new())
         .manage(LspState::new())
@@ -234,22 +234,15 @@ pub fn run() {
             git_revert_commit,
             git_discard_file,
             search_in_files,
-            send_message,
-            stop_agent,
-            respond_permission,
-            get_ai_providers_config,
-            save_ai_providers_config,
             set_provider_api_key,
             get_api_key_statuses,
             delete_provider_api_key,
-            probe_provider,
-            discover_provider,
-            list_agent_commands,
             terminal_create,
             terminal_write,
             terminal_resize,
             terminal_close,
             terminal_close_all,
+            terminal_has_children,
             get_terminal_state,
             save_terminal_state,
             get_project_terminal_state,
@@ -261,35 +254,26 @@ pub fn run() {
             stop_tests,
             get_test_state,
             save_test_state,
-            get_agent_activity,
-            save_agent_activity,
-            get_agent_runs,
-            save_agent_runs,
             list_listening_ports,
             kill_process,
-            get_usage_entries,
-            append_usage_entries,
-            backfill_usage_entries,
-            clear_usage_entries,
             get_commit_state,
             get_diff_unified,
             get_diff_hunks,
-            run_oneshot,
             load_review_state,
             save_review_state,
             save_commit_state,
             get_conversation_index,
             save_conversation_index,
-            get_conversation_body,
-            save_conversation_body,
-            delete_conversation_body,
             get_file_state,
             save_file_state,
             get_git_collapse_state,
             save_git_collapse_state,
             get_project_commands,
             save_project_commands,
+            run_oneshot,
+            stop_oneshot,
             list_cli_providers,
+            discover_cli_session,
             reached_providers,
             list_native_agents,
             save_native_agent,
@@ -399,7 +383,6 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
-                commands::agent::shutdown(app);
                 commands::terminal::shutdown(app);
                 commands::lsp::shutdown(app);
                 commands::integrations::shutdown(app);

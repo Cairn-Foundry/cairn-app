@@ -15,8 +15,8 @@ export interface ProjectUiState {
 	commandsActive: boolean;
 	envActive: boolean;
 	formattingActive: boolean;
-	/** The agent whose thread is open in the Agent view, empty when the conversation shows. */
-	openAgentId: string;
+	/** The CLI the Agent step last started a conversation with; empty until one has been. */
+	lastCli: string;
 	gitChangesSearch: string;
 	gitLogSearch: string;
 	gitStagedSearch: string;

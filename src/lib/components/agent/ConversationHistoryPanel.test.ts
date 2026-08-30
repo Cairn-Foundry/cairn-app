@@ -10,10 +10,8 @@ const handlers = () => ({
 	onNewSession: vi.fn(),
 	onRename: vi.fn(),
 	onDelete: vi.fn(),
-	onDuplicate: vi.fn(),
 	onTogglePin: vi.fn(),
 	onToggleArchive: vi.fn(),
-	onDownload: vi.fn(),
 	onMoveScope: vi.fn(),
 });
 
@@ -30,8 +28,7 @@ function mount(props: Record<string, unknown> = {}) {
 		instanceConversations: [],
 		projectConversations: [],
 		activeId: null,
-		runningIds: [],
-		doneId: null,
+		cliLabel: (cli: string) => cli,
 		newSessionActive: false,
 		...spies,
 		...props,
@@ -104,9 +101,9 @@ describe("ConversationHistoryPanel", () => {
 		it("puts pinned conversations first, then the most recently answered", () => {
 			mount({
 				projectConversations: [
-					conversation("old", { lastMessageAt: 10 }),
-					conversation("recent", { lastMessageAt: 300 }),
-					conversation("pinned-old", { pinned: true, lastMessageAt: 1 }),
+					conversation("old", { lastOpenedAt: 10 }),
+					conversation("recent", { lastOpenedAt: 300 }),
+					conversation("pinned-old", { pinned: true, lastOpenedAt: 1 }),
 				],
 			});
 			expect(titlesIn(sections()[0])).toEqual(["pinned-old", "recent", "old"]);
@@ -115,8 +112,8 @@ describe("ConversationHistoryPanel", () => {
 		it("dates a conversation that never got an answer by its creation", () => {
 			mount({
 				projectConversations: [
-					conversation("answered", { lastMessageAt: 100 }),
-					conversation("fresh", { createdAt: 500, lastMessageAt: 0 }),
+					conversation("answered", { lastOpenedAt: 100 }),
+					conversation("fresh", { createdAt: 500, lastOpenedAt: 0 }),
 				],
 			});
 			expect(titlesIn(sections()[0])).toEqual(["fresh", "answered"]);
@@ -186,15 +183,19 @@ describe("ConversationHistoryPanel", () => {
 			expect(titlesIn(sections()[0])).toEqual(["refactor"]);
 		});
 
-		it("matches on the last message shown under the title", async () => {
+		it("matches on the title, which is all Cairn keeps of a conversation", () => {
+			// The transcript belongs to the CLI, so there is no preview to search.
 			mount({
 				projectConversations: [
-					conversation("one", { preview: "fix the migration" }),
-					conversation("two", { preview: "bump the version" }),
+					conversation("fix the migration"),
+					conversation("bump the version"),
 				],
 			});
-			await userEvent.type(screen.getByRole("textbox"), "migration");
-			expect(titlesIn(sections()[0])).toEqual(["one"]);
+			return userEvent
+				.type(screen.getByRole("textbox"), "migration")
+				.then(() => {
+					expect(titlesIn(sections()[0])).toEqual(["fix the migration"]);
+				});
 		});
 
 		it("ignores case and surrounding spaces", async () => {
@@ -217,42 +218,59 @@ describe("ConversationHistoryPanel", () => {
 		});
 	});
 
-	describe("agent status", () => {
-		it("pulses on the conversation that is answering", () => {
+	describe("what a row shows", () => {
+		it("marks the row with the logo of the CLI that owns the conversation", () => {
 			mount({
-				projectConversations: [conversation("busy"), conversation("idle")],
-				runningIds: ["busy"],
+				projectConversations: [conversation("mine", { cli: "opencode" })],
 			});
-			expect(rowNamed("busy").querySelector(".conv-busy-dot")).not.toBeNull();
-			expect(rowNamed("idle").querySelector(".conv-busy-dot")).toBeNull();
+			expect(rowNamed("mine").querySelector(".row-mark svg")).not.toBeNull();
 		});
 
-		/** Several conversations of one instance can answer at once. */
-		it("pulses on every conversation that is answering", () => {
+		/** The logo says which CLI it is; spelling the name out again is noise. */
+		it("shows the title alone beside the logo, not the CLI's name", () => {
 			mount({
-				projectConversations: [conversation("a"), conversation("b")],
-				runningIds: ["a", "b"],
+				projectConversations: [conversation("fix the parser")],
+				cliLabel: () => "Claude Code",
 			});
-			expect(document.querySelectorAll(".conv-busy-dot")).toHaveLength(2);
+			const row = rowNamed("fix the parser");
+			expect(row.querySelector(".row-label")?.textContent).toBe(
+				"fix the parser",
+			);
+			expect(row.textContent).not.toContain("Claude Code");
 		});
 
-		it("marks a finished, unread conversation without pulsing", () => {
-			mount({
-				projectConversations: [conversation("done")],
-				doneId: "done",
-			});
-			expect(rowNamed("done").querySelector(".conv-done-dot")).not.toBeNull();
-			expect(rowNamed("done").querySelector(".conv-busy-dot")).toBeNull();
+		/**
+		 * Whether a CLI is running is no longer shown here. Cairn does not read
+		 * the CLI's output, so it cannot tell an answer from a prompt, and a dot
+		 * that only meant "the process is alive" said less than it implied.
+		 */
+		it("shows no running indicator", () => {
+			mount({ projectConversations: [conversation("any")] });
+			expect(document.querySelector(".conv-busy-dot")).toBeNull();
 		});
 
-		it("keeps pulsing rather than marking done while it still answers", () => {
-			mount({
-				projectConversations: [conversation("a")],
-				runningIds: ["a"],
-				doneId: "a",
-			});
-			expect(rowNamed("a").querySelector(".conv-busy-dot")).not.toBeNull();
-			expect(rowNamed("a").querySelector(".conv-done-dot")).toBeNull();
+		/**
+		 * The archive glyph carries the named sub-parts the icon stylesheet
+		 * animates. Nothing is declared on the button: the shared rules key off
+		 * the nearest interactive host, so a menu entry animates like a toolbar
+		 * button without either of them opting in.
+		 */
+		it("draws the archive entry with the glyph the icon rules animate", async () => {
+			mount({ projectConversations: [conversation("mine")] });
+			const menu = await openMenu("mine");
+			const entry = within(menu).getByRole("button", { name: /archive/i });
+			const glyph = entry.querySelector(".ic-archive");
+			expect(glyph).not.toBeNull();
+			expect(glyph?.querySelector(".ic-archive-lid")).not.toBeNull();
+			expect(glyph?.querySelector(".ic-archive-slot")).not.toBeNull();
+		});
+
+		/** A row action nobody can see is a row action nobody uses. */
+		it("keeps the actions button on screen without hovering", () => {
+			mount({ projectConversations: [conversation("mine")] });
+			const menu = rowNamed("mine").querySelector<HTMLElement>(".row-menu");
+			expect(menu).not.toBeNull();
+			expect(getComputedStyle(menu as HTMLElement).opacity).not.toBe("0");
 		});
 	});
 
@@ -284,10 +302,8 @@ describe("ConversationHistoryPanel", () => {
 				instanceConversations: [conversation("mine")],
 			});
 			for (const [label, spy] of [
-				[/duplicate/i, spies.onDuplicate],
 				[/pin/i, spies.onTogglePin],
 				[/archive/i, spies.onToggleArchive],
-				[/markdown|download/i, spies.onDownload],
 			] as const) {
 				const menu = await openMenu("mine");
 				await userEvent.click(
@@ -469,8 +485,7 @@ describe("ConversationHistoryPanel dragging between scopes", () => {
 			projectConversations: [conversation("shared")],
 			instanceConversations: [conversation("mine")],
 			activeId: null,
-			runningIds: [],
-			doneId: null,
+			cliLabel: (cli: string) => cli,
 			newSessionActive: false,
 			...spies,
 		});
@@ -608,8 +623,7 @@ describe("ConversationHistoryPanel dragging between scopes", () => {
 			projectConversations: [conversation("shared", { archived: true })],
 			instanceConversations: [conversation("mine", { archived: true })],
 			activeId: null,
-			runningIds: [],
-			doneId: null,
+			cliLabel: (cli: string) => cli,
 			newSessionActive: false,
 			...spies,
 		});

@@ -91,7 +91,6 @@ export interface CairnSettings {
 		| "instanceChange"
 		| "manual";
 	gitProfiles: GitProfile[];
-	agentActivityWidth: number;
 	quickSearchShowGitignored: boolean;
 	autoCheckUpdates: boolean;
 	integrationsPollSeconds: number;
@@ -103,21 +102,6 @@ export interface CairnSettings {
 	suggestLanguageServers: boolean;
 	dismissedLanguageServers: string[];
 	customLanguageServers: CustomLanguageServer[];
-	agentShowLiveActivity: boolean;
-	agentActivityShowTime: boolean;
-	agentActivityShowToolArgs: boolean;
-	agentActivityAutoScroll: boolean;
-	agentShowMessageTime: boolean;
-	agentShowThinking: boolean;
-	agentShowMessageCopy: boolean;
-	agentShowResponseStats: boolean;
-	agentResponseStats: string[];
-	agentShowContextWindow: boolean;
-	agentShowConversationCost: boolean;
-	agentShowRateLimit: boolean;
-	agentShowModelChip: boolean;
-	agentShowEffortChip: boolean;
-	agentShowPermissionChip: boolean;
 	/** Keyed by `AiFeatureId`; a feature with no entry runs on the default provider. */
 	aiFeatures: Record<string, AiFeatureAssignment>;
 }

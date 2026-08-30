@@ -85,11 +85,6 @@ vi.mock("$lib/stores/terminal", async (importOriginal) => ({
 	initTerminals: vi.fn((..._a: unknown[]) => undefined),
 }));
 
-vi.mock("$lib/stores/agent-activity", async (importOriginal) => ({
-	...(await importOriginal<Record<string, unknown>>()),
-	loadAgentActivity: vi.fn(async (..._a: unknown[]) => undefined),
-}));
-
 vi.mock("$lib/stores/update", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	isUpdateModalOpen: { subscribe: writable(false).subscribe },

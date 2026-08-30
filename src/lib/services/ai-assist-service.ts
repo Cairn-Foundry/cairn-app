@@ -1,12 +1,13 @@
-// One-shot provider runs for the AI features. The Agent step drives a
-// conversation; a feature wants the answer once and keeps nothing, so this
-// wraps `send_message` and resolves with the final text without ever touching
-// the conversation store.
+// One-shot model calls for the AI features: a drafted commit message, a merge
+// request description. One prompt in, one answer out, nothing persisted.
+//
+// This is not the Agent step. That step runs a CLI interactively in a PTY and
+// reads none of its output; here Cairn asks a single headless question and needs
+// the answer back, so it goes through `run_oneshot` instead.
 
-import { listen } from "@tauri-apps/api/event";
-import { type RunOptions, sendMessage, stopAgent } from "./agent-service";
+import { invoke } from "@tauri-apps/api/core";
 
-/** Which of the three actionable failures happened; the view words each one differently. */
+/** Which of the actionable failures happened; the view words each one differently. */
 export type AiAssistErrorKind =
 	| "unavailable"
 	| "notAuthenticated"
@@ -15,7 +16,7 @@ export type AiAssistErrorKind =
 
 export class AiAssistError extends Error {
 	readonly kind: AiAssistErrorKind;
-	/** What the provider itself said, when it said anything; shown as-is. */
+	/** What the CLI itself said, when it said anything; shown as-is. */
 	readonly detail: string;
 
 	constructor(kind: AiAssistErrorKind, detail = "") {
@@ -37,53 +38,33 @@ function looksLikeAuthFailure(message: string): boolean {
 	);
 }
 
-/** Providers like wrapping an answer in a fence even when told not to. */
+/** Models like wrapping an answer in a fence even when told not to. */
 export function stripCodeFence(text: string): string {
 	const trimmed = text.trim();
-	const fenced = /^```[^\n]*\n([\s\S]*?)\n?```$/.exec(trimmed);
+	const fenced = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*?)\n?```$/);
 	return (fenced ? fenced[1] : trimmed).trim();
 }
 
-/**
- * Collects the answer out of a run's events. An agent with tools narrates what
- * it is about to do before doing it - "Reading the staged diff." arrives as an
- * assistant message of its own - so keeping everything it said would make the
- * commentary the first line of the answer. A tool call therefore discards what
- * came before it, leaving only the turn that follows the last one; several text
- * blocks inside that turn are one message and are joined.
- */
-export class AnswerCollector {
-	private chunks: string[] = [];
-
-	/** Feeds one event; anything but `assistant` and `tool` is ignored. */
-	push(source: string, line: string): void {
-		if (source === "assistant") this.chunks.push(line);
-		else if (source === "tool") this.chunks.length = 0;
-	}
-
-	/** The final answer, fence stripped; empty when the agent only narrated. */
-	answer(): string {
-		return stripCodeFence(this.chunks.join("\n"));
-	}
-}
-
-export interface OneShotOptions extends RunOptions {
-	/** Aborting kills the run through `stop_agent`, so the CLI does not linger. */
+/** Per-run overrides; everything is optional. */
+export interface OneShotOptions {
+	/** Model id to pass to the CLI, its own default when absent. */
+	model?: string;
+	/** Aborts the run: the CLI process is killed, not just ignored. */
 	signal?: AbortSignal;
 	/** Gives up after this long; 0 waits forever. */
 	timeoutMs?: number;
 }
 
-let runCounter = 0;
-
-function mintRunId(): string {
-	runCounter += 1;
-	return `assist-${Date.now().toString(36)}-${runCounter}`;
-}
+/** The only shape asked of the model: one field holding the whole answer. */
+const ANSWER_SCHEMA = {
+	type: "object",
+	properties: { answer: { type: "string" } },
+	required: ["answer"],
+} as const;
 
 /**
- * Runs `prompt` once and answers with the assistant text, joined in the order
- * it arrived. Nothing is persisted and no conversation is created: a generated
+ * Runs `prompt` once in `workingDir` and answers with the text the model
+ * produced. Nothing is persisted and no conversation is created: a generated
  * commit message is not a conversation.
  */
 export async function runOneShot(
@@ -92,111 +73,53 @@ export async function runOneShot(
 	providerId: string,
 	options: OneShotOptions = {},
 ): Promise<string> {
-	const { signal, timeoutMs = 120_000, ...runOptions } = options;
+	const { signal, timeoutMs = 120_000, model } = options;
 	if (!providerId) throw new AiAssistError("unavailable");
 	if (signal?.aborted) throw new AiAssistError("cancelled");
 
-	const runId = mintRunId();
-	const collector = new AnswerCollector();
+	const runId = crypto.randomUUID();
+	let cancelled = false;
 
-	return await new Promise<string>((resolve, reject) => {
-		let settled = false;
-		let unlisten: (() => void) | null = null;
-		let timer: ReturnType<typeof setTimeout> | null = null;
+	/** Kills the CLI rather than leaving it running for an answer nobody reads. */
+	const cancel = () => {
+		cancelled = true;
+		void invoke("stop_oneshot", { runId }).catch(() => {});
+	};
 
-		const cleanup = () => {
-			if (timer !== null) clearTimeout(timer);
-			signal?.removeEventListener("abort", onAbort);
-			unlisten?.();
-			unlisten = null;
-		};
+	signal?.addEventListener("abort", cancel);
+	const timer = timeoutMs > 0 ? setTimeout(cancel, timeoutMs) : null;
 
-		const finish = (value: string) => {
-			if (settled) return;
-			settled = true;
-			cleanup();
-			resolve(value);
-		};
-
-		const fail = (error: AiAssistError) => {
-			if (settled) return;
-			settled = true;
-			cleanup();
-			reject(error);
-		};
-
-		function onAbort() {
-			void stopAgent(runId).catch(() => {});
-			fail(new AiAssistError("cancelled"));
+	try {
+		const result = await invoke<{ answer?: string }>("run_oneshot", {
+			request: {
+				workingDir,
+				prompt,
+				schema: ANSWER_SCHEMA,
+				runId,
+				model: model || null,
+				binaryPath: null,
+				env: {},
+			},
+		});
+		const answer = stripCodeFence(result?.answer ?? "");
+		if (!answer) throw new AiAssistError("runFailed");
+		return answer;
+	} catch (e) {
+		if (e instanceof AiAssistError) throw e;
+		if (cancelled) {
+			// A timeout and an abort both cancel the run; only the abort is the
+			// user saying no, and the caller stays quiet for that one.
+			throw new AiAssistError(signal?.aborted ? "cancelled" : "runFailed");
 		}
-
-		signal?.addEventListener("abort", onAbort);
-
-		if (timeoutMs > 0) {
-			timer = setTimeout(() => {
-				void stopAgent(runId).catch(() => {});
-				fail(new AiAssistError("runFailed"));
-			}, timeoutMs);
+		const detail = String((e as Error)?.message ?? e);
+		if (/not found/i.test(detail))
+			throw new AiAssistError("unavailable", detail);
+		if (looksLikeAuthFailure(detail)) {
+			throw new AiAssistError("notAuthenticated", detail);
 		}
-
-		// The listener has to be live before the run is spawned, or a fast
-		// provider answers into a void and the promise never settles.
-		type Output = {
-			source: string;
-			line: string;
-			runId?: string;
-			data?: Record<string, unknown>;
-			agent?: string;
-		};
-		const onOutput = (payload: Output) => {
-			if (payload.runId !== runId) return;
-			// Text produced inside a subagent is that thread's reasoning, not the
-			// answer: only what the main thread says is the result.
-			if (payload.agent) return;
-
-			if (payload.source === "assistant" || payload.source === "tool") {
-				collector.push(payload.source, payload.line);
-			} else if (payload.source === "error") {
-				const message = String(payload.data?.message ?? "");
-				fail(
-					new AiAssistError(
-						looksLikeAuthFailure(message) ? "notAuthenticated" : "runFailed",
-						message,
-					),
-				);
-			} else if (payload.source === "system" && payload.line === "[done]") {
-				const text = collector.answer();
-				if (text === "") fail(new AiAssistError("runFailed"));
-				else finish(text);
-			}
-		};
-		void listen<Output[]>("claude-output-batch", (e) => {
-			for (const payload of e.payload) onOutput(payload);
-		})
-			.then((fn) => {
-				if (settled) {
-					fn();
-					return;
-				}
-				unlisten = fn;
-				return sendMessage(
-					prompt,
-					workingDir,
-					providerId,
-					runId,
-					null,
-					{},
-					runOptions,
-				);
-			})
-			.catch((e) => {
-				const message = String(e);
-				fail(
-					new AiAssistError(
-						looksLikeAuthFailure(message) ? "notAuthenticated" : "unavailable",
-						message,
-					),
-				);
-			});
-	});
+		throw new AiAssistError("runFailed", detail);
+	} finally {
+		if (timer !== null) clearTimeout(timer);
+		signal?.removeEventListener("abort", cancel);
+	}
 }

@@ -7,6 +7,8 @@ import { invoke } from "@tauri-apps/api/core";
 export type CliProviderId =
 	| "claude-code"
 	| "codex"
+	| "gemini"
+	| "opencode"
 	| "copilot"
 	| "antigravity"
 	| "vibe";
@@ -18,16 +20,61 @@ export interface CliProviderDef {
 	/** Only Claude Code keeps a per-project private MCP list. */
 	hasLocalScope: boolean;
 	/**
-	 * Whether this machine actually has the agent. Writing for an agent that is
-	 * not installed only leaves files nothing reads, so it cannot be picked -
-	 * though an entry already written for it can still be taken back out.
+	 * Whether the binary is there to be launched. The conversation picker keys
+	 * off this one: a card that cannot be launched must not be offered.
 	 */
 	installed: boolean;
+	/**
+	 * Whether the agent has run on this machine, which is what makes writing it
+	 * a skill or an MCP server worth doing - the file stays useful even when the
+	 * binary is invoked from somewhere Cairn cannot see. True on a config
+	 * directory an uninstall left behind, where `installed` is false.
+	 */
+	configured: boolean;
+	/** Where the binary was found, so the hub can show which install is used. */
+	path: string | null;
+	/** What `<bin> --version` printed, when the binary is there. */
+	version: string | null;
+	/**
+	 * Whether a conversation with this CLI can be reopened by its own id. True
+	 * for every CLI in the registry; kept so a future one that cannot is reported
+	 * rather than silently offering a conversation it would lose.
+	 */
+	resumable: boolean;
 }
 
-/** Every known CLI, installed or not - the caller decides what to grey out. */
-export async function listCliProviders(): Promise<CliProviderDef[]> {
-	return await invoke("list_cli_providers");
+/** The CLI the headless assists run on; see `ASSIST_CLI`. */
+export const CLAUDE_CODE = "claude-code" satisfies CliProviderId;
+
+/**
+ * Every known CLI, installed or not - the caller decides what to grey out.
+ *
+ * The answer is cached in Rust: detection runs each installed CLI to read its
+ * version, which is a visible wait to repeat on every visit to a screen. Pass
+ * `refresh` when the user asks for it, or after something may have installed a
+ * CLI.
+ */
+export async function listCliProviders(
+	refresh = false,
+): Promise<CliProviderDef[]> {
+	return await invoke("list_cli_providers", { refresh });
+}
+
+/**
+ * The id of the conversation a CLI just started in `cwd`, for the CLIs that
+ * mint their own rather than taking one imposed at launch.
+ *
+ * `startedAfter` is when the PTY was spawned, so a session older than the
+ * conversation - an earlier one in the same worktree - is never adopted. Null
+ * while the user has not spoken yet: the CLI has no session to report, and the
+ * caller asks again later.
+ */
+export async function discoverCliSession(
+	cli: CliProviderId,
+	cwd: string,
+	startedAfter: number,
+): Promise<string | null> {
+	return await invoke("discover_cli_session", { cli, cwd, startedAfter });
 }
 
 /**

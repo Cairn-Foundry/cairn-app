@@ -159,6 +159,7 @@ export function onTerminalExit(
 
 const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	listen<{ id: string; data: string }>("terminal-output", (e) => {
+		onOutput?.(e.payload.id);
 		write(e.payload.id, e.payload.data);
 	}),
 	listen<TerminalExit>("terminal-exit", (e) => {
@@ -206,8 +207,35 @@ if (typeof window !== "undefined") {
 // ordering guarantee and would reach the PTY out of order.
 const writeQueues = new Map<string, Promise<void>>();
 
+/**
+ * Told about every byte typed into a terminal, before it reaches the PTY. The
+ * Agent step uses it to name a conversation from its first prompt; nothing else
+ * listens, and nothing ever reads the output side.
+ */
+let onInput: ((id: string, data: string) => void) | null = null;
+
+/** Registers the input observer; passing null removes it. */
+export function observeInput(
+	fn: ((id: string, data: string) => void) | null,
+): void {
+	onInput = fn;
+}
+
+/**
+ * Told that a terminal produced output, without being told what. The Agent step
+ * uses it to know a CLI is still doing something; the bytes themselves are not
+ * passed on, because nothing in Cairn reads them.
+ */
+let onOutput: ((id: string) => void) | null = null;
+
+/** Registers the output observer; passing null removes it. */
+export function observeOutput(fn: ((id: string) => void) | null): void {
+	onOutput = fn;
+}
+
 /** Queues a PTY write behind the ones already in flight for that terminal. */
 function enqueueWrite(id: string, data: string): void {
+	onInput?.(id, data);
 	const pending = writeQueues.get(id) ?? Promise.resolve();
 	const next = pending.then(() => writeToTerminal(id, data)).catch(() => {});
 	writeQueues.set(id, next);
@@ -367,6 +395,16 @@ export function refit(id: string): void {
 }
 
 /** Gives the terminal keyboard focus. */
+/**
+ * Types text into a terminal as if the user had typed it, newlines stripped so
+ * it lands in the prompt without submitting it. Goes through the same queue as
+ * the keyboard, so it cannot overtake what is already in flight.
+ */
+export function paste(id: string, text: string): void {
+	const typed = text.replace(/\r?\n/g, " ").trim();
+	if (typed) enqueueWrite(id, typed);
+}
+
 export function focus(id: string): void {
 	managed.get(id)?.term?.focus();
 }

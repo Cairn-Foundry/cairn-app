@@ -40,6 +40,7 @@ vi.mock("$lib/services/settings-service", async (importOriginal) => ({
 }));
 
 const { projects, activeProjectId } = await import("$lib/stores/project");
+const { cliProviders } = await import("$lib/stores/cli-providers");
 const { project } = await import("./fixtures");
 const { default: MergeRequestForm } = await import(
 	"$lib/components/git/MergeRequestForm.svelte"
@@ -97,6 +98,20 @@ beforeEach(() => {
 	createMergeRequest.mockReset().mockResolvedValue({ number: "1" });
 	loadForgeLabels.mockReset().mockResolvedValue([]);
 	runOneShot.mockReset();
+	// The assists run Claude Code headlessly; without it detected the button is
+	// disabled and nothing is generated.
+	cliProviders.set([
+		{
+			id: "claude-code",
+			label: "Claude Code",
+			hasLocalScope: true,
+			installed: true,
+			configured: true,
+			path: "/usr/local/bin/claude",
+			version: "2.0.0",
+			resumable: true,
+		},
+	]);
 	forgeIdentity.set(null);
 	gitState.set({ branches: ["main", "develop"], remoteBranches: [] });
 	projects.set([project("p1")]);

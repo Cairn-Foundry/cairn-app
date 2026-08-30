@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import AgentThreadConfirmModal from "$lib/components/agent/AgentThreadConfirmModal.svelte";
 import DeleteConversationModal from "$lib/components/agent/DeleteConversationModal.svelte";
 import CommandConfirmDialog from "$lib/components/commands/CommandConfirmDialog.svelte";
 import DeleteAgentModal from "$lib/components/home/agents/DeleteAgentModal.svelte";
@@ -145,19 +144,6 @@ const CASES: ModalCase[] = [
 		},
 	},
 	{
-		name: "AgentThreadConfirmModal",
-		names: "hermes",
-		mount: () => {
-			const onConfirm = vi.fn();
-			const onClose = vi.fn();
-			render(AgentThreadConfirmModal, {
-				props: { name: "hermes" },
-				events: { confirm: () => onConfirm(), close: () => onClose() },
-			});
-			return { onConfirm, onClose };
-		},
-	},
-	{
 		name: "CommandConfirmDialog",
 		names: "deploy",
 		mount: () => {
@@ -216,7 +202,6 @@ const CASES: ModalCase[] = [
 			const onClose = vi.fn();
 			render(DeleteConversationModal, {
 				title: "my conversation",
-				messageCount: 12,
 				onClose,
 				onConfirm,
 			});
@@ -320,15 +305,18 @@ describe("what each modal says beyond the shared contract", () => {
 		expect(body().textContent).toContain("/repo/.claude/skills/my-skill");
 	});
 
-	/** How much is being thrown away is what makes the choice informed. */
-	it("DeleteConversationModal says how many messages are lost", () => {
+	/**
+	 * What is actually lost is the entry, not the transcript: that belongs to the
+	 * CLI and stays where it is. Saying so is what makes the choice informed.
+	 */
+	it("DeleteConversationModal says the CLI keeps what it recorded", () => {
 		render(DeleteConversationModal, {
 			title: "my conversation",
-			messageCount: 12,
 			onClose: vi.fn(),
 			onConfirm: vi.fn(),
 		});
-		expect(body().textContent).toMatch(/12/);
+		expect(body().textContent).toMatch(/my conversation/);
+		expect(body().textContent).toMatch(/CLI/);
 	});
 
 	/** The instance is named by its ticket, which is how the user knows it. */

@@ -44,16 +44,13 @@ export function conversation(
 	return {
 		id,
 		title: id,
+		cli: "claude-code",
+		sessionId: null,
+		cwd: "/repo/wt",
 		createdAt: 0,
-		updatedAt: 0,
-		lastMessageAt: 0,
-		providerId: "claude",
+		lastOpenedAt: 0,
 		pinned: false,
 		archived: false,
-		sessions: {},
-		lastProviderId: "claude",
-		messageCount: 2,
-		preview: "",
 		...overrides,
 	};
 }

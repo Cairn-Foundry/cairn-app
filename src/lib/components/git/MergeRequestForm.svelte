@@ -13,12 +13,12 @@
   import { activeProject } from '$lib/stores/project';
   import { git, loadBranches } from '$lib/stores/git';
   import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
-  import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
+  import { assistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { forgeIdentity, forgeTerms } from '$lib/stores/integrations';
   import { createMergeRequest, loadForgeLabels } from '$lib/stores/merge-request';
   import { settings } from '$lib/stores/settings';
   import type { Actor, IntegrationError, MergeRequest } from '$lib/types/integrations';
-  import { readOnlyPermissionMode, readOnlyTools, resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { resolveAiFeature } from '$lib/utils/home/ai-features';
   import { buildMrDescriptionPrompt } from '$lib/utils/integrations/prompts';
   import { toIntegrationError } from '$lib/services/integration-service';
 
@@ -68,7 +68,7 @@
   let aiStatusMessage = '';
 
   $: terms = $forgeTerms;
-  $: resolvedFeature = resolveAiFeature('mrDescription', $settings.aiFeatures, $aiProviders);
+  $: resolvedFeature = resolveAiFeature('mrDescription', $settings.aiFeatures, $assistCliInstalled);
   $: canGenerate = !resolvedFeature.unavailable && !isGenerating && !isSubmitting;
   $: canSubmit = title.trim() !== '' && !isSubmitting && !isGenerating;
   $: targetOptions = buildTargetOptions($git.branches, $git.remoteBranches);
@@ -86,7 +86,7 @@
   }
 
   onMount(() => {
-    void loadAiProviders();
+    void loadCliProviders();
     if ($activeProject?.path) void loadBranches($activeProject.path);
     void loadForgeLabels(projectId)
       .then((list) => { availableLabels = list ?? []; })
@@ -121,12 +121,7 @@
         buildMrDescriptionPrompt(selectedTarget, ticket, $settings.aiFeatures),
         worktreePath,
         feature.providerId,
-        {
-          model: feature.model || undefined,
-          permissionMode: readOnlyPermissionMode(feature.providerId) || undefined,
-          allowedTools: readOnlyTools(feature.providerId),
-          signal: generateAbort.signal,
-        },
+        { model: feature.model || undefined, signal: generateAbort.signal },
       );
       const parsed = parseGenerated(answer);
       if (parsed.title) {

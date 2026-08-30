@@ -69,8 +69,8 @@
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
   import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
-  import { readOnlyPermissionMode, readOnlyTools, resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { aiProviders, loadAiProviders } from '$lib/stores/ai-providers';
+  import { resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { assistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { parseCommitMessage, renderCommitPrompt } from '$lib/utils/git/commit-message';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
 
@@ -767,7 +767,7 @@
 
   onMount(() => {
     setDiffsWanted(true);
-    void loadAiProviders();
+    void loadCliProviders();
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
       refreshStatus();
@@ -860,7 +860,7 @@
    */
   let aiStatusMessage = '';
 
-  $: resolvedCommitFeature = resolveAiFeature('commitMessage', $settings.aiFeatures, $aiProviders);
+  $: resolvedCommitFeature = resolveAiFeature('commitMessage', $settings.aiFeatures, $assistCliInstalled);
   $: canGenerate = (stagedCount > 0 || amendMode) && !resolvedCommitFeature.unavailable;
 
   /**
@@ -883,12 +883,7 @@
         renderCommitPrompt(feature.promptTemplate, appendTicketId ? (instance.ticket?.id ?? '') : '', instance.ticket ?? {}),
         instance.worktreePath,
         feature.providerId,
-        {
-          model: feature.model || undefined,
-          permissionMode: readOnlyPermissionMode(feature.providerId) || undefined,
-          allowedTools: readOnlyTools(feature.providerId),
-          signal: generateAbort.signal,
-        },
+        { model: feature.model || undefined, signal: generateAbort.signal },
       );
       const parsed = parseCommitMessage(answer);
       // A failed generation never clobbers what the user already typed.

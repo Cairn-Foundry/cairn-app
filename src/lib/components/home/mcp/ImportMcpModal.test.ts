@@ -66,8 +66,21 @@ beforeEach(() => {
 			label: "claude-code",
 			hasLocalScope: true,
 			installed: true,
+			configured: true,
+			path: null,
+			version: null,
+			resumable: true,
 		},
-		{ id: "codex", label: "codex", hasLocalScope: false, installed: true },
+		{
+			id: "codex",
+			label: "codex",
+			hasLocalScope: false,
+			installed: true,
+			configured: true,
+			path: null,
+			version: null,
+			resumable: true,
+		},
 	]);
 	projects.set([project("p1"), project("p2")]);
 });

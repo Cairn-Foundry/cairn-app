@@ -18,11 +18,11 @@ export const envActive = writable(false);
 export const formattingActive = writable(false);
 
 /**
- * The agent whose thread is open in the Agent view. An agent's thread takes over
- * the main area exactly like a conversation does, so which one is open is view
- * state and survives a restart.
+ * The CLI the Agent step last started a conversation with, per project. The
+ * picker offers it first, so a restart does not send the user hunting for the
+ * one they always use.
  */
-export const openAgentId = writable("");
+export const lastCli = writable("");
 
 /**
  * Tools take over the main area, so exactly one of them can be open at a time.

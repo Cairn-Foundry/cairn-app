@@ -27,14 +27,11 @@
   import { revealInFileManager } from '$lib/services/file-service';
   import { KNOWN_TOOLS } from '$lib/utils/agent/tools';
   import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
-  import {
-    effortsOf, loadAiProviders, modelsOf, permissionModesOf, providerCapabilities,
-    refreshProviderModels,
-  } from '$lib/stores/ai-providers';
+  import { effortsOf, permissionModesOf } from '$lib/components/home/agents/cli-options';
   import { skills as skillList, loadSkills } from '$lib/stores/skills';
   import { effortLabel, permissionModeLabel } from '$lib/utils/agent/run-options';
   import { reachedProviders, type CliProviderId } from '$lib/services/cli-provider-service';
-  import { catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';
+  import { sortProviders } from '$lib/utils/home/cli-providers';
   import { agentSlug, AGENT_COLORS, MAX_DESCRIPTION } from '$lib/utils/home/native-agents';
 
   /** The editor's own copy: a file is only touched when Save is pressed. */
@@ -76,7 +73,7 @@
   let providerFilter: CliProviderId | 'all' = 'all';
 
   onMount(async () => {
-    await Promise.all([loadProjects(), loadCliProviders(), loadAiProviders(), loadSkills()]);
+    await Promise.all([loadProjects(), loadCliProviders(), loadSkills()]);
     await loadNativeAgents();
     if (!selectedPath) select($nativeAgents[0] ?? null);
   });
@@ -120,16 +117,11 @@
   ];
 
   /**
-   * The catalogues to offer from: what each provider that will read this
-   * definition says it accepts. A definition holds one value, so several
-   * providers offer the union of theirs - a value only one of them knows is
-   * still worth being able to pick.
+   * The CLIs that will read this definition, so the fields below offer what they
+   * accept. Their vocabularies are declared, not probed: Cairn no longer runs a
+   * provider to ask it.
    */
-  $: capabilityProviders = (draft?.targets ?? []).map(catalogueIdOf);
-
-  $: void capabilityProviders.forEach((id) => {
-    if (!$providerCapabilities[id]) void refreshProviderModels(id);
-  });
+  $: capabilityProviders = draft?.targets ?? [];
 
   /** Merges the catalogues of several providers, keeping the first entry of each key. */
   function unionOf<T>(lists: T[][], key: (item: T) => string): T[] {
@@ -147,40 +139,36 @@
    * An empty first entry everywhere: a definition that says nothing about a
    * field lets the session decide, which is a real choice and has to be
    * expressible after picking a value.
+   *
+   * A value a CLI no longer declares is kept as its own entry rather than
+   * dropped, so opening a definition never silently clears what it holds.
    */
-  $: modelOptions = [
-    { value: '', label: t('agentDefs.fields.inherit') as string },
-    ...unionOf(
-      capabilityProviders.map((id) => modelsOf(id, $providerCapabilities)),
-      (m) => m.id,
-    ).map((m) => ({ value: m.id, label: m.label || m.id })),
-    ...(draft?.model &&
-    !capabilityProviders.some((id) =>
-      modelsOf(id, $providerCapabilities).some((m) => m.id === draft?.model),
-    )
-      ? [{ value: draft.model, label: draft.model }]
-      : []),
-  ];
+  function optionsWithCurrent(
+    values: readonly string[],
+    current: string,
+    label: (value: string) => string,
+  ): { value: string; label: string }[] {
+    const options = [
+      { value: '', label: t('agentDefs.fields.inherit') as string },
+      ...values.map((value) => ({ value, label: label(value) })),
+    ];
+    if (current && !options.some((o) => o.value === current)) {
+      options.push({ value: current, label: current });
+    }
+    return options;
+  }
 
-  $: effortOptions = [
-    { value: '', label: t('agentDefs.fields.inherit') as string },
-    ...unionOf(
-      capabilityProviders.map((id) =>
-        effortsOf(id, $providerCapabilities, draft?.effort ?? ''),
-      ),
-      (level) => level,
-    ).map((level) => ({ value: level, label: effortLabel(level) })),
-  ];
+  $: effortOptions = optionsWithCurrent(
+    unionOf(capabilityProviders.map((id) => [...effortsOf(id)]), (level) => level),
+    draft?.effort ?? '',
+    effortLabel,
+  );
 
-  $: permissionOptions = [
-    { value: '', label: t('agentDefs.fields.inherit') as string },
-    ...unionOf(
-      capabilityProviders.map((id) =>
-        permissionModesOf(id, $providerCapabilities, draft?.permissionMode ?? ''),
-      ),
-      (mode) => mode,
-    ).map((mode) => ({ value: mode, label: permissionModeLabel(mode) })),
-  ];
+  $: permissionOptions = optionsWithCurrent(
+    unionOf(capabilityProviders.map((id) => [...permissionModesOf(id)]), (mode) => mode),
+    draft?.permissionMode ?? '',
+    permissionModeLabel,
+  );
 
   /** Skills already on disk, so the picker offers names that resolve. */
   $: skillOptions = Array.from(new Set($skillList.map((s) => s.name)))
@@ -483,7 +471,7 @@
             title={provider.label}
             on:click={() => providerFilter = provider.id}
           >
-            <ProviderLogo id={catalogueIdOf(provider.id)} size={12} fallback={provider.label.slice(0, 1)}/>
+            <ProviderLogo id={provider.id} size={12} fallback={provider.label.slice(0, 1)}/>
             <span class="chip-count">{count}</span>
           </button>
         {/if}
@@ -788,11 +776,15 @@
               <div class="row-fields">
                 <div class="ag-field">
                   <span class="ag-hint">{t('agentDefs.fields.model')}</span>
-                  <Select
+                  <!-- Typed rather than picked: Cairn no longer asks a provider
+                       what models it serves, and the CLI rejects an unknown id
+                       itself with a better message than a stale list could. -->
+                  <input
+                    class="selectable"
                     value={draft.model}
-                    options={modelOptions}
-                    ariaLabel={t('agentDefs.fields.model') as string}
-                    on:change={(e) => { if (draft) draft.model = e.detail; }}
+                    placeholder={t('agentDefs.fields.modelPlaceholder') as string}
+                    aria-label={t('agentDefs.fields.model') as string}
+                    on:input={(e) => { if (draft) draft.model = e.currentTarget.value; }}
                   />
                 </div>
                 <div class="ag-field">

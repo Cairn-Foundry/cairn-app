@@ -57,6 +57,19 @@ export const ICONS: Record<string, IconDef> = {
 		solid: false,
 		body: '<path d="M4 5h16v14H4z"/><path class="ic-terminal-chevron" d="M8 10l3 2-3 2"/><path class="ic-terminal-cursor" d="M13 15h4"/>',
 	},
+	/**
+	 * An archive box: a lid over a body, with a pull on the front. Distinct from
+	 * `folder` on purpose - archiving a conversation puts it in a box, and the
+	 * two actions must not share a glyph. The lid is a separate path so it can
+	 * be animated apart from the body.
+	 */
+	archive: {
+		solid: false,
+		body:
+			'<rect class="ic-archive-lid" x="3" y="4" width="18" height="4" rx="1"/>' +
+			'<path class="ic-archive-box" d="M5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/>' +
+			'<path class="ic-archive-slot" d="M10 12h4"/>',
+	},
 	folder: {
 		solid: false,
 		body: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>',

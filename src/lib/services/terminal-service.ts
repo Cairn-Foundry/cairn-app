@@ -4,8 +4,14 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /**
- * Spawns the PTY; output comes back as events, not from this call. `command`
- * null runs the login shell, and `id` is the handle every later call uses.
+ * Spawns the PTY; output comes back as events, not from this call. `id` is the
+ * handle every later call uses.
+ *
+ * Three ways to say what runs: nothing at all leaves an interactive login shell,
+ * `command` runs a script through that shell, and `args` runs a resolved binary
+ * with its argv and no shell at all. An agent CLI takes the `args` route -
+ * composing `claude --resume <uuid>` into a shell string would mean quoting an
+ * id and a worktree path correctly on every platform.
  */
 export async function createTerminal(
 	id: string,
@@ -14,8 +20,9 @@ export async function createTerminal(
 	rows: number,
 	command: string | null = null,
 	env: Record<string, string> | null = null,
+	args: string[] | null = null,
 ): Promise<void> {
-	await invoke("terminal_create", { id, cwd, cols, rows, command, env });
+	await invoke("terminal_create", { id, cwd, cols, rows, command, args, env });
 }
 
 /** Raw bytes to the PTY stdin; newlines are not added. */
@@ -30,6 +37,15 @@ export async function resizeTerminal(
 	rows: number,
 ): Promise<void> {
 	await invoke("terminal_resize", { id, cols, rows });
+}
+
+/**
+ * Whether the process on this PTY has a child of its own: a CLI waiting on a
+ * build or a test run looks idle from the terminal, but is not. True on any
+ * doubt, since the answer decides whether something gets killed.
+ */
+export async function terminalHasChildren(id: string): Promise<boolean> {
+	return await invoke("terminal_has_children", { id });
 }
 
 /** Kills the PTY; the saved layout is not updated, the caller does that. */

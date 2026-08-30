@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use crate::commands::cli_providers::resolve_binary;
 use crate::storage::{instance_terminal_state_file, project_terminal_state_file, write_json_atomic};
 
 /// One live PTY: the handle to write to it, resize it, and kill its child.
@@ -118,28 +119,30 @@ fn default_shell() -> String {
     }
 }
 
-/// Spawns a shell on a new PTY and starts the reader thread that streams its
-/// output. When `command` is given the shell runs it and exits; otherwise the
-/// session is interactive. The reader thread also reaps the child and emits
-/// `terminal-exit`, so nothing else has to wait on it.
-/// Async: opening the PTY and starting a login shell blocks the UI thread.
-#[tauri::command]
-pub async fn terminal_create(
-    app: tauri::AppHandle,
-    id: String,
-    cwd: Option<String>,
-    cols: u16,
-    rows: u16,
-    command: Option<String>,
-    env: Option<HashMap<String, String>>,
-) -> Result<(), String> {
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
-        .map_err(|e| e.to_string())?;
+/// How the PTY's process is spelled out: a script handed to the login shell, an
+/// argv run directly, or nothing at all for an interactive shell.
+///
+/// `args` exists because an agent CLI is launched as `claude --resume <uuid>`
+/// in a worktree whose path Cairn does not control: composing that into a
+/// `$SHELL -lc` string would mean quoting an id and a path correctly on every
+/// platform. Running the resolved binary with its argv skips the shell, and
+/// with it the only injection surface of this module.
+pub fn build_command(
+    command: Option<&str>,
+    args: Option<&[String]>,
+) -> Result<CommandBuilder, String> {
+    if let Some(argv) = args {
+        let (program, rest) = argv.split_first().ok_or("Empty args")?;
+        let binary = resolve_binary(program, None).ok_or_else(|| format!("{program} not found"))?;
+        let mut cmd = CommandBuilder::new(binary);
+        for arg in rest {
+            cmd.arg(arg);
+        }
+        return Ok(cmd);
+    }
 
     let mut cmd = CommandBuilder::new(default_shell());
-    if let Some(script) = command.as_deref() {
+    if let Some(script) = command {
         #[cfg(windows)]
         {
             cmd.arg("/c");
@@ -151,6 +154,35 @@ pub async fn terminal_create(
             cmd.arg(script);
         }
     }
+    Ok(cmd)
+}
+
+/// Spawns a process on a new PTY and starts the reader thread that streams its
+/// output. `args` runs a resolved binary directly, `command` runs a script
+/// through the login shell, neither leaves an interactive shell. The reader
+/// thread also reaps the child and emits `terminal-exit`, so nothing else has
+/// to wait on it.
+/// Async: opening the PTY and starting a login shell blocks the UI thread.
+// Tauri passes a command's arguments by name from the frontend, so grouping
+// them into a struct would only rename the payload, not simplify the call.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub async fn terminal_create(
+    app: tauri::AppHandle,
+    id: String,
+    cwd: Option<String>,
+    cols: u16,
+    rows: u16,
+    command: Option<String>,
+    args: Option<Vec<String>>,
+    env: Option<HashMap<String, String>>,
+) -> Result<(), String> {
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+        .map_err(|e| e.to_string())?;
+
+    let mut cmd = build_command(command.as_deref(), args.as_deref())?;
     if let Some(dir) = cwd {
         let expanded = shellexpand::tilde(&dir).into_owned();
         if std::path::Path::new(&expanded).is_dir() {
@@ -292,6 +324,53 @@ pub fn terminal_resize(app: tauri::AppHandle, id: String, cols: u16, rows: u16) 
     Ok(())
 }
 
+/// Whether the process on this PTY has a child of its own right now.
+///
+/// A CLI waiting on a command it spawned - a build, a test run, an install that
+/// takes ten minutes - prints nothing and reads nothing while it waits, so the
+/// terminal looks exactly as idle as an abandoned one. The difference is on the
+/// process table: the work it is waiting for is a live descendant.
+///
+/// `true` on any doubt. This backs a decision to *kill* a process, so failing
+/// to answer must mean "leave it alone", never "nothing is running".
+#[tauri::command]
+pub async fn terminal_has_children(app: tauri::AppHandle, id: String) -> bool {
+    let pid = {
+        let state = app.state::<TerminalState>();
+        let Ok(sessions) = state.sessions.lock() else { return true };
+        match sessions.get(&id).and_then(|s| s.child.process_id()) {
+            Some(pid) => pid,
+            // No session: nothing to keep alive, so nothing to protect.
+            None => return false,
+        }
+    };
+    has_descendants(pid)
+}
+
+/// The process group of a PTY child holds the CLI and whatever it spawned, so a
+/// group with more than the leader in it is a CLI doing something.
+#[cfg(not(windows))]
+fn has_descendants(pid: u32) -> bool {
+    let Ok(out) = std::process::Command::new("pgrep").arg("-P").arg(pid.to_string()).output()
+    else {
+        return true;
+    };
+    // pgrep exits 1 when it matched nothing, 0 when it listed a pid, and
+    // anything else on failure - which is a doubt, so it counts as busy.
+    match out.status.code() {
+        Some(0) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+        Some(1) => false,
+        _ => true,
+    }
+}
+
+#[cfg(windows)]
+fn has_descendants(_pid: u32) -> bool {
+    // No cheap equivalent here, so the reaper never fires on Windows rather
+    // than risking a killed build.
+    true
+}
+
 /// Kills one session's shell; the reader thread ends on its own once the PTY
 /// closes.
 #[tauri::command]
@@ -403,4 +482,53 @@ pub fn get_project_terminal_state(project_id: String) -> Result<Option<ProjectTe
 #[tauri::command]
 pub async fn save_project_terminal_state(project_id: String, state: ProjectTerminalLayout) -> Result<(), String> {
     write_json_atomic(&project_terminal_state_file(&project_id)?, &state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The debug rendering of a CommandBuilder is the only way to read back what
+    /// it will exec; asserting on it is enough to tell argv from a shell script.
+    fn rendered(cmd: &CommandBuilder) -> String {
+        format!("{:?}", cmd.get_argv())
+    }
+
+    #[test]
+    fn no_command_leaves_an_interactive_shell() {
+        let cmd = build_command(None, None).unwrap();
+        let argv = rendered(&cmd);
+        assert!(!argv.contains("-lc"), "{argv}");
+    }
+
+    #[test]
+    fn a_script_goes_through_the_login_shell() {
+        let cmd = build_command(Some("echo hi"), None).unwrap();
+        let argv = rendered(&cmd);
+        assert!(argv.contains("echo hi"), "{argv}");
+        #[cfg(not(windows))]
+        assert!(argv.contains("-lc"), "{argv}");
+    }
+
+    #[test]
+    fn argv_runs_the_binary_without_a_shell() {
+        // `sh` is the one binary guaranteed to resolve on every unix runner.
+        let cmd = build_command(None, Some(&["sh".into(), "--resume".into(), "a b".into()])).unwrap();
+        let argv = rendered(&cmd);
+        assert!(!argv.contains("-lc"), "{argv}");
+        // The id is one argument, never re-split or re-quoted by a shell.
+        assert!(argv.contains("a b"), "{argv}");
+    }
+
+    #[test]
+    fn argv_wins_over_a_script_and_an_empty_argv_is_an_error() {
+        let cmd = build_command(Some("echo hi"), Some(&["sh".into()])).unwrap();
+        assert!(!rendered(&cmd).contains("echo hi"));
+        assert!(build_command(None, Some(&[])).is_err());
+    }
+
+    #[test]
+    fn an_unresolvable_binary_is_an_error_rather_than_a_shell_fallback() {
+        assert!(build_command(None, Some(&["cairn-no-such-binary".into()])).is_err());
+    }
 }

@@ -37,19 +37,8 @@ vi.mock("$lib/utils/terminal/terminal-manager", async (importOriginal) => ({
 }));
 
 const saveAgentActivity = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/agent-activity-service", () => ({
-	getAgentActivity: vi.fn().mockResolvedValue({}),
-	saveAgentActivity,
-}));
-
 const { unregisterProject } = await import("$lib/stores/project");
 const { projects } = await import("$lib/stores/project");
-const { agentRuns, agentPermissionRequests } = await import(
-	"$lib/stores/agent-runs"
-);
-const { agentBusyConversations, agentDoneConversation } = await import(
-	"$lib/stores/agent-activity"
-);
 const { projectCommands } = await import("$lib/stores/custom-command");
 const { projectEnvs, instanceEnvs, envFileConflicts } = await import(
 	"$lib/stores/env"
@@ -92,9 +81,6 @@ describe("unregisterProject tears down every per-project cache", () => {
 	});
 
 	it("drops the removed project from every store and keeps the others", async () => {
-		seed(agentRuns, []);
-		seed(agentBusyConversations, []);
-		seed(agentDoneConversation, "c1");
 		seed(projectCommands, []);
 		seed(projectEnvs, { variables: [] } as never);
 		seed(instanceEnvs, { variables: [] } as never, ":i1");
@@ -117,9 +103,6 @@ describe("unregisterProject tears down every per-project cache", () => {
 		await unregisterProject(DOOMED);
 
 		for (const [label, store] of [
-			["agentRuns", agentRuns],
-			["agentBusyConversations", agentBusyConversations],
-			["agentDoneConversation", agentDoneConversation],
 			["projectCommands", projectCommands],
 			["projectEnvs", projectEnvs],
 			["instanceEnvs", instanceEnvs],
@@ -167,37 +150,6 @@ describe("unregisterProject tears down every per-project cache", () => {
 		expect(keysOf(terminalSessions)).toEqual([`${KEPT}:i1`]);
 		expect(keysOf(projectTerminals)).toEqual([LOOKALIKE]);
 		expect(keysOf(activeTerminalId)).toEqual([]);
-	});
-
-	it("drops the permission requests raised by the removed project's runs", async () => {
-		agentRuns.set({
-			[DOOMED]: [{ id: "r-doomed" }] as never,
-			[KEPT]: [{ id: "r-kept" }] as never,
-		});
-		agentPermissionRequests.set({
-			"r-doomed": {} as never,
-			"r-kept": {} as never,
-		});
-
-		await unregisterProject(DOOMED);
-
-		expect(keysOf(agentPermissionRequests)).toEqual(["r-kept"]);
-	});
-
-	it("rewrites the persisted done markers without the removed project", async () => {
-		agentDoneConversation.set({ [`${DOOMED}:i1`]: "c1", [`${KEPT}:i1`]: "c2" });
-
-		await unregisterProject(DOOMED);
-
-		expect(saveAgentActivity).toHaveBeenCalledWith({ [`${KEPT}:i1`]: "c2" });
-	});
-
-	it("leaves the persisted markers alone when the project had none", async () => {
-		agentDoneConversation.set({ [`${KEPT}:i1`]: "c2" });
-
-		await unregisterProject(DOOMED);
-
-		expect(saveAgentActivity).not.toHaveBeenCalled();
 	});
 
 	it("forgets the view state of the removed project", async () => {

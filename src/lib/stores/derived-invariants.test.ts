@@ -4,7 +4,7 @@
 
 import { get, type Readable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { instance, project } from "../../test/fixtures";
+import { conversation, instance, project } from "../../test/fixtures";
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
@@ -27,20 +27,11 @@ vi.mock("./terminal", () => ({
 	removeInstanceTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("$lib/services/agent-activity-service", () => ({
-	getAgentActivity: vi.fn().mockResolvedValue({}),
-	saveAgentActivity: vi.fn().mockResolvedValue(undefined),
-}));
-
 import {
-	agentActivityKey,
-	agentBusy,
-	agentBusyConversations,
-	agentDone,
-	agentDoneConversation,
-	setAgentBusy,
-	setAgentDone,
-} from "./agent-activity";
+	conversationTerminals,
+	instanceConversations,
+	projectConversations,
+} from "./conversation";
 import { activeInstance, instances, loadInstances } from "./instance";
 import {
 	activeProject,
@@ -83,8 +74,9 @@ beforeEach(async () => {
 	projects.set([]);
 	activeProjectId.set(null);
 	openTabOrder.set([]);
-	agentBusyConversations.set({});
-	agentDoneConversation.set({});
+	instanceConversations.set({});
+	projectConversations.set({});
+	conversationTerminals.set({});
 });
 
 /** Each derived store, with a mutation of its source that must change it. */
@@ -108,16 +100,6 @@ const DERIVED: {
 			projects.set([project("a")]);
 			openTabOrder.set(["a"]);
 		},
-	},
-	{
-		name: "agentBusy",
-		store: agentBusy,
-		mutate: () => setAgentBusy("p1", "i1", true, "c1"),
-	},
-	{
-		name: "agentDone",
-		store: agentDone,
-		mutate: () => setAgentDone("p1", "i1", true, "c1"),
 	},
 	{
 		name: "shortcuts",
@@ -203,21 +185,6 @@ describe("derived stores agree with their source", () => {
 		projects.set([project("a"), project("b")]);
 		openTabOrder.set(["b", "gone", "a"]);
 		expect(get(openProjects).map((p) => p.id)).toEqual(["b", "a"]);
-	});
-
-	it("agentBusy reports every key with a running conversation, and only those", () => {
-		setAgentBusy("p1", "i1", true, "c1");
-		setAgentBusy("p1", "i2", true, "c2");
-		setAgentBusy("p1", "i2", false, "c2");
-		expect(Object.keys(get(agentBusy))).toEqual([agentActivityKey("p1", "i1")]);
-	});
-
-	it("agentDone mirrors the keys of its source map", () => {
-		setAgentDone("p1", "i1", true, "c1");
-		setAgentDone("p1", "i2", true, "c2");
-		expect(Object.keys(get(agentDone)).sort()).toEqual(
-			Object.keys(get(agentDoneConversation)).sort(),
-		);
 	});
 
 	it("activeInstance stays null while the project has no instance loaded", () => {

@@ -1,19 +1,55 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversationMessage } from "$lib/services/conversation-service";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	activeConversationId,
 	type ConversationRef,
+	closeConversation,
 	conversationsOf,
-	createConversation,
+	conversationTerminals,
+	deleteConversation,
 	instanceConversations,
-	updateConversationContent,
+	moveConversationToScope,
+	noteActivity,
+	noteTerminalInput,
+	openConversation,
+	projectConversations,
+	renameConversation,
+	restoreConversations,
+	selectConversation,
+	startConversation,
+	startIdleReaper,
+	stopIdleReaper,
 } from "./conversation";
 
+const saveConversationIndex = vi.fn().mockResolvedValue(undefined);
+const getConversationIndex = vi.fn().mockResolvedValue(null);
+
 vi.mock("$lib/services/conversation-service", () => ({
-	getConversationIndex: vi.fn().mockResolvedValue(null),
-	saveConversationIndex: vi.fn().mockResolvedValue(undefined),
-	getConversationBody: vi.fn().mockResolvedValue(null),
-	saveConversationBody: vi.fn().mockResolvedValue(undefined),
-	deleteConversationBody: vi.fn().mockResolvedValue(undefined),
+	getConversationIndex: (...a: unknown[]) => getConversationIndex(...a),
+	saveConversationIndex: (...a: unknown[]) => saveConversationIndex(...a),
+}));
+
+const createTerminal = vi.fn().mockResolvedValue(undefined);
+const closeTerminal = vi.fn().mockResolvedValue(undefined);
+const terminalHasChildren = vi.fn().mockResolvedValue(false);
+
+vi.mock("$lib/services/terminal-service", () => ({
+	createTerminal: (...a: unknown[]) => createTerminal(...a),
+	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
+	terminalHasChildren: (...a: unknown[]) => terminalHasChildren(...a),
+}));
+
+const discoverCliSession = vi.fn().mockResolvedValue(null);
+vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	discoverCliSession: (...a: unknown[]) => discoverCliSession(...a),
+}));
+
+vi.mock("$lib/utils/terminal/terminal-manager", () => ({
+	create: vi.fn(),
+	dispose: vi.fn(),
+	size: () => ({ cols: 80, rows: 24 }),
+	observeInput: vi.fn(),
+	observeOutput: vi.fn(),
 }));
 
 const ref: ConversationRef = {
@@ -22,131 +58,308 @@ const ref: ConversationRef = {
 	scope: "instance",
 };
 
-const banner: ConversationMessage = {
-	role: "system",
-	content: "Instance started",
-	ts: new Date(2026, 0, 15, 10, 0).getTime(),
-};
-
-// Metadata is patched from the debounced write, so nothing lands until it fires.
-function flushPersist() {
-	vi.advanceTimersByTime(250);
+/** The argv `terminal_create` was last called with. */
+function lastArgv(): string[] {
+	return createTerminal.mock.lastCall?.[6] as string[];
 }
 
-function metaOf(id: string) {
-	const found = conversationsOf(ref).find((c) => c.id === id);
-	if (!found) throw new Error(`missing conversation ${id}`);
-	return found;
-}
+beforeEach(() => {
+	vi.clearAllMocks();
+	vi.useFakeTimers();
+	discoverCliSession.mockResolvedValue(null);
+	terminalHasChildren.mockResolvedValue(false);
+	instanceConversations.set({});
+	projectConversations.set({});
+	activeConversationId.set({});
+	conversationTerminals.set({});
+});
 
-describe("updateConversationContent", () => {
-	beforeEach(() => {
-		instanceConversations.set({});
-		vi.useFakeTimers();
+afterEach(() => {
+	stopIdleReaper();
+	vi.useRealTimers();
+});
+
+describe("starting a conversation", () => {
+	it("mints a session id for a CLI that accepts one, and launches with it", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		expect(meta.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(lastArgv()).toEqual(["claude", "--session-id", meta.sessionId]);
+		// The CLI runs in the instance's worktree, which is what makes a
+		// "last session here" resume unambiguous for the CLIs without ids.
+		expect(createTerminal.mock.lastCall?.[1]).toBe("/repo/wt");
 	});
 
-	it("bumps lastMessageAt when a message is added", () => {
-		const { id } = createConversation(ref, "claude-code", "New");
-		const before = metaOf(id).lastMessageAt;
+	it("leaves no session id for a CLI that mints its own, and launches it bare", async () => {
+		const meta = await startConversation(ref, "codex", "/repo/wt");
 
-		vi.advanceTimersByTime(1000);
-		updateConversationContent(
+		expect(meta.sessionId).toBeNull();
+		expect(lastArgv()).toEqual(["codex"]);
+	});
+
+	it("opens the new conversation and records its terminal", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		const { get } = await import("svelte/store");
+		expect(get(activeConversationId)["p:i"]).toBe(meta.id);
+		expect(get(conversationTerminals)[meta.id]).toBe(`conversation:${meta.id}`);
+	});
+});
+
+describe("reopening a conversation", () => {
+	it("resumes by id when the CLI minted one for us", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
+	});
+
+	it("reopens the exact conversation for a CLI that minted its own id", async () => {
+		const meta = await startConversation(ref, "codex", "/repo/wt");
+		// The id is learned from the CLI once the conversation exists.
+		discoverCliSession.mockResolvedValueOnce("01HXYZ");
+		await vi.advanceTimersByTimeAsync(2_000);
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(lastArgv()).toEqual(["codex", "resume", "01HXYZ"]);
+	});
+
+	it("starts fresh rather than opening someone else's session when no id was learned", async () => {
+		// A conversation closed before the user said anything has no id: there is
+		// nothing to resume, and "the last session here" would be another one.
+		const meta = await startConversation(ref, "codex", "/repo/wt");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(lastArgv()).toEqual(["codex"]);
+	});
+
+	it("does not relaunch a CLI that is already running", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(createTerminal).not.toHaveBeenCalled();
+	});
+
+	it("keeps the entry when the CLI is closed, so it can be resumed later", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		closeConversation(meta.id);
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(conversationsOf(ref).map((c) => c.id)).toEqual([meta.id]);
+	});
+});
+
+describe("learning the id of a CLI that mints its own", () => {
+	it("asks the CLI and records what it answers", async () => {
+		discoverCliSession.mockResolvedValue("ses_abc");
+
+		const meta = await startConversation(ref, "opencode", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(2_000);
+
+		expect(discoverCliSession).toHaveBeenCalledWith(
+			"opencode",
+			"/repo/wt",
+			expect.any(Number),
+		);
+		expect(conversationsOf(ref)[0].sessionId).toBe("ses_abc");
+	});
+
+	it("keeps asking while the CLI has no session yet", async () => {
+		// Nothing is recorded until the user actually speaks to the CLI.
+		discoverCliSession.mockResolvedValue(null);
+		terminalHasChildren.mockResolvedValue(false);
+
+		await startConversation(ref, "opencode", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(10_000);
+
+		expect(discoverCliSession.mock.calls.length).toBeGreaterThan(1);
+		expect(conversationsOf(ref)[0].sessionId).toBeNull();
+	});
+
+	it("never asks for a CLI that was handed an id at launch", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(10_000);
+
+		expect(discoverCliSession).not.toHaveBeenCalled();
+	});
+
+	it("stops asking once the conversation is closed", async () => {
+		discoverCliSession.mockResolvedValue(null);
+		terminalHasChildren.mockResolvedValue(false);
+		const meta = await startConversation(ref, "opencode", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(2_000);
+		const before = discoverCliSession.mock.calls.length;
+
+		closeConversation(meta.id);
+		await vi.advanceTimersByTimeAsync(60_000);
+
+		expect(discoverCliSession.mock.calls.length).toBe(before);
+	});
+});
+
+describe("closing the CLIs nobody is looking at", () => {
+	const IDLE = 5 * 60_000;
+
+	/** Runs the sweep, which polls on a minute and awaits the process check. */
+	async function sweep() {
+		startIdleReaper();
+		await vi.advanceTimersByTimeAsync(60_000);
+	}
+
+	it("closes a background conversation that has gone quiet", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		// Leaving it: another conversation is on screen.
+		selectConversation("p", "i", null);
+		await vi.advanceTimersByTimeAsync(IDLE);
+
+		await sweep();
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		// The entry survives, so reopening resumes it.
+		expect(conversationsOf(ref)).toHaveLength(1);
+	});
+
+	it("never closes the conversation on screen", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(IDLE);
+
+		await sweep();
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The case a timer cannot see: the CLI is blocked on a command with a long
+	 * timeout, so it reads nothing and prints nothing, and only the process
+	 * table knows it is working.
+	 */
+	it("spares a CLI that still has a process of its own", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		selectConversation("p", "i", null);
+		terminalHasChildren.mockResolvedValue(true);
+		await vi.advanceTimersByTimeAsync(IDLE);
+
+		await sweep();
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+
+	it("leaves a CLI alone when the process check itself fails", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		selectConversation("p", "i", null);
+		terminalHasChildren.mockRejectedValue(new Error("no answer"));
+		await vi.advanceTimersByTimeAsync(IDLE);
+
+		await sweep();
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+
+	it("waits out the whole idle period", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		selectConversation("p", "i", null);
+		await vi.advanceTimersByTimeAsync(IDLE - 90_000);
+
+		await sweep();
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+
+	it("counts what the CLI prints as activity", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+		selectConversation("p", "i", null);
+		await vi.advanceTimersByTimeAsync(IDLE);
+		// The CLI says something just before the sweep looks.
+		noteActivity(`conversation:${conversationsOf(ref)[0].id}`, "output");
+
+		await sweep();
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+});
+
+describe("naming a conversation from its first prompt", () => {
+	it("takes the first line typed, and nothing after it", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		const terminalId = `conversation:${meta.id}`;
+
+		noteTerminalInput(terminalId, "fix the ");
+		noteTerminalInput(terminalId, "parser\r");
+		noteTerminalInput(terminalId, "and the lexer\r");
+
+		expect(conversationsOf(ref)[0].title).toBe("fix the parser");
+	});
+
+	it("never renames a conversation that already has a title", async () => {
+		const meta = await startConversation(
 			ref,
-			id,
-			[
-				banner,
-				{
-					role: "user",
-					content: "hi",
-					ts: new Date(2026, 0, 15, 10, 1).getTime(),
-				},
+			"claude-code",
+			"/repo/wt",
+			"Given name",
+		);
+
+		noteTerminalInput(`conversation:${meta.id}`, "something else\r");
+
+		expect(conversationsOf(ref)[0].title).toBe("Given name");
+	});
+
+	it("stops listening once the user renames it by hand", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		renameConversation(ref, meta.id, "Chosen");
+		noteTerminalInput(`conversation:${meta.id}`, "a prompt\r");
+
+		expect(conversationsOf(ref)[0].title).toBe("Chosen");
+	});
+});
+
+describe("scopes", () => {
+	it("moves an entry between scopes without restarting its CLI", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		moveConversationToScope(ref, meta.id);
+
+		expect(conversationsOf(ref)).toHaveLength(0);
+		expect(
+			conversationsOf({ ...ref, scope: "project" }).map((c) => c.id),
+		).toEqual([meta.id]);
+		expect(closeTerminal).not.toHaveBeenCalled();
+	});
+
+	it("kills the CLI when the conversation is deleted", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		deleteConversation(ref, meta.id);
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(conversationsOf(ref)).toHaveLength(0);
+	});
+});
+
+describe("restoring from disk", () => {
+	it("drops entries left by the transcript-era app, which nothing can relaunch", async () => {
+		getConversationIndex.mockResolvedValueOnce({
+			conversations: [
+				{ id: "old", title: "Legacy", cli: "" },
+				{ id: "new", title: "Current", cli: "claude-code" },
 			],
-			[],
-		);
-		flushPersist();
+			activeId: "old",
+		});
 
-		expect(metaOf(id).lastMessageAt).toBeGreaterThan(before);
-		expect(metaOf(id).preview).toBe("hi");
-	});
+		await restoreConversations("p", "i");
 
-	it("leaves lastMessageAt alone when the same transcript is handed back", () => {
-		const { id } = createConversation(ref, "claude-code", "New");
-		const messages = [
-			banner,
-			{
-				role: "user" as const,
-				content: "hi",
-				ts: new Date(2026, 0, 15, 10, 1).getTime(),
-			},
-		];
-		updateConversationContent(ref, id, messages, []);
-		flushPersist();
-		const after = metaOf(id).lastMessageAt;
-
-		vi.advanceTimersByTime(5000);
-		updateConversationContent(ref, id, [...messages], []);
-		flushPersist();
-
-		expect(metaOf(id).lastMessageAt).toBe(after);
-	});
-
-	it("does not float a conversation on tool activity alone", () => {
-		const { id } = createConversation(ref, "claude-code", "New");
-		const messages = [
-			banner,
-			{
-				role: "user" as const,
-				content: "hi",
-				ts: new Date(2026, 0, 15, 10, 1).getTime(),
-			},
-		];
-		updateConversationContent(ref, id, messages, []);
-		flushPersist();
-		const after = metaOf(id).lastMessageAt;
-
-		vi.advanceTimersByTime(5000);
-		updateConversationContent(ref, id, messages, [
-			{
-				ts: new Date(2026, 0, 15, 10, 2).getTime(),
-				icon: "file",
-				label: "Read: a.ts",
-				source: "tool",
-			},
-		]);
-		flushPersist();
-
-		expect(metaOf(id).lastMessageAt).toBe(after);
-	});
-
-	it("writes during a continuous stream instead of waiting for it to end", async () => {
-		const { saveConversationBody } = await import(
-			"$lib/services/conversation-service"
-		);
-		vi.mocked(saveConversationBody).mockClear();
-		const { id } = createConversation(ref, "claude-code", "New");
-
-		// A chunk every 100ms never lets the 250ms debounce elapse on its own.
-		for (let i = 0; i < 40; i++) {
-			updateConversationContent(
-				ref,
-				id,
-				[banner, { role: "agent", content: "x".repeat(i + 1), ts: i }],
-				[],
-			);
-			vi.advanceTimersByTime(100);
-		}
-
-		expect(vi.mocked(saveConversationBody).mock.calls.length).toBeGreaterThan(
-			0,
-		);
-	});
-
-	it("gives a conversation holding only its banner no preview", () => {
-		const { id } = createConversation(ref, "claude-code", "New");
-		updateConversationContent(ref, id, [banner], []);
-		flushPersist();
-
-		expect(metaOf(id).preview).toBe("");
-		expect(metaOf(id).messageCount).toBe(1);
+		expect(conversationsOf(ref).map((c) => c.id)).toEqual(["new"]);
 	});
 });

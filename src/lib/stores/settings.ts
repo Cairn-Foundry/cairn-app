@@ -5,7 +5,6 @@ import {
 	getSettings,
 	updateSettings,
 } from "$lib/services/settings-service";
-import { RESPONSE_STAT_FIELDS } from "$lib/utils/agent/response-stats";
 import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
 import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
@@ -35,7 +34,6 @@ const DEFAULTS: CairnSettings = {
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],
-	agentActivityWidth: 300,
 	quickSearchShowGitignored: false,
 	autoCheckUpdates: true,
 	integrationsPollSeconds: 10,
@@ -46,21 +44,6 @@ const DEFAULTS: CairnSettings = {
 	suggestLanguageServers: true,
 	dismissedLanguageServers: [],
 	customLanguageServers: [],
-	agentShowLiveActivity: true,
-	agentActivityShowTime: true,
-	agentActivityShowToolArgs: true,
-	agentActivityAutoScroll: true,
-	agentShowMessageTime: true,
-	agentShowThinking: true,
-	agentShowMessageCopy: true,
-	agentShowResponseStats: true,
-	agentResponseStats: RESPONSE_STAT_FIELDS.map((f) => f.id),
-	agentShowContextWindow: true,
-	agentShowConversationCost: true,
-	agentShowRateLimit: true,
-	agentShowModelChip: true,
-	agentShowEffortChip: true,
-	agentShowPermissionChip: true,
 	aiFeatures: {},
 };
 

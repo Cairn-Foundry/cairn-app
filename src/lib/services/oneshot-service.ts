@@ -3,12 +3,11 @@
 // conversation. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import { stopAgent } from "$lib/services/agent-service";
 
 /**
  * Asks the model one question in `workingDir` and returns the object it
- * answered with, validated against `schema` by the model itself. Rejects with
- * "cancelled" when `stopOneshot` killed the run.
+ * answered with, shaped by `schema`. Rejects with "cancelled" when
+ * `stopOneshot` killed the run.
  */
 export async function runOneshot<T>(
 	workingDir: string,
@@ -32,7 +31,7 @@ export async function runOneshot<T>(
 	});
 }
 
-/** One-shot runs live in the same registry as agent runs, so the kill is shared. */
+/** Kills a run in flight; an unknown id is not an error. */
 export async function stopOneshot(runId: string): Promise<void> {
-	await stopAgent(runId);
+	await invoke("stop_oneshot", { runId });
 }

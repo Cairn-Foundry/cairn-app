@@ -24,11 +24,6 @@ vi.mock("$lib/stores/project-folders", () => ({
 }));
 
 const saveAgentRuns = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-vi.mock("$lib/services/agent-runs-service", () => ({
-	getAgentRuns: vi.fn().mockResolvedValue([]),
-	saveAgentRuns,
-}));
-
 const saveProjectEnv = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock("$lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<object>()),
@@ -38,7 +33,6 @@ vi.mock("$lib/services/env-service", async (importOriginal) => ({
 }));
 
 const { unregisterProject, projects } = await import("$lib/stores/project");
-const { addAgentRun } = await import("$lib/stores/agent-runs");
 const { addVariables, newVariable } = await import("$lib/stores/env");
 
 const DOOMED = "p1";
@@ -54,18 +48,6 @@ describe("queued writes of a removed project", () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
-	});
-
-	it("never writes the agent runs of a project removed before the debounce fired", async () => {
-		addAgentRun(DOOMED, { id: "r1", status: "running" } as never);
-		addAgentRun(KEPT, { id: "r2", status: "running" } as never);
-
-		await unregisterProject(DOOMED);
-		await vi.runAllTimersAsync();
-
-		const written = saveAgentRuns.mock.calls.map(([projectId]) => projectId);
-		expect(written).not.toContain(DOOMED);
-		expect(written).toContain(KEPT);
 	});
 
 	it("never writes the environment of a project removed before the debounce fired", async () => {

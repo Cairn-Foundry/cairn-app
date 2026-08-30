@@ -7,7 +7,7 @@ use super::model::*;
 use super::providers::github::GitHubApi;
 use super::providers::gitlab::GitLabApi;
 use super::providers::jira::JiraApi;
-use crate::commands::agent::config::get_api_key;
+use crate::commands::secrets::get_api_key;
 
 #[allow(async_fn_in_trait)]
 pub trait TrackerProvider {

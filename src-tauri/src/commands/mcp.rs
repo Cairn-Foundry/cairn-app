@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
-use crate::commands::agent::platform::{new_command, resolve_binary};
+use crate::commands::cli_providers::{new_command, resolve_binary};
 use crate::commands::cli_providers::{
     mcp_locations, mcp_providers_at, unique_providers, McpLocation, McpStore, ANTIGRAVITY,
     CLAUDE_CODE, CLI_PROVIDERS, CODEX, VIBE,

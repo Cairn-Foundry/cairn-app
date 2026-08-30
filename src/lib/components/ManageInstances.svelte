@@ -13,7 +13,6 @@
   import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus, setInstanceBaseBranch } from '$lib/stores/instance';
   import { listBranchesDetailed, suggestBaseBranches } from '$lib/services/instance-service';
   import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
-  import { agentBusy, agentDone, agentActivityKey } from '$lib/stores/agent-activity';
   import { activeProject, activateInstance } from '$lib/stores/project';
   import { revealInFileManager } from '$lib/services/project-service';
   import type { Instance } from '$lib/types/instance';
@@ -272,18 +271,6 @@
                   </span>
                 {/if}
               </div>
-
-              {#if $agentBusy[agentActivityKey(inst.projectId, inst.id)]}
-                <span class="mi-running" title={t('workspace.agentRunning') as string}>
-                  <span class="mi-running-dot"></span>
-                  {t('workspace.agentRunning')}
-                </span>
-              {:else if $agentDone[agentActivityKey(inst.projectId, inst.id)]}
-                <span class="mi-running mi-finished" title={t('workspace.agentFinished') as string}>
-                  <Icon name="check" size={11}/>
-                  {t('manageInstances.statusLabels.done')}
-                </span>
-              {/if}
 
               <div class="mi-actions">
                 {#if isDeleting || duplicatingId === inst.id}
@@ -611,34 +598,6 @@
     color: var(--fg-3);
   }
 
-  .mi-running {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--accent-weak);
-    color: var(--accent);
-    font-size: 10.5px;
-    font-weight: 500;
-  }
-  .mi-running-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: mi-agent-pulse 1.5s ease-in-out infinite;
-  }
-  @keyframes mi-agent-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-  }
-
-  .mi-finished {
-    background: color-mix(in oklch, var(--fg-0) 12%, transparent);
-    color: var(--fg-0);
-  }
 
   .mi-actions {
     display: flex;

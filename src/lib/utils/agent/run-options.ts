@@ -1,7 +1,7 @@
 import {
 	EFFORT_LEVELS,
 	PERMISSION_MODES,
-} from "$lib/components/home/agents/providers-data";
+} from "$lib/components/home/agents/cli-options";
 import { t } from "$lib/i18n";
 
 /**

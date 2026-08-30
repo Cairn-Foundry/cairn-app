@@ -1,40 +1,44 @@
 <script lang="ts">
   /**
    * Conversation list for the Agent view: two collapsible scopes, project then
-   * instance, with rename, pin, archive, duplicate, download and delete.
-   * Archiving filters those same two groups, it never adds a third list, and
-   * order is never manual - dragging a row only moves it between scopes.
+   * instance, with rename, pin, archive and delete. Archiving filters those same
+   * two groups, it never adds a third list, and order is never manual - dragging
+   * a row only moves it between scopes.
+   *
+   * A conversation is a CLI running in a PTY, so a row shows which CLI owns it
+   * rather than an excerpt of what was said, and its dot means "the CLI is
+   * running" - there is no "finished, unread": Cairn does not read the output
+   * and cannot tell an answer from a prompt.
    */
   import Icon from '$lib/components/Icon.svelte';
+  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
   import SearchInput from '$lib/components/SearchInput.svelte';
   import { t } from '$lib/i18n';
   import type { ConversationMeta, ConversationScope } from '$lib/services/conversation-service';
-  import { conversationMatches, sortConversations } from '$lib/utils/agent/conversation-export';
+  import { conversationMatches, sortConversations } from '$lib/utils/agent/conversation-list';
   import DeleteConversationModal from './DeleteConversationModal.svelte';
 
   interface Props {
     instanceConversations: ConversationMeta[];
     projectConversations: ConversationMeta[];
     activeId: string | null;
-    runningIds: string[];
-    doneId: string | null;
+    /** Label to show for a CLI id, from the registry. */
+    cliLabel: (cli: string) => string;
     onSelect: (id: string, scope: ConversationScope) => void;
     onNewSession: () => void;
     /** True while the view is on a session that has not been written down yet. */
     newSessionActive: boolean;
     onRename: (id: string, scope: ConversationScope, title: string) => void;
     onDelete: (id: string, scope: ConversationScope) => void;
-    onDuplicate: (id: string, scope: ConversationScope) => void;
     onTogglePin: (id: string, scope: ConversationScope) => void;
     onToggleArchive: (id: string, scope: ConversationScope) => void;
-    onDownload: (id: string, scope: ConversationScope) => void;
     onMoveScope: (from: ConversationScope, id: string) => void;
   }
 
   const {
-    instanceConversations, projectConversations, activeId, runningIds, doneId,
-    onSelect, onNewSession, newSessionActive, onRename, onDelete, onDuplicate,
-    onTogglePin, onToggleArchive, onDownload, onMoveScope,
+    instanceConversations, projectConversations, activeId, cliLabel,
+    onSelect, onNewSession, newSessionActive, onRename, onDelete,
+    onTogglePin, onToggleArchive, onMoveScope,
   }: Props = $props();
 
   interface Row {
@@ -171,6 +175,10 @@
     onclick={() => { if (!didDrag) onSelect(row.meta.id, row.scope); didDrag = false; }}
     onkeydown={(e) => { if (e.key === 'Enter') onSelect(row.meta.id, row.scope); }}
   >
+    <span class="row-mark">
+      <ProviderLogo id={row.meta.cli} size={16} fallback={cliLabel(row.meta.cli).slice(0, 1)}/>
+    </span>
+
     <div class="row-main">
       <span class="row-title">
         {#if row.meta.pinned}<Icon name="pin" size={10}/>{/if}
@@ -188,19 +196,9 @@
             }}
           />
         {:else}
-          <span class="row-label">{row.meta.title}</span>
-        {/if}
-        {#if runningIds.includes(row.meta.id)}
-          <span class="conv-busy-dot" title={t('workspace.agentRunning') as string}></span>
-        {:else if row.meta.id === doneId}
-          <span class="conv-done-dot" title={t('workspace.agentFinished') as string}></span>
+          <span class="row-label">{row.meta.title || t('agent.history.untitled')}</span>
         {/if}
       </span>
-      {#if row.meta.preview}
-        <span class="row-sub">
-          <span class="row-preview">{row.meta.preview}</span>
-        </span>
-      {/if}
     </div>
 
     <button
@@ -216,17 +214,11 @@
         <button onclick={() => startRename(row.meta)}>
           <Icon name="edit" size={12}/>{t('agent.history.rename')}
         </button>
-        <button onclick={() => { menuFor = null; onDuplicate(row.meta.id, row.scope); }}>
-          <Icon name="copy" size={12}/>{t('agent.history.duplicate')}
-        </button>
         <button onclick={() => { menuFor = null; onTogglePin(row.meta.id, row.scope); }}>
           <Icon name="pin" size={12}/>{t(row.meta.pinned ? 'agent.history.unpin' : 'agent.history.pin')}
         </button>
         <button onclick={() => { menuFor = null; onToggleArchive(row.meta.id, row.scope); }}>
-          <Icon name="folder" size={12}/>{t(row.meta.archived ? 'agent.history.unarchive' : 'agent.history.archive')}
-        </button>
-        <button onclick={() => { menuFor = null; onDownload(row.meta.id, row.scope); }}>
-          <Icon name="download" size={12}/>{t('agent.history.downloadMarkdown')}
+          <Icon name="archive" size={12}/>{t(row.meta.archived ? 'agent.history.unarchive' : 'agent.history.archive')}
         </button>
         <div class="menu-sep"></div>
         <button class="danger" onclick={() => { menuFor = null; pendingDelete = row; }}>
@@ -299,7 +291,6 @@
 {#if pendingDelete}
   <DeleteConversationModal
     title={pendingDelete.meta.title}
-    messageCount={pendingDelete.meta.messageCount}
     onClose={() => { pendingDelete = null; }}
     onConfirm={confirmDelete}
   />
@@ -447,11 +438,16 @@
     color: var(--fg-3);
   }
 
+  /* The CLI's name left the row with its logo, but the height did not: a
+     one-line row here would make the list jump against every other panel that
+     sizes its rows the same way. */
   .row {
     position: relative;
     display: flex;
     align-items: center;
-    padding-right: 4px;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 4px 4px 12px;
     cursor: pointer;
   }
 
@@ -466,28 +462,11 @@
     gap: 2px;
     flex: 1;
     min-width: 0;
-    padding: 6px 4px 6px 12px;
     min-height: 0;
   }
 
-  .conv-busy-dot,
-  .conv-done-dot {
-    flex-shrink: 0;
-    width: 7px;
-    height: 7px;
-    margin-left: auto;
-    border-radius: 50%;
-    background: var(--accent);
-  }
 
-  .conv-busy-dot { animation: conv-pulse 1.5s ease-in-out infinite; }
 
-  .conv-done-dot { background: var(--fg-2); }
-
-  @keyframes conv-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-  }
 
   .row-title {
     display: flex;
@@ -499,6 +478,17 @@
   }
 
   .row.active .row-title { color: var(--fg-0); }
+
+  .row-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    flex-shrink: 0;
+    color: var(--fg-2);
+  }
+
+  .row.active .row-mark { color: var(--fg-1); }
 
   .row-label {
     overflow: hidden;
@@ -518,20 +508,7 @@
     outline: none;
   }
 
-  .row-sub {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    font-size: 11px;
-    color: var(--fg-3);
-  }
 
-  .row-preview {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   .icon-btn {
     display: inline-flex;
@@ -547,8 +524,15 @@
 
   .icon-btn:hover { color: var(--fg-0); background: var(--bg-3); }
 
-  .row-menu { opacity: 0; }
-  .row:hover .row-menu { opacity: 1; }
+  /* Always visible: a row action the user has to hover to discover is one they
+     do not know exists. Dimmed until the row is hovered so a long list still
+     reads as titles rather than a column of buttons. */
+  .row-menu {
+    opacity: 0.45;
+    flex-shrink: 0;
+  }
+  .row:hover .row-menu,
+  .row-menu:focus-visible { opacity: 1; }
 
   .row-dropdown {
     position: absolute;

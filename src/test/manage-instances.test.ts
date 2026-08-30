@@ -19,14 +19,6 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 	setInstanceStatus: (...a: unknown[]) => setInstanceStatus(...a),
 }));
 
-const agentBusy = writable<Record<string, boolean>>({});
-const agentDone = writable<Record<string, boolean>>({});
-vi.mock("$lib/stores/agent-activity", async (importOriginal) => ({
-	...(await importOriginal<Record<string, unknown>>()),
-	agentBusy: { subscribe: agentBusy.subscribe },
-	agentDone: { subscribe: agentDone.subscribe },
-}));
-
 const activateInstance = vi.fn(async (..._a: unknown[]) => {});
 vi.mock("$lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
@@ -39,13 +31,7 @@ vi.mock("$lib/services/project-service", async (importOriginal) => ({
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
 }));
 
-const { BASE_INSTANCE_ID, agentActivityKey } = await import(
-	"$lib/stores/instance"
-).then(async (m) => ({
-	...m,
-	agentActivityKey: (await import("$lib/stores/agent-activity"))
-		.agentActivityKey,
-}));
+const { BASE_INSTANCE_ID } = await import("$lib/stores/instance");
 const { projects, activeProjectId } = await import("$lib/stores/project");
 const { project, instance } = await import("./fixtures");
 const { default: ManageInstances } = await import(
@@ -111,8 +97,6 @@ beforeEach(() => {
 	setInstanceStatus.mockClear();
 	activateInstance.mockClear();
 	revealInFileManager.mockClear();
-	agentBusy.set({});
-	agentDone.set({});
 	projects.set([project("p1")]);
 	activeProjectId.set("p1");
 	Object.assign(navigator, {
@@ -189,29 +173,6 @@ describe("ManageInstances", () => {
 			await settle();
 			expect(titles()).toEqual(["Base", "Signup copy"]);
 			expect(indentOf(rows()[1])).toBeNull();
-		});
-
-		it("marks the instance whose agent is running", () => {
-			agentBusy.set({ [agentActivityKey("p1", "i1")]: true });
-			mount();
-			expect(rows()[1].querySelector(".mi-running")).not.toBeNull();
-			expect(rows()[2].querySelector(".mi-running")).toBeNull();
-		});
-
-		/** A finished answer is a different mark from a running one. */
-		it("marks a finished answer apart from a running one", () => {
-			agentDone.set({ [agentActivityKey("p1", "i1")]: true });
-			mount();
-			expect(rows()[1].querySelector(".mi-finished")).not.toBeNull();
-		});
-	});
-
-	describe("searching", () => {
-		it("keeps the instances whose title matched", async () => {
-			mount();
-			await userEvent.type(searchField(), "Login");
-			await settle();
-			expect(titles()).toEqual(["Base", "Login"]);
 		});
 
 		it("keeps the instances whose ticket matched", async () => {

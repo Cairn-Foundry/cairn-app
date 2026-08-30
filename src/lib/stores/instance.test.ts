@@ -24,8 +24,6 @@ vi.mock("./terminal", () => ({
 	removeInstanceTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("./agent-activity", () => ({ clearProjectAgentActivity: vi.fn() }));
-
 describe("activeInstance across a project switch", () => {
 	beforeEach(() => {
 		listInstances.mockReset();

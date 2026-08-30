@@ -43,7 +43,6 @@
   import { forgeLink } from '$lib/utils/integrations/links';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Spinner from '$lib/components/Spinner.svelte';
-  import { agentBusy, agentDone, agentCompletionPing, agentActivityKey } from '$lib/stores/agent-activity';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
   import ShortcutReference from '$lib/components/ShortcutReference.svelte';
@@ -75,20 +74,6 @@
   let quickOpenTree: FileNode[] = [];
   $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
 
-  let lastCompletionPing = 0;
-  let selectorAlert = false;
-  let selectorAlertTimer: ReturnType<typeof setTimeout> | null = null;
-  $: if ($agentCompletionPing !== lastCompletionPing) {
-    lastCompletionPing = $agentCompletionPing;
-    if (lastCompletionPing > 0) {
-      selectorAlert = true;
-      if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
-      selectorAlertTimer = setTimeout(() => { selectorAlert = false; }, 1900);
-    }
-  }
-  $: activeInstanceDone = activeInstance
-    ? !!$agentDone[agentActivityKey(activeInstance.projectId, activeInstance.id)]
-    : false;
 
   async function handleQuickOpen(hit: QuickSearchHit) {
     openStep('files');
@@ -227,6 +212,7 @@
     goSettings: void;
     goShortcuts: void;
     goLanguageServers: void;
+    goAgents: void;
     goGitSettings: void;
     goIntegrations: void;
     createInstance: { branch?: string };
@@ -403,7 +389,6 @@
   onDestroy(() => {
     unlistenFullscreen?.();
     stopGitPolling?.();
-    if (selectorAlertTimer) clearTimeout(selectorAlertTimer);
     if (isStickyTabDrag) cancelStickyTabDrag();
   });
 
@@ -503,16 +488,13 @@
   <div class="instance-header">
     {#if activeInstance}
       <div class="instance-switcher-wrap" use:clickOutside={() => { showInstanceMenu = false; instanceSearch = ''; }}>
-        <button class="instance-switcher {isBaseInstance(activeInstance.id) ? 'is-base' : ''}" class:agent-alert={selectorAlert} on:click={openInstanceMenu}>
+        <button class="instance-switcher {isBaseInstance(activeInstance.id) ? 'is-base' : ''}" on:click={openInstanceMenu}>
           {#if isBaseInstance(activeInstance.id)}
             <Icon name="folder" size={12}/>
             <span>{activeInstance.ticket.title}</span>
           {:else}
             <Icon name="ticket" size={12}/>
             <span class="mono">{activeInstance.ticket.id}</span>
-          {/if}
-          {#if activeInstanceDone}
-            <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
           {/if}
           <Icon name="chev-d" size={11}/>
         </button>
@@ -535,11 +517,6 @@
             >
               <Icon name="folder" size={13}/>
               <span>{baseInst?.ticket.title}</span>
-              {#if baseInst && $agentBusy[agentActivityKey(baseInst.projectId, baseInst.id)]}
-                <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
-              {:else if baseInst && $agentDone[agentActivityKey(baseInst.projectId, baseInst.id)]}
-                <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
-              {/if}
             </button>
             <div class="instance-menu-divider"></div>
             {#if instanceGroupsFiltered.length > 0}
@@ -554,11 +531,6 @@
                 >
                   <span class="mono">{inst.ticket.id}</span>
                   <span class="instance-menu-title">{inst.ticket.title}</span>
-                  {#if $agentBusy[agentActivityKey(inst.projectId, inst.id)]}
-                    <span class="agent-busy-dot" title={t('workspace.agentRunning') as string}></span>
-                  {:else if $agentDone[agentActivityKey(inst.projectId, inst.id)]}
-                    <span class="agent-done-dot" title={t('workspace.agentFinished') as string}></span>
-                  {/if}
                 </button>
               {/each}
               <div class="instance-menu-divider"></div>
@@ -693,7 +665,7 @@
 
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoAgents={() => dispatch('goAgents')}/></div>
       <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
       <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
       <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
@@ -861,47 +833,7 @@
   .instance-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
   .instance-menu-item.active { background: var(--accent-weak); color: var(--fg-0); }
 
-  .agent-busy-dot {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: agent-pulse 1.5s ease-in-out infinite;
-    will-change: opacity;
-  }
-  @keyframes agent-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-  }
 
-  .agent-done-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--fg-0);
-    flex-shrink: 0;
-  }
-  .instance-menu-item .agent-done-dot {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  .instance-switcher.agent-alert {
-    animation: agent-alert-flash 0.6s ease-in-out 3;
-  }
-  @keyframes agent-alert-flash {
-    0%, 100% { border-color: var(--stroke-0); box-shadow: none; }
-    50% {
-      border-color: var(--fg-0);
-      box-shadow: 0 0 0 3px color-mix(in oklch, var(--fg-0) 30%, transparent);
-    }
-  }
 
   .instance-menu-title { font-size: 11px; color: var(--fg-3); }
 

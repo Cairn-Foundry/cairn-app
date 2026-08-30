@@ -1,10 +1,13 @@
 //! Headless one-shot runs: one prompt in, one JSON object out, no conversation.
 //!
-//! The review guide and the comment drafts need the model without any of the
-//! agent step's machinery - no session to resume, no permissions to answer, no
-//! transcript. This asks the CLI a single question and parses its answer
-//! against a schema. Runs register in the same `running` map as an ordinary
-//! send, so `stop_agent(runId)` cancels a generation the same way.
+//! Drafting a commit message or a merge request description needs the model for
+//! a single question - no session to resume, no permissions to answer, nothing
+//! to show. It is deliberately not part of the Agent step, which runs a CLI
+//! interactively in a PTY and reads none of its output: this asks `claude -p`
+//! once and parses the JSON it answers with.
+//!
+//! Claude Code only, for now. The other CLIs each spell headless output their
+//! own way, and a wrong guess shows up as a silently empty commit message.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
@@ -16,7 +19,27 @@ use serde::Deserialize;
 use serde_json::Value;
 use tauri::Manager;
 
-use super::{emit_agent_data, platform, AgentState, RunningAgent, RunningChild};
+use crate::commands::cli_providers::{kill_tree, new_command, resolve_binary};
+
+/// One run in flight, so another call can cancel it.
+pub struct RunningOneshot {
+    child: Mutex<Option<std::process::Child>>,
+    cancelled: AtomicBool,
+}
+
+type RunningChild = Arc<RunningOneshot>;
+
+/// Every run in flight, keyed by the id the frontend minted for it.
+#[derive(Default)]
+pub struct OneshotState {
+    running: Mutex<HashMap<String, RunningChild>>,
+}
+
+impl OneshotState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 /// The first balanced JSON object in the text, honouring strings and escapes so
 /// a brace inside a string literal does not end the scan. The CLI is asked for
@@ -102,23 +125,22 @@ pub async fn run_oneshot(
     request: OneshotRequest,
 ) -> Result<Value, String> {
     let OneshotRequest { working_dir, prompt, schema, run_id, model, binary_path, env } = request;
-    let binary = platform::resolve_binary("claude", binary_path.as_deref())
+    let binary = resolve_binary("claude", binary_path.as_deref())
         .ok_or("Claude Code CLI not found. Install it or set its path in the provider settings.")?;
 
-    let handle: RunningChild = Arc::new(RunningAgent {
+    let handle: RunningChild = Arc::new(RunningOneshot {
         child: Mutex::new(None),
-        stdin: Mutex::new(None),
         cancelled: AtomicBool::new(false),
     });
-    app.state::<AgentState>()
+    app.state::<OneshotState>()
         .running
         .lock()
         .map_err(|e| e.to_string())?
         .insert(run_id.clone(), handle.clone());
 
-    let result = run_blocking(&app, &binary, &working_dir, &prompt, &schema, &run_id, model, env.unwrap_or_default(), &handle);
+    let result = run_blocking(&binary, &working_dir, &prompt, &schema, model, env.unwrap_or_default(), &handle);
 
-    if let Ok(mut running) = app.state::<AgentState>().running.lock() {
+    if let Ok(mut running) = app.state::<OneshotState>().running.lock() {
         running.remove(&run_id);
     }
     if handle.cancelled.load(Ordering::SeqCst) {
@@ -127,14 +149,11 @@ pub async fn run_oneshot(
     result
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_blocking(
-    app: &tauri::AppHandle,
     binary: &std::path::Path,
     working_dir: &str,
     prompt: &str,
     schema: &Value,
-    run_id: &str,
     model: Option<String>,
     env: HashMap<String, String>,
     handle: &RunningChild,
@@ -150,7 +169,7 @@ fn run_blocking(
         args.push(model);
     }
 
-    let mut cmd = platform::new_command(binary);
+    let mut cmd = new_command(binary);
     cmd.args(&args)
         .envs(&env)
         .current_dir(working_dir)
@@ -168,7 +187,7 @@ fn run_blocking(
         && let Ok(mut slot) = handle.child.lock()
         && let Some(mut c) = slot.take()
     {
-        platform::kill_tree(&mut c);
+        kill_tree(&mut c);
     }
 
     let stderr_thread = stderr.map(|mut err| {
@@ -185,15 +204,6 @@ fn run_blocking(
             let Ok(line) = line else { break };
             output.push_str(&line);
             output.push('\n');
-            // Nothing useful streams out of a one-shot, but the view still has
-            // to show that something is happening rather than a frozen spinner.
-            emit_agent_data(
-                app,
-                "oneshot-progress",
-                serde_json::json!({ "bytes": output.len() }),
-                Some(working_dir.to_string()),
-                Some(run_id.to_string()),
-            );
         }
     }
 
@@ -221,6 +231,27 @@ fn run_blocking(
     extract_json(&output)
         .map(unwrap_cli_envelope)
         .ok_or_else(|| "The model did not answer with JSON.".to_string())
+}
+
+/// Cancels a run in flight. An unknown id is not an error: the run may have
+/// finished on its own between the click and this call.
+#[tauri::command]
+pub async fn stop_oneshot(app: tauri::AppHandle, run_id: String) -> Result<(), String> {
+    let handle = app
+        .state::<OneshotState>()
+        .running
+        .lock()
+        .map_err(|e| e.to_string())?
+        .get(&run_id)
+        .cloned();
+    let Some(handle) = handle else { return Ok(()) };
+    handle.cancelled.store(true, Ordering::SeqCst);
+    if let Ok(mut slot) = handle.child.lock()
+        && let Some(mut child) = slot.take()
+    {
+        kill_tree(&mut child);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

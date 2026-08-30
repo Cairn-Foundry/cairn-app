@@ -25,6 +25,10 @@ const providerDef = (id: CliProviderId, label: string): CliProviderDef => ({
 	label,
 	hasLocalScope: true,
 	installed: true,
+	configured: true,
+	path: null,
+	version: null,
+	resumable: true,
 });
 
 beforeEach(() => {

@@ -24,11 +24,6 @@ pub fn settings_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("settings.json"))
 }
 
-/// Provider configuration, secrets excluded.
-pub fn ai_providers_file() -> Result<PathBuf, String> {
-    Ok(cairn_dir()?.join("ai-providers.json"))
-}
-
 /// Provider API keys, encrypted with the secret next to it.
 pub fn api_keys_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ai-keys.enc"))
@@ -62,11 +57,6 @@ pub fn worktrees_dir(project_id: &str) -> Result<PathBuf, String> {
 /// Terminals shared across every instance of the project.
 pub fn project_terminal_state_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("terminal-state.json"))
-}
-
-/// Agent runs recorded at project scope.
-pub fn project_agent_runs_file(project_id: &str) -> Result<PathBuf, String> {
-    Ok(cairn_dir()?.join("projects").join(project_id).join("agent-runs.json"))
 }
 
 /// Project-scoped conversations: `index.json` plus one file per transcript.
@@ -142,16 +132,6 @@ pub fn project_integrations_file(project_id: &str) -> Result<PathBuf, String> {
 /// Navigation state restored on launch: screen, active project, tabs, sections.
 pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
-}
-
-/// Which conversation of each instance finished and has not been read yet.
-pub fn agent_activity_file() -> Result<PathBuf, String> {
-    Ok(cairn_dir()?.join("agent-activity.json"))
-}
-
-/// Token and cost usage accumulated across agent runs.
-pub fn usage_file() -> Result<PathBuf, String> {
-    Ok(cairn_dir()?.join("usage.json"))
 }
 
 /// Editor tabs, cursor, scroll and recent files of one instance.

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	catalogueIdOf,
-	impliedProviders,
-	sortProviders,
-} from "./cli-providers";
+import { impliedProviders, sortProviders } from "./cli-providers";
 
 describe("sortProviders", () => {
 	it("orders agents the same way whatever order they arrive in", () => {
@@ -32,12 +28,5 @@ describe("impliedProviders", () => {
 
 	it("says nothing when every agent reached was asked for", () => {
 		expect(impliedProviders(["claude-code"], ["claude-code"])).toEqual([]);
-	});
-});
-
-describe("catalogueIdOf", () => {
-	it("reaches the brand mark the provider catalogue files it under", () => {
-		expect(catalogueIdOf("vibe")).toBe("mistral-vibe");
-		expect(catalogueIdOf("claude-code")).toBe("claude-code-cli");
 	});
 });

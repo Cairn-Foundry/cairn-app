@@ -19,7 +19,6 @@ import type {
 } from "$lib/types/instance";
 import type { Project } from "$lib/types/project";
 import { dropProjectKeys } from "$lib/utils/project-scope";
-import { clearProjectAgentActivity } from "./agent-activity";
 import { removeInstanceConversations } from "./conversation";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";
@@ -238,7 +237,6 @@ export async function removeInstance(
 ): Promise<void> {
 	await removeInstanceTerminals(projectId, id);
 	removeInstanceConversations(projectId, id);
-	clearProjectAgentActivity(projectId, id);
 	await deleteInstance(id, projectId);
 	patchProject(projectId, (list) => list.filter((i) => i.id !== id));
 }

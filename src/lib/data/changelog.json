@@ -1,5 +1,127 @@
 [
 	{
+		"version": "0.19.0",
+		"date": "",
+		"summary": {
+			"en": "The Agent step stops wrapping your coding CLI and runs it: Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity or Vibe, opened as it is in an embedded terminal, reopened later where it left off. Cairn keeps the list of conversations and the navigation between them; everything else belongs to the CLI - which is also why the HTTP API providers, their keys and the usage statistics they fed are gone.",
+			"fr": "La step Agent cesse d'encapsuler votre CLI de code et le lance : Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity ou Vibe, ouvert tel quel dans un terminal embarqué, rouvert plus tard là où il s'était arrêté. Cairn garde la liste des conversations et la navigation entre elles ; tout le reste appartient au CLI - ce qui explique aussi la disparition des fournisseurs API HTTP, de leurs clés et des statistiques d'usage qu'ils alimentaient."
+		},
+		"changes": [
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Agent step now runs your coding CLI itself, in an embedded terminal, instead of wrapping it. Pick Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity or Vibe and it opens as it is: its own models, permissions, slash commands and updates, nothing reinterpreted by Cairn.",
+					"fr": "La step Agent lance désormais votre CLI de code lui-même, dans un terminal embarqué, au lieu de l'encapsuler. Choisissez Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity ou Vibe : il s'ouvre tel quel, avec ses modèles, ses permissions, ses commandes et ses mises à jour, sans rien de réinterprété par Cairn."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Reopening a past conversation relaunches its CLI on that exact conversation, in the worktree it ran in - never on whatever happened to run there last. Claude Code, Gemini CLI and Copilot are given the conversation's id when it starts; Codex, OpenCode, Antigravity and Vibe mint their own, which Cairn reads back from the session index each one keeps, never from the terminal.",
+					"fr": "Rouvrir une conversation passée relance son CLI sur cette conversation précise, dans le worktree où il tournait - jamais sur ce qui s'y est exécuté en dernier. Claude Code, Gemini CLI et Copilot reçoivent l'identifiant de la conversation à son lancement ; Codex, OpenCode, Antigravity et Vibe génèrent le leur, que Cairn relit dans l'index de sessions que chacun tient, jamais dans le terminal."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A conversation is named after the first prompt you type into it, and can be renamed afterwards. Cairn reads what you type, never what the CLI answers.",
+					"fr": "Une conversation est nommée d'après le premier prompt que vous y tapez, et peut être renommée ensuite. Cairn lit ce que vous tapez, jamais ce que le CLI répond."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Providers page is now a detection list: which CLIs are installed, their version and the binary in use. There is nothing left to configure there - a CLI is set up with its own commands.",
+					"fr": "La page Fournisseurs est désormais une liste de détection : quels CLI sont installés, leur version et le binaire utilisé. Il n'y a plus rien à y configurer : un CLI se configure avec ses propres commandes."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The instance list and the status bar show whether a CLI is running. The \"finished, unread\" mark is gone: Cairn no longer reads the CLI's output and cannot tell an answer from a prompt.",
+					"fr": "La liste des instances et la barre de statut indiquent si un CLI tourne. La pastille « terminé, non lu » disparaît : Cairn ne lit plus la sortie du CLI et ne peut plus distinguer une réponse d'une invite."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The HTTP API providers and the API keys they needed are gone, along with their encrypted store and the Providers configuration screen. Integration tokens keep their own encrypted storage, untouched.",
+					"fr": "Les fournisseurs API HTTP et les clés qu'ils demandaient sont supprimés, avec leur stockage chiffré et l'écran de configuration des fournisseurs. Les jetons des intégrations conservent leur propre stockage chiffré, inchangé."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "Usage & Stats is removed: it was fed by the parsed agent runs, which no longer exist. Each CLI reports its own usage.",
+					"fr": "Usage & Statistiques est supprimé : la section se nourrissait des runs analysés, qui n'existent plus. Chaque CLI rapporte sa propre consommation."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "Cairn no longer stores conversation transcripts. It keeps only what it takes to reopen a conversation - its CLI, its directory and how to resume it; the transcript stays with the CLI that wrote it. Conversations recorded by earlier versions are not carried over.",
+					"fr": "Cairn ne stocke plus les transcriptions des conversations. Il ne garde que de quoi rouvrir une conversation - son CLI, son répertoire et comment la reprendre ; la transcription reste chez le CLI qui l'a écrite. Les conversations enregistrées par les versions précédentes ne sont pas reprises."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Gemini CLI and OpenCode join the CLIs Cairn drives, for conversations as for skills and MCP servers.",
+					"fr": "Gemini CLI et OpenCode rejoignent les CLI pilotés par Cairn, pour les conversations comme pour les skills et les serveurs MCP."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A CLI Cairn cannot actually run is no longer offered as a conversation it cannot start: neither one whose configuration directory outlived its uninstall, nor a launcher shim on the PATH that is not the CLI itself - VS Code drops one for GitHub Copilot that only offers to install it. Detection now asks each binary for its version and believes the ones that answer. The Providers page and the skills and MCP pickers still list such a CLI, since files written there stay useful.",
+					"fr": "Un CLI que Cairn ne peut pas réellement lancer n'est plus proposé pour une conversation qu'il ne peut pas démarrer : ni celui dont le répertoire de configuration a survécu à sa désinstallation, ni un lanceur présent dans le PATH qui n'est pas le CLI lui-même - VS Code en dépose un pour GitHub Copilot qui se contente de proposer son installation. La détection demande désormais sa version à chaque binaire et ne retient que ceux qui répondent. La page Fournisseurs et les sélecteurs de skills et de serveurs MCP le listent toujours, les fichiers qui y sont écrits restant utiles."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A conversation in the history is now its CLI's logo and its title, nothing else - the CLI's name was saying twice what the logo already says. Its actions button no longer waits for a hover to appear. The open conversation is headed the same way, logo then title, and the worktree path has left the header.",
+					"fr": "Une conversation de l'historique se réduit au logo de son CLI et à son titre - le nom du CLI répétait ce que le logo dit déjà. Son bouton d'actions n'attend plus le survol pour apparaître. La conversation ouverte porte le même en-tête, logo puis titre, et le chemin du worktree en a disparu."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The button that closed a conversation now archives it: it files the conversation away, stops its CLI and returns to the picker. Reopening it from the Archived list resumes it where it stopped.",
+					"fr": "Le bouton qui fermait une conversation l'archive désormais : il la range, arrête son CLI et revient au sélecteur. La rouvrir depuis la liste Archivées la reprend là où elle s'était arrêtée."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The agent status indicators are gone from the instance selector, the instance manager and the conversation list. They predate the Agent step's rewrite: Cairn no longer reads a CLI's output, so it cannot tell an answer from a prompt, and a dot meaning only \"a process is alive\" claimed more than it knew.",
+					"fr": "Les indicateurs d'état de l'agent disparaissent du sélecteur d'instances, du gestionnaire d'instances et de la liste des conversations. Ils précédaient la refonte de la step Agent : Cairn ne lit plus la sortie d'un CLI et ne peut pas distinguer une réponse d'une invite ; une pastille signifiant seulement « un processus tourne » prétendait en savoir plus qu'elle ne savait."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Renaming a conversation from its header now updates the header itself, not only the list beside it.",
+					"fr": "Renommer une conversation depuis son en-tête met désormais l'en-tête à jour, et plus seulement la liste à côté."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Opening the CLI picker is instant: the installed CLIs are detected once and kept, instead of every CLI being run again to read its version each time the view opens. A \"Detect again\" button picks up an install made while Cairn was running.",
+					"fr": "Ouvrir le sélecteur de CLI est instantané : les CLI installés sont détectés une fois et conservés, au lieu de relancer chacun d'eux pour lire sa version à chaque ouverture de la vue. Un bouton « Détecter à nouveau » prend en compte une installation faite pendant que Cairn tournait."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A conversation left running in the background closes its CLI after five minutes without a keystroke or a line of output. The entry stays and reopening it resumes where it stopped. Never the conversation on screen, and never one whose CLI still has a process of its own - a build or a test run makes a terminal look idle without it being so.",
+					"fr": "Une conversation laissée en arrière-plan ferme son CLI après cinq minutes sans frappe ni ligne de sortie. L'entrée reste et la rouvrir la reprend où elle s'était arrêtée. Jamais la conversation affichée, et jamais une dont le CLI a encore un processus en cours : une compilation ou une suite de tests fait paraître un terminal inactif sans qu'il le soit."
+				}
+			}
+		]
+	},
+	{
 		"version": "0.18.0",
 		"date": "2026-08-30",
 		"summary": {

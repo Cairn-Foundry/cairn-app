@@ -14,6 +14,8 @@ vi.mock("$lib/utils/terminal/terminal-manager", () => ({
 	detach: (...a: unknown[]) => detach(...a),
 	focus: (...a: unknown[]) => focus(...a),
 	refit: (...a: unknown[]) => refit(...a),
+	observeInput: vi.fn(),
+	observeOutput: vi.fn(),
 }));
 
 const prepareInstanceEnv = vi.fn<(...a: unknown[]) => unknown>();

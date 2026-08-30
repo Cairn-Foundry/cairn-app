@@ -8,7 +8,7 @@
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
   import { t } from '$lib/i18n';
   import { cliProviders } from '$lib/stores/cli-providers';
-  import { impliedProviders, catalogueIdOf, sortProviders } from '$lib/utils/home/cli-providers';
+  import { impliedProviders, sortProviders } from '$lib/utils/home/cli-providers';
   import type { CliProviderId } from '$lib/services/cli-provider-service';
 
   /** The agents the entry is written for. */
@@ -39,7 +39,7 @@
   $: blockedReason = (id: CliProviderId): string => {
     if (unavailable[id]) return unavailable[id] as string;
     const known = $cliProviders.find((p) => p.id === id);
-    if (known && !known.installed && !selected.includes(id)) {
+    if (known && !known.configured && !selected.includes(id)) {
       return (t('cliProviders.notInstalled') as (name: string) => string)(known.label);
     }
     return '';
@@ -63,7 +63,7 @@
   function all() {
     dispatch('change', sortProviders(
       $cliProviders
-        .filter((p) => p.installed && !unavailable[p.id])
+        .filter((p) => p.configured && !unavailable[p.id])
         .map((p) => p.id),
     ));
   }
@@ -86,10 +86,10 @@
         on:click={() => toggle(provider.id)}
       >
         <span class="mark">
-          <ProviderLogo id={catalogueIdOf(provider.id)} size={15} fallback={provider.label.slice(0, 1)}/>
+          <ProviderLogo id={provider.id} size={15} fallback={provider.label.slice(0, 1)}/>
         </span>
         <span class="name">{provider.label}</span>
-        {#if !provider.installed}
+        {#if !provider.configured}
           <span class="absent">{t('cliProviders.absent')}</span>
         {/if}
         <span class="state">

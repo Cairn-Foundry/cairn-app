@@ -6,13 +6,12 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { withViewTransition } from '$lib/utils/view-transition';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, openAgentId, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
   import { git } from '$lib/stores/git';
   import { initTerminals } from '$lib/stores/terminal';
-  import { loadAgentActivity } from '$lib/stores/agent-activity';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
   import { initTests, disposeTests } from '$lib/stores/tests';
   import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '$lib/stores/integrations';
@@ -169,13 +168,14 @@
     initLanguageServers();
     initTests();
     initIntegrations();
-    void loadAgentActivity();
     // Small JSON files, read at once rather than one after the other.
     const [, saved] = await Promise.all([settings.load(), getUiState(), loadProjects()]);
     stopUpdateChecks = startUpdateChecks();
 
     screen = saved.screen;
-    homeSection = saved.homeSection;
+    // Usage & Stats is gone with the parsed runs it fed on; a state saved on it
+    // reopens on the default section rather than on nothing.
+    homeSection = saved.homeSection === 'usage' ? 'projects' : saved.homeSection;
     homeSettingsTab = saved.homeSettingsTab;
     initViewStates(saved.projectStates ?? {});
 
@@ -195,13 +195,13 @@
       lastOpenedProjectId.set(saved.activeProjectId);
       applyProjectState(saved.activeProjectId);
       if (saved.screen === 'workspace') {
-        homeOpenSection = saved.homeSection as HomeSection;
+        homeOpenSection = homeSection as HomeSection;
         homeOpenSettingsTab = saved.homeSettingsTab;
       }
     }
 
     if (saved.screen === 'home') {
-      homeOpenSection = saved.homeSection as HomeSection;
+      homeOpenSection = homeSection as HomeSection;
       homeOpenSettingsTab = saved.homeSettingsTab;
     }
 
@@ -224,7 +224,7 @@
     commandsActive,
     envActive,
     formattingActive,
-    openAgentId,
+    lastCli,
     gitLeftTab,
     referencesPanelOpen,
     referencesQuery,
@@ -379,6 +379,7 @@
       on:addProject={() => { homeOpenSection = null; goScreen('home'); }}
       on:goHome={() => { homeOpenSection = null; goScreen('home'); }}
       on:goSettings={() => { homeOpenSection = 'settings'; goScreen('home'); }}
+      on:goAgents={() => { homeOpenSection = 'agents'; goScreen('home'); }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; goScreen('home'); }}
       on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; goScreen('home'); }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; goScreen('home'); }}

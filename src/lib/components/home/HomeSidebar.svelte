@@ -3,7 +3,7 @@
    * Left navigation of the home screen: one entry per HomeSection.
    * Dispatches `select` with the section id.
    */
-  export type HomeSection = 'projects' | 'integrations' | 'activity' | 'providers' | 'features' | 'agents' | 'skills' | 'mcp' | 'usage' | 'ports' | 'changelog' | 'settings';
+  export type HomeSection = 'projects' | 'integrations' | 'activity' | 'providers' | 'features' | 'agents' | 'skills' | 'mcp' | 'ports' | 'changelog' | 'settings';
 </script>
 
 <script lang="ts">
@@ -52,10 +52,6 @@
   <button class="home-nav-item {activeSection === 'mcp'        ? 'active' : ''}" on:click={() => dispatch('select', 'mcp')}>
     <Icon name="link" size={15}/> {t('home.sidebar.mcp')}
   </button>
-  <button class="home-nav-item {activeSection === 'usage'      ? 'active' : ''}" on:click={() => dispatch('select', 'usage')}>
-    <Icon name="gauge" size={15}/> {t('home.sidebar.usage')}
-  </button>
-
   <div class="section">{t('home.sidebar.system')}</div>
   <button class="home-nav-item {activeSection === 'ports'      ? 'active' : ''}" on:click={() => dispatch('select', 'ports')}>
     <Icon name="server" size={15}/> {t('home.sidebar.ports')}

@@ -2,11 +2,7 @@
 // each one. Adding an assist is an entry in AI_FEATURES plus its i18n pair;
 // nothing else is keyed by id outside the feature's own call site.
 
-import { PROVIDERS } from "$lib/components/home/agents/providers-data";
-import type {
-	AiProvidersConfig,
-	ProviderSettings,
-} from "$lib/services/ai-provider-service";
+import { CLAUDE_CODE } from "$lib/services/cli-provider-service";
 import type { AiFeatureAssignment } from "$lib/services/settings-service";
 
 export type AiFeatureId =
@@ -132,116 +128,44 @@ export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
 }
 
 /**
- * Only a CLI provider can serve a feature: it explores the worktree itself,
- * which is what lets the commit assist read the staged diff instead of being
- * handed one, and it needs no API key.
+ * Every assist is served by Claude Code, headlessly.
+ *
+ * This is not the Agent step, which runs whichever CLI the user picked in a
+ * terminal and reads none of its output. An assist asks one question and needs
+ * the answer parsed back, which means a documented headless mode and a stable
+ * output format; the other CLIs each spell that their own way, and guessing
+ * wrong shows up as a silently empty commit message rather than an error.
  */
-/**
- * The CLI providers a picker offers, in registry order. `enabled` defaults to
- * false for everything but Claude Code - it means "configured on the Providers
- * page", not "usable" - so filtering on it would offer a single provider to
- * someone who never opened that page. What disqualifies a CLI here is being
- * unreleased, or having been switched off on purpose.
- */
-export function assignableProviders(
-	config: AiProvidersConfig | null,
-): { id: string; name: string; settings: ProviderSettings | null }[] {
-	return PROVIDERS.filter(
-		(p) => p.kind === "cli" && p.status !== "coming-soon",
-	).map((p) => ({
-		id: p.id,
-		name: p.name,
-		settings: config?.providers?.[p.id] ?? null,
-	}));
-}
+export const ASSIST_CLI = CLAUDE_CODE;
 
-/**
- * Reading the worktree is all a generated commit message needs, and the CLIs
- * state that differently: Claude Code as an approval mode, Codex as the sandbox
- * its tools run in, Copilot as whether tools run at all. Passing one CLI's
- * vocabulary to another would either be rejected or, worse, quietly grant more
- * than intended - so each is asked in its own terms, and a CLI Cairn has no
- * read-only wording for is left on its own default.
- */
-export function readOnlyPermissionMode(providerId: string): string {
-	switch (providerId) {
-		case "claude-code-cli":
-			return "dontAsk";
-		case "codex-cli":
-			return "read-only";
-		case "copilot-cli":
-			return "ask";
-		case "mistral-vibe":
-			return "plan";
-		default:
-			return "";
-	}
-}
-
-/**
- * The tools a read-only assist may use, in the CLI's own naming. Only Claude
- * Code models a tool grant finely enough to say "the shell, but only these git
- * reads"; Copilot names one whole tool per flag, so granting it the shell would
- * hand over more than the default does. Every other CLI is confined by its
- * permission mode alone, which is why an empty list is the right answer rather
- * than a guessed one.
- */
-export function readOnlyTools(providerId: string): string[] {
-	if (providerId !== "claude-code-cli") return [];
-	return [
-		"Read",
-		"Grep",
-		"Glob",
-		"Bash(git diff:*)",
-		"Bash(git status:*)",
-		"Bash(git log:*)",
-	];
-}
-
-/** What a feature actually runs with, once fallbacks are applied. */
+/** What a feature actually runs with, once the fallbacks are applied. */
 export interface ResolvedAiFeature {
 	providerId: string;
 	model: string;
 	promptTemplate: string;
-	/** No CLI provider is usable, so the caller must not attempt a run. */
+	/** The assist CLI is not on this machine, so the caller must not run it. */
 	unavailable: boolean;
 }
 
 /**
- * An assignment left behind by a provider that was since disabled, removed or
- * switched to an API degrades to the default provider rather than failing at
- * run time. When even that is not a usable CLI, the first enabled CLI is taken,
- * and only an empty list reports `unavailable`.
+ * The feature's own prompt template when it has one, the built-in default
+ * otherwise. The model is whatever the user pinned for this feature; empty
+ * leaves the CLI on its own default.
  */
 export function resolveAiFeature(
 	id: AiFeatureId,
 	assignments: Record<string, AiFeatureAssignment> | undefined,
-	config: AiProvidersConfig | null,
+	assistInstalled: boolean,
 ): ResolvedAiFeature {
 	const assigned = assignments?.[id];
-	const available = assignableProviders(config);
-	const usable = (candidate: string) =>
-		candidate !== "" && available.some((p) => p.id === candidate);
-
-	const providerId = [assigned?.providerId, config?.defaultProviderId].find(
-		(candidate) => usable(candidate ?? ""),
-	);
-	const resolvedId = providerId ?? available[0]?.id ?? "";
-	const settings = config?.providers?.[resolvedId] ?? null;
-
-	const model =
-		assigned?.providerId === resolvedId && assigned.model
-			? assigned.model
-			: (settings?.model ?? "");
-
 	const template = assigned?.promptTemplate?.trim()
 		? assigned.promptTemplate
 		: (featureDef(id)?.defaultPromptTemplate ?? "");
 
 	return {
-		providerId: resolvedId,
-		model,
+		providerId: assistInstalled ? ASSIST_CLI : "",
+		model: assigned?.model ?? "",
 		promptTemplate: template,
-		unavailable: resolvedId === "",
+		unavailable: !assistInstalled,
 	};
 }

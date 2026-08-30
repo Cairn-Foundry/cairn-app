@@ -17,6 +17,10 @@ function provider(
 		label: id,
 		hasLocalScope: id === "claude-code",
 		installed: true,
+		configured: true,
+		path: null,
+		version: null,
+		resumable: true,
 		...overrides,
 	};
 }
@@ -56,7 +60,13 @@ describe("ProviderPicker", () => {
 		it("shows a tile per known agent, installed or not", () => {
 			cliProviders.set([
 				provider("claude-code"),
-				provider("codex", { installed: false }),
+				provider("codex", {
+					installed: false,
+					configured: false,
+					path: null,
+					version: null,
+					resumable: true,
+				}),
 			]);
 			mount();
 			expect(tiles()).toHaveLength(2);
@@ -71,7 +81,13 @@ describe("ProviderPicker", () => {
 		it("says which agents are missing from this machine", () => {
 			cliProviders.set([
 				provider("claude-code"),
-				provider("codex", { installed: false }),
+				provider("codex", {
+					installed: false,
+					configured: false,
+					path: null,
+					version: null,
+					resumable: true,
+				}),
 			]);
 			mount();
 			expect(tileFor("codex").querySelector(".absent")).not.toBeNull();
@@ -118,7 +134,13 @@ describe("ProviderPicker", () => {
 		it("refuses to add an agent that is not installed, and says why", async () => {
 			cliProviders.set([
 				provider("claude-code"),
-				provider("codex", { installed: false }),
+				provider("codex", {
+					installed: false,
+					configured: false,
+					path: null,
+					version: null,
+					resumable: true,
+				}),
 			]);
 			const { onChange } = mount({ selected: ["claude-code"] });
 			await userEvent.click(tileFor("codex"));
@@ -133,7 +155,13 @@ describe("ProviderPicker", () => {
 		it("still lets an entry be removed from a missing agent", async () => {
 			cliProviders.set([
 				provider("claude-code"),
-				provider("codex", { installed: false }),
+				provider("codex", {
+					installed: false,
+					configured: false,
+					path: null,
+					version: null,
+					resumable: true,
+				}),
 			]);
 			const { onChange } = mount({ selected: ["claude-code", "codex"] });
 			await userEvent.click(tileFor("codex"));
@@ -259,7 +287,13 @@ describe("ProviderPicker", () => {
 		it("leaves out the agents that are not installed", async () => {
 			cliProviders.set([
 				provider("claude-code"),
-				provider("codex", { installed: false }),
+				provider("codex", {
+					installed: false,
+					configured: false,
+					path: null,
+					version: null,
+					resumable: true,
+				}),
 			]);
 			const { onChange } = mount();
 			await userEvent.click(selectAll());

@@ -12,7 +12,7 @@ import {
 	envActive,
 	formattingActive,
 	gitLeftTab,
-	openAgentId,
+	lastCli,
 	referencesPanelOpen,
 	referencesQuery,
 	showTool,
@@ -35,7 +35,7 @@ const liveState = () => ({
 	commandsActive: get(commandsActive),
 	envActive: get(envActive),
 	formattingActive: get(formattingActive),
-	openAgentId: get(openAgentId),
+	lastCli: get(lastCli),
 	referencesPanelOpen: get(referencesPanelOpen),
 	referencesQuery: get(referencesQuery),
 });
@@ -44,7 +44,7 @@ const liveState = () => ({
 function setEverything() {
 	activeStep.set("git");
 	gitLeftTab.set("log");
-	openAgentId.set("agent-7");
+	lastCli.set("claude-code");
 	referencesPanelOpen.set(true);
 	referencesQuery.set('{"symbol":"foo"}');
 	showTool("env");
@@ -54,7 +54,7 @@ function setEverything() {
 function resetEverything() {
 	activeStep.set("files");
 	gitLeftTab.set("changes");
-	openAgentId.set("");
+	lastCli.set("");
 	referencesPanelOpen.set(false);
 	referencesQuery.set("");
 	showTool(null);
@@ -145,11 +145,11 @@ describe("snapshot then restore", () => {
 	});
 
 	it("restores the open agent thread", () => {
-		openAgentId.set("agent-7");
+		lastCli.set("claude-code");
 		snapshotCurrentProject();
-		openAgentId.set("");
+		lastCli.set("");
 		applyProjectState("p1");
-		expect(get(openAgentId)).toBe("agent-7");
+		expect(get(lastCli)).toBe("claude-code");
 	});
 
 	it("survives any number of round trips", () => {
@@ -196,7 +196,7 @@ describe("switching between projects", () => {
 			commandsActive: false,
 			envActive: false,
 			formattingActive: false,
-			openAgentId: "",
+			lastCli: "",
 			referencesPanelOpen: false,
 			referencesQuery: "",
 		});
@@ -219,7 +219,7 @@ describe("initViewStates", () => {
 		});
 		applyProjectState("p1");
 		expect(get(referencesPanelOpen)).toBe(false);
-		expect(get(openAgentId)).toBe("");
+		expect(get(lastCli)).toBe("");
 		expect(get(gitLeftTab)).toBe("changes");
 	});
 

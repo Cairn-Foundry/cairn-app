@@ -127,8 +127,6 @@ pub struct CairnSettings {
     pub save_on: String,
     #[serde(rename = "gitProfiles", default)]
     pub git_profiles: Vec<GitProfile>,
-    #[serde(rename = "agentActivityWidth", default = "default_agent_activity_width")]
-    pub agent_activity_width: u32,
     #[serde(rename = "quickSearchShowGitignored", default = "default_quick_search_show_gitignored")]
     pub quick_search_show_gitignored: bool,
     #[serde(rename = "autoCheckUpdates", default = "default_auto_check_updates")]
@@ -145,36 +143,6 @@ pub struct CairnSettings {
     pub dismissed_language_servers: Vec<String>,
     #[serde(rename = "customLanguageServers", default)]
     pub custom_language_servers: Vec<CustomLanguageServer>,
-    #[serde(rename = "agentShowLiveActivity", default = "default_true")]
-    pub agent_show_live_activity: bool,
-    #[serde(rename = "agentActivityShowTime", default = "default_true")]
-    pub agent_activity_show_time: bool,
-    #[serde(rename = "agentActivityShowToolArgs", default = "default_true")]
-    pub agent_activity_show_tool_args: bool,
-    #[serde(rename = "agentActivityAutoScroll", default = "default_true")]
-    pub agent_activity_auto_scroll: bool,
-    #[serde(rename = "agentShowMessageTime", default = "default_true")]
-    pub agent_show_message_time: bool,
-    #[serde(rename = "agentShowThinking", default = "default_true")]
-    pub agent_show_thinking: bool,
-    #[serde(rename = "agentShowMessageCopy", default = "default_true")]
-    pub agent_show_message_copy: bool,
-    #[serde(rename = "agentShowResponseStats", default = "default_true")]
-    pub agent_show_response_stats: bool,
-    #[serde(rename = "agentResponseStats", default = "default_response_stats")]
-    pub agent_response_stats: Vec<String>,
-    #[serde(rename = "agentShowContextWindow", default = "default_true")]
-    pub agent_show_context_window: bool,
-    #[serde(rename = "agentShowConversationCost", default = "default_true")]
-    pub agent_show_conversation_cost: bool,
-    #[serde(rename = "agentShowRateLimit", default = "default_true")]
-    pub agent_show_rate_limit: bool,
-    #[serde(rename = "agentShowModelChip", default = "default_true")]
-    pub agent_show_model_chip: bool,
-    #[serde(rename = "agentShowEffortChip", default = "default_true")]
-    pub agent_show_effort_chip: bool,
-    #[serde(rename = "agentShowPermissionChip", default = "default_true")]
-    pub agent_show_permission_chip: bool,
     /// Keyed by the feature id; a feature with no entry runs on the default provider.
     #[serde(rename = "aiFeatures", default)]
     pub ai_features: std::collections::HashMap<String, AiFeatureAssignment>,
@@ -241,10 +209,6 @@ pub struct SyntaxTheme {
 fn default_true() -> bool { true }
 
 // Keep in sync with RESPONSE_STAT_FIELDS in src/lib/utils/agent/response-stats.ts.
-fn default_response_stats() -> Vec<String> {
-    ["duration", "tokens", "cost", "turns"].iter().map(|s| s.to_string()).collect()
-}
-fn default_agent_activity_width() -> u32 { 300 }
 fn default_suggest_language_servers() -> bool { true }
 fn default_auto_check_updates() -> bool { true }
 fn default_quick_search_show_gitignored() -> bool { false }
@@ -288,7 +252,6 @@ impl Default for CairnSettings {
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),
-            agent_activity_width: default_agent_activity_width(),
             quick_search_show_gitignored: default_quick_search_show_gitignored(),
             auto_check_updates: default_auto_check_updates(),
             syntax_themes: Vec::new(),
@@ -297,21 +260,6 @@ impl Default for CairnSettings {
             suggest_language_servers: default_suggest_language_servers(),
             dismissed_language_servers: Vec::new(),
             custom_language_servers: Vec::new(),
-            agent_show_live_activity: true,
-            agent_activity_show_time: true,
-            agent_activity_show_tool_args: true,
-            agent_activity_auto_scroll: true,
-            agent_show_message_time: true,
-            agent_show_thinking: true,
-            agent_show_message_copy: true,
-            agent_show_response_stats: true,
-            agent_response_stats: default_response_stats(),
-            agent_show_context_window: true,
-            agent_show_conversation_cost: true,
-            agent_show_rate_limit: true,
-            agent_show_model_chip: true,
-            agent_show_effort_chip: true,
-            agent_show_permission_chip: true,
             ai_features: std::collections::HashMap::new(),
             integrations_poll_seconds: default_integrations_poll_seconds(),
             branch_template: default_branch_template(),
