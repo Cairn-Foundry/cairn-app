@@ -23,6 +23,7 @@
   import Home from '$lib/components/Home.svelte';
   import type Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
+  import type { Ticket } from '$lib/types/integrations';
   import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
   import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
@@ -40,6 +41,7 @@
   let homeSettingsTab: string = 'general';
   let showCreate = false;
   let createFromBranch = '';
+  let createFromTicket: Ticket | null = null;
   let mounted = false;
 
   let workspaceView: Workspace | null = null;
@@ -271,6 +273,14 @@
     goScreen('workspace');
   }
 
+  /** Opens the ticket's project, then the creation modal on that ticket. */
+  async function handleStartTicket(detail: { projectId: string; ticket: Ticket }) {
+    await handleOpenProject(detail.projectId);
+    createFromBranch = '';
+    createFromTicket = detail.ticket;
+    showCreate = true;
+  }
+
   function handleCloseProject(id: string) {
     void stopProjectLanguageServers(id);
     closeProjectTab(id);
@@ -364,6 +374,7 @@
       on:sectionShown={() => { homeOpenSection = null; homeOpenSettingsTab = null; }}
       on:addProjectShown={() => { homeOpenAddProjectMode = null; }}
       on:sectionChange={handleSectionChange}
+      on:startTicket={(e) => handleStartTicket(e.detail)}
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
@@ -396,9 +407,11 @@
   {#if showCreate}
     <CreateInstance
       initialBranch={createFromBranch}
-      on:close={() => showCreate = false}
+      initialTicket={createFromTicket}
+      on:close={() => { showCreate = false; createFromTicket = null; }}
       on:create={() => {
         showCreate = false;
+        createFromTicket = null;
         screen = 'workspace';
         const firstStep = get(settings).workflowTabs
           .filter(t => t.enabled)

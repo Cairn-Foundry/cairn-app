@@ -37,6 +37,8 @@
   import { renderBranchTemplate } from '$lib/utils/integrations/branch-template';
 
   export let initialBranch = '';
+  /** Preselected ticket when the modal is opened from the tickets overview. */
+  export let initialTicket: Ticket | null = null;
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
@@ -209,6 +211,10 @@
     }
     await loadBranchList();
     if (initialBranch) applyInitialBranch();
+    if (initialTicket) {
+      ticketMode = 'ticket';
+      pickTicket(initialTicket);
+    }
   });
 
   onDestroy(() => {

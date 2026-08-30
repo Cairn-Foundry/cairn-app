@@ -2204,8 +2204,32 @@ export const en = {
 		ariaChecking: "Checking for updates",
 	},
 
+	tickets: {
+		search: "Search tickets...",
+		scopeLabel: "Ticket scope",
+		scopeAssigned: "Assigned to me",
+		scopeAll: "All",
+		refresh: "Refresh",
+		total: "Open tickets",
+		start: "Work on it",
+		noTracker: "No project has a tracker bound yet.",
+		configure: "Configure the integrations",
+		loadFailed: "The tickets of this project could not be loaded.",
+		groupEmpty: "No ticket matches the search.",
+		planTitle: "Plan of attack",
+		planGenerate: "Generate",
+		planRegenerate: "Regenerate",
+		planCancel: "Cancel",
+		planEmpty:
+			"Generate a plan to see in which order to take these tickets on.",
+		planFailed: "The plan could not be generated.",
+		planUnavailable:
+			"Claude Code is not installed, so the plan cannot be generated.",
+	},
 	home: {
 		sections: {
+			tickets: "Tickets",
+			ticketsDesc: "What is left to do across every project with a tracker.",
 			activity: "Activity",
 			activityDesc: "Recent events across all instances.",
 			activityEmpty:
@@ -2214,6 +2238,7 @@ export const en = {
 		sidebar: {
 			workspace: "Workspace",
 			projects: "Projects",
+			tickets: "Tickets",
 			integrations: "Integrations",
 			activity: "Activity",
 			ai: "Artificial Intelligences",
@@ -2314,6 +2339,10 @@ export const en = {
 				reviewGuide: {
 					label: "Review guide",
 					desc: "Reads the branch diff and writes the guided tour of it: chapters, extracts and remarks.",
+				},
+				ticketPlan: {
+					label: "Ticket plan",
+					desc: "Reads the open tickets of every project and writes the order they should be taken on.",
 				},
 				reviewComment: {
 					label: "Review comment",

@@ -11,6 +11,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { t, type TranslationKey } from '$lib/i18n';
   import {
     commitExists,
@@ -293,10 +294,15 @@
       {/if}
     {/if}
     {#if $aiEnabled}
-      <div class="mode-toggle" role="group" aria-label={t('review.toggleGuideDiff') as string}>
-        <button class="mode" class:active={!reviewState.isDiffMode} on:click={() => showMode(false)}>{t('review.guide')}</button>
-        <button class="mode" class:active={reviewState.isDiffMode} on:click={() => showMode(true)}>{t('review.diff')}</button>
-      </div>
+      <ModeToggle
+        options={[
+          { value: 'guide', label: t('review.guide') as string },
+          { value: 'diff', label: t('review.diff') as string },
+        ]}
+        value={reviewState.isDiffMode ? 'diff' : 'guide'}
+        ariaLabel={t('review.toggleGuideDiff') as string}
+        on:select={(e) => showMode(e.detail === 'diff')}
+      />
     {/if}
     <button class="btn ghost small icon-only" on:click={refresh} title={t('integrations.refresh') as string} disabled={areFilesLoading || !!mrState?.isRefreshing}>
       {#if areFilesLoading || mrState?.isRefreshing}<Spinner size={11}/>{:else}<Icon name="refresh" size={12}/>{/if}
@@ -497,24 +503,6 @@
     flex-shrink: 0;
     white-space: nowrap;
   }
-
-  .mode-toggle {
-    display: inline-flex;
-    background: var(--bg-3);
-    border-radius: 5px;
-    padding: 2px;
-    flex-shrink: 0;
-  }
-  .mode {
-    border: 0;
-    background: transparent;
-    color: var(--fg-2);
-    font-size: 11.5px;
-    padding: 2px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .mode.active { background: var(--bg-0); color: var(--fg-0); }
 
   .pill {
     display: inline-flex;

@@ -2244,8 +2244,32 @@ export const fr = {
 		ariaChecking: "Recherche de mises à jour",
 	},
 
+	tickets: {
+		search: "Rechercher un ticket...",
+		scopeLabel: "Portée des tickets",
+		scopeAssigned: "Qui me sont assignés",
+		scopeAll: "Tous",
+		refresh: "Rafraîchir",
+		total: "Tickets ouverts",
+		start: "Travailler dessus",
+		noTracker: "Aucun projet n'a encore de tracker lié.",
+		configure: "Configurer les intégrations",
+		loadFailed: "Les tickets de ce projet n'ont pas pu être chargés.",
+		groupEmpty: "Aucun ticket ne correspond à la recherche.",
+		planTitle: "Plan d'attaque",
+		planGenerate: "Générer",
+		planRegenerate: "Régénérer",
+		planCancel: "Annuler",
+		planEmpty: "Générez un plan pour voir dans quel ordre traiter ces tickets.",
+		planFailed: "Le plan n'a pas pu être généré.",
+		planUnavailable:
+			"Claude Code n'est pas installé, le plan ne peut pas être généré.",
+	},
 	home: {
 		sections: {
+			tickets: "Tickets",
+			ticketsDesc:
+				"Ce qu'il reste à faire sur tous les projets ayant un tracker.",
 			activity: "Activité",
 			activityDesc: "Événements récents sur toutes les instances.",
 			activityEmpty:
@@ -2254,6 +2278,7 @@ export const fr = {
 		sidebar: {
 			workspace: "Espace de travail",
 			projects: "Projets",
+			tickets: "Tickets",
 			integrations: "Intégrations",
 			activity: "Activité",
 			ai: "Intelligences artificielles",
@@ -2355,6 +2380,10 @@ export const fr = {
 				reviewGuide: {
 					label: "Guide de review",
 					desc: "Lit le diff de la branche et en écrit la visite guidée : chapitres, extraits et remarques.",
+				},
+				ticketPlan: {
+					label: "Plan des tickets",
+					desc: "Lit les tickets ouverts de tous les projets et écrit l'ordre dans lequel les traiter.",
 				},
 				reviewComment: {
 					label: "Commentaire de review",

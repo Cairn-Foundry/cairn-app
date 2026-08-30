@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A Tickets page on the home screen gathers the open tickets of every project that has a tracker bound, grouped by project and filtered on those assigned to you or all of them. A plan written over the whole backlog orders them across projects, and each ticket starts its instance in one click.",
+					"fr": "Une page Tickets sur l'écran d'accueil rassemble les tickets ouverts de tous les projets ayant un tracker lié, groupés par projet et filtrés sur ceux qui vous sont assignés ou sur tous. Un plan rédigé sur l'ensemble du backlog les ordonne tous projets confondus, et chaque ticket démarre son instance en un clic."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A single switch in Settings > General turns every AI feature off: the Agent step, the providers, features, agents, skills and MCP pages, the review guide and every assisted draft disappear, and nothing of them is run.",
 					"fr": "Un seul interrupteur dans Réglages > Général désactive toutes les fonctionnalités IA : l'étape Agent, les pages fournisseurs, fonctionnalités, agents, skills et MCP, le guide de revue et chaque brouillon assisté disparaissent, et plus rien n'en est exécuté."
 				}

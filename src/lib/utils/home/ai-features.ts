@@ -11,7 +11,8 @@ export type AiFeatureId =
 	| "mrDescription"
 	| "ciFix"
 	| "reviewGuide"
-	| "reviewComment";
+	| "reviewComment"
+	| "ticketPlan";
 
 interface AiFeatureDef {
 	id: AiFeatureId;
@@ -84,6 +85,21 @@ Remark: {{title}}
 
 Answer with the comment itself and nothing else: no preamble, no code fence around the whole answer. Address the author directly, stay short and concrete, and say what you would like changed or ask the question plainly. Write in {{language}}.`;
 
+const DEFAULT_TICKET_PLAN_TEMPLATE = `Here is every open ticket across the projects being worked on, grouped by project.
+
+{{tickets}}
+
+Write the plan of attack for this backlog as a whole.
+
+Answer in markdown and nothing else: no preamble, no restating of these rules, no code fence around the whole answer.
+
+Start with a short read of the situation: where the work is piling up, what is blocking what, what can be ignored for now.
+Then order the tickets the way they should actually be taken on, across projects rather than project by project - a ticket that unblocks three others comes before a bigger one that unblocks nothing. Give each entry its project, its ticket key, and one line saying why it sits there.
+Group tickets that should be done together in one instance when they touch the same thing, and say so.
+Close with what you would leave undone, and why.
+
+Judge only from the titles, labels and descriptions given: say when a ticket is too vague to place rather than guessing at it. Write in {{language}}.`;
+
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
 		id: "commitMessage",
@@ -120,6 +136,12 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		icon: "review",
 		runsProvider: true,
 		defaultPromptTemplate: DEFAULT_REVIEW_COMMENT_TEMPLATE,
+	},
+	{
+		id: "ticketPlan",
+		icon: "ticket",
+		runsProvider: true,
+		defaultPromptTemplate: DEFAULT_TICKET_PLAN_TEMPLATE,
 	},
 ];
 

@@ -13,6 +13,7 @@
   import ProjectsSection from '$lib/components/home/ProjectsSection.svelte';
   import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
   import type { Project } from '$lib/types/project';
+  import type { Ticket } from '$lib/types/integrations';
   import AgentsSection from '$lib/components/home/agents/AgentsSection.svelte';
   import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
   import FeaturesSection from '$lib/components/home/features/FeaturesSection.svelte';
@@ -21,6 +22,7 @@
   import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '$lib/components/home/IntegrationsSection.svelte';
+  import TicketsSection from '$lib/components/home/TicketsSection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
   import { aiEnabled } from '$lib/stores/settings';
 
@@ -31,6 +33,7 @@
     sectionShown: void;
     addProjectShown: void;
     sectionChange: { section: string; settingsTab: string };
+    startTicket: { projectId: string; ticket: Ticket };
   }>();
 
   export let openSection: HomeSection | null = null;
@@ -88,6 +91,18 @@
         on:addProject={(e) => { addProjectMode = e.detail; addProjectPath = ''; addProjectCloneUrl = ''; }}
         on:editProject={(e) => editingProject = e.detail}
       />
+
+    {:else if activeSection === 'tickets'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.sections.tickets')}</h1>
+        <div class="sub">{t('home.sections.ticketsDesc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <TicketsSection
+          on:startTicket={(e) => dispatch('startTicket', e.detail)}
+          on:goIntegrations={() => showSection('integrations')}
+        />
+      </div>
 
     {:else if activeSection === 'integrations'}
       <div class="home-hero" style="padding-bottom: 0">

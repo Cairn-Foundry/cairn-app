@@ -207,3 +207,37 @@ export const REVIEW_GUIDE_SCHEMA = {
 		},
 	},
 } as const;
+
+export interface TicketPlanProject {
+	name: string;
+	tickets: Pick<Ticket, "key" | "title" | "status" | "labels" | "assignees">[];
+}
+
+/**
+ * The backlog as the model reads it. Descriptions are left out on purpose: a
+ * hundred tickets of full description do not fit, and the plan is an ordering
+ * question that titles, labels and status already answer.
+ */
+function backlogBlock(projects: TicketPlanProject[]): string {
+	return projects
+		.map((project) => {
+			const lines = project.tickets.map((tk) => {
+				const meta = [tk.status, ...tk.labels].filter(Boolean).join(", ");
+				const who = tk.assignees.map((a) => a.displayName).join(", ");
+				return `- ${tk.key}: ${tk.title}${meta ? ` [${meta}]` : ""}${who ? ` (${who})` : ""}`;
+			});
+			return `## ${project.name}\n${lines.length === 0 ? "(no open ticket)" : lines.join("\n")}`;
+		})
+		.join("\n\n");
+}
+
+export function buildTicketPlanPrompt(
+	projects: TicketPlanProject[],
+	language: string,
+	assignments?: Record<string, AiFeatureAssignment>,
+): string {
+	return renderPromptTemplate(templateOf("ticketPlan", assignments), {
+		tickets: backlogBlock(projects),
+		language,
+	});
+}
