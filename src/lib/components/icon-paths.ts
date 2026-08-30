@@ -41,7 +41,10 @@ export const ICONS: Record<string, IconDef> = {
 	"chev-r": { solid: false, body: '<path d="M9 6l6 6-6 6"/>' },
 	"chev-d": { solid: false, body: '<path d="M6 9l6 6 6-6"/>' },
 	"chev-u": { solid: false, body: '<path d="M18 15l-6-6-6 6"/>' },
-	play: { solid: true, body: '<path class="ic-play-tri" d="M7 5.5v13l11-6.5z"/>' },
+	play: {
+		solid: true,
+		body: '<path class="ic-play-tri" d="M7 5.5v13l11-6.5z"/>',
+	},
 	pause: {
 		solid: true,
 		body: '<rect class="ic-pause-l" x="7" y="5" width="3.5" height="14"/><rect class="ic-pause-r" x="13.5" y="5" width="3.5" height="14"/>',
