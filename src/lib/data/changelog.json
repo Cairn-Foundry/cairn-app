@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "Five more coding CLIs can be launched from the Agent step: Cursor CLI, Amp, Goose, Qwen Code and Factory Droid. Each opens as it is in the worktree, and each is reopened on the exact conversation you picked. Their skills and MCP servers can be written from the hub too, except Goose's, which states its servers as YAML extensions Cairn does not write.",
+					"fr": "Cinq CLI de code supplementaires peuvent etre lances depuis la step Agent : Cursor CLI, Amp, Goose, Qwen Code et Factory Droid. Chacun s'ouvre tel quel dans le worktree, et chacun est rouvert sur la conversation exacte que vous avez choisie. Leurs skills et leurs serveurs MCP s'ecrivent aussi depuis le hub, sauf ceux de Goose, qui declare ses serveurs en extensions YAML que Cairn n'ecrit pas."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "The Agent step now runs your coding CLI itself, in an embedded terminal, instead of wrapping it. Pick Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity or Vibe and it opens as it is: its own models, permissions, slash commands and updates, nothing reinterpreted by Cairn.",
@@ -117,6 +124,27 @@
 				"text": {
 					"en": "A conversation left running in the background closes its CLI after five minutes without a keystroke or a line of output. The entry stays and reopening it resumes where it stopped. Never the conversation on screen, and never one whose CLI still has a process of its own - a build or a test run makes a terminal look idle without it being so.",
 					"fr": "Une conversation laissée en arrière-plan ferme son CLI après cinq minutes sans frappe ni ligne de sortie. L'entrée reste et la rouvrir la reprend où elle s'était arrêtée. Jamais la conversation affichée, et jamais une dont le CLI a encore un processus en cours : une compilation ou une suite de tests fait paraître un terminal inactif sans qu'il le soit."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A conversation is now named with a title drawn from your first prompt rather than the prompt itself: politeness and the \"can you\" framing are dropped, only the first sentence is kept, and it reads as a name.",
+					"fr": "Une conversation est desormais nommee par un titre tire de votre premier prompt plutot que par le prompt lui-meme : les formules de politesse et le \"peux-tu\" sautent, seule la premiere phrase est gardee, et cela se lit comme un nom."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The conversation panel is titled \"Agent\" instead of \"History\".",
+					"fr": "Le panneau des conversations s'intitule \"Agent\" et non plus \"Historique\"."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "\"See the installed CLIs\", in the conversation picker, opened the Agents section instead of Providers - the one that actually lists the CLIs found on this machine.",
+					"fr": "\"Voir les CLI installes\", dans le selecteur de conversation, ouvrait la section Agents au lieu de Fournisseurs - celle qui liste vraiment les CLI trouves sur cette machine."
 				}
 			}
 		]

@@ -11,7 +11,12 @@ export type CliProviderId =
 	| "opencode"
 	| "copilot"
 	| "antigravity"
-	| "vibe";
+	| "vibe"
+	| "cursor"
+	| "amp"
+	| "goose"
+	| "qwen"
+	| "droid";
 
 /** One CLI as the registry describes it, including whether it is on this machine. */
 export interface CliProviderDef {

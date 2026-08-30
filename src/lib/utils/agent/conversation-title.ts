@@ -11,6 +11,40 @@
 /** A prompt can be a paragraph; the history row shows one line. */
 export const TITLE_MAX = 80;
 
+/**
+ * Openers a prompt starts with and a title should not: politeness, the "can
+ * you" framing, and the pronoun that follows it.
+ */
+const FILLER =
+	/^(?:s'?il te plait|s'?il vous plait|please|hey|hi|ok|bon|alors|donc|(?:can|could|would|will)\s+you|(?:i|je)\s+(?:want|need|would\s+like|voudrais|veux|aimerais)(?:\s+(?:you\s+to|que\s+tu))?|peux[- ]tu|pourrais[- ]tu|tu\s+peux|let'?s|on\s+va|je\s+vais)[,\s]+/i;
+
+/**
+ * Turns a typed prompt into something that reads as a name: no politeness, one
+ * sentence, no trailing punctuation, capitalised.
+ *
+ * The CLIs render their own output and Cairn never reads it, so the prompt is
+ * all there is to name a conversation with. Shaping it is what makes the row
+ * say "Fix the parser" instead of "please can you fix the parser for me?".
+ */
+export function titleFromPrompt(line: string): string {
+	let text = line.replace(CONTROL, "").trim();
+	let previous = "";
+	while (text !== previous) {
+		previous = text;
+		text = text.replace(FILLER, "");
+	}
+	// One sentence: the rest of a paragraph is context, not a name.
+	text = text.split(/(?<=[.!?])\s+/)[0] ?? text;
+	text = text.replace(/[\s.,;:!?]+$/, "").trim();
+	if (!text) return "";
+	if (text.length > TITLE_MAX) {
+		const cut = text.slice(0, TITLE_MAX);
+		const space = cut.lastIndexOf(" ");
+		text = (space > TITLE_MAX / 2 ? cut.slice(0, space) : cut).trim();
+	}
+	return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const ESC = String.fromCharCode(27);
 const DEL = String.fromCharCode(127);
 
@@ -37,7 +71,7 @@ export function captureTitle(
 
 	for (const char of cleaned) {
 		if (char === "\r" || char === "\n") {
-			const title = line.replace(CONTROL, "").trim().slice(0, TITLE_MAX);
+			const title = titleFromPrompt(line);
 			// An empty Enter is not a title; keep waiting for a real prompt.
 			return title ? { title, pending: "" } : { title: null, pending: "" };
 		}

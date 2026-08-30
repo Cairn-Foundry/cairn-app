@@ -49,10 +49,10 @@
 
   interface Props {
     /** Opens the hub page where the installed CLIs are listed. */
-    onGoAgents: () => void;
+    onGoProviders: () => void;
   }
 
-  const { onGoAgents }: Props = $props();
+  const { onGoProviders }: Props = $props();
 
   let providers = $state<CliProviderDef[]>([]);
   let providersReady = $state(false);
@@ -291,7 +291,7 @@
         {preferred}
         onPick={(cli) => void pickCli(cli)}
         onRefresh={() => void loadProviders(true)}
-        onOpenProviders={onGoAgents}
+        onOpenProviders={onGoProviders}
       />
     {/if}
   </div>

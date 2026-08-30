@@ -299,7 +299,7 @@ describe("naming a conversation from its first prompt", () => {
 		noteTerminalInput(terminalId, "parser\r");
 		noteTerminalInput(terminalId, "and the lexer\r");
 
-		expect(conversationsOf(ref)[0].title).toBe("fix the parser");
+		expect(conversationsOf(ref)[0].title).toBe("Fix the parser");
 	});
 
 	it("never renames a conversation that already has a title", async () => {

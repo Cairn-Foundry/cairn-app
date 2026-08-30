@@ -212,7 +212,7 @@
     goSettings: void;
     goShortcuts: void;
     goLanguageServers: void;
-    goAgents: void;
+    goProviders: void;
     goGitSettings: void;
     goIntegrations: void;
     createInstance: { branch?: string };
@@ -665,7 +665,7 @@
 
     <main class="main">
       <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'files'}><FilesView bind:this={filesView} onGoSettings={() => dispatch('goSettings')} onGoLanguageServers={() => dispatch('goLanguageServers')} /></div>
-      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoAgents={() => dispatch('goAgents')}/></div>
+      <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoProviders={() => dispatch('goProviders')}/></div>
       <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
       <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
       <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>

@@ -379,7 +379,7 @@
       on:addProject={() => { homeOpenSection = null; goScreen('home'); }}
       on:goHome={() => { homeOpenSection = null; goScreen('home'); }}
       on:goSettings={() => { homeOpenSection = 'settings'; goScreen('home'); }}
-      on:goAgents={() => { homeOpenSection = 'agents'; goScreen('home'); }}
+      on:goProviders={() => { homeOpenSection = 'providers'; goScreen('home'); }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; goScreen('home'); }}
       on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; goScreen('home'); }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; goScreen('home'); }}

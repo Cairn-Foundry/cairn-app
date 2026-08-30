@@ -534,7 +534,7 @@ export const fr = {
 			manageProviders: "Voir les CLI installes",
 		},
 		history: {
-			title: "Historique",
+			title: "Agent",
 			toggle: "Historique des conversations",
 			searchPlaceholder: "Rechercher une conversation...",
 			instanceEmpty: "Aucune conversation pour cette instance.",

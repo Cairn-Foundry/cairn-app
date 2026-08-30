@@ -100,13 +100,13 @@ function providers() {
 }
 
 async function mount() {
-	const onGoAgents = vi.fn();
-	const result = render(AgentView, { onGoAgents });
+	const onGoProviders = vi.fn();
+	const result = render(AgentView, { onGoProviders });
 	// The picker waits on detection, and opening a conversation on a PTY.
 	await tick();
 	await tick();
 	await tick();
-	return { ...result, onGoAgents };
+	return { ...result, onGoProviders };
 }
 
 const cards = () =>
@@ -189,11 +189,11 @@ describe("with no conversation open", () => {
 	});
 
 	it("leads to the hub when a CLI is missing", async () => {
-		const { onGoAgents } = await mount();
+		const { onGoProviders } = await mount();
 		await userEvent.click(
 			screen.getByRole("button", { name: /installed CLIs/i }),
 		);
-		expect(onGoAgents).toHaveBeenCalled();
+		expect(onGoProviders).toHaveBeenCalled();
 	});
 });
 

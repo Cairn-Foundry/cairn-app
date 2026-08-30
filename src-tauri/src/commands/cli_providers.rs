@@ -22,6 +22,11 @@ pub const OPENCODE: &str = "opencode";
 pub const COPILOT: &str = "copilot";
 pub const ANTIGRAVITY: &str = "antigravity";
 pub const VIBE: &str = "vibe";
+pub const CURSOR: &str = "cursor";
+pub const AMP: &str = "amp";
+pub const GOOSE: &str = "goose";
+pub const QWEN: &str = "qwen";
+pub const DROID: &str = "droid";
 
 #[derive(Clone, Copy)]
 pub struct CliProviderDef {
@@ -55,7 +60,7 @@ pub struct CliProviderInfo {
     pub resumable: bool,
 }
 
-pub const CLI_PROVIDERS: [CliProviderDef; 7] = [
+pub const CLI_PROVIDERS: [CliProviderDef; 12] = [
     CliProviderDef { id: CLAUDE_CODE, label: "Claude Code", has_local_scope: true },
     CliProviderDef { id: CODEX, label: "OpenAI Codex", has_local_scope: false },
     CliProviderDef { id: GEMINI, label: "Gemini CLI", has_local_scope: false },
@@ -63,6 +68,11 @@ pub const CLI_PROVIDERS: [CliProviderDef; 7] = [
     CliProviderDef { id: COPILOT, label: "GitHub Copilot", has_local_scope: false },
     CliProviderDef { id: ANTIGRAVITY, label: "Google Antigravity", has_local_scope: false },
     CliProviderDef { id: VIBE, label: "Mistral Vibe", has_local_scope: false },
+    CliProviderDef { id: CURSOR, label: "Cursor CLI", has_local_scope: false },
+    CliProviderDef { id: AMP, label: "Amp", has_local_scope: false },
+    CliProviderDef { id: GOOSE, label: "Goose", has_local_scope: false },
+    CliProviderDef { id: QWEN, label: "Qwen Code", has_local_scope: false },
+    CliProviderDef { id: DROID, label: "Factory Droid", has_local_scope: false },
 ];
 
 /// Files the agent itself writes on first run. Directories Cairn may have
@@ -83,6 +93,11 @@ fn install_markers(id: &str, home: &Path) -> Vec<PathBuf> {
         COPILOT => vec![home.join(".copilot").join("config.json")],
         ANTIGRAVITY => vec![home.join(".gemini").join("antigravity-cli")],
         VIBE => vec![home.join(".vibe").join("config.toml")],
+        CURSOR => vec![home.join(".cursor").join("cli-config.json")],
+        AMP => vec![home.join(".config").join("amp").join("settings.json")],
+        GOOSE => vec![home.join(".config").join("goose").join("config.yaml")],
+        QWEN => vec![home.join(".qwen").join("settings.json"), home.join(".qwen").join("oauth_creds.json")],
+        DROID => vec![home.join(".factory").join("settings.json")],
         _ => Vec::new(),
     }
 }
@@ -96,6 +111,12 @@ fn binary_name(id: &str) -> &'static str {
         COPILOT => "copilot",
         ANTIGRAVITY => "agy",
         VIBE => "vibe",
+        // Cursor's CLI installs as `agent`, not `cursor-agent`.
+        CURSOR => "agent",
+        AMP => "amp",
+        GOOSE => "goose",
+        QWEN => "qwen",
+        DROID => "droid",
         _ => "",
     }
 }
@@ -217,6 +238,16 @@ pub fn launch(id: &str, session_id: Option<&str>) -> Vec<String> {
         VIBE => argv.extend(["--resume".into(), sid.to_string()]),
         // `agy --conversation <uuid>`
         ANTIGRAVITY => argv.extend(["--conversation".into(), sid.to_string()]),
+        // `agent --resume="<chat-id>"`; the value form is what the docs show.
+        CURSOR => argv.push(format!("--resume={sid}")),
+        // `amp threads continue <threadId>` - a subcommand pair, not a flag.
+        AMP => argv.extend(["threads".into(), "continue".into(), sid.to_string()]),
+        // `goose session -r --name <name>`: the id is the session's own name.
+        GOOSE => argv.extend(["session".into(), "-r".into(), "--name".into(), sid.to_string()]),
+        // `qwen --resume <uuid>`
+        QWEN => argv.extend(["--resume".into(), sid.to_string()]),
+        // `droid --resume <uuid>`
+        DROID => argv.extend(["--resume".into(), sid.to_string()]),
         _ => {}
     }
     argv
@@ -224,22 +255,30 @@ pub fn launch(id: &str, session_id: Option<&str>) -> Vec<String> {
 
 /// Whether Cairn can impose the session id at launch.
 ///
-/// True for the three that document a flag for it, so the conversation knows
-/// what to resume before its first byte of output. The others mint their own:
-/// Codex refuses the feature upstream, OpenCode rejects an id it has never
-/// seen, and Antigravity quietly ignores one and uses its own - each verified
-/// by running them.
+/// True for the five that document a way to name a session before it exists,
+/// so the conversation knows what to resume before its first byte of output.
+/// The others mint their own: Codex refuses the feature upstream, OpenCode
+/// rejects an id it has never seen, Antigravity quietly ignores one and uses
+/// its own, and Cursor, Amp and Droid document no flag for it.
 pub fn mints_session_id(id: &str) -> bool {
-    matches!(id, CLAUDE_CODE | GEMINI | COPILOT)
+    matches!(id, CLAUDE_CODE | GEMINI | COPILOT | QWEN | GOOSE)
 }
 
 /// The argv that starts a fresh conversation with an id Cairn chose. The CLIs
 /// `mints_session_id` rejects get the bare binary and are asked for their id
 /// afterwards.
+///
+/// They spell it differently: most take `--session-id`, while Goose names a
+/// session rather than numbering it - `goose session --name <name>` - which is
+/// the same id it later resumes by.
 pub fn launch_new(id: &str, session_id: &str) -> Vec<String> {
     let mut argv = vec![binary_name(id).to_string()];
-    if mints_session_id(id) {
-        argv.extend(["--session-id".into(), session_id.to_string()]);
+    if !mints_session_id(id) {
+        return argv;
+    }
+    match id {
+        GOOSE => argv.extend(["session".into(), "--name".into(), session_id.to_string()]),
+        _ => argv.extend(["--session-id".into(), session_id.to_string()]),
     }
     argv
 }
@@ -267,8 +306,54 @@ pub fn discover_session_id(id: &str, cwd: &str, started_after: i64) -> Option<St
         ANTIGRAVITY => antigravity_conversation(cwd, started_after),
         CODEX => codex_session(cwd, started_after),
         VIBE => vibe_session(cwd, started_after),
+        DROID => droid_session(cwd, started_after),
+        // Cursor and Amp cannot be asked. Amp keeps its threads on its own
+        // server and writes nothing local to match; Cursor's store is an
+        // undocumented database keyed by a workspace hash Cairn cannot
+        // reproduce. Their conversations run and resume by an id the user
+        // holds, but Cairn never learns one on its own - so a conversation
+        // closed before it was named starts fresh rather than opening
+        // somebody else's session.
         _ => None,
     }
+}
+
+/// Droid writes a file per session under `~/.factory/sessions`. Its schema is
+/// not documented, so this reads only the two fields every such store carries
+/// under one of their usual spellings, and gives up quietly on anything else -
+/// which costs a resume, never a wrong session.
+fn droid_session(cwd: &str, started_after: i64) -> Option<String> {
+    let root = home()?.join(".factory").join("sessions");
+    let mut best: Option<(i64, String)> = None;
+    for path in newest_files(&root, "json", 40) {
+        let Ok(content) = fs::read_to_string(&path) else { continue };
+        let Ok(entry) = serde_json::from_str::<serde_json::Value>(&content) else { continue };
+        let field = |names: &[&str]| -> Option<&serde_json::Value> {
+            names.iter().find_map(|n| entry.get(*n))
+        };
+        let directory = field(&["cwd", "workingDirectory", "working_dir", "directory"])
+            .and_then(|d| d.as_str());
+        if directory != Some(cwd) {
+            continue;
+        }
+        let started = field(&["createdAt", "created_at", "timestamp", "startTime"])
+            .and_then(|t| match t {
+                serde_json::Value::String(text) => parse_rfc3339_millis(text),
+                other => other.as_i64(),
+            })
+            .unwrap_or(0);
+        if started < started_after {
+            continue;
+        }
+        let sid = field(&["sessionId", "session_id", "id"])
+            .and_then(|i| i.as_str())
+            .map(str::to_string)
+            .or_else(|| path.file_stem().map(|s| s.to_string_lossy().into_owned()))?;
+        if best.as_ref().is_none_or(|(at, _)| started > *at) {
+            best = Some((started, sid));
+        }
+    }
+    best.map(|(_, sid)| sid)
 }
 
 /// Codex opens a rollout file per session, whose first line is a `session_meta`
@@ -636,6 +721,38 @@ pub fn skill_roots(provider: &str, scope: &str, project_path: &str) -> Vec<PathB
             project.join(".agents").join("skills"),
         ],
 
+        (CURSOR, "global") => home()
+            .map(|h| vec![h.join(".cursor").join("skills"), h.join(".agents").join("skills")])
+            .unwrap_or_default(),
+        (CURSOR, "project") => vec![
+            project.join(".cursor").join("skills"),
+            project.join(".agents").join("skills"),
+        ],
+
+        (AMP, "global") => home()
+            .map(|h| vec![h.join(".config").join("amp").join("skills"), h.join(".agents").join("skills")])
+            .unwrap_or_default(),
+        (AMP, "project") => vec![
+            project.join(".agents").join("skills"),
+            project.join(".claude").join("skills"),
+        ],
+
+        (GOOSE, "global") => home()
+            .map(|h| vec![h.join(".config").join("goose").join("skills"), h.join(".agents").join("skills")])
+            .unwrap_or_default(),
+        (GOOSE, "project") => vec![project.join(".agents").join("skills")],
+
+        (QWEN, "global") => home().map(|h| vec![h.join(".qwen").join("skills")]).unwrap_or_default(),
+        (QWEN, "project") => vec![project.join(".qwen").join("skills")],
+
+        (DROID, "global") => home()
+            .map(|h| vec![h.join(".factory").join("skills"), h.join(".agents").join("skills")])
+            .unwrap_or_default(),
+        (DROID, "project") => vec![
+            project.join(".factory").join("skills"),
+            project.join(".agents").join("skills"),
+        ],
+
         _ => Vec::new(),
     }
 }
@@ -654,6 +771,17 @@ pub fn agent_roots(provider: &str, scope: &str, project_path: &str) -> Vec<PathB
             .map(|h| vec![h.join(".claude").join("agents")])
             .unwrap_or_default(),
         (CLAUDE_CODE, "project") => vec![Path::new(project_path).join(".claude").join("agents")],
+
+        (QWEN, "global") => home().map(|h| vec![h.join(".qwen").join("agents")]).unwrap_or_default(),
+        (QWEN, "project") => vec![Path::new(project_path).join(".qwen").join("agents")],
+
+        (CURSOR, "global") => home().map(|h| vec![h.join(".cursor").join("agents")]).unwrap_or_default(),
+        (CURSOR, "project") => vec![Path::new(project_path).join(".cursor").join("agents")],
+
+        // Droid calls the members of its roster droids.
+        (DROID, "global") => home().map(|h| vec![h.join(".factory").join("droids")]).unwrap_or_default(),
+        (DROID, "project") => vec![Path::new(project_path).join(".factory").join("droids")],
+
         _ => Vec::new(),
     }
 }
@@ -810,6 +938,40 @@ pub fn mcp_locations(provider: &str, scope: &str, project_path: &str) -> Vec<Mcp
             pointer: vec!["mcp_servers".into()],
         }],
 
+        (CURSOR, "user") => home()
+            .map(|h| vec![json(h.join(".cursor").join("mcp.json"), CLAUDE_CODE, &["mcpServers"])])
+            .unwrap_or_default(),
+        (CURSOR, "project") => vec![json(project.join(".cursor").join("mcp.json"), CLAUDE_CODE, &["mcpServers"])],
+
+        // Amp nests its servers under its own prefix inside a shared settings file.
+        (AMP, "user") => home()
+            .map(|h| {
+                vec![json(
+                    h.join(".config").join("amp").join("settings.json"),
+                    CLAUDE_CODE,
+                    &["amp.mcpServers"],
+                )]
+            })
+            .unwrap_or_default(),
+        (AMP, "project") => vec![json(
+            project.join(".amp").join("settings.json"),
+            CLAUDE_CODE,
+            &["amp.mcpServers"],
+        )],
+
+        (QWEN, "user") => home()
+            .map(|h| vec![json(h.join(".qwen").join("settings.json"), CLAUDE_CODE, &["mcpServers"])])
+            .unwrap_or_default(),
+        (QWEN, "project") => vec![json(project.join(".qwen").join("settings.json"), CLAUDE_CODE, &["mcpServers"])],
+
+        (DROID, "user") => home()
+            .map(|h| vec![json(h.join(".factory").join("mcp.json"), CLAUDE_CODE, &["mcpServers"])])
+            .unwrap_or_default(),
+        (DROID, "project") => vec![json(project.join(".factory").join("mcp.json"), CLAUDE_CODE, &["mcpServers"])],
+
+        // Goose states its servers as extensions in YAML, a shape Cairn's MCP
+        // hub does not write. Its conversations run all the same; only the
+        // server editor leaves it out.
         _ => Vec::new(),
     }
 }
@@ -942,15 +1104,12 @@ mod tests {
         // and Vibe also read - so the picker must name them.
         let reach = skill_reach("project", "/repo", &[CODEX.to_string()]);
 
-        assert_eq!(
-            reach,
-            vec![
-                CODEX.to_string(),
-                OPENCODE.to_string(),
-                ANTIGRAVITY.to_string(),
-                VIBE.to_string(),
-            ],
-        );
+        for id in [CODEX, OPENCODE, ANTIGRAVITY, VIBE, CURSOR, AMP, GOOSE, DROID] {
+            assert!(reach.contains(&id.to_string()), "{id} reads .agents/skills");
+        }
+        // Claude and Qwen keep places of their own and are not swept in.
+        assert!(!reach.contains(&CLAUDE_CODE.to_string()));
+        assert!(!reach.contains(&QWEN.to_string()));
     }
 
     #[test]
@@ -995,10 +1154,13 @@ mod tests {
     }
 
     #[test]
-    fn only_claude_has_a_subagent_roster() {
-        assert!(!agent_roots(CLAUDE_CODE, "project", "/repo").is_empty());
-        // Vibe's `--agent` is a permission profile, not a roster to delegate to.
-        for id in [CODEX, GEMINI, OPENCODE, COPILOT, ANTIGRAVITY, VIBE] {
+    fn only_the_agents_with_a_documented_roster_declare_one() {
+        for id in [CLAUDE_CODE, QWEN, CURSOR, DROID] {
+            assert!(!agent_roots(id, "project", "/repo").is_empty(), "{id} has a roster");
+        }
+        // Vibe's `--agent` is a permission profile, not a roster to delegate to;
+        // Goose and Amp document no roster directory at all.
+        for id in [CODEX, GEMINI, OPENCODE, COPILOT, ANTIGRAVITY, VIBE, AMP, GOOSE] {
             assert!(agent_roots(id, "global", "").is_empty(), "{id} claims a roster");
             assert!(agent_roots(id, "project", "/repo").is_empty(), "{id} claims a roster");
         }
@@ -1023,7 +1185,7 @@ mod tests {
     fn the_clis_that_take_an_imposed_id_are_launched_with_one() {
         // Verified against each binary's own --help, which is ahead of the
         // published docs for Gemini and Copilot.
-        for id in [CLAUDE_CODE, GEMINI, COPILOT] {
+        for id in [CLAUDE_CODE, GEMINI, COPILOT, QWEN] {
             assert!(mints_session_id(id), "{id} should accept an imposed id");
             assert_eq!(
                 launch_new(id, "3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70"),
@@ -1035,6 +1197,13 @@ mod tests {
                 "{id}",
             );
         }
+        // Goose names a session rather than numbering it, and resumes by that
+        // same name.
+        assert!(mints_session_id(GOOSE));
+        assert_eq!(
+            launch_new(GOOSE, "cairn-42"),
+            vec!["goose", "session", "--name", "cairn-42"],
+        );
     }
 
     #[test]
@@ -1042,7 +1211,7 @@ mod tests {
         // Codex refuses the feature upstream, OpenCode errors on an id it has
         // never seen, and Antigravity ignores one and uses its own. Handing any
         // of them an invented id would name a session that does not exist.
-        for id in [CODEX, OPENCODE, ANTIGRAVITY, VIBE] {
+        for id in [CODEX, OPENCODE, ANTIGRAVITY, VIBE, CURSOR, AMP, DROID] {
             assert!(!mints_session_id(id), "{id} claims to accept an imposed id");
             assert_eq!(launch_new(id, "made-up"), vec![binary_name(id)], "{id}");
         }
@@ -1077,14 +1246,21 @@ mod tests {
             (OPENCODE, vec!["opencode", "--session", sid]),
             (VIBE, vec!["vibe", "--resume", sid]),
             (ANTIGRAVITY, vec!["agy", "--conversation", sid]),
+            (AMP, vec!["amp", "threads", "continue", sid]),
+            (GOOSE, vec!["goose", "session", "-r", "--name", sid]),
+            (QWEN, vec!["qwen", "--resume", sid]),
+            (DROID, vec!["droid", "--resume", sid]),
         ] {
             assert_eq!(launch(id, Some(sid)), expected, "{id}");
         }
         // Copilot documents the `--resume=<id>` value form.
-        assert_eq!(
-            launch(COPILOT, Some(sid)),
-            vec!["copilot".to_string(), format!("--resume={sid}")],
-        );
+        for (id, bin) in [(COPILOT, "copilot"), (CURSOR, "agent")] {
+            assert_eq!(
+                launch(id, Some(sid)),
+                vec![bin.to_string(), format!("--resume={sid}")],
+                "{id}",
+            );
+        }
     }
 
     #[test]
@@ -1111,6 +1287,9 @@ mod tests {
         }
     }
 
+    /// The CLIs that mint their own id and can be asked for it afterwards.
+    const CAN_HAND_BACK_AN_ID: [&str; 5] = [CODEX, OPENCODE, ANTIGRAVITY, VIBE, DROID];
+
     #[test]
     fn every_cli_that_mints_its_own_id_has_a_way_to_hand_it_back() {
         // An id Cairn cannot impose has to be discoverable, or the conversation
@@ -1125,6 +1304,15 @@ mod tests {
                 discover_session_id(def.id, "/nonexistent/worktree", 0),
                 None,
                 "{}",
+                def.id,
+            );
+            // Amp keeps its threads on its own server and Cursor's store is an
+            // undocumented database keyed by a hash Cairn cannot reproduce, so
+            // neither can hand an id back. They are the known exceptions; a new
+            // one has to be added here deliberately rather than by accident.
+            assert!(
+                CAN_HAND_BACK_AN_ID.contains(&def.id) != matches!(def.id, CURSOR | AMP),
+                "{} must declare whether its id is discoverable",
                 def.id,
             );
         }

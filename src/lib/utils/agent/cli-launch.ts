@@ -26,6 +26,11 @@ const BINARY: Record<CliProviderId, string> = {
 	copilot: "copilot",
 	antigravity: "agy",
 	vibe: "vibe",
+	cursor: "agent",
+	amp: "amp",
+	goose: "goose",
+	qwen: "qwen",
+	droid: "droid",
 };
 
 /**
@@ -34,7 +39,13 @@ const BINARY: Record<CliProviderId, string> = {
  * feature upstream, OpenCode errors on an id it has never seen, and Antigravity
  * quietly ignores it and uses its own.
  */
-const MINTS_SESSION_ID: CliProviderId[] = ["claude-code", "gemini", "copilot"];
+const MINTS_SESSION_ID: CliProviderId[] = [
+	"claude-code",
+	"gemini",
+	"copilot",
+	"qwen",
+	"goose",
+];
 
 /** Whether Cairn can choose the session id before the CLI starts. */
 export function mintsSessionId(cli: CliProviderId): boolean {
@@ -59,6 +70,7 @@ export function newConversationArgv(
 	sessionId: string,
 ): string[] | null {
 	if (!mintsSessionId(cli) || !sessionId) return null;
+	if (cli === "goose") return [BINARY[cli], "session", "--name", sessionId];
 	return [BINARY[cli], "--session-id", sessionId];
 }
 
@@ -84,10 +96,17 @@ export function resumeArgv(
 		case "claude-code":
 		case "gemini":
 		case "vibe":
+		case "qwen":
+		case "droid":
 			return [bin, "--resume", sessionId];
 		// Documented as the value form rather than a separate argument.
 		case "copilot":
+		case "cursor":
 			return [bin, `--resume=${sessionId}`];
+		case "amp":
+			return [bin, "threads", "continue", sessionId];
+		case "goose":
+			return [bin, "session", "-r", "--name", sessionId];
 		// A subcommand, not a flag.
 		case "codex":
 			return [bin, "resume", sessionId];

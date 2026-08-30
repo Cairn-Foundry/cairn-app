@@ -12,6 +12,11 @@ const ORDER: CliProviderId[] = [
 	"copilot",
 	"antigravity",
 	"vibe",
+	"cursor",
+	"amp",
+	"goose",
+	"qwen",
+	"droid",
 ];
 
 /**
