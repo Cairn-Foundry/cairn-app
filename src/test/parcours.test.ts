@@ -98,6 +98,13 @@ beforeEach(() => {
 	vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
 		backend.fetch(url, init),
 	);
+	// The workspace prewarms every code-split view on idle. Those imports are
+	// not awaited by anything, so on a slow runner they resolve after the
+	// environment is torn down and Vitest reports an unhandled rejection. The
+	// parcours opens the views it needs explicitly, so nothing here needs them
+	// fetched in advance.
+	vi.stubGlobal("requestIdleCallback", () => 0);
+	vi.stubGlobal("cancelIdleCallback", () => {});
 });
 
 // The prototype patch and the stubbed globals above are process-wide; left in
