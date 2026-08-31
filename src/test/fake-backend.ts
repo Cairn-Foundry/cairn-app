@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * A fake back end for the end-to-end parcours: one in-memory store standing in
  * for `~/.cairn` and for the worktrees on disk, driving the real `invoke()`

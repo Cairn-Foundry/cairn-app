@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The AI assists Cairn offers outside the Agent step, and which provider serves
 // each one. Adding an assist is an entry in AI_FEATURES plus its i18n pair;
 // nothing else is keyed by id outside the feature's own call site.

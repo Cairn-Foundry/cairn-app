@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Instances of a project and the git worktree behind each one.
 // Only this layer calls invoke().
 

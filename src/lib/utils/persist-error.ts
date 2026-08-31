@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Persistence to `~/.cairn` runs in the background: no caller awaits it and no
  * view shows its outcome, so a rejected write used to vanish into an empty

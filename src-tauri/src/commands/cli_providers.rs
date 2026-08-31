@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Where each coding CLI keeps its skills and its MCP servers.
 //!
 //! The five agents Cairn can drive all read `SKILL.md` directories and all

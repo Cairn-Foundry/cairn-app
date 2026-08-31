@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The `cairn` shell command: installing it as a symlink to the launcher shipped
 //! next to the app binary, and collecting the paths a `cairn <path>` invocation
 //! passed on the command line.

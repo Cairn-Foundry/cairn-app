@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * View state of the workspace: which screen, step and tool are open.
  * Most flags here are persisted per project (see the four-layer rule in CLAUDE.md).

@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts" context="module">
   /**
    * Left navigation of the home screen: one entry per HomeSection.
@@ -25,7 +29,7 @@
 <aside class="home-side" style="padding-top: 36px;" data-tauri-drag-region use:draggableRegion>
   <div class="home-logo">
     <CairnLogo size={26}/>
-    <span class="name">Cairn</span>
+    <span class="name">Cairn Foundry<sup class="tm">TM</sup></span>
   </div>
 
   <div class="section">{t('home.sidebar.workspace')}</div>

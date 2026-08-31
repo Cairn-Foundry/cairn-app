@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 export interface TabCloseOutcome {
 	activeTabIdx: number;
 	/** The closed tab was the visible one, so the pane now shows a different file. */

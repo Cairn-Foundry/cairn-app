@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Tickets: the one linked to each instance, the search of the create-instance modal, transitions. */
 import { get, writable } from "svelte/store";
 import {

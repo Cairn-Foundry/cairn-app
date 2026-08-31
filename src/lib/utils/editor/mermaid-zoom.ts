@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Zoom and pan for a rendered mermaid diagram. A large graph rendered at the
  * width of the editor is unreadable, so the SVG keeps its natural size and the

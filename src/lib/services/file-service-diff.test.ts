@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The unified-diff parser is not exported; it is reached through the service
 // calls that use it, with invoke mocked to hand over the diff text. That keeps
 // the parser tested through the API the app actually calls.

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Finding how a worktree runs its tests. Extends the package.json scan of
 // command-import.ts to Cargo, pytest and go, since a repository can hold more
 // than one ecosystem and each one gets its own runner.

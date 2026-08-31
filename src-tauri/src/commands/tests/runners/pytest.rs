@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! pytest in verbose mode. The json report needs a plugin that most projects
 //! do not install, so the `-v` text output is what is parsed:
 //! `path/to/test_file.py::TestClass::test_name PASSED [ 42%]`.

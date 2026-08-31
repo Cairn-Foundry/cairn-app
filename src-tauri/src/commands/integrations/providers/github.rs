@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! GitHub adapter (REST v3, Actions, one GraphQL call for review thread
 //! resolution): tracker (issues), forge (pull requests, review threads,
 //! reviews) and CI (workflow runs, jobs, logs).

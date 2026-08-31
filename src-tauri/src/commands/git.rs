@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Git operations for the review, history and branch views. Everything shells out
 //! to the `git` binary except a few reads served by `git2`.
 

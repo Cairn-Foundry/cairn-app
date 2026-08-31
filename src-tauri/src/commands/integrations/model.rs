@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Normalized model shared by every integration: the only shapes the frontend
 //! ever sees. Mirrored by `src/lib/types/integrations.ts`.
 

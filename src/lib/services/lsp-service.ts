@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Language server lifecycle - catalogue, install, start - and the LSP requests
 // the editor sends once one is running.
 

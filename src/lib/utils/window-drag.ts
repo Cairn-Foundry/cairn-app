@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Dragging the window by its chrome. The webview has no native title bar, so
 // the frameless window is moved by handing the gesture to Tauri.
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Subagent definitions written as files the external CLIs read, in the project
 // or in the user's home. Only this layer calls invoke().
 

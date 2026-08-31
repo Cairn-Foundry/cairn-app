@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Global app settings, in settings.json. CairnSettings is mirrored by the Rust
 // struct in commands/settings.rs: a new field has to be added on both sides.
 

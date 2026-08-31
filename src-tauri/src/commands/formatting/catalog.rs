@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The catalogue of known formatters and the style options they understand,
 //! including which formatter and language a file extension maps to.
 

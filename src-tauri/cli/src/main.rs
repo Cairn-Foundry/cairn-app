@@ -1,7 +1,12 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const APP_BINARY: &str = "cairn";
+/// The bundled binary is named after `productName`; the short name is kept so a
+/// launcher sitting next to an older install still finds it.
+const APP_BINARIES: [&str; 2] = ["Cairn Foundry", "cairn"];
 
 fn absolutize(arg: &str) -> String {
     let path = Path::new(arg);
@@ -36,9 +41,11 @@ fn resolve_app_binary() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         let exe = exe.canonicalize().unwrap_or(exe);
         if let Some(dir) = exe.parent() {
-            let sibling = dir.join(APP_BINARY);
-            if sibling.is_file() && sibling != exe {
-                return Some(sibling);
+            for name in APP_BINARIES {
+                let sibling = dir.join(name);
+                if sibling.is_file() && sibling != exe {
+                    return Some(sibling);
+                }
             }
         }
     }
@@ -46,15 +53,29 @@ fn resolve_app_binary() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     #[cfg(target_os = "macos")]
     {
-        candidates.push(PathBuf::from("/Applications/cairn.app/Contents/MacOS/cairn"));
-        candidates.push(PathBuf::from("/Applications/Cairn.app/Contents/MacOS/cairn"));
-        if let Some(home) = dirs::home_dir() {
-            candidates.push(home.join("Applications/cairn.app/Contents/MacOS/cairn"));
-            candidates.push(home.join("Applications/Cairn.app/Contents/MacOS/cairn"));
+        for name in APP_BINARIES {
+            candidates.push(PathBuf::from(format!(
+                "/Applications/Cairn Foundry.app/Contents/MacOS/{name}"
+            )));
+            candidates.push(PathBuf::from(format!(
+                "/Applications/cairn.app/Contents/MacOS/{name}"
+            )));
+            candidates.push(PathBuf::from(format!(
+                "/Applications/Cairn.app/Contents/MacOS/{name}"
+            )));
+            if let Some(home) = dirs::home_dir() {
+                candidates
+                    .push(home.join(format!("Applications/Cairn Foundry.app/Contents/MacOS/{name}")));
+                candidates.push(home.join(format!("Applications/cairn.app/Contents/MacOS/{name}")));
+                candidates.push(home.join(format!("Applications/Cairn.app/Contents/MacOS/{name}")));
+            }
         }
     }
     #[cfg(target_os = "linux")]
     {
+        candidates.push(PathBuf::from("/usr/bin/cairn-foundry"));
+        candidates.push(PathBuf::from("/usr/local/bin/cairn-foundry"));
+        candidates.push(PathBuf::from("/opt/cairn-foundry/cairn-foundry"));
         candidates.push(PathBuf::from("/usr/bin/cairn"));
         candidates.push(PathBuf::from("/usr/local/bin/cairn"));
         candidates.push(PathBuf::from("/opt/cairn/cairn"));
@@ -62,8 +83,10 @@ fn resolve_app_binary() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
         if let Some(local) = dirs::data_local_dir() {
+            candidates.push(local.join("Cairn Foundry/Cairn Foundry.exe"));
             candidates.push(local.join("cairn/cairn.exe"));
         }
+        candidates.push(PathBuf::from("C:/Program Files/Cairn Foundry/Cairn Foundry.exe"));
         candidates.push(PathBuf::from("C:/Program Files/cairn/cairn.exe"));
     }
 
@@ -87,7 +110,7 @@ fn main() {
 
     let Some(binary) = resolve_app_binary() else {
         eprintln!(
-            "cairn: could not locate the Cairn application. Set CAIRN_APP_BINARY to its executable path."
+            "cairn: could not locate the Cairn Foundry application. Set CAIRN_APP_BINARY to its executable path."
         );
         std::process::exit(1);
     };

@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts">
   /**
    * The Files workflow step: file tree, up to two editor panes with their tabs, search,

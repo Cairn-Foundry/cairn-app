@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Edge cases for the path helpers. These decide where a file is read from and
 // written to, so a wrong answer is a write in the wrong place: unicode, spaces,
 // separators and boundary conditions are worth pinning down explicitly.

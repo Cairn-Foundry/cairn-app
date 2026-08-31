@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Every path under `~/.cairn` is built here, never inlined at the call site,
 //! so the on-disk layout stays described in one place.
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Per-project caches are keyed three ways: by `projectId` alone, by
  * `projectId:instanceId`, and by `projectId:instanceId:commandId`. All three

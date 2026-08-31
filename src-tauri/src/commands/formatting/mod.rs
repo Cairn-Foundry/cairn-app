@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Code formatting: the per-project formatter configuration, running a
 //! formatter over a document, and detecting what the repo already uses.
 

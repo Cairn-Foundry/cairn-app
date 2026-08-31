@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Turning a runner's output into test events. Every adapter is a pure
 //! line-to-events function so it can be tested on captured output without
 //! spawning anything.

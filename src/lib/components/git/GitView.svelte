@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts">
   /**
    * Main git workspace: staged and unstaged changes, commit box, history, graph and stashes.

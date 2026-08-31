@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The last test run of an instance, so the step reopens on its result instead
 //! of on an empty screen. Kept in its own file rather than in `ProjectUiState`,
 //! which only holds scalars.

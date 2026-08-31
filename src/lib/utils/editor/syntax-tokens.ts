@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The syntax palette: the token classes the highlighter emits, and the default
 // colours each app theme starts from before the user edits them.
 

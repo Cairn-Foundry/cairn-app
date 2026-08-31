@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Filesystem access for the editor: directory trees honouring `.gitignore`,
 //! fuzzy path search, content search, and the read/write/rename primitives.
 

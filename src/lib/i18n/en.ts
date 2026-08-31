@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 export const en = {
 	common: {
 		close: "Close",
@@ -56,7 +59,7 @@ export const en = {
 		destinationSelectedMain: "Destination selected",
 		hintNew:
 			"Pick the folder where this project lives. Any directory works - git is not required.",
-		hintOpen: "Select any local folder to open as a Cairn project.",
+		hintOpen: "Select any local folder to open as a Cairn Foundry project.",
 		hintClone: "Choose the parent folder where the repository will be cloned.",
 		orTypePath: "or",
 		pathInputPlaceholder: "/path/to/project",
@@ -552,7 +555,7 @@ export const en = {
 		noResults: "No match.",
 		emptyTitle: "No agent defined",
 		emptyDesc:
-			"An agent is a definition your coding CLI reads on its own. Cairn edits it where the CLI already looks, so a change here is a change it sees on its next run.",
+			"An agent is a definition your coding CLI reads on its own. Cairn Foundry edits it where the CLI already looks, so a change here is a change it sees on its next run.",
 		duplicate: "Duplicate",
 		reveal: "Show in the file manager",
 		copyOf: (name: string) => `${name}-copy`,
@@ -624,7 +627,7 @@ export const en = {
 			permissionMode: "Permission mode",
 			extraFrontmatter: "Other frontmatter",
 			extraFrontmatterHint:
-				"Keys Cairn does not model, kept exactly as they are on disk.",
+				"Keys Cairn Foundry does not model, kept exactly as they are on disk.",
 		},
 		permissionModes: {
 			default: "Ask as usual",
@@ -856,7 +859,7 @@ export const en = {
 	env: {
 		title: "Environment variables",
 		subtitle:
-			"Replaces the .env copied from one instance to the next. Cairn writes the file in each worktree and injects the variables into terminals, commands and the agent.",
+			"Replaces the .env copied from one instance to the next. Cairn Foundry writes the file in each worktree and injects the variables into terminals, commands and the agent.",
 		scope: {
 			global: "Global",
 			project: "Project",
@@ -881,10 +884,10 @@ export const en = {
 		overridePlaceholder: "Value for this instance",
 		writeFile: "Generate the file in the worktree",
 		writeFileHint:
-			"Keeps a program that reads the file working. Cairn owns the file and never overwrites one it did not write.",
+			"Keeps a program that reads the file working. Cairn Foundry owns the file and never overwrites one it did not write.",
 		fileName: "File name",
 		conflict: (file: string) =>
-			`A ${file} Cairn does not manage already exists in this worktree, so nothing was written.`,
+			`A ${file} Cairn Foundry does not manage already exists in this worktree, so nothing was written.`,
 		conflictImport: "Import and manage",
 
 		scopeField: "Stored in",
@@ -913,7 +916,7 @@ export const en = {
 		errorInvalidKey:
 			"A key starts with a letter or _ and holds only letters, digits and _.",
 		errorReservedKey: (prefix: string) =>
-			`Keys starting with ${prefix} are reserved by Cairn.`,
+			`Keys starting with ${prefix} are reserved by Cairn Foundry.`,
 
 		importHeading: "Import variables",
 		importPickFile: "Choose a file",
@@ -957,7 +960,7 @@ export const en = {
 	integrations: {
 		title: "Integrations",
 		subtitle:
-			"Connect GitLab, GitHub and Jira to bring tickets, merge requests and pipelines into Cairn.",
+			"Connect GitLab, GitHub and Jira to bring tickets, merge requests and pipelines into Cairn Foundry.",
 		page: "Integrations",
 		addConnection: "Add a connection",
 		searchPlaceholder: "Search a connection",
@@ -1285,7 +1288,7 @@ export const en = {
 		uninstallHeading: "Uninstall",
 		uninstallTitle: (name: string) => `Uninstall ${name}?`,
 		uninstallDescription:
-			"The package manager that installed it removes it. Cairn stops the server first.",
+			"The package manager that installed it removes it. Cairn Foundry stops the server first.",
 		uninstallAlsoRemoves: (names: string) =>
 			`This package also carries ${names}. They go with it.`,
 		uninstallNoManager:
@@ -1326,9 +1329,9 @@ export const en = {
 		customEditLabel: (name: string) => `Edit ${name}`,
 		customRemoveTitle: (name: string) => `Remove ${name}?`,
 		customRemoveDescription:
-			"Cairn forgets the declaration and stops the server. The binary itself stays where it is - Cairn never installed it.",
+			"Cairn Foundry forgets the declaration and stops the server. The binary itself stays where it is - Cairn Foundry never installed it.",
 		customDescription:
-			"Any server speaking LSP over stdio. Cairn runs it and never installs, updates or removes it.",
+			"Any server speaking LSP over stdio. Cairn Foundry runs it and never installs, updates or removes it.",
 		customName: "Name",
 		customBinary: "Command",
 		customBinaryHint:
@@ -1375,7 +1378,7 @@ export const en = {
 			"A skill is a folder holding a SKILL.md. Its description tells the agent when to reach for it; its body tells it what to do.",
 		filter: { all: "All" },
 		providersHint:
-			"The SKILL.md format is the same everywhere, so one skill can serve several agents at once. Cairn writes a copy wherever each one looks.",
+			"The SKILL.md format is the same everywhere, so one skill can serve several agents at once. Cairn Foundry writes a copy wherever each one looks.",
 		divergent:
 			"The copies of this skill no longer say the same thing. Saving writes what is shown here to all of them.",
 		locations: {
@@ -1454,7 +1457,7 @@ export const en = {
 			license: "License",
 			extra: "Other frontmatter",
 			extraHint:
-				"Everything Cairn does not model, kept exactly as written. Edit with care - it is YAML.",
+				"Everything Cairn Foundry does not model, kept exactly as written. Edit with care - it is YAML.",
 		},
 		files: {
 			title: "Bundled files",
@@ -1486,7 +1489,7 @@ export const en = {
 			"An MCP server hands your agent tools it does not have on its own. Declare one here, or paste the JSON a server's documentation gives you.",
 		filter: { all: "All" },
 		providersHint:
-			"Every agent speaks MCP, so one server can serve several at once. Cairn writes it into each one's configuration, in the spelling that one expects.",
+			"Every agent speaks MCP, so one server can serve several at once. Cairn Foundry writes it into each one's configuration, in the spelling that one expects.",
 		divergent:
 			"The declarations of this server no longer agree. Saving writes what is shown here to all of them.",
 		locations: {
@@ -1508,7 +1511,8 @@ export const en = {
 				"Written in the project's .mcp.json, so it is committed and the whole team gets it.",
 		},
 		transportHint: {
-			stdio: "Cairn's agent starts the process and talks to it over its pipes.",
+			stdio:
+				"Cairn Foundry's agent starts the process and talks to it over its pipes.",
 			http: "Streamable HTTP: every call is a request to the URL.",
 			sse: "Legacy Server-Sent Events. Prefer HTTP when the server offers both.",
 		},
@@ -1581,7 +1585,7 @@ export const en = {
 			heading: "Remove a server",
 			title: (name: string) => `Remove ${name}?`,
 			description:
-				"The declaration is removed from the file below. The server itself is untouched - Cairn never installed it.",
+				"The declaration is removed from the file below. The server itself is untouched - Cairn Foundry never installed it.",
 			confirm: "Remove the server",
 		},
 	},
@@ -2098,7 +2102,7 @@ export const en = {
 		diff: "Diff",
 		generateGuide: "Generate the guide",
 		generateGuideBody:
-			"Cairn reads the branch diff and writes a guided tour of it: what the branch does, chapter by chapter, with the points worth your attention.",
+			"Cairn Foundry reads the branch diff and writes a guided tour of it: what the branch does, chapter by chapter, with the points worth your attention.",
 		generating: "Writing the guide",
 		regenerate: "Regenerate",
 		regenerateHeading: "Regenerate the guide",
@@ -2182,7 +2186,7 @@ export const en = {
 		searchPlaceholder: "Search tests",
 		noRunnerTitle: "No test runner detected",
 		noRunnerBody:
-			"Cairn looked for a test script in package.json, and for Cargo.toml, pytest and go.mod.",
+			"Cairn Foundry looked for a test script in package.json, and for Cargo.toml, pytest and go.mod.",
 		neverRun: "No test has run yet",
 		neverRunBody: "Run the suite to see its results here.",
 		clearSearch: "Clear search",
@@ -2210,7 +2214,7 @@ export const en = {
 		install: "Update now",
 		installVersion: (version: string) => `Update to ${version}`,
 		later: "Later",
-		upToDate: "Cairn is up to date",
+		upToDate: "Cairn Foundry is up to date",
 		ariaInstalling: "Installing the update",
 		ariaChecking: "Checking for updates",
 	},
@@ -2304,7 +2308,7 @@ export const en = {
 		},
 		providers: {
 			title: "Providers",
-			desc: "The coding CLIs Cairn found on this machine. Each one is configured with its own commands; Cairn runs it as it is.",
+			desc: "The coding CLIs Cairn Foundry found on this machine. Each one is configured with its own commands; Cairn Foundry runs it as it is.",
 			installedCount: (n: number, total: number) =>
 				`${n} of ${total} installed`,
 			refresh: "Detect again",
@@ -2413,7 +2417,7 @@ export const en = {
 			fields: {
 				apiKey: "API key",
 				apiKeyPlaceholder: "sk-...",
-				apiKeyHint: "Stored locally - never sent to Cairn servers.",
+				apiKeyHint: "Stored locally - never sent to Cairn Foundry servers.",
 				baseUrl: "Base URL",
 				baseUrlPlaceholder: "https://api.example.com/v1",
 				baseUrlHint: "Override the default endpoint (useful for proxies).",
@@ -2496,7 +2500,7 @@ export const en = {
 	},
 
 	welcome: {
-		title: "Welcome to Cairn",
+		title: "Welcome to Cairn Foundry",
 		stepLabel: "Step",
 		next: "Next",
 		back: "Back",
@@ -2505,12 +2509,12 @@ export const en = {
 		reportBug: "Report a bug on GitHub",
 		steps: {
 			welcome: {
-				title: "Welcome to Cairn",
-				body: "Cairn is a workspace for building with an AI agent: one place for your projects, your branches, your code and your conversations. This short tour covers the essentials.",
+				title: "Welcome to Cairn Foundry",
+				body: "Cairn Foundry is a workspace for building with an AI agent: one place for your projects, your branches, your code and your conversations. This short tour covers the essentials.",
 			},
 			projects: {
 				title: "Projects",
-				body: "A project is a git repository you register once. Cairn keeps them on the home screen, groups them in folders, and remembers exactly where you left each one.",
+				body: "A project is a git repository you register once. Cairn Foundry keeps them on the home screen, groups them in folders, and remembers exactly where you left each one.",
 			},
 			instances: {
 				title: "Instances",
@@ -2522,11 +2526,11 @@ export const en = {
 			},
 			agent: {
 				title: "The agent",
-				body: "The Agent step opens your coding CLI - Claude Code, Codex, Gemini CLI and others - in the instance worktree. Cairn keeps the list of conversations and reopens each one where it stopped.",
+				body: "The Agent step opens your coding CLI - Claude Code, Codex, Gemini CLI and others - in the instance worktree. Cairn Foundry keeps the list of conversations and reopens each one where it stopped.",
 			},
 			beta: {
 				title: "This is a beta",
-				body: "Cairn 1.0 ships as a public beta: expect rough edges, and things that change. Bug reports and ideas are the fastest way to shape what comes next.",
+				body: "Cairn Foundry 1.0 ships as a public beta: expect rough edges, and things that change. Bug reports and ideas are the fastest way to shape what comes next.",
 			},
 		},
 	},
@@ -2543,7 +2547,7 @@ export const en = {
 		heading: "Confirm deletion",
 		title: (name: string) => `Remove "${name}"?`,
 		description:
-			"This removes the project from Cairn and deletes all its instances and worktrees.",
+			"This removes the project from Cairn Foundry and deletes all its instances and worktrees.",
 		filesNotTouched: "Your files at",
 		filesNotTouchedSuffix: "will not be touched.",
 		deleteProject: "Delete project",
@@ -2652,7 +2656,7 @@ export const en = {
 				installedAt: (path: string) => `Installed at ${path}.`,
 				uninstall: "Remove the cairn command",
 				unavailable:
-					"The launcher is only available in an installed build of Cairn, not in development mode.",
+					"The launcher is only available in an installed build of Cairn Foundry, not in development mode.",
 			},
 			welcome: {
 				groupTitle: "Guided tour",
@@ -2680,7 +2684,7 @@ export const en = {
 			copySuffix: "copy",
 			import: "Import",
 			export: "Export",
-			importInvalid: "This file is not a Cairn syntax theme.",
+			importInvalid: "This file is not a Cairn Foundry syntax theme.",
 			editorTitle: "Syntax theme",
 			name: "Theme name",
 			namePlaceholder: "My theme",
@@ -3046,7 +3050,7 @@ export const enGreetings = {
 		"Tabs vs spaces: a story for another day.",
 		"404: motivation not found. Try again.",
 		"Everything is fine. The build is lying though.",
-		"Cairn: because 'randomFolderName123' looked bad.",
+		"Cairn Foundry: because 'randomFolderName123' looked bad.",
 		"Approved by zero code reviewers, so far.",
 		"Please hold, an agent is thinking.",
 		"Not a pyramid scheme. Just a stone scheme.",
@@ -3079,7 +3083,7 @@ export const enGreetings = {
 		"This tagline has 99 problems, but a bug ain't one.",
 		"Loading witty remark, please stand by.",
 		"Not all heroes wear capes, some just write tests.",
-		"Cairn spotted in the wild, building things.",
+		"Cairn Foundry spotted in the wild, building things.",
 		"Careful, that button does something.",
 		"A stack, a plan, a cairn.",
 		"Code now, philosophize later.",

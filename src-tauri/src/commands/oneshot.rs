@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Headless one-shot runs: one prompt in, one JSON object out, no conversation.
 //!
 //! Drafting a commit message, a merge request description or a review guide

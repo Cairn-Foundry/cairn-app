@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Shelling out on behalf of the frontend, plus the few OS integrations that
 //! have no plugin: opening a terminal, revealing a file, cloning a repo.
 

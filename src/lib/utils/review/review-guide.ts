@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Turning what the model answered into a guide the view can trust, and keeping
 // that guide honest as the branch moves under it. Pure functions: the store
 // holds the state, this decides what the state should become.

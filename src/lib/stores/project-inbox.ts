@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Per-project counts shown on the home cards: tickets assigned to me, cached for five minutes. Errors leave the project without a count. */
 import { get, writable } from "svelte/store";
 import { trackerListTickets } from "$lib/services/integration-service";

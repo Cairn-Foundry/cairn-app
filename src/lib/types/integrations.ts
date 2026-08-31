@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Normalized integration model, mirror of src-tauri/src/commands/integrations/model.rs.
 // The frontend only ever manipulates these shapes; service JSON never leaves Rust.
 

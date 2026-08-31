@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Listening TCP ports of the machine and the processes that own them, read
 //! back by the home Ports screen so a forgotten dev server can be found and
 //! killed without leaving the app.

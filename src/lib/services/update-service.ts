@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // App self-update. The only service backed by Tauri plugins rather than by our
 // own Rust commands, so nothing here goes through invoke().
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { McpTransport } from "$lib/services/mcp-service";
 
 /** stdio is a local process, everything else is reached over the network. */

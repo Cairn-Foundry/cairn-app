@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The frontend and the backend are wired by name only: a service calls
 // invoke("some_command", { someArg }) and Rust answers with
 // #[tauri::command] fn some_command(some_arg: ...). Nothing type-checks that

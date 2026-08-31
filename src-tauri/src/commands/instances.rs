@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Instances: one git worktree and branch per unit of work. Creating one adds a
 //! branch and a worktree under the project's `worktrees/` directory; deleting
 //! one takes both away again.

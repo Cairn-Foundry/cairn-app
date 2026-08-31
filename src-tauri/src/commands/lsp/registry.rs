@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The catalogue of known language servers, plus the user's own entries, and
 //! how a server's workspace root is resolved for a given file.
 

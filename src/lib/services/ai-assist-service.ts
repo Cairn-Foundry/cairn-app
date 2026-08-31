@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // One-shot model calls for the AI features: a drafted commit message, a merge
 // request description. One prompt in, one answer out, nothing persisted.
 //

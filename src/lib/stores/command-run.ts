@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Custom commands while they run: one terminal each, with their allocated ports. */
 import { get, writable } from "svelte/store";
 import {

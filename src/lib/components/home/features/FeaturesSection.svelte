@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts">
   /**
    * The AI assists Cairn offers outside the Agent step, and the prompt each one

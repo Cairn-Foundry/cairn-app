@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Reordering the terminal lists. Kept apart from the store so the index
 // arithmetic can be tested on plain arrays.
 

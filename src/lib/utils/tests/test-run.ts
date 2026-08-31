@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // How a run replaces what is on screen.
 //
 // This is the one place that answers "given the previous tree, a scope, and the

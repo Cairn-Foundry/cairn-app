@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The option vocabularies the coding CLIs accept, used where a native agent
 // definition names an effort level or a permission mode.
 //

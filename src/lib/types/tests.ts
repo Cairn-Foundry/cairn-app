@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** The Tests step domain: a runner, what it produced, and how a single case failed. */
 
 export type TestStatus =

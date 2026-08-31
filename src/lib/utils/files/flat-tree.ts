@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Flattening the tree for the virtual list. Rebuilding the whole array on each
  * `expanded` change costs a full walk of the repository - six figures of nodes

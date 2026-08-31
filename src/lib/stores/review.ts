@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** The review guide, per instance: the reading, the remarks, the pending comments. */
 import { get, writable } from "svelte/store";
 import { getLocale } from "$lib/i18n";

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Folding streamed cases into the suite tree. Pure, so the reducer can be
 // tested without a runner or a Tauri event in sight.
 import type {

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Opening a file normalizes its line endings, saving it puts them back. The
 // round trip has to be exact: a file the user never edited must reach the disk
 // byte for byte as it was read, whatever it contains.

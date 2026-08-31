@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! User-defined commands (scripts run in a terminal tab), stored globally or
 //! per project, plus the port each one was allocated in an instance.
 

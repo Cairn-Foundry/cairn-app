@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Reordering editor tabs by drag, shared with the vertical lists that reuse the
 // same gesture. Pinned tabs are held at the front of the bar.
 

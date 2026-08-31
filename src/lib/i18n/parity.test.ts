@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Every user-visible string goes through `t()`, so a key present in one
 // language and missing from the other renders as the raw key path in the app.
 // Nothing at runtime complains, and the two files are three thousand lines

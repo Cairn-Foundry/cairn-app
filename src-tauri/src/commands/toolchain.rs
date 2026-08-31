@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Shared plumbing for the package managers Cairn installs tools through:
 //! locating a binary, working out which manager owns it, and comparing versions.
 

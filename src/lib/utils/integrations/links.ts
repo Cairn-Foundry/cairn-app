@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The one place that knows whether a forge link comes from the bound
 // integration or from the remote URL heuristics of remote-url.ts.
 

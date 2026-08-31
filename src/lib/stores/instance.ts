@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Instances of every loaded project, plus the base pseudo-instance standing for the repository itself. */
 import { derived, get, writable } from "svelte/store";
 import { t } from "$lib/i18n";

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Secrets stored on disk, encrypted in `~/.cairn`, never in the OS keychain.
 //!
 //! A keychain read prompts for authorisation on every launch of an unsigned or

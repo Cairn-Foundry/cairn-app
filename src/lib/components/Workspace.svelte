@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts">
   /**
    * Workspace screen: project tabs, the instance selector, the workflow steps and
@@ -443,7 +447,7 @@
   >
     <button class="brand-chip" on:click={() => dispatch('goHome')} title={t('workspace.homeTitle') as string}>
       <CairnLogo size={18}/>
-      <span>Cairn</span>
+      <span>Cairn Foundry<sup class="tm">TM</sup></span>
     </button>
     <div class="tab-divider"></div>
     <div class="tabs-scroll">

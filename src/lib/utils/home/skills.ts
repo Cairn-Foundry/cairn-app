@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * A skill answers to its directory name, typed at a prompt as `/name`, so the
  * name has to survive being typed: lowercase, ASCII, single dashes. Mirrors

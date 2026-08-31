@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Building the prompt that asks for a commit message.
 //
 // Nothing parses the answer: the CLI is held to a `{ subject, body }` schema by

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // CLAUDE.md requires four layers for a view to survive a restart: the ui store
 // flag, the field on ProjectUiState, the snapshot and the restore, and the Rust
 // field plus its persist subscription. Skipping any one of them reads as "the

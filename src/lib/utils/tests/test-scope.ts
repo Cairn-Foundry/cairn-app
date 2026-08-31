@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Narrowing a run to one file or one test. The runner command is composed by
 // the frontend, so restricting a run is a matter of appending the right
 // arguments for the detected runner.

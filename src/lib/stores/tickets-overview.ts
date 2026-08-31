@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Every open ticket of every project that has a tracker bound, in one place, so
  * the home screen can show what is left to do across the whole workspace.

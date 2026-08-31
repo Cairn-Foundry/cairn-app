@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Translating between Cairn's style options and the config files of each
 //! formatter, in both directions: import reads them, export writes them.
 

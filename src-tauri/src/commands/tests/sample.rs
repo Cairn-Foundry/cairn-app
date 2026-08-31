@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! A synthetic vitest run, used by the tests in place of a captured file.
 //!
 //! It reproduces what the runner really writes - the `verbose` reporter's

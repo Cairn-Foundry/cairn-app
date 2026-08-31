@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Editor layout of one instance - tabs, cursor, scroll, tree expansion - in
 // file-state.json. Only this layer calls invoke().
 

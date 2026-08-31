@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Basic syntax-token rendering for TS snippets */
 // Static highlighting for the short TypeScript snippets shown outside the
 // editor. CodeMirror is not involved, so the rules are deliberately shallow.

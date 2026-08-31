@@ -1,6 +1,6 @@
-# Cairn
+# Cairn Foundry
 
-Cairn is a desktop workspace for developing with an AI coding agent. It puts the
+Cairn Foundry is a desktop workspace for developing with an AI coding agent. It puts the
 editor, the terminal, git, and the agent conversation in the same window, and it
 isolates each piece of work in its own git worktree so several tasks can run at
 the same time without stepping on each other.
@@ -107,3 +107,12 @@ in the app's *What's new* section, in English and French.
 ## License
 
 [AGPL-3.0-only](LICENSE).
+
+## Trademark
+
+Cairn Foundry(TM) is a trademark of Benjamin Bonneton. The AGPL-3.0 license
+covers the source code, not the name or the logo. See [TRADEMARK.md](TRADEMARK.md).
+
+## Copyright
+
+Copyright (C) 2026 Benjamin Bonneton. See [AUTHORS](AUTHORS).

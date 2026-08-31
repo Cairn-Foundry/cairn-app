@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Detecting and converting a file's line endings and indentation. The editor
 // always holds LF internally; the original ending is restored on save.
 

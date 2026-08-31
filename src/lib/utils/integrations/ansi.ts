@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Turns a CI job log carrying ANSI SGR colour codes into safe HTML: text is
 // escaped, colours become <span> elements, every other escape sequence is dropped.
 

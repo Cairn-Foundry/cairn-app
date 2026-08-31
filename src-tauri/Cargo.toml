@@ -1,8 +1,8 @@
 [package]
 name = "cairn"
 version = "1.0.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Cairn Foundry - a desktop workspace for developing with an AI coding agent"
+authors = ["Benjamin Bonneton"]
 edition = "2024"
 license = "AGPL-3.0-only"
 

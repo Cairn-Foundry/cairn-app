@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Pipelines of the branch, per instance: the list, the selected one, the open job log. */
 import { derived, get, writable } from "svelte/store";
 import {

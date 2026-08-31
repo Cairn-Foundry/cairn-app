@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Editor sizing constants shared by the CodeMirror setup and its chrome. */
 export const EDITOR_DEFAULTS = {
 	fontSize: 13,

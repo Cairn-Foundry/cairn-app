@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Agent skills as they exist on disk: the same skill can be written into
 // several provider directories at once, which is what most of this handles.
 

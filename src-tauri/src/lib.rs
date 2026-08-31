@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Application entry point: builds the Tauri app, registers the managed state
 //! and wires every `#[tauri::command]` exposed to the frontend.
 
@@ -85,7 +88,7 @@ pub fn run() {
                 "main",
                 tauri::WebviewUrl::default(),
             )
-            .title("Cairn")
+            .title("Cairn Foundry")
             .inner_size(1440.0, 900.0)
             .min_inner_size(480.0, 360.0)
             .resizable(true)
@@ -100,7 +103,7 @@ pub fn run() {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};
                 let menu = MenuBuilder::new(app)
                     .item(
-                        &SubmenuBuilder::new(app, "Cairn")
+                        &SubmenuBuilder::new(app, "Cairn Foundry")
                             .about(None)
                             .separator()
                             .quit()

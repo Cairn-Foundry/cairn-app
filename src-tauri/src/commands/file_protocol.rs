@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! `cairn://` serves file contents to the webview as raw bytes with an ETag,
 //! outside the JSON IPC: `fetch` decodes off the string heap, and a file the
 //! webview already holds costs one `stat` and a 304.

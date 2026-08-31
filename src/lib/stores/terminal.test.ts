@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Terminals are scoped two ways: per instance and per project. Moving one
 // across scopes must move the lists only - the PTY keeps running - which is
 // what most of these tests pin down.

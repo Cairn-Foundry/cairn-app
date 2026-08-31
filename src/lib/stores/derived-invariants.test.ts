@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Invariants every derived store must hold, whatever it computes: it agrees
 // with a fresh read of its source, it releases what it subscribed to, and it
 // does not keep state from one subscription to the next.

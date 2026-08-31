@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Headless one-shot model calls: one prompt in, one JSON object out. Used by
 // the review guide and the comment drafts, which need the model without a
 // conversation. Only this layer calls invoke().

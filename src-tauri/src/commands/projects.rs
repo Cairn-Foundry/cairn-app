@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The registered projects and how the home screen lists them: `projects.json`
 //! holds the projects themselves, `listing.json` their order and folders.
 

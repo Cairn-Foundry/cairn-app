@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Starting, initializing and stopping one language server process, and the
 //! LSP <-> filesystem path conversions its protocol requires.
 
@@ -203,7 +206,7 @@ fn initialize_params(def: &LanguageServerDef, root: &Path) -> Result<InitializeP
             ..Default::default()
         },
         client_info: Some(lsp_types::ClientInfo {
-            name:    "Cairn".to_string(),
+            name:    "Cairn Foundry".to_string(),
             version: Some(env!("CARGO_PKG_VERSION").to_string()),
         }),
         // typescript-language-server otherwise forks a second tsserver for

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { toHexColor } from "$lib/utils/editor/color";
 
 const LIGHT_FG = "oklch(0.96 0.005 80)";

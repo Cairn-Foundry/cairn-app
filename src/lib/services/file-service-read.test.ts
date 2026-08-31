@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // readFile keeps its own ETag cache, so each test works on a fresh path: the
 // cache is module state that outlives a single test.
 

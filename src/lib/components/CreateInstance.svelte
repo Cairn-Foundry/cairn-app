@@ -1,3 +1,7 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <script lang="ts">
 
   /** The DOM holds at most this many branch rows per group; a repository with
@@ -620,7 +624,7 @@
         <div class="info-box">
           <div class="info-icon"><Icon name="info" size={14}/></div>
           <div>
-            <strong style="color: var(--fg-0)">Cairn</strong> {t('createInstance.worktreeInfoPrefix')}
+            <strong style="color: var(--fg-0)">Cairn Foundry</strong> {t('createInstance.worktreeInfoPrefix')}
             <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
             {t('createInstance.worktreeInfoSuffix')}
           </div>
@@ -754,7 +758,7 @@
           <div class="info-box">
             <div class="info-icon"><Icon name="info" size={14}/></div>
             <div>
-              <strong style="color: var(--fg-0)">Cairn</strong> {t('createInstance.worktreeInfoPrefix')}
+              <strong style="color: var(--fg-0)">Cairn Foundry</strong> {t('createInstance.worktreeInfoPrefix')}
               <span class="mono" style="color: var(--fg-0)">{worktreePath}</span>.
               {t('createInstance.worktreeInfoSuffix')}
             </div>

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Commit options the git view remembers per instance, so reopening it offers
 //! the same flags and profile as last time.
 

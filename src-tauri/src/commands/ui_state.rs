@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Navigation state persisted across launches, so the app reopens on the exact
 //! view the user left. Every new view that takes over the main area needs its
 //! "is it open" flag added here.

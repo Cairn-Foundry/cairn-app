@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Delays and debounce windows shared across the app, gathered so a value is
 // tuned in one place rather than guessed again at each call site.
 

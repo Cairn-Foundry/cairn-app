@@ -1,7 +1,7 @@
 {
   "name": "cairn",
   "version": "1.0.0",
-  "description": "",
+  "description": "Cairn Foundry - a desktop workspace for developing with an AI coding agent",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

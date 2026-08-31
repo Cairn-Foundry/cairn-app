@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * The file name is what `@name` invokes, so it has to survive being typed at a
  * prompt: lowercase, no spaces, no separators of its own. Mirrors `slugify` on

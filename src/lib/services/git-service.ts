@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Git operations of the review and git views, every one backed by a dedicated
 // Rust command that classifies its failures into a GitError.
 

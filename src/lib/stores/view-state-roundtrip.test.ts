@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The restore half of the per-project view state. A view that does not come
 // back exactly as it was left reads as "the app forgot where I was", which is
 // the symptom the four-layer rule in CLAUDE.md exists to prevent.

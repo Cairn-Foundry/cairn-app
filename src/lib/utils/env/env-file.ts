@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Reading and writing `.env` files: the subset of shell quoting dotenv files
 // actually use, including values spanning several lines inside quotes.
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! PTY-backed terminals. Each session is a spawned shell whose output is
 //! streamed to the frontend as `terminal-output` events; the tab layout is
 //! persisted per instance and per project.

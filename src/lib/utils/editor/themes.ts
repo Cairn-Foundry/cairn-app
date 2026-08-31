@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { ThemeName } from "$lib/utils/editor/editor-theme";
 
 /** One selectable app theme; `needsTransparentWindow` hides it where the window cannot be see-through. */

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * The tools a Claude Code run exposes by default. Offered as suggestions only:
  * a CLI release may add or rename one, and MCP servers contribute names of

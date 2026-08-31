@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Per-project view state: snapshots the ui stores on project switch and restores
  * them on the way back, so every project reopens exactly where it was left.

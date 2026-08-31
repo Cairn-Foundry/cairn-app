@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Turning a project's `package.json` scripts into importable custom commands,
 // guessing the package manager from the lockfile and an icon from the name.
 import type { CustomCommand } from "$lib/services/custom-command-service";

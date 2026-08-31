@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Jira adapter: tracker only. Cloud (REST v3, ADF descriptions, Basic auth)
 //! and Data Center (REST v2, wiki markup, Bearer auth).
 

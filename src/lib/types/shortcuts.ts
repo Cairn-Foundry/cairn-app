@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Every bindable command; each id needs a matching entry in SHORTCUT_DEFS (stores/shortcuts.ts). */
 export type ShortcutId =
 	| "quickOpen"

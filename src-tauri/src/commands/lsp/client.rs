@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! JSON-RPC transport for one language server process: framed reads on a
 //! background thread, and request/response correlation by id.
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The review step's backend calls: the diff the guide is built from, the hunks
 // the "seen" state is keyed on, and the state on disk. Only this layer calls
 // invoke().

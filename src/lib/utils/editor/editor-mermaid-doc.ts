@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * WYSIWYG for a standalone `.mmd` file: the whole document is one diagram, so
  * it renders in place of the source, zoomable and pannable like the diagrams

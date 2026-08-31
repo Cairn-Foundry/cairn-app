@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /// `navigator.platform` is deprecated; `userAgentData` replaces it but is absent
 /// from WebKit, which is exactly the engine the app runs in. The user agent
 /// string is the only reading available everywhere.

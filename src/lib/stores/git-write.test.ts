@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The write side of the git store: every mutation goes through `mutate`, which
 // publishes the error and rethrows, and every command is scoped to the active
 // instance worktree. What is checked here is the mapping result -> state -> UI,

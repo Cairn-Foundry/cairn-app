@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // PTY lifecycle, plus the persisted terminal layout in both scopes: per
 // instance and per project. Only this layer calls invoke().
 

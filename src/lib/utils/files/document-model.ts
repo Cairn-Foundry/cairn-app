@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { ChangeSet } from "@codemirror/state";
 import { Text } from "@codemirror/state";
 import { detectIndentStyle, detectSpaceSize } from "./files-indent";

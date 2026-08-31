@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The prompt handed to the Agent step for a failing test. It is a starting
 // point, not an order: the user reads it, adds what only they know, and sends.
 

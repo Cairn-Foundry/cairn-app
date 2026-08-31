@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { Action } from "svelte/action";
 
 /** Extra selector(s) whose clicks must not count as "outside", beyond `node` itself. */

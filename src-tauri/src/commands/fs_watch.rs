@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! One filesystem watcher per worktree the frontend asked for. Events are
 //! debounced and classified: a change under `.git` that moves the status
 //! (index, HEAD, refs) is reported as git-only, anything else as a tree change.

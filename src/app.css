@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /* -- Fonts -- */
 @import '@fontsource/inter-tight/400.css';
 @import '@fontsource/inter-tight/400-italic.css';
@@ -180,8 +184,17 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   border-radius: var(--r-sm);
   cursor: pointer;
   transition: background .12s;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .brand-chip:hover { background: var(--bg-1); }
+.brand-chip .tm {
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1;
+  margin-left: 1px;
+  color: var(--fg-3);
+}
 .brand-chip .logo { width: 20px; height: 20px; }
 
 .tab-divider {
@@ -2100,12 +2113,21 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 .home-logo {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 20px;
+  white-space: nowrap;
 }
 .home-logo .name {
   font-family: var(--font-serif);
   font-size: 22px;
   color: var(--fg-0);
   letter-spacing: -0.01em;
+}
+.home-logo .tm {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  margin-left: 2px;
+  color: var(--fg-3);
 }
 .home-side .section {
   font-size: 10px; color: var(--fg-3);

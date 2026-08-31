@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Jest, and vitest's `--reporter=json` which uses the same shape. Both print
 //! one JSON document at the very end, so the parse happens on the whole
 //! buffered output rather than line by line; the default reporter running

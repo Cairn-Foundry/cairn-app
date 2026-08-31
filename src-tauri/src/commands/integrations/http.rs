@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Authenticated HTTP client shared by the adapters: one per connection, with
 //! redirects confined to the connection's host, capped pagination, an ETag
 //! cache and the mapping of HTTP failures to `IntegrationError`.

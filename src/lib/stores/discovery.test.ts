@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // mcp, skills and native-agents are the same store three times: scan every
 // registered project, report failures in an error store rather than throwing.
 // They are tested together so the shared contract stays visible.

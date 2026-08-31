@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * The slice of a fixed-height list that is worth putting in the DOM, plus the
  * two spacers that keep the scrollbar the size the full list would give it.

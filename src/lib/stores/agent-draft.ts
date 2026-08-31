@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // A prompt another step composed for the Agent step. Tests and Agent are
 // siblings under Workspace, so the request travels through a store rather than
 // a prop: it has to survive the step switch that carries the user there.

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Polls the merge request of a branch and its latest pipeline for every
 //! watched instance, and emits `integration-update` only when something moved.
 

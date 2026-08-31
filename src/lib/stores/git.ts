@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Git state of the active worktree: status, diffs, log, graph, stashes, and every write that changes them. */
 import { derived, get, writable } from "svelte/store";
 import type {

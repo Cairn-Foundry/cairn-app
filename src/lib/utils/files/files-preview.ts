@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // How a non-text file is shown: as an image, an inline SVG, a PDF, or the hex
 // dump anything unrecognized falls back to.
 

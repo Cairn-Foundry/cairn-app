@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** The merge request of the branch, per instance: the MR itself, its discussions, the selected one. */
 import { get, writable } from "svelte/store";
 import {

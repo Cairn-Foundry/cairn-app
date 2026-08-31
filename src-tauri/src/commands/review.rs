@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! The review guide: the diff the model reads, the hunks the "seen" state is
 //! keyed on, and the reviewer's state on disk.
 

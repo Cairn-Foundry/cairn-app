@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { getGreetingPools } from "$lib/i18n";
 
 function pickRandom<T>(items: T[]): T {

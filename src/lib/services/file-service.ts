@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Filesystem access for the editor: tree, read and write, search, and the git
 // views built by shelling out to `git` rather than by a dedicated Rust command.
 

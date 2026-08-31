@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The label following the pointer during a file tree drag. Built by hand
 // because the app never uses HTML5 drag and drop, which has no drag image here.
 

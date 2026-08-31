@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Claude Code skills discovered across the registered projects, read-only: discovered by scanning every project path. */
 import { get, writable } from "svelte/store";
 import { listSkills, type Skill } from "$lib/services/skill-service";

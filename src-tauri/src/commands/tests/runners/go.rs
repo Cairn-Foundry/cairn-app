@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! `go test -json`. One JSON object per line, streamed as the run goes, so
 //! this is the only adapter that needs no final pass.
 

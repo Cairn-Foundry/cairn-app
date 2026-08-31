@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Integrations: GitLab, GitHub and Jira behind capability-named commands.
 //! The frontend only ever sees the normalized model of `model.rs`.
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * How a language id is shown. The ids come from the LSP vocabulary, where
  * `javascriptreact` and `objective-cpp` are normal - they are not names anyone

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState, RangeSetBuilder } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";

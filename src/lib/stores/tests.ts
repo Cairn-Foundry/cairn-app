@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Test runs, per instance: what was detected, what is running, what came back. */
 import { listen } from "@tauri-apps/api/event";
 import { derived, get, writable } from "svelte/store";

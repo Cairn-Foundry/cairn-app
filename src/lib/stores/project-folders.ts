@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Folders of the home project list: grouping, order and collapsed state. */
 import { writable } from "svelte/store";
 import { saveFolders } from "$lib/services/project-service";
