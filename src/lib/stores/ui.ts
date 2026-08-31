@@ -81,3 +81,6 @@ export const pendingGitAction = writable<"createProfile" | null>(null);
 export const gitLeftTab = writable<
 	"changes" | "log" | "graph" | "stash" | "tag" | "mergerebase" | "gitignore"
 >("changes");
+
+/** True while the welcome tour is on screen; set from the first launch or from Settings. */
+export const showWelcomeTour = writable(false);

@@ -106,6 +106,8 @@ export interface CairnSettings {
 	customLanguageServers: CustomLanguageServer[];
 	/** Keyed by `AiFeatureId`; a feature with no entry runs on the default provider. */
 	aiFeatures: Record<string, AiFeatureAssignment>;
+	/** False until the welcome tour has been closed once. */
+	onboardingSeen: boolean;
 }
 
 /** Settings as stored; the store fills in anything the file predates. */

@@ -148,6 +148,8 @@ pub struct CairnSettings {
     /// Keyed by the feature id; a feature with no entry runs on the default provider.
     #[serde(rename = "aiFeatures", default)]
     pub ai_features: std::collections::HashMap<String, AiFeatureAssignment>,
+    #[serde(rename = "onboardingSeen", default)]
+    pub onboarding_seen: bool,
     #[serde(rename = "integrationsPollSeconds", default = "default_integrations_poll_seconds")]
     pub integrations_poll_seconds: u64,
     #[serde(rename = "branchTemplate", default = "default_branch_template")]
@@ -265,6 +267,7 @@ impl Default for CairnSettings {
             dismissed_language_servers: Vec::new(),
             custom_language_servers: Vec::new(),
             ai_features: std::collections::HashMap::new(),
+            onboarding_seen: false,
             integrations_poll_seconds: default_integrations_poll_seconds(),
             branch_template: default_branch_template(),
         }

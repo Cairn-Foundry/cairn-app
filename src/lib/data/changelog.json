@@ -6,7 +6,22 @@
 			"en": "Cairn 1.0: the first public release. A workspace where each task gets its own git worktree, with the editor, the git view, the tests, the review, the pipelines and your coding CLI side by side.",
 			"fr": "Cairn 1.0 : la première version publique. Un espace de travail où chaque tâche dispose de son propre worktree git, avec l'éditeur, la vue git, les tests, la revue, les pipelines et votre CLI de code côte à côte."
 		},
-		"changes": []
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "A guided tour on first launch: projects, instances, workflow steps and the agent, plus where to report a bug during the beta. It can be replayed from Settings.",
+					"fr": "Un tour guidé au premier lancement : les projets, les instances, les étapes et l'agent, ainsi que l'endroit où signaler un bug pendant la bêta. Il se rejoue depuis les Réglages."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Report a bug button under the version number in the home sidebar, opening the GitHub issues of the project.",
+					"fr": "Un bouton Signaler un bug sous le numéro de version dans la barre latérale d'accueil, qui ouvre les issues GitHub du projet."
+				}
+			}
+		]
 	},
 	{
 		"version": "0.19.0",

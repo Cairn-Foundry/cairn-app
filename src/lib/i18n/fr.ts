@@ -2541,6 +2541,42 @@ export const fr = {
 		},
 	},
 
+	welcome: {
+		title: "Bienvenue dans Cairn",
+		stepLabel: "Étape",
+		next: "Suivant",
+		back: "Retour",
+		skip: "Passer",
+		start: "Commencer",
+		reportBug: "Signaler un bug sur GitHub",
+		steps: {
+			welcome: {
+				title: "Bienvenue dans Cairn",
+				body: "Cairn est un espace de travail pour développer avec un agent IA : vos projets, vos branches, votre code et vos conversations au même endroit. Ce tour rapide couvre l'essentiel.",
+			},
+			projects: {
+				title: "Les projets",
+				body: "Un projet est un dépôt git que vous enregistrez une fois. Cairn les garde sur l'écran d'accueil, les regroupe en dossiers et retient exactement où vous en étiez.",
+			},
+			instances: {
+				title: "Les instances",
+				body: "Une instance est un espace isolé sur un projet : son propre worktree git, sa branche, ses terminaux et ses conversations. Menez plusieurs tâches en parallèle sans jamais rien remiser.",
+			},
+			steps: {
+				title: "Les étapes",
+				body: "Chaque instance suit les mêmes onglets : Fichiers pour écrire du code, Agent pour déléguer, Tests, Git, CI/CD et Revue. Ce sont les étapes d'un changement, de la première édition à la merge request.",
+			},
+			agent: {
+				title: "L'agent",
+				body: "L'étape Agent ouvre votre CLI de code - Claude Code, Codex, Gemini CLI et d'autres - dans le worktree de l'instance. Cairn garde la liste des conversations et rouvre chacune là où elle s'était arrêtée.",
+			},
+			beta: {
+				title: "Une version bêta",
+				body: "Cairn 1.0 sort en bêta publique : attendez-vous à des aspérités et à des choses qui bougent. Vos rapports de bug et vos idées sont le moyen le plus direct de façonner la suite.",
+			},
+		},
+	},
+
 	deleteFolder: {
 		heading: "Confirmer la suppression",
 		title: (name: string) => `Supprimer le dossier "${name}" ?`,
@@ -2665,6 +2701,13 @@ export const fr = {
 				uninstall: "Retirer la commande cairn",
 				unavailable:
 					"Le lanceur n'est disponible que dans une version installee de Cairn, pas en mode developpement.",
+			},
+			welcome: {
+				groupTitle: "Tour guidé",
+				replay: "Tour de bienvenue",
+				replayDesc:
+					"Revoir l'introduction aux projets, aux instances et aux étapes.",
+				replayAction: "Revoir",
 			},
 			updates: {
 				groupTitle: "Mises à jour",

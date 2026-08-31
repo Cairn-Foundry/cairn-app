@@ -46,6 +46,7 @@ const DEFAULTS: CairnSettings = {
 	dismissedLanguageServers: [],
 	customLanguageServers: [],
 	aiFeatures: {},
+	onboardingSeen: false,
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);

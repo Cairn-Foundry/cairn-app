@@ -6,7 +6,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { withViewTransition } from '$lib/utils/view-transition';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery } from '$lib/stores/ui.js';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '$lib/stores/ui.js';
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
@@ -21,6 +21,7 @@
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
   import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
   import Home from '$lib/components/Home.svelte';
+  import WelcomeTour from '$lib/components/WelcomeTour.svelte';
   import type Workspace from '$lib/components/Workspace.svelte';
   import CreateInstance from '$lib/components/CreateInstance.svelte';
   import type { Ticket } from '$lib/types/integrations';
@@ -172,6 +173,7 @@
     initIntegrations();
     // Small JSON files, read at once rather than one after the other.
     const [, saved] = await Promise.all([settings.load(), getUiState(), loadProjects()]);
+    if (!get(settings).onboardingSeen) showWelcomeTour.set(true);
     stopUpdateChecks = startUpdateChecks();
 
     screen = saved.screen;
@@ -358,6 +360,10 @@
 
 {#if !mounted}
   <LoadingScreen/>
+{/if}
+
+{#if $showWelcomeTour}
+  <WelcomeTour on:close={() => { showWelcomeTour.set(false); void settings.save({ onboardingSeen: true }); }}/>
 {/if}
 
 <div class="os-window">

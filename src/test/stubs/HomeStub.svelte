@@ -19,14 +19,16 @@
   data-add-path={openAddProjectPath}
   data-add-clone-url={openAddProjectCloneUrl}
 >
-  <button class="stub-open-project" on:click={() => dispatch('openProject', 'p1')}></button>
-  <button class="stub-close-project" on:click={() => dispatch('closeProject', 'p1')}></button>
+  <button class="stub-open-project" aria-label="open project" on:click={() => dispatch('openProject', 'p1')}></button>
+  <button class="stub-close-project" aria-label="close project" on:click={() => dispatch('closeProject', 'p1')}></button>
   <button
     class="stub-section-change"
+    aria-label="section change"
     on:click={() => dispatch('sectionChange', { section: 'settings', settingsTab: 'git' })}
   ></button>
   <button
     class="stub-section-change-other"
+    aria-label="section change other"
     on:click={() => dispatch('sectionChange', { section: 'settings', settingsTab: 'editor' })}
   ></button>
 </div>

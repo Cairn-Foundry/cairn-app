@@ -2495,6 +2495,42 @@ export const en = {
 		},
 	},
 
+	welcome: {
+		title: "Welcome to Cairn",
+		stepLabel: "Step",
+		next: "Next",
+		back: "Back",
+		skip: "Skip",
+		start: "Get started",
+		reportBug: "Report a bug on GitHub",
+		steps: {
+			welcome: {
+				title: "Welcome to Cairn",
+				body: "Cairn is a workspace for building with an AI agent: one place for your projects, your branches, your code and your conversations. This short tour covers the essentials.",
+			},
+			projects: {
+				title: "Projects",
+				body: "A project is a git repository you register once. Cairn keeps them on the home screen, groups them in folders, and remembers exactly where you left each one.",
+			},
+			instances: {
+				title: "Instances",
+				body: "An instance is an isolated workspace on a project: its own git worktree, its own branch, its own terminals and conversations. Work on several tasks in parallel without ever stashing anything.",
+			},
+			steps: {
+				title: "Workflow steps",
+				body: "Each instance moves through the same tabs: Files to write code, Agent to delegate, Tests, Git, CI/CD and Review. They are the stages of a change, from the first edit to the merge request.",
+			},
+			agent: {
+				title: "The agent",
+				body: "The Agent step opens your coding CLI - Claude Code, Codex, Gemini CLI and others - in the instance worktree. Cairn keeps the list of conversations and reopens each one where it stopped.",
+			},
+			beta: {
+				title: "This is a beta",
+				body: "Cairn 1.0 ships as a public beta: expect rough edges, and things that change. Bug reports and ideas are the fastest way to shape what comes next.",
+			},
+		},
+	},
+
 	deleteFolder: {
 		heading: "Confirm deletion",
 		title: (name: string) => `Remove folder "${name}"?`,
@@ -2617,6 +2653,13 @@ export const en = {
 				uninstall: "Remove the cairn command",
 				unavailable:
 					"The launcher is only available in an installed build of Cairn, not in development mode.",
+			},
+			welcome: {
+				groupTitle: "Guided tour",
+				replay: "Welcome tour",
+				replayDesc:
+					"Go through the introduction to projects, instances and steps again.",
+				replayAction: "Replay",
 			},
 			updates: {
 				groupTitle: "Updates",

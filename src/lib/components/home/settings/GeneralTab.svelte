@@ -9,6 +9,7 @@
   import { checkForUpdates, openUpdateModal, updateState } from '$lib/stores/update';
   import { onMount } from 'svelte';
   import { getCliStatus, installCli, uninstallCli, type CliStatus } from '$lib/services/cli-service';
+  import { showWelcomeTour } from '$lib/stores/ui.js';
 
   let cli: CliStatus | null = null;
   let cliBusy = false;
@@ -77,6 +78,19 @@
         {cli?.installed ? t('settings.general.cli.uninstall') : t('settings.general.cli.install')}
       </button>
     {/if}
+  </div>
+</div>
+
+<div class="settings-group">
+  <div class="settings-group-title">{t('settings.general.welcome.groupTitle')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.general.welcome.replay')}</span>
+      <span class="settings-row-desc">{t('settings.general.welcome.replayDesc')}</span>
+    </div>
+    <button class="btn" on:click={() => showWelcomeTour.set(true)}>
+      {t('settings.general.welcome.replayAction')}
+    </button>
   </div>
 </div>
 

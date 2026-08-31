@@ -14,6 +14,8 @@
   import UpdateCard from '$lib/components/layout/UpdateCard.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import { aiEnabled } from '$lib/stores/settings';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { ISSUES_URL } from '$lib/utils/links';
 
   export let activeSection: HomeSection;
 
@@ -73,12 +75,36 @@
 
   <div style="flex: 1"></div>
   <UpdateCard/>
-  <div style="padding: 0 8px; font-size: 11px; color: var(--fg-3); font-family: var(--font-mono);">
-    v{__APP_VERSION__ ?? 'dev'}
-  </div>
+  <div class="version">v{__APP_VERSION__ ?? 'dev'}</div>
+  <button class="report" on:click={() => openUrl(ISSUES_URL)}>
+    <Icon name="github" size={13}/> {t('welcome.reportBug')}
+  </button>
 </aside>
 
 <style>
+  .version {
+    padding: 0 8px 6px;
+    font-size: 11px;
+    color: var(--fg-3);
+    font-family: var(--font-mono);
+  }
+
+  .report {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 8px;
+    background: none;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--fg-2);
+    font-family: var(--font-ui);
+  }
+  .report:hover { background: var(--bg-4); color: var(--fg-0); }
+
   .home-nav-item {
     display: flex;
     align-items: center;

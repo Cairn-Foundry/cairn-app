@@ -20,6 +20,7 @@
   {#each markers as marker}
     <button
       class="stub-marker"
+      aria-label="marker"
       data-line={marker.line}
       data-side={marker.side}
       on:click={() => dispatch('markerClick', { line: marker.line, side: marker.side })}
