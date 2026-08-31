@@ -43,6 +43,7 @@
   import { resolveAiFeature } from '$lib/utils/home/ai-features';
   import { isAssistCliInstalled } from '$lib/stores/cli-providers';
   import DiffEditor from './DiffEditor.svelte';
+  import RegenerateGuideModal from './RegenerateGuideModal.svelte';
   import ReviewSummary from './ReviewSummary.svelte';
 
   export let scope: ReviewScope;
@@ -142,8 +143,24 @@
   $: guideFeature = resolveAiFeature('reviewGuide', $settings.aiFeatures, $isAssistCliInstalled);
   $: commentFeature = resolveAiFeature('reviewComment', $settings.aiFeatures, $isAssistCliInstalled);
 
-  async function generate() {
+  let confirmingRegenerate = false;
+
+  /**
+   * Regenerating throws the current guide away, so it is asked for rather than
+   * taken. The first generation has nothing to lose and goes straight through.
+   */
+  function askRegenerate() {
+    confirmingRegenerate = true;
+  }
+
+  async function confirmRegenerate() {
+    confirmingRegenerate = false;
+    await generate({ resetProgress: true });
+  }
+
+  async function generate({ resetProgress = false } = {}) {
     await generateGuide(scope, {
+      resetProgress,
       base,
       head,
       baseSha: base,
@@ -188,7 +205,11 @@
   }
 
   function toggleSeen() {
-    if (currentChapter) markChapterSeen(scope, currentChapter.id, !currentChapter.isSeen);
+    if (!currentChapter) return;
+    const isSeen = !currentChapter.isSeen;
+    markChapterSeen(scope, currentChapter.id, isSeen);
+    // Marking carries the reader on; unmarking must not throw them forward.
+    if (isSeen) stepChapter(1);
   }
 
   /** Every action the review shortcuts can reach; the palette calls the same. */
@@ -461,7 +482,7 @@
     <h3>{t('review.generateGuide')}</h3>
     <p class="note">{t('review.generateGuideBody')}</p>
     {#if error}<p class="note error">{error}</p>{/if}
-    <button class="btn primary small" on:click={generate} disabled={!base}>
+    <button class="btn primary small" on:click={() => void generate()} disabled={!base}>
       <Icon name="sparkles" size={12}/> {t('review.generateGuide')}
     </button>
   </div>
@@ -470,7 +491,7 @@
     <div class="banner">
       <Icon name="info" size={12}/>
       <span>{t('review.guideStale')}</span>
-      <button class="btn small" on:click={generate}>{t('review.regenerate')}</button>
+      <button class="btn small" on:click={askRegenerate}>{t('review.regenerate')}</button>
     </div>
   {/if}
   {#if error}
@@ -559,6 +580,9 @@
           </button>
           <button class="btn ghost tiny" on:click={() => step(1)} title={hintTitle('review.nextExcerpt', 'reviewNextExcerpt')} aria-label={t('review.nextExcerpt') as string}>
             <Icon name="chev-r" size={12}/>
+          </button>
+          <button class="btn ghost tiny" on:click={askRegenerate} title={t('review.regenerate') as string} aria-label={t('review.regenerate') as string}>
+            <Icon name="refresh" size={12}/>
           </button>
           <button class="btn small" class:primary={!currentChapter.isSeen} on:click={toggleSeen} title={hintTitle('review.markSeen', 'reviewMarkSeen')}>
             <Icon name="check" size={12}/>
@@ -686,7 +710,7 @@
             <textarea
               class="selectable"
               bind:value={commentDraft}
-              placeholder={t('review.commentPlaceholder') as string}
+              placeholder={isDrafting ? '' : (t('review.commentPlaceholder') as string)}
               rows="5"
               disabled={isDrafting}
               aria-busy={isDrafting}
@@ -785,6 +809,14 @@
     {state}
     {hasMergeRequest}
     on:close={() => (isSummaryOpen = false)}
+  />
+{/if}
+
+{#if confirmingRegenerate}
+  <RegenerateGuideModal
+    seenHunks={progress.seenHunks}
+    on:confirm={() => void confirmRegenerate()}
+    on:close={() => (confirmingRegenerate = false)}
   />
 {/if}
 

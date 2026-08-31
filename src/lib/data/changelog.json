@@ -202,6 +202,76 @@
 					"en": "The git history and the commit graph are noticeably faster on large repositories: each page of history no longer walks the whole branch to tell which commits it contains, the graph loads twenty commits at a time and only keeps the visible rows in the page, and scrolling extends the existing lane layout instead of recomputing it from the first commit.",
 					"fr": "L'historique git et le graphe des commits sont nettement plus rapides sur les gros dépôts : chaque page d'historique ne parcourt plus toute la branche pour savoir quels commits elle contient, le graphe charge vingt commits à la fois et ne conserve dans la page que les lignes visibles, et le défilement prolonge le tracé des couloirs existant au lieu de le recalculer depuis le premier commit."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The environment variables view gains a search field: filtering on a key or a value narrows the three scopes at once. Reordering is paused while a search is active, so a drag can never land a variable somewhere the filtered list only appeared to point at.",
+					"fr": "La vue des variables d'environnement gagne un champ de recherche : filtrer sur une clé ou une valeur restreint les trois portées à la fois. Le réordonnancement est suspendu tant qu'une recherche est active, afin qu'un glissement ne dépose jamais une variable là où la liste filtrée semblait seulement pointer."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Pinned commands reorder by drag in their sidebar, and dragging one across the separator moves it between the global and project scopes - the same gesture the terminals and the commands view already use.",
+					"fr": "Les commandes épinglées se réordonnent par glissement dans leur barre latérale, et faire passer l'une d'elles de l'autre côté du séparateur la déplace entre la portée globale et la portée projet - le geste déjà utilisé par les terminaux et la vue des commandes."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The review guide can be regenerated from the chapter header, without waiting for the diff to go stale.",
+					"fr": "Le guide de review peut être régénéré depuis l'en-tête du chapitre, sans attendre que le diff devienne obsolète."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Marking a chapter of the review guide as seen moves on to the next one; unmarking one leaves the reader where they are.",
+					"fr": "Marquer un chapitre du guide de review comme vu enchaîne sur le suivant ; le démarquer laisse le lecteur où il est."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The comment placeholder of the review guide no longer shows through the AI drafting animation.",
+					"fr": "Le texte d'aide du champ de commentaire du guide de review ne transparaît plus derrière l'animation de rédaction par l'IA."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching project no longer tears the terminals down and rebuilds them: they stay as they were, instead of being disposed and replayed for nothing.",
+					"fr": "Changer de projet ne démonte plus les terminaux pour les reconstruire : ils restent en l'état au lieu d'être détruits puis rejoués pour rien."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A terminal restored into a view that had not been laid out yet could stay black or come back with its content scrambled. Its screen is now replayed before it is resized, and a terminal that opened with no size is repainted once it gets one.",
+					"fr": "Un terminal restauré dans une vue pas encore dimensionnée pouvait rester noir ou revenir avec un contenu désordonné. Son écran est désormais rejoué avant d'être redimensionné, et un terminal ouvert sans dimensions est repeint dès qu'il en obtient."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Regenerating the review guide now asks first, and says what it costs: the guide is rewritten whole and the reading progress goes with it. Confirming forgets which hunks were read, so a fresh guide starts on a clean slate rather than showing chapters as unread over a full progress bar.",
+					"fr": "Régénérer le guide de review demande désormais confirmation, et annonce ce que cela coûte : le guide est réécrit entièrement et la progression de lecture disparaît avec lui. Confirmer oublie les sections déjà lues, afin qu'un guide neuf reparte de zéro au lieu d'afficher des chapitres non lus sous une barre de progression pleine."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The agent session header gains a reload button, which relaunches the CLI on the conversation it was resuming.",
+					"fr": "L'en-tête de la session agent gagne un bouton de relance, qui redémarre le CLI sur la conversation qu'il reprenait."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "When the CLI of a conversation exits, the session says so instead of leaving a dead terminal behind, and offers to relaunch it or to archive the conversation. The terminal stays on screen: its last output is what explains the exit.",
+					"fr": "Lorsque le CLI d'une conversation s'arrête, la session le signale au lieu de laisser un terminal mort, et propose de le relancer ou d'archiver la conversation. Le terminal reste affiché : ses dernières lignes sont ce qui explique l'arrêt."
+				}
 			}
 		]
 	},

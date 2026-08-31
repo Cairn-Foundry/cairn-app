@@ -524,6 +524,11 @@ export const fr = {
 		untitled: "Nouvelle conversation",
 		stopped: "Ce CLI n'est pas en cours d'execution.",
 		resume: "Reprendre",
+		reload: "Relancer le CLI",
+		restart: "Relancer",
+		exited: "Ce CLI s'est arrêté.",
+		exitedWithCode: (code: number) =>
+			`Ce CLI s'est arrêté avec le code ${code}.`,
 		noActiveInstance: "Aucune instance active",
 		picker: {
 			title: "Demarrer une conversation",
@@ -882,6 +887,8 @@ export const fr = {
 		instanceEmpty: "Aucune variable pour cette instance.",
 		projectEmpty: "Aucune variable pour ce projet.",
 		globalEmpty: "Aucune variable partagée entre tous les projets.",
+		search: "Rechercher une clé ou une valeur...",
+		searchEmpty: "Aucune variable ne correspond à cette recherche.",
 		resolved: "Résultat",
 		resolvedEmpty: "Rien à injecter pour l'instant.",
 		new: "Nouvelle variable",
@@ -2133,6 +2140,11 @@ export const fr = {
 			"Cairn lit le diff de la branche et en écrit la visite guidée : ce que fait la branche, chapitre par chapitre, avec les points qui méritent votre attention.",
 		generating: "Rédaction du guide",
 		regenerate: "Régénérer",
+		regenerateHeading: "Régénérer le guide",
+		regenerateBody:
+			"Le guide est réécrit à partir du diff actuel. Les chapitres, leurs remarques et leur ordre sont remplacés.",
+		regenerateProgress: (n: number) =>
+			`Votre progression est oubliée : ${n} ${n > 1 ? "sections sont marquées lues" : "section est marquée lue"} aujourd'hui.`,
 		guideStale:
 			"La branche a bougé depuis ce guide. Régénérez-le pour couvrir les nouveaux commits.",
 		guideFailed: "Le guide n'a pas pu être écrit.",

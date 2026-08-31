@@ -178,6 +178,43 @@
     activeConversationId.update((m) => ({ ...m, [scopeKey]: null }));
   }
 
+  /**
+   * Conversations whose CLI exited on its own. The terminal is kept: its last
+   * output is what tells the user why it stopped, so it stays on screen with
+   * the choice of relaunching or putting the conversation away.
+   */
+  let exited = $state<Record<string, number | null>>({});
+  let exitCode = $derived(terminalId ? exited[terminalId] : undefined);
+  let hasExited = $derived(terminalId ? terminalId in exited : false);
+
+  onMount(() =>
+    manager.onTerminalExit(({ id, exitCode: code }) => {
+      exited = { ...exited, [id]: code };
+    }),
+  );
+
+  /**
+   * Relaunches the CLI of the open conversation. `openConversation` returns
+   * early while a terminal is still registered, so the old one goes first;
+   * resuming is left to it, which is what puts the session back where it was.
+   *
+   * The exit mark is dropped by hand: a conversation keeps its terminal id
+   * across a relaunch, so the mark would otherwise outlive the process it
+   * described.
+   */
+  async function restartConversation() {
+    if (!active) return;
+    const { ref, meta } = active;
+    const tid = terminalId;
+    closeConversation(meta.id);
+    if (tid) {
+      const next = { ...exited };
+      delete next[tid];
+      exited = next;
+    }
+    await openConversation(ref, meta.id).catch(() => {});
+  }
+
   let renaming = $state(false);
   let renameValue = $state('');
 
@@ -264,6 +301,15 @@
 
         <button
           class="icon-btn"
+          onclick={() => void restartConversation()}
+          title={t('agent.reload') as string}
+          aria-label={t('agent.reload') as string}
+        >
+          <Icon name="refresh" size={14}/>
+        </button>
+
+        <button
+          class="icon-btn"
           onclick={() => archiveConversation()}
           title={t('agent.history.archive') as string}
           aria-label={t('agent.history.archive') as string}
@@ -273,6 +319,26 @@
       </div>
 
       <div class="term-slot" bind:this={slotEl}></div>
+
+      {#if hasExited && terminalId}
+        <div class="conv-exited">
+          <span class="conv-exited-mark"><Icon name="alert" size={14}/></span>
+          <span class="conv-exited-text">
+            {#if exitCode}
+              {(t('agent.exitedWithCode') as (code: number) => string)(exitCode)}
+            {:else}
+              {t('agent.exited')}
+            {/if}
+          </span>
+          <div class="spacer"></div>
+          <button class="btn small primary" onclick={() => void restartConversation()}>
+            <Icon name="refresh" size={13}/> {t('agent.restart')}
+          </button>
+          <button class="btn small ghost" onclick={() => archiveConversation()}>
+            <Icon name="archive" size={13}/> {t('agent.history.archive')}
+          </button>
+        </div>
+      {/if}
 
       {#if !terminalId}
         <div class="conv-stopped">
@@ -370,6 +436,25 @@
     min-height: 0;
     overflow: hidden;
   }
+
+  .conv-exited {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--stroke-0);
+    background: var(--bg-1);
+    font-size: 12.5px;
+    color: var(--fg-1);
+  }
+
+  .conv-exited-mark {
+    display: flex;
+    align-items: center;
+    color: var(--warn, var(--fg-2));
+  }
+
+  .conv-exited-text { min-width: 0; }
 
   .conv-stopped {
     display: flex;

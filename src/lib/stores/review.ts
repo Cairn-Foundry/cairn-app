@@ -167,13 +167,18 @@ export interface GenerateGuideOptions {
 	provider?: string;
 	model?: string;
 	binaryPath?: string;
+	/**
+	 * Forgets which hunks were read. Only a deliberate regeneration asks for it:
+	 * a first generation must leave alone what the diff view already marked.
+	 */
+	resetProgress?: boolean;
 }
 
 /**
  * Reads the branch diff, asks the model for the guide, and attaches what it
  * answered to the real hunks. The guide replaces the previous one whole: the
  * reading state is on hunk hashes, so what was read and did not change stays
- * read across a regeneration.
+ * read across a regeneration, unless `resetProgress` asks for a clean slate.
  */
 export async function generateGuide(
 	scope: ReviewScope,
@@ -226,6 +231,7 @@ export async function generateGuide(
 			// overview, which explains the branch before its code means anything.
 			currentChapterId: "",
 			currentExcerptIndex: 0,
+			...(options.resetProgress ? { seenHunks: [] } : {}),
 		}));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

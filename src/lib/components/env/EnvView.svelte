@@ -8,6 +8,7 @@
   import CopyButton from '$lib/components/CopyButton.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
+  import SearchInput from '$lib/components/SearchInput.svelte';
   import EnvEditor from '$lib/components/env/EnvEditor.svelte';
   import EnvImport from '$lib/components/env/EnvImport.svelte';
   import { t } from '$lib/i18n';
@@ -43,6 +44,7 @@
   let editing: { scope: EnvScope; variable: EnvVariable; isNew: boolean } | null = null;
   let importing = false;
   let revealed = new Set<string>();
+  let search = '';
   let loading = true;
 
   let bodyEls: Partial<Record<EnvScope, HTMLDivElement>> = {};
@@ -93,6 +95,19 @@
       empty: t('env.instanceEmpty'),
     },
   ];
+
+  $: query = search.trim().toLowerCase();
+  $: shownSections = query
+    ? sections.map((s) => ({
+        ...s,
+        list: s.list.filter(
+          (v) =>
+            v.key.toLowerCase().includes(query) ||
+            (!v.secret && v.value.toLowerCase().includes(query)),
+        ),
+        empty: t('env.searchEmpty'),
+      }))
+    : sections;
 
   $: allKeys = sections.flatMap((s) => s.list.map((v) => v.key));
 
@@ -265,6 +280,10 @@
 
   function dragPointerDown(e: PointerEvent, scope: EnvScope, index: number, id: string) {
     if ((e.target as Element).closest('button, input')) return;
+    if (query) {
+      applySelection(e, scope, index, id);
+      return;
+    }
     e.preventDefault();
     applySelection(e, scope, index, id);
     if (!isSelected(scope, id)) return;
@@ -430,10 +449,16 @@
       </label>
     </div>
 
+    <SearchInput
+      bind:value={search}
+      placeholder={t('env.search') as string}
+      ariaLabel={t('env.search') as string}
+    />
+
     {#if loading}
       <div class="env-loading"><Skeleton lines={5}/></div>
     {:else}
-      {#each sections as section (section.scope)}
+      {#each shownSections as section (section.scope)}
         <div class="env-section">
           <div class="env-section-head">
             <span>{section.label}</span>

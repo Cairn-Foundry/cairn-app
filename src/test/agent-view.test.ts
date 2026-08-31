@@ -15,6 +15,13 @@ vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
 	listCliProviders: (...a: unknown[]) => listCliProviders(...a),
 }));
 
+const exitHandlers = vi.hoisted(
+	() => new Set<(e: { id: string; exitCode: number | null }) => void>(),
+);
+/** Fires a PTY exit the way the terminal manager would. */
+const fireExit = (id: string, exitCode: number | null) => {
+	for (const h of exitHandlers) h({ id, exitCode });
+};
 const createTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const closeTerminal = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/services/terminal-service", async (importOriginal) => ({
@@ -34,6 +41,10 @@ vi.mock("$lib/utils/terminal/terminal-manager", () => ({
 	size: () => ({ cols: 80, rows: 24 }),
 	observeInput: vi.fn(),
 	observeOutput: vi.fn(),
+	onTerminalExit: (h: (e: unknown) => void) => {
+		exitHandlers.add(h);
+		return () => exitHandlers.delete(h);
+	},
 }));
 
 vi.mock("$lib/services/conversation-service", () => ({
@@ -117,6 +128,7 @@ const cardNamed = (name: string) =>
 beforeEach(async () => {
 	vi.clearAllMocks();
 	listCliProviders.mockResolvedValue(providers());
+	exitHandlers.clear();
 	createTerminal.mockResolvedValue(undefined);
 	closeTerminal.mockResolvedValue(undefined);
 
@@ -326,6 +338,29 @@ describe("archiving a conversation", () => {
 		expect(closeTerminal).toHaveBeenCalled();
 	});
 
+	it("archives from the exited banner without leaving a process behind", async () => {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		const ref = {
+			projectId: "p1",
+			instanceId: "i1",
+			scope: "instance" as const,
+		};
+		fireExit(`conversation:${conversationsOf(ref)[0].id}`, 1);
+		await tick();
+
+		const banner = document.querySelector(".conv-exited") as HTMLElement;
+		const archive = Array.from(banner.querySelectorAll("button")).find((b) =>
+			/archive/i.test(b.textContent ?? ""),
+		) as HTMLButtonElement;
+		await userEvent.click(archive);
+		await tick();
+
+		expect(conversationsOf(ref)[0].archived).toBe(true);
+		expect(closeTerminal).toHaveBeenCalled();
+	});
+
 	it("leaves the view on the picker rather than on an archived conversation", async () => {
 		await mount();
 		await userEvent.click(cardNamed("Claude Code"));
@@ -336,5 +371,79 @@ describe("archiving a conversation", () => {
 
 		expect(document.querySelector(".conv-bar")).toBeNull();
 		expect(document.querySelector(".picker")).not.toBeNull();
+	});
+});
+
+describe("when the CLI exits", () => {
+	/** Opens a conversation and returns the terminal id its PTY would carry. */
+	async function openOne() {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		const ref = {
+			projectId: "p1",
+			instanceId: "i1",
+			scope: "instance" as const,
+		};
+		return `conversation:${conversationsOf(ref)[0].id}`;
+	}
+
+	it("says nothing while the CLI is running", async () => {
+		await openOne();
+		expect(document.querySelector(".conv-exited")).toBeNull();
+	});
+
+	// The terminal stays on screen: its last output is what explains the exit.
+	it("offers a way out once the process is gone, keeping the terminal", async () => {
+		const tid = await openOne();
+		fireExit(tid, 3);
+		await tick();
+
+		const banner = document.querySelector(".conv-exited");
+		expect(banner).not.toBeNull();
+		expect(banner?.textContent).toContain("3");
+		expect(document.querySelector(".term-slot")).not.toBeNull();
+	});
+
+	it("reads a signal kill as an exit without a code", async () => {
+		const tid = await openOne();
+		fireExit(tid, null);
+		await tick();
+		expect(document.querySelector(".conv-exited")?.textContent).not.toContain(
+			"null",
+		);
+	});
+
+	it("ignores the exit of another conversation's CLI", async () => {
+		await openOne();
+		fireExit("conversation:someone-else", 1);
+		await tick();
+		expect(document.querySelector(".conv-exited")).toBeNull();
+	});
+
+	it("relaunches the CLI from the banner", async () => {
+		const tid = await openOne();
+		fireExit(tid, 1);
+		await tick();
+		createTerminal.mockClear();
+
+		const banner = document.querySelector(".conv-exited") as HTMLElement;
+		const restart = banner.querySelector("button") as HTMLButtonElement;
+		await userEvent.click(restart);
+		await tick();
+
+		// Killed then spawned again: openConversation returns early while a
+		// terminal is still registered.
+		expect(closeTerminal).toHaveBeenCalled();
+		expect(createTerminal).toHaveBeenCalled();
+		expect(document.querySelector(".conv-exited")).toBeNull();
+	});
+
+	it("reloads from the header while the CLI is still running", async () => {
+		await openOne();
+		createTerminal.mockClear();
+		await userEvent.click(screen.getByRole("button", { name: /reload/i }));
+		await tick();
+		expect(createTerminal).toHaveBeenCalled();
 	});
 });

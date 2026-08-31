@@ -27,6 +27,7 @@ interface ManagedTerminal {
 	serialize: SerializeAddon | null;
 	el: HTMLDivElement;
 	webgl: WebglAddon | null;
+	observer: ResizeObserver | null;
 	frozen: string;
 	cols: number;
 	rows: number;
@@ -76,11 +77,16 @@ function buildTheme() {
 /** Refits to the slot; a terminal in a hidden view has no size to fit to. */
 function refitTerminal(m: ManagedTerminal): void {
 	if (!m.fit) return;
+	const wasBlind = m.term?.element?.clientWidth === 0;
 	try {
 		m.fit.fit();
 	} catch {
 		// Slot has no layout yet (hidden view); ignore until it is shown.
+		return;
 	}
+	// fit() is a no-op when the size did not change, so a terminal that opened
+	// against a zero-sized slot would keep the blank canvas it rendered into.
+	if (wasBlind && m.term) m.term.refresh(0, m.term.rows - 1);
 }
 
 /** Repaints every terminal after a theme change, refitting only on a font change. */
@@ -297,6 +303,7 @@ export function create(id: string): void {
 		serialize: null,
 		el,
 		webgl: null,
+		observer: null,
 		frozen: "",
 		cols: 80,
 		rows: 24,
@@ -333,15 +340,25 @@ function wake(id: string, m: ManagedTerminal): void {
 		void resizeTerminal(id, cols, rows);
 	});
 
+	// Claim the backlog before `m.term` goes live: once it is set, write() routes
+	// straight to the instance, and output arriving here would be replayed over
+	// by the frozen screen. Writing before the fit is also the right order --
+	// xterm reflows its buffer on resize, whereas fitting first replays the old
+	// absolute cursor positioning into a new grid.
+	const backlog = m.frozen;
+	m.frozen = "";
 	m.term = term;
 	m.fit = fit;
 	m.serialize = serialize;
 	term.open(m.el);
+	if (backlog) term.write(backlog);
 	refitTerminal(m);
-	if (m.frozen) {
-		term.write(m.frozen);
-		m.frozen = "";
-	}
+
+	// A slot with no layout yet makes fit() throw, which leaves xterm at its
+	// 80x24 default with nothing to bring it back: the pane stays blank and the
+	// PTY keeps the wrong size. Observing the host gives it that second chance.
+	m.observer = new ResizeObserver(() => refit(id));
+	m.observer.observe(m.el);
 }
 
 /**
@@ -369,6 +386,8 @@ export function detach(id: string): void {
 	const m = managed.get(id);
 	if (!m?.term) return;
 	unloadRenderer(m);
+	m.observer?.disconnect();
+	m.observer = null;
 	m.frozen = (m.serialize?.serialize({ scrollback: 2000 }) ?? "") + m.frozen;
 	m.term.dispose();
 	m.term = null;
@@ -419,6 +438,7 @@ export function size(id: string): { cols: number; rows: number } {
 export function dispose(id: string): void {
 	const m = managed.get(id);
 	if (!m) return;
+	m.observer?.disconnect();
 	m.term?.dispose();
 	m.el.remove();
 	managed.delete(id);

@@ -11,11 +11,31 @@ export const activeStep = writable<WorkflowStep>("files");
 /** Top-level screen, driven by +page.svelte. */
 export const activeScreen = writable<"home" | "workspace">("home");
 
-/** Open tool taking over the main area. Set these through showTool(), never directly. */
-export const terminalActive = writable(false);
-export const commandsActive = writable(false);
-export const envActive = writable(false);
-export const formattingActive = writable(false);
+/**
+ * Open tool taking over the main area. Set these through showTool(), never directly.
+ *
+ * A plain writable notifies on every set, even an identical one, and switching
+ * project rewrites all four. The terminal view tears its xterm instances down
+ * and rebuilds them whenever its flag notifies, so an unchanged value must stay
+ * silent or terminals get disposed and replayed for nothing.
+ */
+function toolFlag() {
+	const store = writable(false);
+	let current = false;
+	return {
+		subscribe: store.subscribe,
+		set(value: boolean) {
+			if (value === current) return;
+			current = value;
+			store.set(value);
+		},
+	};
+}
+
+export const terminalActive = toolFlag();
+export const commandsActive = toolFlag();
+export const envActive = toolFlag();
+export const formattingActive = toolFlag();
 
 /**
  * The CLI the Agent step last started a conversation with, per project. The

@@ -507,6 +507,10 @@ export const en = {
 		untitled: "New conversation",
 		stopped: "This CLI is not running.",
 		resume: "Resume",
+		reload: "Reload the CLI",
+		restart: "Restart",
+		exited: "This CLI has exited.",
+		exitedWithCode: (code: number) => `This CLI has exited with code ${code}.`,
 		noActiveInstance: "No active instance",
 		picker: {
 			title: "Start a conversation",
@@ -861,6 +865,8 @@ export const en = {
 		instanceEmpty: "No variable for this instance yet.",
 		projectEmpty: "No variable for this project yet.",
 		globalEmpty: "No variable shared across every project yet.",
+		search: "Search a key or a value...",
+		searchEmpty: "No variable matches this search.",
 		resolved: "Resolved",
 		resolvedEmpty: "Nothing to inject yet.",
 		new: "New variable",
@@ -2095,6 +2101,11 @@ export const en = {
 			"Cairn reads the branch diff and writes a guided tour of it: what the branch does, chapter by chapter, with the points worth your attention.",
 		generating: "Writing the guide",
 		regenerate: "Regenerate",
+		regenerateHeading: "Regenerate the guide",
+		regenerateBody:
+			"The guide is written again from the current diff. The chapters, their remarks and their order are replaced.",
+		regenerateProgress: (n: number) =>
+			`What you have read is forgotten: ${n} ${n > 1 ? "hunks are" : "hunk is"} marked read today.`,
 		guideStale:
 			"The branch moved since this guide was written. Regenerate it to cover the new commits.",
 		guideFailed: "The guide could not be written.",

@@ -16,9 +16,13 @@ vi.mock("$lib/stores/command-run", async (importOriginal) => ({
 }));
 
 const toggleCommandPinned = vi.fn();
+const reorderCommand = vi.fn();
+const moveCommandToScope = vi.fn();
 vi.mock("$lib/stores/custom-command", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	toggleCommandPinned: (...a: unknown[]) => toggleCommandPinned(...a),
+	reorderCommand: (...a: unknown[]) => reorderCommand(...a),
+	moveCommandToScope: (...a: unknown[]) => moveCommandToScope(...a),
 }));
 
 const activeInstanceStore = writable<unknown>(null);
@@ -39,6 +43,9 @@ vi.mock("$lib/stores/ui", async (importOriginal) => ({
 }));
 
 const { projects, activeProjectId } = await import("$lib/stores/project");
+const { globalCommands, projectCommands } = await import(
+	"$lib/stores/custom-command"
+);
 const { project, instance } = await import("./fixtures");
 const { default: PinnedCommandsSidebar } = await import(
 	"$lib/components/commands/PinnedCommandsSidebar.svelte"
@@ -103,6 +110,8 @@ beforeEach(() => {
 	requestCommandLaunch.mockReset().mockResolvedValue(undefined);
 	stopCommand.mockReset().mockResolvedValue(undefined);
 	toggleCommandPinned.mockReset();
+	reorderCommand.mockReset();
+	moveCommandToScope.mockReset();
 	setActiveTerminal.mockReset();
 	showTool.mockReset();
 	commandRuns.set({});
@@ -315,6 +324,78 @@ describe("PinnedCommandsSidebar", () => {
 			);
 			await tick();
 			expect(tooltip()).toBeNull();
+		});
+	});
+
+	describe("drag to reorder", () => {
+		/** Drags an item onto another, past the 6px threshold. */
+		async function drag(from: HTMLButtonElement, to: HTMLButtonElement) {
+			to.getBoundingClientRect = () => ({ top: 100, height: 20 }) as DOMRect;
+			from.dispatchEvent(
+				new PointerEvent("pointerdown", {
+					bubbles: true,
+					clientX: 0,
+					clientY: 0,
+				}),
+			);
+			from.dispatchEvent(
+				new PointerEvent("pointermove", {
+					bubbles: true,
+					clientX: 0,
+					clientY: 40,
+				}),
+			);
+			from.dispatchEvent(
+				new PointerEvent("pointermove", {
+					bubbles: true,
+					clientX: 0,
+					clientY: 101,
+				}),
+			);
+			from.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+			await tick();
+		}
+
+		/**
+		 * The rail shows pinned commands only, while the store reorders the whole
+		 * scope list: the index handed over has to be the one in that full list,
+		 * not the one on screen.
+		 */
+		it("maps a rail index onto the full scope list", async () => {
+			globalCommands.set([
+				command("hidden", { pinned: false }),
+				command("build"),
+				command("deploy"),
+			]);
+			mount({ globalPinned: [command("build"), command("deploy")] });
+			await drag(itemFor("deploy"), itemFor("build"));
+			expect(reorderCommand).toHaveBeenCalledWith("global", "p1", 2, 1);
+		});
+
+		it("moves a command across the scope divider", async () => {
+			globalCommands.set([command("build")]);
+			projectCommands.set({ p1: [command("test")] });
+			mount({
+				globalPinned: [command("build")],
+				projectPinned: [command("test")],
+			});
+			await drag(itemFor("build"), itemFor("test"));
+			expect(moveCommandToScope).toHaveBeenCalledWith(
+				"global",
+				"project",
+				"p1",
+				"build",
+				0,
+			);
+			expect(reorderCommand).not.toHaveBeenCalled();
+		});
+
+		it("leaves a click alone when the pointer never travelled", async () => {
+			globalCommands.set([command("build")]);
+			mount({ globalPinned: [command("build")] });
+			await userEvent.click(itemFor("build"));
+			expect(reorderCommand).not.toHaveBeenCalled();
+			expect(requestCommandLaunch).toHaveBeenCalled();
 		});
 	});
 });

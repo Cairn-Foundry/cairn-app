@@ -180,6 +180,32 @@ describe("generateGuide", () => {
 		expect(stateFor(scope).currentChapterId).toBe("");
 	});
 
+	// Reading state is keyed on hunk hashes, so what did not change stays read.
+	it("keeps what was read across an ordinary regeneration", async () => {
+		await generate();
+		markChapterSeen(scope, "c1");
+		expect(stateFor(scope).seenHunks).not.toHaveLength(0);
+		await generate();
+		expect(stateFor(scope).seenHunks).toContain("aaa");
+	});
+
+	it("forgets it when the regeneration asks for a clean slate", async () => {
+		await generate();
+		markChapterSeen(scope, "c1");
+		getDiffUnified.mockResolvedValue({ text: "diff", truncated: false });
+		getDiffHunks.mockResolvedValue(HUNKS);
+		runOneshot.mockResolvedValue(ANSWER);
+		await generateGuide(scope, {
+			base: "main",
+			head: "feature",
+			baseSha: "base1",
+			headSha: "head1",
+			resetProgress: true,
+		});
+		expect(stateFor(scope).seenHunks).toEqual([]);
+		expect(stateFor(scope).guide?.chapters[0].isSeen).toBe(false);
+	});
+
 	it("reports a failure without wiping what was there", async () => {
 		await generate();
 		getDiffUnified.mockRejectedValue(new Error("boom"));
