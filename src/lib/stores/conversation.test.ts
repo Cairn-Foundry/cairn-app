@@ -107,14 +107,46 @@ describe("starting a conversation", () => {
 });
 
 describe("reopening a conversation", () => {
-	it("resumes by id when the CLI minted one for us", async () => {
+	it("resumes by id once the CLI has been written to", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		// The session only exists on disk once the user has sent something.
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
 		closeConversation(meta.id);
 		createTerminal.mockClear();
 
 		await openConversation(ref, meta.id);
 
 		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
+	});
+
+	it("does not reorder the list when a running conversation is shown", async () => {
+		// Entering the Agent view reopens the active conversation on every mount;
+		// that must not push it above the one the user last worked in.
+		const older = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(1_000);
+		const newer = await startConversation(ref, "claude-code", "/repo/wt");
+		const openedAt = (id: string) =>
+			conversationsOf(ref).find((c) => c.id === id)?.lastOpenedAt;
+		const before = openedAt(older.id);
+
+		await vi.advanceTimersByTimeAsync(1_000);
+		await openConversation(ref, older.id);
+
+		expect(openedAt(older.id)).toBe(before);
+		expect(newer.id).toBeTruthy();
+	});
+
+	it("starts fresh when the minted session was never written to", async () => {
+		// Opened, never typed into, left and reopened: the id was minted at
+		// creation but names a session the CLI never created, and resuming it
+		// fails instead of starting the conversation.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(lastArgv()).not.toContain("--resume");
 	});
 
 	it("reopens the exact conversation for a CLI that minted its own id", async () => {
@@ -165,7 +197,7 @@ describe("learning the id of a CLI that mints its own", () => {
 	it("asks the CLI and records what it answers", async () => {
 		discoverCliSession.mockResolvedValue("ses_abc");
 
-		const meta = await startConversation(ref, "opencode", "/repo/wt");
+		await startConversation(ref, "opencode", "/repo/wt");
 		await vi.advanceTimersByTimeAsync(2_000);
 
 		expect(discoverCliSession).toHaveBeenCalledWith(

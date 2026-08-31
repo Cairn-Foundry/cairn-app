@@ -459,3 +459,30 @@ describe("GraphView", () => {
 		});
 	});
 });
+
+describe("virtualised rows", () => {
+	// jsdom lays nothing out, so the component falls back to its assumed 2000px
+	// viewport: at 36px a row that is well under a thousand commits.
+	const many = Array.from({ length: 1_000 }, (_, i) =>
+		commit(`h${String(i).padStart(6, "0")}`),
+	);
+
+	it("keeps the DOM to the rows the viewport can show", () => {
+		mount({ commits: many });
+		expect(rows().length).toBeGreaterThan(0);
+		expect(rows().length).toBeLessThan(many.length);
+	});
+
+	it("stands in for the rows it left out, so the scrollbar stays honest", () => {
+		mount({ commits: many });
+		const scroller = document.querySelector(".graph-scroll") as HTMLElement;
+		const spacers = Array.from(scroller.children).filter(
+			(el) => el instanceof HTMLElement && el.style.height.endsWith("px"),
+		);
+		const padding = spacers.reduce(
+			(acc, el) => acc + Number.parseInt((el as HTMLElement).style.height, 10),
+			0,
+		);
+		expect(padding).toBe((many.length - rows().length) * 36);
+	});
+});

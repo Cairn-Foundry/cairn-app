@@ -33,7 +33,7 @@ import {
 	resumeArgv,
 } from "$lib/utils/agent/cli-launch";
 import { captureTitle } from "$lib/utils/agent/conversation-title";
-import { IDLE_TIMEOUT_MS, isQuiet } from "$lib/utils/agent/idle-reaper";
+import { isQuiet } from "$lib/utils/agent/idle-reaper";
 import { persist } from "$lib/utils/persist-error";
 import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
 import * as manager from "$lib/utils/terminal/terminal-manager";
@@ -80,6 +80,24 @@ const awaitingTitle = new Map<
 	string,
 	{ ref: ConversationRef; id: string; pending: string }
 >();
+
+/**
+ * Conversations whose CLI is running but has not been written to yet, keyed by
+ * terminal id. The first byte the user sends is what makes the CLI create its
+ * session on disk, so that is when the conversation becomes resumable.
+ */
+const awaitingFirstInput = new Map<
+	string,
+	{ ref: ConversationRef; id: string }
+>();
+
+/** Records that the CLI of this terminal now has a session worth resuming. */
+function markSessionStarted(terminalId: string): void {
+	const pending = awaitingFirstInput.get(terminalId);
+	if (!pending) return;
+	awaitingFirstInput.delete(terminalId);
+	patch(pending.ref, pending.id, { sessionStarted: true });
+}
 
 const PERSIST_DELAY_MS = 250;
 
@@ -326,16 +344,24 @@ export async function openConversation(
 	if (!meta) return;
 
 	selectConversation(ref.projectId, ref.instanceId, id);
-	patch(ref, id, { lastOpenedAt: Date.now() });
 
 	// Already running: showing it is all there is to do. Relaunching would throw
 	// away the session the user is in the middle of.
 	if (terminalOf(id)) return;
 
-	const argv = fresh
-		? (newConversationArgv(meta.cli, meta.sessionId ?? "") ??
-			freshArgv(meta.cli))
-		: resumeArgv(meta.cli, meta.sessionId);
+	// Only a launch moves the conversation in the list. Merely showing one -
+	// which is also what restoring the view does on every entry into the Agent
+	// step - must leave the order alone.
+	patch(ref, id, { lastOpenedAt: Date.now() });
+
+	// A session id minted at creation names nothing until the CLI has written
+	// it, so a conversation left without a single message starts fresh instead
+	// of resuming a session that was never created.
+	const argv =
+		fresh || !meta.sessionStarted
+			? (newConversationArgv(meta.cli, meta.sessionId ?? "") ??
+				freshArgv(meta.cli))
+			: resumeArgv(meta.cli, meta.sessionId);
 
 	const startedAt = Date.now();
 	const terminalId = conversationTerminalId(id);
@@ -349,6 +375,7 @@ export async function openConversation(
 	}
 	conversationTerminals.update((m) => ({ ...m, [id]: terminalId }));
 	activity.set(id, { input: startedAt, output: startedAt });
+	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
 	if (!meta.title) {
 		awaitingTitle.set(terminalId, { ref, id, pending: "" });
 	}
@@ -384,7 +411,9 @@ function captureSessionId(
 			() => null,
 		);
 		if (found) {
-			patch(ref, id, { sessionId: found });
+			// Discovery reads the CLI's own session list, so an id found there is
+			// one it has already written: this conversation is resumable.
+			patch(ref, id, { sessionId: found, sessionStarted: true });
 			return;
 		}
 		delay *= 2;
@@ -486,6 +515,7 @@ export function closeConversation(id: string): void {
 	const terminalId = terminalOf(id);
 	if (!terminalId) return;
 	awaitingTitle.delete(terminalId);
+	awaitingFirstInput.delete(terminalId);
 	activity.delete(id);
 	void closeTerminal(terminalId).catch(() => {});
 	manager.dispose(terminalId);
@@ -501,6 +531,7 @@ export function closeConversation(id: string): void {
  * prompt. Called on the way in only: Cairn reads keystrokes, never output.
  */
 export function noteTerminalInput(terminalId: string, data: string): void {
+	markSessionStarted(terminalId);
 	const waiting = awaitingTitle.get(terminalId);
 	if (!waiting) return;
 	const { title, pending } = captureTitle(waiting.pending, data);

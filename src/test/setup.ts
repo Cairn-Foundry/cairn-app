@@ -50,3 +50,12 @@ HTMLCanvasElement.prototype.getContext = (() =>
 // jsdom lays nothing out, so it ships no scrollIntoView; several views call it
 // to keep the active item in sight.
 Element.prototype.scrollIntoView = () => {};
+
+// jsdom ships no ResizeObserver, and several views observe their own scroller
+// to size a virtual window. Nothing here lays out, so a stub that never fires
+// is the honest stand-in: the observed height stays whatever the view assumed.
+globalThis.ResizeObserver ??= class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+} as unknown as typeof ResizeObserver;

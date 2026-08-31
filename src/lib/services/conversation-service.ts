@@ -22,6 +22,13 @@ export interface ConversationMeta {
 	/** Id from the CLI registry. A conversation belongs to one CLI for its whole life. */
 	cli: CliProviderId;
 	sessionId: string | null;
+	/**
+	 * Whether the CLI ever wrote that session to disk. An id minted at launch
+	 * names a session the CLI only creates once the user has said something, so
+	 * resuming on this flag rather than on `sessionId` keeps a conversation that
+	 * was opened and left untouched from resuming a session that never existed.
+	 */
+	sessionStarted?: boolean;
 	/** Directory the CLI runs in, so a resume lands in the same worktree. */
 	cwd: string;
 	createdAt: number;

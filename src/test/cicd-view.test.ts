@@ -4,11 +4,7 @@ import { tick } from "svelte";
 import { get, writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { InstancePipelineState } from "$lib/stores/pipelines";
-import type {
-	Pipeline,
-	PipelineJob,
-	PipelineStatus,
-} from "$lib/types/integrations";
+import type { Pipeline, PipelineJob } from "$lib/types/integrations";
 
 const openUrl = vi.fn(async (..._a: unknown[]) => {});
 vi.mock("@tauri-apps/plugin-opener", () => ({

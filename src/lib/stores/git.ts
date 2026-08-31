@@ -64,7 +64,11 @@ type GitState = {
 
 /** Page sizes of the log and graph lists; both load more on scroll. */
 const LOG_PAGE = 50;
-const GRAPH_PAGE = 200;
+/**
+ * Smaller than the log's page: a graph row carries its rails, its ref chips and
+ * its lane layout, so a page costs more to lay out and more to keep in the DOM.
+ */
+const GRAPH_PAGE = 20;
 
 /** The state a worktree starts from; isGitRepo is optimistic until the first read says otherwise. */
 const INITIAL: GitState = {

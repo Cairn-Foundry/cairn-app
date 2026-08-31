@@ -102,7 +102,6 @@ beforeEach(() => {
 afterEach(() => {
 	vi.useRealTimers();
 	vi.unstubAllGlobals();
-	// biome-ignore lint/performance/noDelete: restoring the native accessor
 	delete (HTMLElement.prototype as unknown as Record<string, unknown>)
 		.clientHeight;
 });

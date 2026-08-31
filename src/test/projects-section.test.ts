@@ -1,9 +1,9 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
-import { get, writable } from "svelte/store";
+import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, ProjectFolder } from "$lib/types/project";
+import type { ProjectFolder } from "$lib/types/project";
 
 const unregisterProject = vi.fn<(...a: unknown[]) => unknown>();
 const duplicateProjectInStore = vi.fn<(...a: unknown[]) => unknown>();

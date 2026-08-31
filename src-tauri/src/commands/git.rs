@@ -1864,16 +1864,34 @@ pub async fn git_revert_commit(worktree_path: String, commit_hash: String) -> Re
 pub async fn git_log(worktree_path: String, limit: usize, offset: usize) -> Result<Vec<GitCommit>, GitError> {
     let expanded = expand(&worktree_path);
 
-    let head_raw = run(git_cmd(&expanded).args(["log", "HEAD", "--format=%H"])).unwrap_or_default();
-    let on_branch: std::collections::HashSet<String> = head_raw
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(String::from)
-        .collect();
-
     let raw = run(
         git_cmd(&expanded).args(["log", "--all", "--topo-order", &format!("--skip={}", offset), &format!("-{}", limit), "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s"])
     )?;
+
+    // HEAD is walked back only as far as the oldest commit of this page, rather
+    // than over the whole history: the full walk cost O(history) on every
+    // scroll page. A commit older than the page cannot be one of its rows, so
+    // stopping there loses nothing. `--since` is inclusive, and a repository
+    // with skewed author dates can only over-read, never miss a commit.
+    let oldest = raw
+        .lines()
+        .filter(|l| !l.is_empty())
+        .filter_map(|l| l.split('\x1f').nth(3))
+        .min();
+    let on_branch: std::collections::HashSet<String> = match oldest {
+        None => std::collections::HashSet::new(),
+        Some(since) => run(git_cmd(&expanded).args([
+            "log",
+            "HEAD",
+            "--format=%H",
+            &format!("--since={}", since),
+        ]))
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect(),
+    };
 
     let commits = raw
         .lines()

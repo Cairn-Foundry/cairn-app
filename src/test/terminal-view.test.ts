@@ -1,7 +1,7 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
-import { get, writable } from "svelte/store";
+import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TerminalSession } from "$lib/stores/terminal";
 

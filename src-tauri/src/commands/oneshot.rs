@@ -47,6 +47,11 @@ struct HeadlessCli {
     schema_is_file: bool,
     model_flag: &'static str,
     answer: AnswerSource,
+    /// Whether the prompt goes on stdin rather than as the last argument.
+    /// Linux caps one argument at 128 KB (`MAX_ARG_STRLEN`), and a branch diff
+    /// goes past it - macOS, with a single 1 MB budget for the whole vector,
+    /// never showed it.
+    prompt_on_stdin: bool,
 }
 
 /// The CLIs whose answer can be forced into a shape.
@@ -64,6 +69,7 @@ const HEADLESS_CLIS: &[HeadlessCli] = &[
         schema_is_file: false,
         model_flag: "--model",
         answer: AnswerSource::StructuredOutput,
+        prompt_on_stdin: true,
     },
     // `--skip-git-repo-check` because an assist may run in a worktree Cairn
     // created before its first commit, where codex otherwise refuses to start.
@@ -82,6 +88,7 @@ const HEADLESS_CLIS: &[HeadlessCli] = &[
         schema_is_file: true,
         model_flag: "--model",
         answer: AnswerSource::LastMessageFile,
+        prompt_on_stdin: false,
     },
 ];
 
@@ -299,21 +306,32 @@ fn run_blocking(
         args.push(cli.model_flag.to_string());
         args.push(model);
     }
-    args.push(prompt.to_string());
+    if !cli.prompt_on_stdin {
+        args.push(prompt.to_string());
+    }
 
     let mut cmd = new_command(binary);
     cmd.args(&args)
         .envs(&env)
         .current_dir(working_dir)
-        // Closed on purpose: codex reads the prompt from stdin when it believes
-        // none was passed, and would hang waiting on it.
-        .stdin(Stdio::null())
+        // Closed unless the CLI is fed there: codex reads the prompt from stdin
+        // when it believes none was passed, and would hang waiting on it.
+        .stdin(if cli.prompt_on_stdin {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to spawn {}: {e}", cli.binary))?;
+    if cli.prompt_on_stdin && let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(prompt.as_bytes())
+            .map_err(|e| format!("Failed to send the prompt to {}: {e}", cli.binary))?;
+    }
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     *handle.child.lock().map_err(|e| e.to_string())? = Some(child);

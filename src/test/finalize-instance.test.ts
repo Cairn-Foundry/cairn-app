@@ -115,10 +115,6 @@ const isDone = (i: number) =>
 const isMuted = (i: number) => stepAt(i).classList.contains("muted");
 const buttonIn = (el: HTMLElement) =>
 	el.querySelector(".step-btn") as HTMLButtonElement;
-const buttonBy = (re: RegExp) =>
-	Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
-		re.test(b.textContent ?? ""),
-	) as HTMLButtonElement;
 const banners = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".git-error-banner")).map(
 		(b) => b.textContent ?? "",

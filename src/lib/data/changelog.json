@@ -174,6 +174,34 @@
 					"en": "\"See the installed CLIs\", in the conversation picker, opened the Agents section instead of Providers - the one that actually lists the CLIs found on this machine.",
 					"fr": "\"Voir les CLI installes\", dans le selecteur de conversation, ouvrait la section Agents au lieu de Fournisseurs - celle qui liste vraiment les CLI trouves sur cette machine."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An AI assist on a large diff no longer fails with \"Argument list too long\" on Linux: the prompt is handed to Claude Code on its standard input instead of on the command line, which caps a single argument at 128 KB.",
+					"fr": "Une assistance IA sur un gros diff n'échoue plus avec « Argument list too long » sous Linux : le prompt est transmis à Claude Code sur son entrée standard et non sur la ligne de commande, qui limite un argument à 128 Ko."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening an existing conversation no longer moves it to the top of the history: only starting or relaunching its CLI reorders the list, so coming back to the Agent step leaves the order as you left it.",
+					"fr": "Ouvrir une conversation existante ne la remonte plus en haut de l'historique : seul le démarrage ou le relancement de son CLI réordonne la liste, si bien que revenir sur la step Agent laisse l'ordre tel que vous l'aviez laissé."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A conversation opened without a single message no longer fails on reopening. Its session identifier was reserved at creation but named a session the CLI had never written, and resuming it errored out; the CLI now starts fresh until it has actually been talked to.",
+					"fr": "Une conversation ouverte sans le moindre message n'échoue plus à sa réouverture. Son identifiant de session était réservé à la création mais désignait une session que le CLI n'avait jamais écrite, et la reprise échouait ; le CLI démarre désormais à neuf tant qu'on ne lui a pas réellement parlé."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The git history and the commit graph are noticeably faster on large repositories: each page of history no longer walks the whole branch to tell which commits it contains, the graph loads twenty commits at a time and only keeps the visible rows in the page, and scrolling extends the existing lane layout instead of recomputing it from the first commit.",
+					"fr": "L'historique git et le graphe des commits sont nettement plus rapides sur les gros dépôts : chaque page d'historique ne parcourt plus toute la branche pour savoir quels commits elle contient, le graphe charge vingt commits à la fois et ne conserve dans la page que les lignes visibles, et le défilement prolonge le tracé des couloirs existant au lieu de le recalculer depuis le premier commit."
+				}
 			}
 		]
 	},

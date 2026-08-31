@@ -29,6 +29,11 @@ pub struct ConversationMeta {
     pub cli: String,
     #[serde(rename = "sessionId", default)]
     pub session_id: Option<String>,
+    /// Whether the CLI ever wrote that session to disk. An id imposed at launch
+    /// names a session the CLI only creates once the user has said something,
+    /// so a conversation opened and left untouched must not be resumed.
+    #[serde(rename = "sessionStarted", default)]
+    pub session_started: bool,
     /// Directory the CLI was launched in, kept so a resume lands in the same
     /// worktree even when the instance is reopened from elsewhere.
     #[serde(default)]
@@ -111,6 +116,7 @@ mod tests {
             title: "Fix the parser".into(),
             cli: "claude-code".into(),
             session_id: Some("3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70".into()),
+            session_started: true,
             cwd: "/repo/worktrees/x".into(),
             created_at: 1,
             last_opened_at: 2,
@@ -122,6 +128,7 @@ mod tests {
         assert!(json.contains("\"lastOpenedAt\""), "{json}");
         let back: ConversationMeta = serde_json::from_str(&json).unwrap();
         assert_eq!(back.session_id.as_deref(), Some("3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70"));
+        assert!(back.session_started);
         assert_eq!(back.cli, "claude-code");
     }
 }

@@ -4,7 +4,7 @@
 
 import { get, type Readable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { conversation, instance, project } from "../../test/fixtures";
+import { instance, project } from "../../test/fixtures";
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());

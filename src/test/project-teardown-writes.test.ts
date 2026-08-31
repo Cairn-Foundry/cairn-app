@@ -23,7 +23,6 @@ vi.mock("$lib/stores/project-folders", () => ({
 	projectFolders: { purgeProject: vi.fn(), init: vi.fn() },
 }));
 
-const saveAgentRuns = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveProjectEnv = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock("$lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<object>()),

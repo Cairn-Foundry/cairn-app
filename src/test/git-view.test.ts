@@ -225,8 +225,6 @@ const bulkButton = (re: RegExp) =>
 	Array.from(document.querySelectorAll<HTMLButtonElement>(".bulk-btn")).find(
 		(b) => re.test(b.textContent ?? ""),
 	) as HTMLButtonElement;
-const commitTitle = () =>
-	document.querySelector(".commit-title") as HTMLInputElement;
 const commitButtons = () =>
 	Array.from(
 		document.querySelectorAll<HTMLButtonElement>(".btn.ghost, .btn.primary"),

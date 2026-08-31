@@ -938,8 +938,14 @@ mod tests {
     fn resolves_a_command_whatever_suffix_the_platform_gives_it() {
         // /bin/sh on Unix, cmd.exe reached as `cmd` on Windows: both are the
         // case that matters - a name typed without the suffix it has on disk.
+        // Which directory of PATH answers first is the machine's business:
+        // /bin/sh and /usr/bin/sh are the same shell on most distributions.
         #[cfg(unix)]
-        assert_eq!(resolve_binary("sh", None), Some(PathBuf::from("/bin/sh")));
+        assert!(
+            resolve_binary("sh", None)
+                .is_some_and(|p| p.ends_with("sh") && p.is_absolute()),
+            "sh must resolve to an absolute path"
+        );
         #[cfg(windows)]
         assert!(resolve_binary("cmd", None).is_some(), "cmd.exe must resolve from `cmd`");
     }

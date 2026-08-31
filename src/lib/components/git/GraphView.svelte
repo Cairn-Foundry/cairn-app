@@ -11,6 +11,8 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
+  import { reusablePrefix } from '$lib/utils/git/graph-cache';
+  import { virtualWindow } from '$lib/utils/virtual-window';
 
   export let commits: GitGraphCommit[];
   export let currentBranch: string;
@@ -24,10 +26,28 @@
   let lastCount = 0;
   $: if (commits.length !== lastCount) { lastCount = commits.length; isLoadingMore = false; }
 
+  /* Rows are a fixed height, so only the ones the viewport can show go into the
+     DOM and two spacers stand in for the rest - the same treatment the log
+     list gets. Without it a few thousand commits mean a few thousand rails,
+     each with its own SVG paths. */
+  const OVERSCAN = 6;
+  let scrollTop = 0;
+  /* Until the ResizeObserver has measured the scroller, assume a tall viewport
+     rather than none: a zero would leave only the overscan on screen. */
+  let viewportH = 0;
+
+  function measureViewport(node: HTMLElement) {
+    const observer = new ResizeObserver(() => { viewportH = node.clientHeight; });
+    observer.observe(node);
+    viewportH = node.clientHeight;
+    return { destroy: () => observer.disconnect() };
+  }
+
   /** Asks for another page once the scroll gets within 200px of the bottom. */
   function handleScroll(e: Event) {
-    if (isLoadingMore || !hasMore) return;
     const el = e.currentTarget as HTMLElement;
+    scrollTop = el.scrollTop;
+    if (isLoadingMore || !hasMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
       isLoadingMore = true;
       dispatch('loadMore');
@@ -116,8 +136,6 @@
     '#e066c4',
   ];
 
-  const CHIPS_LINE_H = 22;
-
   interface LaneState { targetHash: string; color: string; branch?: string; }
   interface PathDef   { d: string; color: string; branch?: string; }
   interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag'; }
@@ -148,11 +166,39 @@
     return `M ${cx} ${midY} C ${cx} ${midY + cp * 0.5} ${ax} ${ROW_H - cp * 2} ${ax} ${ROW_H}`;
   }
 
-  /** Assigns each commit a lane by matching the lanes waiting on its hash, and emits the paths crossing its row. */
-  function computeGraph(commits: GitGraphCommit[]): GraphRow[] {
-    const lanes: (LaneState | null)[] = [];
-    let colorIdx = 0;
+  /**
+   * Lane state carried past the last row laid out, so appending a page can
+   * resume from it instead of laying out the history from the first commit
+   * again. Only ever reused when the new list starts with the rows already
+   * computed; any other change (a search, a refresh) starts over.
+   */
+  let laneCache: { rows: GraphRow[]; lanes: (LaneState | null)[]; colorIdx: number } | null = null;
 
+  /** Lays out the rows the cache does not already cover. */
+  function graphRows(commits: GitGraphCommit[]): GraphRow[] {
+    const cached = laneCache;
+    const keep = cached
+      ? reusablePrefix(cached.rows.map(r => r.commit.hash), commits.map(c => c.hash))
+      : 0;
+
+    if (cached && keep > 0 && keep === commits.length) return cached.rows;
+
+    const from = cached && keep > 0 ? cached.rows : [];
+    const lanes = cached && keep > 0 ? cached.lanes.map(l => l ? { ...l } : null) : [];
+    const state = { colorIdx: cached && keep > 0 ? cached.colorIdx : 0 };
+    const fresh = computeGraph(commits.slice(from.length), lanes, state);
+    const rows = from.length > 0 ? [...from, ...fresh] : fresh;
+
+    laneCache = { rows, lanes: lanes.map(l => l ? { ...l } : null), colorIdx: state.colorIdx };
+    return rows;
+  }
+
+  /**
+   * Assigns each commit a lane by matching the lanes waiting on its hash, and
+   * emits the paths crossing its row. `lanes` and `state` are carried in and
+   * mutated, so a later call can continue the same layout.
+   */
+  function computeGraph(commits: GitGraphCommit[], lanes: (LaneState | null)[], state: { colorIdx: number }): GraphRow[] {
     return commits.map(commit => {
       const above = lanes.map(l => l ? { ...l } : null);
       const tracking = above
@@ -170,7 +216,7 @@
       } else {
         myLane = lanes.findIndex(l => l === null);
         if (myLane === -1) { myLane = lanes.length; lanes.push(null); }
-        myColor = PALETTE[colorIdx++ % PALETTE.length];
+        myColor = PALETTE[state.colorIdx++ % PALETTE.length];
       }
 
       const ownBranch = branchLabelForCommit(commit);
@@ -187,7 +233,7 @@
         if (lanes.some(l => l?.targetHash === ph)) continue;
         let slot = lanes.findIndex(l => l === null);
         if (slot === -1) { slot = lanes.length; lanes.push(null); }
-        lanes[slot] = { targetHash: ph, color: PALETTE[colorIdx++ % PALETTE.length], branch: mergedBranchLabel(commit.message) };
+        lanes[slot] = { targetHash: ph, color: PALETTE[state.colorIdx++ % PALETTE.length], branch: mergedBranchLabel(commit.message) };
       }
 
       while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
@@ -295,7 +341,9 @@
     return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
   }
 
-  $: rows = computeGraph(processedCommits);
+  $: rows = graphRows(processedCommits);
+  $: win = virtualWindow(rows.length, scrollTop, viewportH || 2000, ROW_H, OVERSCAN);
+  $: visibleRows = rows.slice(win.first, win.last);
   $: globalMaxLane = rows.reduce((acc, r) => Math.max(acc, r.maxLaneInRow), 0);
   $: fullSvgW = (globalMaxLane + 1) * COL_W + HALF + 4;
   // The rails are drawn at their full width so they stay aligned from one row
@@ -346,8 +394,9 @@
     </button>
   </div>
 
-  <div class="graph-scroll" on:scroll={handleScroll}>
-    {#each rows as row}
+  <div class="graph-scroll" use:measureViewport on:scroll={handleScroll}>
+    {#if win.padTop > 0}<div style="height:{win.padTop}px"></div>{/if}
+    {#each visibleRows as row (row.commit.hash)}
       {@const chips = parseRefs(row.commit.refs)}
       {@const isCurrent = row.commit.refs.some(r =>
         r === currentBranch || r.endsWith(`-> ${currentBranch}`) || r === `HEAD -> ${currentBranch}`
@@ -462,6 +511,7 @@
         {/if}
       </div>
     {/each}
+    {#if win.padBottom > 0}<div style="height:{win.padBottom}px"></div>{/if}
 
     {#if commits.length === 0}
       <div class="graph-empty">{t('git.noHistory')}</div>

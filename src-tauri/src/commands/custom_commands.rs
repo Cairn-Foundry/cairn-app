@@ -145,11 +145,21 @@ mod tests {
 
     #[tokio::test]
     async fn allocate_port_reuses_a_free_preferred_port() {
-        let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let taken = held.local_addr().unwrap().port();
-        drop(held);
+        // The port is only known to be free between the drop and the call, and
+        // anything on the machine may take it in that window - including the
+        // sibling test. A few attempts turn that race into a rare retry rather
+        // than a flaky failure.
+        for attempt in 0..8 {
+            let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+            let free = held.local_addr().unwrap().port();
+            drop(held);
 
-        assert_eq!(allocate_port(taken, Some(taken), vec![]).await.unwrap(), taken);
+            let got = allocate_port(free, Some(free), vec![]).await.unwrap();
+            if got == free {
+                return;
+            }
+            assert!(attempt < 7, "the preferred port was never handed back");
+        }
     }
 
     #[tokio::test]

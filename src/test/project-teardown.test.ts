@@ -36,7 +36,6 @@ vi.mock("$lib/utils/terminal/terminal-manager", async (importOriginal) => ({
 	dispose,
 }));
 
-const saveAgentActivity = vi.hoisted(() => vi.fn());
 const { unregisterProject } = await import("$lib/stores/project");
 const { projects } = await import("$lib/stores/project");
 const { projectCommands } = await import("$lib/stores/custom-command");

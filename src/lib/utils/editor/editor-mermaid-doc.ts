@@ -37,7 +37,7 @@ const mermaidDocField = StateField.define<MermaidDocState>({
 	update(value, tr) {
 		// A user selection is the signal to edit; a doc change alone (an
 		// external reload, a format-on-save) must not pop the source open.
-		const revealed = value.revealed || (tr.selection ? true : false);
+		const revealed = value.revealed || Boolean(tr.selection);
 		if (revealed === value.revealed && !tr.docChanged) return value;
 		return build(tr.state.doc.toString(), revealed);
 	},

@@ -529,6 +529,9 @@ describe("TestsView", () => {
 				location: { file: "src/a.test.ts", line: 3, column: 5 },
 			},
 		});
+		// Set just above, so the cases below can read it without asserting on
+		// every use that the optional field is there.
+		const failure = failing.failure as NonNullable<typeof failing.failure>;
 
 		it("selects the test that was clicked", async () => {
 			mount();
@@ -563,7 +566,7 @@ describe("TestsView", () => {
 							{
 								...failing,
 								failure: {
-									...failing.failure!,
+									...failure,
 									expected: null,
 									received: null,
 								},
@@ -606,8 +609,8 @@ describe("TestsView", () => {
 							{
 								...failing,
 								failure: {
-									...failing.failure!,
-									stack: [failing.failure!.stack[0]],
+									...failure,
+									stack: [failure.stack[0]],
 								},
 							},
 						],

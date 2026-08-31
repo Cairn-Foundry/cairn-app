@@ -129,10 +129,6 @@ const itemFor = (name: string) =>
 	) as HTMLElement;
 const nameField = () =>
 	document.querySelector(".name-input") as HTMLInputElement;
-const commandField = () =>
-	document.getElementById("mcp-command") as HTMLInputElement | null;
-const urlField = () =>
-	document.getElementById("mcp-url") as HTMLInputElement | null;
 const argsField = () =>
 	document.getElementById("mcp-args") as HTMLTextAreaElement;
 const saveButton = () =>
