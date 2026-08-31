@@ -3586,6 +3586,12 @@ html[data-theme="glass"]:not([data-os="macos"]) :is(.title-bar, .sidebar, .tabs-
   ::view-transition-new(root) {
     animation-duration: 120ms;
   }
+
+  /* WebKitGTK paints the transition overlay over nothing - the page below is
+     hidden for its duration - so the desktop shows through the cross-fade. */
+  ::view-transition {
+    background: var(--bg-0);
+  }
 }
 
 /* Keyframes added for the reworked set: each one names the gesture it plays. */
