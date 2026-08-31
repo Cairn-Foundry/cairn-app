@@ -1,7 +1,7 @@
 [
 	{
 		"version": "0.19.0",
-		"date": "",
+		"date": "2026-08-31",
 		"summary": {
 			"en": "The Agent step stops wrapping your coding CLI and runs it: Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity or Vibe, opened as it is in an embedded terminal, reopened later where it left off. Cairn keeps the list of conversations and the navigation between them; everything else belongs to the CLI - which is also why the HTTP API providers, their keys and the usage statistics they fed are gone.",
 			"fr": "La step Agent cesse d'encapsuler votre CLI de code et le lance : Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity ou Vibe, ouvert tel quel dans un terminal embarqué, rouvert plus tard là où il s'était arrêté. Cairn garde la liste des conversations et la navigation entre elles ; tout le reste appartient au CLI - ce qui explique aussi la disparition des fournisseurs API HTTP, de leurs clés et des statistiques d'usage qu'ils alimentaient."
