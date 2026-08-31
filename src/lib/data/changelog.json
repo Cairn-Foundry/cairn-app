@@ -1,24 +1,33 @@
 [
 	{
+		"version": "1.0.0",
+		"date": "",
+		"summary": {
+			"en": "Cairn 1.0: the first public release. A workspace where each task gets its own git worktree, with the editor, the git view, the tests, the review, the pipelines and your coding CLI side by side.",
+			"fr": "Cairn 1.0 : la première version publique. Un espace de travail où chaque tâche dispose de son propre worktree git, avec l'éditeur, la vue git, les tests, la revue, les pipelines et votre CLI de code côte à côte."
+		},
+		"changes": []
+	},
+	{
 		"version": "0.19.0",
 		"date": "2026-08-31",
 		"summary": {
-			"en": "The Agent step stops wrapping your coding CLI and runs it: Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity or Vibe, opened as it is in an embedded terminal, reopened later where it left off. Cairn keeps the list of conversations and the navigation between them; everything else belongs to the CLI - which is also why the HTTP API providers, their keys and the usage statistics they fed are gone.",
-			"fr": "La step Agent cesse d'encapsuler votre CLI de code et le lance : Claude Code, Codex, Gemini CLI, OpenCode, Copilot, Antigravity ou Vibe, ouvert tel quel dans un terminal embarqué, rouvert plus tard là où il s'était arrêté. Cairn garde la liste des conversations et la navigation entre elles ; tout le reste appartient au CLI - ce qui explique aussi la disparition des fournisseurs API HTTP, de leurs clés et des statistiques d'usage qu'ils alimentaient."
+			"en": "The Agent step stops wrapping your coding CLI and runs it: Claude Code, Codex, Gemini CLI, OpenCode, Copilot and a dozen others, opened as they are in an embedded terminal and reopened later where they left off. Cairn keeps the list of conversations and the navigation between them; everything else belongs to the CLI.",
+			"fr": "La step Agent cesse d'encapsuler votre CLI de code et le lance : Claude Code, Codex, Gemini CLI, OpenCode, Copilot et une dizaine d'autres, ouverts tels quels dans un terminal embarqué et rouverts plus tard là où ils s'étaient arrêtés. Cairn garde la liste des conversations et la navigation entre elles ; tout le reste appartient au CLI."
 		},
 		"changes": [
 			{
 				"kind": "added",
 				"text": {
-					"en": "Each AI assist picks the CLI that answers it and, if you want one, the model: the Features page brings back a provider and a model field per assist. The list holds the CLIs whose answer can be forced into a shape - Claude Code and Codex - since an assist is read back as fields rather than as text.",
-					"fr": "Chaque assistance IA choisit le CLI qui lui répond et, si vous le souhaitez, le modèle : la page Fonctionnalités retrouve un champ fournisseur et un champ modèle par assistance. La liste retient les CLI dont la réponse peut être contrainte à une forme - Claude Code et Codex - une assistance étant relue comme des champs et non comme du texte."
+					"en": "Each AI assist picks the CLI that answers it and, if you want one, the model: the Features page brings back a provider and a model field per assist.",
+					"fr": "Chaque assistance IA choisit le CLI qui lui répond et, si vous le souhaitez, le modèle : la page Fonctionnalités retrouve un champ fournisseur et un champ modèle par assistance."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Every AI assist now hands its CLI the shape of the answer it expects, and the CLI is held to it. A generated commit message or merge request arrives as a subject and a body rather than as a block of text to be cut in two, so a model that explains itself before answering no longer turns its own reasoning into the commit subject.",
-					"fr": "Chaque assistance IA transmet désormais à son CLI la forme de réponse attendue, et le CLI y est contraint. Un message de commit ou une merge request générés arrivent sous forme de sujet et de corps plutôt que d'un bloc de texte à couper en deux : un modèle qui s'explique avant de répondre ne transforme donc plus son raisonnement en sujet de commit."
+					"en": "A generated commit message or merge request arrives as a subject and a body rather than as a block of text to be cut in two, so a model that explains itself before answering no longer turns its own reasoning into the commit subject.",
+					"fr": "Un message de commit ou une merge request générés arrivent sous forme de sujet et de corps plutôt que d'un bloc de texte à couper en deux : un modèle qui s'explique avant de répondre ne transforme plus son raisonnement en sujet de commit."
 				}
 			},
 			{
@@ -38,8 +47,8 @@
 			{
 				"kind": "added",
 				"text": {
-					"en": "Five more coding CLIs can be launched from the Agent step: Cursor CLI, Amp, Goose, Qwen Code and Factory Droid. Each opens as it is in the worktree, and each is reopened on the exact conversation you picked. Their skills and MCP servers can be written from the hub too, except Goose's, which states its servers as YAML extensions Cairn does not write.",
-					"fr": "Cinq CLI de code supplementaires peuvent etre lances depuis la step Agent : Cursor CLI, Amp, Goose, Qwen Code et Factory Droid. Chacun s'ouvre tel quel dans le worktree, et chacun est rouvert sur la conversation exacte que vous avez choisie. Leurs skills et leurs serveurs MCP s'ecrivent aussi depuis le hub, sauf ceux de Goose, qui declare ses serveurs en extensions YAML que Cairn n'ecrit pas."
+					"en": "Five more coding CLIs can be launched from the Agent step: Cursor CLI, Amp, Goose, Qwen Code and Factory Droid. Each opens as it is in the worktree, and each is reopened on the exact conversation you picked. Their skills and MCP servers can be written from the hub too, except Goose's.",
+					"fr": "Cinq CLI de code supplémentaires peuvent être lancés depuis la step Agent : Cursor CLI, Amp, Goose, Qwen Code et Factory Droid. Chacun s'ouvre tel quel dans le worktree, et chacun est rouvert sur la conversation exacte que vous avez choisie. Leurs skills et leurs serveurs MCP s'écrivent aussi depuis le hub, sauf ceux de Goose."
 				}
 			},
 			{
@@ -52,20 +61,6 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Reopening a past conversation relaunches its CLI on that exact conversation, in the worktree it ran in - never on whatever happened to run there last. Claude Code, Gemini CLI and Copilot are given the conversation's id when it starts; Codex, OpenCode, Antigravity and Vibe mint their own, which Cairn reads back from the session index each one keeps, never from the terminal.",
-					"fr": "Rouvrir une conversation passée relance son CLI sur cette conversation précise, dans le worktree où il tournait - jamais sur ce qui s'y est exécuté en dernier. Claude Code, Gemini CLI et Copilot reçoivent l'identifiant de la conversation à son lancement ; Codex, OpenCode, Antigravity et Vibe génèrent le leur, que Cairn relit dans l'index de sessions que chacun tient, jamais dans le terminal."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A conversation is named after the first prompt you type into it, and can be renamed afterwards. Cairn reads what you type, never what the CLI answers.",
-					"fr": "Une conversation est nommée d'après le premier prompt que vous y tapez, et peut être renommée ensuite. Cairn lit ce que vous tapez, jamais ce que le CLI répond."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
 					"en": "The Providers page is now a detection list: which CLIs are installed, their version and the binary in use. There is nothing left to configure there - a CLI is set up with its own commands.",
 					"fr": "La page Fournisseurs est désormais une liste de détection : quels CLI sont installés, leur version et le binaire utilisé. Il n'y a plus rien à y configurer : un CLI se configure avec ses propres commandes."
 				}
@@ -73,29 +68,29 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "The instance list and the status bar show whether a CLI is running. The \"finished, unread\" mark is gone: Cairn no longer reads the CLI's output and cannot tell an answer from a prompt.",
-					"fr": "La liste des instances et la barre de statut indiquent si un CLI tourne. La pastille « terminé, non lu » disparaît : Cairn ne lit plus la sortie du CLI et ne peut plus distinguer une réponse d'une invite."
+					"en": "The instance list and the status bar show whether a CLI is running.",
+					"fr": "La liste des instances et la barre de statut indiquent si un CLI tourne."
 				}
 			},
 			{
 				"kind": "removed",
 				"text": {
-					"en": "The HTTP API providers and the API keys they needed are gone, along with their encrypted store and the Providers configuration screen. Integration tokens keep their own encrypted storage, untouched.",
-					"fr": "Les fournisseurs API HTTP et les clés qu'ils demandaient sont supprimés, avec leur stockage chiffré et l'écran de configuration des fournisseurs. Les jetons des intégrations conservent leur propre stockage chiffré, inchangé."
+					"en": "The HTTP API providers and the API keys they needed are gone, along with the Providers configuration screen. A conversation is now held by a coding CLI, which brings its own account. Integration tokens are untouched.",
+					"fr": "Les fournisseurs API HTTP et les clés qu'ils demandaient sont supprimés, avec l'écran de configuration des fournisseurs. Une conversation est désormais tenue par un CLI de code, qui apporte son propre compte. Les jetons des intégrations sont inchangés."
 				}
 			},
 			{
 				"kind": "removed",
 				"text": {
-					"en": "Usage & Stats is removed: it was fed by the parsed agent runs, which no longer exist. Each CLI reports its own usage.",
-					"fr": "Usage & Statistiques est supprimé : la section se nourrissait des runs analysés, qui n'existent plus. Chaque CLI rapporte sa propre consommation."
+					"en": "Usage & Stats is removed. Each CLI reports its own usage.",
+					"fr": "Usage & Statistiques est supprimé. Chaque CLI rapporte sa propre consommation."
 				}
 			},
 			{
 				"kind": "removed",
 				"text": {
-					"en": "Cairn no longer stores conversation transcripts. It keeps only what it takes to reopen a conversation - its CLI, its directory and how to resume it; the transcript stays with the CLI that wrote it. Conversations recorded by earlier versions are not carried over.",
-					"fr": "Cairn ne stocke plus les transcriptions des conversations. Il ne garde que de quoi rouvrir une conversation - son CLI, son répertoire et comment la reprendre ; la transcription reste chez le CLI qui l'a écrite. Les conversations enregistrées par les versions précédentes ne sont pas reprises."
+					"en": "Cairn no longer stores conversation transcripts: the transcript stays with the CLI that wrote it, and Cairn keeps only what it takes to reopen the conversation. Conversations recorded by earlier versions are not carried over.",
+					"fr": "Cairn ne stocke plus les transcriptions des conversations : la transcription reste chez le CLI qui l'a écrite, et Cairn ne garde que de quoi rouvrir la conversation. Les conversations enregistrées par les versions précédentes ne sont pas reprises."
 				}
 			},
 			{
@@ -106,17 +101,10 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "A CLI Cairn cannot actually run is no longer offered as a conversation it cannot start: neither one whose configuration directory outlived its uninstall, nor a launcher shim on the PATH that is not the CLI itself - VS Code drops one for GitHub Copilot that only offers to install it. Detection now asks each binary for its version and believes the ones that answer. The Providers page and the skills and MCP pickers still list such a CLI, since files written there stay useful.",
-					"fr": "Un CLI que Cairn ne peut pas réellement lancer n'est plus proposé pour une conversation qu'il ne peut pas démarrer : ni celui dont le répertoire de configuration a survécu à sa désinstallation, ni un lanceur présent dans le PATH qui n'est pas le CLI lui-même - VS Code en dépose un pour GitHub Copilot qui se contente de proposer son installation. La détection demande désormais sa version à chaque binaire et ne retient que ceux qui répondent. La page Fournisseurs et les sélecteurs de skills et de serveurs MCP le listent toujours, les fichiers qui y sont écrits restant utiles."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
-					"en": "A conversation in the history is now its CLI's logo and its title, nothing else - the CLI's name was saying twice what the logo already says. Its actions button no longer waits for a hover to appear. The open conversation is headed the same way, logo then title, and the worktree path has left the header.",
-					"fr": "Une conversation de l'historique se réduit au logo de son CLI et à son titre - le nom du CLI répétait ce que le logo dit déjà. Son bouton d'actions n'attend plus le survol pour apparaître. La conversation ouverte porte le même en-tête, logo puis titre, et le chemin du worktree en a disparu."
+					"en": "A conversation in the history is now its CLI's logo and its title, nothing else. Its actions button no longer waits for a hover to appear. The open conversation is headed the same way, logo then title.",
+					"fr": "Une conversation de l'historique se réduit au logo de son CLI et à son titre. Son bouton d'actions n'attend plus le survol pour apparaître. La conversation ouverte porte le même en-tête, logo puis titre."
 				}
 			},
 			{
@@ -129,22 +117,8 @@
 			{
 				"kind": "removed",
 				"text": {
-					"en": "The agent status indicators are gone from the instance selector, the instance manager and the conversation list. They predate the Agent step's rewrite: Cairn no longer reads a CLI's output, so it cannot tell an answer from a prompt, and a dot meaning only \"a process is alive\" claimed more than it knew.",
-					"fr": "Les indicateurs d'état de l'agent disparaissent du sélecteur d'instances, du gestionnaire d'instances et de la liste des conversations. Ils précédaient la refonte de la step Agent : Cairn ne lit plus la sortie d'un CLI et ne peut pas distinguer une réponse d'une invite ; une pastille signifiant seulement « un processus tourne » prétendait en savoir plus qu'elle ne savait."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Renaming a conversation from its header now updates the header itself, not only the list beside it.",
-					"fr": "Renommer une conversation depuis son en-tête met désormais l'en-tête à jour, et plus seulement la liste à côté."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Opening the CLI picker is instant: the installed CLIs are detected once and kept, instead of every CLI being run again to read its version each time the view opens. A \"Detect again\" button picks up an install made while Cairn was running.",
-					"fr": "Ouvrir le sélecteur de CLI est instantané : les CLI installés sont détectés une fois et conservés, au lieu de relancer chacun d'eux pour lire sa version à chaque ouverture de la vue. Un bouton « Détecter à nouveau » prend en compte une installation faite pendant que Cairn tournait."
+					"en": "The agent status indicators are gone from the instance selector, the instance manager and the conversation list: Cairn no longer reads a CLI's output, so a dot meaning only \"a process is alive\" claimed more than it knew.",
+					"fr": "Les indicateurs d'état de l'agent disparaissent du sélecteur d'instances, du gestionnaire d'instances et de la liste des conversations : Cairn ne lit plus la sortie d'un CLI, et une pastille signifiant seulement « un processus tourne » prétendait en savoir plus qu'elle ne savait."
 				}
 			},
 			{
@@ -155,52 +129,10 @@
 				}
 			},
 			{
-				"kind": "changed",
-				"text": {
-					"en": "A conversation is now named with a title drawn from your first prompt rather than the prompt itself: politeness and the \"can you\" framing are dropped, only the first sentence is kept, and it reads as a name.",
-					"fr": "Une conversation est desormais nommee par un titre tire de votre premier prompt plutot que par le prompt lui-meme : les formules de politesse et le \"peux-tu\" sautent, seule la premiere phrase est gardee, et cela se lit comme un nom."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The conversation panel is titled \"Agent\" instead of \"History\".",
-					"fr": "Le panneau des conversations s'intitule \"Agent\" et non plus \"Historique\"."
-				}
-			},
-			{
 				"kind": "fixed",
 				"text": {
-					"en": "\"See the installed CLIs\", in the conversation picker, opened the Agents section instead of Providers - the one that actually lists the CLIs found on this machine.",
-					"fr": "\"Voir les CLI installes\", dans le selecteur de conversation, ouvrait la section Agents au lieu de Fournisseurs - celle qui liste vraiment les CLI trouves sur cette machine."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "An AI assist on a large diff no longer fails with \"Argument list too long\" on Linux: the prompt is handed to Claude Code on its standard input instead of on the command line, which caps a single argument at 128 KB.",
-					"fr": "Une assistance IA sur un gros diff n'échoue plus avec « Argument list too long » sous Linux : le prompt est transmis à Claude Code sur son entrée standard et non sur la ligne de commande, qui limite un argument à 128 Ko."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening an existing conversation no longer moves it to the top of the history: only starting or relaunching its CLI reorders the list, so coming back to the Agent step leaves the order as you left it.",
-					"fr": "Ouvrir une conversation existante ne la remonte plus en haut de l'historique : seul le démarrage ou le relancement de son CLI réordonne la liste, si bien que revenir sur la step Agent laisse l'ordre tel que vous l'aviez laissé."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A conversation opened without a single message no longer fails on reopening. Its session identifier was reserved at creation but named a session the CLI had never written, and resuming it errored out; the CLI now starts fresh until it has actually been talked to.",
-					"fr": "Une conversation ouverte sans le moindre message n'échoue plus à sa réouverture. Son identifiant de session était réservé à la création mais désignait une session que le CLI n'avait jamais écrite, et la reprise échouait ; le CLI démarre désormais à neuf tant qu'on ne lui a pas réellement parlé."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The git history and the commit graph are noticeably faster on large repositories: each page of history no longer walks the whole branch to tell which commits it contains, the graph loads twenty commits at a time and only keeps the visible rows in the page, and scrolling extends the existing lane layout instead of recomputing it from the first commit.",
-					"fr": "L'historique git et le graphe des commits sont nettement plus rapides sur les gros dépôts : chaque page d'historique ne parcourt plus toute la branche pour savoir quels commits elle contient, le graphe charge vingt commits à la fois et ne conserve dans la page que les lignes visibles, et le défilement prolonge le tracé des couloirs existant au lieu de le recalculer depuis le premier commit."
+					"en": "An AI assist on a large diff no longer fails on Linux, where the prompt was too long to be passed on the command line.",
+					"fr": "Une assistance IA sur un gros diff n'échoue plus sous Linux, où le prompt était trop long pour passer sur la ligne de commande."
 				}
 			},
 			{
@@ -239,20 +171,6 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching project no longer tears the terminals down and rebuilds them: they stay as they were, instead of being disposed and replayed for nothing.",
-					"fr": "Changer de projet ne démonte plus les terminaux pour les reconstruire : ils restent en l'état au lieu d'être détruits puis rejoués pour rien."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A terminal restored into a view that had not been laid out yet could stay black or come back with its content scrambled. Its screen is now replayed before it is resized, and a terminal that opened with no size is repainted once it gets one.",
-					"fr": "Un terminal restauré dans une vue pas encore dimensionnée pouvait rester noir ou revenir avec un contenu désordonné. Son écran est désormais rejoué avant d'être redimensionné, et un terminal ouvert sans dimensions est repeint dès qu'il en obtient."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
 					"en": "Regenerating the review guide now asks first, and says what it costs: the guide is rewritten whole and the reading progress goes with it. Confirming forgets which hunks were read, so a fresh guide starts on a clean slate rather than showing chapters as unread over a full progress bar.",
@@ -279,255 +197,10 @@
 		"version": "0.18.0",
 		"date": "2026-08-30",
 		"summary": {
-			"en": "The Review step becomes a guided reading: the AI writes the tour of the branch, chapter by chapter, and your comments go up to GitLab or GitHub as a single review. Underneath, a performance pass - the interface answers the pointer without stutter, and switching tab no longer rebuilds the view.",
-			"fr": "La step Review devient une lecture guidée : l'IA écrit la visite de la branche, chapitre par chapitre, et vos commentaires remontent sur GitLab ou GitHub en une seule review. En dessous, une passe de performance : l'interface répond au pointeur sans saccade, et changer d'onglet ne reconstruit plus la vue."
+			"en": "The Review step becomes a guided reading: the AI writes the tour of the branch, chapter by chapter, and your comments go up to GitLab or GitHub as a single review.",
+			"fr": "La step Review devient une lecture guidée : l'IA écrit la visite de la branche, chapitre par chapitre, et vos commentaires partent sur GitLab ou GitHub en une seule review."
 		},
 		"changes": [
-			{
-				"kind": "added",
-				"text": {
-					"en": "In the Review step, clicking a line number in the diff - dragging or shift-clicking to extend to several lines - opens a comment on those lines, in the guide as in the raw diff; it leaves with the review as a line range on GitHub and GitLab.",
-					"fr": "Dans la step Review, un clic sur un numéro de ligne du diff - glisser ou shift+clic pour étendre à plusieurs lignes - ouvre un commentaire sur ces lignes, dans le guide comme dans le diff brut ; il part avec la review en plage de lignes sur GitHub et GitLab."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Searching the git graph waits for the typing to settle before filtering, so a long history no longer stutters on every keystroke; clearing the field still restores the full list at once.",
-					"fr": "La recherche dans le graphe git attend la fin de la frappe avant de filtrer, si bien qu'un long historique ne saccade plus à chaque touche ; vider le champ rétablit toujours la liste complète immédiatement."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Mermaid files (.mmd) render as a diagram in the editor, and show their source again as soon as the cursor enters them.",
-					"fr": "Les fichiers Mermaid (.mmd) s'affichent comme un diagramme dans l'éditeur, et redonnent leur source dès que le curseur y entre."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A large Mermaid diagram is no longer squeezed into the width of the editor: it keeps its size and is explored by dragging, zooming with ctrl or cmd and the wheel, and a double click puts it back.",
-					"fr": "Un grand diagramme Mermaid n'est plus écrasé à la largeur de l'éditeur : il garde sa taille et s'explore en le faisant glisser, en zoomant avec ctrl ou cmd et la molette, et un double clic le remet en place."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Tags are managed from the Git view: creating a lightweight or annotated tag, pushing it, and deleting it locally or on the remote. A commit only a tag points at now appears in the graph.",
-					"fr": "Les tags se gèrent depuis la vue Git : créer un tag léger ou annoté, le pousser, le supprimer en local ou sur le distant. Un commit sur lequel pointe seulement un tag apparaît désormais dans le graphe."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Tests are detected in a monorepo: packages nested under a grouping directory are found, and an environment selector picks which one to run, next to the engine selector. Two packages using the same engine are no longer mixed up.",
-					"fr": "Les tests sont détectés dans un monorepo : les packages imbriqués sous un dossier de regroupement sont trouvés, et un sélecteur d'environnement choisit celui à lancer, à côté du sélecteur de moteur. Deux packages utilisant le même moteur ne sont plus confondus."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A repository with many branches no longer hides its commit messages: the rails are capped in width and the message keeps its room, whatever the number of branches.",
-					"fr": "Un dépôt avec beaucoup de branches ne cache plus ses messages de commit : les rails sont bornés en largeur et le message garde sa place, quel que soit le nombre de branches."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Icon animations can be turned off in the appearance settings.",
-					"fr": "Les animations des icônes peuvent être désactivées dans les réglages d'apparence."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Cancelling a request to an AI no longer risks signalling an unrelated process group: the run is only killed while its process is still alive, and its input pipe is closed with it.",
-					"fr": "Annuler une demande à une IA ne risque plus de signaler un groupe de processus étranger : le run n'est tué que tant que son processus est vivant, et son entrée est fermée avec lui."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The text selection is visible again inside a markdown code block, which no longer paints over it.",
-					"fr": "La sélection de texte est de nouveau visible dans un bloc de code markdown, qui ne la recouvre plus."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A copy button on every markdown code block.",
-					"fr": "Un bouton de copie sur chaque bloc de code markdown."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The documentation shown when hovering a symbol renders its markdown instead of its raw source, scrolls rather than overflowing the window, and its links open: a file as an editor tab, anything else in the browser.",
-					"fr": "La documentation affichée au survol d'un symbole rend son markdown au lieu de sa source brute, défile au lieu de déborder de la fenêtre, et ses liens s'ouvrent : un fichier comme onglet de l'éditeur, le reste dans le navigateur."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Clicking a line of the parent scopes pinned above the code jumps back to it.",
-					"fr": "Cliquer une ligne des blocs parents épinglés au-dessus du code y ramène."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Commenting a remark of the review guide brings the composer into view and puts the cursor in it, and picking a pending comment points the diff at the line it is about - moving to the chapter that covers it, or to the raw diff when no chapter does.",
-					"fr": "Commenter une remarque du guide de review amène le champ de rédaction à l'écran et y place le curseur, et sélectionner un commentaire en attente pointe le diff sur la ligne concernée - en passant au chapitre qui la couvre, ou au diff brut quand aucun ne la couvre."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "\"Draft with AI\" in the review guide wears the same pending treatment as the merge request assist - the field itself shows the work - and the button becomes the way to stop the run.",
-					"fr": "\"Rédiger avec l'IA\" dans le guide de review adopte le même traitement d'attente que l'assistant de merge request - le champ lui-même montre le travail en cours - et le bouton devient le moyen d'arrêter la génération."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The review guide offers the same Submit review action in its sidebar as in the comments panel, held back until every chapter has been read and saying how far off the reading is.",
-					"fr": "Le guide de review propose la même action Rendre la review dans sa barre latérale que dans le panneau des commentaires, retenue tant que tous les chapitres n'ont pas été lus et indiquant ce qu'il reste à lire."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "No chapter is shown as current while the review guide is on its overview.",
-					"fr": "Aucun chapitre n'est marqué comme courant tant que le guide de review est sur sa vue d'ensemble."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A remark of the guide and its line in the code point at each other: picking a remark scrolls the diff to its line, and clicking the marker on that line brings the remark forward, revealing it even when the kind filter was hiding it.",
-					"fr": "Une remarque du guide et sa ligne dans le code se désignent mutuellement : sélectionner une remarque fait défiler le diff jusqu'à sa ligne, et cliquer sur le marqueur de cette ligne met la remarque en avant, y compris quand le filtre par type la masquait."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The review guide renders the markdown it is written in: paths and symbols read as code rather than as text wrapped in backticks, in the overview, the chapter summaries and the remarks.",
-					"fr": "Le guide de review affiche le markdown dans lequel il est rédigé : les chemins et les symboles se lisent comme du code au lieu d'un texte entouré de backticks, dans la vue d'ensemble, les résumés de chapitre et les remarques."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The review guide opens on a full-width overview page - what the branch does, how many chapters, remarks and hunks await - instead of squeezing that text into the sidebar and dropping the reader straight into the first extract.",
-					"fr": "Le guide de review s'ouvre sur une page de présentation pleine largeur - ce que fait la branche, combien de chapitres, de remarques et de sections attendent - au lieu de comprimer ce texte dans la barre latérale et de plonger le lecteur directement dans le premier extrait."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The remarks of the guide sit beside the code rather than stacked under it, so the diff keeps its height whatever the chapter has to say.",
-					"fr": "Les remarques du guide se placent à côté du code au lieu d'être empilées en dessous, pour que le diff garde sa hauteur quel que soit ce que le chapitre a à dire."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The guide shows which chapter of how many, with the reading progress beside the code, and filters the remarks of an extract by kind.",
-					"fr": "Le guide indique le chapitre en cours sur le total, avec la progression de lecture à côté du code, et filtre les remarques d'un extrait par type."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The guide's navigation buttons carry their keyboard shortcut.",
-					"fr": "Les boutons de navigation du guide portent leur raccourci clavier."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The forge's own records - a label changed, a pipeline run - no longer count as open discussions in the Review step: they can never be resolved, and are listed under their own Activity filter.",
-					"fr": "Les enregistrements de la forge - un label modifié, un pipeline lancé - ne comptent plus comme des discussions ouvertes dans la step Review : ils ne peuvent pas être résolus, et sont listés sous leur propre filtre Activité."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Review diff shows a placeholder shaped like the diff itself while a file loads, instead of a single column of lines.",
-					"fr": "Le diff de la step Review affiche un placeholder à la forme du diff lui-même pendant le chargement d'un fichier, au lieu d'une simple colonne de lignes."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The discussion panel of the Review step filters between all, open and resolved threads, each tab carrying its count.",
-					"fr": "Le panneau des discussions de la step Review filtre entre toutes les discussions, les ouvertes et les résolues, chaque onglet portant son compte."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The Review step reopens on the file that was being read, per project and per instance.",
-					"fr": "La step Review rouvre sur le fichier en cours de lecture, par projet et par instance."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The discussions of a merge request are gathered in one panel of the Review diff instead of being split between a strip under the diff and a side list. A thread anchored in another file stays listed and opens that file when picked.",
-					"fr": "Les discussions d'une merge request sont réunies dans un seul panneau du diff de la step Review au lieu d'être séparées entre un bandeau sous le diff et une liste latérale. Une discussion ancrée dans un autre fichier reste listée et ouvre ce fichier quand on la sélectionne."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The discussion panel of the Review diff can be collapsed to give the diff the full width, and reopened from the rail that stays in place. Its state is remembered per instance.",
-					"fr": "Le panneau des discussions du diff de la step Review peut être replié pour laisser toute la largeur au diff, et rouvert depuis le rail qui reste en place. Son état est mémorisé par instance."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching between files in the Review diff no longer shows the previous file's content under the new file's name: the editor was built asynchronously and kept whatever content it had captured when its language mode finished loading.",
-					"fr": "Passer d'un fichier à l'autre dans le diff de la step Review n'affiche plus le contenu du fichier précédent sous le nom du nouveau : l'éditeur était construit de façon asynchrone et gardait le contenu capturé au moment où son mode de langage finissait de charger."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A file shorter than the pane now fills the height of the Review diff instead of stopping mid-way and leaving the background visible under it.",
-					"fr": "Un fichier plus court que le panneau occupe désormais toute la hauteur du diff de la step Review au lieu de s'arrêter à mi-chemin en laissant le fond visible en dessous."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The Review diff offers to open the file under review in the editor, disabled when the worktree no longer has it.",
-					"fr": "Le diff de la step Review propose d'ouvrir dans l'éditeur le fichier en cours de review, désactivé quand le worktree ne le contient plus."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "An instance created from an existing branch no longer takes that same branch as its base, which compared the branch with itself and left the Review and Git diffs empty. The base is now a field of its own, prefilled from the merge request's target branch when there is one, otherwise from a merge commit or the fork point, and always editable.",
-					"fr": "Une instance créée depuis une branche existante ne prend plus cette même branche comme base, ce qui comparait la branche avec elle-même et laissait les diffs des steps Review et Git vides. La base est désormais un champ à part, prérempli depuis la branche cible de la merge request quand il y en a une, sinon depuis un commit de merge ou le point de divergence, et toujours modifiable."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The base branch of an instance can be changed after the fact: from the branch bar of the Git step, and from the instance settings. Changing it re-points the diffs; the worktree is left alone.",
-					"fr": "La branche de base d'une instance peut être changée après coup : depuis la barre de branche de la step Git, et depuis les réglages de l'instance. La modifier réoriente les diffs ; le worktree n'est pas touché."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The Review step says when an instance has no base branch to compare against, instead of showing an empty diff with no explanation.",
-					"fr": "La step Review indique quand une instance n'a pas de branche de base à comparer, au lieu d'afficher un diff vide sans explication."
-				}
-			},
 			{
 				"kind": "added",
 				"text": {
@@ -578,185 +251,199 @@
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "added",
 				"text": {
-					"en": "Switching project while the Git view is open no longer shows untracked files of the previous project among the changes of the new one, and the new list appears in one go instead of its untracked files dropping in a moment later.",
-					"fr": "Changer de projet avec la vue Git ouverte n'affiche plus les fichiers non suivis du projet précédent parmi les changements du nouveau, et la nouvelle liste apparaît d'un bloc au lieu de voir ses fichiers non suivis s'insérer un instant plus tard."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Diff lines in the Git view keep their syntax colouring across project switches instead of flashing as plain text while they are highlighted again.",
-					"fr": "Les lignes de diff de la vue Git gardent leur coloration syntaxique d'un projet à l'autre au lieu de réapparaître en texte brut le temps d'être recolorées."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Git view's background poll no longer re-reads and re-compares every diff and every untracked file each time: diffs come back only when they changed, untracked files are re-read only when their modification time moved, and unchanged cards are kept as they are.",
-					"fr": "L'interrogation de fond de la vue Git ne relit et ne recompare plus tous les diffs et tous les fichiers non suivis à chaque fois : les diffs ne reviennent que s'ils ont changé, les fichiers non suivis ne sont relus que si leur date de modification a bougé, et les cartes inchangées sont conservées telles quelles."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The main window is built at launch from the transparency effects setting, so turning the effects off really gives an opaque window - and a smoother scroll in the editor, the tree and the terminal.",
-					"fr": "La fenêtre principale est construite au lancement d'après le réglage des effets de transparence : les désactiver donne vraiment une fenêtre opaque, et un défilement plus fluide dans l'éditeur, l'arbre et le terminal."
+					"en": "In the Review step, clicking a line number in the diff - dragging or shift-clicking to extend to several lines - opens a comment on those lines, in the guide as in the raw diff; it leaves with the review as a line range on GitHub and GitLab.",
+					"fr": "Dans la step Review, un clic sur un numéro de ligne du diff - glisser ou shift+clic pour étendre à plusieurs lignes - ouvre un commentaire sur ces lignes, dans le guide comme dans le diff brut ; il part avec la review en plage de lignes sur GitHub et GitLab."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "Switching project tab, workflow tab, tool or home section cross-fades like the home / workspace switch.",
-					"fr": "Changer d'onglet de projet, d'onglet de workflow, d'outil ou de section d'accueil se fait en fondu, comme la bascule accueil / espace de travail."
+					"en": "Commenting a remark of the review guide brings the composer into view and puts the cursor in it, and picking a pending comment points the diff at the line it is about - moving to the chapter that covers it, or to the raw diff when no chapter does.",
+					"fr": "Commenter une remarque du guide de review amène le champ de rédaction à l'écran et y place le curseur, et sélectionner un commentaire en attente pointe le diff sur la ligne concernée - en passant au chapitre qui la couvre, ou au diff brut quand aucun ne la couvre."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Typing in the editor no longer re-evaluates the whole Files view twice per key; the minimap is redrawn once per typing pause instead of once per keystroke.",
-					"fr": "Taper dans l'éditeur ne réévalue plus toute la vue Fichiers deux fois par touche ; la minimap est redessinée une fois par pause de frappe au lieu d'une fois par touche."
+					"en": "The review guide offers the same Submit review action in its sidebar as in the comments panel, held back until every chapter has been read and saying how far off the reading is.",
+					"fr": "Le guide de review propose la même action Rendre la review dans sa barre latérale que dans le panneau des commentaires, retenue tant que tous les chapitres n'ont pas été lus et indiquant ce qu'il reste à lire."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "Editor setting to wrap long lines, off by default: without wrapping, large files scroll without the height remeasuring that made them jump.",
-					"fr": "Réglage de l'éditeur pour le retour à la ligne automatique, désactivé par défaut : sans retour à la ligne, les gros fichiers défilent sans les remesures de hauteur qui les faisaient sauter."
+					"en": "A remark of the guide and its line in the code point at each other: picking a remark scrolls the diff to its line, and clicking the marker on that line brings the remark forward, revealing it even when the kind filter was hiding it.",
+					"fr": "Une remarque du guide et sa ligne dans le code se désignent mutuellement : sélectionner une remarque fait défiler le diff jusqu'à sa ligne, et cliquer sur le marqueur de cette ligne met la remarque en avant, y compris quand le filtre par type la masquait."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Switching back to a project you already visited keeps its open documents in memory and its instances loaded: the switch no longer waits on reading every open file and the instance list from disk.",
-					"fr": "Revenir sur un projet déjà visité garde ses documents ouverts en mémoire et ses instances chargées : le changement n'attend plus la relecture de chaque fichier ouvert et de la liste des instances sur disque."
+					"en": "The review guide opens on a full-width overview page - what the branch does, how many chapters, remarks and hunks await - instead of squeezing that text into the sidebar and dropping the reader straight into the first extract.",
+					"fr": "Le guide de review s'ouvre sur une page de présentation pleine largeur - ce que fait la branche, combien de chapitres, de remarques et de sections attendent - au lieu de comprimer ce texte dans la barre latérale et de plonger le lecteur directement dans le premier extrait."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "While a build or an agent writes many files, the repository is walked again at most every three seconds instead of after every change.",
-					"fr": "Pendant qu'un build ou un agent écrit beaucoup de fichiers, le dépôt n'est reparcouru qu'au plus toutes les trois secondes au lieu d'après chaque changement."
+					"en": "The remarks of the guide sit beside the code rather than stacked under it, so the diff keeps its height whatever the chapter has to say.",
+					"fr": "Les remarques du guide se placent à côté du code au lieu d'être empilées en dessous, pour que le diff garde sa hauteur quel que soit ce que le chapitre a à dire."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The forge's own records - a label changed, a pipeline run - no longer count as open discussions in the Review step: they are listed under their own Activity filter.",
+					"fr": "Les évènements propres à la forge - un label modifié, un pipeline lancé - ne comptent plus comme des discussions ouvertes dans la step Review : ils sont listés sous leur propre filtre Activité."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The discussion panel of the Review step filters between all, open and resolved threads, each tab carrying its count.",
+					"fr": "Le panneau des discussions de la step Review filtre entre toutes les discussions, les ouvertes et les résolues, chaque onglet portant son compte."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Review step reopens on the file that was being read, per project and per instance.",
+					"fr": "La step Review rouvre sur le fichier en cours de lecture, par projet et par instance."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The discussions of a merge request are gathered in one panel of the Review diff instead of being split between a strip under the diff and a side list. A thread anchored in another file stays listed and opens that file when picked.",
+					"fr": "Les discussions d'une merge request sont réunies dans un seul panneau du diff de la step Review au lieu d'être séparées entre un bandeau sous le diff et une liste latérale. Une discussion ancrée dans un autre fichier reste listée et ouvre ce fichier quand on la sélectionne."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The discussion panel of the Review diff can be collapsed to give the diff the full width, and reopened from the rail that stays in place. Its state is remembered per instance.",
+					"fr": "Le panneau des discussions du diff de la step Review peut être replié pour laisser toute la largeur au diff, et rouvert depuis le rail qui reste en place. Son état est mémorisé par instance."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Review diff offers to open the file under review in the editor, disabled when the worktree no longer has it.",
+					"fr": "Le diff de la step Review propose d'ouvrir dans l'éditeur le fichier en cours de review, désactivé quand le worktree ne le contient plus."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Opening or closing a folder in the file tree no longer walks the whole visible tree a second time; the Ports section stops polling while the workspace is on screen; the glass theme no longer stacks a CSS blur on top of the native macOS vibrancy.",
-					"fr": "Ouvrir ou fermer un dossier dans l'arbre ne reparcourt plus tout l'arbre visible une seconde fois ; la section Ports cesse d'interroger le système tant que l'espace de travail est à l'écran ; le thème glass n'empile plus un flou CSS sur la vibrancy native de macOS."
+					"en": "An instance created from an existing branch no longer takes that same branch as its base, which left the Review and Git diffs empty. The base is now a field of its own, prefilled and always editable.",
+					"fr": "Une instance créée depuis une branche existante ne prend plus cette même branche comme base, ce qui laissait les diffs Review et Git vides. La base est désormais un champ à part, prérempli et toujours modifiable."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "Moving the pointer over the file tree, the git list or any dense list no longer costs a style recalculation of the whole window: icon animations are armed only while their control is hovered.",
-					"fr": "Deplacer le pointeur sur l'arbre de fichiers, la liste git ou n'importe quelle liste dense ne coute plus un recalcul de style de toute la fenetre : les animations d'icones ne sont armees que pendant le survol de leur controle."
+					"en": "The base branch of an instance can be changed after the fact: from the branch bar of the Git step, and from the instance settings. Changing it re-points the diffs; the worktree is left alone.",
+					"fr": "La branche de base d'une instance peut être changée après coup : depuis la barre de branche de la step Git, et depuis les réglages de l'instance. La modifier réoriente les diffs ; le worktree n'est pas touché."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "Switching workflow tab keeps the hidden views laid out instead of tearing them down: the editor and the terminal are no longer re-measured on every return.",
-					"fr": "Changer d'onglet de workflow conserve la mise en page des vues masquees au lieu de les detruire : l'editeur et le terminal ne sont plus re-mesures a chaque retour."
+					"en": "The Review step says when an instance has no base branch to compare against, instead of showing an empty diff with no explanation.",
+					"fr": "La step Review indique quand une instance n'a pas de branche de base à comparer, au lieu d'afficher un diff vide sans explication."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "The workflow views are fetched in the background once the workspace is on screen, so opening Review, Tests, Git, CI/CD or the terminal for the first time is immediate.",
-					"fr": "Les vues de workflow sont chargees en tache de fond une fois l'espace de travail affiche, si bien qu'ouvrir Review, Tests, Git, CI/CD ou le terminal pour la premiere fois est immediat."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A loading state is only shown once the wait exceeds 150 ms: a fast open no longer flashes a spinner.",
-					"fr": "Un etat de chargement n'apparait que si l'attente depasse 150 ms : une ouverture rapide ne fait plus clignoter un indicateur."
+					"en": "Mermaid files (.mmd) render as a diagram in the editor, and show their source again as soon as the cursor enters them.",
+					"fr": "Les fichiers Mermaid (.mmd) s'affichent comme un diagramme dans l'éditeur, et redonnent leur source dès que le curseur y entre."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "A streaming agent answer no longer forces a layout of the whole conversation on every chunk, so a long answer stays smooth.",
-					"fr": "Une reponse d'agent en cours de diffusion ne force plus une mise en page de toute la conversation a chaque bloc : une longue reponse reste fluide."
+					"en": "A large Mermaid diagram is no longer squeezed into the width of the editor: it keeps its size and is explored by dragging, zooming with ctrl or cmd and the wheel, and a double click puts it back.",
+					"fr": "Un grand diagramme Mermaid n'est plus écrasé à la largeur de l'éditeur : il garde sa taille et s'explore en le faisant glisser, en zoomant avec ctrl ou cmd et la molette, et un double clic le remet en place."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Tags are managed from the Git view: creating a lightweight or annotated tag, pushing it, and deleting it locally or on the remote. A commit only a tag points at now appears in the graph.",
+					"fr": "Les tags se gèrent depuis la vue Git : créer un tag léger ou annoté, le pousser, le supprimer en local ou sur le distant. Un commit sur lequel pointe seulement un tag apparaît désormais dans le graphe."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Reordering project tabs or editor tabs by drag no longer rebuilds every tab in the bar.",
-					"fr": "Reordonner les onglets de projet ou d'editeur par glisser ne reconstruit plus tous les onglets de la barre."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Cairn now follows the system setting for reduced motion: every animation and transition stops when macOS asks for it.",
-					"fr": "Cairn suit desormais le reglage systeme de mouvement reduit : toute animation et toute transition s'arretent quand macOS le demande."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Switching screen or workflow tab cross-fades instead of cutting, which also hides any frame the switch still goes through. The system setting for reduced motion turns it off.",
-					"fr": "Changer d'ecran ou d'onglet de workflow se fait en fondu plutot qu'en coupure, ce qui masque aussi toute image intermediaire que la bascule traverse encore. Le reglage systeme de mouvement reduit le desactive."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Hovering an instance in the switcher starts reading its worktree, so selecting it paints from data already there.",
-					"fr": "Survoler une instance dans le selecteur lance la lecture de son worktree, si bien que la selectionner peint a partir de donnees deja presentes."
+					"en": "Tests are detected in a monorepo: packages nested under a grouping directory are found, and an environment selector picks which one to run, next to the engine selector.",
+					"fr": "Les tests sont détectés dans un monorepo : les paquets imbriqués sous un répertoire de regroupement sont trouvés, et un sélecteur d'environnement choisit lequel lancer, à côté du sélecteur de moteur."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The git changes list no longer shows a row of dots while it loads: a slow read now shows a skeleton, a fast one shows nothing at all.",
-					"fr": "La liste des changements git n'affiche plus une suite de points pendant son chargement : une lecture lente montre desormais un squelette, une lecture rapide ne montre rien du tout."
+					"en": "A repository with many branches no longer hides its commit messages: the rails are capped in width and the message keeps its room, whatever the number of branches.",
+					"fr": "Un dépôt avec beaucoup de branches ne cache plus ses messages de commit : les rails sont bornés en largeur et le message garde sa place, quel que soit le nombre de branches."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "The commit history only builds the rows the list can show, so a long history scrolls as smoothly as a short one.",
-					"fr": "L'historique des commits ne construit que les lignes que la liste peut afficher, si bien qu'un long historique defile aussi bien qu'un court."
+					"en": "Icon animations can be turned off in the appearance settings.",
+					"fr": "Les animations des icônes peuvent être désactivées dans les réglages d'apparence."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "fixed",
 				"text": {
-					"en": "Unfolding or folding a directory updates just that directory's rows instead of rebuilding the whole tree, which is felt on a large repository.",
-					"fr": "Deplier ou replier un dossier ne met a jour que les lignes de ce dossier au lieu de reconstruire tout l'arbre, ce qui se sent sur un gros depot."
+					"en": "The text selection is visible again inside a markdown code block, which no longer paints over it.",
+					"fr": "La sélection de texte est de nouveau visible dans un bloc de code markdown, qui ne la recouvre plus."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "The branch pickers show at most a hundred branches per group and say how many are left, rather than building thousands of rows on each keystroke.",
-					"fr": "Les selecteurs de branche affichent au plus cent branches par groupe et indiquent combien il en reste, plutot que de construire des milliers de lignes a chaque frappe."
+					"en": "A copy button on every markdown code block.",
+					"fr": "Un bouton de copie sur chaque bloc de code markdown."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The documentation shown when hovering a symbol renders its markdown instead of its raw source, scrolls rather than overflowing the window, and its links open: a file as an editor tab, anything else in the browser.",
+					"fr": "La documentation affichée au survol d'un symbole rend son markdown au lieu de sa source brute, défile au lieu de déborder de la fenêtre, et ses liens s'ouvrent : un fichier comme onglet de l'éditeur, le reste dans le navigateur."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Clicking a line of the parent scopes pinned above the code jumps back to it.",
+					"fr": "Cliquer une ligne des blocs parents épinglés au-dessus du code y ramène."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Editor setting to wrap long lines, off by default.",
+					"fr": "Un réglage de l'éditeur pour replier les lignes longues, désactivé par défaut."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
 					"en": "A \"Transparency effects\" setting under Appearance. Turning it off makes the window opaque, which gives scrolling back its fast path; it takes effect after a restart.",
-					"fr": "Un reglage \"Effets de transparence\" dans Apparence. Le desactiver rend la fenetre opaque, ce qui redonne au defilement son chemin rapide ; effectif apres un redemarrage."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The glass theme now blurs only the sidebar, the title bar and the tab strip, leaving the editor area opaque - the way Xcode and Finder do it. The blur was the heaviest thing the app asked of the GPU.",
-					"fr": "Le theme verre ne floute plus que la barre laterale, la barre de titre et la barre d'onglets, en laissant la zone d'edition opaque - comme le font Xcode et le Finder. Le flou etait ce que l'application demandait de plus lourd au GPU."
+					"fr": "Un réglage « Effets de transparence » dans Apparence. Le désactiver rend la fenêtre opaque, ce qui redonne au défilement son chemin rapide ; il prend effet après un redémarrage."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Deleting a project now clears everything the app still held for it: cached conversations, terminals, environment variables, agent runs and integration state. A write still queued for the deleted project is cancelled instead of recreating its folder on disk moments later.",
-					"fr": "Supprimer un projet efface desormais tout ce que l'application retenait encore de lui : conversations en cache, terminaux, variables d'environnement, executions d'agent et etat des integrations. Une ecriture encore en attente pour le projet supprime est annulee au lieu de recreer son dossier sur le disque quelques instants plus tard."
+					"en": "Deleting a project now clears everything the app still held for it: cached conversations, terminals, environment variables and integration state.",
+					"fr": "Supprimer un projet efface désormais tout ce que l'application retenait encore de lui : conversations en cache, terminaux, variables d'environnement et état des intégrations."
 				}
 			},
 			{
@@ -772,20 +459,6 @@
 					"en": "The list of target branches of the merge and rebase panel shows a placeholder while the branches load, instead of looking empty.",
 					"fr": "La liste des branches cibles du panneau merge et rebase affiche un indicateur pendant le chargement des branches, au lieu de paraître vide."
 				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Searching the git graph and the git history no longer loads the whole history on the first keystroke: the load waits for the typing to settle.",
-					"fr": "La recherche dans le graphe et l'historique git ne charge plus tout l'historique dès la première frappe : le chargement attend la fin de la saisie."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Searching in files stays responsive on a large number of matches: only the visible results are rendered, and the search itself no longer has its walker threads contend on a shared list.",
-					"fr": "La recherche dans les fichiers reste réactive sur un grand nombre de correspondances : seuls les résultats visibles sont rendus, et la recherche elle-même ne fait plus se disputer ses threads sur une liste partagée."
-				}
 			}
 		]
 	},
@@ -797,314 +470,6 @@
 			"fr": "Intégrations : GitLab, GitHub et Jira entrent dans Cairn - tickets, merge requests, pipelines et reviews, sans quitter l'espace de travail."
 		},
 		"changes": [
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The integrations form and the merge request form no longer break when the backend answers nothing: an unreadable connection, kind or label list now leaves them empty instead of blank.",
-					"fr": "Le formulaire d'intégrations et celui de merge request ne cassent plus quand le back ne répond rien : une liste de connexions, de types ou d'étiquettes illisible les laisse vides plutôt que blancs."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Searching the changed files in Git now filters the list again; it did nothing once the untracked files had been scanned.",
-					"fr": "La recherche dans les fichiers modifiés de Git filtre à nouveau la liste : elle restait sans effet dès que les fichiers non suivis avaient été analysés."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Creating an instance no longer accepts a branch another instance already uses, or no branch at all: the button now follows the error it was already showing.",
-					"fr": "La création d'une instance n'accepte plus une branche déjà utilisée par une autre instance, ni l'absence de branche : le bouton suit désormais l'erreur qu'il affichait déjà."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The search in the instance manager now filters the list as you type.",
-					"fr": "La recherche du gestionnaire d'instances filtre désormais la liste au fil de la frappe."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching the MCP import scope to the local one now greys out the agents that have no local list, instead of leaving them apparently selectable.",
-					"fr": "Basculer la portée d'import MCP sur locale grise désormais les agents sans liste locale, au lieu de les laisser apparemment sélectionnables."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "An integration whose connection test fails now shows the failed status, instead of keeping the one it had before the test.",
-					"fr": "Une intégration dont le test de connexion échoue affiche désormais le statut en échec, au lieu de conserver celui qu'elle avait avant le test."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The eye button on a secret environment variable now actually reveals its value; it previously did nothing.",
-					"fr": "Le bouton œil d'une variable d'environnement secrète révèle désormais réellement sa valeur ; il ne faisait rien auparavant."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The eye button next to an MCP environment variable or header now actually reveals the masked value; it previously did nothing.",
-					"fr": "Le bouton œil d'une variable d'environnement ou d'un en-tête MCP révèle désormais réellement la valeur masquée ; il ne faisait rien auparavant."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A failed write of the token usage ledger is now reported instead of being lost silently.",
-					"fr": "Un échec d'écriture du journal de consommation de tokens est désormais signalé au lieu d'être perdu silencieusement."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Importing a syntax theme file whose tokens are empty no longer passes the format check and leaves the editor without colours.",
-					"fr": "L'import d'un fichier de thème de coloration dont les tokens sont vides ne passe plus la validation de format et ne laisse plus l'éditeur sans couleurs."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Sizes, durations, counts and amounts no longer display as \"NaN\" when the underlying value is missing or corrupted; they fall back to zero.",
-					"fr": "Les tailles, durées, décomptes et montants ne s'affichent plus en « NaN » quand la valeur sous-jacente est absente ou corrompue ; ils retombent à zéro."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Switching branch with uncommitted changes now opens a modal offering to stash them, instead of showing a git error banner.",
-					"fr": "Changer de branche avec des modifications non validées ouvre désormais une fenêtre proposant de les remiser, au lieu d'afficher un bandeau d'erreur git."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Glass theme: menus and dropdowns are now opaque enough to read, instead of letting the content behind them show through.",
-					"fr": "Thème verre : les menus et listes déroulantes sont désormais assez opaques pour être lisibles, au lieu de laisser transparaître le contenu situé derrière."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Glass theme on Linux and Windows: a stronger blur and a denser tint make up for the native vibrancy layer that only macOS provides.",
-					"fr": "Thème verre sous Linux et Windows : un flou plus marqué et une teinte plus dense compensent la couche de vibrance native que seul macOS fournit."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The line history panel no longer closes on the very click that opens it.",
-					"fr": "Le panneau d'historique de ligne ne se referme plus sur le clic même qui l'ouvre."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Git: an error message now stays on screen instead of being wiped by the next background refresh.",
-					"fr": "Git : un message d'erreur reste maintenant affiché au lieu d'être effacé par le rafraîchissement suivant en arrière-plan."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "New instance: clearing the branch name no longer snaps it back to the generated default. The field only follows the ticket until you edit it yourself.",
-					"fr": "Nouvelle instance : effacer le nom de branche ne le fait plus revenir au modèle généré. Le champ ne suit le ticket que tant que vous ne l'avez pas modifié vous-même."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Markdown: mermaid diagrams now render inline in the editor. A mermaid code block is drawn as the diagram itself, and shows its parse error when the source is invalid.",
-					"fr": "Markdown : les diagrammes mermaid s'affichent désormais directement dans l'éditeur. Un bloc de code mermaid est dessiné comme le diagramme lui-même, et affiche son erreur d'analyse quand la source est invalide."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Terminal: coming back to a project no longer leaves broken rows of wrapped text behind. The restored screen is measured against the real width before being replayed.",
-					"fr": "Terminal : revenir sur un projet ne laisse plus de lignes cassées de texte replié. L'écran restauré est mesuré à la largeur réelle avant d'être rejoué."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Appearance: the Transparent theme is now available on Linux. The window is see-through on any compositing desktop; the blur behind it comes from the compositor (Blur my Shell on GNOME, KWin on KDE).",
-					"fr": "Apparence : le thème Transparent est désormais disponible sur Linux. La fenêtre est translucide sur tout bureau avec compositeur ; le flou derrière elle vient du compositeur (Blur my Shell sur GNOME, KWin sur KDE)."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Editor: the document now lives in the editor itself - a keystroke no longer copies the whole file into the tab, the dirty marker is a structural compare, and language servers receive incremental edits instead of the full text.",
-					"fr": "Éditeur : le document vit désormais dans l'éditeur lui-même - une frappe ne recopie plus le fichier entier dans l'onglet, le marqueur de modification est une comparaison structurelle, et les serveurs de langage reçoivent des éditions incrémentales au lieu du texte complet."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Files: file contents are served through a dedicated cairn:// channel with an ETag - a file already open costs a stat instead of a re-read - and the tree travels as one flat string, several times smaller than before.",
-					"fr": "Fichiers : le contenu des fichiers passe par un canal cairn:// dédié avec un ETag - un fichier déjà ouvert coûte un stat au lieu d'une relecture - et l'arbre voyage sous forme d'une seule chaîne plate, plusieurs fois plus petite qu'avant."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Files: the last tree of each project is kept on disk, so the first opening after a launch paints it before the repository is walked.",
-					"fr": "Fichiers : le dernier arbre de chaque projet est conservé sur disque, la première ouverture après un lancement l'affiche donc avant le parcours du dépôt."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Git: diff syntax colouring runs in a background worker, so a large diff no longer stalls the view while it colours.",
-					"fr": "Git : la coloration syntaxique des diffs tourne dans un worker en arrière-plan, un gros diff ne bloque donc plus la vue pendant qu'il se colore."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Language servers: one process per language serves every instance of a project through workspace folders, instead of one process per worktree.",
-					"fr": "Serveurs de langage : un seul processus par langage sert toutes les instances d'un projet via les dossiers de workspace, au lieu d'un processus par worktree."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Files: each worktree is watched, so a project you come back to repaints its tree without walking the repository again, and the git status refreshes on changes instead of on a timer.",
-					"fr": "Fichiers : chaque worktree est surveillé, un projet sur lequel on revient repeint donc son arbre sans reparcourir le dépôt, et le statut git se rafraîchit sur changement plutôt que sur un minuteur."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Editor: switching tabs swaps the document in place instead of rebuilding the editor, keeping the parse, the undo history and the selection of each tab.",
-					"fr": "Éditeur : changer d'onglet permute le document sur place au lieu de reconstruire l'éditeur, en gardant l'analyse, l'historique d'annulation et la sélection de chaque onglet."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Terminal: terminals off screen are hibernated - their screen is kept as text and restored on return - so only the visible ones cost memory and rendering.",
-					"fr": "Terminal : les terminaux hors écran sont mis en veille - leur écran est conservé en texte et restauré au retour - seuls les terminaux visibles coûtent donc de la mémoire et du rendu."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Git: the status poll reads everything in one round trip and skips the interface entirely when nothing changed; hovering a project tab preloads its tree and status.",
-					"fr": "Git : le poll de statut lit tout en un aller-retour et ne touche pas l'interface quand rien n'a changé ; survoler l'onglet d'un projet précharge son arbre et son statut."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Instances: node_modules, .venv, vendor and target of the project are cloned copy-on-write into a new instance when the volume allows it (APFS, btrfs, XFS), so it starts with its dependencies in place.",
-					"fr": "Instances : node_modules, .venv, vendor et target du projet sont clonés en copy-on-write dans une nouvelle instance quand le volume le permet (APFS, btrfs, XFS), qui démarre ainsi avec ses dépendances en place."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Agent: streamed output reaches the interface in one batch per frame, and a long answer only re-renders its last paragraph while it streams.",
-					"fr": "Agent : la sortie en streaming arrive à l'interface par lot à chaque frame, et une longue réponse ne re-rend que son dernier paragraphe pendant qu'elle s'écrit."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Language servers: TypeScript no longer spawns a second tsserver per worktree, documents of a project left behind are closed on its servers, and a server idle for ten minutes is stopped and restarted on the next file that needs it.",
-					"fr": "Serveurs de langage : TypeScript ne lance plus un second tsserver par worktree, les documents d'un projet quitté sont fermés sur ses serveurs, et un serveur inactif depuis dix minutes est arrêté puis relancé au prochain fichier qui en a besoin."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Files: switching project restores the tabs in one step instead of a blank editor followed by its content, keeps only unsaved buffers of the instances left behind in memory, and trusts a tree read less than thirty seconds ago instead of walking the repository again.",
-					"fr": "Fichiers : le changement de projet restaure les onglets en une fois au lieu d'un éditeur vide suivi de son contenu, ne garde en mémoire que les buffers non sauvegardés des instances quittées, et fait confiance à un arbre lu il y a moins de trente secondes au lieu de reparcourir le dépôt."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Terminal: only the terminals on screen hold a GPU context, so a session with many terminals no longer falls back to the slow renderer for the ones still scrolling in the background.",
-					"fr": "Terminal : seuls les terminaux à l'écran gardent un contexte GPU, une session avec beaucoup de terminaux ne retombe donc plus sur le rendu lent pour ceux qui défilent encore en arrière-plan."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Saving the navigation state, a transcript or the editor layout no longer runs on the interface thread, which removes the regular hitch while an agent is answering.",
-					"fr": "L'enregistrement de l'état de navigation, d'un transcript ou de la disposition de l'éditeur ne s'exécute plus sur le thread de l'interface, ce qui supprime le hoquet régulier pendant qu'un agent répond."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Terminal: output is now drawn on the GPU, which keeps a verbose command readable instead of stalling the pane, and resizing the window no longer refits on every pixel.",
-					"fr": "Terminal : la sortie est désormais dessinée par le GPU, ce qui garde une commande verbeuse lisible au lieu de bloquer le panneau, et le redimensionnement de la fenêtre ne réajuste plus à chaque pixel."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Finalize instance: the merge request target branch can be chosen from every branch of the project, instead of always being the base branch.",
-					"fr": "Finaliser l'instance : la branche cible de la merge request se choisit parmi toutes les branches du projet, au lieu d'être toujours la branche de base."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Finalize instance: a Squash commits option on the merge request form (GitLab).",
-					"fr": "Finaliser l'instance : une option Regrouper les commits sur le formulaire de merge request (GitLab)."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "CI/CD step: the pipeline header no longer repeats its trigger source next to the title.",
-					"fr": "Étape CI/CD : l'en-tête de pipeline ne répète plus sa source de déclenchement à côté du titre."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "CI/CD step: the whole pipeline history of the branch, loaded as you scroll, with a search bar and status filters applied by the forge itself - so a search reaches pipelines that are not on screen yet.",
-					"fr": "Étape CI/CD : tout l'historique des pipelines de la branche, chargé au fil du défilement, avec une barre de recherche et des filtres par statut appliqués par la forge elle-même - une recherche atteint donc les pipelines pas encore affichés."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Pipelines and merge requests are now polled every 10 seconds instead of 30, so a running pipeline and its jobs advance on screen more closely to the forge.",
-					"fr": "Les pipelines et les merge requests sont désormais interrogés toutes les 10 secondes au lieu de 30, si bien qu'une pipeline en cours et ses jobs progressent à l'écran au plus près de la forge."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "CI/CD step: only the latest pipeline of the branch was listed, and the search and filters had no effect - the background watcher marked the list as already loaded, so the step never fetched the history and kept reinstating that single pipeline.",
-					"fr": "Étape CI/CD : seule la dernière pipeline de la branche était affichée et la recherche comme les filtres restaient sans effet - la surveillance en arrière-plan marquait la liste comme déjà chargée, si bien que l'étape ne récupérait jamais l'historique et réinstallait sans cesse cette unique pipeline."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "CI/CD step: on the base folder, which carries no branch of its own, the step stayed on its placeholder forever - it now follows the checked out branch.",
-					"fr": "Étape CI/CD : sur le dossier de base, qui ne porte pas de branche propre, l'étape restait indéfiniment sur son squelette - elle suit désormais la branche courante."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "CI/CD step: \"Open on GitLab\" opened the selected pipeline instead of the pipeline list of the branch.",
-					"fr": "Étape CI/CD : « Ouvrir sur GitLab » ouvrait la pipeline sélectionnée au lieu de la liste des pipelines de la branche."
-				}
-			},
 			{
 				"kind": "added",
 				"text": {
@@ -1190,10 +555,66 @@
 				}
 			},
 			{
+				"kind": "added",
+				"text": {
+					"en": "Finalize instance: the merge request target branch can be chosen from every branch of the project, instead of always being the base branch.",
+					"fr": "Finaliser l'instance : la branche cible de la merge request se choisit parmi toutes les branches du projet, au lieu d'être toujours la branche de base."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Finalize instance: a Squash commits option on the merge request form (GitLab).",
+					"fr": "Finaliser l'instance : une option Regrouper les commits sur le formulaire de merge request (GitLab)."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "CI/CD step: the whole pipeline history of the branch, loaded as you scroll, with a search bar and status filters applied by the forge itself - so a search reaches pipelines that are not on screen yet.",
+					"fr": "Étape CI/CD : tout l'historique des pipelines de la branche, chargé au fil du défilement, avec une barre de recherche et des filtres par statut appliqués par la forge elle-même - une recherche atteint donc les pipelines pas encore affichés."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
-					"en": "Integrations page: a search bar over the connection list, the first connection opened on arrival, the form section renamed Service information, and the save bar only shown when there is something to save.",
-					"fr": "Page Intégrations : une barre de recherche sur la liste des connexions, la première connexion ouverte à l'arrivée, la section du formulaire renommée Informations du service, et la barre d'enregistrement affichée seulement quand il y a quelque chose à enregistrer."
+					"en": "Pipelines and merge requests are refreshed more often, so a running pipeline and its jobs advance on screen more closely to the forge.",
+					"fr": "Les pipelines et les merge requests sont rafraîchis plus souvent, afin qu'un pipeline en cours et ses jobs avancent à l'écran au plus près de la forge."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching branch with uncommitted changes now opens a modal offering to stash them, instead of showing a git error banner.",
+					"fr": "Changer de branche avec des modifications non validées ouvre désormais une fenêtre proposant de les remiser, au lieu d'afficher un bandeau d'erreur git."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Markdown: mermaid diagrams now render inline in the editor. A mermaid code block is drawn as the diagram itself, and shows its parse error when the source is invalid.",
+					"fr": "Markdown : les diagrammes mermaid s'affichent désormais directement dans l'éditeur. Un bloc de code mermaid est dessiné comme le diagramme lui-même, et affiche son erreur d'analyse quand la source est invalide."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Terminal: coming back to a project no longer leaves broken rows of wrapped text behind.",
+					"fr": "Terminal : revenir sur un projet ne laisse plus de lignes repliées brisées derrière lui."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Appearance: the Transparent theme is now available on Linux. The window is see-through on any compositing desktop; the blur behind it comes from the compositor (Blur my Shell on GNOME, KWin on KDE).",
+					"fr": "Apparence : le thème Transparent est désormais disponible sur Linux. La fenêtre est translucide sur tout bureau avec compositeur ; le flou derrière elle vient du compositeur (Blur my Shell sur GNOME, KWin sur KDE)."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Instances: node_modules, .venv, vendor and target of the project are cloned into a new instance when the volume allows it, so it starts with its dependencies in place.",
+					"fr": "Instances : node_modules, .venv, vendor et target du projet sont clonés dans une nouvelle instance lorsque le volume le permet, afin qu'elle démarre avec ses dépendances en place."
 				}
 			},
 			{
@@ -1210,7 +631,7 @@
 		"date": "2026-08-17",
 		"summary": {
 			"en": "The Tests step runs for real: your suite, its results as they arrive, and the failing line one click away.",
-			"fr": "La step Tests fonctionne vraiment : votre suite, ses resultats au fil de l'execution, et la ligne en echec a un clic."
+			"fr": "La step Tests s'exécute pour de vrai : votre suite, ses résultats au fil de l'eau, et la ligne en échec à un clic."
 		},
 		"changes": [
 			{
@@ -1328,20 +749,6 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The Tests step now finds a package's test script wherever it sits in the repository, instead of only in a short list of known folder names - fixing Vitest not being found in a monorepo subdirectory.",
-					"fr": "La step Tests trouve desormais le script de test d'un paquet ou qu'il se trouve dans le depot, au lieu de se limiter a une courte liste de noms de dossiers connus - ce qui corrige Vitest introuvable dans un sous-dossier de monorepo."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening a failing test's file from a monorepo subdirectory now opens the right file instead of a broken path.",
-					"fr": "Ouvrir le fichier d'un test en echec depuis un sous-dossier de monorepo ouvre desormais le bon fichier au lieu d'un chemin casse."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
 					"en": "Shift-Tab now outdents in the editor, the way Tab already indents.",
 					"fr": "Shift-Tab desindente desormais dans l'editeur, comme Tab indente deja."
 				}
@@ -1368,17 +775,10 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "The History, Agents and New session headers in the Agent view now share the same height.",
-					"fr": "Les en-tetes Historique, Agents et Nouvelle session de la vue Agent partagent desormais la meme hauteur."
-				}
-			},
-			{
 				"kind": "added",
 				"text": {
-					"en": "The Git step's \"Generate with AI\" button now works: it reads what is staged and fills the commit title and description. The run is read-only, cancellable, and leaves nothing in the conversation history.",
-					"fr": "Le bouton « Générer avec l'IA » de la step Git fonctionne désormais : il lit le contenu stage et remplit le titre et la description du commit. L'exécution est en lecture seule, annulable, et ne laisse rien dans l'historique des conversations."
+					"en": "The Git step's \"Generate with AI\" button reads what is staged and fills the commit title and description. The run is cancellable and leaves nothing in the conversation history.",
+					"fr": "Le bouton « Générer avec l'IA » de la step Git lit ce qui est indexé et remplit le titre et la description du commit. L'exécution est annulable et ne laisse rien dans l'historique des conversations."
 				}
 			},
 			{
@@ -1391,29 +791,8 @@
 			{
 				"kind": "added",
 				"text": {
-					"en": "A new Features page, under Artificial Intelligences, maps each AI assist to the provider and model that serves it, and lets the commit message prompt be rewritten. Only CLI providers are offered: they explore the worktree themselves and need no API key.",
-					"fr": "Une nouvelle page Fonctionnalités, dans Intelligences artificielles, associe chaque assistance IA au fournisseur et au modèle qui s'en charge, et permet de réécrire le prompt du message de commit. Seuls les fournisseurs CLI sont proposés : ils explorent le worktree eux-mêmes et ne demandent aucune clé API."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The Agent input box now grows to fit a prompt handed to it by another step, instead of staying one line tall.",
-					"fr": "La zone de saisie de l'agent s'agrandit désormais pour accueillir un prompt transmis par une autre step, au lieu de rester haute d'une seule ligne."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "While the AI writes a commit message, the title and description fields shimmer under a glowing border rather than showing a plain spinner, and a screen reader is told when the run starts and when the message is ready.",
-					"fr": "Pendant que l'IA rédige un message de commit, les champs titre et description scintillent sous une bordure lumineuse plutôt que d'afficher un simple indicateur, et un lecteur d'écran est averti du début de l'exécution et de la disponibilité du message."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A generated commit message no longer starts with the agent's own reasoning: when the answer states its thinking before the message, the commit subject is read from the first line that actually looks like one.",
-					"fr": "Un message de commit généré ne commence plus par le raisonnement de l'agent : lorsque la réponse expose sa réflexion avant le message, le sujet du commit est lu à partir de la première ligne qui en a réellement la forme."
+					"en": "A new Features page, under Artificial Intelligences, maps each AI assist to the provider and model that serves it, and lets the commit message prompt be rewritten.",
+					"fr": "Une nouvelle page Fonctionnalités, sous Intelligences artificielles, associe chaque assistance IA au fournisseur et au modèle qui la sert, et permet de réécrire le prompt du message de commit."
 				}
 			},
 			{
@@ -1429,13 +808,6 @@
 					"en": "The commit description grows with its content up to a maximum height instead of being resized by hand, the way the agent input already behaves.",
 					"fr": "La description du commit s'agrandit avec son contenu jusqu'à une hauteur maximale au lieu d'être redimensionnée à la main, comme le fait déjà la saisie de l'agent."
 				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "AI buttons (Generate with AI in the Git step, Fix with AI in the Tests step) share a new animated style with a gradient glow on hover, and generating a commit message now shows an aurora border and ghost lines typing in instead of a plain shimmer.",
-					"fr": "Les boutons IA (Générer avec l'IA dans l'étape Git, Corriger avec l'IA dans l'étape Tests) partagent un nouveau style animé avec un halo dégradé au survol, et la génération d'un message de commit affiche désormais une bordure aurore et des lignes fantômes qui s'écrivent au lieu d'un simple reflet."
-				}
 			}
 		]
 	},
@@ -1444,70 +816,14 @@
 		"date": "2026-08-16",
 		"summary": {
 			"en": "The interface adapts: it scales, it reads on any accent, and it says when it is still starting.",
-			"fr": "L'interface s'adapte : elle se met à l'échelle, reste lisible sur n'importe quelle couleur et signale son démarrage."
+			"fr": "L'interface s'adapte : elle se met à l'échelle, elle se lit sur n'importe quelle couleur d'accent, et elle indique quand elle démarre encore."
 		},
 		"changes": [
 			{
-				"kind": "changed",
-				"text": {
-					"en": "A long agent answer no longer slows the interface down as it streams. The text was re-formatted from the start on every fragment received, which grew heavier the longer the answer got; it is now formatted once, when the answer settles.",
-					"fr": "Une longue reponse de l'agent ne ralentit plus l'interface pendant qu'elle arrive. Le texte etait remis en forme depuis le debut a chaque fragment recu, ce qui pesait de plus en plus lourd a mesure que la reponse s'allongeait ; il est desormais mis en forme une seule fois, quand la reponse se stabilise."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Opening a large diff uses far less memory: only the lines actually shown are built, instead of every line of the file being prepared and then discarded.",
-					"fr": "Ouvrir un gros diff consomme beaucoup moins de memoire : seules les lignes reellement affichees sont construites, au lieu de preparer toutes les lignes du fichier pour ensuite les jeter."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The editor now downloads a language's syntax support only when a file using it is opened, instead of bundling all of them into the initial load. The application starts faster.",
-					"fr": "L'editeur ne telecharge desormais la coloration d'un langage que lorsqu'un fichier de ce type est ouvert, au lieu de tous les inclure au chargement initial. L'application demarre plus vite."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The file tree is lighter to display: interactions are handled once for the whole tree rather than attached to every row, which shows on a large repository.",
-					"fr": "L'arborescence est plus legere a afficher : les interactions sont gerees une seule fois pour tout l'arbre plutot qu'attachees a chaque ligne, ce qui se ressent sur un gros depot."
-				}
-			},
-			{
 				"kind": "fixed",
 				"text": {
-					"en": "A very large file no longer freezes the window. Opening one, and computing the blame shown in the status bar, are now bounded by size; an oversized untracked file is still listed in the git view but no longer read whole to be diffed.",
-					"fr": "Un fichier tres volumineux ne fige plus la fenetre. Son ouverture, ainsi que le calcul du blame affiche dans la barre de statut, sont desormais bornes par la taille ; un fichier non suivi trop gros reste liste dans la vue git mais n'est plus lu en entier pour etre compare."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The file tree no longer slows down as the number of modified files grows: a directory's git status is now resolved from an index instead of scanning every change for every folder drawn.",
-					"fr": "L'arborescence ne ralentit plus quand le nombre de fichiers modifies augmente : le statut git d'un dossier est desormais resolu depuis un index au lieu de parcourir tous les changements pour chaque dossier affiche."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A terminal producing a lot of output, such as a build, stays responsive: its output is now sent to the interface in batches rather than one event per fragment read.",
-					"fr": "Un terminal qui produit beaucoup de sortie, comme un build, reste reactif : sa sortie est maintenant transmise a l'interface par lots plutot qu'un evenement par fragment lu."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The agent run history was rewritten in full on every fragment received and never written at all while an agent kept streaming; it is now flushed at regular intervals and its size is bounded.",
-					"fr": "L'historique des executions d'agent etait reecrit en entier a chaque fragment recu et n'etait jamais ecrit tant qu'un agent continuait a repondre ; il est maintenant enregistre a intervalle regulier et sa taille est bornee."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Browsing several projects with hidden files shown no longer keeps every path of each one in memory: the file tree cache is now bounded by its real size.",
-					"fr": "Parcourir plusieurs projets en affichant les fichiers ignores ne conserve plus en memoire tous les chemins de chacun : le cache de l'arborescence est desormais borne par sa taille reelle."
+					"en": "A very large file no longer freezes the window when it is opened.",
+					"fr": "Un fichier très volumineux ne fige plus la fenêtre à son ouverture."
 				}
 			},
 			{
@@ -1536,13 +852,6 @@
 				"text": {
 					"en": "The \"Move to folder\" submenu of a project card no longer closes when the pointer crosses the gap toward it too quickly.",
 					"fr": "Le sous-menu \"Deplacer vers un dossier\" d'une carte de projet ne se ferme plus quand le pointeur traverse l'espace vers lui trop rapidement."
-				}
-			},
-			{
-				"kind": "removed",
-				"text": {
-					"en": "The description under the Custom models field on the Providers page was removed.",
-					"fr": "La description sous le champ Modeles personnalises de la page Providers a ete retiree."
 				}
 			},
 			{
@@ -1578,13 +887,6 @@
 				"text": {
 					"en": "The font chosen in Settings, Appearance applies to the whole interface again, not only to the editor and the terminal.",
 					"fr": "La police choisie dans Réglages, Apparence s'applique à nouveau à toute l'interface, et plus seulement à l'éditeur et au terminal."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Syntax highlighting themes have moved from Settings, Appearance to Settings, Editor, next to the other code settings.",
-					"fr": "Les thèmes de coloration syntaxique passent de Réglages, Apparence à Réglages, Éditeur, à côté des autres réglages de code."
 				}
 			},
 			{
@@ -1716,13 +1018,6 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "A conversation opened on one project no longer stays on screen after switching to another project: the live conversation is kept per project, not per instance name.",
-					"fr": "Une discussion ouverte sur un projet ne reste plus affichée après un changement de projet : la discussion en cours est conservée par projet, et non par nom d'instance."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
 					"en": "The Discard action is now offered for a new, untracked file in the Git view. It deletes the file, and says so before asking to confirm.",
 					"fr": "L'action Annuler est désormais proposée pour un nouveau fichier non suivi dans la vue Git. Elle supprime le fichier, et le dit avant de demander confirmation."
 				}
@@ -1772,8 +1067,8 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "On Ubuntu, npm commands could pick up the distribution's outdated npm instead of the one from a version manager like nvm, which then rejected packages as needing a newer engine.",
-					"fr": "Sous Ubuntu, les commandes npm pouvaient utiliser l'ancien npm fourni par la distribution plutôt que celui d'un gestionnaire de versions comme nvm, qui rejetait alors des paquets nécessitant un moteur plus récent."
+					"en": "On Ubuntu, npm commands could pick up the distribution's outdated npm instead of the one from a version manager like nvm.",
+					"fr": "Sous Ubuntu, les commandes npm pouvaient utiliser le npm obsolète de la distribution au lieu de celui d'un gestionnaire de versions comme nvm."
 				}
 			},
 			{
@@ -1793,22 +1088,8 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The editor minimap's git overlay could stay empty on a freshly opened tab until the file was edited.",
-					"fr": "Le calque git de la minimap de l'éditeur pouvait rester vide sur un onglet fraîchement ouvert jusqu'à ce que le fichier soit modifié."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
 					"en": "Dragging the minimap's viewport box, or clicking elsewhere on it to jump, also selected the editor's text underneath.",
 					"fr": "Faire glisser le cadre de la minimap, ou cliquer ailleurs dessus pour s'y déplacer, sélectionnait aussi le texte de l'éditeur en dessous."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Choosing a font in Settings, Appearance no longer changes the interface font: the setting applies to the code editor and the terminal only, as its description states.",
-					"fr": "Choisir une police dans Réglages, Apparence ne change plus la police de l'interface : le réglage ne s'applique qu'à l'éditeur de code et au terminal, conformément à sa description."
 				}
 			},
 			{
@@ -1821,232 +1102,8 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Deleting an instance no longer freezes the window while its worktree is removed.",
-					"fr": "La suppression d'une instance ne fige plus la fenetre pendant le retrait de son worktree."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening a terminal no longer freezes the window while the shell starts.",
-					"fr": "L'ouverture d'un terminal ne fige plus la fenetre pendant le demarrage du shell."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening a file no longer freezes the window while its git blame and diff are read.",
-					"fr": "L'ouverture d'un fichier ne fige plus la fenetre pendant la lecture de son blame et de son diff git."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The file tree no longer reloads itself in the background after leaving the Files view, which could make the window stutter on every focus.",
-					"fr": "L'arborescence ne se recharge plus en arriere-plan apres avoir quitte la vue Fichiers, ce qui pouvait faire saccader la fenetre a chaque reprise de focus."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Blame is read far faster on large files: it is now parsed by the backend instead of being sent to the interface in full.",
-					"fr": "Le blame est lu bien plus vite sur les gros fichiers : il est desormais analyse par le backend au lieu d'etre transmis entierement a l'interface."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The file tree is walked in parallel, so showing ignored files on a large project is noticeably faster.",
-					"fr": "L'arborescence est parcourue en parallele, ce qui rend l'affichage des fichiers ignores nettement plus rapide sur un gros projet."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The background git refresh no longer reads the full diffs while the Git view is closed, leaving the app lighter during a session.",
-					"fr": "Le rafraichissement git en arriere-plan ne lit plus les diffs complets quand la vue Git est fermee, ce qui allege l'application pendant une session."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Typing in quick open stays responsive while the search index is being rebuilt.",
-					"fr": "La saisie dans l'ouverture rapide reste reactive pendant la reconstruction de l'index de recherche."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Sending a prompt to an agent no longer re-reads and re-decrypts the provider configuration every time.",
-					"fr": "L'envoi d'un prompt a un agent ne relit et ne dechiffre plus la configuration des fournisseurs a chaque fois."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Closing Cairn while an agent was answering, or with terminals open, left orphan processes running in the background. Every agent and shell is now killed on exit.",
-					"fr": "Fermer Cairn pendant qu'un agent repondait, ou avec des terminaux ouverts, laissait des processus orphelins tourner en arriere-plan. Chaque agent et chaque shell est maintenant arrete a la fermeture."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching instance or tab quickly while the agent was streaming could leave a stale listener behind, so the same answer was processed several times.",
-					"fr": "Changer rapidement d'instance ou d'onglet pendant la reponse de l'agent pouvait laisser un ecouteur orphelin, et la meme reponse etait traitee plusieurs fois."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Stats screen no longer freezes the window while it reads its history, and recovering past usage is now nearly instant instead of taking a fifth of a second.",
-					"fr": "L'ecran Stats ne fige plus la fenetre pendant la lecture de son historique, et la recuperation de l'usage passe est maintenant quasi instantanee au lieu de prendre un cinquieme de seconde."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Long agent answers stream more smoothly: the transcript is only copied when it actually changed, instead of on every chunk.",
-					"fr": "Les longues reponses de l'agent defilent plus fluidement : la conversation n'est recopiee que lorsqu'elle a reellement change, au lieu de l'etre a chaque fragment."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Creating an instance on a worktree path with no parent directory crashed the backend instead of reporting the error.",
-					"fr": "Creer une instance sur un chemin de worktree sans dossier parent faisait planter le backend au lieu de signaler l'erreur."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A long answer no longer slows down as it grows. Every streamed fragment re-read the whole message being written just to keep the 120 characters of its preview, so the cost climbed with the length of the reply and the interface stuttered more and more towards the end.",
-					"fr": "Une réponse longue ne ralentit plus à mesure qu'elle grandit. Chaque fragment reçu relisait tout le message en cours d'écriture seulement pour en garder les 120 caractères d'aperçu, si bien que le coût montait avec la longueur de la réponse et que l'interface saccadait de plus en plus vers la fin."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A conversation being written no longer copies its whole transcript, nor redraws the history panel, on every fragment received. Both now happen once per save rather than once per fragment.",
-					"fr": "Une conversation en cours d'écriture ne recopie plus tout son transcript, ni ne redessine le panneau d'historique, à chaque fragment reçu. Les deux n'ont plus lieu qu'une fois par enregistrement au lieu d'une fois par fragment."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A conversation is saved while it is being written. A continuous answer pushed its own write back indefinitely, so nothing reached the disk until the answer ended and a crash in the middle of a long reply lost all of it.",
-					"fr": "Une conversation est enregistrée pendant qu'elle s'écrit. Une réponse continue repoussait indéfiniment son propre enregistrement, si bien que rien n'atteignait le disque avant la fin de la réponse et qu'un plantage au milieu d'une réponse longue la perdait entièrement."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Deleting an instance now releases the conversations that hung off it. They stayed in memory for the rest of the session, and a save still pending could rewrite on disk the transcript of an instance that had just been deleted.",
-					"fr": "Supprimer une instance libère désormais les conversations qui en dépendaient. Elles restaient en mémoire jusqu'à la fin de la session, et un enregistrement encore en attente pouvait réécrire sur le disque le transcript d'une instance qui venait d'être supprimée."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The background git refresh now reads the status, the change badges and the repository check in a single git process instead of three, two of which ran the very same command. One refresh cycle costs about 38 percent less.",
-					"fr": "Le rafraichissement git en arriere-plan lit desormais le statut, les badges de modification et la verification du depot en un seul processus git au lieu de trois, dont deux lancaient exactement la meme commande. Un cycle de rafraichissement coute environ 38 pour cent de moins."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "While the Git view is closed, the status refresh slows from every 5 seconds to every 10, halving its remaining cost. Opening the view goes back to the fast cadence immediately.",
-					"fr": "Tant que la vue Git est fermee, le rafraichissement du statut passe de 5 a 10 secondes, ce qui divise par deux son cout restant. Ouvrir la vue revient immediatement a la cadence rapide."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Installing or removing the command line launcher no longer freezes the window while it writes to disk.",
-					"fr": "Installer ou retirer le lanceur en ligne de commande ne gele plus la fenetre pendant l'ecriture sur le disque."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Moving a conversation between the project and instance scopes no longer risks losing its transcript: the copy must be written before the original is removed.",
-					"fr": "Deplacer une conversation entre la portee projet et la portee instance ne risque plus de perdre son transcript : la copie doit etre ecrite avant que l'original ne soit supprime."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A failed save to disk is now reported instead of being silently discarded. Settings, conversations, terminals, environment variables and editor state all used to fail without a trace.",
-					"fr": "Un enregistrement sur le disque qui echoue est desormais signale au lieu d'etre ignore en silence. Les reglages, les conversations, les terminaux, les variables d'environnement et l'etat de l'editeur echouaient auparavant sans laisser de trace."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A streaming agent answer is far cheaper to display: text already written is no longer re-rendered on every chunk, so a long reply stays smooth to the end instead of slowing down as it grows.",
-					"fr": "L'affichage d'une reponse d'agent en cours de streaming est bien moins couteux : le texte deja ecrit n'est plus recalcule a chaque fragment, si bien qu'une longue reponse reste fluide jusqu'au bout au lieu de ralentir en grossissant."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A file with a very large diff is now truncated in the git view, with a note saying so, instead of being sent whole every few seconds while the view is open.",
-					"fr": "Un fichier dont le diff est tres volumineux est desormais tronque dans la vue git, avec une mention qui le signale, au lieu d'etre transmis en entier toutes les quelques secondes tant que la vue est ouverte."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The application starts faster: the editor, the terminal and everything else the workspace needs are only loaded when a project is opened.",
-					"fr": "L'application demarre plus vite : l'editeur, le terminal et tout ce dont l'espace de travail a besoin ne sont charges qu'a l'ouverture d'un projet."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "An agent provider that crashes no longer leaves its conversation stuck as busy for ever: the failure is reported and the conversation is released.",
-					"fr": "Un fournisseur d'agent qui plante ne laisse plus sa conversation bloquee en cours indefiniment : l'echec est signale et la conversation est liberee."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The file tree only builds the rows actually on screen. A repository with tens of thousands of files no longer takes seconds to display, and scrolling it stays smooth.",
-					"fr": "L'arbre de fichiers ne construit plus que les lignes réellement visibles. Un dépôt de plusieurs dizaines de milliers de fichiers ne met plus plusieurs secondes à s'afficher, et son défilement reste fluide."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The workspace views load when first opened instead of all at startup, which cuts the largest startup chunk by 40 percent. Opening the app is noticeably faster on a modest machine.",
-					"fr": "Les vues de l'espace de travail se chargent à leur première ouverture au lieu de toutes au démarrage, ce qui réduit de 40 pour cent le plus gros bloc chargé au lancement. L'ouverture de l'application est nettement plus rapide sur une machine modeste."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A long conversation shows its most recent messages and offers to reveal the earlier ones, instead of building every turn it ever held.",
-					"fr": "Une longue conversation affiche ses messages les plus récents et propose d'afficher les précédents, au lieu de construire tous les échanges qu'elle a jamais contenus."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A very large file opens as plain text, without syntax colouring, minimap or sticky scroll. Typing in it stays responsive instead of stalling on every keystroke.",
-					"fr": "Un fichier très volumineux s'ouvre en texte brut, sans coloration syntaxique, minimap ni entête flottant. La frappe y reste réactive au lieu de bloquer à chaque caractère."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Detecting the indentation width no longer scans the whole document on every keystroke, which cost milliseconds per character on a file of several thousand lines.",
-					"fr": "La détection de la largeur d'indentation ne parcourt plus tout le document à chaque frappe, ce qui coûtait des millisecondes par caractère sur un fichier de plusieurs milliers de lignes."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Folding a directory in the file tree is remembered again. The tree state was only written when a file was opened or a pane resized, so collapsing a directory and relaunching brought it back expanded.",
-					"fr": "Le repliement d'un dossier dans l'arbre de fichiers est de nouveau conservé. L'état de l'arbre n'était écrit qu'à l'ouverture d'un fichier ou au redimensionnement d'un panneau, si bien qu'un dossier replié se retrouvait déplié au redémarrage."
+					"en": "Folding a directory in the file tree is remembered again.",
+					"fr": "Le repliement d'un répertoire dans l'arborescence est de nouveau mémorisé."
 				}
 			}
 		]
@@ -2055,22 +1112,15 @@
 		"version": "0.14.0",
 		"date": "2026-08-15",
 		"summary": {
-			"en": "AI providers become real: configuration, models, and richer conversations.",
-			"fr": "Les providers IA deviennent réels : configuration, modèles et conversations enrichies."
+			"en": "Five coding agents hold a conversation, and the skills, subagents and MCP servers they read are managed from Cairn.",
+			"fr": "Cinq agents de code tiennent une conversation, et les skills, sous-agents et serveurs MCP qu'ils lisent se gèrent depuis Cairn."
 		},
 		"changes": [
 			{
 				"kind": "added",
 				"text": {
-					"en": "Four more coding agents can now hold a conversation: OpenAI Codex, GitHub Copilot, Google Antigravity and Mistral Vibe, alongside Claude Code. Each is driven through its own CLI, with the reasoning levels and the permission modes that CLI actually accepts - Codex states them as the sandbox its tools run in, Vibe as the agent profile a run adopts - and each keeps its own session, so a conversation continues where it left off whichever agent is answering. Enable the ones installed on the machine in Settings > Agents > Providers; the provider chip under the input switches between them mid-conversation, handing over what was said so far.",
-					"fr": "Quatre agents de code de plus peuvent tenir une conversation : OpenAI Codex, GitHub Copilot, Google Antigravity et Mistral Vibe, aux côtés de Claude Code. Chacun est piloté via son propre CLI, avec les niveaux de raisonnement et les modes de permission que ce CLI accepte réellement - Codex les exprime comme le bac à sable dans lequel ses outils s'exécutent, Vibe comme le profil d'agent adopté par une exécution - et chacun conserve sa session, de sorte qu'une conversation reprend là où elle s'est arrêtée quel que soit l'agent qui répond. Activez ceux installés sur la machine dans Réglages > Agents > Providers ; la pastille de fournisseur sous le champ de saisie permet de passer de l'un à l'autre en cours de conversation, en lui transmettant ce qui a été dit."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Google Antigravity is detected again wherever it is installed: Cairn looked for a binary named antigravity, while the CLI installs itself as agy, so skills and MCP servers written for it were written for an agent Cairn believed absent.",
-					"fr": "Google Antigravity est de nouveau détecté là où il est installé : Cairn cherchait un binaire nommé antigravity, alors que le CLI s'installe sous le nom agy, si bien que les skills et serveurs MCP écrits pour lui l'étaient pour un agent que Cairn croyait absent."
+					"en": "Four more coding agents can hold a conversation: OpenAI Codex, GitHub Copilot, Google Antigravity and Mistral Vibe, alongside Claude Code. Each keeps its own session, so a conversation continues where it left off whichever agent is answering, and the provider chip under the input switches between them mid-conversation.",
+					"fr": "Quatre agents de code supplémentaires peuvent tenir une conversation : OpenAI Codex, GitHub Copilot, Google Antigravity et Mistral Vibe, aux côtés de Claude Code. Chacun garde sa propre session : une conversation reprend là où elle s'était arrêtée quel que soit l'agent qui répond, et la pastille de fournisseur sous le champ de saisie permet d'en changer en cours de conversation."
 				}
 			},
 			{
@@ -2088,31 +1138,10 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "A subagent's answer no longer arrives as a message of its own in the conversation. Starting one and finishing it are two entries inside the turn that delegated - \"Agent - Start name\" where it was launched, then \"Agent - name finished\" after whatever the provider wrote while waiting, with the answer behind a disclosure and a link to its full thread. The answer used to be added as a message while the provider was still writing, so it landed above the reply commenting on it, said everything twice, and the reply went missing on reload.",
-					"fr": "La réponse d'un sous-agent n'arrive plus comme un message à part dans la conversation. Son démarrage et sa fin sont deux entrées du tour qui a délégué - \"Agent - Démarrage de nom\" là où il a été lancé, puis \"Agent - nom a terminé\" après ce que le fournisseur a écrit pendant l'attente, avec la réponse repliée et un lien vers son fil complet. La réponse était auparavant ajoutée comme un message pendant que le fournisseur écrivait encore, si bien qu'elle se plaçait au-dessus de la réponse qui la commentait, disait tout en double, et cette réponse disparaissait au rechargement."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A tool result now closes the call it names rather than the last one still open. A delegation finishes long after it started, so anything running alongside it could be marked done in its place.",
-					"fr": "Le résultat d'un outil ferme désormais l'appel qu'il nomme plutôt que le dernier resté ouvert. Une délégation se termine longtemps après son démarrage, si bien que ce qui tournait en parallèle pouvait être marqué terminé à sa place."
-				}
-			},
-			{
 				"kind": "added",
 				"text": {
 					"en": "An agent definition now carries everything the CLI reads from it: model, reasoning effort, permission mode, memory and the skills it loads, on top of its prompt, tools and colour. Model, effort and permission mode are picked from what the targeted agents report they accept rather than typed, so a value that would be rejected is not offered. Anything Cairn does not model is still written back exactly as it was.",
 					"fr": "Une définition d'agent porte désormais tout ce que le CLI y lit : modèle, effort de raisonnement, mode de permission, mémoire et skills chargés, en plus de son prompt, ses outils et sa couleur. Le modèle, l'effort et le mode de permission se choisissent parmi ce que les agents visés déclarent accepter au lieu d'être saisis, donc une valeur qui serait refusée n'est pas proposée. Ce que Cairn ne modélise pas est toujours réécrit tel quel."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The permission mode of an agent definition was not read: the CLI writes it as permissionMode, and Cairn only looked for the hyphenated spelling, so every real definition lost it on save. Both spellings are read now, and the one the CLI writes is the one written back.",
-					"fr": "Le mode de permission d'une définition d'agent n'était pas lu : le CLI l'écrit sous la forme permissionMode et Cairn ne cherchait que l'orthographe avec un tiret, si bien que chaque définition réelle le perdait à l'enregistrement. Les deux orthographes sont désormais lues, et celle qu'écrit le CLI est celle réécrite."
 				}
 			},
 			{
@@ -2123,24 +1152,10 @@
 				}
 			},
 			{
-				"kind": "changed",
-				"text": {
-					"en": "Naming an agent with @ now completes it into the prompt instead of routing the message to it. Delegation belongs to the provider, so a prompt can name several agents at once and each one that starts gets its own thread. The completion does not open on a conversation talking to an API provider, which has nothing to delegate with.",
-					"fr": "Nommer un agent avec @ le complète désormais dans la demande au lieu de lui adresser le message. La délégation appartient au fournisseur, donc une demande peut nommer plusieurs agents à la fois et chacun qui démarre obtient son propre fil. La complétion ne s'ouvre pas dans une conversation adressée à un fournisseur API, qui n'a rien pour déléguer."
-				}
-			},
-			{
 				"kind": "added",
 				"text": {
 					"en": "Subagents started by the agent itself are followed live. Each one gets its own thread with its tools, its reasoning and its permission requests instead of a single opaque line, and what it hands back appears in the conversation as its own answer, in its own colour. The thread is read-only: the provider owns the subagent, so there is no channel to send it a follow-up.",
 					"fr": "Les sous-agents lancés par l'agent lui-même sont suivis en direct. Chacun obtient son propre fil avec ses outils, son raisonnement et ses demandes de permission au lieu d'une seule ligne opaque, et ce qu'il renvoie apparaît dans la conversation comme sa propre réponse, dans sa couleur. Le fil est en lecture seule : le sous-agent appartient au fournisseur, il n'y a donc aucun canal pour lui écrire."
-				}
-			},
-			{
-				"kind": "removed",
-				"text": {
-					"en": "Agent temperature and token limits are gone, along with the import and export of agents. A definition cannot carry generation parameters - the provider decides - and reading the files is the import, so there was nothing left to export to.",
-					"fr": "La température et les limites de jetons des agents disparaissent, ainsi que l'import et l'export d'agents. Une définition ne peut pas porter de paramètres de génération - c'est le fournisseur qui décide - et lire les fichiers est l'import, il ne restait donc rien vers quoi exporter."
 				}
 			},
 			{
@@ -2174,13 +1189,6 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Messages and activity lines now record a real date rather than the clock face they were stamped with. Conversations still show the hour and minute they always did, with the full date on hover, but a turn can now be placed on a day - which is what lets the usage statistics chart your own conversations exactly rather than approximately. An exported conversation carries the full date in its headings, since it is read away from the app. Turns written before this change keep showing the time they recorded, as no day can be recovered from it.",
-					"fr": "Les messages et les lignes d'activité enregistrent désormais une vraie date, et non plus la seule heure dont ils étaient horodatés. Les conversations affichent toujours l'heure et la minute, avec la date complète au survol, mais un tour peut maintenant être situé dans un jour - ce qui permet aux statistiques de consommation de placer vos conversations exactement plutôt qu'approximativement. Une conversation exportée porte la date complète dans ses titres, puisqu'elle se lit hors de l'application. Les tours écrits avant ce changement continuent d'afficher l'heure qu'ils avaient enregistrée, aucun jour ne pouvant en être déduit."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
 					"en": "Typing a slash in the composer opens the same completion list as an agent or a file mention, anywhere in the message and no longer only at its very start. The list now covers everything the agent can actually be asked to run: the commands of the project and of your home directory, including the ones filed in a subdirectory, your skills, and the commands and skills of every installed plugin, all of them offered at once rather than a first few.",
 					"fr": "Taper une barre oblique dans le composeur ouvre la même liste de complétion qu'une mention d'agent ou de fichier, n'importe où dans le message et non plus seulement tout au début. La liste couvre maintenant tout ce que l'agent peut réellement exécuter : les commandes du projet et de votre dossier personnel, y compris celles rangées dans un sous-dossier, vos skills, ainsi que les commandes et skills de chaque plugin installé, tous proposés d'un coup plutôt que les premiers seulement."
 				}
@@ -2190,41 +1198,6 @@
 				"text": {
 					"en": "A prompt addressed to an agent now looks like the composer that sent it: the agent's colour on the message and its name beside yours. The agent's answer quotes that prompt above it, so the pair reads as a question and its reply.",
 					"fr": "Une demande adressée à un agent ressemble désormais au composeur qui l'a envoyée : la couleur de l'agent sur le message et son nom à côté du vôtre. La réponse de l'agent cite cette demande au-dessus d'elle, de sorte que les deux se lisent comme une question et sa réponse."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Calling an agent is answered in the conversation right away by a line saying it started, and its reply lands later attached to the prompt that called it. In Live Activity, the line for a launch goes to that prompt and the line for an answer goes to the answer - neither leaves the conversation any more.",
-					"fr": "Appeler un agent reçoit immédiatement une réponse dans la conversation - une ligne indiquant qu'il a démarré - et sa réponse arrive plus tard, rattachée à la demande qui l'a appelé. Dans Live Activity, la ligne d'un lancement mène à cette demande et celle d'une réponse mène à la réponse : ni l'une ni l'autre ne quitte plus la conversation."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A turn now writes into its own message, found by its place in the conversation rather than by being the last agent message: an agent answering in between could take its place, which left the answer empty. A tool the run was in the middle of is closed when the run stops, instead of spinning for ever.",
-					"fr": "Un tour écrit désormais dans son propre message, repéré par sa place dans la conversation plutôt qu'en étant le dernier message d'agent : un agent répondant entre-temps pouvait prendre sa place, ce qui laissait la réponse vide. Un outil en cours au moment de l'arrêt est refermé, au lieu de tourner indéfiniment."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The conversation search field is the same one as everywhere else in Cairn, with its clear button.",
-					"fr": "Le champ de recherche des conversations est le même que partout ailleurs dans Cairn, avec son bouton d'effacement."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "An agent's answer reads as a reply: the prompt that called it is attached above it, and the answer hangs off it in the agent's colour. When an agent needs a permission, the conversation says which one is waiting and offers to open its details, where the request is shown in full - tool, description, command, and the same allow, always allow and deny choices as the conversation's own.",
-					"fr": "La réponse d'un agent se lit comme une réponse : la demande qui l'a appelé est attachée au-dessus, et la réponse s'y rattache à la couleur de l'agent. Quand un agent attend une autorisation, la conversation indique lequel et propose d'ouvrir son détail, où la demande est présentée en entier - outil, description, commande, et les mêmes choix autoriser, toujours autoriser et refuser que dans la conversation."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Naming an agent with @ now selects it instead of leaving text behind: the mention disappears from the field, the agent shows above it with its colour, and what stays in the input is the message itself. It applies whether the agent is picked from the list or typed by hand, and the selection can be cleared without touching the text.",
-					"fr": "Nommer un agent avec @ le sélectionne au lieu de laisser du texte : la mention disparaît du champ, l'agent s'affiche au-dessus avec sa couleur, et ce qui reste dans la saisie est le message lui-même. Cela vaut que l'agent soit choisi dans la liste ou tapé à la main, et la sélection peut être retirée sans toucher au texte."
 				}
 			},
 			{
@@ -2244,43 +1217,8 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Clicking an agent's line in Live Activity opens that agent instead of jumping to another conversation's answer: launching an agent added a message without its matching activity line, which shifted every later line onto the wrong turn. Stopping an agent is now done from its input field, where sending happens, and a model whose context window is unknown shows the same gauge with a question mark rather than a raw token count.",
-					"fr": "Cliquer la ligne d'un agent dans Live Activity ouvre cet agent au lieu de sauter à la réponse d'une autre conversation : lancer un agent ajoutait un message sans la ligne d'activité correspondante, ce qui décalait toutes les lignes suivantes sur le mauvais tour. L'arrêt d'un agent se fait désormais depuis son champ de saisie, là où l'on envoie, et un modèle dont la fenêtre de contexte est inconnue affiche la même jauge avec un point d'interrogation plutôt qu'un nombre de tokens."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "An agent can be removed, from the panel or from inside its thread: its thread, its context and its place in the list go, while what it already answered stays in the conversation. Calling it again starts a new agent from nothing.",
-					"fr": "Un agent peut être retiré, depuis le panneau ou depuis son fil : son fil, son contexte et sa place dans la liste disparaissent, tandis que ce qu'il a déjà répondu reste dans la conversation. Le rappeler démarre un nouvel agent parti de zéro."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The context window chip tells the truth: Claude Code reports the real window of the model it used, which is what separates a 200k model from its 1M variant, and the tokens written to the cache are counted in - without them a first turn read as almost empty. When no window is known, the chip shows the token count instead of a percentage measured against a guess. An agent's answer is now titled in the agent's own colour, and resetting an agent's context shows its divider straight away.",
-					"fr": "La pastille de fenêtre de contexte dit la vérité : Claude Code rapporte la fenêtre réelle du modèle utilisé, seule chose qui distingue un modèle 200k de sa variante 1M, et les tokens écrits dans le cache sont comptés - sans eux, un premier tour paraissait presque vide. Quand aucune fenêtre n'est connue, la pastille affiche le nombre de tokens au lieu d'un pourcentage calculé sur une supposition. Le titre d'une réponse d'agent prend la couleur de l'agent, et réinitialiser son contexte affiche son trait de séparation immédiatement."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A conversation and its agents now run at the same time. A message sent while an agent is working no longer waits for it to finish, and two agents can work at once.",
-					"fr": "Une conversation et ses agents s'exécutent désormais en même temps. Un message envoyé pendant qu'un agent travaille n'attend plus qu'il ait fini, et deux agents peuvent travailler en parallèle."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "An agent is no longer handed its own answer back as context on its next turn, and the answer it returns to the conversation is its final text rather than every note it wrote along the way.",
-					"fr": "Un agent ne reçoit plus sa propre réponse en contexte au tour suivant, et la réponse qu'il rend à la conversation est son texte final plutôt que l'ensemble des notes écrites en chemin."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Token counts are grouped for reading - 1 000 rather than 1000 - and a duration past a minute is written 2min2s instead of 122s. The loading spinner turns cleanly at small sizes.",
-					"fr": "Les nombres de tokens sont groupés pour la lecture - 1 000 plutôt que 1000 - et une durée dépassant la minute s'écrit 2min2s au lieu de 122s. L'animation de chargement tourne proprement en petite taille."
+					"en": "The context window chip tells the truth: it reports the real window of the model that was used, and counts the tokens written to the cache in.",
+					"fr": "La pastille de fenêtre de contexte dit vrai : elle rapporte la vraie fenêtre du modèle utilisé, et compte les jetons écrits dans le cache."
 				}
 			},
 			{
@@ -2289,370 +1227,6 @@
 					"en": "An agent named with @ now runs in the background, in its own process and with its own context, instead of answering in place of the conversation's provider. The conversation is not blocked while it works, and its answer comes back as its own message, in the persona's colour, with a link to the work behind it. Mentioning the same agent again continues its own thread: it remembers what it did there, and is told what was said in the conversation since its last turn.",
 					"fr": "Un agent nommé avec @ s'exécute désormais en arrière-plan, dans son propre processus et avec son propre contexte, au lieu de répondre à la place du provider de la conversation. La conversation n'est pas bloquée pendant son travail, et sa réponse revient comme un message qui lui est propre, à la couleur de la persona, avec un lien vers le travail qui la précède. Mentionner à nouveau le même agent poursuit son fil : il se souvient de ce qu'il y a fait, et reçoit ce qui a été dit dans la conversation depuis son dernier tour."
 				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "An agent belongs to the conversation that called it. The Agent view carries an Agents panel above Live Activity listing the agents of the open conversation - one entry per agent, whatever the number of times it was called. Opening one enters its own conversation in place of the main one: its whole thread, with its reasoning, its tools, its answers and their cost, and a composer to ask it something else. Coming back is one button. Its thread shows what it did in the order it did it - the notes it wrote between two tool calls stay where they happened.",
-					"fr": "Un agent appartient à la conversation qui l'a appelé. La vue Agent porte un panneau Agents au-dessus de Live Activity, listant les agents de la conversation ouverte - une entrée par agent, quel que soit le nombre d'appels. En ouvrir un fait entrer dans sa conversation à la place de la principale : tout son fil, avec son raisonnement, ses outils, ses réponses et leur coût, et un champ pour lui demander autre chose. Un bouton suffit pour revenir. Son fil montre ce qu'il a fait dans l'ordre où il l'a fait : les notes écrites entre deux appels d'outils restent à leur place."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "An agent's answer now carries the same footer as any other turn - duration, cost, tokens and turns - and the conversation cost menu lists what each agent spent, under its own name, next to the per-model breakdown.",
-					"fr": "La réponse d'un agent porte désormais le même pied de message que n'importe quel tour - durée, coût, tokens et tours - et le menu de coût de la conversation détaille ce qu'a dépensé chaque agent, sous son nom, à côté de la répartition par modèle."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "An agent can be made to forget: Reset context, from inside its thread, drops what it remembers of the conversation so its next prompt starts from nothing. It asks for confirmation first, and everything it already answered stays - in the conversation, and in its thread above a line marking the break.",
-					"fr": "Un agent peut être amené à oublier : Réinitialiser le contexte, depuis son fil, efface ce qu'il retient de la conversation pour que sa prochaine demande reparte de zéro. Une confirmation est demandée, et tout ce qu'il a déjà répondu reste - dans la conversation, et dans son fil au-dessus d'un trait qui marque la coupure."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Live Activity now shows the agents a conversation called: one line when an agent is launched, another when its answer comes back.",
-					"fr": "Live Activity affiche désormais les agents appelés par une conversation : une ligne au lancement, une autre au retour de sa réponse."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "An agent is now configured for a single provider, or set to inherit the conversation's. An inheriting agent takes its provider, model, effort and permission mode from the conversation, and follows it when it switches provider - its own past turns are handed to the new one, so it picks the thread up instead of starting over. A pinned agent keeps its own settings and never borrows a model that belongs to another backend. Agents saved for several providers keep the first one.",
-					"fr": "Un agent se configure désormais sur un seul provider, ou hérite de celui de la conversation. Un agent en héritage prend le provider, le modèle, l'effort et le mode de permission de la conversation, et la suit quand elle change de provider : ses propres tours passés sont transmis au nouveau, qui reprend le fil au lieu de repartir de zéro. Un agent épinglé garde ses réglages et n'emprunte jamais un modèle appartenant à un autre backend. Les agents enregistrés pour plusieurs providers conservent le premier."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Providers now show their own logo instead of two initials, in the list and in the header of the selected provider. The mark takes the provider accent colour, and a provider without a known logo keeps its initials.",
-					"fr": "Les providers affichent désormais leur propre logo au lieu de deux initiales, dans la liste comme dans l'en-tête du provider sélectionné. Le logo prend la couleur d'accent du provider, et un provider sans logo connu conserve ses initiales."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The agents configuration list is easier to scan: the search field is always shown, each row now says what the agent is for - the start of its description - instead of its provider and model, and the delete button no longer waits for a hover. Deleting asks for confirmation in a modal rather than turning the row into two small buttons, and the import and export dialogs gained a search field to find an agent by name or description.",
-					"fr": "La liste de configuration des agents se parcourt plus facilement : le champ de recherche est toujours affiché, chaque ligne indique désormais à quoi sert l'agent - le début de sa description - au lieu de son provider et de son modèle, et le bouton de suppression n'attend plus le survol. La suppression demande confirmation dans une fenêtre plutôt que de transformer la ligne en deux petits boutons, et les fenêtres d'import et d'export gagnent un champ de recherche pour retrouver un agent par nom ou description."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The icon field of a custom agent no longer shows an icon when none is set: it stays empty until you pick one, and the agent keeps falling back to its initials.",
-					"fr": "Le champ icône d'un agent personnalisé n'affiche plus d'icône quand aucune n'est définie : il reste vide tant que vous n'en choisissez pas une, et l'agent continue de se replier sur ses initiales."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Custom agents can now be exported, next to the existing import. Pick the agents from a list, then write them either as Claude Code subagent definitions - one .claude/agents/{name}.md per agent, in a project or in your home directory, existing files left untouched unless you ask for them to be replaced - or as a single JSON file holding them exactly as Cairn stores them.",
-					"fr": "Les agents personnalisés peuvent désormais être exportés, à côté de l'import existant. Choisissez les agents dans une liste, puis écrivez-les soit en définitions de sous-agents Claude Code - un fichier .claude/agents/{nom}.md par agent, dans un projet ou dans votre dossier personnel, les fichiers existants étant laissés tels quels sauf si vous demandez leur remplacement - soit en un seul fichier JSON qui les contient tels que Cairn les stocke."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "An agent is now put in charge of a conversation instead of applying only to the message that names it. Mentioning one activates it, the composer takes its colour and shows its name above the input, and it keeps answering until you clear it or call another - one agent at a time. A reply is signed with the agent name and the model it used, like \"codd (Sonnet 4.6)\".",
-					"fr": "Un agent prend désormais la main sur une conversation au lieu de ne s'appliquer qu'au message qui le nomme. Le mentionner l'active, la zone de saisie prend sa couleur et affiche son nom au-dessus, et il continue de répondre jusqu'à ce que vous l'enleviez ou en appeliez un autre - un seul agent à la fois. Une réponse est signée du nom de l'agent et du modèle utilisé, par exemple « codd (Sonnet 4.6) »."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A chat API now receives the whole conversation, including the last question and the last answer. Two turns were dropped from the history on every call, so the provider was always one exchange behind and could not see what had just been said.",
-					"fr": "Une API de chat reçoit désormais toute la conversation, y compris la dernière question et la dernière réponse. Deux tours étaient retirés de l'historique à chaque appel : le fournisseur avait donc toujours un échange de retard et ne voyait pas ce qui venait d'être dit."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The \"Switched to\" line no longer appears on every message when talking to a chat API. It keyed off the provider having no session, and a chat API never opens one, so it announced a switch that had not happened. It now follows the provider that actually answered last.",
-					"fr": "La ligne « Passage à » n'apparaît plus à chaque message avec une API de chat. Elle se basait sur l'absence de session du fournisseur, or une API de chat n'en ouvre jamais : elle annonçait donc un changement qui n'avait pas eu lieu. Elle suit désormais le fournisseur qui a réellement répondu en dernier."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The provider switch line in a conversation is now just \"Switched to <provider>\".",
-					"fr": "La ligne de changement de fournisseur dans une conversation indique désormais simplement « Passage à <fournisseur> »."
-				}
-			},
-			{
-				"kind": "removed",
-				"text": {
-					"en": "The model name is no longer offered among the per-message response stats, and its setting is gone: the answer already carries the model in its header.",
-					"fr": "Le nom du modèle n'est plus proposé parmi les statistiques affichées sous chaque message, et son réglage a disparu : la réponse porte déjà le modèle dans son en-tête."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "API keys no longer go through the system keychain, which asked for authorisation on every launch, once per provider, just to open the Providers screen. They are now encrypted in ~/.cairn and read in a single call. Keys saved before this change have to be entered again once.",
-					"fr": "Les clés API ne passent plus par le trousseau du système, qui demandait une autorisation à chaque lancement, une fois par fournisseur, juste pour ouvrir l'écran Fournisseurs. Elles sont désormais chiffrées dans ~/.cairn et lues en un seul appel. Les clés enregistrées avant ce changement doivent être saisies à nouveau."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Testing an API provider or refreshing its model list no longer spins forever. Both asked the network through a client that cannot be used from an asynchronous command, which crashed the call before it could answer, leaving the request pending with no error to show.",
-					"fr": "Tester un fournisseur API ou rafraîchir sa liste de modèles ne tourne plus indéfiniment. Les deux interrogeaient le réseau via un client inutilisable depuis une commande asynchrone, ce qui interrompait l'appel avant sa réponse et laissait la requête en attente, sans erreur à afficher."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "An agent is now a persona rather than a provider binding: its prompt, tools and settings travel with it, and it carries one row per provider holding the model, reasoning effort and permission mode to use there. Mentioning an agent no longer moves the conversation to another provider - it runs on whichever one is already answering, and an agent with no row for it simply keeps its prompt and tools.",
-					"fr": "Un agent est désormais un persona plutôt qu'un lien vers un fournisseur : son prompt, ses outils et ses réglages le suivent, et il porte une ligne par fournisseur indiquant le modèle, l'effort de raisonnement et le mode de permission à y utiliser. Mentionner un agent ne déplace plus la conversation vers un autre fournisseur - il s'exécute sur celui qui répond déjà, et un agent sans ligne pour celui-ci conserve simplement son prompt et ses outils."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Changing the provider of a conversation no longer resumes the previous provider's session on the new one. A conversation now keeps one session per provider, so switching back and forth picks each thread up where it was left.",
-					"fr": "Changer le fournisseur d'une conversation ne reprend plus la session du fournisseur précédent sur le nouveau. Une conversation conserve désormais une session par fournisseur : passer de l'un à l'autre reprend chaque fil là où il s'était arrêté."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "When a provider answers a conversation it has never seen, the recent exchange is handed over to it and a line in the transcript says the switch happened - so a cold answer is never a surprise.",
-					"fr": "Lorsqu'un fournisseur répond à une conversation qu'il n'a jamais vue, les échanges récents lui sont transmis et une ligne dans la discussion signale le changement - une réponse sans mémoire n'est donc jamais une surprise."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Agents can now be imported from your Claude Code subagent definitions: Cairn reads the .claude/agents folders of your projects and of your home directory, and turns their frontmatter and body into ready-made agents - name, description, model, reasoning effort, permission mode, tools and colour included.",
-					"fr": "Les agents peuvent désormais être importés depuis vos définitions de sous-agents Claude Code : Cairn lit les dossiers .claude/agents de vos projets et de votre dossier personnel, et transforme leur frontmatter et leur corps en agents prêts à l'emploi - nom, description, modèle, effort de raisonnement, mode de permission, outils et couleur compris."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "An agent can now restrict the tools it is allowed to use, with an allow list and a deny list, and choose its own reasoning effort and permission mode instead of inheriting the provider's.",
-					"fr": "Un agent peut désormais restreindre les outils qu'il a le droit d'utiliser, via une liste d'autorisation et une liste d'interdiction, et choisir son propre effort de raisonnement et mode de permission au lieu d'hériter de ceux du fournisseur."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Agents can carry an icon instead of their initials, be duplicated in one click, and warn you when two of them would answer to the same @mention.",
-					"fr": "Les agents peuvent porter une icône à la place de leurs initiales, être dupliqués en un clic, et vous avertir lorsque deux d'entre eux répondraient à la même @mention."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Providers now have their own entry in the home menu, separate from Agents: one screen to connect the models, one to build the agent profiles that use them.",
-					"fr": "Les fournisseurs ont désormais leur propre entrée dans le menu de l'accueil, séparée des Agents : un écran pour connecter les modèles, un autre pour construire les profils d'agents qui les utilisent."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Agents screen has been redesigned to match the rest of Cairn: segmented tabs, provider and agent lists as searchable side panels, settings grouped into cards, and the app's own dropdowns everywhere. Statuses now use the theme colours, so they stay readable in light mode.",
-					"fr": "L'écran Agents a été redessiné pour s'accorder au reste de Cairn : onglets segmentés, listes des providers et des agents en panneau latéral avec recherche, réglages regroupés en cartes et menus déroulants de l'application partout. Les statuts utilisent désormais les couleurs du thème et restent donc lisibles en mode clair."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "New Agent tab in the settings: choose what the agent view shows - response stats, conversation usage, context window, live activity, composer selectors and more.",
-					"fr": "Nouvel onglet Agent dans les paramètres : choisissez ce qu'affiche la vue agent - statistiques de réponse, consommation de la discussion, fenêtre de contexte, activité en direct, sélecteurs de la zone de saisie et plus encore."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Models, effort levels and permission modes are now asked to the provider itself instead of being shipped with Cairn, so a newly released model or a new CLI option shows up without waiting for a Cairn update. A Refresh button sits next to the model field, and the built-in lists are only a fallback.",
-					"fr": "Les modèles, niveaux d'effort et modes de permission sont désormais demandés au provider lui-même au lieu d'être livrés avec Cairn : un modèle qui vient de sortir ou une nouvelle option du CLI apparaît sans attendre une mise à jour de Cairn. Un bouton Actualiser accompagne le champ modèle, et les listes embarquées ne sont plus qu'un repli."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The model picker now lists model families rather than every release, and each provider gained a \"Custom models\" list: add as many exact model names as you need - an older Opus, Sonnet or Fable release, for instance - and they appear in the pickers next to the families. Families are derived from what the provider reports, never from a list shipped with Cairn.",
-					"fr": "Le sélecteur de modèle liste désormais les familles plutôt que chaque version, et chaque provider gagne une liste \"Modèles personnalisés\" : ajoutez autant de noms exacts que nécessaire - une version antérieure d'Opus, Sonnet ou Fable, par exemple - et ils apparaissent dans les sélecteurs à côté des familles. Les familles sont déduites de ce que le provider annonce, jamais d'une liste livrée avec Cairn."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "An answer is now signed with the model that wrote it (Claude Opus, Claude Haiku...) instead of a generic \"Agent\".",
-					"fr": "Une réponse est désormais signée par le modèle qui l'a écrite (Claude Opus, Claude Haiku...) au lieu d'un \"Agent\" générique."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Response stats are now individual chips with an icon, and each one - model, duration, tokens, cost, turns - can be shown or hidden separately.",
-					"fr": "Les statistiques de réponse sont désormais des puces avec icône, et chacune - modèle, durée, tokens, coût, tours - s'affiche ou se masque séparément."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The provider and model selectors now only offer the providers enabled in Settings > Agents.",
-					"fr": "Les sélecteurs de provider et de modèle ne proposent plus que les providers activés dans Paramètres > Agents."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The live activity panel was redesigned as a timeline, with clearer running, done and failed states and a count of the tools still in flight. Clicking an entry now jumps to the message it belongs to and highlights it.",
-					"fr": "Le panneau d'activité en direct a été repensé en timeline, avec des états en cours, terminé et échoué plus lisibles et un compteur des outils encore en cours. Cliquer une entrée saute désormais au message auquel elle appartient et le met en évidence."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Provider settings are now persisted: enable providers, pick models, tune generation parameters, and set a default provider for new conversations.",
-					"fr": "Les réglages des providers sont désormais persistés : activation, choix du modèle, paramètres de génération et provider par défaut pour les nouvelles conversations."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "API keys are stored securely in the system keychain (Keychain, Credential Manager, or Secret Service), with a restricted-file fallback.",
-					"fr": "Les clés API sont stockées de façon sécurisée dans le trousseau système (Keychain, Credential Manager ou Secret Service), avec un repli sur un fichier restreint."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Direct API providers: Anthropic, OpenAI, Mistral, Gemini and Ollama can now answer in conversations (chat only, without tools).",
-					"fr": "Providers API directs : Anthropic, OpenAI, Mistral, Gemini et Ollama peuvent désormais répondre dans les conversations (chat uniquement, sans outils)."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Each provider shows its live status: CLI detected with its version, API key present, or Ollama models actually installed.",
-					"fr": "Chaque provider affiche son état en direct : CLI détecté avec sa version, clé API présente, ou modèles Ollama réellement installés."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The conversation composer gains model, reasoning effort and permission mode pickers, remembered per conversation.",
-					"fr": "Le compositeur de conversation gagne des sélecteurs de modèle, d'effort de raisonnement et de mode de permissions, mémorisés par conversation."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Type @ to mention a custom agent (its system prompt and model apply to the message) or / to autocomplete a Claude command of the project.",
-					"fr": "Tapez @ pour mentionner un agent personnalisé (son prompt système et son modèle s'appliquent au message) ou / pour autocompléter une commande Claude du projet."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Each answer shows its telemetry: model, duration, tokens in and out, and cost when known; a context window gauge tracks the conversation.",
-					"fr": "Chaque réponse affiche sa télémétrie : modèle, durée, tokens entrants et sortants, et coût quand il est connu ; une jauge de fenêtre de contexte suit la conversation."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Custom agents are now saved on disk and usable from the Agent view.",
-					"fr": "Les agents personnalisés sont désormais enregistrés sur disque et utilisables depuis la vue Agent."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Tool permissions are now interactive in-app: when the agent needs an approval, Cairn shows the exact tool and input with Allow, Always allow and Deny - the same flow as the CLI.",
-					"fr": "Les permissions d'outils sont désormais interactives dans l'app : quand l'agent demande une approbation, Cairn affiche l'outil et l'entrée exacte avec Autoriser, Toujours autoriser et Refuser - le même flux que le CLI."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "In plan mode, the proposed plan is shown in the conversation and can be approved or sent back for more planning.",
-					"fr": "En mode plan, le plan proposé s'affiche dans la conversation et peut être approuvé ou renvoyé en planification."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Typing @ also completes files of the worktree, so the agent can be pointed at a precise file.",
-					"fr": "Taper @ complète aussi les fichiers du worktree, pour pointer l'agent vers un fichier précis."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "When the subscription rate limit is reached, the conversation shows it with the reset time.",
-					"fr": "Quand la limite de l'abonnement est atteinte, la conversation l'affiche avec l'heure de réinitialisation."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Reasoning effort and permission modes now mirror the CLI exactly (low to max, acceptEdits to bypassPermissions).",
-					"fr": "L'effort de raisonnement et les modes de permissions reflètent désormais exactement le CLI (low à max, acceptEdits à bypassPermissions)."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The conversation composer was streamlined: discreet chips instead of selectors, telemetry as a single muted line, and the context gauge next to the input.",
-					"fr": "Le compositeur de conversation a été épuré : des chips discrets à la place des sélecteurs, la télémétrie sur une seule ligne sobre, et la jauge de contexte près de la saisie."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A session usage popover next to the composer sums input and output tokens per model and the total cost of the conversation, persisted with it.",
-					"fr": "Un popover de consommation près du compositeur cumule les tokens entrants et sortants par modèle et le coût total de la conversation, persisté avec elle."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The provider is picked from a chip next to the model, all composer chips carry an icon, and the context usage renders as a small progress bar.",
-					"fr": "Le provider se choisit depuis un chip à côté du modèle, tous les chips du compositeur portent une icône, et l'usage du contexte s'affiche en petite barre de progression."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Live activity is easier to read: the tool name stands out from its argument, and each step resolves when the next one starts.",
-					"fr": "L'activité en direct est plus lisible : le nom de l'outil se distingue de son argument, et chaque étape se résout quand la suivante démarre."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Per-answer telemetry (model, duration, tokens, cost) now survives an app restart.",
-					"fr": "La télémétrie par réponse (modèle, durée, tokens, coût) survit désormais à un redémarrage de l'app."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The agent's thinking is shown as a collapsible block, and tool activity rows resolve with a check or an error mark.",
-					"fr": "La réflexion de l'agent apparaît dans un bloc repliable, et les lignes d'activité des outils se résolvent avec une coche ou une marque d'erreur."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Agent errors now show the real message from the CLI or the API, with a Retry button.",
-					"fr": "Les erreurs de l'agent affichent désormais le vrai message du CLI ou de l'API, avec un bouton Réessayer."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Stopping the agent now terminates every process it spawned, on every platform.",
-					"fr": "Arrêter l'agent termine désormais tous les processus qu'il a lancés, sur toutes les plateformes."
-				}
 			}
 		]
 	},
@@ -2660,8 +1234,8 @@
 		"version": "0.13.0",
 		"date": "2026-08-08",
 		"summary": {
-			"en": "The editor learns your languages.",
-			"fr": "L'éditeur apprend vos langages."
+			"en": "The editor learns your languages: language servers, diagnostics, go to definition, and native formatting.",
+			"fr": "L'éditeur apprend vos langages : serveurs de langage, diagnostics, aller à la définition et formatage natif."
 		},
 		"changes": [
 			{
@@ -2672,24 +1246,10 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "The editor status bar follows the caret again: the position and the blame were snapping back to the first line after every cursor move.",
-					"fr": "La barre d'état de l'éditeur suit à nouveau le curseur : la position et le blame revenaient à la première ligne après chaque déplacement."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
 					"en": "The whole empty area of the top bar moves the window, not only the gap next to the actions.",
 					"fr": "Toute la zone vide de la barre du haut déplace la fenêtre, et plus seulement l'espace à côté des actions."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The file explorer can no longer be narrowed past its action buttons, which used to end up cramped.",
-					"fr": "L'explorateur de fichiers ne peut plus être réduit en deçà de ses boutons d'action, qui se retrouvaient à l'étroit."
 				}
 			},
 			{
@@ -2730,36 +1290,8 @@
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Format document works on every file, from the command palette, the status bar, the editor menu and the file tree. The command asked the language server for the document before doing anything, so a file no server had attached to could not be formatted at all - even by a formatter installed and ready to do it. The formatter now works from the open document, and the server is consulted only as the fallback it is.",
-					"fr": "Formater le document fonctionne sur tous les fichiers, depuis la palette de commandes, la barre d'état, le menu de l'éditeur et l'arborescence. La commande demandait le document au serveur de langage avant toute chose : un fichier auquel aucun serveur n'était attaché ne pouvait pas être formaté du tout, même par un formateur installé et prêt à le faire. Le formateur part désormais du document ouvert, et le serveur n'est consulté que comme le recours qu'il est."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Choosing Language server as the formatter of a language now takes effect. It was saved as \"no choice\", which both sides read as \"whatever the catalogue picks\", so the catalogue formatter kept running and the picker went back to showing its name. The language server is now a choice of its own, and picking it hands the document to the server instead of to a tool the project turned down.",
-					"fr": "Choisir Serveur de langage comme formateur d'un langage prend désormais effet. Ce choix était enregistré comme \"aucun choix\", que les deux côtés lisaient comme \"ce que le catalogue choisit\" : le formateur du catalogue continuait de tourner et le sélecteur revenait à son nom. Le serveur de langage est maintenant un choix à part entière, et le sélectionner confie le document au serveur plutôt qu'à un outil que le projet a écarté."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A formatter row updates itself once the install finishes: the binary path, the version and the Uninstall action appear immediately, instead of the Install button coming back until the app was reloaded.",
-					"fr": "La ligne d'un formateur se met à jour dès la fin de l'installation : le chemin du binaire, la version et l'action Désinstaller apparaissent immédiatement, au lieu de voir revenir le bouton Installer jusqu'au rechargement de l'application."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Formatting settings are kept. The view read the project's configuration once at mount, so opening it before the active project was resolved showed the catalogue defaults - and the first change written from that form replaced the project's whole configuration with them. The project is now followed rather than read once, and a save is merged onto what is on disk instead of onto the defaults.",
-					"fr": "Les réglages de formatage sont conservés. La vue lisait la configuration du projet une seule fois au montage : l'ouvrir avant que le projet actif soit résolu affichait les valeurs par défaut du catalogue, et la première modification faite depuis ce formulaire remplaçait toute la configuration du projet par celles-ci. Le projet est désormais suivi au lieu d'être lu une fois, et une sauvegarde est fusionnée sur ce qui est sur le disque plutôt que sur les valeurs par défaut."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Formatters and language servers installed by a version manager (nvm, fnm, asdf) or by pip are found again. Cairn now looks at the PATH the user's own login shell builds, plus every runtime directory those managers keep, so a tool that was installed no longer reads as missing - and an install that just succeeded no longer leaves the button saying Install.",
-					"fr": "Les formateurs et serveurs de langage installés par un gestionnaire de versions (nvm, fnm, asdf) ou par pip sont de nouveau trouvés. Cairn regarde désormais le PATH que construit le shell de connexion de l'utilisateur, ainsi que chaque dossier de runtime tenu par ces gestionnaires : un outil installé n'est plus vu comme absent, et une installation qui vient de réussir ne laisse plus le bouton sur Installer."
+					"en": "Formatters and language servers installed by a version manager (nvm, fnm, asdf) or by pip are found again.",
+					"fr": "Les formateurs et les serveurs de langage installés par un gestionnaire de versions (nvm, fnm, asdf) ou par pip sont de nouveau trouvés."
 				}
 			},
 			{
@@ -2767,20 +1299,6 @@
 				"text": {
 					"en": "An install that reports success but leaves the binary unreachable now says so, instead of leaving a row that looks unchanged.",
 					"fr": "Une installation qui s'annonce réussie mais laisse le binaire introuvable le dit désormais, au lieu de laisser une ligne qui semble inchangée."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Format document honours the project's indentation when it falls back to the language server: the configured indent size and style are used rather than the ones guessed from the file. When no formatter and no language server can answer, the command says so instead of doing nothing silently.",
-					"fr": "Formater le document respecte l'indentation du projet lorsqu'il se rabat sur le serveur de langage : la taille et le style d'indentation configurés sont utilisés plutôt que ceux devinés depuis le fichier. Quand aucun formateur ni serveur de langage ne peut répondre, la commande le dit au lieu de ne rien faire en silence."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The completion menu scrolls with the mouse wheel: the whole list is rendered instead of a window of twelve entries around the selected one, and the wheel now moves the list rather than the document under it.",
-					"fr": "Le menu de complétion se parcourt à la molette : la liste entière est rendue au lieu d'une fenêtre de douze entrées autour de l'élément sélectionné, et la molette fait défiler la liste et non le document en dessous."
 				}
 			},
 			{
@@ -2823,20 +1341,6 @@
 				"text": {
 					"en": "The References panel reopens on the lookup it was showing, and asks it again after a reload. The file it points at does not have to be open.",
 					"fr": "Le panneau Références rouvre sur la recherche qu'il affichait, et la repose après un rechargement. Le fichier visé n'a pas besoin d'être ouvert."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A language server no longer receives the text of one file under the name of another when several tabs are open, which showed up as errors quoting a file you were not editing.",
-					"fr": "Un serveur de langage ne reçoit plus le texte d'un fichier sous le nom d'un autre quand plusieurs onglets sont ouverts, ce qui se voyait comme des erreurs citant un fichier que l'on n'éditait pas."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The editor right-click menu no longer stops appearing once a second file is open.",
-					"fr": "Le menu contextuel de l'éditeur ne cesse plus d'apparaître dès qu'un deuxième fichier est ouvert."
 				}
 			},
 			{
@@ -2917,20 +1421,6 @@
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "On Windows, every server installed through npm read as missing: a command is looked up with the suffixes of PATHEXT, so `typescript-language-server.cmd` is found from its bare name, and the npm, winget and scoop directories are searched too. A package manager that cannot exist on your system - Homebrew on Windows - is no longer offered as a way to install anything.",
-					"fr": "Sous Windows, tout serveur installé par npm apparaissait comme absent : une commande est désormais cherchée avec les suffixes de PATHEXT, si bien que `typescript-language-server.cmd` est trouvé depuis son nom nu, et les répertoires de npm, winget et scoop sont également parcourus. Un gestionnaire de paquets qui ne peut pas exister sur votre système - Homebrew sous Windows - n'est plus proposé pour installer quoi que ce soit."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Servers that cannot answer `--version` - Pyright, and the JSON, CSS and HTML ones, which either refuse to start or crash when asked - reported an unknown update state. Their version is now read from the package they ship in, and the manager that owns a binary is found by following the link it is reached through, so a globally installed npm server is no longer attributed to whoever owns the directory it sits in.",
-					"fr": "Les serveurs incapables de répondre à `--version` - Pyright, et ceux de JSON, CSS et HTML, qui refusent de démarrer ou plantent quand on le leur demande - affichaient un état de mise à jour inconnu. Leur version est désormais lue dans le paquet qui les embarque, et le gestionnaire propriétaire d'un binaire est trouvé en suivant le lien par lequel on l'atteint : un serveur npm installé globalement n'est plus attribué au propriétaire du répertoire où il se trouve."
-				}
-			},
-			{
 				"kind": "added",
 				"text": {
 					"en": "Cairn formats your code natively, for every supported language: define one style - indentation, line width, quotes, semicolons, trailing commas - globally or per project, and Cairn drives the real formatter of each language (Prettier, Biome, rustfmt, gofmt, Ruff, Black, clang-format, PHP CS Fixer, ktlint, shfmt, Taplo) so the result matches what your repository produces.",
@@ -2972,49 +1462,14 @@
 		"date": "2026-08-02",
 		"summary": {
 			"en": "Navigation and search, everywhere and faster.",
-			"fr": "La navigation et la recherche, partout et plus vite."
+			"fr": "Navigation et recherche, partout et plus vite."
 		},
 		"changes": [
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching project no longer loads everything twice. The workspace used to pass through the project root before reaching the real worktree, so the file tree, the git status and the log were all read once for nothing before being read again.",
-					"fr": "Changer de projet ne charge plus tout deux fois. Le workspace passait par la racine du projet avant d'atteindre le vrai worktree, si bien que l'arborescence, le statut git et l'historique étaient lus une fois pour rien avant d'être relus."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
-					"en": "Coming back to a project you already opened shows its file tree straight away, from the last one loaded, while a refresh runs quietly behind it.",
-					"fr": "Revenir sur un projet déjà ouvert affiche son arborescence immédiatement, à partir de la dernière chargée, pendant qu'un rafraîchissement tourne discrètement derrière."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The app no longer rewrites its interface state to disk every 300 milliseconds. Saving the state triggered a new save, endlessly, for as long as the app was running.",
-					"fr": "L'application ne réécrit plus son état d'interface sur le disque toutes les 300 millisecondes. Enregistrer l'état déclenchait un nouvel enregistrement, sans fin, tant que l'application tournait."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The git status is now refreshed by a single background timer, which stops while the window is in the background or the home screen is showing, instead of two timers running side by side whatever was on screen.",
-					"fr": "Le statut git est désormais rafraîchi par un seul minuteur de fond, qui s'arrête quand la fenêtre est en arrière-plan ou que l'accueil est affiché, au lieu de deux minuteurs tournant en parallèle quoi qu'il y ait à l'écran."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Reading a repository, searching files and every git operation no longer run on the thread that draws the window, which used to freeze the interface for the whole duration of the work.",
-					"fr": "La lecture d'un dépôt, la recherche de fichiers et toutes les opérations git ne s'exécutent plus sur le thread qui dessine la fenêtre, ce qui figeait l'interface pendant toute la durée du traitement."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The diff gutter no longer appears in a project that is not a git repository, where it used to flag every line of every file as added.",
-					"fr": "La gouttière de diff n'apparaît plus dans un projet qui n'est pas un dépôt git, où elle marquait chaque ligne de chaque fichier comme ajoutée."
+					"en": "Coming back to a project you already opened shows its file tree straight away, while a refresh runs quietly behind it.",
+					"fr": "Revenir sur un projet déjà ouvert affiche son arborescence immédiatement, pendant qu'un rafraîchissement s'exécute discrètement derrière."
 				}
 			},
 			{
@@ -3022,13 +1477,6 @@
 				"text": {
 					"en": "A file dragged onto the editor from outside the project now opens as an external file instead of being refused: its tab is marked, the breadcrumb shows the full path with an External badge, and it stays out of the worktree - no git status, no diff gutter, and the tree does not follow it.",
 					"fr": "Un fichier glissé sur l'éditeur depuis l'extérieur du projet s'ouvre désormais comme fichier externe au lieu d'être refusé : son onglet est signalé, le fil d'Ariane affiche le chemin complet avec un badge Externe, et il reste hors du worktree - pas de statut git, pas de gouttière de diff, et l'arborescence ne le suit pas."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A file dragged in from the Finder now lands where the pointer actually is: the drop position was scaled a second time on a retina screen, which offset it by half a window and made narrow targets unreachable.",
-					"fr": "Un fichier glissé depuis le Finder atterrit désormais là où se trouve vraiment le pointeur : la position du dépôt était mise à l'échelle une seconde fois sur un écran retina, ce qui la décalait d'une demi-fenêtre et rendait les cibles étroites inatteignables."
 				}
 			},
 			{
@@ -3067,13 +1515,6 @@
 				}
 			},
 			{
-				"kind": "changed",
-				"text": {
-					"en": "The changelog page shows every release at once; the timeline now scrolls to the version you pick.",
-					"fr": "La page des nouveautés affiche toutes les versions à la suite ; la frise fait défiler jusqu'à celle que vous choisissez."
-				}
-			},
-			{
 				"kind": "added",
 				"text": {
 					"en": "A changelog page in the home screen, with the history of every version.",
@@ -3107,13 +1548,6 @@
 					"en": "New quick commands: open the tools panel, terminal, commands, environment, go home, reload the editor and reload the project.",
 					"fr": "Nouvelles commandes rapides : ouvrir le panneau d'outils, le terminal, les commandes, l'environnement, revenir à l'accueil, recharger l'éditeur et recharger le projet."
 				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Release builds no longer depend on OpenSSL, and Apple signing only runs when its secrets are set.",
-					"fr": "Les builds de release ne dépendent plus d'OpenSSL, et la signature Apple ne s'active que si ses secrets sont définis."
-				}
 			}
 		]
 	},
@@ -3122,7 +1556,7 @@
 		"date": "2026-07-22",
 		"summary": {
 			"en": "Updates from inside the app, environment variables and the tools panel.",
-			"fr": "Les mises à jour depuis l'app, les variables d'environnement et le panneau d'outils."
+			"fr": "Mises à jour depuis l'application, variables d'environnement et panneau d'outils."
 		},
 		"changes": [
 			{
@@ -3158,20 +1592,6 @@
 				"text": {
 					"en": "Merge conflict resolution in the editor, and instance finalization.",
 					"fr": "Résolution des conflits de fusion dans l'éditeur, et finalisation d'instance."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Git commands report structured errors instead of raw output.",
-					"fr": "Les commandes git renvoient des erreurs structurées au lieu de la sortie brute."
-				}
-			},
-			{
-				"kind": "removed",
-				"text": {
-					"en": "Textual loading messages, replaced everywhere by spinners and skeletons.",
-					"fr": "Les messages de chargement textuels, remplacés partout par des spinners et des squelettes."
 				}
 			}
 		]
