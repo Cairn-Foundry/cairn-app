@@ -23,11 +23,9 @@ typecheck:
 
 unit:
   stage: test
-  # The shared node_modules cache is restored instead of installed, and the
-  # tree it carries makes rolldown's dep optimizer fail to resolve node:module.
-  # A real install takes seconds here and is the only thing that reproduces green.
   cache: []
   script:
+    - rm -rf node_modules .svelte-kit
     - bun install --frozen-lockfile
     - bunx svelte-kit sync
     - bun run test:coverage
@@ -56,6 +54,7 @@ rust:
       libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       libgtk-3-dev librsvg2-dev patchelf pkg-config
   script:
+    - mkdir -p src-tauri/binaries
     - touch src-tauri/binaries/cairn-cli-x86_64-unknown-linux-gnu
     - cd src-tauri && cargo test --locked
 
