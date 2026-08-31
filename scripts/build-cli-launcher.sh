@@ -22,8 +22,14 @@ build_one() {
 
 for TRIPLE in "${TARGETS[@]}"; do
   if [ "$TRIPLE" = "universal-apple-darwin" ]; then
-    build_one aarch64-apple-darwin
-    build_one x86_64-apple-darwin
+    # Tauri compiles each arch separately before lipoing the app, and each
+    # per-arch pass resolves externalBin against its own triple - so the
+    # per-arch binaries must be staged alongside the fat one.
+    for ARCH in aarch64-apple-darwin x86_64-apple-darwin; do
+      build_one "$ARCH"
+      cp "src-tauri/target/${ARCH}/release/cairn-cli" "src-tauri/binaries/cairn-cli-${ARCH}"
+      chmod +x "src-tauri/binaries/cairn-cli-${ARCH}"
+    done
     lipo -create \
       "src-tauri/target/aarch64-apple-darwin/release/cairn-cli" \
       "src-tauri/target/x86_64-apple-darwin/release/cairn-cli" \
