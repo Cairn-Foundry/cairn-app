@@ -1,7 +1,7 @@
 [
 	{
 		"version": "1.0.0",
-		"date": "",
+		"date": "2026-08-31",
 		"summary": {
 			"en": "Cairn Foundry 1.0: the first public release. A workspace where each task gets its own git worktree, with the editor, the git view, the tests, the review, the pipelines and your coding CLI side by side.",
 			"fr": "Cairn Foundry 1.0 : la première version publique. Un espace de travail où chaque tâche dispose de son propre worktree git, avec l'éditeur, la vue git, les tests, la revue, les pipelines et votre CLI de code côte à côte."
