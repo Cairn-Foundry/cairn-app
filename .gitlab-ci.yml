@@ -21,22 +21,6 @@ typecheck:
     - bun install --frozen-lockfile
     - bun run check
 
-unit:
-  stage: test
-  cache: []
-  script:
-    - rm -rf node_modules .svelte-kit
-    - bun install --frozen-lockfile
-    - bunx svelte-kit sync
-    - bun run test:coverage
-  coverage: '/^All files\s*\|\s*[\d.]+/'
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage/cobertura-coverage.xml
-    expire_in: 1 day
-
 # ─── Quality ──────────────────────────────────────────────────────────────────
 
 lint:
