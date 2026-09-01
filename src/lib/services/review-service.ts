@@ -12,6 +12,8 @@ import type { ReviewHunk, ReviewState } from "$lib/types/review";
 export interface UnifiedDiff {
 	text: string;
 	truncated: boolean;
+	/** The files the ceiling left out, so the prompt can name them. */
+	omitted: string[];
 }
 
 /** `base...head` as one unified diff, generated files excluded. */

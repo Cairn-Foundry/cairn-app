@@ -42,11 +42,15 @@ pub struct ReviewHunk {
     pub hunk_hash: String,
 }
 
-/// The unified diff plus whether it was cut to fit the ceiling.
+/// The unified diff, whether it was cut to fit the ceiling, and the files that
+/// paid for it - so the prompt can name them rather than let the guide present
+/// a partial tour as a complete one.
 #[derive(Serialize, Clone)]
 pub struct UnifiedDiff {
     pub text: String,
     pub truncated: bool,
+    #[serde(default)]
+    pub omitted: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -308,33 +312,89 @@ fn raw_diff(worktree: &str, base: &str, head: &str, ignore_whitespace: bool) -> 
     run(&mut cmd)
 }
 
+/// A hunk with every line prefixed by the number it carries in the file.
+///
+/// The model is asked for real line numbers, and unnumbered it has to count
+/// them itself from the `@@` header down - which it does badly, landing three
+/// or four lines below what it meant. Each line is prefixed with the number it
+/// has on the side it belongs to (`-` lines the old side, `+` lines the new
+/// one, context lines both), so the anchor is read rather than derived.
+fn number_hunk(hunk: &[String]) -> String {
+    let Some(header) = hunk.first() else {
+        return String::new();
+    };
+    let Some((old_start, _, new_start, _)) = parse_hunk_header(header) else {
+        return format!("{}\n", hunk.join("\n"));
+    };
+    let mut out = format!("{header}\n");
+    let (mut old_line, mut new_line) = (old_start, new_start);
+    for line in &hunk[1..] {
+        let mut chars = line.chars();
+        match chars.next() {
+            Some('+') => {
+                out.push_str(&format!("{new_line:>6} +{}\n", chars.as_str()));
+                new_line += 1;
+            }
+            Some('-') => {
+                out.push_str(&format!("{old_line:>6} -{}\n", chars.as_str()));
+                old_line += 1;
+            }
+            Some('\\') => out.push_str(&format!("{line}\n")),
+            _ => {
+                out.push_str(&format!("{new_line:>6}  {}\n", chars.as_str()));
+                old_line += 1;
+                new_line += 1;
+            }
+        }
+    }
+    out
+}
+
 /// Rebuilds the diff without its generated files and under `max_bytes`, dropping
-/// whole hunks from the end, never half of one, so the guide only ever reads
-/// valid code. Every kept file keeps its header, so a file whose hunks were cut
-/// still shows up as touched rather than vanishing from the guide.
-fn filter_diff(raw: &str, max_bytes: usize) -> (String, bool) {
+/// whole hunks, never half of one, so the guide only ever reads valid code.
+/// Every kept file keeps its header, so a file whose hunks were cut still shows
+/// up as touched rather than vanishing from the guide.
+///
+/// A file that does not fit is skipped rather than ending the walk: stopping at
+/// the first oversized file hid every file after it, which on a wide branch is
+/// most of them. What was left out is named, so the guide can say so instead of
+/// presenting a partial tour as a complete one.
+fn filter_diff(raw: &str, max_bytes: usize) -> (String, bool, Vec<String>) {
     let mut out = String::new();
-    let mut truncated = false;
+    let mut omitted: Vec<String> = Vec::new();
     for (path, header, hunks) in split_files(raw) {
         if is_excluded(&path) {
             continue;
         }
         let header_text = format!("{}\n", header.join("\n"));
         if out.len().saturating_add(header_text.len()) > max_bytes {
-            truncated = true;
-            break;
+            omitted.push(path);
+            continue;
         }
+        let mark = out.len();
         out.push_str(&header_text);
+        let mut kept_any = false;
+        let mut cut = false;
         for hunk in hunks {
-            let hunk_text = format!("{}\n", hunk.join("\n"));
+            let hunk_text = number_hunk(&hunk);
             if out.len().saturating_add(hunk_text.len()) > max_bytes {
-                truncated = true;
+                cut = true;
                 break;
             }
             out.push_str(&hunk_text);
+            kept_any = true;
+        }
+        // A header alone says a file was touched without showing anything of
+        // it: it is worth no bytes, so it is rolled back and named instead.
+        if !kept_any {
+            out.truncate(mark);
+            omitted.push(path);
+        } else if cut {
+            omitted.push(path);
         }
     }
-    (out, truncated)
+    let truncated = !omitted.is_empty();
+    (out, truncated, omitted)
 }
 
 // ---------------------------------------------------------------------------
@@ -356,8 +416,8 @@ pub async fn get_diff_unified(
     let expanded = expand(&worktree_path);
     let raw = raw_diff(&expanded, &base, &head, ignore_whitespace)?;
     let cap = max_bytes.unwrap_or(DEFAULT_MAX_DIFF_BYTES);
-    let (text, truncated) = filter_diff(&raw, cap);
-    Ok(UnifiedDiff { text, truncated })
+    let (text, truncated, omitted) = filter_diff(&raw, cap);
+    Ok(UnifiedDiff { text, truncated, omitted })
 }
 
 #[tauri::command]
@@ -491,23 +551,60 @@ diff --git a/bun.lockb b/bun.lockb\n\
 
     #[test]
     fn truncating_keeps_whole_hunks() {
-        let (text, truncated) = filter_diff(DIFF, 200);
+        let (text, truncated, omitted) = filter_diff(DIFF, 200);
         assert!(truncated);
-        // Nothing is cut mid-line, so every kept line is a complete diff line.
-        for line in text.lines() {
-            assert!(!line.is_empty() || line.is_empty());
-        }
-        assert!(text.contains("diff --git a/src/a.ts"));
+        assert_eq!(omitted, vec!["src/a.ts".to_string()]);
         assert!(text.len() <= 200);
     }
 
     #[test]
     fn a_small_diff_is_returned_whole() {
-        let (text, truncated) = filter_diff(DIFF, usize::MAX);
+        let (text, truncated, omitted) = filter_diff(DIFF, usize::MAX);
         assert!(!truncated);
+        assert!(omitted.is_empty());
         // The lockfile is dropped even when there is room for it.
         assert!(!text.contains("bun.lockb"));
         assert!(text.contains("src/a.ts"));
+    }
+
+    #[test]
+    fn a_file_too_large_does_not_hide_the_files_after_it() {
+        // Only the header of the first file fits; the walk has to carry on to
+        // the second rather than stop at the one it could not take.
+        let raw = format!(
+            "diff --git a/big.ts b/big.ts\n--- a/big.ts\n+++ b/big.ts\n@@ -1,1 +1,1 @@\n-{}\n+{}\n{}",
+            "x".repeat(400),
+            "y".repeat(400),
+            "diff --git a/small.ts b/small.ts\n--- a/small.ts\n+++ b/small.ts\n@@ -1,1 +1,1 @@\n-a\n+b\n",
+        );
+        let (text, truncated, omitted) = filter_diff(&raw, 500);
+        assert!(truncated);
+        assert_eq!(omitted, vec!["big.ts".to_string()]);
+        assert!(text.contains("small.ts"));
+        // The file that showed nothing of itself leaves no header behind.
+        assert!(!text.contains("big.ts"));
+    }
+
+    #[test]
+    fn every_line_carries_the_number_it_has_in_the_file() {
+        let hunk: Vec<String> = "@@ -10,3 +20,4 @@\n const a = 1;\n-const b = 2;\n+const c = 3;\n const d = 4;"
+            .lines()
+            .map(str::to_string)
+            .collect();
+        let numbered = number_hunk(&hunk);
+        let lines: Vec<&str> = numbered.lines().collect();
+        assert_eq!(lines[0], "@@ -10,3 +20,4 @@");
+        assert_eq!(lines[1], "    20  const a = 1;");
+        // The removed line is numbered on the old side, which is where it lives.
+        assert_eq!(lines[2], "    11 -const b = 2;");
+        assert_eq!(lines[3], "    21 +const c = 3;");
+        assert_eq!(lines[4], "    22  const d = 4;");
+    }
+
+    #[test]
+    fn a_hunk_with_no_parsable_header_is_left_alone() {
+        let hunk = vec!["not a header".to_string(), " a".to_string()];
+        assert_eq!(number_hunk(&hunk), "not a header\n a\n");
     }
 
     #[test]

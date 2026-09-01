@@ -114,6 +114,81 @@ describe("resolveGuide", () => {
 		expect(guide.chapters[0].excerpts[0].hunkHash).toBe("ccc");
 	});
 
+	it("stretches an excerpt to reach a remark of the same hunk", () => {
+		const guide = guideOf([
+			{
+				title: "Reachable",
+				summary: "",
+				excerpts: [{ path: "src/b.ts", side: "new", from: 1, to: 2 }],
+				remarks: [
+					{
+						kind: "issue",
+						path: "src/b.ts",
+						side: "new",
+						line: 5,
+						title: "t",
+						body: "b",
+					},
+				],
+			},
+		]);
+		// The panel lists the remarks of the extract on screen, so a remark
+		// outside every extract can never be read nor posted.
+		const [excerpt] = guide.chapters[0].excerpts;
+		expect(excerpt.to).toBe(5);
+		expect(excerpt.hunkHash).toBe("ccc");
+	});
+
+	it("gives a remark of another hunk an excerpt of its own", () => {
+		const guide = guideOf([
+			{
+				title: "Two hunks",
+				summary: "",
+				excerpts: [{ path: "src/a.ts", side: "new", from: 2, to: 3 }],
+				remarks: [
+					{
+						kind: "note",
+						path: "src/a.ts",
+						side: "new",
+						line: 42,
+						title: "t",
+						body: "b",
+					},
+				],
+			},
+		]);
+		const excerpts = guide.chapters[0].excerpts;
+		expect(excerpts).toHaveLength(2);
+		// The first extract keeps its own hunk rather than reaching across into
+		// a hash it does not cover.
+		expect(excerpts[0]).toMatchObject({ from: 2, to: 3, hunkHash: "aaa" });
+		expect(excerpts[1]).toMatchObject({ from: 42, to: 42, hunkHash: "bbb" });
+	});
+
+	it("keeps a chapter whose only anchor is a remark", () => {
+		const guide = guideOf([
+			{
+				title: "Remark only",
+				summary: "",
+				excerpts: [{ path: "nowhere.ts", side: "new", from: 1, to: 2 }],
+				remarks: [
+					{
+						kind: "issue",
+						path: "src/b.ts",
+						side: "new",
+						line: 3,
+						title: "t",
+						body: "b",
+					},
+				],
+			},
+		]);
+		expect(guide.chapters).toHaveLength(1);
+		expect(guide.chapters[0].excerpts).toEqual([
+			{ path: "src/b.ts", side: "new", from: 3, to: 3, hunkHash: "ccc" },
+		]);
+	});
+
 	it("drops a chapter left with no excerpt at all", () => {
 		const guide = guideOf([
 			{

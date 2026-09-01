@@ -135,14 +135,32 @@
       && r.line >= currentExcerpt.from
       && r.line <= currentExcerpt.to,
   );
-  $: currentRemarks = excerptRemarks.filter(
+  /**
+   * The panel lists the whole chapter, not only the extract on screen: a remark
+   * scoped to the extract it happened to be anchored in was invisible until the
+   * reader stepped onto that extract, and a chapter of six extracts hid five
+   * sixths of what it had to say. Picking one moves the reading onto its
+   * extract, so the code follows the remark rather than the other way round.
+   */
+  $: chapterRemarks = currentChapter?.remarks ?? [];
+  $: currentRemarks = chapterRemarks.filter(
     r => remarkKind === 'all' || r.kind === remarkKind,
   );
-  /** Counts describe the extract, not the filtered view. */
+  /** Counts describe the chapter, not the filtered view. */
   $: kindCount = (k: 'all' | (typeof REMARK_KINDS)[number]) =>
     k === 'all'
-      ? excerptRemarks.length
-      : excerptRemarks.filter(r => r.kind === k).length;
+      ? chapterRemarks.length
+      : chapterRemarks.filter(r => r.kind === k).length;
+
+  /** The index of the extract of the current chapter that covers a remark. */
+  function excerptIndexOf(remark: GuideRemark): number {
+    return (currentChapter?.excerpts ?? []).findIndex(
+      e => e.path === remark.path
+        && e.side === remark.side
+        && remark.line >= e.from
+        && remark.line <= e.to,
+    );
+  }
 
   $: guideFeature = resolveAiFeature('reviewGuide', $settings.aiFeatures, $isAssistCliInstalled);
   $: commentFeature = resolveAiFeature('reviewComment', $settings.aiFeatures, $isAssistCliInstalled);
@@ -216,6 +234,19 @@
     if (isSeen) stepChapter(1);
   }
 
+  /**
+   * The remark a keyboard action acts on: the one the reader picked, else the
+   * first of the extract on screen. The panel now lists the whole chapter, so
+   * its first card is not necessarily about the code in front of them.
+   */
+  function actionRemark(): GuideRemark | null {
+    return (
+      currentRemarks.find(r => r.id === focusedRemarkId)
+      ?? currentRemarks.find(r => excerptRemarks.includes(r))
+      ?? null
+    );
+  }
+
   /** Every action the review shortcuts can reach; the palette calls the same. */
   export function executeAction(id: string): boolean {
     // On the opening page there is no chapter under the reader yet: a
@@ -235,12 +266,16 @@
       case 'reviewNextChapter': stepChapter(1); return true;
       case 'reviewPrevChapter': stepChapter(-1); return true;
       case 'reviewMarkSeen': toggleSeen(); return true;
-      case 'reviewComment':
-        if (currentRemarks[0]) startComment(currentRemarks[0]);
+      case 'reviewComment': {
+        const target = actionRemark();
+        if (target) startComment(target);
         return true;
-      case 'reviewDismiss':
-        if (currentRemarks[0]) dismissRemark(scope, currentRemarks[0].id);
+      }
+      case 'reviewDismiss': {
+        const target = actionRemark();
+        if (target) dismissRemark(scope, target.id);
         return true;
+      }
       default: return false;
     }
   }
@@ -437,15 +472,36 @@
       : '';
     if (focusScopedTo !== key) {
       focusScopedTo = key;
-      focusedRemarkId = '';
+      focusedRemarkId = pendingFocusId;
+      if (pendingFocusId) {
+        const target = chapterRemarks.find(r => r.id === pendingFocusId);
+        pendingFocusId = '';
+        if (target) requestAnimationFrame(() => diffEditor?.scrollToLine(target.line, target.side));
+      }
     }
   }
 
-  /** Picking a remark card points the diff at the line it is about. */
+  /**
+   * Picking a remark card points the diff at the line it is about, moving the
+   * reading onto the extract that covers it when it is not the one on screen.
+   */
   function focusRemark(remark: GuideRemark) {
+    const index = excerptIndexOf(remark);
+    if (index !== -1 && index !== excerptIndex && currentChapter) {
+      pendingFocusId = remark.id;
+      setCurrentPosition(scope, currentChapter.id, index);
+      return;
+    }
     focusedRemarkId = remark.id;
     requestAnimationFrame(() => diffEditor?.scrollToLine(remark.line, remark.side));
   }
+
+  /**
+   * The remark a jump between extracts is on its way to. Changing the extract
+   * clears the focus, so the intent has to outlive that reset and be applied
+   * once the new extract is the one on screen.
+   */
+  let pendingFocusId = '';
 
   /** Brings a remark card forward and into view. */
   function revealRemark(remark: GuideRemark) {
@@ -647,7 +703,7 @@
       <!-- Remarks sit beside the code rather than under it: stacked below, four
            of them pushed the diff out of view, which is the thing they are
            about. -->
-      {#if !isAtOverview && excerptRemarks.length > 0}
+      {#if !isAtOverview && chapterRemarks.length > 0}
         <div class="section-title">{t('review.remarksWord')}</div>
         <div class="kind-filters" role="tablist">
           {#each ['all', ...REMARK_KINDS] as k (k)}
@@ -675,6 +731,7 @@
               class="remark kind-{remark.kind}"
               class:dismissed={remark.status === 'dismissed'}
               class:focused={remark.id === focusedRemarkId}
+              class:elsewhere={!excerptRemarks.includes(remark)}
               role="button"
               tabindex="0"
               on:click={() => focusRemark(remark)}
@@ -1117,6 +1174,10 @@
   .remark { cursor: pointer; }
   .remark:hover { border-color: var(--stroke-1); }
   .remark.dismissed { opacity: 0.5; }
+  /* A remark about code that is not on screen: still readable, still clickable,
+     but visibly not the one the diff is showing. */
+  .remark.elsewhere { opacity: 0.72; }
+  .remark.elsewhere:hover, .remark.elsewhere.focused { opacity: 1; }
   .remark.focused {
     border-color: var(--accent);
     background: var(--bg-2);

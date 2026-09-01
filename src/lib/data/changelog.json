@@ -83,6 +83,41 @@
 					"en": "Switching between two open projects is now near-instant. A project you come back to reappears with the git data it was left on instead of being read from scratch, the refresh runs behind the cross-fade rather than freezing it, and the steps you are not looking at no longer read the repository on the way past.",
 					"fr": "Passer d'un projet ouvert à l'autre est désormais quasi instantané. Un projet sur lequel vous revenez réapparaît avec les données git sur lesquelles vous l'aviez laissé au lieu d'être relu de zéro, le rafraîchissement s'exécute derrière le fondu plutôt que de le figer, et les steps que vous ne regardez pas ne lisent plus le dépôt au passage."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The remarks of a guided review now land on the line they are about. The diff handed to the model carries the number of every line, so an anchor is read rather than counted, instead of falling three or four lines below the code it refers to.",
+					"fr": "Les remarques d'une review guidée tombent désormais sur la ligne qu'elles visent. Le diff transmis au modèle porte le numéro de chaque ligne, si bien qu'une ancre est lue plutôt que comptée, au lieu de se poser trois ou quatre lignes sous le code concerné."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Every remark of a chapter is now reachable. The panel lists the whole chapter rather than only the extract on screen, and picking a remark moves the reading onto the extract that holds it - a remark anchored outside every extract could previously be neither read nor turned into a comment.",
+					"fr": "Toutes les remarques d'un chapitre sont désormais accessibles. Le panneau liste le chapitre entier plutôt que le seul extrait affiché, et choisir une remarque déplace la lecture sur l'extrait qui la contient : une remarque ancrée hors de tout extrait ne pouvait auparavant être ni lue ni transformée en commentaire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Drafting a review comment now returns the comment itself. The assist was asked to write one in terms an agent read as an order to post it, and answered with its own report of having done so rather than the text you were meant to edit.",
+					"fr": "La rédaction assistée d'un commentaire de review renvoie désormais le commentaire lui-même. L'assistant recevait une consigne qu'un agent lisait comme l'ordre de le publier, et répondait par son propre compte rendu au lieu du texte que vous deviez relire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Changing instance now reloads the review step on the new one. The guide and the diff kept the file, the scroll and the pending comment of the instance you came from, which showed most clearly just after creating an instance.",
+					"fr": "Changer d'instance recharge désormais la step de review sur la nouvelle. Le guide et le diff conservaient le fichier, le défilement et le commentaire en cours de l'instance quittée, ce qui se voyait surtout juste après la création d'une instance."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A wide branch no longer loses most of its files from the guide. The size ceiling stopped the reading at the first file too large to fit, hiding every file after it; files are now skipped one by one and named to the model, which says which ones it could not read.",
+					"fr": "Une branche large ne perd plus la majorité de ses fichiers dans le guide. Le plafond de taille interrompait la lecture au premier fichier trop gros, masquant tous les suivants ; les fichiers sont désormais écartés un à un et nommés au modèle, qui indique ceux qu'il n'a pas pu lire."
+				}
 			}
 		]
 	},

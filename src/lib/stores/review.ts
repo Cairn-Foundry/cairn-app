@@ -204,6 +204,7 @@ export async function generateGuide(
 				head: options.head,
 				diff: diff.text,
 				truncated: diff.truncated,
+				omitted: diff.omitted ?? [],
 				mrTitle: options.mrTitle,
 				mrDescription: options.mrDescription,
 				ticket: options.ticket,

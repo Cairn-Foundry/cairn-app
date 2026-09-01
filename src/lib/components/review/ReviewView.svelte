@@ -349,6 +349,15 @@
       <p class="base-note dim">{t('review.noBaseWhere')}</p>
     </div>
   {:else if scope && !reviewState.isDiffMode && $aiEnabled}
+    <!--
+      Keyed on the instance: the step is mounted once for the workspace and
+      never remounted, so without this both panes carry their component state -
+      the file loaded, the open composer, the scroll, the draft - across a
+      change of instance, and the new instance opened on the previous one's
+      code. Creating an instance is what showed it: the view switched to a
+      worktree it had never read and kept showing the one it had.
+    -->
+    {#key scopeKey}
     <ReviewGuide
       bind:this={guideView}
       {scope}
@@ -362,7 +371,9 @@
       hasMergeRequest={!!mr}
       on:openInDiff={onOpenInDiff}
     />
+    {/key}
   {:else}
+    {#key scopeKey}
     <ReviewDiff
       bind:this={diffView}
       {worktreePath}
@@ -397,6 +408,7 @@
       on:editComment={(e) => scope && editComment(scope, e.detail.id, e.detail.body)}
       on:openFile
     />
+    {/key}
   {/if}
 </div>
 

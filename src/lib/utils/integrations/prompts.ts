@@ -94,6 +94,8 @@ export interface ReviewGuideInput {
 	head: string;
 	diff: string;
 	truncated: boolean;
+	/** The files the size ceiling left out of the diff, if any. */
+	omitted?: string[];
 	/** The merge request title and description, when the branch has one. */
 	mrTitle?: string;
 	mrDescription?: string;
@@ -118,6 +120,23 @@ function guideContext(input: ReviewGuideInput): string {
 	return parts.length === 0 ? "" : `\n${parts.join("\n\n")}\n`;
 }
 
+/**
+ * What the ceiling left out, named. A guide that silently skips forty files of
+ * a two-hundred-file branch reads as a complete tour of a change it never saw;
+ * naming them lets it say so, and lets the reviewer know where to look.
+ */
+function truncationNote(input: ReviewGuideInput): string {
+	if (!input.truncated) return "";
+	const files = input.omitted ?? [];
+	const listed = files.slice(0, 40);
+	const rest = files.length - listed.length;
+	const names =
+		listed.length === 0
+			? ""
+			: `\nThe files left out, entirely or in part:\n${listed.map((path) => `- ${path}`).join("\n")}${rest > 0 ? `\n- and ${rest} more` : ""}\n`;
+	return `\nThis diff was too large to include whole: it was cut on hunk boundaries.${names}Give these files a chapter of their own saying they could not be read, rather than guessing what they hold or leaving them out of the tour.\n`;
+}
+
 export function buildReviewGuidePrompt(
 	input: ReviewGuideInput,
 	assignments?: Record<string, AiFeatureAssignment>,
@@ -127,9 +146,7 @@ export function buildReviewGuidePrompt(
 		head: input.head,
 		diff: input.diff.trim(),
 		context: guideContext(input),
-		truncated: input.truncated
-			? "\nThis diff was too large to include whole: it was cut on hunk boundaries. Say so for a file you could not read entirely rather than guessing what the rest holds.\n"
-			: "",
+		truncated: truncationNote(input),
 		language: input.language,
 	});
 }

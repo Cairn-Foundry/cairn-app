@@ -107,6 +107,69 @@ function resolveRemark(
 }
 
 /**
+ * Widens a chapter's extracts so every one of its remarks falls inside one.
+ *
+ * A remark anchored on a line no extract covers is real, resolvable and
+ * completely unreachable: the reading pane lists the remarks of the extract on
+ * screen, so it is never shown and never posted. The extract of the same file
+ * that comes closest is stretched to reach it, which keeps the remark where the
+ * model put it instead of moving it to a line it is not about. A remark whose
+ * file the chapter has no extract for gets one of its own, taken from its hunk.
+ */
+/** How far a line sits outside an extract; 0 when it is inside. */
+function gapTo(excerpt: GuideExcerpt, line: number): number {
+	if (line < excerpt.from) return excerpt.from - line;
+	if (line > excerpt.to) return line - excerpt.to;
+	return 0;
+}
+
+function coverRemarks(
+	excerpts: GuideExcerpt[],
+	remarks: GuideRemark[],
+	hunks: ReviewHunk[],
+): GuideExcerpt[] {
+	const covered = [...excerpts];
+	for (const remark of remarks) {
+		const candidates = covered.filter(
+			(excerpt) => excerpt.path === remark.path && excerpt.side === remark.side,
+		);
+		if (
+			candidates.some(
+				(excerpt) => remark.line >= excerpt.from && remark.line <= excerpt.to,
+			)
+		)
+			continue;
+		// Only an extract of the same hunk may be stretched: the extract is keyed
+		// on its hunk hash, and reaching across a hunk boundary would leave it
+		// claiming a hash it no longer covers - which is what the "seen" state
+		// is read from.
+		const hunk = hunkFor(hunks, remark.path, remark.side, remark.line);
+		if (!hunk) continue;
+		const nearest = candidates
+			.filter((excerpt) => excerpt.hunkHash === hunk.hunkHash)
+			.reduce<GuideExcerpt | null>((best, excerpt) => {
+				if (!best) return excerpt;
+				return gapTo(excerpt, remark.line) < gapTo(best, remark.line)
+					? excerpt
+					: best;
+			}, null);
+		if (nearest) {
+			nearest.from = Math.min(nearest.from, remark.line);
+			nearest.to = Math.max(nearest.to, remark.line);
+			continue;
+		}
+		covered.push({
+			path: remark.path,
+			side: remark.side,
+			from: remark.line,
+			to: remark.line,
+			hunkHash: hunk.hunkHash,
+		});
+	}
+	return covered;
+}
+
+/**
  * The model's answer turned into a guide: ids minted here, extracts and remarks
  * attached to real hunks, everything that does not attach dropped. A chapter
  * left without a single extract is dropped too - it would be a title the
@@ -128,17 +191,18 @@ export function resolveGuide(
 		const excerpts = (Array.isArray(value.excerpts) ? value.excerpts : [])
 			.map((excerpt) => resolveExcerpt(excerpt, hunks))
 			.filter((excerpt): excerpt is GuideExcerpt => excerpt !== null);
-		if (excerpts.length === 0) return;
 		const remarks = (Array.isArray(value.remarks) ? value.remarks : [])
 			.map((remark, position) =>
 				resolveRemark(remark, hunks, `${id}r${position + 1}`),
 			)
 			.filter((remark): remark is GuideRemark => remark !== null);
+		const covered = coverRemarks(excerpts, remarks, hunks);
+		if (covered.length === 0) return;
 		chapters.push({
 			id,
 			title: asString(value.title) || id,
 			summary: asString(value.summary),
-			excerpts,
+			excerpts: covered,
 			remarks,
 			isSeen: false,
 		});
