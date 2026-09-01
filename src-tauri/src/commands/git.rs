@@ -105,6 +105,17 @@ fn run(cmd: &mut Command) -> Result<String, GitError> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
+/// Unwraps a scoped thread join: the inner `Result` is the command's own, a
+/// join failure means the thread panicked and has no git error to give.
+fn join_result<T>(
+    joined: Result<Result<T, GitError>, Box<dyn std::any::Any + Send>>,
+) -> Result<T, GitError> {
+    match joined {
+        Ok(result) => result,
+        Err(_) => Err(GitError::new("unknown", "git diff panicked")),
+    }
+}
+
 /// Rejects a value starting with `-`, which git would otherwise read as an
 /// option. Used for refs and for the file paths passed to `git rm`.
 fn reject_option_like(name: &str) -> Result<(), GitError> {
@@ -734,8 +745,17 @@ pub struct GitDiffs {
 #[tauri::command]
 pub async fn git_diffs(worktree_path: String, known_version: u64) -> Result<Option<GitDiffs>, GitError> {
     let expanded = expand(&worktree_path);
-    let unstaged = run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"]))?;
-    let staged = run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"]))?;
+    // The two diffs are the largest payload the app reads, and neither depends
+    // on the other: running them one after the other spent twice the time of
+    // the slower one. Scoped threads rather than tasks - the command already
+    // runs off the main thread, and `run` blocks on a process either way.
+    let (unstaged, staged) = std::thread::scope(|scope| {
+        let unstaged = scope.spawn(|| run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"])));
+        let staged =
+            scope.spawn(|| run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"])));
+        (join_result(unstaged.join()), join_result(staged.join()))
+    });
+    let (unstaged, staged) = (unstaged?, staged?);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     std::hash::Hash::hash(&unstaged, &mut hasher);
     std::hash::Hash::hash(&staged, &mut hasher);
@@ -2353,7 +2373,7 @@ diff --git a/two.txt b/two.txt
             let _ = fs::remove_dir_all(&path);
             fs::create_dir_all(&path).unwrap();
             let repo = TempRepo { path };
-            repo.git(&["init", "-q"]);
+            repo.git(&["init", "-q", "--initial-branch=master"]);
             repo.git(&["config", "user.name", "Test"]);
             repo.git(&["config", "user.email", "test@example.com"]);
             repo.git(&["config", "commit.gpgsign", "false"]);

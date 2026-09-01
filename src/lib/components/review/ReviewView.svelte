@@ -23,6 +23,7 @@
     toGitError,
   } from '$lib/services/git-service';
   import { activeInstance } from '$lib/stores/instance';
+  import { activeStep } from '$lib/stores/ui';
   import { forgeTerms, hasForge } from '$lib/stores/integrations';
   import {
     approveMergeRequest,
@@ -91,8 +92,12 @@
     void loadReview(scope);
   }
 
+  // Gated on the step being on screen: the view stays mounted once opened, and
+  // the diff it reads here is the whole `base...HEAD` of the branch. Ungated, a
+  // project switch paid for it against every worktree it passed through, for a
+  // step nobody was looking at.
   let openedFor = '';
-  $: if (scope && worktreePath && base && !isHeadMissing) {
+  $: if ($activeStep === 'review' && scope && worktreePath && base && !isHeadMissing) {
     const key = `${scopeKey}|${base}|${head}`;
     if (openedFor !== key) {
       openedFor = key;

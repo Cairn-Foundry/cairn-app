@@ -770,15 +770,22 @@
   let graphSearchActive = false;
 
   onMount(() => {
-    setDiffsWanted(true);
     void loadCliProviders();
     if (instance?.worktreePath) {
       lastWorktreePath = instance.worktreePath;
-      refreshStatus();
+      if ($activeStep === 'git') refreshStatus();
     }
     return () => setDiffsWanted(false);
   });
 
+  // The view stays mounted once opened, so the diffs must follow what is on
+  // screen rather than the mount: asking for them while the git step is hidden
+  // makes every status read carry the largest payload of the app for nobody.
+  $: setDiffsWanted($activeStep === 'git');
+
+  // Swapping the drafts only: the reads belong to the block below, which knows
+  // whether the step is on screen. Firing them here made every project switch
+  // pay for a status and a log the user was not looking at.
   $: if (instance?.worktreePath && instance.worktreePath !== lastWorktreePath) {
     const prevWorktree = lastWorktreePath;
     const nextWorktree = instance.worktreePath;
@@ -796,8 +803,6 @@
     const restored = commitByWorktree[nextWorktree];
     if (restored) fetchCommitDetail(restored);
     else clearSelectedCommit();
-    refreshStatus();
-    refreshLog();
   }
 
   $: if ($activeStep === 'git' && instance?.worktreePath) {

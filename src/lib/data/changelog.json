@@ -76,6 +76,13 @@
 					"en": "A conversation no longer opens onto the \"this CLI has exited\" banner while its CLI is running, and Restart now relaunches it. A terminal Cairn closed itself was reporting its exit once the replacement had already started, which marked the new CLI as dead; a session Cairn asked to close is now silent, and the banner is cleared as soon as the conversation is relaunched.",
 					"fr": "Une conversation ne s'ouvre plus sur la bannière « ce CLI s'est arrêté » alors que son CLI tourne, et Redémarrer le relance vraiment. Un terminal fermé par Cairn signalait sa fin une fois le remplaçant déjà démarré, ce qui marquait le nouveau CLI comme mort ; une session que Cairn demande à fermer reste désormais silencieuse, et la bannière disparaît dès que la conversation est relancée."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching between two open projects is now near-instant. A project you come back to reappears with the git data it was left on instead of being read from scratch, the refresh runs behind the cross-fade rather than freezing it, and the steps you are not looking at no longer read the repository on the way past.",
+					"fr": "Passer d'un projet ouvert à l'autre est désormais quasi instantané. Un projet sur lequel vous revenez réapparaît avec les données git sur lesquelles vous l'aviez laissé au lieu d'être relu de zéro, le rafraîchissement s'exécute derrière le fondu plutôt que de le figer, et les steps que vous ne regardez pas ne lisent plus le dépôt au passage."
+				}
 			}
 		]
 	},

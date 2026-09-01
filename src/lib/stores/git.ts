@@ -649,28 +649,123 @@ export function resetGitStore(): void {
 	_git.set(INITIAL);
 }
 
-/** Drops everything read from a worktree, keeping what the user typed. */
-export function clearGitData(): void {
+/** The fields a worktree owns; everything else in `GitState` is view bookkeeping. */
+const WORKTREE_FIELDS = [
+	"status",
+	"statusWorktree",
+	"snapshotVersion",
+	"diffVersion",
+	"unstagedDiffs",
+	"stagedDiffs",
+	"changedPaths",
+	"currentBranch",
+	"branches",
+	"remoteBranches",
+	"log",
+	"graph",
+	"stashes",
+	"tags",
+	"remoteStatus",
+	"operationState",
+	"logHasMore",
+	"graphHasMore",
+	"isGitRepo",
+] as const;
+
+type WorktreeData = Pick<GitState, (typeof WORKTREE_FIELDS)[number]>;
+
+/** The data of a worktree as it is emptied, so a clear is a restore of nothing. */
+const EMPTY: WorktreeData = {
+	status: {},
+	statusWorktree: null,
+	snapshotVersion: 0,
+	diffVersion: 0,
+	unstagedDiffs: [],
+	stagedDiffs: [],
+	changedPaths: { staged: [], unstaged: [] },
+	currentBranch: "",
+	branches: [],
+	remoteBranches: [],
+	log: [],
+	graph: [],
+	stashes: [],
+	tags: [],
+	remoteStatus: null,
+	operationState: null,
+	logHasMore: false,
+	graphHasMore: false,
+	isGitRepo: true,
+};
+
+/**
+ * What each worktree was last read as, keyed by its path - the same shape the
+ * language server store uses for its servers. Switching project used to empty
+ * the store and read everything back from git; the views now get the data the
+ * target worktree already had, and the refresh that follows only publishes what
+ * actually changed.
+ *
+ * Holding the versions matters as much as holding the data: `snapshotVersion`
+ * and `diffVersion` are what let the backend answer "nothing changed" and hand
+ * back nothing. Zeroing them made every return switch re-read, re-serialize and
+ * re-parse a repository that had not moved.
+ */
+const byWorktree = new Map<string, WorktreeData>();
+
+/**
+ * A cached worktree holds its diffs, its log page and its graph page, so the
+ * bound is what keeps a session moving between many instances from pinning all
+ * of them. The least recently left goes first; a project removed while its
+ * entries are still cached simply falls out on its own.
+ */
+const WORKTREE_CACHE_MAX = 8;
+
+/** The worktree fields of a state, for the cache. */
+function extract(s: GitState): WorktreeData {
+	return Object.fromEntries(
+		WORKTREE_FIELDS.map((k) => [k, s[k]]),
+	) as WorktreeData;
+}
+
+/**
+ * Remembers what is on screen for `path`. Only a state actually read from that
+ * worktree is worth keeping: `statusWorktree` is set by the first successful
+ * read, and storing anything else would cache another worktree's data under
+ * this key.
+ */
+function remember(path: string): void {
+	const s = get(_git);
+	if (s.statusWorktree !== path) return;
+	byWorktree.delete(path);
+	byWorktree.set(path, extract(s));
+	for (const oldest of byWorktree.keys()) {
+		if (byWorktree.size <= WORKTREE_CACHE_MAX) break;
+		byWorktree.delete(oldest);
+	}
+}
+
+/**
+ * Swaps the store onto `next`, saving what `prev` was showing. The data of a
+ * worktree never leaks into another: an unknown target lands on `EMPTY`, which
+ * is what the wipe used to produce.
+ */
+function switchWorktree(prev: string | null, next: string | null): void {
+	if (prev) remember(prev);
+	const data = (next && byWorktree.get(next)) || EMPTY;
 	_git.update((s) => ({
 		...s,
-		status: {},
-		statusWorktree: null,
-		unstagedDiffs: [],
-		stagedDiffs: [],
-		diffVersion: 0,
-		changedPaths: { staged: [], unstaged: [] },
-		currentBranch: "",
-		remoteStatus: null,
-		operationState: null,
-		branches: [],
-		remoteBranches: [],
-		log: [],
-		graph: [],
-		stashes: [],
-		tags: [],
-		logHasMore: false,
-		graphHasMore: false,
-		isGitRepo: true,
+		...data,
+		isLoading: false,
+		error: null,
+	}));
+}
+
+/** Drops everything read from a worktree, keeping what the user typed. */
+export function clearGitData(): void {
+	const path = get(_git).statusWorktree;
+	if (path) byWorktree.delete(path);
+	_git.update((s) => ({
+		...s,
+		...EMPTY,
 		isLoading: false,
 		error: null,
 	}));
@@ -702,17 +797,12 @@ export function startGitPolling(): () => void {
 		lastRun = Date.now();
 		void refreshStatus(true);
 	};
-	// The timer keeps the fast cadence and a tick is skipped when the git view
-	// is closed and the slower interval has not elapsed yet, so reopening the
-	// view goes back to full speed without restarting anything.
 	const timer = setInterval(() => {
 		const due = watched
 			? GIT_REFRESH_WATCHED_INTERVAL_MS
 			: diffsWanted
 				? GIT_REFRESH_INTERVAL_MS
 				: GIT_REFRESH_IDLE_INTERVAL_MS;
-		// Half-interval tolerance: setInterval drifts by a few ms, and an exact
-		// comparison would skip a whole cycle every time it fires early.
 		if (Date.now() - lastRun < due - GIT_REFRESH_INTERVAL_MS / 2) return;
 		tick();
 	}, GIT_REFRESH_INTERVAL_MS);
@@ -741,18 +831,17 @@ export function startGitPolling(): () => void {
 	};
 }
 
-// Changing worktree wipes the data at once, so no view renders another instance's
-// status for a frame. `undefined` marks the initial call, which must not clear anything.
-let lastClearedWorktree: string | null | undefined;
+let lastWorktree: string | null | undefined;
 activeInstance.subscribe((inst) => {
 	const wt = inst?.worktreePath ?? null;
-	if (lastClearedWorktree === undefined) {
-		lastClearedWorktree = wt;
+	if (lastWorktree === undefined) {
+		lastWorktree = wt;
 		return;
 	}
-	if (wt !== lastClearedWorktree) {
-		lastClearedWorktree = wt;
-		clearGitData();
+	if (wt !== lastWorktree) {
+		const prev = lastWorktree;
+		lastWorktree = wt;
+		switchWorktree(prev, wt);
 	}
 });
 

@@ -246,3 +246,65 @@ describe("startGitPolling", () => {
 		expect(getStatusFull).not.toHaveBeenCalled();
 	});
 });
+
+describe("the worktree cache", () => {
+	beforeEach(async () => {
+		vi.clearAllMocks();
+		getStatusFull.mockResolvedValue({
+			isGitRepo: true,
+			status: { "a.txt": "modified" },
+			changedPaths: { staged: [], unstaged: [] },
+		});
+		projects.set([
+			project("a", { activeInstanceId: BASE_INSTANCE_ID }),
+			project("b", { activeInstanceId: BASE_INSTANCE_ID }),
+		]);
+		const { loadInstances } = await import("./instance");
+		await loadInstances("a");
+		await loadInstances("b");
+		activeProjectId.set("a");
+	});
+
+	it("gives a project back the status it was left on", async () => {
+		await refreshStatus();
+		expect(get(git).statusWorktree).toBe("/repos/a");
+
+		getStatusFull.mockResolvedValue({
+			isGitRepo: true,
+			status: { "b.txt": "untracked" },
+			changedPaths: { staged: [], unstaged: [] },
+		});
+		activeProjectId.set("b");
+		await refreshStatus();
+		expect(get(git).statusWorktree).toBe("/repos/b");
+
+		// Back to a: the data is there before anything is read again.
+		activeProjectId.set("a");
+		expect(get(git).statusWorktree).toBe("/repos/a");
+		expect(get(git).status).toEqual({ "a.txt": "modified" });
+	});
+
+	it("never shows one worktree's status under another", async () => {
+		await refreshStatus();
+		expect(get(git).status).toEqual({ "a.txt": "modified" });
+		// c has never been read, so it starts empty rather than on a's status.
+		projects.update((list) => [
+			...list,
+			project("c", { activeInstanceId: BASE_INSTANCE_ID }),
+		]);
+		const { loadInstances } = await import("./instance");
+		await loadInstances("c");
+		activeProjectId.set("c");
+		expect(get(git).statusWorktree).toBeNull();
+		expect(get(git).status).toEqual({});
+	});
+
+	it("keeps the versions, so an unchanged repository is not re-read", async () => {
+		await refreshStatus();
+		const version = get(git).snapshotVersion;
+		expect(version).toBeGreaterThan(0);
+		activeProjectId.set("b");
+		activeProjectId.set("a");
+		expect(get(git).snapshotVersion).toBe(version);
+	});
+});
