@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.0.2",
+		"date": "",
+		"summary": {
+			"en": "Recovery for a conversation whose CLI session is gone.",
+			"fr": "Récupération d'une conversation dont la session CLI a disparu."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "A New session button next to Restart when a CLI has exited, for a conversation whose session the CLI no longer knows: it leaves the missing session behind and starts a new one in the same worktree, keeping the title. Restarting alone would ask the CLI to resume the same missing session again.",
+					"fr": "Un bouton Nouvelle session à côté de Relancer lorsqu'un CLI s'est arrêté, pour une conversation dont le CLI ne connaît plus la session : il abandonne la session manquante et en démarre une nouvelle dans le même worktree, en conservant le titre. Relancer seul redemanderait au CLI de reprendre la même session manquante."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.1",
 		"date": "2026-09-03",
 		"summary": {

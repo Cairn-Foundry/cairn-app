@@ -519,6 +519,9 @@ export const en = {
 			"This CLI is running a command of its own right now, and stopping it stops that work too. The conversation stays: resuming it later starts the CLI again where it left off.",
 		exited: "This CLI has exited.",
 		exitedWithCode: (code: number) => `This CLI has exited with code ${code}.`,
+		freshSession: "New session",
+		freshSessionHint:
+			"Leave the session this conversation cannot resume behind, and start a new one in the same worktree.",
 		noActiveInstance: "No active instance",
 		picker: {
 			title: "Start a conversation",

@@ -40,6 +40,7 @@
     restoreConversations,
     selectConversation,
     startConversation,
+    startFreshSession,
     toggleArchived,
     togglePinned,
   } from '$lib/stores/conversation';
@@ -263,6 +264,23 @@
     closeConversation(active.meta.id);
   }
 
+  /**
+   * Leaves behind the session the conversation was resuming and opens a new one.
+   * The way out when the CLI has no record of that session: a restart would ask
+   * it to resume the same missing one again.
+   */
+  async function newSessionForConversation() {
+    if (!active) return;
+    const { ref, meta } = active;
+    const tid = terminalId;
+    if (tid) {
+      const next = { ...exited };
+      delete next[tid];
+      exited = next;
+    }
+    await startFreshSession(ref, meta.id).catch(() => {});
+  }
+
   let renaming = $state(false);
   let renameValue = $state('');
 
@@ -383,6 +401,13 @@
           <div class="spacer"></div>
           <button class="btn small primary" onclick={() => void restartConversation()}>
             <Icon name="refresh" size={13}/> {t('agent.restart')}
+          </button>
+          <button
+            class="btn small ghost"
+            title={t('agent.freshSessionHint') as string}
+            onclick={() => void newSessionForConversation()}
+          >
+            <Icon name="plus" size={13}/> {t('agent.freshSession')}
           </button>
           <button class="btn small ghost" onclick={() => archiveConversation()}>
             <Icon name="archive" size={13}/> {t('agent.history.archive')}
