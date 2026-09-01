@@ -28,6 +28,7 @@ pub mod instances;
 pub mod integrations;
 pub mod lsp;
 pub mod mcp;
+pub mod memory_log;
 pub mod native_agents;
 pub mod ports;
 pub mod projects;
@@ -64,7 +65,7 @@ pub use formatting::{
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
 pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
 pub use git::{
-    list_branches, list_branches_detailed, suggest_base_branches, is_git_repo, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
+    list_branches, list_branches_detailed, suggest_base_branches, is_git_repo, git_forget_repo_roots, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
     git_diff_unstaged, git_diff_staged, git_blame_file, git_file_at_head, git_file_in_index,
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,

@@ -382,14 +382,32 @@ pub fn resolve_binary(binary: &str, root: Option<&Path>) -> Option<PathBuf> {
         .find(|candidate| is_executable(candidate))
 }
 
-/// Versions already read, keyed by the binary and the moment it was written.
-/// Asking costs a process spawn, and the answer only changes when the file
-/// does - an upgrade moves the timestamp and the entry misses on its own.
-static VERSIONS: Mutex<Option<HashMap<(PathBuf, SystemTime), String>>> = Mutex::new(None);
+/// Versions already read, one entry per binary, holding the moment the file was
+/// written. Asking costs a process spawn, and the answer only changes when the
+/// file does - an upgrade moves the timestamp and the entry misses. Keying on
+/// the path alone rather than on the pair is what bounds the map: every `npm
+/// install` moves a timestamp, and a pair key would leave the superseded entry
+/// behind forever.
+static VERSIONS: Mutex<Option<HashMap<PathBuf, (SystemTime, String)>>> = Mutex::new(None);
 
 fn version_stamp(path: &Path) -> Option<(PathBuf, SystemTime)> {
     let modified = path.metadata().ok()?.modified().ok()?;
     Some((path.to_path_buf(), modified))
+}
+
+type VersionCache = HashMap<PathBuf, (SystemTime, String)>;
+
+/// The version held for that binary, unless the file has been written since.
+fn cached_version(cache: &VersionCache, binary: &Path, modified: SystemTime) -> Option<String> {
+    let (cached_at, version) = cache.get(binary)?;
+    (*cached_at == modified).then(|| version.clone())
+}
+
+/// Records the version, replacing whatever that binary held. Replacing rather
+/// than adding is the whole point: an upgrade must not leave the version it
+/// superseded behind.
+fn remember_version(cache: &mut VersionCache, binary: PathBuf, modified: SystemTime, version: String) {
+    cache.insert(binary, (modified, version));
 }
 
 /// The version buried in whatever a tool printed: the first run of digits and
@@ -470,20 +488,20 @@ pub fn detect_version(path: &Path) -> Option<String> {
     // Stamped on the target rather than the link: updating a package rewrites
     // the files, and may well leave the link it was reached through untouched.
     let stamp = version_stamp(&resolved);
-    if let Some(stamp) = stamp.as_ref() {
+    if let Some((binary, modified)) = stamp.as_ref() {
         let cached = VERSIONS
             .lock()
             .ok()
-            .and_then(|cache| cache.as_ref()?.get(stamp).cloned());
+            .and_then(|cache| cached_version(cache.as_ref()?, binary, *modified));
         if let Some(cached) = cached {
             return Some(cached);
         }
     }
 
     let version = package_version(&resolved).or_else(|| read_version(path))?;
-    if let Some(stamp) = stamp
+    if let Some((binary, modified)) = stamp
         && let Ok(mut cache) = VERSIONS.lock() {
-            cache.get_or_insert_with(HashMap::new).insert(stamp, version.clone());
+            remember_version(cache.get_or_insert_with(HashMap::new), binary, modified, version.clone());
         }
     Some(version)
 }
@@ -504,6 +522,7 @@ fn read_version(path: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn a_version_is_read_out_of_whatever_the_tool_prints() {
@@ -514,6 +533,24 @@ mod tests {
             parse_version("rustc 1.75.0 (82e1608df 2023-12-21)"),
             Some(vec![1, 75, 0])
         );
+    }
+
+    #[test]
+    fn a_rewritten_binary_replaces_its_entry_instead_of_adding_one() {
+        let mut cache = VersionCache::new();
+        let npm = PathBuf::from("/usr/local/bin/npm");
+        let before = SystemTime::UNIX_EPOCH;
+        let after = before + Duration::from_secs(3600);
+
+        remember_version(&mut cache, npm.clone(), before, "10.2.0".into());
+        assert_eq!(cached_version(&cache, &npm, before).as_deref(), Some("10.2.0"));
+        // The install moved the timestamp: the entry misses rather than
+        // answering with the version that is no longer installed.
+        assert_eq!(cached_version(&cache, &npm, after), None);
+
+        remember_version(&mut cache, npm.clone(), after, "10.9.2".into());
+        assert_eq!(cached_version(&cache, &npm, after).as_deref(), Some("10.9.2"));
+        assert_eq!(cache.len(), 1, "the superseded version is gone, not merely shadowed");
     }
 
     #[test]

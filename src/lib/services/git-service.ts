@@ -163,6 +163,14 @@ export async function isGitRepo(worktreePath: string): Promise<boolean> {
 	return invoke("is_git_repo", { worktreePath });
 }
 
+/** Drops the backend's cached "this path is a worktree root" answers for a removed project. */
+export async function forgetRepoRoots(
+	projectId: string,
+	projectPath: string,
+): Promise<void> {
+	return invoke("git_forget_repo_roots", { projectId, projectPath });
+}
+
 /** The paths behind the change badges, with no diff content attached. */
 export interface GitChangedPaths {
 	staged: string[];

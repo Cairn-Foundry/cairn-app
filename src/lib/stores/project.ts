@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /** The registered projects, the open project tabs, and which project is active. */
-import { derived, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
+import { forgetRepoRoots } from "$lib/services/git-service";
 import {
 	addProject,
 	duplicateProject,
@@ -101,12 +102,17 @@ export async function activateInstance(
  * and `write_json_atomic` recreates missing parent directories, so a timer left
  * running would write the project's directory back moments after it was deleted.
  * Every `forgetProject` cancels its queued writes before dropping its entries.
+ *
+ * The repository path is read before the removal: `removeProject` is what drops
+ * it from `projects.json`, and the backend needs it to purge the roots it proved.
  */
 export async function unregisterProject(id: string): Promise<void> {
+	const projectPath = get(projects).find((p) => p.id === id)?.path ?? "";
 	const updated = await removeProject(id);
 	projects.set(updated);
 	activeProjectId.update((current) => (current === id ? null : current));
 	projectFolders.purgeProject(id);
+	await forgetRepoRoots(id, projectPath);
 	await runProjectTeardowns(id);
 }
 

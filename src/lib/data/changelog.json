@@ -36,6 +36,13 @@
 				}
 			},
 			{
+				"kind": "changed",
+				"text": {
+					"en": "A pane now keeps at most twenty-four editor tabs. Past that, opening a file closes the tab you looked at longest ago, so a session spent reading across a repository stops holding every file it ever opened in memory. A pinned tab, one with unsaved edits and the one on screen are never closed, and a closed tab comes straight back with Reopen closed tab.",
+					"fr": "Un panneau conserve désormais vingt-quatre onglets d'éditeur au maximum. Au-delà, ouvrir un fichier ferme l'onglet consulté le plus anciennement, pour qu'une session passée à parcourir un dépôt cesse de garder en mémoire tous les fichiers ouverts depuis le début. Un onglet épinglé, un onglet contenant des modifications non enregistrées et celui affiché ne sont jamais fermés, et un onglet fermé revient tel quel avec Rouvrir l'onglet fermé."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Linux, AppImage: git over HTTPS and the tools launched from Cairn no longer fail with a nghttp2 symbol lookup error. The bundle stopped imposing its own copy of that library on the processes it starts.",

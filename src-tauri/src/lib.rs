@@ -83,6 +83,7 @@ pub fn run() {
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
             commands::lsp::spawn_idle_reaper(app.handle().clone());
+            commands::memory_log::spawn_sampler();
 
             /* Transparency is decided when the window is created and cannot be
                changed afterwards, so the window is built here rather than
@@ -188,6 +189,7 @@ pub fn run() {
             list_branches_detailed,
             suggest_base_branches,
             is_git_repo,
+            git_forget_repo_roots,
             git_status,
             git_changed_paths,
             git_status_full,

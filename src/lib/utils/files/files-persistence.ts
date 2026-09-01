@@ -28,6 +28,12 @@ export interface Tab {
 	scrollTop: number;
 	pinned?: boolean;
 	lineEndings?: "LF" | "CRLF";
+	/**
+	 * When the tab was last shown, used only to decide which tab the cap drops.
+	 * Never persisted: a restored session has no use order yet, and every tab
+	 * it reopens is equally old.
+	 */
+	lastUsedAt?: number;
 }
 
 /** The layout as stored, without any file content. */

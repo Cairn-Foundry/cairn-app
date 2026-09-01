@@ -107,6 +107,7 @@ import { get } from 'svelte/store';
     removeDragGhost,
     findDropTargetDir,
   } from '$lib/utils/files/files-drag-ghost';
+  import { tabsToEvict } from '$lib/utils/files/files-tab-cap';
   import { EDITOR_JUMP_DELAY_MS } from '$lib/utils/timing';
   import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '$lib/utils/editor/editor-config';
   import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
@@ -348,6 +349,9 @@ import { get } from 'svelte/store';
   let splitLeftWidth = 0;
 
   $: activeTabs = panes.map(p => p.tabs[p.activeTabIdx] ?? null);
+  // Stamping here rather than at each of the dozen sites that move
+  // `activeTabIdx`: whatever put a tab on screen, this is where it lands.
+  $: for (const tab of activeTabs) if (tab) tab.lastUsedAt = Date.now();
   $: activeLangs = activeTabs.map(t => (t ? langFromPath(t.path) : 'text') as any);
   $: activeLineEndingsArr = activeTabs.map(t => t?.lineEndings ?? 'LF');
   $: isDirtyArr = activeTabs.map(t => t ? isDirty(t) : false);
@@ -496,6 +500,21 @@ import { get } from 'svelte/store';
     if (activeChanged) refreshDiff(i, pane.tabs[activeTabIdx] ?? null);
   }
 
+  /**
+   * Brings a pane back under the tab cap by closing its least recently shown
+   * tabs. Evicted tabs go through `closeTab`, so they land on the reopen stack
+   * and the language server is told about them like any other close - the only
+   * difference is who asked. Nothing dirty, pinned or on screen is ever picked,
+   * so a pane holding only those legitimately stays above the cap.
+   */
+  async function enforceTabCap(i: number) {
+    const pane = panes[i];
+    for (const tab of tabsToEvict(pane.tabs, pane.activeTabIdx, isDirty)) {
+      const idx = pane.tabs.indexOf(tab);
+      if (idx !== -1) await closeTab(i, idx, null);
+    }
+  }
+
   /** Records an edit and mirrors it into any other pane showing the same file. */
   /**
    * A keystroke: the pane takes the view's own `Text` (no copy) and the twin
@@ -611,11 +630,12 @@ import { get } from 'svelte/store';
       return;
     }
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0, lastUsedAt: Date.now() }];
       pane.activeTabIdx = pane.tabs.length - 1;
       pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
+      await enforceTabCap(i);
       return;
     }
     captureEditorState(i);
@@ -624,11 +644,12 @@ import { get } from 'svelte/store';
       const le2 = detectLineEndings(raw2);
       const text2 = normalizeLineEndings(raw2, le2);
       const doc2 = docFromString(text2);
-      pane.tabs = [...pane.tabs, { path: node.path, doc: doc2, savedDoc: doc2, cursorPos: 0, scrollTop: 0, lineEndings: le2 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: doc2, savedDoc: doc2, cursorPos: 0, scrollTop: 0, lineEndings: le2, lastUsedAt: Date.now() }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
       refreshDiff(i, { path: node.path });
+      await enforceTabCap(i);
     } catch (e) { error = String(e); }
   }
 
@@ -2071,11 +2092,12 @@ import { get } from 'svelte/store';
     if (($settings.saveOn) === 'blur') await flushSave(0);
 
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0, lastUsedAt: Date.now() }];
       pane.activeTabIdx = pane.tabs.length - 1;
       pane.baseContent = ''; pane.currentBlame = new Map();
       panes = panes;
       pushRecentFile(node.path);
+      await enforceTabCap(0);
       return;
     }
 
@@ -2087,11 +2109,12 @@ import { get } from 'svelte/store';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
       const opened = docFromString(text);
-      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le, lastUsedAt: Date.now() }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
       pushRecentFile(node.path);
       refreshDiff(0, { path: node.path });
+      await enforceTabCap(0);
     } catch (e) {
       error = String(e);
     } finally {
@@ -2110,9 +2133,10 @@ import { get } from 'svelte/store';
     if (loadingPaths.has(node.path)) return;
 
     if (isBinaryPath(node.path)) {
-      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0 }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: Text.empty, savedDoc: Text.empty, cursorPos: 0, scrollTop: 0, lastUsedAt: Date.now() }];
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
+      await enforceTabCap(i);
       return;
     }
 
@@ -2123,9 +2147,10 @@ import { get } from 'svelte/store';
       const le = detectLineEndings(raw);
       const text = normalizeLineEndings(raw, le);
       const opened = docFromString(text);
-      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: opened, savedDoc: opened, cursorPos: 0, scrollTop: 0, lineEndings: le, lastUsedAt: Date.now() }];
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
+      await enforceTabCap(i);
     } catch (e) {
       error = String(e);
     } finally {
@@ -2163,6 +2188,7 @@ import { get } from 'svelte/store';
     }
     panes = panes;
     await switchTab(0, pane.tabs.length - 1);
+    await enforceTabCap(0);
   }
 
   /** Goes back in tab history, skipping entries whose index no longer exists. */

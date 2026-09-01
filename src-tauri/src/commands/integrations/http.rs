@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use base64::Engine;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Method, StatusCode};
@@ -19,6 +19,12 @@ pub const DEFAULT_PER_PAGE: u32 = 50;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_SAME_HOST_REDIRECTS: usize = 3;
 const ERROR_BODY_MAX_CHARS: usize = 200;
+/// How long a stored response stays usable as the body of a 304, and how many
+/// of them a connection may hold. The key is the full URL with its query, so
+/// pagination, filters and ticket ids each mint their own entry: without a
+/// bound, a session polling a forge all day never stops growing.
+const ETAG_TTL: Duration = Duration::from_secs(30 * 60);
+const ETAG_MAX_ENTRIES: usize = 256;
 
 #[derive(Clone)]
 pub enum Auth {
@@ -39,7 +45,13 @@ pub struct HttpClient {
     api_base: String,
     auth: Auth,
     is_etag_enabled: bool,
-    etags: Mutex<HashMap<String, (String, Value)>>,
+    etags: Mutex<HashMap<String, EtagEntry>>,
+}
+
+struct EtagEntry {
+    etag: String,
+    body: Value,
+    stored_at: Instant,
 }
 
 fn user_agent() -> String {
@@ -86,6 +98,23 @@ impl HttpClient {
             is_etag_enabled,
             etags: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// Drops what expired, then the oldest entries until the cap holds. Run on
+    /// insert only: a cache nobody writes to is a cache nobody has to sweep.
+    fn evict_etags(map: &mut HashMap<String, EtagEntry>, incoming: &str) {
+        map.retain(|_, entry| entry.stored_at.elapsed() < ETAG_TTL);
+        let room = usize::from(!map.contains_key(incoming));
+        while map.len() + room > ETAG_MAX_ENTRIES {
+            let Some(oldest) = map
+                .iter()
+                .min_by_key(|(_, entry)| entry.stored_at)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            map.remove(&oldest);
+        }
     }
 
     pub fn api_base(&self) -> &str {
@@ -179,17 +208,20 @@ impl HttpClient {
             self.etags
                 .lock()
                 .ok()
-                .and_then(|m| m.get(&cache_key).map(|(etag, _)| ("If-None-Match", etag.clone())))
+                .and_then(|m| m.get(&cache_key).map(|entry| ("If-None-Match", entry.etag.clone())))
         } else {
             None
         };
         let extra: Vec<(&str, String)> = etag_header.into_iter().collect();
         let response = self.send(Method::GET, path, query, None, &extra).await?;
         if response.status == StatusCode::NOT_MODIFIED.as_u16()
-            && let Ok(map) = self.etags.lock()
-            && let Some((_, cached)) = map.get(&cache_key)
+            && let Ok(mut map) = self.etags.lock()
+            && let Some(entry) = map.get_mut(&cache_key)
         {
-            return Ok((cached.clone(), response.headers));
+            // A confirmed entry is a live one: its age restarts here, so a key
+            // polled all session long is never the one eviction picks.
+            entry.stored_at = Instant::now();
+            return Ok((entry.body.clone(), response.headers));
         }
         if response.status >= 300 {
             return Err(error_from_response(response.status, &response.headers, &response.body));
@@ -199,7 +231,11 @@ impl HttpClient {
             && let Some(etag) = response.headers.get("etag").and_then(|v| v.to_str().ok())
             && let Ok(mut map) = self.etags.lock()
         {
-            map.insert(cache_key, (etag.to_string(), value.clone()));
+            Self::evict_etags(&mut map, &cache_key);
+            map.insert(
+                cache_key,
+                EtagEntry { etag: etag.to_string(), body: value.clone(), stored_at: Instant::now() },
+            );
         }
         Ok((value, response.headers))
     }
@@ -467,6 +503,45 @@ mod tests {
         assert_eq!(resolve_location("https://a.io/api/v4/x", "/api/v4/y"), "https://a.io/api/v4/y");
         assert_eq!(resolve_location("https://a.io/api/v4/x", "y"), "https://a.io/api/v4/y");
         assert_eq!(resolve_location("https://a.io/x", "https://b.io/z"), "https://b.io/z");
+    }
+
+    fn entry(age: Duration) -> EtagEntry {
+        EtagEntry {
+            etag: "W/\"x\"".into(),
+            body: Value::Null,
+            stored_at: Instant::now() - age,
+        }
+    }
+
+    #[test]
+    fn expired_etag_entries_are_dropped_on_the_next_insert() {
+        let mut map = HashMap::new();
+        map.insert("fresh".to_string(), entry(Duration::from_secs(60)));
+        map.insert("stale".to_string(), entry(ETAG_TTL + Duration::from_secs(1)));
+        HttpClient::evict_etags(&mut map, "incoming");
+        assert!(map.contains_key("fresh"));
+        assert!(!map.contains_key("stale"));
+    }
+
+    #[test]
+    fn the_cap_holds_and_sheds_the_oldest_first() {
+        let mut map = HashMap::new();
+        for i in 0..ETAG_MAX_ENTRIES {
+            map.insert(format!("k{i}"), entry(Duration::from_secs((ETAG_MAX_ENTRIES - i) as u64)));
+        }
+        HttpClient::evict_etags(&mut map, "incoming");
+        assert_eq!(map.len(), ETAG_MAX_ENTRIES - 1);
+        assert!(!map.contains_key("k0"), "the oldest entry is the one that goes");
+    }
+
+    #[test]
+    fn refreshing_a_key_already_held_costs_no_other_entry() {
+        let mut map = HashMap::new();
+        for i in 0..ETAG_MAX_ENTRIES {
+            map.insert(format!("k{i}"), entry(Duration::from_secs((ETAG_MAX_ENTRIES - i) as u64)));
+        }
+        HttpClient::evict_etags(&mut map, "k0");
+        assert_eq!(map.len(), ETAG_MAX_ENTRIES);
     }
 
     #[test]

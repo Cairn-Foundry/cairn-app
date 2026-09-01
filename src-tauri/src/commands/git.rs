@@ -407,6 +407,41 @@ fn forget_repo_root(expanded: &str) {
 }
 
 #[tauri::command]
+/// Drops every proven root belonging to a removed project: its own repository
+/// and the worktrees the app cut from it.
+///
+/// The set is otherwise append-only: a path that stopped being a worktree is
+/// only rechecked when something asks about it again, and nothing asks about a
+/// project that is gone, so its entries would sit there for the rest of the
+/// session. The repository path is passed in because `projects.json` no longer
+/// holds it by the time the teardown runs.
+pub fn git_forget_repo_roots(project_id: String, project_path: String) -> Result<(), GitError> {
+    let mut prefixes: Vec<String> = Vec::new();
+    // An empty path expands to a prefix every root starts with: the project is
+    // unknown, not "all of them".
+    if !project_path.trim().is_empty() {
+        prefixes.push(expand(&project_path));
+    }
+    if let Ok(dir) = crate::storage::worktrees_dir(&project_id) {
+        prefixes.push(dir.to_string_lossy().into_owned());
+    }
+    if let Ok(mut roots) = REPO_ROOTS.lock() {
+        roots.retain(|root| !belongs_to(root, &prefixes));
+    }
+    Ok(())
+}
+
+/// Whether a proven root sits at, or under, one of the removed project's paths.
+/// The comparison is on path boundaries: `/repos/cairn-legacy` is a different
+/// project from `/repos/cairn`, and a plain `starts_with` would take it down too.
+fn belongs_to(root: &str, prefixes: &[String]) -> bool {
+    prefixes.iter().any(|prefix| {
+        let trimmed = prefix.trim_end_matches('/');
+        root == trimmed || root.starts_with(&format!("{trimmed}/"))
+    })
+}
+
+#[tauri::command]
 /// Whether the path is a worktree root.
 pub async fn is_git_repo(worktree_path: String) -> Result<bool, GitError> {
     is_repo_root(&expand(&worktree_path))
@@ -2076,6 +2111,17 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
+
+    #[test]
+    fn a_removed_project_takes_its_own_roots_and_no_neighbour() {
+        let prefixes = vec!["/repos/cairn".to_string(), "/home/u/.cairn/projects/p1/worktrees/".to_string()];
+        assert!(belongs_to("/repos/cairn", &prefixes));
+        assert!(belongs_to("/home/u/.cairn/projects/p1/worktrees/i1", &prefixes));
+        // A name the removed one is a prefix of belongs to another project.
+        assert!(!belongs_to("/repos/cairn-legacy", &prefixes));
+        assert!(!belongs_to("/home/u/.cairn/projects/p2/worktrees/i1", &prefixes));
+        assert!(!belongs_to("/repos/cairn", &[]));
+    }
 
     // --- Pure parser / guard tests (no git required) -----------------------
 
