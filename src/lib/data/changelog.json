@@ -27,6 +27,13 @@
 					"en": "The Create a token button of an integration now opens the token page of the instance whose URL you entered, instead of always going to the vendor's cloud. Jira is unchanged, as its tokens are always issued on id.atlassian.com.",
 					"fr": "Le bouton Créer un jeton d'une intégration ouvre désormais la page des jetons de l'instance dont vous avez saisi l'URL, au lieu de toujours renvoyer vers le cloud de l'éditeur. Jira est inchangé, ses jetons étant toujours émis sur id.atlassian.com."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A New session button next to Restart when a CLI has exited, for a conversation whose session the CLI no longer knows: it leaves the missing session behind and starts a new one in the same worktree, keeping the title. Restarting alone would ask the CLI to resume the same missing session again.",
+					"fr": "Un bouton Nouvelle session à côté de Relancer lorsqu'un CLI s'est arrêté, pour une conversation dont le CLI ne connaît plus la session : il abandonne la session manquante et en démarre une nouvelle dans le même worktree, en conservant le titre. Relancer seul redemanderait au CLI de reprendre la même session manquante."
+				}
 			}
 		]
 	},

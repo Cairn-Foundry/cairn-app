@@ -260,6 +260,7 @@ describe("reopening a conversation", () => {
 describe("recovering a conversation whose session is gone", () => {
 	it("opens a new session instead of resuming the one the CLI lost", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
 		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
 		await vi.advanceTimersByTimeAsync(2_000);
 		closeConversation(meta.id);
