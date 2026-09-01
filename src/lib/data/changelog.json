@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "A New session button next to Restart when a CLI has exited, for a conversation whose session the CLI no longer knows: it leaves the missing session behind and starts a new one in the same worktree, keeping the title. Restarting alone would ask the CLI to resume the same missing session again.",
+					"fr": "Un bouton Nouvelle session à côté de Relancer lorsqu'un CLI s'est arrêté, pour une conversation dont le CLI ne connaît plus la session : il abandonne la session manquante et en démarre une nouvelle dans le même worktree, en conservant le titre. Relancer seul redemanderait au CLI de reprendre la même session manquante."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The cairn command installed from an AppImage build keeps working once the app is closed. It was written as a link into the temporary mount the AppImage runs from - a directory that disappears when the app exits and is named differently at every launch - so the command died with the window that installed it, and reinstalling it only helped until the next close. It now leads to the image file itself, and tells you to reinstall it if you move the image.",
