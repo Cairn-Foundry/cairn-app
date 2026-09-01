@@ -32,6 +32,15 @@ export interface ConversationMeta {
 	 * was opened and left untouched from resuming a session that never existed.
 	 */
 	sessionStarted?: boolean;
+	/**
+	 * Whether that session was found in the CLI's own store. `sessionStarted`
+	 * records that the user typed, which is the moment a session becomes likely;
+	 * this records that it was seen on disk, which is the only state where
+	 * `--resume` is known to work. A CLI is also free to have minted an id of
+	 * its own and ignored the one Cairn asked for, so confirming may replace
+	 * `sessionId` rather than merely vouch for it.
+	 */
+	sessionConfirmed?: boolean;
 	/** Directory the CLI runs in, so a resume lands in the same worktree. */
 	cwd: string;
 	createdAt: number;

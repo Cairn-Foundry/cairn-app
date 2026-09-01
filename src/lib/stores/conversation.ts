@@ -69,6 +69,21 @@ export const activeConversationId = writable<Record<string, string | null>>({});
  */
 export const conversationTerminals = writable<Record<string, string>>({});
 
+/**
+ * How many times each conversation's CLI has been launched.
+ *
+ * A conversation's terminal id is derived from its own id, so it is the same
+ * across a relaunch and cannot tell one run from the next. Anything that spans
+ * an await and then acts on the terminal compares this first, so a decision
+ * taken about one run is not applied to the one that replaced it.
+ */
+export const conversationRuns = writable<Record<string, number>>({});
+
+/** The run a conversation is on, 0 when its CLI has never been launched. */
+export function runOf(conversationId: string): number {
+	return get(conversationRuns)[conversationId] ?? 0;
+}
+
 // Scope keys already read from disk, so opening an instance twice does not reload it.
 const restored = new Set<string>();
 const indexTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -345,10 +360,12 @@ export async function openConversation(
 	patch(ref, id, { lastOpenedAt: Date.now() });
 
 	// A session id minted at creation names nothing until the CLI has written
-	// it, so a conversation left without a single message starts fresh instead
-	// of resuming a session that was never created.
+	// it, so only a confirmed session is resumed. Anything else relaunches under
+	// the id Cairn asked for - `--session-id` creates, where `--resume` demands
+	// a session that already exists and exits when it does not.
+	const resuming = !fresh && meta.sessionConfirmed === true;
 	const argv =
-		fresh || !meta.sessionStarted
+		fresh || !meta.sessionConfirmed
 			? (newConversationArgv(meta.cli, meta.sessionId ?? "") ??
 				freshArgv(meta.cli))
 			: resumeArgv(meta.cli, meta.sessionId);
@@ -364,11 +381,17 @@ export async function openConversation(
 		throw e;
 	}
 	conversationTerminals.update((m) => ({ ...m, [id]: terminalId }));
+	conversationRuns.update((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
+	const run = runOf(id);
+	if (resuming) watchResumeFailure(ref, id, run, terminalId, startedAt);
 	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
 	if (!meta.title) {
 		awaitingTitle.set(terminalId, { ref, id, pending: "" });
 	}
-	if (!meta.sessionId && !mintsSessionId(meta.cli)) {
+	// Polled for every CLI, not only those that mint their own id: an id Cairn
+	// chose is a request, not a fact, until the CLI has written a session under
+	// it. Confirming it is what keeps a later `--resume` from failing.
+	if (!meta.sessionConfirmed) {
 		captureSessionId(ref, id, meta.cli, meta.cwd, startedAt);
 	}
 }
@@ -394,15 +417,22 @@ function captureSessionId(
 		// Closed, deleted, or answered by another attempt: nothing left to do.
 		if (!terminalOf(id)) return;
 		const current = conversationsOf(ref).find((c) => c.id === id);
-		if (!current || current.sessionId) return;
+		if (!current || current.sessionConfirmed) return;
 
 		const found = await discoverCliSession(cli, cwd, startedAt).catch(
 			() => null,
 		);
 		if (found) {
 			// Discovery reads the CLI's own session list, so an id found there is
-			// one it has already written: this conversation is resumable.
-			patch(ref, id, { sessionId: found, sessionStarted: true });
+			// one it has already written: this conversation is resumable. For a
+			// CLI Cairn minted an id for, this is also where a divergence is
+			// caught - the CLI is free to have used an id of its own, and its is
+			// the one `--resume` will accept.
+			patch(ref, id, {
+				sessionId: found,
+				sessionStarted: true,
+				sessionConfirmed: true,
+			});
 			return;
 		}
 		delay *= 2;
@@ -410,6 +440,52 @@ function captureSessionId(
 		setTimeout(attempt, delay);
 	};
 	setTimeout(attempt, delay);
+}
+
+/**
+ * How long a resumed CLI has to stay up before its session is taken as good.
+ *
+ * A refused `--resume` fails immediately - the CLI reads its store, finds
+ * nothing and exits - while a session that opened and was closed by the user is
+ * seconds away at the very least.
+ */
+const RESUME_FAILURE_MS = 4_000;
+
+/**
+ * Falls back to a fresh session when a resume is refused.
+ *
+ * A confirmed session can still be gone: the CLI prunes its store, the home
+ * directory is cleared, the worktree moves. `--resume` then exits non-zero
+ * within a moment, which used to leave the conversation on a dead terminal with
+ * its only explanation scrolled into the buffer. The id is dropped and the CLI
+ * relaunched fresh, so the conversation opens - without its history, which is
+ * the part that no longer exists anywhere.
+ *
+ * Only an early failure counts. A session the user worked in and quit is an
+ * ordinary exit and must not be relaunched behind their back.
+ */
+function watchResumeFailure(
+	ref: ConversationRef,
+	id: string,
+	run: number,
+	terminalId: string,
+	startedAt: number,
+): void {
+	const stop = manager.onTerminalExit(({ id: exited, exitCode }) => {
+		if (exited !== terminalId) return;
+		stop();
+		if (!exitCode || Date.now() - startedAt > RESUME_FAILURE_MS) return;
+		// The PTY of a killed run reports its exit after the next one started, so
+		// the run is what says whether this exit is still the one being watched.
+		if (runOf(id) !== run || terminalOf(id) !== terminalId) return;
+		patch(ref, id, {
+			sessionId: null,
+			sessionStarted: false,
+			sessionConfirmed: false,
+		});
+		closeConversation(id);
+		void openConversation(ref, id, { fresh: true }).catch(() => {});
+	});
 }
 
 /** Kills the CLI. The entry stays: reopening it is what resume is for. */

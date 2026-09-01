@@ -37,6 +37,11 @@ pub struct ConversationMeta {
     /// so a conversation opened and left untouched must not be resumed.
     #[serde(rename = "sessionStarted", default)]
     pub session_started: bool,
+    /// Whether that session was found in the CLI's own store. `session_started`
+    /// records that the user typed; this records that the session was seen on
+    /// disk, which is the only state where `--resume` is known to work.
+    #[serde(rename = "sessionConfirmed", default)]
+    pub session_confirmed: bool,
     /// Directory the CLI was launched in, kept so a resume lands in the same
     /// worktree even when the instance is reopened from elsewhere.
     #[serde(default)]
@@ -120,6 +125,7 @@ mod tests {
             cli: "claude-code".into(),
             session_id: Some("3f2b1a10-0c4d-4e8a-9f11-2b3c4d5e6f70".into()),
             session_started: true,
+            session_confirmed: true,
             cwd: "/repo/worktrees/x".into(),
             created_at: 1,
             last_opened_at: 2,

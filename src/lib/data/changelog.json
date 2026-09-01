@@ -48,6 +48,27 @@
 					"en": "A development or beta build now keeps its data in its own directory rather than sharing the installed app's. Set APP_ENVIRONMENT to dev or beta and the app runs on ~/.cairn-dev or ~/.cairn-beta, with its channel shown next to the version number, so it can run alongside your installed Cairn without the two overwriting each other's settings, projects and worktrees.",
 					"fr": "Une version de développement ou de bêta conserve désormais ses données dans son propre répertoire au lieu de partager celui de l'application installée. Définissez APP_ENVIRONMENT à dev ou beta et l'application tourne sur ~/.cairn-dev ou ~/.cairn-beta, son canal affiché à côté du numéro de version, ce qui lui permet de tourner à côté de votre Cairn installé sans que les deux n'écrasent mutuellement leurs réglages, leurs projets et leurs worktrees."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Restarting a Claude Code conversation no longer fails with \"process exited with code 1\". Cairn was resuming a session the CLI had never written, because typing in a conversation was taken as proof the session existed. The session is now confirmed against Claude Code's own transcripts before being resumed, and a resume that is refused anyway falls back to a fresh session instead of leaving a dead terminal.",
+					"fr": "Redémarrer une conversation Claude Code n'échoue plus avec « process exited with code 1 ». Cairn reprenait une session que le CLI n'avait jamais écrite, parce que taper dans une conversation valait preuve de son existence. La session est désormais confirmée dans les transcriptions de Claude Code avant d'être reprise, et une reprise malgré tout refusée repart sur une session neuve au lieu de laisser un terminal mort."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The Reload the CLI button in the conversation header. Stopping a CLI and resuming it does the same thing deliberately, and the Restart button still appears on a conversation whose CLI has exited.",
+					"fr": "Le bouton Relancer le CLI dans l'en-tête d'une conversation. Arrêter un CLI puis le reprendre fait la même chose de façon délibérée, et le bouton Redémarrer reste proposé sur une conversation dont le CLI s'est arrêté."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A conversation no longer opens onto the \"this CLI has exited\" banner while its CLI is running, and Restart now relaunches it. A terminal Cairn closed itself was reporting its exit once the replacement had already started, which marked the new CLI as dead; a session Cairn asked to close is now silent, and the banner is cleared as soon as the conversation is relaunched.",
+					"fr": "Une conversation ne s'ouvre plus sur la bannière « ce CLI s'est arrêté » alors que son CLI tourne, et Redémarrer le relance vraiment. Un terminal fermé par Cairn signalait sa fin une fois le remplaçant déjà démarré, ce qui marquait le nouveau CLI comme mort ; une session que Cairn demande à fermer reste désormais silencieuse, et la bannière disparaît dès que la conversation est relancée."
+				}
 			}
 		]
 	},

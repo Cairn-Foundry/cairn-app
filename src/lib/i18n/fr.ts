@@ -527,7 +527,6 @@ export const fr = {
 		untitled: "Nouvelle conversation",
 		stopped: "Ce CLI n'est pas en cours d'exécution.",
 		resume: "Reprendre",
-		reload: "Relancer le CLI",
 		restart: "Relancer",
 		stop: "Arrêter ce CLI",
 		stopHeading: "Agent",

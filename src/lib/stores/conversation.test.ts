@@ -45,12 +45,23 @@ vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
 	discoverCliSession: (...a: unknown[]) => discoverCliSession(...a),
 }));
 
+const exitHandlers = vi.hoisted(
+	() => new Set<(e: { id: string; exitCode: number | null }) => void>(),
+);
+const emitExit = (id: string, exitCode: number | null) => {
+	for (const h of [...exitHandlers]) h({ id, exitCode });
+};
+
 vi.mock("$lib/utils/terminal/terminal-manager", () => ({
 	create: vi.fn(),
 	dispose: vi.fn(),
 	size: () => ({ cols: 80, rows: 24 }),
 	observeInput: vi.fn(),
 	observeOutput: vi.fn(),
+	onTerminalExit: (h: (e: { id: string; exitCode: number | null }) => void) => {
+		exitHandlers.add(h);
+		return () => exitHandlers.delete(h);
+	},
 }));
 
 const ref: ConversationRef = {
@@ -67,6 +78,7 @@ function lastArgv(): string[] {
 beforeEach(() => {
 	vi.clearAllMocks();
 	vi.useFakeTimers();
+	exitHandlers.clear();
 	discoverCliSession.mockResolvedValue(null);
 	terminalHasChildren.mockResolvedValue(false);
 	instanceConversations.set({});
@@ -107,16 +119,32 @@ describe("starting a conversation", () => {
 });
 
 describe("reopening a conversation", () => {
-	it("resumes by id once the CLI has been written to", async () => {
+	it("resumes by id once the session has been seen on disk", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
-		// The session only exists on disk once the user has sent something.
+		// Typing makes a session likely; only discovery makes it a fact, and
+		// `--resume` exits non-zero on a session the CLI never wrote.
 		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+		await vi.advanceTimersByTimeAsync(2_000);
 		closeConversation(meta.id);
 		createTerminal.mockClear();
 
 		await openConversation(ref, meta.id);
 
 		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
+	});
+
+	it("relaunches under the minted id while the session is unconfirmed", async () => {
+		// The user typed, so a session is likely - but the CLI has not written
+		// one. `--session-id` creates it; `--resume` would refuse and exit.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+
+		expect(lastArgv()).toEqual(["claude", "--session-id", meta.sessionId]);
 	});
 
 	it("does not reorder the list when a running conversation is shown", async () => {
@@ -151,7 +179,8 @@ describe("reopening a conversation", () => {
 
 	it("reopens the exact conversation for a CLI that minted its own id", async () => {
 		const meta = await startConversation(ref, "codex", "/repo/wt");
-		// The id is learned from the CLI once the conversation exists.
+		// The id is learned from the CLI once the conversation exists, which is
+		// also what confirms it as resumable.
 		discoverCliSession.mockResolvedValueOnce("01HXYZ");
 		await vi.advanceTimersByTimeAsync(2_000);
 		closeConversation(meta.id);
@@ -160,6 +189,47 @@ describe("reopening a conversation", () => {
 		await openConversation(ref, meta.id);
 
 		expect(lastArgv()).toEqual(["codex", "resume", "01HXYZ"]);
+	});
+
+	it("falls back to a fresh session when a resume is refused", async () => {
+		// The session was confirmed, then vanished: the CLI pruned its store, or
+		// the home directory was cleared. `--resume` exits at once, and the
+		// conversation must open rather than sit on a dead terminal.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+		await vi.advanceTimersByTimeAsync(2_000);
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
+
+		createTerminal.mockClear();
+		emitExit(`conversation:${meta.id}`, 1);
+		await vi.advanceTimersByTimeAsync(100);
+
+		expect(lastArgv()).toEqual(["claude"]);
+		expect(conversationsOf(ref).find((c) => c.id === meta.id)?.sessionId).toBe(
+			null,
+		);
+	});
+
+	it("leaves a session the user quit alone", async () => {
+		// An ordinary exit, seconds later and with no error: relaunching that
+		// behind the user's back is exactly what stopping is meant to prevent.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+		await vi.advanceTimersByTimeAsync(2_000);
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+		createTerminal.mockClear();
+		await vi.advanceTimersByTimeAsync(30_000);
+		emitExit(`conversation:${meta.id}`, 0);
+		await vi.advanceTimersByTimeAsync(100);
+
+		expect(createTerminal).not.toHaveBeenCalled();
 	});
 
 	it("starts fresh rather than opening someone else's session when no id was learned", async () => {
@@ -220,11 +290,27 @@ describe("learning the id of a CLI that mints its own", () => {
 		expect(conversationsOf(ref)[0].sessionId).toBeNull();
 	});
 
-	it("never asks for a CLI that was handed an id at launch", async () => {
+	it("asks for a CLI handed an id at launch, until the session is seen", async () => {
+		// The id Cairn minted is a request the CLI is free to ignore, so it is
+		// polled like any other until the session turns up on disk.
 		await startConversation(ref, "claude-code", "/repo/wt");
 		await vi.advanceTimersByTimeAsync(10_000);
 
-		expect(discoverCliSession).not.toHaveBeenCalled();
+		expect(discoverCliSession).toHaveBeenCalledWith(
+			"claude-code",
+			"/repo/wt",
+			expect.any(Number),
+		);
+	});
+
+	it("adopts the id the CLI actually used over the one it was handed", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		discoverCliSession.mockResolvedValueOnce("cli-chosen-id");
+		await vi.advanceTimersByTimeAsync(2_000);
+
+		expect(conversationsOf(ref).find((c) => c.id === meta.id)?.sessionId).toBe(
+			"cli-chosen-id",
+		);
 	});
 
 	it("stops asking once the conversation is closed", async () => {

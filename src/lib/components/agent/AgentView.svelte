@@ -178,39 +178,61 @@
   }
 
   /**
-   * Conversations whose CLI exited on its own. The terminal is kept: its last
-   * output is what tells the user why it stopped, so it stays on screen with
-   * the choice of relaunching or putting the conversation away.
+   * The runs whose CLI exited on its own, keyed by conversation and run number.
+   * The terminal is kept: its last output is what tells the user why it
+   * stopped, so it stays on screen with the choice of relaunching or putting
+   * the conversation away.
+   *
+   * Keyed by run rather than by terminal id, which a conversation keeps across
+   * a relaunch: the PTY of a run that was killed emits its exit once the
+   * replacement is already up, and on a shared key that marked the new CLI as
+   * exited while it was running perfectly well.
    */
+  /** Whether a terminal id is still the live one of some conversation. */
+  const hasTerminal = (live: Record<string, string>, tid: string) =>
+    Object.values(live).includes(tid);
+
   let exited = $state<Record<string, number | null>>({});
   let exitCode = $derived(terminalId ? exited[terminalId] : undefined);
-  let hasExited = $derived(terminalId ? terminalId in exited : false);
+  let hasExited = $derived(!!terminalId && terminalId in exited);
 
+  /**
+   * The banner belongs to a CLI that stopped on its own. A terminal the app
+   * killed is announced by nothing - the backend stays silent for a session it
+   * was asked to close - and the mark of a run that ended is dropped when the
+   * next one starts, so a relaunched conversation opens clean.
+   */
   onMount(() =>
     manager.onTerminalExit(({ id, exitCode: code }) => {
       exited = { ...exited, [id]: code };
     }),
   );
 
+  // A conversation with no terminal has nothing running to report on, and a
+  // relaunch reuses the id: either way the previous run's mark must go.
+  $effect(() => {
+    const live = $conversationTerminals;
+    untrack(() => {
+      const stale = Object.keys(exited).filter((tid) => !hasTerminal(live, tid));
+      if (stale.length === 0) return;
+      const next = { ...exited };
+      for (const tid of stale) delete next[tid];
+      exited = next;
+    });
+  });
+
   /**
    * Relaunches the CLI of the open conversation. `openConversation` returns
    * early while a terminal is still registered, so the old one goes first;
    * resuming is left to it, which is what puts the session back where it was.
    *
-   * The exit mark is dropped by hand: a conversation keeps its terminal id
-   * across a relaunch, so the mark would otherwise outlive the process it
-   * described.
+   * The exit mark of the run that ended is left alone: the relaunch moves the
+   * conversation onto the next run, which carries no mark of its own.
    */
   async function restartConversation() {
     if (!active) return;
     const { ref, meta } = active;
-    const tid = terminalId;
     closeConversation(meta.id);
-    if (tid) {
-      const next = { ...exited };
-      delete next[tid];
-      exited = next;
-    }
     await openConversation(ref, meta.id).catch(() => {});
   }
 
@@ -238,13 +260,7 @@
   function stopNow() {
     if (!active) return;
     confirmingStop = false;
-    const tid = terminalId;
     closeConversation(active.meta.id);
-    if (tid) {
-      const next = { ...exited };
-      delete next[tid];
-      exited = next;
-    }
   }
 
   let renaming = $state(false);
@@ -330,15 +346,6 @@
         {/if}
 
         <div class="spacer"></div>
-
-        <button
-          class="icon-btn"
-          onclick={() => void restartConversation()}
-          title={t('agent.reload') as string}
-          aria-label={t('agent.reload') as string}
-        >
-          <Icon name="refresh" size={14}/>
-        </button>
 
         {#if terminalId}
           <button

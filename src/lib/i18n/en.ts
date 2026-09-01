@@ -510,7 +510,6 @@ export const en = {
 		untitled: "New conversation",
 		stopped: "This CLI is not running.",
 		resume: "Resume",
-		reload: "Reload the CLI",
 		restart: "Restart",
 		stop: "Stop this CLI",
 		stopHeading: "Agent",

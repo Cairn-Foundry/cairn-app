@@ -307,6 +307,7 @@ pub fn discover_session_id(id: &str, cwd: &str, started_after: i64) -> Option<St
     match id {
         OPENCODE => opencode_session(cwd, started_after),
         ANTIGRAVITY => antigravity_conversation(cwd, started_after),
+        CLAUDE_CODE => claude_session(cwd, started_after),
         CODEX => codex_session(cwd, started_after),
         VIBE => vibe_session(cwd, started_after),
         DROID => droid_session(cwd, started_after),
@@ -319,6 +320,49 @@ pub fn discover_session_id(id: &str, cwd: &str, started_after: i64) -> Option<St
         // somebody else's session.
         _ => None,
     }
+}
+
+/// Claude Code keeps one JSONL transcript per session under
+/// `~/.claude/projects/<slug>/<session id>.jsonl`, where the slug is the cwd
+/// with its separators and dots replaced by dashes.
+///
+/// The slug is not reconstructed here: every line of the transcript carries the
+/// real `cwd`, so matching on that field survives any change to how the
+/// directory name is derived. The id is the file stem, which the entries repeat
+/// as `sessionId`; the stem is preferred because it is what `--resume` takes.
+///
+/// A session Claude Code has not written yet simply is not found, which costs a
+/// resume rather than opening the wrong conversation.
+fn claude_session(cwd: &str, started_after: i64) -> Option<String> {
+    claude_session_in(&home()?.join(".claude").join("projects"), cwd, started_after)
+}
+
+fn claude_session_in(root: &Path, cwd: &str, started_after: i64) -> Option<String> {
+    let mut best: Option<(i64, String)> = None;
+    for path in newest_files(root, "jsonl", 60) {
+        let Ok(file) = fs::File::open(&path) else { continue };
+        let mut first = String::new();
+        if std::io::BufRead::read_line(&mut std::io::BufReader::new(file), &mut first).is_err() {
+            continue;
+        }
+        let Ok(entry) = serde_json::from_str::<serde_json::Value>(&first) else { continue };
+        if entry.get("cwd").and_then(|c| c.as_str()) != Some(cwd) {
+            continue;
+        }
+        let started = entry
+            .get("timestamp")
+            .and_then(|t| t.as_str())
+            .and_then(parse_rfc3339_millis)
+            .unwrap_or(0);
+        if started < started_after {
+            continue;
+        }
+        let Some(sid) = path.file_stem().and_then(|s| s.to_str()) else { continue };
+        if best.as_ref().is_none_or(|(at, _)| started > *at) {
+            best = Some((started, sid.to_string()));
+        }
+    }
+    best.map(|(_, sid)| sid)
 }
 
 /// Droid writes a file per session under `~/.factory/sessions`. Its schema is
@@ -1079,6 +1123,51 @@ pub fn mcp_providers_at(path: &Path, pointer: &[String], scope: &str, project_pa
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The id `--resume` takes is the file stem, and a transcript from another
+    /// worktree must never be offered for this one.
+    #[test]
+    fn the_claude_session_of_this_worktree_is_found_by_its_cwd() {
+        let dir = std::env::temp_dir().join(format!("cairn-claude-{}", std::process::id()));
+        let project = dir.join("-repo-wt");
+        fs::create_dir_all(&project).unwrap();
+        let sid = "5207fca4-6be8-4834-b4aa-2a92f3aa31d9";
+        fs::write(
+            project.join(format!("{sid}.jsonl")),
+            r#"{"cwd":"/repo/wt","timestamp":"2026-09-01T10:00:00.000Z"}"#,
+        )
+        .unwrap();
+        fs::write(
+            project.join("11111111-1111-1111-1111-111111111111.jsonl"),
+            r#"{"cwd":"/somewhere/else","timestamp":"2026-09-01T11:00:00.000Z"}"#,
+        )
+        .unwrap();
+
+        let found = claude_session_in(&dir, "/repo/wt", 0);
+
+        assert_eq!(found.as_deref(), Some(sid));
+        assert_eq!(claude_session_in(&dir, "/repo/other", 0), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_claude_session_older_than_the_launch_is_not_this_conversation() {
+        let dir = std::env::temp_dir().join(format!("cairn-claude-old-{}", std::process::id()));
+        let project = dir.join("-repo-wt");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(
+            project.join("22222222-2222-2222-2222-222222222222.jsonl"),
+            r#"{"cwd":"/repo/wt","timestamp":"2026-09-01T10:00:00.000Z"}"#,
+        )
+        .unwrap();
+
+        // The transcript is stamped 2026-09-01T10:00Z; this run started an hour
+        // later, so that session belongs to an earlier conversation.
+        let found = claude_session_in(&dir, "/repo/wt", 1_788_260_400_000);
+
+        assert_eq!(found, None);
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn the_agents_directory_is_reported_for_every_agent_that_reads_it() {

@@ -442,11 +442,41 @@ describe("when the CLI exits", () => {
 		expect(document.querySelector(".conv-exited")).toBeNull();
 	});
 
-	it("reloads from the header while the CLI is still running", async () => {
-		await openOne();
-		createTerminal.mockClear();
-		await userEvent.click(screen.getByRole("button", { name: /reload/i }));
+	// A terminal the app killed is removed from the session map before its PTY
+	// closes, and the backend stays silent for it: the only exits that reach the
+	// view are processes that ended on their own. Were one to arrive anyway, it
+	// names a run the user already ended, so it must not mark the CLI running in
+	// its place.
+	it("ignores an exit arriving once the conversation has no terminal", async () => {
+		const tid = await openOne();
+		const { closeConversation } = await import("$lib/stores/conversation");
+		const ref = {
+			projectId: "p1",
+			instanceId: "i1",
+			scope: "instance" as const,
+		};
+		closeConversation(conversationsOf(ref)[0].id);
 		await tick();
-		expect(createTerminal).toHaveBeenCalled();
+
+		fireExit(tid, 1);
+		await tick();
+
+		expect(document.querySelector(".conv-exited")).toBeNull();
+	});
+
+	it("clears the banner once the conversation is relaunched", async () => {
+		// Restart moves the conversation onto the next run; the banner belonged
+		// to the one that ended and must not follow it.
+		const tid = await openOne();
+		fireExit(tid, 1);
+		await tick();
+		expect(document.querySelector(".conv-exited")).not.toBeNull();
+
+		const banner = document.querySelector(".conv-exited") as HTMLElement;
+		await userEvent.click(banner.querySelector("button") as HTMLButtonElement);
+		await tick();
+
+		expect(document.querySelector(".conv-exited")).toBeNull();
+		expect(document.querySelector(".term-slot")).not.toBeNull();
 	});
 });

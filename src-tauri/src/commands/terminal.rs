@@ -279,7 +279,7 @@ pub async fn terminal_create(
         drop(tx);
         let _ = emitter.join();
 
-        let mut ended = app_out
+        let ended = app_out
             .state::<TerminalState>()
             .sessions
             .lock()
@@ -291,16 +291,16 @@ pub async fn terminal_create(
         // group is signalled before the status is claimed, because reaping the
         // leader frees its pid for reuse and the signal would then land on a
         // stranger.
-        let exit_code = ended
-            .as_mut()
-            .and_then(|sess| {
-                if let Some(pid) = sess.child.process_id() {
-                    kill_group(pid);
-                }
-                let _ = sess.child.kill();
-                sess.child.wait().ok()
-            })
-            .map(|status| status.exit_code() as i32);
+        // Gone from the map already means `terminal_close` took it: the app asked
+        // for this death and has torn the terminal down on its side, so the
+        // event would arrive after the replacement had started and mark a CLI
+        // that is running. Only a process that ended on its own is announced.
+        let Some(mut sess) = ended else { return };
+        if let Some(pid) = sess.child.process_id() {
+            kill_group(pid);
+        }
+        let _ = sess.child.kill();
+        let exit_code = sess.child.wait().ok().map(|status| status.exit_code() as i32);
         let _ = app_out.emit("terminal-exit", TerminalExit { id: reader_id, exit_code });
     });
 
