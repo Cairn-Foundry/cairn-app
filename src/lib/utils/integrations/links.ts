@@ -86,3 +86,25 @@ export async function forgeLink(
 	}
 	return fallbackForgeLink(remoteUrl, target);
 }
+
+/**
+ * Where the "Create a token" button goes. A self-hosted forge issues its own
+ * tokens, so the path is resolved against the instance the user typed rather
+ * than the vendor's cloud. Kinds without a relative path keep their absolute
+ * URL - Jira tokens live on id.atlassian.com whatever the instance - and so
+ * does a base URL that is not yet a usable http(s) URL, so the button stays
+ * useful while the field is still being filled in.
+ */
+export function buildTokenHelpUrl(
+	descriptor:
+		| { tokenHelpUrl: string; tokenHelpPath: string | null }
+		| null
+		| undefined,
+	baseUrl: string,
+): string {
+	if (!descriptor) return "";
+	if (!descriptor.tokenHelpPath) return descriptor.tokenHelpUrl;
+	const base = baseUrl.trim().replace(/\/+$/, "");
+	if (!/^https?:\/\/\S+/i.test(base)) return descriptor.tokenHelpUrl;
+	return `${base}${descriptor.tokenHelpPath}`;
+}

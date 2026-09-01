@@ -66,6 +66,7 @@ function descriptor(
 		provides,
 		terms: {},
 		tokenHelpUrl: "",
+		tokenHelpPath: null,
 		requiredScopes: [],
 	} as unknown as IntegrationKindDescriptor;
 }

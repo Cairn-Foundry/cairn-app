@@ -23,6 +23,7 @@
   import {
     deleteIntegrationConnection, saveIntegrationConnection, testIntegrationConnection, toIntegrationError,
   } from '$lib/services/integration-service';
+  import { buildTokenHelpUrl } from '$lib/utils/integrations/links';
   import type {
     IntegrationConnection, IntegrationError, IntegrationIdentity, IntegrationKind, IntegrationKindDescriptor,
   } from '$lib/types/integrations';
@@ -421,7 +422,7 @@
             {/if}
           </div>
           <div class="help-row">
-            <button class="btn ghost link" on:click={() => openUrl(descriptor?.tokenHelpUrl ?? '')}>
+            <button class="btn ghost link" on:click={() => openUrl(buildTokenHelpUrl(descriptor, draft?.baseUrl ?? ''))}>
               <Icon name="external" size={12}/> {t('integrations.createToken')}
             </button>
             <span class="scopes">

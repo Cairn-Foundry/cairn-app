@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildPipelinesUrl,
+	buildTokenHelpUrl,
 	fallbackForgeLink,
 	forgeLabel,
 	forgeLink,
@@ -134,5 +135,45 @@ describe("buildPipelinesUrl", () => {
 
 	it("returns nothing without a forge, so the caller can fall back", () => {
 		expect(buildPipelinesUrl(null, "main")).toBe("");
+	});
+});
+
+describe("buildTokenHelpUrl", () => {
+	const gitlab = {
+		tokenHelpUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
+		tokenHelpPath: "/-/user_settings/personal_access_tokens",
+	};
+	const jira = {
+		tokenHelpUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
+		tokenHelpPath: null,
+	};
+
+	it("resolves the path against a self-hosted instance", () => {
+		expect(buildTokenHelpUrl(gitlab, "https://gitlab.acme.io")).toBe(
+			"https://gitlab.acme.io/-/user_settings/personal_access_tokens",
+		);
+	});
+
+	it("ignores surrounding space and trailing slashes", () => {
+		expect(buildTokenHelpUrl(gitlab, "  https://gitlab.acme.io//  ")).toBe(
+			"https://gitlab.acme.io/-/user_settings/personal_access_tokens",
+		);
+	});
+
+	it("keeps the absolute URL for a vendor-side token page", () => {
+		expect(buildTokenHelpUrl(jira, "https://acme.atlassian.net")).toBe(
+			jira.tokenHelpUrl,
+		);
+	});
+
+	it("falls back while the base URL is not usable yet", () => {
+		for (const base of ["", "   ", "https://", "gitlab.acme.io"]) {
+			expect(buildTokenHelpUrl(gitlab, base)).toBe(gitlab.tokenHelpUrl);
+		}
+	});
+
+	it("gives an empty string without a descriptor", () => {
+		expect(buildTokenHelpUrl(null, "https://gitlab.acme.io")).toBe("");
+		expect(buildTokenHelpUrl(undefined, "https://gitlab.acme.io")).toBe("");
 	});
 });

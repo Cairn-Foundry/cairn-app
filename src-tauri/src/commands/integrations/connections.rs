@@ -70,6 +70,7 @@ pub fn kind_descriptors() -> Vec<IntegrationKindDescriptor> {
             default_base_url: Some("https://gitlab.com".to_string()),
             credential_fields: vec![token_field()],
             token_help_url: "https://gitlab.com/-/user_settings/personal_access_tokens".to_string(),
+            token_help_path: Some("/-/user_settings/personal_access_tokens".to_string()),
             required_scopes: vec!["api".to_string()],
             provides: vec![Capability::Tracker, Capability::Forge, Capability::Ci],
             terms: KindTerms { merge_request: MergeRequestTerm::Mr },
@@ -81,6 +82,7 @@ pub fn kind_descriptors() -> Vec<IntegrationKindDescriptor> {
             default_base_url: Some("https://github.com".to_string()),
             credential_fields: vec![token_field()],
             token_help_url: "https://github.com/settings/personal-access-tokens/new".to_string(),
+            token_help_path: Some("/settings/personal-access-tokens/new".to_string()),
             required_scopes: vec![
                 "Issues: read".to_string(),
                 "Pull requests: write".to_string(),
@@ -100,6 +102,7 @@ pub fn kind_descriptors() -> Vec<IntegrationKindDescriptor> {
                 token_field(),
             ],
             token_help_url: "https://id.atlassian.com/manage-profile/security/api-tokens".to_string(),
+            token_help_path: None,
             required_scopes: vec!["read:jira-work".to_string(), "write:jira-work".to_string()],
             provides: vec![Capability::Tracker],
             terms: KindTerms { merge_request: MergeRequestTerm::Mr },

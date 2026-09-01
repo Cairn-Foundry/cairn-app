@@ -49,6 +49,8 @@ export interface IntegrationKindDescriptor {
 	defaultBaseUrl: string | null;
 	credentialFields: CredentialField[];
 	tokenHelpUrl: string;
+	/** Instance-relative token path; null when the tokens live vendor-side. */
+	tokenHelpPath: string | null;
 	requiredScopes: string[];
 	provides: Capability[];
 	terms: KindTerms;
