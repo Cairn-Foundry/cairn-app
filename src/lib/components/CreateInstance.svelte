@@ -25,6 +25,7 @@
   import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
   import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '$lib/stores/integrations';
   import { settings } from '$lib/stores/settings';
+  import { channel } from '$lib/stores/channel';
   import {
     DEFAULT_TICKET_QUERY,
     resetTicketSearch,
@@ -291,7 +292,7 @@
 
   $: effectiveBranch = mode === 'create' ? branchName : existingLocalName;
 
-  $: worktreePath = `~/.cairn/worktrees/${effectiveBranch.replace(/\//g, '-')}`;
+  $: worktreePath = `${$channel.displayDir}/worktrees/${effectiveBranch.replace(/\//g, '-')}`;
 
   $: totalSteps = 3;
 

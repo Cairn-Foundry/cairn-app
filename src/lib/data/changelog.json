@@ -1,5 +1,57 @@
 [
 	{
+		"version": "1.0.1",
+		"date": "",
+		"summary": {
+			"en": "A CLI you started keeps running until you stop it. Navigating between steps, instances and projects no longer takes a conversation down behind your back, nothing is relaunched on its own, and closing a terminal now takes the whole process tree with it.",
+			"fr": "Un CLI que vous avez lancé continue de tourner tant que vous ne l'arrêtez pas. Naviguer entre les steps, les instances et les projets ne coupe plus une conversation dans votre dos, plus rien n'est relancé tout seul, et fermer un terminal emporte désormais tout l'arbre de processus."
+		},
+		"changes": [
+			{
+				"kind": "changed",
+				"text": {
+					"en": "A conversation's CLI now runs until you stop it. The sweep that closed the CLIs of conversations left quiet in the background is gone: going back and forth between steps, instances and projects no longer finds a conversation stopped on return.",
+					"fr": "Le CLI d'une conversation tourne désormais jusqu'à ce que vous l'arrêtiez. Le balayage qui fermait les CLI des conversations laissées silencieuses en arrière-plan a disparu : les allers-retours entre steps, instances et projets ne font plus retrouver une conversation arrêtée."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Stop button on a conversation, to close its CLI when you are done with it. A CLI busy running a command of its own asks for confirmation first, since stopping it stops that work too.",
+					"fr": "Un bouton Arrêter sur une conversation, pour fermer son CLI quand vous en avez fini. Un CLI occupé à exécuter une commande demande d'abord confirmation, puisque l'arrêter interrompt aussi ce travail."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Opening the Agent step, or reopening the app, no longer relaunches the CLI of the conversation that was selected. It is shown with its Resume button and starts when you ask for it, so nothing spawns processes you did not want.",
+					"fr": "Ouvrir la step Agent, ou rouvrir l'application, ne relance plus le CLI de la conversation sélectionnée. Elle s'affiche avec son bouton Reprendre et démarre quand vous le demandez, pour ne plus lancer de processus dont vous n'aviez pas besoin."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Closing a terminal now stops everything it started, not just its shell. A dev server, a watcher or a build launched from a terminal no longer survives it, holding its port and its memory until the machine is restarted.",
+					"fr": "Fermer un terminal arrête maintenant tout ce qu'il a lancé, et pas seulement son shell. Un serveur de développement, un watcher ou un build démarré depuis un terminal ne lui survit plus en gardant son port et sa mémoire jusqu'au redémarrage de la machine."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Linux, AppImage: git over HTTPS and the tools launched from Cairn no longer fail with a nghttp2 symbol lookup error. The bundle stopped imposing its own copy of that library on the processes it starts.",
+					"fr": "Linux, AppImage : git en HTTPS et les outils lancés depuis Cairn n'échouent plus avec une erreur de symbole nghttp2. Le bundle n'impose plus sa propre copie de cette bibliothèque aux processus qu'il démarre."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A development or beta build now keeps its data in its own directory rather than sharing the installed app's. Set APP_ENVIRONMENT to dev or beta and the app runs on ~/.cairn-dev or ~/.cairn-beta, with its channel shown next to the version number, so it can run alongside your installed Cairn without the two overwriting each other's settings, projects and worktrees.",
+					"fr": "Une version de développement ou de bêta conserve désormais ses données dans son propre répertoire au lieu de partager celui de l'application installée. Définissez APP_ENVIRONMENT à dev ou beta et l'application tourne sur ~/.cairn-dev ou ~/.cairn-beta, son canal affiché à côté du numéro de version, ce qui lui permet de tourner à côté de votre Cairn installé sans que les deux n'écrasent mutuellement leurs réglages, leurs projets et leurs worktrees."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.0",
 		"date": "2026-08-31",
 		"summary": {

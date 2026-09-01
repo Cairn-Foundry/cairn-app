@@ -42,16 +42,26 @@ fn focus_main_window(app: &tauri::AppHandle) {
 pub fn run() {
     let builder = tauri::Builder::default();
 
+    // The single-instance lock exists to keep two processes from writing one
+    // data directory. A beta or dev build owns a different one, so it is left
+    // out of the lock - it would otherwise share the release build's, which is
+    // keyed on the bundle identifier the two have in common, and the second
+    // launch would fold into the first instead of opening its own window.
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-        focus_main_window(app);
-        let base = std::path::PathBuf::from(&cwd);
-        let args: Vec<String> = argv.into_iter().skip(1).collect();
-        let request = commands::cli::parse_cli_args(&args, &base);
-        if !request.paths.is_empty() || request.open_dir.is_some() || request.clone_url.is_some() {
-            let _ = app.emit("cli-open", CliOpenRequest { request, cwd });
-        }
-    }));
+    let builder = if storage::channel() == storage::Channel::Release {
+        builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            focus_main_window(app);
+            let base = std::path::PathBuf::from(&cwd);
+            let args: Vec<String> = argv.into_iter().skip(1).collect();
+            let request = commands::cli::parse_cli_args(&args, &base);
+            if !request.paths.is_empty() || request.open_dir.is_some() || request.clone_url.is_some()
+            {
+                let _ = app.emit("cli-open", CliOpenRequest { request, cwd });
+            }
+        }))
+    } else {
+        builder
+    };
 
     builder
         .plugin(tauri_plugin_opener::init())
@@ -83,12 +93,19 @@ pub fn run() {
             let transparent = commands::settings::read_settings()
                 .map(|s| s.transparency_effects)
                 .unwrap_or(true);
+            // A beta or dev build says so in its title: it is otherwise
+            // indistinguishable from the installed app, and the two are meant to
+            // run side by side.
+            let title = match storage::channel().label() {
+                Some(label) => format!("Cairn Foundry ({label})"),
+                None => "Cairn Foundry".to_string(),
+            };
             let builder = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
                 tauri::WebviewUrl::default(),
             )
-            .title("Cairn Foundry")
+            .title(&title)
             .inner_size(1440.0, 900.0)
             .min_inner_size(480.0, 360.0)
             .resizable(true)
@@ -165,6 +182,7 @@ pub fn run() {
             rename_path,
             create_file_or_dir,
             get_settings,
+            get_channel,
             update_settings,
             set_window_vibrancy,
             list_branches_detailed,

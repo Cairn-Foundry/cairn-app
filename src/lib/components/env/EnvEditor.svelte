@@ -12,6 +12,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';
   import { t } from '$lib/i18n';
+  import { channel } from '$lib/stores/channel';
   import type { EnvScope, EnvVariable } from '$lib/services/env-service';
   import { isReservedEnvKey, isValidEnvKey, RESERVED_KEY_PREFIX } from '$lib/utils/env/env-file';
 
@@ -133,7 +134,7 @@
         <input type="checkbox" bind:checked={draft.secret}/>
         <span>
           <span class="ee-toggle-name">{t('env.secret')}</span>
-          <span class="ee-hint">{t('env.secretHint')}</span>
+          <span class="ee-hint">{(t('env.secretHint') as (dir: string) => string)($channel.displayDir)}</span>
         </span>
       </label>
 

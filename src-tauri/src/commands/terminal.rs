@@ -285,16 +285,22 @@ pub async fn terminal_create(
             .lock()
             .ok()
             .and_then(|mut sessions| sessions.remove(&reader_id));
-        let exit_code = match ended.as_mut() {
-            Some(sess) => match sess.child.try_wait() {
-                Ok(Some(status)) => Some(status.exit_code() as i32),
-                _ => {
-                    let _ = sess.child.kill();
-                    sess.child.wait().ok().map(|s| s.exit_code() as i32)
+        // The PTY closing does not mean the group is empty: a shell that exits
+        // while a dev server it started still holds the terminal leaves that
+        // server reparented to init, its port and its memory held for good. The
+        // group is signalled before the status is claimed, because reaping the
+        // leader frees its pid for reuse and the signal would then land on a
+        // stranger.
+        let exit_code = ended
+            .as_mut()
+            .and_then(|sess| {
+                if let Some(pid) = sess.child.process_id() {
+                    kill_group(pid);
                 }
-            },
-            None => None,
-        };
+                let _ = sess.child.kill();
+                sess.child.wait().ok()
+            })
+            .map(|status| status.exit_code() as i32);
         let _ = app_out.emit("terminal-exit", TerminalExit { id: reader_id, exit_code });
     });
 
@@ -374,14 +380,74 @@ fn has_descendants(_pid: u32) -> bool {
     true
 }
 
+/// Terminates a session's shell and everything it spawned.
+///
+/// Killing the PTY leader alone leaves its descendants behind - a dev server, a
+/// watcher, a build - reparented to init and holding their ports and their
+/// memory for the rest of the machine's uptime. The shell is the leader of the
+/// PTY's process group, so signalling the negative pid reaches the whole group;
+/// the leader is then killed and reaped, without which it stays a zombie.
+fn kill_session(sess: &mut TerminalSession) {
+    if let Some(pid) = sess.child.process_id() {
+        kill_group(pid);
+    }
+    let _ = sess.child.kill();
+    let _ = sess.child.wait();
+}
+
+/// Signals the session's whole process group, leaving the leader itself to the
+/// caller.
+///
+/// The group is only signalled once it has been confirmed to still be this
+/// session's: the leader may already have exited, and a reaped pid is free for
+/// the kernel to reuse, so a blind negative-pid signal could hit whatever group
+/// inherited it - up to the app's own. `pgrep -g` answers that question, and an
+/// empty group is also the case where there is nothing left to kill.
+#[cfg(not(windows))]
+fn kill_group(pid: u32) {
+    if pid <= 1 {
+        return;
+    }
+    let Ok(members) = std::process::Command::new("pgrep").arg("-g").arg(pid.to_string()).output()
+    else {
+        return;
+    };
+    // The leader lists itself, so a group that is only the leader is one where
+    // nothing was left behind.
+    let alive = String::from_utf8_lossy(&members.stdout)
+        .split_whitespace()
+        .filter_map(|p| p.parse::<u32>().ok())
+        .any(|member| member != pid);
+    if !alive {
+        return;
+    }
+    let _ = std::process::Command::new("kill")
+        .args(["-TERM", &format!("-{pid}")])
+        .output();
+}
+
+#[cfg(windows)]
+fn kill_group(pid: u32) {
+    if pid <= 1 {
+        return;
+    }
+    let _ = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .output();
+}
+
 /// Kills one session's shell; the reader thread ends on its own once the PTY
 /// closes.
+/// Async: reaping the shell and its group waits on the process table.
 #[tauri::command]
-pub fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    let state = app.state::<TerminalState>();
-    let removed = state.sessions.lock().map_err(|e| e.to_string())?.remove(&id);
+pub async fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let removed = {
+        let state = app.state::<TerminalState>();
+        let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+        sessions.remove(&id)
+    };
     if let Some(mut sess) = removed {
-        let _ = sess.child.kill();
+        kill_session(&mut sess);
     }
     Ok(())
 }
@@ -389,10 +455,13 @@ pub fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), String> {
 /// Kills every session, used when the app tears a project down.
 #[tauri::command]
 pub async fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
-    let state = app.state::<TerminalState>();
-    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-    for (_, mut sess) in sessions.drain() {
-        let _ = sess.child.kill();
+    let drained = {
+        let state = app.state::<TerminalState>();
+        let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+        sessions.drain().collect::<Vec<_>>()
+    };
+    for (_, mut sess) in drained {
+        kill_session(&mut sess);
     }
     Ok(())
 }
@@ -402,10 +471,12 @@ pub async fn terminal_close_all(app: tauri::AppHandle) -> Result<(), String> {
 /// app.
 pub fn shutdown(app: &tauri::AppHandle) {
     let state = app.state::<TerminalState>();
-    if let Ok(mut sessions) = state.sessions.lock() {
-        for (_, mut sess) in sessions.drain() {
-            let _ = sess.child.kill();
-        }
+    let drained = match state.sessions.lock() {
+        Ok(mut sessions) => sessions.drain().collect::<Vec<_>>(),
+        Err(_) => return,
+    };
+    for (_, mut sess) in drained {
+        kill_session(&mut sess);
     }
 }
 

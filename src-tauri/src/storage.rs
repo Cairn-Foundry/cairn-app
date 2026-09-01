@@ -16,10 +16,60 @@ pub struct CommandOutput {
     pub success: bool,
 }
 
-/// Root of the app data directory, `~/.cairn`.
+/// Which build of the app this is, and with it which data directory it owns.
+///
+/// A beta or a development build must never share `~/.cairn` with the installed
+/// one: the two would write the same settings, the same project list and the
+/// same worktrees, and the last writer would win - silently, since every store
+/// debounces its writes. Each channel therefore gets its own root, and the whole
+/// tree follows because every path helper here hangs off `cairn_dir`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Channel {
+    Release,
+    Beta,
+    Dev,
+}
+
+impl Channel {
+    /// The directory name under the home directory, `.cairn` for the release.
+    fn dir_name(self) -> &'static str {
+        match self {
+            Channel::Release => ".cairn",
+            Channel::Beta => ".cairn-beta",
+            Channel::Dev => ".cairn-dev",
+        }
+    }
+
+    /// The name the frontend shows; `None` for the release, which says nothing.
+    pub fn label(self) -> Option<&'static str> {
+        match self {
+            Channel::Release => None,
+            Channel::Beta => Some("beta"),
+            Channel::Dev => Some("dev"),
+        }
+    }
+}
+
+/// The channel this process runs as, from `APP_ENVIRONMENT`.
+///
+/// Anything unset, empty or unrecognized is the release channel: an environment
+/// variable is not a place to fail from, and a typo must land on the ordinary
+/// build rather than on a fresh empty one that would look like data loss.
+pub fn channel() -> Channel {
+    match std::env::var("APP_ENVIRONMENT") {
+        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "beta" => Channel::Beta,
+            "dev" | "development" => Channel::Dev,
+            _ => Channel::Release,
+        },
+        Err(_) => Channel::Release,
+    }
+}
+
+/// Root of the app data directory: `~/.cairn`, or the channel's own root.
 pub fn cairn_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
-    Ok(home.join(".cairn"))
+    Ok(home.join(channel().dir_name()))
 }
 
 /// Global app settings (`CairnSettings`).
@@ -393,5 +443,48 @@ mod tests {
         let meta = fs::symlink_metadata(dst.join("link.txt")).unwrap();
         assert!(meta.file_type().is_symlink(), "symlink must stay a symlink");
         assert_eq!(fs::read_link(dst.join("link.txt")).unwrap(), PathBuf::from("real.txt"));
+    }
+
+    /// One test rather than several: `APP_ENVIRONMENT` is process-global, and
+    /// tests run on threads of the same process, so separate cases would race
+    /// each other for it.
+    #[test]
+    fn the_channel_decides_the_data_directory() {
+        let restore = std::env::var("APP_ENVIRONMENT").ok();
+
+        let cases = [
+            (None, Channel::Release, ".cairn"),
+            (Some(""), Channel::Release, ".cairn"),
+            (Some("beta"), Channel::Beta, ".cairn-beta"),
+            (Some("BETA"), Channel::Beta, ".cairn-beta"),
+            (Some("  dev  "), Channel::Dev, ".cairn-dev"),
+            (Some("development"), Channel::Dev, ".cairn-dev"),
+            // A typo must land on the ordinary build: a fresh empty directory
+            // would read as data loss.
+            (Some("prod"), Channel::Release, ".cairn"),
+        ];
+
+        for (value, expected, dir) in cases {
+            match value {
+                Some(v) => unsafe { std::env::set_var("APP_ENVIRONMENT", v) },
+                None => unsafe { std::env::remove_var("APP_ENVIRONMENT") },
+            }
+            assert_eq!(channel(), expected, "APP_ENVIRONMENT={value:?}");
+            assert!(
+                cairn_dir().unwrap().ends_with(dir),
+                "APP_ENVIRONMENT={value:?} must resolve to {dir}"
+            );
+        }
+
+        // The release build is the only one that announces nothing.
+        unsafe { std::env::remove_var("APP_ENVIRONMENT") };
+        assert_eq!(channel().label(), None);
+        unsafe { std::env::set_var("APP_ENVIRONMENT", "beta") };
+        assert_eq!(channel().label(), Some("beta"));
+
+        match restore {
+            Some(v) => unsafe { std::env::set_var("APP_ENVIRONMENT", v) },
+            None => unsafe { std::env::remove_var("APP_ENVIRONMENT") },
+        }
     }
 }

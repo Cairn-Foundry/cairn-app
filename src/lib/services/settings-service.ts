@@ -113,6 +113,25 @@ export interface CairnSettings {
 	onboardingSeen: boolean;
 }
 
+/**
+ * Which build this is and where it keeps its data. A beta or dev build owns its
+ * own directory, so anything naming that directory on screen has to ask rather
+ * than spell `~/.cairn` out.
+ */
+export interface ChannelInfo {
+	/** Null on the release build, which announces nothing. */
+	label: string | null;
+	/** Absolute path of the data root. */
+	dir: string;
+	/** The same path with the home directory written back as `~`. */
+	displayDir: string;
+}
+
+/** Read once on launch; nothing about it changes while the app runs. */
+export function getChannel(): Promise<ChannelInfo> {
+	return invoke<ChannelInfo>("get_channel");
+}
+
 /** Settings as stored; the store fills in anything the file predates. */
 export function getSettings(): Promise<CairnSettings> {
 	return invoke<CairnSettings>("get_settings");

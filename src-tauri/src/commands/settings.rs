@@ -296,6 +296,41 @@ pub fn get_settings() -> Result<CairnSettings, String> {
     read_settings()
 }
 
+/// Which build this is and where it keeps its data.
+///
+/// The frontend shows the data directory in a few places - the worktree a new
+/// instance will live in, the note that API keys are stored in clear - and those
+/// must name the directory this build actually uses, not `~/.cairn` spelled out
+/// in a string.
+#[derive(Serialize)]
+pub struct ChannelInfo {
+    /// `null` on the release build, which announces nothing.
+    pub label: Option<&'static str>,
+    /// Absolute path of the data root.
+    pub dir: String,
+    /// The same path with the home directory written back as `~`, for display.
+    #[serde(rename = "displayDir")]
+    pub display_dir: String,
+}
+
+/// Read once on launch; nothing about it changes while the app runs.
+#[tauri::command]
+pub fn get_channel() -> Result<ChannelInfo, String> {
+    let dir = crate::storage::cairn_dir()?;
+    let display_dir = match dirs::home_dir() {
+        Some(home) => match dir.strip_prefix(&home) {
+            Ok(rest) => format!("~/{}", rest.display()),
+            Err(_) => dir.display().to_string(),
+        },
+        None => dir.display().to_string(),
+    };
+    Ok(ChannelInfo {
+        label: crate::storage::channel().label(),
+        dir: dir.display().to_string(),
+        display_dir,
+    })
+}
+
 /// Replaces the whole settings object and echoes back what was stored.
 #[tauri::command]
 pub async fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {

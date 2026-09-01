@@ -22,11 +22,7 @@ import {
 	getConversationIndex,
 	saveConversationIndex,
 } from "$lib/services/conversation-service";
-import {
-	closeTerminal,
-	createTerminal,
-	terminalHasChildren,
-} from "$lib/services/terminal-service";
+import { closeTerminal, createTerminal } from "$lib/services/terminal-service";
 import { onProjectRemoved } from "$lib/stores/project-teardown";
 import { lastCli } from "$lib/stores/ui";
 import {
@@ -36,7 +32,6 @@ import {
 	resumeArgv,
 } from "$lib/utils/agent/cli-launch";
 import { captureTitle } from "$lib/utils/agent/conversation-title";
-import { isQuiet } from "$lib/utils/agent/idle-reaper";
 import { persist } from "$lib/utils/persist-error";
 import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
 import * as manager from "$lib/utils/terminal/terminal-manager";
@@ -109,14 +104,6 @@ const PERSIST_DELAY_MS = 250;
 // roughly a minute of trying, which covers reading the banner and typing.
 const SESSION_POLL_START_MS = 1_500;
 const SESSION_POLL_MAX_MS = 30_000;
-
-/** When each running conversation was last typed into, and last printed. */
-const activity = new Map<string, { input: number; output: number }>();
-
-/** How often the reaper looks; a minute's granularity on a five-minute idle. */
-const REAP_EVERY_MS = 60_000;
-
-let reaper: ReturnType<typeof setInterval> | null = null;
 
 /** The terminal id a conversation's PTY is registered under. */
 export function conversationTerminalId(conversationId: string): string {
@@ -377,7 +364,6 @@ export async function openConversation(
 		throw e;
 	}
 	conversationTerminals.update((m) => ({ ...m, [id]: terminalId }));
-	activity.set(id, { input: startedAt, output: startedAt });
 	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
 	if (!meta.title) {
 		awaitingTitle.set(terminalId, { ref, id, pending: "" });
@@ -426,100 +412,12 @@ function captureSessionId(
 	setTimeout(attempt, delay);
 }
 
-/**
- * Records that something happened on a conversation's PTY, which is what keeps
- * the idle sweep from closing it. Exported so it can be driven directly rather
- * than through the terminal manager's observers.
- */
-export function noteActivity(
-	terminalId: string,
-	kind: "input" | "output",
-): void {
-	const id = conversationIdOf(terminalId);
-	if (!id) return;
-	const seen = activity.get(id) ?? { input: 0, output: 0 };
-	activity.set(id, { ...seen, [kind]: Date.now() });
-}
-
-/** The conversation a terminal belongs to, or null for any other terminal. */
-function conversationIdOf(terminalId: string): string | null {
-	const prefix = "conversation:";
-	return terminalId.startsWith(prefix) ? terminalId.slice(prefix.length) : null;
-}
-
-/**
- * Closes the CLIs of conversations nobody is looking at any more.
- *
- * Only ever touches a conversation that is not on screen, has been quiet for
- * `IDLE_TIMEOUT_MS`, and has no child process of its own - that last check is
- * what spares a CLI waiting on a long command, which looks idle from the
- * terminal. The entry stays and reopening resumes it, so being reaped costs the
- * user nothing beyond a relaunch.
- */
-async function reapIdleConversations(): Promise<void> {
-	const now = Date.now();
-	const shown = shownNow();
-
-	for (const [id, terminalId] of Object.entries(get(conversationTerminals))) {
-		const seen = activity.get(id) ?? { input: 0, output: 0 };
-		const quiet = isQuiet(
-			{
-				conversationId: id,
-				terminalId,
-				background: !shown.has(id),
-				lastInputAt: seen.input,
-				lastOutputAt: seen.output,
-			},
-			now,
-		);
-		if (!quiet) continue;
-
-		// The process table is the only thing that can tell a CLI waiting on a
-		// ten-minute command from an abandoned one. It answers "busy" on any
-		// doubt, so a failure here leaves the CLI running.
-		const busy = await terminalHasChildren(terminalId).catch(() => true);
-		if (busy) continue;
-
-		// Re-checked: the answer above was awaited, and in that time the user may
-		// have opened this conversation or it may have been closed already.
-		if (get(conversationTerminals)[id] !== terminalId) continue;
-		if (shownNow().has(id)) continue;
-
-		closeConversation(id);
-	}
-}
-
-/** The conversations on screen right now, re-read after an await. */
-function shownNow(): Set<string> {
-	return new Set(
-		Object.values(get(activeConversationId)).filter(
-			(id): id is string => id !== null,
-		),
-	);
-}
-
-/** Starts the idle sweep once; every later call is a no-op. */
-export function startIdleReaper(): void {
-	if (reaper !== null) return;
-	reaper = setInterval(() => {
-		void reapIdleConversations();
-	}, REAP_EVERY_MS);
-}
-
-/** Stops the sweep, for a test or a teardown. */
-export function stopIdleReaper(): void {
-	if (reaper === null) return;
-	clearInterval(reaper);
-	reaper = null;
-}
-
 /** Kills the CLI. The entry stays: reopening it is what resume is for. */
 export function closeConversation(id: string): void {
 	const terminalId = terminalOf(id);
 	if (!terminalId) return;
 	awaitingTitle.delete(terminalId);
 	awaitingFirstInput.delete(terminalId);
-	activity.delete(id);
 	void closeTerminal(terminalId).catch(() => {});
 	manager.dispose(terminalId);
 	conversationTerminals.update((m) => {
@@ -631,13 +529,7 @@ export function removeInstanceConversations(
 // Every keystroke reaching any PTY passes here; only a conversation still
 // waiting for its title does anything with it.
 manager.observeInput((terminalId, data) => {
-	noteActivity(terminalId, "input");
 	noteTerminalInput(terminalId, data);
-});
-
-// The bytes are not passed on: this only needs to know that the CLI is alive.
-manager.observeOutput((terminalId) => {
-	noteActivity(terminalId, "output");
 });
 
 onProjectRemoved(forgetProject);

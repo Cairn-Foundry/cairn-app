@@ -18,6 +18,7 @@
   import UpdateCard from '$lib/components/layout/UpdateCard.svelte';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import { aiEnabled } from '$lib/stores/settings';
+  import { channel } from '$lib/stores/channel';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { ISSUES_URL } from '$lib/utils/links';
 
@@ -79,7 +80,9 @@
 
   <div style="flex: 1"></div>
   <UpdateCard/>
-  <div class="version">v{__APP_VERSION__ ?? 'dev'}</div>
+  <div class="version">
+    v{__APP_VERSION__ ?? 'dev'}{#if $channel.label}<span class="channel">{$channel.label}</span>{/if}
+  </div>
   <button class="report" on:click={() => openUrl(ISSUES_URL)}>
     <Icon name="github" size={13}/> {t('welcome.reportBug')}
   </button>
@@ -91,6 +94,19 @@
     font-size: 11px;
     color: var(--fg-3);
     font-family: var(--font-mono);
+  }
+
+  /* Two builds run side by side, and only this tells them apart on macOS,
+     where the window title is hidden. */
+  .channel {
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--bg-2);
+    color: var(--fg-2);
+    text-transform: uppercase;
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
   }
 
   .report {

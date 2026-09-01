@@ -186,6 +186,32 @@ All app data lives in `~/.cairn/`. The layout is defined in `src-tauri/src/stora
           terminal-state.json             # terminals of this instance (order + active one)
 ```
 
+### The data directory depends on the channel
+
+`APP_ENVIRONMENT` picks which root the app owns: unset (or anything unrecognized)
+is `~/.cairn`, `beta` is `~/.cairn-beta`, `dev` is `~/.cairn-dev`. This is what
+lets a development build run beside the installed one - they would otherwise write
+the same settings, the same project list and the same worktrees, and since every
+store debounces its writes, the loser of that race loses silently.
+
+```bash
+APP_ENVIRONMENT=dev bun run tauri dev    # runs on ~/.cairn-dev
+```
+
+`storage::channel()` reads it and `cairn_dir()` is the only caller; every other
+path helper hangs off `cairn_dir()`, so nothing else needs to know. Two rules
+follow:
+
+- **Never spell `~/.cairn` out in a user-visible string.** It is wrong on a beta
+  or dev build. The `get_channel` command answers with the real path, the
+  `channel` store (`src/lib/stores/channel.ts`) holds it, and `displayDir` is the
+  form with `~` written back for display.
+- **The single-instance lock only applies to the release channel** (`lib.rs`). It
+  is keyed on the bundle identifier, which every channel shares, so a dev build
+  left inside it would fold into the running release app instead of opening its
+  own window. A non-release build owns a different directory, so the invariant
+  the lock protects - one writer per data root - still holds without it.
+
 Path helpers for every location are centralized in `storage.rs`. Always add new paths there, never inline.
 
 **API keys never go through the OS keychain.** A keychain read prompts for authorisation on every

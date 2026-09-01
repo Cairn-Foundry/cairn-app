@@ -512,6 +512,11 @@ export const en = {
 		resume: "Resume",
 		reload: "Reload the CLI",
 		restart: "Restart",
+		stop: "Stop this CLI",
+		stopHeading: "Agent",
+		stopTitle: (name: string) => `Stop "${name}"?`,
+		stopDescription:
+			"This CLI is running a command of its own right now, and stopping it stops that work too. The conversation stays: resuming it later starts the CLI again where it left off.",
 		exited: "This CLI has exited.",
 		exitedWithCode: (code: number) => `This CLI has exited with code ${code}.`,
 		noActiveInstance: "No active instance",
@@ -900,8 +905,8 @@ export const en = {
 		valueHint:
 			"Command tokens such as {{instance.branch}} are replaced when the variable is injected. Reference another variable with {OTHER}, as in http://localhost:{APP_PORT}.",
 		secret: "Secret",
-		secretHint:
-			"Hides the value on screen. It is still stored in clear in ~/.cairn.",
+		secretHint: (dir: string) =>
+			`Hides the value on screen. It is still stored in clear in ${dir}.`,
 		perInstance: "One value per instance",
 		perInstanceHint:
 			"The key is declared here, but each instance provides its own value.",

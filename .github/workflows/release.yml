@@ -154,6 +154,23 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      # An AppImage carries the libraries the app needs, and by inheriting
+      # LD_LIBRARY_PATH it imposes them on every process it launches too. git,
+      # bundled CLIs and dev servers all run as children of Cairn, so a bundled
+      # libnghttp2 that is older than the host's libcurl breaks them outright:
+      #   git-remote-https: symbol lookup error: libcurl-gnutls.so.4:
+      #   undefined symbol: nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation
+      # The app does not link it itself - it arrived as a transitive dependency
+      # of libcurl - so dropping it from the AppDir leaves the host's own copy
+      # to answer, which is the one its libcurl was built against.
+      - name: Drop libnghttp2 from the AppImage
+        if: startsWith(matrix.runner, 'ubuntu')
+        shell: bash
+        run: scripts/strip-appimage-libs.sh "src-tauri/target/${{ matrix.target }}/release/bundle/appimage"
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}

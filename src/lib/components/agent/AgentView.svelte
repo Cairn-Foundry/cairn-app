@@ -24,6 +24,7 @@
     listCliProviders,
   } from '$lib/services/cli-provider-service';
   import type { ConversationScope } from '$lib/services/conversation-service';
+  import { terminalHasChildren } from '$lib/services/terminal-service';
   import {
     activeConversationId,
     type ConversationRef,
@@ -31,7 +32,6 @@
     conversationScopeKey,
     conversationTerminals,
     deleteConversation,
-    findConversation,
     instanceConversations as instanceConversationsStore,
     moveConversationToScope,
     openConversation,
@@ -40,7 +40,6 @@
     restoreConversations,
     selectConversation,
     startConversation,
-    startIdleReaper,
     toggleArchived,
     togglePinned,
   } from '$lib/stores/conversation';
@@ -50,6 +49,7 @@
   import * as manager from '$lib/utils/terminal/terminal-manager';
   import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
   import NewConversationPicker from './NewConversationPicker.svelte';
+  import StopConversationModal from './StopConversationModal.svelte';
 
   interface Props {
     /** Opens the hub page where the installed CLIs are listed. */
@@ -109,22 +109,17 @@
 
   onMount(() => {
     void loadProviders();
-    // Runs for the life of the app, not of this view: a conversation left
-    // running is exactly the one whose view has been navigated away from.
-    startIdleReaper();
   });
 
-  // Restoring the index also restores which conversation was open; reopening it
-  // is what relaunches its CLI, so a restart lands back in the same session.
+  // Restoring the index restores which conversation was open, and stops there:
+  // its CLI is not relaunched. Coming back to a project, or reopening the app,
+  // must not spawn processes the user did not ask for - the conversation shows
+  // its Resume button and the launch is one click away.
   $effect(() => {
     const inst = instance;
     if (!inst) return;
     void untrack(async () => {
       await restoreConversations(inst.projectId, inst.id);
-      const id = $activeConversationId[conversationScopeKey(inst.projectId, inst.id)];
-      if (!id) return;
-      const found = findConversation(inst.projectId, inst.id, id);
-      if (found) await openConversation(found.ref, id).catch(() => {});
     });
   });
 
@@ -217,6 +212,39 @@
       exited = next;
     }
     await openConversation(ref, meta.id).catch(() => {});
+  }
+
+  /**
+   * Stops the CLI of the open conversation on the user's request, and leaves the
+   * conversation selected: nothing relaunches it but the Resume button, so a
+   * session put down stays down.
+   *
+   * A CLI waiting on a command it spawned prints nothing and reads nothing, so
+   * from the terminal it is indistinguishable from an idle one. The process
+   * table is asked first, and the user confirms before that work is killed.
+   */
+  let confirmingStop = $state(false);
+
+  async function stopConversation() {
+    if (!active || !terminalId) return;
+    const busy = await terminalHasChildren(terminalId).catch(() => true);
+    if (busy) {
+      confirmingStop = true;
+      return;
+    }
+    stopNow();
+  }
+
+  function stopNow() {
+    if (!active) return;
+    confirmingStop = false;
+    const tid = terminalId;
+    closeConversation(active.meta.id);
+    if (tid) {
+      const next = { ...exited };
+      delete next[tid];
+      exited = next;
+    }
   }
 
   let renaming = $state(false);
@@ -312,6 +340,17 @@
           <Icon name="refresh" size={14}/>
         </button>
 
+        {#if terminalId}
+          <button
+            class="icon-btn"
+            onclick={() => void stopConversation()}
+            title={t('agent.stop') as string}
+            aria-label={t('agent.stop') as string}
+          >
+            <Icon name="stop" size={14}/>
+          </button>
+        {/if}
+
         <button
           class="icon-btn"
           onclick={() => archiveConversation()}
@@ -351,6 +390,14 @@
             {t('agent.resume')}
           </button>
         </div>
+      {/if}
+
+      {#if confirmingStop}
+        <StopConversationModal
+          title={active.meta.title || (t('agent.untitled') as string)}
+          onClose={() => { confirmingStop = false; }}
+          onConfirm={stopNow}
+        />
       {/if}
     {:else if starting}
       <div class="starting"><Spinner size={18}/></div>

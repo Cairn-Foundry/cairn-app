@@ -525,10 +525,15 @@ export const fr = {
 	agent: {
 		title: "Agent",
 		untitled: "Nouvelle conversation",
-		stopped: "Ce CLI n'est pas en cours d'execution.",
+		stopped: "Ce CLI n'est pas en cours d'exécution.",
 		resume: "Reprendre",
 		reload: "Relancer le CLI",
 		restart: "Relancer",
+		stop: "Arrêter ce CLI",
+		stopHeading: "Agent",
+		stopTitle: (name: string) => `Arrêter "${name}" ?`,
+		stopDescription:
+			"Ce CLI exécute actuellement une commande, et l'arrêter interrompt aussi ce travail. La conversation reste : la reprendre plus tard relance le CLI là où il s'était arrêté.",
 		exited: "Ce CLI s'est arrêté.",
 		exitedWithCode: (code: number) =>
 			`Ce CLI s'est arrêté avec le code ${code}.`,
@@ -922,8 +927,8 @@ export const fr = {
 		valueHint:
 			"Les jetons des commandes comme {{instance.branch}} sont remplacés au moment de l'injection. Référencez une autre variable avec {AUTRE}, par exemple http://localhost:{APP_PORT}.",
 		secret: "Secret",
-		secretHint:
-			"Masque la valeur à l'écran. Elle reste stockée en clair dans ~/.cairn.",
+		secretHint: (dir: string) =>
+			`Masque la valeur à l'écran. Elle reste stockée en clair dans ${dir}.`,
 		perInstance: "Une valeur par instance",
 		perInstanceHint:
 			"La clé est déclarée ici, mais chaque instance fournit sa propre valeur.",

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	activeConversationId,
@@ -11,7 +12,6 @@ import {
 	deleteConversation,
 	instanceConversations,
 	moveConversationToScope,
-	noteActivity,
 	noteTerminalInput,
 	openConversation,
 	projectConversations,
@@ -19,8 +19,6 @@ import {
 	restoreConversations,
 	selectConversation,
 	startConversation,
-	startIdleReaper,
-	stopIdleReaper,
 } from "./conversation";
 
 const saveConversationIndex = vi.fn().mockResolvedValue(undefined);
@@ -78,7 +76,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	stopIdleReaper();
 	vi.useRealTimers();
 });
 
@@ -244,84 +241,26 @@ describe("learning the id of a CLI that mints its own", () => {
 	});
 });
 
-describe("closing the CLIs nobody is looking at", () => {
-	const IDLE = 5 * 60_000;
-
-	/** Runs the sweep, which polls on a minute and awaits the process check. */
-	async function sweep() {
-		startIdleReaper();
-		await vi.advanceTimersByTimeAsync(60_000);
-	}
-
-	it("closes a background conversation that has gone quiet", async () => {
+describe("a CLI is only ever stopped on request", () => {
+	it("leaves a conversation running once it is no longer on screen", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
-		// Leaving it: another conversation is on screen.
 		selectConversation("p", "i", null);
-		await vi.advanceTimersByTimeAsync(IDLE);
 
-		await sweep();
+		// Well past what used to be the idle timeout, and past any sweep that
+		// could have fired in it.
+		await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(get(conversationTerminals)[meta.id]).toBe(`conversation:${meta.id}`);
+	});
+
+	it("stops it when the user asks, and keeps the entry", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		closeConversation(meta.id);
 
 		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
-		// The entry survives, so reopening resumes it.
 		expect(conversationsOf(ref)).toHaveLength(1);
-	});
-
-	it("never closes the conversation on screen", async () => {
-		await startConversation(ref, "claude-code", "/repo/wt");
-		await vi.advanceTimersByTimeAsync(IDLE);
-
-		await sweep();
-
-		expect(closeTerminal).not.toHaveBeenCalled();
-	});
-
-	/**
-	 * The case a timer cannot see: the CLI is blocked on a command with a long
-	 * timeout, so it reads nothing and prints nothing, and only the process
-	 * table knows it is working.
-	 */
-	it("spares a CLI that still has a process of its own", async () => {
-		await startConversation(ref, "claude-code", "/repo/wt");
-		selectConversation("p", "i", null);
-		terminalHasChildren.mockResolvedValue(true);
-		await vi.advanceTimersByTimeAsync(IDLE);
-
-		await sweep();
-
-		expect(closeTerminal).not.toHaveBeenCalled();
-	});
-
-	it("leaves a CLI alone when the process check itself fails", async () => {
-		await startConversation(ref, "claude-code", "/repo/wt");
-		selectConversation("p", "i", null);
-		terminalHasChildren.mockRejectedValue(new Error("no answer"));
-		await vi.advanceTimersByTimeAsync(IDLE);
-
-		await sweep();
-
-		expect(closeTerminal).not.toHaveBeenCalled();
-	});
-
-	it("waits out the whole idle period", async () => {
-		await startConversation(ref, "claude-code", "/repo/wt");
-		selectConversation("p", "i", null);
-		await vi.advanceTimersByTimeAsync(IDLE - 90_000);
-
-		await sweep();
-
-		expect(closeTerminal).not.toHaveBeenCalled();
-	});
-
-	it("counts what the CLI prints as activity", async () => {
-		await startConversation(ref, "claude-code", "/repo/wt");
-		selectConversation("p", "i", null);
-		await vi.advanceTimersByTimeAsync(IDLE);
-		// The CLI says something just before the sweep looks.
-		noteActivity(`conversation:${conversationsOf(ref)[0].id}`, "output");
-
-		await sweep();
-
-		expect(closeTerminal).not.toHaveBeenCalled();
 	});
 });
 
