@@ -30,7 +30,18 @@
   let Comp: AnyComponent | null = null;
   let pending = false;
 
-  $: if ((active || prewarm) && !Comp && !pending) {
+  // Prewarming resolves the module and stops there. Assigning `Comp` is what
+  // mounts the view, and a mounted view runs its onMount and keeps its reactive
+  // blocks subscribed - so a prewarmed Git or Formatting view re-read its state
+  // on every project and instance switch, for a user sitting on Files.
+  // `import()` memoises, so the open below still costs no second fetch.
+  let warmed = false;
+  $: if (prewarm && !Comp && !pending && !warmed) {
+    warmed = true;
+    void load().catch(() => (warmed = false));
+  }
+
+  $: if (active && !Comp && !pending) {
     pending = true;
     load().then((m) => {
       Comp = m.default;

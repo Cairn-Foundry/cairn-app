@@ -264,7 +264,7 @@ describe("TerminalView", () => {
 				instanceSection().querySelector(".term-add") as HTMLElement,
 			);
 			await settle();
-			expect(addTerminal).toHaveBeenCalledWith("p1", "i1", "/wt", {});
+			expect(addTerminal).toHaveBeenCalledWith("p1", "i1", "/wt");
 		});
 
 		it("spawns a shared shell in the project scope", async () => {
@@ -274,7 +274,7 @@ describe("TerminalView", () => {
 				projectSection().querySelector(".term-add") as HTMLElement,
 			);
 			await settle();
-			expect(addProjectTerminal).toHaveBeenCalledWith("p1", "i1", "/wt", {});
+			expect(addProjectTerminal).toHaveBeenCalledWith("p1", "i1", "/wt");
 		});
 
 		/** With no instance there is no worktree to spawn a shell in. */
@@ -315,11 +315,21 @@ describe("TerminalView", () => {
 			expect(attach).not.toHaveBeenCalled();
 		});
 
+		/**
+		 * A terminal is a shell in the worktree: the generated file carries the
+		 * variables, and it is written when they are edited, never from here.
+		 */
+		it("neither builds nor writes the environment when opened", async () => {
+			mount();
+			await settle();
+			expect(prepareInstanceEnv).not.toHaveBeenCalled();
+		});
+
 		it("restores the terminals of both scopes when opened", async () => {
 			mount();
 			await settle();
-			expect(restoreProjectTerminals).toHaveBeenCalledWith("p1", {});
-			expect(restoreTerminals).toHaveBeenCalledWith("p1", "i1", "/wt", {});
+			expect(restoreProjectTerminals).toHaveBeenCalledWith("p1");
+			expect(restoreTerminals).toHaveBeenCalledWith("p1", "i1", "/wt");
 		});
 
 		it("focuses the pane it attached", async () => {

@@ -307,6 +307,34 @@
 					"en": "Switching to a project with a file open in the editor no longer stalls the window for a moment: the tab bar scrolled the whole workspace to reveal the active tab while the editor was still mounting, and every mounted editor injected its own style rules into the window, more of them as the session went on. Test runner detection is no longer redone on every switch either, and the editor stays mounted behind the empty state instead of being rebuilt whenever a tab reappears.",
 					"fr": "Passer sur un projet dont un fichier est ouvert dans l'éditeur ne bloque plus la fenêtre un instant : la barre d'onglets faisait défiler tout l'espace de travail pour révéler l'onglet actif pendant que l'éditeur se montait encore, et chaque éditeur monté injectait ses propres règles de style dans la fenêtre, de plus en plus nombreuses au fil de la session. La détection des runners de tests n'est plus relancée à chaque switch non plus, et l'éditeur reste monté derrière l'état vide au lieu d'être reconstruit chaque fois qu'un onglet réapparaît."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The workflow views you had not opened were being started in the background, not just preloaded. Each one then re-read its own state - formatting, review, git, providers - every time you switched instance or project, while you were looking at another step. They are now preloaded without being started, so the open stays instant and the switch stops paying for views you are not using.",
+					"fr": "Les vues de workflow que vous n'aviez pas ouvertes étaient démarrées en arrière-plan, et pas seulement préchargées. Chacune relisait alors son propre état - formatage, revue, git, fournisseurs - à chaque changement d'instance ou de projet, pendant que vous regardiez une autre étape. Elles sont désormais préchargées sans être démarrées : l'ouverture reste instantanée et le changement ne paie plus pour des vues que vous n'utilisez pas."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching to a project read its git state twice: once while the pointer was still on the tab, to have the answer ready, and once again on the click, which threw the first read away. The click now uses what the hover already read.",
+					"fr": "Changer de projet lisait deux fois son état git : une fois pendant que le pointeur était encore sur l'onglet, pour avoir la réponse prête, puis une seconde fois au clic, qui jetait la première lecture. Le clic réutilise désormais ce que le survol a déjà lu."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Editing a global or project variable now reaches every instance it applies to, instead of only the one on screen. The generated file is rewritten whenever you switch to an instance, so the others pick the change up as you open them.",
+					"fr": "Modifier une variable globale ou de projet touche désormais toutes les instances concernées, et plus seulement celle affichée. Le fichier généré est réécrit à chaque passage sur une instance, de sorte que les autres prennent la modification en compte à leur ouverture."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Opening the Terminal step no longer rewrites the generated environment file, nor reads your git identity to do so. A terminal is a shell in the worktree; the file is written when the variables are edited.",
+					"fr": "Ouvrir l'étape Terminal ne réécrit plus le fichier d'environnement généré, ni ne lit votre identité git pour le faire. Un terminal est un shell dans le worktree ; le fichier est écrit quand les variables sont modifiées."
+				}
 			}
 		]
 	},

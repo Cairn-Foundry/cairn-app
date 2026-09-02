@@ -14,7 +14,6 @@
   import { t } from '$lib/i18n';
   import { activeInstance } from '$lib/stores/instance';
   import { activeProject } from '$lib/stores/project';
-  import { prepareInstanceEnv } from '$lib/stores/env';
   import { terminalActive } from '$lib/stores/ui';
   import {
     terminalSessions,
@@ -99,10 +98,12 @@
     const pid = projectId;
     const iid = activeId;
     const cwd = $activeInstance?.worktreePath ?? null;
-    void prepareInstanceEnv($activeProject, $activeInstance).then(async (env) => {
-      await restoreProjectTerminals(pid, env);
-      await restoreTerminals(pid, iid, cwd, env);
-    });
+    // A terminal is a shell in the worktree, nothing more: the generated file is
+    // what carries the variables, and it is written when they are edited.
+    void (async () => {
+      await restoreProjectTerminals(pid);
+      await restoreTerminals(pid, iid, cwd);
+    })();
   });
 
   $effect(() => {
@@ -158,14 +159,12 @@
 
   async function newTerminal() {
     if (!projectId || !activeId) return;
-    const env = await prepareInstanceEnv($activeProject, $activeInstance);
-    await addTerminal(projectId, activeId, worktreePath, env);
+    await addTerminal(projectId, activeId, worktreePath);
   }
 
   async function newProjectTerminal() {
     if (!projectId || !activeId) return;
-    const env = await prepareInstanceEnv($activeProject, $activeInstance);
-    await addProjectTerminal(projectId, activeId, worktreePath, env);
+    await addProjectTerminal(projectId, activeId, worktreePath);
   }
 
   /** Selecting the terminal already shown in the other pane just moves the focus there. */

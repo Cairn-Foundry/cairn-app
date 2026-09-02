@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import { dedupeInflight } from "./inflight";
+import { dedupeInflight, invalidateSettled, shareSettled } from "./inflight";
 
 /** A promise whose settlement this test controls. */
 function deferred<T>() {
@@ -105,5 +105,52 @@ describe("dedupeInflight", () => {
 		await expect(dedupeInflight("k", async () => "after")).resolves.toBe(
 			"after",
 		);
+	});
+});
+
+describe("shareSettled", () => {
+	it("serves a second caller from the finished first read", async () => {
+		const run = vi.fn(async () => "snap");
+		await expect(shareSettled("s1", 1000, run)).resolves.toBe("snap");
+		await expect(shareSettled("s1", 1000, run)).resolves.toBe("snap");
+		expect(run).toHaveBeenCalledTimes(1);
+	});
+
+	it("reads again once the window has passed", async () => {
+		const run = vi.fn(async () => "snap");
+		vi.useFakeTimers();
+		try {
+			await shareSettled("s2", 1000, run);
+			vi.advanceTimersByTime(1001);
+			await shareSettled("s2", 1000, run);
+		} finally {
+			vi.useRealTimers();
+		}
+		expect(run).toHaveBeenCalledTimes(2);
+	});
+
+	it("shares a null answer rather than reading again for it", async () => {
+		const run = vi.fn(async () => null);
+		await expect(shareSettled("s3", 1000, run)).resolves.toBeNull();
+		await expect(shareSettled("s3", 1000, run)).resolves.toBeNull();
+		expect(run).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps nothing from a failed read", async () => {
+		const run = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("boom"))
+			.mockResolvedValueOnce("snap");
+		await expect(shareSettled("s4", 1000, run)).rejects.toThrow("boom");
+		await expect(shareSettled("s4", 1000, run)).resolves.toBe("snap");
+		expect(run).toHaveBeenCalledTimes(2);
+	});
+
+	it("reads again after the entry is invalidated", async () => {
+		const run = vi.fn(async () => "snap");
+		await shareSettled("s5", 1000, run);
+		invalidateSettled("s5");
+		await shareSettled("s5", 1000, run);
+		expect(run).toHaveBeenCalledTimes(2);
 	});
 });

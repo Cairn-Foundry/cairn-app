@@ -11,9 +11,10 @@
   import { get } from 'svelte/store';
   import { withViewTransition } from '$lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '$lib/stores/ui.js';
-  import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
+  import { syncEnvFile } from '$lib/stores/env';
   import { git } from '$lib/stores/git';
   import { initTerminals } from '$lib/stores/terminal';
   import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
@@ -114,6 +115,10 @@
   }
 
   $: if (mounted && $activeProjectId && !($activeProjectId in $bindingsByProject)) void loadProjectIntegrations($activeProjectId).catch(() => {});
+  // The generated file is written for whichever instance is active. An edit to a
+  // global or project variable is therefore picked up by the others when they are
+  // switched to, without the edit having to walk every project on disk.
+  $: if (mounted && screen === 'workspace' && $activeProject && $activeInstance) void syncEnvFile($activeProject, $activeInstance).catch(() => {});
   /**
    * The base instance carries no branch of its own, so the checked out branch is
    * what it is watched on - same fallback as the CI/CD step. Watching on an empty

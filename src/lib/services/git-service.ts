@@ -5,7 +5,7 @@
 // Rust command that classifies its failures into a GitError.
 
 import { invoke } from "@tauri-apps/api/core";
-import { dedupeInflight } from "./inflight";
+import { dedupeInflight, invalidateSettled, shareSettled } from "./inflight";
 
 /** One line of a diff, already classified by the Rust side. */
 export type DiffLine = {
@@ -200,13 +200,30 @@ export interface GitSnapshot {
 	operationState: GitOperationState;
 }
 
+/**
+ * How long a snapshot read stays claimable by a second caller. It spans the
+ * hover that prefetches a project to the click that opens it, and no more.
+ */
+const PREFETCH_TTL_MS = 2_000;
+
 export async function getSnapshot(
 	worktreePath: string,
 	knownVersion: string,
 ): Promise<GitSnapshot | null> {
-	return dedupeInflight(`snapshot:${worktreePath}:${knownVersion}`, () =>
-		invoke("git_snapshot", { worktreePath, knownVersion }),
-	);
+	const key = `snapshot:${worktreePath}:${knownVersion}`;
+	const run = () =>
+		invoke<GitSnapshot | null>("git_snapshot", { worktreePath, knownVersion });
+	// Only the first read of a worktree is shared after it settles. A caller that
+	// knows a version is refreshing something it has already seen - the poll, and
+	// every read that follows a write - and must see the repository as it is now.
+	if (knownVersion !== "") {
+		// A versioned read is the fresh truth, so the shared entry for this
+		// worktree stops standing in for it - otherwise leaving a project and
+		// coming straight back could serve what it looked like before a write.
+		invalidateSettled(`snapshot:${worktreePath}:`);
+		return dedupeInflight(key, run);
+	}
+	return shareSettled(key, PREFETCH_TTL_MS, run);
 }
 
 /** What the status poll reads: everything above in one call. */

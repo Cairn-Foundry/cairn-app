@@ -40,6 +40,7 @@ import {
 	resolveInstanceEnv,
 	scopeVariables,
 	setOverride,
+	setProjectEnvOptions,
 	toggleVariableEnabled,
 	updateVariable,
 } from "./env";
@@ -394,5 +395,46 @@ describe("instanceEnvFile", () => {
 	it("reads the file once one exists", () => {
 		addVariables("instance", "p1", "i1", [variable("A", "1")]);
 		expect(get(instanceEnvs)[KEY].variables).toHaveLength(1);
+	});
+});
+
+/** The fields syncEnvFile reaches for on an instance. */
+function instanceStub(id: string) {
+	return {
+		id,
+		worktreePath: `/w/${id}`,
+		branch: "main",
+		baseBranch: "main",
+		ticket: { id: "T-1", title: "t" },
+	} as never;
+}
+
+describe("generating the env file", () => {
+	let n = 0;
+	const ids = () => {
+		n++;
+		return { p: `gp${n}`, i: `gi${n}` };
+	};
+
+	/**
+	 * Switching to an instance rewrites its file, which is how an edit made in
+	 * another instance - or in a scope above it - reaches this worktree.
+	 */
+	it("picks up a global edit made while another instance was active", async () => {
+		const { p, i } = ids();
+		const { syncEnvFile } = await import("./env");
+		const { writeEnvFile } = await import("$lib/services/env-service");
+		const project = { id: p, name: p, path: `/p/${p}` } as never;
+
+		setProjectEnvOptions(p, { writeEnvFile: true, envFileName: ".env" });
+		addVariables("global", p, i, [variable("G", "before")]);
+		await syncEnvFile(project, instanceStub(i));
+
+		addVariables("global", p, i, [variable("H", "after")]);
+		await syncEnvFile(project, instanceStub(i));
+
+		const bodies = vi.mocked(writeEnvFile).mock.calls.map((c) => c[2]);
+		expect(bodies.length).toBeGreaterThanOrEqual(2);
+		expect(bodies.at(-1)).toContain("after");
 	});
 });

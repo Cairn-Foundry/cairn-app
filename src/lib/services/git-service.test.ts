@@ -8,6 +8,7 @@ import {
 	commit,
 	GIT_ERROR_CODES,
 	type GitError,
+	getSnapshot,
 	isKnownGitErrorCode,
 	merge,
 	push,
@@ -267,5 +268,43 @@ describe("push", () => {
 		mockInvoke.mockRejectedValue(error);
 		await expect(push("/repo", false, "main")).rejects.toBe(error);
 		expect(toGitError(error).code).toBe("auth_required");
+	});
+});
+
+describe("getSnapshot sharing", () => {
+	/** Each case uses its own worktree, so entries never leak between tests. */
+	let n = 0;
+	const wt = () => `/w/${++n}`;
+
+	it("lets a click claim the snapshot the hover already read", async () => {
+		const path = wt();
+		mockInvoke.mockResolvedValue({ version: "v1" });
+		await getSnapshot(path, "");
+		await getSnapshot(path, "");
+		expect(mockInvoke).toHaveBeenCalledTimes(1);
+	});
+
+	it("never serves a stored snapshot to a read that knows a version", async () => {
+		const path = wt();
+		mockInvoke.mockResolvedValue({ version: "v1" });
+		await getSnapshot(path, "");
+		await getSnapshot(path, "v1");
+		expect(mockInvoke).toHaveBeenCalledTimes(2);
+	});
+
+	it("stops sharing a worktree once a versioned read has passed", async () => {
+		const path = wt();
+		mockInvoke.mockResolvedValue({ version: "v1" });
+		await getSnapshot(path, "");
+		await getSnapshot(path, "v1");
+		await getSnapshot(path, "");
+		expect(mockInvoke).toHaveBeenCalledTimes(3);
+	});
+
+	it("keeps worktrees apart", async () => {
+		mockInvoke.mockResolvedValue({ version: "v1" });
+		await getSnapshot(wt(), "");
+		await getSnapshot(wt(), "");
+		expect(mockInvoke).toHaveBeenCalledTimes(2);
 	});
 });
