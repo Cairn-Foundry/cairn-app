@@ -31,6 +31,7 @@
     type ReviewScope,
   } from '$lib/stores/review';
   import { settings } from '$lib/stores/settings';
+  import { activeStep } from '$lib/stores/ui';
   import { activeShortcuts, bindingToLabels } from '$lib/stores/shortcuts';
   import type {
     GuideChapter,
@@ -290,7 +291,9 @@
   let isFileLoading = false;
   let fileLoadedFor = '';
   $: fileKey = currentExcerpt ? `${scope.worktreePath}|${base}|${head}|${currentExcerpt.path}` : '';
-  $: if (fileKey && fileLoadedFor !== fileKey) {
+  // Gated on the step: the guide stays mounted, and the file diff it reads here
+  // is a `git diff base...head` per project switch otherwise.
+  $: if ($activeStep === 'review' && fileKey && fileLoadedFor !== fileKey) {
     fileLoadedFor = fileKey;
     void loadFile(fileKey, currentExcerpt!.path);
   }

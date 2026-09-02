@@ -22,6 +22,20 @@
 				}
 			},
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching project no longer fetches the remote behind your back. The branch list is read from the local refs; the Fetch button and the branch switcher still refresh them.",
+					"fr": "Changer de projet ne fait plus de fetch du dépôt distant dans votre dos. La liste des branches est lue depuis les refs locales ; le bouton Fetch et le sélecteur de branche les rafraîchissent toujours."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching instance is lighter: the Tests, Formatting and Review views only load their data while on screen, the tag list is read once per worktree, and the generated .env file is not rewritten when its content did not change.",
+					"fr": "Changer d'instance est plus léger : les vues Tests, Formatage et Review ne chargent leurs données que lorsqu'elles sont à l'écran, la liste des tags est lue une fois par worktree, et le fichier .env généré n'est plus réécrit quand son contenu n'a pas changé."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The Commit and Commit and push buttons now show a spinner and stay disabled while the commit runs, instead of looking idle during a slow pre-commit hook.",

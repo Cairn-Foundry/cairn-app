@@ -181,9 +181,9 @@ describe("GitBranchBar", () => {
 			expect(countIn(pushBtn())).toBeUndefined();
 		});
 
-		it("loads the branches of the project it is showing", () => {
+		it("loads the branches of the project it is showing, without fetching", () => {
 			mount();
-			expect(loadBranches).toHaveBeenCalledWith("/repos/p1");
+			expect(loadBranches).toHaveBeenCalledWith("/repos/p1", { fetch: false });
 		});
 	});
 

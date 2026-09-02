@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { activeStep } from "$lib/stores/ui";
 import type { ReviewHunk, ReviewState } from "$lib/types/review";
 import { emptyReviewState } from "$lib/types/review";
 
@@ -194,6 +195,7 @@ const kindTab = (re: RegExp) =>
 	) as HTMLButtonElement;
 
 beforeEach(() => {
+	activeStep.set("review");
 	vi.clearAllMocks();
 	guideGenerating.set({});
 	openedInDiff = [];

@@ -480,6 +480,9 @@ export async function buildInstanceEnv(
 	return toEnvRecord(resolveInstanceEnv(project.id, instance.id, values));
 }
 
+/** Body last written per instance: rewriting the same bytes would only wake the file watcher. */
+const lastWrittenEnv = new Map<string, string>();
+
 /**
  * Materializes the generated file in the worktree so a program reading `.env`
  * keeps working. A foreign file is never overwritten: the conflict is reported
@@ -504,6 +507,7 @@ export async function syncEnvFile(
 	const body = serializeEnvFile(
 		Object.entries(resolved).map(([key, value]) => ({ key, value })),
 	);
+	if (!force && lastWrittenEnv.get(key) === body) return;
 
 	const written = await writeEnvFile(
 		instance.worktreePath,
@@ -514,6 +518,7 @@ export async function syncEnvFile(
 
 	envFileConflicts.update((m) => ({ ...m, [key]: !written }));
 	if (written) {
+		lastWrittenEnv.set(key, body);
 		await ensureEnvIgnored(instance.worktreePath, settings.envFileName).catch(
 			() => false,
 		);

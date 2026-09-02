@@ -34,6 +34,7 @@
     updateManagerForFormatter,
   } from '$lib/services/formatting-service';
   import { formatting } from '$lib/stores/formatting';
+  import { formattingActive } from '$lib/stores/ui';
   import {
     effectiveFormatterId,
     inheritedValue,
@@ -136,7 +137,7 @@
     void loadProjectConfig(projectId);
   }
 
-  $: if (!scanned || worktree !== scannedWorktree) {
+  $: if ($formattingActive && (!scanned || worktree !== scannedWorktree)) {
     scanned = true;
     scannedWorktree = worktree;
     void rescan();

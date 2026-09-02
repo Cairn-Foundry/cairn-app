@@ -65,7 +65,9 @@
   let lastBranchPath = '';
   $: if ($activeProject?.path && $activeProject.path !== lastBranchPath) {
     lastBranchPath = $activeProject.path;
-    loadBranches($activeProject.path);
+    // No fetch here: this runs on every project switch, and a network round trip
+    // per switch is what the Fetch button and the branch switcher are for.
+    loadBranches($activeProject.path, { fetch: false });
   }
 
   let fetching = false;

@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariable } from "$lib/services/env-service";
+import { envActive } from "$lib/stores/ui";
 
 vi.mock("$lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
@@ -44,6 +45,7 @@ function variable(overrides: Partial<EnvVariable> = {}): EnvVariable {
 }
 
 beforeEach(() => {
+	envActive.set(true);
 	globalEnv.set(emptyEnvFile());
 	projectEnvs.set({});
 	instanceEnvs.set({});

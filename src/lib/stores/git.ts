@@ -593,10 +593,13 @@ export async function getBranchDivergence(
  * branch pushed from elsewhere is invisible until the refs are refreshed. The
  * fetch is best-effort - offline, the stale refs are still worth listing.
  */
-export async function loadBranches(projectPath: string): Promise<void> {
+export async function loadBranches(
+	projectPath: string,
+	{ fetch = true } = {},
+): Promise<void> {
 	_git.update((s) => ({ ...s, isLoadingBranches: true }));
 	try {
-		await gitService.fetch(projectPath).catch(() => {});
+		if (fetch) await gitService.fetch(projectPath).catch(() => {});
 		const { local, remote } = await listBranchesDetailed(projectPath);
 		_git.update((s) => ({ ...s, branches: local, remoteBranches: remote }));
 	} catch {

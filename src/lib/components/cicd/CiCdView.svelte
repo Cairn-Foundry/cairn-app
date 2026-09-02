@@ -47,7 +47,7 @@
   $: ciLabel = $capabilities.ci?.label ?? '';
 
   let loadedFor = '';
-  $: if ($hasCi && projectId && instanceId && branch) {
+  $: if ($activeStep === 'cicd' && $hasCi && projectId && instanceId && branch) {
     const key = `${projectId}:${instanceId}:${branch}`;
     if (loadedFor !== key) {
       loadedFor = key;

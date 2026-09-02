@@ -108,7 +108,8 @@
   $: if (scope) setMergeRequestId(scope, mr?.id ?? '');
 
   let mrLoadedFor = '';
-  $: if (instance && $hasForge && mrState && !mrState.isLoaded && !mrState.isRefreshing) {
+  // The git step shows the merge request chip too, so both steps may load it.
+  $: if (($activeStep === 'review' || $activeStep === 'git') && instance && $hasForge && mrState && !mrState.isLoaded && !mrState.isRefreshing) {
     const key = `${instance.projectId}:${instance.id}`;
     if (mrLoadedFor !== key) {
       mrLoadedFor = key;
@@ -117,7 +118,7 @@
   }
 
   let discussionsLoadedFor = '';
-  $: if (instance && mr && mrState && !mrState.areDiscussionsLoaded) {
+  $: if ($activeStep === 'review' && instance && mr && mrState && !mrState.areDiscussionsLoaded) {
     if (discussionsLoadedFor !== mr.id) {
       discussionsLoadedFor = mr.id;
       void loadDiscussions(instance.projectId, instance.id);
@@ -135,10 +136,12 @@
     with a revision it already knows is not there.
   */
   $: if (worktreePath && (mr || base)) {
-    const key = `${worktreePath}:${base}:${head}`;
-    if (headCheckedFor !== key) {
-      headCheckedFor = key;
-      void checkRevisions(worktreePath, base, head);
+    if ($activeStep === 'review') {
+      const key = `${worktreePath}:${base}:${head}`;
+      if (headCheckedFor !== key) {
+        headCheckedFor = key;
+        void checkRevisions(worktreePath, base, head);
+      }
     }
   } else {
     isHeadMissing = false;

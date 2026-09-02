@@ -818,9 +818,14 @@
     if (!logSearchLoaded) refreshLog();
     if ($gitLeftTab === 'graph' && !graphSearchActive) refreshGraph();
     // The tag count sits on the tab, so it has to be known before the panel is
-    // ever opened. One `for-each-ref`, cheap enough to run with the status.
-    refreshTags();
+    // ever opened. Once per worktree: the list weighs 150 KB on a repository
+    // with a tag per release, and every mutation refreshes it on its own.
+    if (tagsLoadedFor !== instance.worktreePath) {
+      tagsLoadedFor = instance.worktreePath;
+      refreshTags();
+    }
   }
+  let tagsLoadedFor = '';
 
   $: syncLogSearchMode($currentProjectViewState.gitLogSearch);
   /**
@@ -979,7 +984,7 @@
 
   let forgeRemoteUrl = '';
   let forgeRemoteWorktree = '';
-  $: if (instance?.worktreePath && instance.worktreePath !== forgeRemoteWorktree) {
+  $: if ($activeStep === 'git' && instance?.worktreePath && instance.worktreePath !== forgeRemoteWorktree) {
     forgeRemoteWorktree = instance.worktreePath;
     forgeRemoteUrl = '';
     void getRemoteUrl().then((url) => { if (instance?.worktreePath === forgeRemoteWorktree) forgeRemoteUrl = url; });
@@ -1044,28 +1049,42 @@
           selectedProfileId = '';
           appendTicketId = false;
         }
+        savedCommitState = `${iid}|${JSON.stringify({ noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId })}`;
         commitStateLoaded = true;
       });
       getGitCollapseState(instance!.projectId, iid).then((s) => {
         collapsedUnstaged = new Set(s?.collapsedUnstaged ?? []);
         expandedStaged = new Set(s?.expandedStaged ?? []);
+        savedCollapseState = `${iid}|${JSON.stringify({ collapsedUnstaged: [...collapsedUnstaged], collapsedStaged: [], expandedStaged: [...expandedStaged] })}`;
         collapseStateLoaded = true;
       });
     }
   }
 
+  // Written only when something moved: the load itself flips the flag, and a
+  // switch used to write back both files untouched.
+  let savedCommitState = '';
   $: if (commitStateLoaded && instance) {
-    saveCommitState(instance.projectId, instance.id, {
-      noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId,
-    });
+    const next = { noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId };
+    const key = `${instance.id}|${JSON.stringify(next)}`;
+    if (key !== savedCommitState) {
+      savedCommitState = key;
+      saveCommitState(instance.projectId, instance.id, next);
+    }
   }
 
+  let savedCollapseState = '';
   $: if (collapseStateLoaded && instance) {
-    saveGitCollapseState(instance.projectId, instance.id, {
+    const next = {
       collapsedUnstaged: [...collapsedUnstaged],
       collapsedStaged: [],
       expandedStaged: [...expandedStaged],
-    });
+    };
+    const key = `${instance.id}|${JSON.stringify(next)}`;
+    if (key !== savedCollapseState) {
+      savedCollapseState = key;
+      saveGitCollapseState(instance.projectId, instance.id, next);
+    }
   }
 
   /** Entering amend mode splits the HEAD message back into the title and body inputs. */

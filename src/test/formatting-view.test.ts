@@ -12,6 +12,7 @@ import type {
 	ImportReport,
 	StyleOptionInfo,
 } from "$lib/services/formatting-service";
+import { formattingActive } from "$lib/stores/ui";
 
 const openDialog = vi.fn<(...a: unknown[]) => unknown>();
 const saveDialog = vi.fn<(...a: unknown[]) => unknown>();
@@ -156,6 +157,7 @@ async function openRow(index = 0) {
 }
 
 beforeEach(() => {
+	formattingActive.set(true);
 	openDialog.mockReset().mockResolvedValue("/picked/.prettierrc");
 	saveDialog.mockReset().mockResolvedValue("/out/.prettierrc");
 	detectRepoFormatters.mockReset().mockResolvedValue([]);

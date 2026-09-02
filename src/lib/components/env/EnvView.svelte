@@ -41,6 +41,7 @@
     updateVariable,
   } from '$lib/stores/env';
   import { activeInstance } from '$lib/stores/instance';
+  import { envActive } from '$lib/stores/ui';
   import { activeProject } from '$lib/stores/project';
   import { type ParsedEnvEntry, parseEnvFile, serializeEnvFile } from '$lib/utils/env/env-file';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
@@ -65,7 +66,9 @@
   $: projectId = $activeProject?.id ?? null;
   $: instanceId = $activeInstance?.id ?? null;
 
-  $: if (projectId) {
+  // The terminal and the commands prepare the file themselves when they need it;
+  // this view only has to when it is on screen.
+  $: if ($envActive && projectId) {
     void loadEnv(projectId, instanceId).then(() => {
       loading = false;
       void syncEnvFile($activeProject, $activeInstance);

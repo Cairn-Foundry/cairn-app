@@ -63,8 +63,9 @@
   $: counts = countCases(state.suites);
   $: runner = state.runners.find((entry) => entry.id === state.selectedRunnerId) ?? null;
 
-  // Detection runs once per instance, and again whenever the worktree changes.
-  $: if (projectId && instance?.worktreePath) {
+  // Detection runs once per instance, and again whenever the worktree changes,
+  // but only while the view is on screen: it stays mounted across steps.
+  $: if ($activeStep === 'tests' && projectId && instance?.worktreePath) {
     const key = `${projectId}:${instance.id}:${instance.worktreePath}`;
     if (key !== loadedKey) {
       loadedKey = key;
