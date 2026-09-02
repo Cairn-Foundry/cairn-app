@@ -171,7 +171,7 @@
    * Regenerating throws the current guide away, so it is asked for rather than
    * taken. The first generation has nothing to lose and goes straight through.
    */
-  function askRegenerate() {
+  export function askRegenerate() {
     confirmingRegenerate = true;
   }
 
@@ -640,9 +640,6 @@
           </button>
           <button class="btn ghost tiny" on:click={() => step(1)} title={hintTitle('review.nextExcerpt', 'reviewNextExcerpt')} aria-label={t('review.nextExcerpt') as string}>
             <Icon name="chev-r" size={12}/>
-          </button>
-          <button class="btn ghost tiny" on:click={askRegenerate} title={t('review.regenerate') as string} aria-label={t('review.regenerate') as string}>
-            <Icon name="refresh" size={12}/>
           </button>
           <button class="btn small" class:primary={!currentChapter.isSeen} on:click={toggleSeen} title={hintTitle('review.markSeen', 'reviewMarkSeen')}>
             <Icon name="check" size={12}/>

@@ -416,6 +416,9 @@
         <div class="ag-card">
           <div class="ag-card-info stacked">
             <span class="ag-hint">{t('integrations.form.help')}</span>
+            {#if draft.kind === 'jira'}
+              <span class="ag-hint">{t('integrations.form.jiraGlobalKey')}</span>
+            {/if}
           </div>
           <div class="help-row">
             <button class="btn ghost link" on:click={() => openUrl(descriptor?.tokenHelpUrl ?? '')}>

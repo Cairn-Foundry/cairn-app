@@ -366,16 +366,18 @@
     border: 1.5px solid var(--accent);
     color: var(--accent);
   }
-  .diff-mount :global(.cm-deletedChunk) {
-    background: oklch(0.70 0.18 15 / 0.12);
+  /*
+    The side-by-side panes already say what changed, so the lines keep the
+    editor's own background and only the gutter stripe marks them.
+  */
+  .diff-mount :global(.cm-deletedChunk),
+  .diff-mount :global(.cm-deletedChunk .cm-deletedLine),
+  .diff-mount :global(.cm-changedLine),
+  .diff-mount :global(.cm-changedText),
+  .diff-mount :global(.cm-deletedChunk .cm-deletedText) {
+    background: transparent;
   }
-  .diff-mount :global(.cm-deletedChunk .cm-deletedLine) {
-    background: oklch(0.70 0.18 15 / 0.18);
-  }
-  .diff-mount :global(.cm-changedLine) {
-    background: oklch(0.78 0.14 135 / 0.10);
-  }
-  .diff-mount :global(.cm-changedText) {
-    background: oklch(0.78 0.14 135 / 0.28);
-  }
+  .diff-mount :global(.cm-changeGutter) { width: 3px; }
+  .diff-mount :global(.cm-changedLineGutter) { background: var(--success); }
+  .diff-mount :global(.cm-deletedLineGutter) { background: var(--danger); }
 </style>

@@ -189,6 +189,19 @@
     }
   }
 
+  /**
+   * Git records no link between a ticket and the branch its work belongs on, so
+   * the only honest signal is a branch that already carries the ticket key -
+   * the fix branch of a release, the epic branch a subtask hangs off. They are
+   * offered above the full list, never selected on the user's behalf.
+   */
+  $: ticketBaseSuggestions = ticketId.trim()
+    ? [...availableBranches, ...remoteBranches]
+        .filter((b) => b.toLowerCase().includes(ticketId.trim().toLowerCase()))
+        .filter((b) => b !== branchName)
+        .slice(0, 6)
+    : [];
+
   const TICKET_SEGMENT = /^[a-z][a-z0-9]*-\d+$/i;
 
   /** Preselects the branch the modal was opened on, deriving the ticket id from its name when it carries one. */
@@ -536,6 +549,24 @@
       {#if step === 2 && mode === 'create'}
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
+          {#if ticketBaseSuggestions.length > 0}
+            <div class="branch-suggestions">
+              <span class="field-hint">
+                {(t('createInstance.baseForTicket') as (k: string) => string)(ticketId)}
+              </span>
+              <div class="branch-suggestion-row">
+                {#each ticketBaseSuggestions as b (b)}
+                  <button
+                    class="branch-suggestion {baseBranch === b ? 'active' : ''}"
+                    on:click={() => baseBranch = b}
+                  >
+                    <Icon name="branch" size={12}/>
+                    <span class="branch-name">{b}</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/if}
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
             {@const localAll = availableBranches.filter(b => matchesSearch(b, branchSearch))}
             {@const remoteAll = remoteBranches.filter(b => matchesSearch(b, branchSearch))}
@@ -814,6 +845,17 @@
 </div>
 
 <style>
+  .branch-suggestions { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+  .branch-suggestion-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .branch-suggestion {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 6px;
+    border: 1px solid var(--stroke-1); background: var(--bg-2); color: var(--fg-1);
+    font-size: 11px; cursor: pointer;
+  }
+  .branch-suggestion:hover { border-color: var(--accent); }
+  .branch-suggestion.active { border-color: var(--accent); color: var(--accent); }
+
   :global(input.input-error) {
     border-color: var(--danger, oklch(0.62 0.18 15)) !important;
     box-shadow: 0 0 0 3px var(--danger-weak, oklch(0.28 0.06 15));

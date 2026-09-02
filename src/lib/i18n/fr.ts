@@ -120,6 +120,7 @@ export const fr = {
 		branchesHidden: (n: number) =>
 			`${n} branches de plus - affinez la recherche pour les voir`,
 		baseBranchPlaceholder: "main",
+		baseForTicket: (key: string) => `Branches qui mentionnent ${key}`,
 		newBranchName: "Nom de la nouvelle branche",
 		duplicateBranch: (name: string) =>
 			`Une branche nommée ${name} existe déjà dans ce projet.`,
@@ -1030,6 +1031,8 @@ export const fr = {
 			token: "Jeton d'accès personnel",
 			email: "E-mail",
 			help: "Créez un jeton sur le service, puis collez-le ici.",
+			jiraGlobalKey:
+				"Jira demande un jeton d'API global, et non un jeton limité à une portée : un jeton limité est refusé par l'API REST utilisée par Cairn Foundry.",
 			scopes: "Portées requises",
 			save: "Enregistrer",
 			saveAnyway: "Enregistrer quand même",

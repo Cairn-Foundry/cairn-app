@@ -117,6 +117,7 @@ export const en = {
 		branchesHidden: (n: number) =>
 			`${n} more branches - refine the search to see them`,
 		baseBranchPlaceholder: "main",
+		baseForTicket: (key: string) => `Branches naming ${key}`,
 		newBranchName: "New branch name",
 		duplicateBranch: (name: string) =>
 			`A branch named ${name} already exists in this project.`,
@@ -1007,6 +1008,8 @@ export const en = {
 			token: "Personal access token",
 			email: "Email",
 			help: "Create a token on the service, then paste it here.",
+			jiraGlobalKey:
+				"Jira requires a global API token, not a scoped one: a scoped token is rejected by the REST API Cairn Foundry uses.",
 			scopes: "Required scopes",
 			save: "Save",
 			saveAnyway: "Save anyway",

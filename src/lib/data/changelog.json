@@ -118,6 +118,34 @@
 					"en": "A wide branch no longer loses most of its files from the guide. The size ceiling stopped the reading at the first file too large to fit, hiding every file after it; files are now skipped one by one and named to the model, which says which ones it could not read.",
 					"fr": "Une branche large ne perd plus la majorité de ses fichiers dans le guide. Le plafond de taille interrompait la lecture au premier fichier trop gros, masquant tous les suivants ; les fichiers sont désormais écartés un à un et nommés au modèle, qui indique ceux qu'il n'a pas pu lire."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The regenerate button of the review guide moved to the review header, next to refresh: it throws the whole guide away, so it no longer sits among the controls of a single chapter.",
+					"fr": "Le bouton de régénération du guide de review passe dans l'en-tête de la review, à côté du rafraîchissement : il jette le guide entier, il n'a donc plus sa place parmi les commandes d'un seul chapitre."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the review step, changed lines no longer carry a coloured background. The before / after panes already show what changed, so only the gutter stripe marks them and the code stays readable.",
+					"fr": "Dans la step de review, les lignes modifiées ne portent plus de fond coloré. Les volets avant / après montrent déjà ce qui a changé : seul le liseré de la gouttière les marque, et le code reste lisible."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Jira connection form now says that the API token must be a global one: a scoped token is refused by the REST API Cairn Foundry calls.",
+					"fr": "Le formulaire de connexion Jira précise désormais que le jeton d'API doit être global : un jeton limité à une portée est refusé par l'API REST appelée par Cairn Foundry."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "When an instance is created from a ticket, the branches whose name carries the ticket key are offered above the base branch list, so the work starts from the branch the ticket belongs to.",
+					"fr": "À la création d'une instance depuis un ticket, les branches dont le nom porte la clé du ticket sont proposées au-dessus de la liste des branches de base, pour partir de la branche à laquelle le ticket appartient."
+				}
 			}
 		]
 	},

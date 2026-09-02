@@ -236,6 +236,8 @@
     if (scope) setDiffMode(scope, isDiff);
   }
 
+  $: isGuideMode = !!scope && !reviewState.isDiffMode && $aiEnabled;
+
   let diffView: ReviewDiff | null = null;
   let guideView: ReviewGuide | null = null;
 
@@ -312,6 +314,11 @@
         ariaLabel={t('review.toggleGuideDiff') as string}
         on:select={(e) => showMode(e.detail === 'diff')}
       />
+    {/if}
+    {#if isGuideMode && reviewState.guide}
+      <button class="btn ghost small icon-only" on:click={() => guideView?.askRegenerate()} title={t('review.regenerate') as string} aria-label={t('review.regenerate') as string}>
+        <Icon name="sparkles" size={12}/>
+      </button>
     {/if}
     <button class="btn ghost small icon-only" on:click={refresh} title={t('integrations.refresh') as string} disabled={areFilesLoading || !!mrState?.isRefreshing}>
       {#if areFilesLoading || mrState?.isRefreshing}<Spinner size={11}/>{:else}<Icon name="refresh" size={12}/>{/if}
