@@ -52,7 +52,10 @@ const ESC = String.fromCharCode(27);
 const DEL = String.fromCharCode(127);
 
 /** CSI / OSC escape sequences an interactive prompt sends while editing. */
-const ESCAPE_SEQUENCE = new RegExp(`${ESC}\\[[0-9;?]*[ -/]*[@-~]|${ESC}.`, "g");
+const ESCAPE_SEQUENCE = new RegExp(
+	`${ESC}\\[[0-9:;<=>?]*[ -/]*[@-~]|${ESC}.`,
+	"g",
+);
 
 /** Everything below space, which is control input rather than text. */
 const CONTROL = new RegExp(`[\\x00-\\x1f${DEL}]`, "g");
