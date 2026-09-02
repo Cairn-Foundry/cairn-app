@@ -1103,15 +1103,24 @@
     return body ? `${title}\n\n${body}` : title;
   }
 
+  let isCommitting = false;
+
   /** Commits or amends with the assembled message and options. */
   async function doCommit() {
     const opts = buildOptions();
     const message = buildCommitMessage();
-    if (amendMode) {
-      await amendLastCommit(message, opts);
-      amendMode = false;
-    } else {
-      await commitChanges(message, opts);
+    isCommitting = true;
+    await tick();
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    try {
+      if (amendMode) {
+        await amendLastCommit(message, opts);
+        amendMode = false;
+      } else {
+        await commitChanges(message, opts);
+      }
+    } finally {
+      isCommitting = false;
     }
   }
 
@@ -1966,11 +1975,21 @@
       <div class="commit-row">
         <span class="remote-label">{remoteLabel}</span>
         <div class="spacer"></div>
-        <button class="btn ghost" disabled={!canCommit} on:click={doCommit}>
-          <Icon name="check" size={13}/> {t('git.commit')}
+        <button class="btn ghost" disabled={!canCommit || isCommitting || isPushing} on:click={doCommit}>
+          {#if isCommitting}
+            <Spinner size={13}/>
+          {:else}
+            <Icon name="check" size={13}/>
+          {/if}
+          {t('git.commit')}
         </button>
-        <button class="btn primary" disabled={!canCommit} on:click={doCommitAndPush}>
-          <Icon name="send" size={13}/> {t('git.commitAndPush')}
+        <button class="btn primary" disabled={!canCommit || isCommitting || isPushing} on:click={doCommitAndPush}>
+          {#if isCommitting || isPushing}
+            <Spinner size={13} trackColor="oklch(1 0 0 / 0.3)" color="white"/>
+          {:else}
+            <Icon name="send" size={13}/>
+          {/if}
+          {t('git.commitAndPush')}
         </button>
       </div>
     </div>

@@ -16,7 +16,7 @@
   import { t } from '$lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
-  import type { Text } from '@codemirror/state';
+  import { Text } from '@codemirror/state';
   import type { LspContentChange } from '$lib/utils/files/document-model';
   import HunkDiffPanel from './HunkDiffPanel.svelte';
   import { settings } from '$lib/stores/settings';
@@ -109,11 +109,21 @@
 
   $: scrollActiveTabIntoView(activeTabIdx);
 
-  /** Waits for the tab bar to re-render, then brings the active tab back into view. */
+  /**
+   * Waits for the tab bar to re-render, then brings the active tab back into view.
+   * Scrolls the bar itself rather than calling `scrollIntoView`: that one walks every
+   * scrollable ancestor, so on a project switch it scrolled the workspace and forced
+   * a layout of the whole window while the editor was still mounting.
+   */
   function scrollActiveTabIntoView(_idx: number) {
     tick().then(() => {
-      const el = tabsBarEl?.querySelector('.file-tab.tab-active');
-      el?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      const bar = tabsBarEl;
+      const el = bar?.querySelector<HTMLElement>('.file-tab.tab-active');
+      if (!bar || !el || bar.scrollWidth <= bar.clientWidth) return;
+      const left = el.offsetLeft;
+      const right = left + el.offsetWidth;
+      if (left < bar.scrollLeft) bar.scrollLeft = left;
+      else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = right - bar.clientWidth;
     });
   }
 </script>
@@ -191,19 +201,44 @@
         {/if}
       </nav>
     </div>
-    <div class="editor-body">
-      {#if loadingPaths.has(activeTab.path)}
+  {/if}
+  <div class="editor-body">
+      {#if activeTab && loadingPaths.has(activeTab.path)}
         <div class="editor-skeleton">
           <Skeleton lines={12} height={12} gap={12}/>
         </div>
-      {:else if isBinaryPath(activeTab.path)}
+      {:else if activeTab && isBinaryPath(activeTab.path)}
         {#key activeTab.path}
           <BinaryPreview path={activeAbsPath} kind={previewKindFromPath(activeTab.path)} reloadToken={binaryReloadToken} />
         {/key}
-      {:else}
+      {:else if !activeTab}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="editor-placeholder" on:dblclick={onNewFile}>
+        <Icon name="file" size={32}/>
+        <div>{placeholderText}</div>
+        {#if showRecentFiles && recentFiles.filter(p => treeFilePaths.has(p)).length > 0}
+          <div class="recent-files">
+            <div class="recent-files-label">{t('files.recentLabel')}</div>
+            {#each recentFiles.filter(p => treeFilePaths.has(p)) as path}
+              <button
+                type="button"
+                class="recent-file-btn"
+                on:click={() => onOpenRecent({ path, name: basename(path), isDir: false })}
+                title={path}
+              >
+                <Icon name="file" size={12}/>
+                <span class="recent-file-name">{basename(path)}</span>
+                <span class="recent-file-dir">{parentPathOf(path)}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      {/if}
           <CodeEditor
             bind:this={editorRef}
-            content={activeTab.doc}
+            hidden={!activeTab || loadingPaths.has(activeTab.path) || isBinaryPath(activeTab.path)}
+            content={activeTab?.doc ?? Text.empty}
             language={activeLang}
             readonly={false}
             minimapEnabled={$settings.showMinimap}
@@ -211,10 +246,10 @@
             lineWrap={$settings.lineWrap}
             fontSize={$settings.editorFontSize}
             showWhitespace={$settings.showWhitespace}
-            initialCursorPos={activeTab.cursorPos}
-            initialScrollTop={activeTab.scrollTop}
+            initialCursorPos={activeTab?.cursorPos ?? 0}
+            initialScrollTop={activeTab?.scrollTop ?? 0}
             savedState={editorState}
-            docPath={activeTab.path}
+            docPath={activeTab?.path ?? null}
             {lspDoc}
             {lspDiagnostics}
             {onOpenLink}
@@ -222,7 +257,7 @@
             {onFindReferences}
             {onRenameSymbol}
             {onFormatDocument}
-            onOpenOnForge={isExternalPath(activeTab.path) ? undefined : onOpenOnForge}
+            onOpenOnForge={!activeTab || isExternalPath(activeTab.path) ? undefined : onOpenOnForge}
             {openOnForgeLabel}
             {baseContent}
             onChunkClick={onChunkClick}
@@ -230,13 +265,13 @@
             onBlur={onBlur}
             onCursorChange={onCursorChange}
           />
-      {/if}
-      {#if isSvgTab && svgPreview}
+      {#if activeTab && isSvgTab && svgPreview}
         <div class="editor-preview-overlay">
           <BinaryPreview path={activeAbsPath} kind="svg" source={activeTab.doc.toString()} />
         </div>
       {/if}
     </div>
+  {#if activeTab}
     {#if activeChunk}
       <HunkDiffPanel chunk={activeChunk} {activeLang} onRevert={onRevertChunk} onDismiss={onCloseHunk} />
     {/if}
@@ -306,29 +341,6 @@
           </span>
           <CopyButton value={currentLineBlame.hash} size={10}/>
         {/if}
-      {/if}
-    </div>
-  {:else}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="editor-placeholder" on:dblclick={onNewFile}>
-      <Icon name="file" size={32}/>
-      <div>{placeholderText}</div>
-      {#if showRecentFiles && recentFiles.filter(p => treeFilePaths.has(p)).length > 0}
-        <div class="recent-files">
-          <div class="recent-files-label">{t('files.recentLabel')}</div>
-          {#each recentFiles.filter(p => treeFilePaths.has(p)) as path}
-            <button
-              type="button"
-              class="recent-file-btn"
-              on:click={() => onOpenRecent({ path, name: basename(path), isDir: false })}
-              title={path}
-            >
-              <Icon name="file" size={12}/>
-              <span class="recent-file-name">{basename(path)}</span>
-              <span class="recent-file-dir">{parentPathOf(path)}</span>
-            </button>
-          {/each}
-        </div>
       {/if}
     </div>
   {/if}

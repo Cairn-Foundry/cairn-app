@@ -8,7 +8,7 @@ const readFile = vi.hoisted(() => vi.fn());
 
 vi.mock("$lib/services/file-service", () => ({ listDirNames, readFile }));
 
-import { detectTestRunners } from "./test-detect";
+import { detectTestRunners, forgetTestRunners } from "./test-detect";
 
 /** Lays out a fake worktree: directory listings and file contents by path. */
 function mountTree(
@@ -25,6 +25,7 @@ const PKG_VITEST = JSON.stringify({
 });
 
 beforeEach(() => {
+	forgetTestRunners();
 	listDirNames.mockReset();
 	readFile.mockReset();
 });

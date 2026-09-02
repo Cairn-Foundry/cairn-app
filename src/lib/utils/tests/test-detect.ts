@@ -201,7 +201,36 @@ async function childDirs(root: string, subdir: string): Promise<string[]> {
 		.map((name) => (subdir ? `${subdir}/${name}` : name));
 }
 
-export async function detectTestRunners(
+/**
+ * The sweep is a directory listing per candidate, a few hundred IPC round trips
+ * on a monorepo, and it ran again on every project switch. A worktree swept
+ * recently answers from memory, the same trust window the file tree uses.
+ */
+const RUNNERS_FRESH_MS = 30_000;
+const runnersCache = new Map<
+	string,
+	{ at: number; runners: Promise<TestRunner[]> }
+>();
+
+/** Drops every remembered sweep; the next call lists the directories again. */
+export function forgetTestRunners(): void {
+	runnersCache.clear();
+}
+
+export function detectTestRunners(
+	worktreePath: string,
+	hasNextest: boolean,
+): Promise<TestRunner[]> {
+	const key = `${worktreePath}\u0000${hasNextest}`;
+	const hit = runnersCache.get(key);
+	if (hit && Date.now() - hit.at < RUNNERS_FRESH_MS) return hit.runners;
+	const runners = sweepTestRunners(worktreePath, hasNextest);
+	runnersCache.set(key, { at: Date.now(), runners });
+	runners.catch(() => runnersCache.delete(key));
+	return runners;
+}
+
+async function sweepTestRunners(
 	worktreePath: string,
 	hasNextest: boolean,
 ): Promise<TestRunner[]> {

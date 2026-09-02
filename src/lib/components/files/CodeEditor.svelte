@@ -69,6 +69,10 @@
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
 
   export let content: Text = Text.empty;
+  /* The pane keeps its editor mounted while it shows something else (no tab,
+     a binary, a skeleton): mounting a view injects style rules and measures the
+     whole window, which is what made a project switch stall. */
+  export let hidden = false;
   export let onChange: ((doc: Text, changes: LspContentChange[]) => void) | undefined = undefined;
   export let onBlur: (() => void) | undefined = undefined;
   export let onCursorChange: ((line: number, col: number) => void) | undefined = undefined;
@@ -637,7 +641,7 @@
   on:mousedown={() => { if (ctxMenu) closeContextMenu(); }}
 />
 
-<div bind:this={container} class="editor-mount"></div>
+<div bind:this={container} class="editor-mount" class:editor-mount-hidden={hidden}></div>
 
 {#if ctxMenu}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -719,6 +723,7 @@
     inset: 0;
     overflow: hidden;
   }
+  .editor-mount-hidden { display: none; }
   .editor-mount :global(.cm-editor) { height: 100%; }
   .editor-mount :global(.cm-scroller) {
     overflow: auto;

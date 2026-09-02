@@ -8,7 +8,7 @@
    * Grows with its content and is meant to be embedded in a list rather than filled.
    */
   import { onMount, onDestroy } from 'svelte';
-  import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
+  import { inlineDiffTheme, unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { unifiedMergeView } from '@codemirror/merge';
   import { EditorState, Compartment, type Extension } from '@codemirror/state';
   import { EditorView, lineNumbers } from '@codemirror/view';
@@ -49,12 +49,7 @@
       EditorState.readOnly.of(true),
       themeCompartment.of(buildEditorTheme(theme)),
       highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
-      EditorView.theme({
-        '&': { height: 'auto' },
-        '.cm-scroller': { overflow: 'visible' },
-        '.cm-activeLine': { backgroundColor: 'transparent !important' },
-        '.cm-activeLineGutter': { backgroundColor: 'transparent !important' },
-      }),
+      inlineDiffTheme,
     ];
   }
 

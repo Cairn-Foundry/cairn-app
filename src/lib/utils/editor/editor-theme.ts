@@ -114,7 +114,30 @@ export async function resolveLanguageExtension(
 // -- Syntax highlighting ------------------------------------------------------
 
 /** Maps the user's token colours onto the Lezer highlight tags. */
+/*
+ * Every `EditorView.theme` / `HighlightStyle.define` call creates a new style
+ * module that CodeMirror injects into the document the first time a view uses
+ * it, and never removes. Built once per editor mount, a project switch added a
+ * few hundred rules and recalculated the styles of the whole window, slower at
+ * every switch as the stylesheet grew. The builders are therefore memoized on
+ * their inputs so a given theme is one style module for the whole session.
+ */
+const highlightCache = new Map<string, HighlightStyle>();
+const editorThemeCache = new Map<string, Extension>();
+
 export function buildHighlight(
+	theme: string,
+	tokens?: SyntaxTokens,
+): HighlightStyle {
+	const key = `${theme}\u0000${tokens ? JSON.stringify(tokens) : ""}`;
+	const cached = highlightCache.get(key);
+	if (cached) return cached;
+	const built = buildHighlightUncached(theme, tokens);
+	highlightCache.set(key, built);
+	return built;
+}
+
+function buildHighlightUncached(
 	theme: string,
 	tokens?: SyntaxTokens,
 ): HighlightStyle {
@@ -648,18 +671,26 @@ export function diffColors(theme: string): Record<DiffKind, string> {
 
 /** The theme extension, falling back to the default palette for an unknown id. */
 export function buildEditorTheme(theme: string): Extension {
-	return buildThemeFromPalette(PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT);
+	const cached = editorThemeCache.get(theme);
+	if (cached) return cached;
+	const built = buildThemeFromPalette(
+		PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT,
+	);
+	editorThemeCache.set(theme, built);
+	return built;
 }
 
 /** Sizing of the diff gutter; its colours come from CSS variables. */
+const diffGutterTheme: Extension = EditorView.theme({
+	".cm-diff-gutter": { width: "8px", minWidth: "8px" },
+	".cm-diff-gutter .cm-gutterElement": {
+		padding: "0",
+		width: "8px",
+		cursor: "pointer",
+	},
+	".cm-diff-marker": { width: "8px", height: "100%", cursor: "pointer" },
+});
+
 export function buildDiffGutterTheme(): Extension {
-	return EditorView.theme({
-		".cm-diff-gutter": { width: "8px", minWidth: "8px" },
-		".cm-diff-gutter .cm-gutterElement": {
-			padding: "0",
-			width: "8px",
-			cursor: "pointer",
-		},
-		".cm-diff-marker": { width: "8px", height: "100%", cursor: "pointer" },
-	});
+	return diffGutterTheme;
 }

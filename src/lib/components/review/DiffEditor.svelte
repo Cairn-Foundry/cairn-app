@@ -8,7 +8,7 @@
    * Both panes scroll together.
    */
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { unselectableGutters } from '$lib/utils/editor/editor-extensions';
+  import { noActiveLineTheme, unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { MergeView } from '@codemirror/merge';
   import { EditorState, Compartment, RangeSet, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { Decoration, type DecorationSet, EditorView, GutterMarker, gutter, gutterLineClass, lineNumbers } from '@codemirror/view';
@@ -193,10 +193,7 @@
       selectedGutterField,
       themeCompartment.of(buildEditorTheme(theme)),
       highlightCompartment.of(syntaxHighlighting(buildHighlight(theme, $activeSyntaxTokens))),
-      EditorView.theme({
-        '.cm-activeLine': { backgroundColor: 'transparent !important' },
-        '.cm-activeLineGutter': { backgroundColor: 'transparent !important' },
-      }),
+      noActiveLineTheme,
     ];
   }
 

@@ -28,7 +28,17 @@ import { EDITOR_DEFAULTS } from "./editor-config";
 // the minimap and its two fixes, and the editing keymap.
 
 /** Line numbers are set slightly smaller than the code they number. */
+const fontSizeThemes = new Map<number, Extension>();
+
 export function buildFontSizeTheme(size: number): Extension {
+	const cached = fontSizeThemes.get(size);
+	if (cached) return cached;
+	const built = buildFontSizeThemeUncached(size);
+	fontSizeThemes.set(size, built);
+	return built;
+}
+
+function buildFontSizeThemeUncached(size: number): Extension {
 	return EditorView.theme({
 		"&": { fontSize: `${size}px` },
 		".cm-lineNumbers .cm-gutterElement": {
@@ -103,6 +113,20 @@ export function buildMinimap(
 		minimapMousedownGuard,
 	];
 }
+
+/** Read-only diff views: no current line highlight, the selection is the markers. */
+export const noActiveLineTheme: Extension = EditorView.theme({
+	".cm-activeLine": { backgroundColor: "transparent !important" },
+	".cm-activeLineGutter": { backgroundColor: "transparent !important" },
+});
+
+/** An inline diff grows with its content instead of scrolling inside a fixed box. */
+export const inlineDiffTheme: Extension = EditorView.theme({
+	"&": { height: "auto" },
+	".cm-scroller": { overflow: "visible" },
+	".cm-activeLine": { backgroundColor: "transparent !important" },
+	".cm-activeLineGutter": { backgroundColor: "transparent !important" },
+});
 
 /** Line numbers are chrome, not content: dragging over them must not select them. */
 export const unselectableGutters: Extension = EditorView.theme({

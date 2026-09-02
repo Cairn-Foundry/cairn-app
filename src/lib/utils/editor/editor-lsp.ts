@@ -607,18 +607,79 @@ export function buildSymbolClickAffordance(
 		};
 	});
 
-	return [
-		armedField,
-		plugin,
-		EditorView.theme({
-			".cm-lsp-symbol-armed": {
-				textDecoration: "underline",
-				textUnderlineOffset: "2px",
-				cursor: "pointer",
-			},
-		}),
-	];
+	return [armedField, plugin, symbolArmedTheme];
 }
+
+const symbolArmedTheme: Extension = EditorView.theme({
+	".cm-lsp-symbol-armed": {
+		textDecoration: "underline",
+		textUnderlineOffset: "2px",
+		cursor: "pointer",
+	},
+});
+
+const lspPanelsTheme: Extension = EditorView.theme({
+	// A server can answer with a whole page of documentation. Capped to a
+	// fraction of the viewport and scrolled, so the end of it is reachable
+	// instead of being clipped off the window.
+	".cm-lsp-hover, .cm-lsp-info, .cm-lsp-signature": {
+		maxWidth: "460px",
+		maxHeight: "min(50vh, 420px)",
+		overflowY: "auto",
+		overscrollBehavior: "contain",
+		padding: "6px 8px",
+		fontSize: "12px",
+		lineHeight: "1.5",
+	},
+	".cm-lsp-signature-label": {
+		fontFamily: "var(--font-mono)",
+		fontSize: "11.5px",
+	},
+	".cm-lsp-signature-active": {
+		color: "var(--accent)",
+		fontWeight: "600",
+	},
+	".cm-lsp-prose": { whiteSpace: "normal" },
+	// Markdown block elements carry browser margins that the plain-text
+	// rendering never had; they are stripped back to the old flat spacing.
+	".cm-lsp-prose :is(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote)": {
+		margin: "0",
+	},
+	".cm-lsp-prose :is(p, ul, ol, blockquote) + *": { marginTop: "4px" },
+	".cm-lsp-prose :is(h1, h2, h3, h4, h5, h6)": {
+		fontSize: "inherit",
+		fontWeight: "600",
+	},
+	".cm-lsp-prose :is(ul, ol)": { paddingLeft: "18px" },
+	".cm-lsp-prose hr": {
+		margin: "6px 0",
+		border: "none",
+		borderTop: "1px solid var(--stroke-1)",
+	},
+	".cm-lsp-prose a": {
+		color: "var(--accent)",
+		cursor: "pointer",
+		textDecoration: "none",
+	},
+	".cm-lsp-prose a:hover": { textDecoration: "underline" },
+	".cm-lsp-prose code": {
+		padding: "0 3px",
+		borderRadius: "3px",
+		background: "var(--bg-3)",
+		fontFamily: "var(--font-mono)",
+	},
+	".cm-lsp-prose pre": { margin: "0" },
+	".cm-lsp-code": {
+		margin: "4px 0 0",
+		padding: "4px 6px",
+		borderRadius: "4px",
+		background: "var(--bg-3)",
+		fontFamily: "var(--font-mono)",
+		fontSize: "11.5px",
+		whiteSpace: "pre-wrap",
+		overflowX: "auto",
+	},
+});
 
 // -- Assembly ------------------------------------------------------------------
 
@@ -640,67 +701,6 @@ export function buildLspExtensions(
 		]),
 		buildHover(getDoc, onOpenFile),
 		buildSignatureHelp(getDoc),
-		EditorView.theme({
-			// A server can answer with a whole page of documentation. Capped to a
-			// fraction of the viewport and scrolled, so the end of it is reachable
-			// instead of being clipped off the window.
-			".cm-lsp-hover, .cm-lsp-info, .cm-lsp-signature": {
-				maxWidth: "460px",
-				maxHeight: "min(50vh, 420px)",
-				overflowY: "auto",
-				overscrollBehavior: "contain",
-				padding: "6px 8px",
-				fontSize: "12px",
-				lineHeight: "1.5",
-			},
-			".cm-lsp-signature-label": {
-				fontFamily: "var(--font-mono)",
-				fontSize: "11.5px",
-			},
-			".cm-lsp-signature-active": {
-				color: "var(--accent)",
-				fontWeight: "600",
-			},
-			".cm-lsp-prose": { whiteSpace: "normal" },
-			// Markdown block elements carry browser margins that the plain-text
-			// rendering never had; they are stripped back to the old flat spacing.
-			".cm-lsp-prose :is(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote)": {
-				margin: "0",
-			},
-			".cm-lsp-prose :is(p, ul, ol, blockquote) + *": { marginTop: "4px" },
-			".cm-lsp-prose :is(h1, h2, h3, h4, h5, h6)": {
-				fontSize: "inherit",
-				fontWeight: "600",
-			},
-			".cm-lsp-prose :is(ul, ol)": { paddingLeft: "18px" },
-			".cm-lsp-prose hr": {
-				margin: "6px 0",
-				border: "none",
-				borderTop: "1px solid var(--stroke-1)",
-			},
-			".cm-lsp-prose a": {
-				color: "var(--accent)",
-				cursor: "pointer",
-				textDecoration: "none",
-			},
-			".cm-lsp-prose a:hover": { textDecoration: "underline" },
-			".cm-lsp-prose code": {
-				padding: "0 3px",
-				borderRadius: "3px",
-				background: "var(--bg-3)",
-				fontFamily: "var(--font-mono)",
-			},
-			".cm-lsp-prose pre": { margin: "0" },
-			".cm-lsp-code": {
-				margin: "4px 0 0",
-				padding: "4px 6px",
-				borderRadius: "4px",
-				background: "var(--bg-3)",
-				fontFamily: "var(--font-mono)",
-				fontSize: "11.5px",
-				whiteSpace: "pre-wrap",
-				overflowX: "auto",
-			},
-		}),
+		lspPanelsTheme,
 	];
 }

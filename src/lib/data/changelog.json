@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Commit and Commit and push buttons now show a spinner and stay disabled while the commit runs, instead of looking idle during a slow pre-commit hook.",
+					"fr": "Les boutons Commit et Commit et push affichent desormais un spinner et restent desactives pendant le commit, au lieu de paraitre inactifs pendant un hook pre-commit lent."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "A conversation's CLI now runs until you stop it. The sweep that closed the CLIs of conversations left quiet in the background is gone: going back and forth between steps, instances and projects no longer finds a conversation stopped on return.",
@@ -180,6 +187,13 @@
 				"text": {
 					"en": "Switching project no longer cross-fades. The transition held the captured frame until the new project had settled, which read as a pause; the switch is now immediate.",
 					"fr": "Changer de projet ne fait plus de fondu. La transition retenait l'image capturée jusqu'à ce que le nouveau projet soit en place, ce qui se lisait comme une pause ; le changement est désormais immédiat."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching to a project with a file open in the editor no longer stalls the window for a moment: the tab bar scrolled the whole workspace to reveal the active tab while the editor was still mounting, and every mounted editor injected its own style rules into the window, more of them as the session went on. Test runner detection is no longer redone on every switch either, and the editor stays mounted behind the empty state instead of being rebuilt whenever a tab reappears.",
+					"fr": "Passer sur un projet dont un fichier est ouvert dans l'éditeur ne bloque plus la fenêtre un instant : la barre d'onglets faisait défiler tout l'espace de travail pour révéler l'onglet actif pendant que l'éditeur se montait encore, et chaque éditeur monté injectait ses propres règles de style dans la fenêtre, de plus en plus nombreuses au fil de la session. La détection des runners de tests n'est plus relancée à chaque switch non plus, et l'éditeur reste monté derrière l'état vide au lieu d'être reconstruit chaque fois qu'un onglet réapparaît."
 				}
 			}
 		]
