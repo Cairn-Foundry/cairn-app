@@ -302,7 +302,7 @@ describe("the worktree cache", () => {
 	it("keeps the versions, so an unchanged repository is not re-read", async () => {
 		await refreshStatus();
 		const version = get(git).snapshotVersion;
-		expect(version).toBeGreaterThan(0);
+		expect(version).not.toBe("");
 		activeProjectId.set("b");
 		activeProjectId.set("a");
 		expect(get(git).snapshotVersion).toBe(version);

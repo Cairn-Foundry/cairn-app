@@ -63,7 +63,7 @@ pub use formatting::{
     uninstall_manager_for_formatter, update_manager_for_formatter,
 };
 pub use git_collapse_state::{get_git_collapse_state, save_git_collapse_state};
-pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
+pub use files::{read_dir_tree, quick_search, QuickSearchCache, list_dir_names, list_dir_names_deep, read_file_preview, read_file_base64, file_mtimes, write_file, delete_path, rename_path, create_file_or_dir, search_in_files, read_dir_tree_cached};
 pub use git::{
     list_branches, list_branches_detailed, suggest_base_branches, is_git_repo, git_forget_repo_roots, git_status, git_changed_paths, git_status_full, git_check_ignore, git_read_exclude, git_write_exclude,
     git_diff_unstaged, git_diff_staged, git_blame_file, git_file_at_head, git_file_in_index,

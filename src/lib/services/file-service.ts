@@ -72,6 +72,17 @@ export async function listDirNames(path: string): Promise<string[]> {
 	return invoke<string[]>("list_dir_names", { path });
 }
 
+/** Entry names of `path` and its sub-directories down to `depth`, keyed by relative sub-path ("" for the root). */
+export async function listDirNamesDeep(
+	path: string,
+	depth: number,
+): Promise<Record<string, string[]>> {
+	return invoke<Record<string, string[]>>("list_dir_names_deep", {
+		path,
+		depth,
+	});
+}
+
 /** A path match from the quick open palette. */
 export interface QuickSearchHit {
 	path: string;

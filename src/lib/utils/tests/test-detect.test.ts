@@ -3,19 +3,34 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const listDirNames = vi.hoisted(() => vi.fn());
+const listDirNamesDeep = vi.hoisted(() => vi.fn());
 const readFile = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/file-service", () => ({ listDirNames, readFile }));
+vi.mock("$lib/services/file-service", () => ({ listDirNamesDeep, readFile }));
 
 import { detectTestRunners, forgetTestRunners } from "./test-detect";
+
+const SKIP = new Set(["node_modules", "target", "dist", "build", "vendor"]);
 
 /** Lays out a fake worktree: directory listings and file contents by path. */
 function mountTree(
 	dirs: Record<string, string[]>,
 	files: Record<string, string> = {},
 ) {
-	listDirNames.mockImplementation(async (dir: string) => dirs[dir] ?? []);
+	listDirNamesDeep.mockImplementation(async (root: string) => {
+		const out: Record<string, string[]> = {};
+		for (const [dir, names] of Object.entries(dirs)) {
+			if (dir === root) out[""] = names;
+			else if (dir.startsWith(`${root}/`)) {
+				const rel = dir.slice(root.length + 1);
+				const skipped = rel
+					.split("/")
+					.some((seg) => seg.startsWith(".") || SKIP.has(seg));
+				if (!skipped) out[rel] = names;
+			}
+		}
+		return out;
+	});
 	readFile.mockImplementation(async (path: string) => files[path] ?? null);
 }
 
@@ -26,7 +41,7 @@ const PKG_VITEST = JSON.stringify({
 
 beforeEach(() => {
 	forgetTestRunners();
-	listDirNames.mockReset();
+	listDirNamesDeep.mockReset();
 	readFile.mockReset();
 });
 
@@ -156,7 +171,7 @@ describe("detectTestRunners", () => {
 	});
 
 	it("survives an unreadable directory and a malformed package.json", async () => {
-		listDirNames.mockRejectedValue(new Error("permission denied"));
+		listDirNamesDeep.mockRejectedValue(new Error("permission denied"));
 		readFile.mockResolvedValue(null);
 		expect(await detectTestRunners("/w", false)).toEqual([]);
 

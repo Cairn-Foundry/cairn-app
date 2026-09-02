@@ -42,8 +42,8 @@ type GitState = {
 	 */
 	indexVersion: number;
 	/** Hash of the last snapshot read, handed back so an unchanged poll answers with nothing. */
-	snapshotVersion: number;
-	diffVersion: number;
+	snapshotVersion: string;
+	diffVersion: string;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
@@ -78,8 +78,8 @@ const INITIAL: GitState = {
 	status: {},
 	statusWorktree: null,
 	indexVersion: 0,
-	snapshotVersion: 0,
-	diffVersion: 0,
+	snapshotVersion: "",
+	diffVersion: "",
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	changedPaths: { staged: [], unstaged: [] },
@@ -219,10 +219,10 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 	try {
 		const before = get(_git);
 		const sameWorktree = before.statusWorktree === wt;
-		const known = sameWorktree ? before.snapshotVersion : 0;
+		const known = sameWorktree ? before.snapshotVersion : "";
 		const snapshotPromise = gitService.getSnapshot(wt, known);
 		const diffsPromise = diffsWanted
-			? gitService.getDiffs(wt, sameWorktree ? before.diffVersion : 0)
+			? gitService.getDiffs(wt, sameWorktree ? before.diffVersion : "")
 			: Promise.resolve(null);
 		diffsPromise.catch(() => {});
 
@@ -235,7 +235,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				snapshotVersion: snap.version,
 				unstagedDiffs: [],
 				stagedDiffs: [],
-				diffVersion: 0,
+				diffVersion: "",
 				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
@@ -678,8 +678,8 @@ type WorktreeData = Pick<GitState, (typeof WORKTREE_FIELDS)[number]>;
 const EMPTY: WorktreeData = {
 	status: {},
 	statusWorktree: null,
-	snapshotVersion: 0,
-	diffVersion: 0,
+	snapshotVersion: "",
+	diffVersion: "",
 	unstagedDiffs: [],
 	stagedDiffs: [],
 	changedPaths: { staged: [], unstaged: [] },

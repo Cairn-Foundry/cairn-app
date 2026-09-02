@@ -297,6 +297,57 @@ pub async fn list_dir_names(path: String) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+/// Directories a sweep never needs to descend into: dependencies, build output, VCS metadata.
+const SWEEP_SKIP_DIRS: &[&str] = &[
+    "node_modules", "target", ".git", "dist", "build", "out", ".next", ".svelte-kit", "vendor", ".venv", "venv",
+    "__pycache__",
+];
+
+fn read_names(dir: &Path) -> Vec<String> {
+    fs::read_dir(dir)
+        .map(|it| it.flatten().filter_map(|e| e.file_name().to_str().map(str::to_string)).collect())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+/// Entry names of `path` and of every non-hidden sub-directory down to `depth`,
+/// keyed by the path relative to `path` (the root is the empty key). Descent skips
+/// hidden directories, `SWEEP_SKIP_DIRS` and whatever the `.gitignore` files met on
+/// the way exclude. One round trip replaces the listing-per-directory sweep the
+/// test runner detection made.
+pub async fn list_dir_names_deep(path: String, depth: u32) -> std::collections::HashMap<String, Vec<String>> {
+    let root = PathBuf::from(shellexpand::tilde(&path).into_owned());
+    let mut out = std::collections::HashMap::new();
+    let mut ignore = ignore::gitignore::GitignoreBuilder::new(&root);
+    let mut matcher = None;
+    let mut frontier = vec![(String::new(), root.clone())];
+    for _ in 0..=depth {
+        let mut next = Vec::new();
+        for (rel, dir) in frontier {
+            let names = read_names(&dir);
+            if names.iter().any(|n| n == ".gitignore") {
+                ignore.add(dir.join(".gitignore"));
+                matcher = ignore.build().ok();
+            }
+            for name in &names {
+                if name.starts_with('.') || SWEEP_SKIP_DIRS.contains(&name.as_str()) {
+                    continue;
+                }
+                let child = dir.join(name);
+                let ignored = matcher
+                    .as_ref()
+                    .is_some_and(|m| m.matched_path_or_any_parents(&child, true).is_ignore());
+                if !ignored && child.is_dir() {
+                    next.push((if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") }, child));
+                }
+            }
+            out.insert(rel, names);
+        }
+        frontier = next;
+    }
+    out
+}
+
 /// Past this, a file is not something the editor can usefully hold: the bytes cross
 /// the IPC boundary as JSON and land in the webview heap whole. A stray build artifact
 /// left untracked in a worktree would otherwise freeze the window on its own.
@@ -655,6 +706,28 @@ mod tests {
         assert_eq!(deep.path, "src/lib/deep.rs");
         assert!(!deep.is_dir);
         assert!(deep.children.is_none());
+    }
+
+    #[test]
+    fn deep_listing_skips_gitignored_and_skip_dirs_but_lists_the_rest() {
+        let tree = TempTree::new();
+        tree.write(".gitignore", "generated/\n");
+        tree.write("generated/package.json", "{}");
+        tree.write("node_modules/x/package.json", "{}");
+        tree.write("packages/app/package.json", "{}");
+        tree.write("packages/app/src/deep/package.json", "{}");
+        tree.write("Cargo.toml", "");
+
+        let keys = |depth| {
+            let mut k: Vec<String> =
+                tauri::async_runtime::block_on(list_dir_names_deep(tree.path.to_string_lossy().into_owned(), depth))
+                    .into_keys()
+                    .collect();
+            k.sort();
+            k
+        };
+        assert_eq!(keys(2), vec!["", "packages", "packages/app"]);
+        assert_eq!(keys(0), vec![""]);
     }
 
     #[test]

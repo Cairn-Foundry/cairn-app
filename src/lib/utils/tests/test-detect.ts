@@ -4,7 +4,7 @@
 // Finding how a worktree runs its tests. Extends the package.json scan of
 // command-import.ts to Cargo, pytest and go, since a repository can hold more
 // than one ecosystem and each one gets its own runner.
-import { listDirNames, readFile } from "$lib/services/file-service";
+import { listDirNamesDeep, readFile } from "$lib/services/file-service";
 import type { TestRunner, TestRunnerId } from "$lib/types/tests";
 import {
 	detectPackageManager,
@@ -149,32 +149,15 @@ function detectGo(names: string[], subdir: string): TestRunner | null {
 	};
 }
 
-/** Directories a scan never needs to descend into: dependencies, build output, VCS metadata. */
-const SKIP_DIRS = new Set([
-	"node_modules",
-	"target",
-	".git",
-	"dist",
-	"build",
-	"out",
-	".next",
-	".svelte-kit",
-	"vendor",
-	".venv",
-	"venv",
-	"__pycache__",
-]);
-
 /** Every runner found in one directory, in the order they should be offered. */
 async function detectIn(
 	root: string,
 	subdir: string,
+	names: string[],
 	hasNextest: boolean,
 ): Promise<TestRunner[]> {
-	const dir = subdir ? `${root}/${subdir}` : root;
-	const names = await listDirNames(dir).catch(() => [] as string[]);
 	if (names.length === 0) return [];
-
+	const dir = subdir ? `${root}/${subdir}` : root;
 	const js = await detectJs(dir, names, subdir);
 	return [
 		js,
@@ -185,26 +168,8 @@ async function detectIn(
 }
 
 /**
- * Every runner a worktree exposes. A monorepo can keep its packages anywhere,
- * so sub-directories are swept rather than matched against a hardcoded
- * shortlist - `detectIn` is cheap to no-op (an empty `listDirNames`) on a
- * directory with neither `package.json` nor any other marker, and on a file
- * it is asked to `listDirNames` on, which resolves to nothing the same way.
- * `hasNextest` comes from the backend, which alone can look for the binary.
- */
-/** The directories of `root` worth descending into, in listing order. */
-async function childDirs(root: string, subdir: string): Promise<string[]> {
-	const dir = subdir ? `${root}/${subdir}` : root;
-	const names = await listDirNames(dir).catch(() => [] as string[]);
-	return names
-		.filter((name) => !name.startsWith(".") && !SKIP_DIRS.has(name))
-		.map((name) => (subdir ? `${subdir}/${name}` : name));
-}
-
-/**
- * The sweep is a directory listing per candidate, a few hundred IPC round trips
- * on a monorepo, and it ran again on every project switch. A worktree swept
- * recently answers from memory, the same trust window the file tree uses.
+ * The sweep ran again on every project switch. A worktree swept recently
+ * answers from memory, the same trust window the file tree uses.
  */
 const RUNNERS_FRESH_MS = 30_000;
 const runnersCache = new Map<
@@ -230,24 +195,26 @@ export function detectTestRunners(
 	return runners;
 }
 
+/**
+ * Every runner a worktree exposes. A monorepo usually keeps its packages one
+ * level down under a grouping directory (`packages/`, `apps/`), so the sweep
+ * goes two levels deep - one round trip listing every candidate, where a
+ * listing per directory used to be a few hundred IPC calls that froze the
+ * webview on a large repository. `hasNextest` comes from the backend, which
+ * alone can look for the binary.
+ */
 async function sweepTestRunners(
 	worktreePath: string,
 	hasNextest: boolean,
 ): Promise<TestRunner[]> {
-	const level1 = await childDirs(worktreePath, "");
-	// A monorepo usually keeps its packages one level further down, under a
-	// grouping directory (`packages/`, `apps/`, `services/`), so the sweep goes
-	// two levels deep. Deeper than that costs a directory listing per candidate
-	// for layouts nobody uses.
-	const level2 = (
-		await Promise.all(level1.map((dir) => childDirs(worktreePath, dir)))
-	).flat();
-
-	const found = await Promise.all([
-		detectIn(worktreePath, "", hasNextest),
-		...[...level1, ...level2].map((dir) =>
-			detectIn(worktreePath, dir, hasNextest),
-		),
-	]);
+	const listing = await listDirNamesDeep(worktreePath, 2).catch(
+		() => ({}) as Record<string, string[]>,
+	);
+	const dirs = Object.keys(listing).sort(
+		(a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
+	);
+	const found = await Promise.all(
+		dirs.map((dir) => detectIn(worktreePath, dir, listing[dir], hasNextest)),
+	);
 	return found.flat();
 }

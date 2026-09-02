@@ -39,7 +39,7 @@ export function scheduleWorktreePrefetch(worktreePath: string): void {
 	timer = setTimeout(() => {
 		timer = null;
 		void readDirTree(worktreePath).catch(() => {});
-		void getSnapshot(worktreePath, 0).catch(() => {});
+		void getSnapshot(worktreePath, "").catch(() => {});
 	}, HOVER_DELAY_MS);
 }
 
@@ -51,5 +51,5 @@ async function prefetchProject(projectId: string): Promise<void> {
 		instances.find((i) => i.id === project.activeInstanceId) ?? instances[0];
 	if (!instance) return;
 	void readDirTree(instance.worktreePath).catch(() => {});
-	void getSnapshot(instance.worktreePath, 0).catch(() => {});
+	void getSnapshot(instance.worktreePath, "").catch(() => {});
 }

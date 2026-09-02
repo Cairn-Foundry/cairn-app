@@ -10,6 +10,20 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "Opening a large project no longer freezes the window for several seconds: the test runner detection now lists the directories in one call instead of one call per directory.",
+					"fr": "Ouvrir un gros projet ne fige plus la fenêtre plusieurs secondes : la détection des runners de tests liste désormais les dossiers en un seul appel au lieu d'un appel par dossier."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The git status poll now recognises an unchanged repository. Its version was rounded on the way through JavaScript, so every poll re-published the whole status and re-rendered the git view for nothing.",
+					"fr": "Le poll du statut git reconnaît désormais un dépôt inchangé. Sa version était arrondie en passant par JavaScript, donc chaque poll republiait tout le statut et re-rendait la vue Git pour rien."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "The Commit and Commit and push buttons now show a spinner and stay disabled while the commit runs, instead of looking idle during a slow pre-commit hook.",
 					"fr": "Les boutons Commit et Commit et push affichent desormais un spinner et restent desactives pendant le commit, au lieu de paraitre inactifs pendant un hook pre-commit lent."
 				}

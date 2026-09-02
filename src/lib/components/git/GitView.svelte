@@ -221,6 +221,13 @@
     const all = Object.entries(status)
       .filter(([, s]) => s === 'untracked')
       .map(([p]) => p);
+    if (all.length === 0) {
+      untrackedRead = new Map();
+      if (untracked.worktree !== wt || untracked.paths.length > 0) {
+        untracked = { worktree: wt, paths: [], content: {} };
+      }
+      return;
+    }
     const ignored = new Set(await checkIgnore(wt, all).catch(() => []));
     if (scan !== untrackedScan) return;
     const visible = all.filter(p => !ignored.has(p));

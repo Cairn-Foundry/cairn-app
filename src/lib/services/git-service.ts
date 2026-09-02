@@ -193,7 +193,7 @@ export interface GitStatusFull {
 
 /** The poll's whole read in one round trip; null when nothing changed since `knownVersion`. */
 export interface GitSnapshot {
-	version: number;
+	version: string;
 	status: GitStatusFull;
 	currentBranch: string;
 	remoteStatus: RemoteStatus;
@@ -202,7 +202,7 @@ export interface GitSnapshot {
 
 export async function getSnapshot(
 	worktreePath: string,
-	knownVersion: number,
+	knownVersion: string,
 ): Promise<GitSnapshot | null> {
 	return dedupeInflight(`snapshot:${worktreePath}:${knownVersion}`, () =>
 		invoke("git_snapshot", { worktreePath, knownVersion }),
@@ -248,14 +248,14 @@ export async function getDiffUnstaged(
 
 /** Both diffs behind a version; null when the caller already holds that version. */
 export interface GitDiffs {
-	version: number;
+	version: string;
 	unstaged: GitFileDiff[];
 	staged: GitFileDiff[];
 }
 
 export async function getDiffs(
 	worktreePath: string,
-	knownVersion: number,
+	knownVersion: string,
 ): Promise<GitDiffs | null> {
 	return dedupeInflight(`diffs:${worktreePath}:${knownVersion}`, () =>
 		invoke("git_diffs", { worktreePath, knownVersion }),

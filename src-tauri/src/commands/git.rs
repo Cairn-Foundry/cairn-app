@@ -611,7 +611,7 @@ pub async fn git_status_full(worktree_path: String) -> Result<GitStatusFull, Git
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitSnapshot {
-    pub version:         u64,
+    pub version:         String,
     pub status:          GitStatusFull,
     pub current_branch:  String,
     pub remote_status:   RemoteStatus,
@@ -643,11 +643,11 @@ fn remote_status_git2(expanded: &str) -> RemoteStatus {
 }
 
 #[tauri::command]
-pub async fn git_snapshot(worktree_path: String, known_version: u64) -> Result<Option<GitSnapshot>, GitError> {
+pub async fn git_snapshot(worktree_path: String, known_version: String) -> Result<Option<GitSnapshot>, GitError> {
     let expanded = expand(&worktree_path);
     let status = git_status_full(worktree_path.clone()).await?;
     let mut snapshot = GitSnapshot {
-        version:         0,
+        version:         String::new(),
         current_branch:  if status.is_git_repo { head_branch_git2(&expanded).unwrap_or_default() } else { String::new() },
         remote_status:   if status.is_git_repo { remote_status_git2(&expanded) } else { remote_status_git2("") },
         operation_state: git_operation_state(worktree_path).await?,
@@ -655,7 +655,7 @@ pub async fn git_snapshot(worktree_path: String, known_version: u64) -> Result<O
     };
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     std::hash::Hash::hash(&serde_json::to_string(&snapshot).unwrap_or_default(), &mut hasher);
-    snapshot.version = std::hash::Hasher::finish(&hasher);
+    snapshot.version = std::hash::Hasher::finish(&hasher).to_string();
     Ok((snapshot.version != known_version).then_some(snapshot))
 }
 
@@ -737,13 +737,13 @@ pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitDiffs {
-    pub version:  u64,
+    pub version:  String,
     pub unstaged: Vec<GitFileDiff>,
     pub staged:   Vec<GitFileDiff>,
 }
 
 #[tauri::command]
-pub async fn git_diffs(worktree_path: String, known_version: u64) -> Result<Option<GitDiffs>, GitError> {
+pub async fn git_diffs(worktree_path: String, known_version: String) -> Result<Option<GitDiffs>, GitError> {
     let expanded = expand(&worktree_path);
     // The two diffs are the largest payload the app reads, and neither depends
     // on the other: running them one after the other spent twice the time of
@@ -759,7 +759,7 @@ pub async fn git_diffs(worktree_path: String, known_version: u64) -> Result<Opti
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     std::hash::Hash::hash(&unstaged, &mut hasher);
     std::hash::Hash::hash(&staged, &mut hasher);
-    let version = std::hash::Hasher::finish(&hasher).max(1);
+    let version = std::hash::Hasher::finish(&hasher).max(1).to_string();
     if version == known_version {
         return Ok(None);
     }
