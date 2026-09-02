@@ -280,6 +280,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			diffVersion: diffs ? diffs.version : s.diffVersion,
 			isLoading: false,
 		}));
+		if (snap) void syncGraph();
 	} catch (e) {
 		_git.update((s) => ({
 			...s,
@@ -320,10 +321,19 @@ export async function loadMoreLog(): Promise<void> {
 	}
 }
 
+/**
+ * Whether the graph has been read for the worktree in place. A repository with
+ * no commits reads as an empty graph, which is not the same thing as a graph
+ * nobody asked for: the first tells `syncGraph` to keep it up to date, the
+ * second tells it to stay out.
+ */
+let graphRead = false;
+
 /** Reloads the first page of the graph; falls back to the project path when no instance is active. */
 export async function refreshGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
+	graphRead = true;
 	try {
 		const graph = await gitService.getGraph(path, GRAPH_PAGE, 0);
 		_git.update((s) => ({
@@ -342,6 +352,7 @@ export async function loadMoreGraph(): Promise<void> {
 	if (!path) return;
 	const state = get(_git);
 	if (!state.graphHasMore) return;
+	graphRead = true;
 	try {
 		const more = await gitService.getGraph(
 			path,
@@ -374,9 +385,56 @@ export async function loadAllLog(): Promise<void> {
 export async function loadAllGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
+	graphRead = true;
 	try {
 		const graph = await gitService.getGraph(path, 1_000_000, 0);
 		_git.update((s) => ({ ...s, graph, graphHasMore: false }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+/**
+ * Reloads the graph after a ref moved - a commit, a push, a pull, a branch or a
+ * tag operation, or a change the status poll noticed. It keeps the rows already
+ * loaded instead of collapsing back to the first page, and does nothing until
+ * the graph has been read once, so a write only pays for the graph when a view
+ * shows it.
+ */
+export function syncGraph(): Promise<void> {
+	if (!graphSync) {
+		graphSync = runSyncGraph().finally(() => {
+			graphSync = null;
+		});
+		return graphSync;
+	}
+	if (!graphQueued) {
+		graphQueued = graphSync.then(() => {
+			graphQueued = null;
+			return syncGraph();
+		});
+	}
+	return graphQueued;
+}
+
+let graphSync: Promise<void> | null = null;
+let graphQueued: Promise<void> | null = null;
+
+async function runSyncGraph(): Promise<void> {
+	const path = worktree() ?? get(activeProject)?.path;
+	if (!path || !graphRead) return;
+	const loaded = get(_git).graph.length;
+	try {
+		const graph = await gitService.getGraph(
+			path,
+			Math.max(loaded, GRAPH_PAGE),
+			0,
+		);
+		_git.update((s) => ({
+			...s,
+			graph,
+			graphHasMore: loaded === 0 ? graph.length === GRAPH_PAGE : s.graphHasMore,
+		}));
 	} catch {
 		// Non-fatal
 	}
@@ -432,6 +490,7 @@ export async function commitChanges(
 	commitDraft.set({ message: "", body: "" });
 	await refreshStatus();
 	await refreshLog();
+	await syncGraph();
 }
 
 /** Rewrites HEAD with the index as it stands; refuse it once the commit is pushed. */
@@ -447,6 +506,7 @@ export async function amendLastCommit(
 	await mutate(() => gitService.amendCommit(wt, message, options));
 	await refreshStatus();
 	await refreshLog();
+	await syncGraph();
 }
 
 /** Pushes, setting the upstream when the branch has none. */
@@ -463,7 +523,7 @@ export async function pushBranch(
 	await mutate(() =>
 		gitService.push(wt, setUpstream, state.currentBranch, force, mode),
 	);
-	await refreshStatus();
+	await Promise.all([refreshStatus(), syncGraph()]);
 }
 
 /** Pulls; the result says whether it left conflicts behind. */
@@ -473,7 +533,7 @@ export async function pullBranch(
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.pull(wt, mode));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -505,7 +565,7 @@ export async function fetchRemote(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.fetch(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), syncGraph()]);
 }
 
 /** Merges a branch in; the result reports the conflicts if any. */
@@ -513,7 +573,7 @@ export async function mergeBranch(branch: string): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.merge(wt, branch));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -522,7 +582,7 @@ export async function rebaseOnto(onto: string): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.rebase(wt, onto));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -531,7 +591,7 @@ export async function continueRebase(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.rebaseContinue(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -540,7 +600,7 @@ export async function skipRebase(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.rebaseSkip(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -549,7 +609,7 @@ export async function abortRebase(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.rebaseAbort(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
 /** git rm: deletes the file and stages the deletion. */
@@ -565,7 +625,7 @@ export async function continueMerge(): Promise<GitOpResult | null> {
 	const wt = worktree();
 	if (!wt) return null;
 	const result = await mutate(() => gitService.mergeContinue(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 	return result;
 }
 
@@ -574,7 +634,7 @@ export async function abortMerge(): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.mergeAbort(wt));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
 /** Applies commits from elsewhere onto the current branch, oldest first. */
@@ -661,7 +721,7 @@ export async function checkoutBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.checkoutBranch(wt, branchName));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
 /** Creates a branch off another and checks it out. */
@@ -672,7 +732,7 @@ export async function createBranch(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.createBranch(wt, branchName, fromBranch));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
 /** Deletes a local branch. */
@@ -680,7 +740,7 @@ export async function deleteBranch(branchName: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.deleteBranch(wt, branchName));
-	await refreshStatus();
+	await Promise.all([refreshStatus(), syncGraph()]);
 }
 
 /** Commit subject being typed; kept in the store so it survives leaving the view. */
@@ -696,6 +756,7 @@ export function setCommitBody(body: string): void {
 /** Back to the initial state, message fields included. */
 export function resetGitStore(): void {
 	commitDraft.set({ message: "", body: "" });
+	graphRead = false;
 	_git.set(INITIAL);
 }
 
@@ -801,6 +862,7 @@ function remember(path: string): void {
 function switchWorktree(prev: string | null, next: string | null): void {
 	if (prev) remember(prev);
 	const data = (next && byWorktree.get(next)) || EMPTY;
+	graphRead = data.graph.length > 0;
 	_git.update((s) => ({
 		...s,
 		...data,
@@ -813,6 +875,7 @@ function switchWorktree(prev: string | null, next: string | null): void {
 export function clearGitData(): void {
 	const path = get(_git).statusWorktree;
 	if (path) byWorktree.delete(path);
+	graphRead = false;
 	_git.update((s) => ({
 		...s,
 		...EMPTY,
@@ -943,7 +1006,7 @@ export async function createTag(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.tagCreate(wt, name, message, commitHash));
-	await refreshTags();
+	await Promise.all([refreshTags(), syncGraph()]);
 }
 
 /** Deletes a tag locally. */
@@ -951,7 +1014,7 @@ export async function deleteTag(name: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.tagDelete(wt, name));
-	await refreshTags();
+	await Promise.all([refreshTags(), syncGraph()]);
 }
 
 /** Pushes one tag to the remote. */
@@ -1078,7 +1141,7 @@ export async function revertCommit(commitHash: string): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.revertCommit(wt, commitHash));
-	await Promise.all([refreshStatus(), refreshLog()]);
+	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
 /** Moves HEAD to another commit; `hard` also discards the worktree changes. */

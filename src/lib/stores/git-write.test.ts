@@ -21,6 +21,7 @@ const service = vi.hoisted(() => ({
 	stageFile: vi.fn(),
 	getSnapshot: vi.fn(),
 	getLog: vi.fn(),
+	getGraph: vi.fn(),
 	toGitError: vi.fn((e: unknown) => ({ code: "unknown", raw: String(e) })),
 }));
 
@@ -34,7 +35,6 @@ vi.mock("$lib/services/git-service", () => ({
 	getCurrentBranch: vi.fn().mockResolvedValue("main"),
 	getRemoteStatus: vi.fn().mockResolvedValue(null),
 	getOperationState: vi.fn().mockResolvedValue(null),
-	getGraph: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("./terminal", () => ({
@@ -58,14 +58,17 @@ import {
 	commitDraft,
 	fetchRemote,
 	git,
+	loadMoreGraph,
 	mergeBranch,
 	pullBranch,
 	pushBranch,
 	recoverFromGitError,
+	refreshGraph,
 	refreshStatus,
 	resetGitStore,
 	setCommitBody,
 	setCommitMessage,
+	syncGraph,
 } from "./git";
 import { activeInstance, loadInstances } from "./instance";
 import { activeProjectId, projects } from "./project";
@@ -102,6 +105,7 @@ beforeEach(async () => {
 	listInstances.mockResolvedValue([]);
 	service.getSnapshot.mockResolvedValue(null);
 	service.getLog.mockResolvedValue([]);
+	service.getGraph.mockResolvedValue([]);
 	service.commit.mockResolvedValue("abc1234");
 	service.amendCommit.mockResolvedValue("abc1234");
 	service.push.mockResolvedValue("");
@@ -270,6 +274,116 @@ describe("pushBranch", () => {
 		withoutWorktree();
 		await pushBranch();
 		expect(service.push).not.toHaveBeenCalled();
+	});
+});
+
+/** One graph row; only the hash is read by the store. */
+const graphRow = (hash: string) => ({
+	hash,
+	shortHash: hash.slice(0, 7),
+	message: `commit ${hash}`,
+	author: "someone",
+	date: "2026-01-01T00:00:00Z",
+	parents: [],
+	refs: [],
+});
+
+describe("keeping the graph in step with the writes", () => {
+	/** Puts rows in the graph, the way opening the tab does. */
+	async function graphLoaded(rows: string[]) {
+		service.getGraph.mockResolvedValue(rows.map(graphRow));
+		await refreshGraph();
+		service.getGraph.mockClear();
+	}
+
+	it("reloads the graph after a push, so the remote ref moves with it", async () => {
+		await graphLoaded(["a"]);
+		service.getGraph.mockResolvedValue([graphRow("b"), graphRow("a")]);
+		await pushBranch();
+		expect(service.getGraph).toHaveBeenCalled();
+		expect(get(git).graph.map((c) => c.hash)).toEqual(["b", "a"]);
+	});
+
+	it("reloads it after a commit, a pull, a fetch and a merge alike", async () => {
+		for (const op of [
+			() => commitChanges("feat: thing"),
+			() => pullBranch(),
+			() => fetchRemote(),
+			() => mergeBranch("other"),
+		]) {
+			await graphLoaded(["a"]);
+			await op();
+			expect(service.getGraph).toHaveBeenCalled();
+		}
+	});
+
+	/** Nothing shows the graph, so a write must not pay for one. */
+	it("leaves the graph alone while it has never been read", async () => {
+		await pushBranch();
+		expect(service.getGraph).not.toHaveBeenCalled();
+	});
+
+	/** An empty graph was still read: a first commit belongs in it. */
+	it("fills a graph read while the repository had no commit yet", async () => {
+		await graphLoaded([]);
+		service.getGraph.mockResolvedValue([graphRow("a")]);
+		await commitChanges("feat: first");
+		expect(get(git).graph.map((c) => c.hash)).toEqual(["a"]);
+	});
+
+	/** A commit or a push from a terminal moves refs too. */
+	it("reloads it when the status poll finds the repository moved", async () => {
+		await graphLoaded(["a"]);
+		service.getSnapshot.mockResolvedValue({
+			version: 7,
+			status: {
+				isGitRepo: true,
+				status: {},
+				changedPaths: { staged: [], unstaged: [] },
+			},
+			currentBranch: "main",
+			remoteStatus: { hasUpstream: true, ahead: 0, behind: 0 },
+			operationState: null,
+		});
+		await refreshStatus(true);
+		expect(service.getGraph).toHaveBeenCalled();
+	});
+
+	/** Nothing moved, so the poll answers with nothing and asks for nothing. */
+	it("leaves it alone when the poll finds the repository unchanged", async () => {
+		await graphLoaded(["a"]);
+		service.getSnapshot.mockResolvedValue(null);
+		await refreshStatus(true);
+		expect(service.getGraph).not.toHaveBeenCalled();
+	});
+
+	it("collapses the reloads that pile up during a flight", async () => {
+		await graphLoaded(["a"]);
+		await Promise.all([syncGraph(), syncGraph(), syncGraph()]);
+		expect(service.getGraph).toHaveBeenCalledTimes(2);
+	});
+
+	/** A reload asked for after a write must not answer with a read from before it. */
+	it("never serves a caller a graph read from before it asked", async () => {
+		await graphLoaded(["a"]);
+		const first = syncGraph();
+		service.getGraph.mockResolvedValue([graphRow("b")]);
+		await Promise.all([first, syncGraph()]);
+		expect(get(git).graph.map((c) => c.hash)).toEqual(["b"]);
+	});
+
+	/** A push must not collapse a list the user had scrolled through. */
+	it("reloads every row already loaded, not just the first page", async () => {
+		const first = Array.from({ length: 20 }, (_, i) => `a${i}`);
+		await graphLoaded(first);
+		service.getGraph.mockResolvedValue(
+			Array.from({ length: 20 }, (_, i) => graphRow(`b${i}`)),
+		);
+		await loadMoreGraph();
+		service.getGraph.mockClear();
+		service.getGraph.mockResolvedValue([]);
+		await pushBranch();
+		expect(service.getGraph).toHaveBeenCalledWith(WORKTREE, 40, 0);
 	});
 });
 
