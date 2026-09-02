@@ -43,7 +43,15 @@ export default defineConfig(async () => ({
   resolve: process.env.VITEST ? { conditions: ["browser"] } : {},
 
   optimizeDeps: {
-    include: ["@codemirror/language-data", "@codemirror/language-data > *"],
+    include: [
+      "@codemirror/language-data",
+      "@codemirror/language-data > *",
+      "@tauri-apps/plugin-clipboard-manager",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-process",
+      "@tauri-apps/plugin-updater",
+    ],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
