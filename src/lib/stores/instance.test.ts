@@ -27,6 +27,9 @@ vi.mock("./terminal", () => ({
 	removeInstanceTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
+const unwatchWorktree = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("$lib/services/fs-watch-service", () => ({ unwatchWorktree }));
+
 describe("activeInstance across a project switch", () => {
 	beforeEach(() => {
 		listInstances.mockReset();
@@ -104,5 +107,35 @@ describe("activeInstance across a project switch", () => {
 		expect(get(instances)).toEqual([]);
 		activeProjectId.set("b");
 		expect(get(instances).map((i) => i.id)).toEqual(["b1"]);
+	});
+});
+
+describe("removeInstance", () => {
+	beforeEach(() => {
+		listInstances.mockReset();
+		unwatchWorktree.mockClear();
+		projects.set([project("a", { activeInstanceId: "a1" })]);
+	});
+
+	/**
+	 * A watcher left on a deleted worktree holds an inotify watch for the rest of
+	 * the session and reports changes to a directory nobody can act on.
+	 */
+	it("lets go of the deleted instance's watcher", async () => {
+		const only = instance("a1", "a");
+		listInstances.mockResolvedValue([only]);
+		await loadInstances("a");
+
+		await removeInstance("a1", "a");
+
+		expect(unwatchWorktree).toHaveBeenCalledWith(only.worktreePath);
+	});
+
+	it("does not fail when the instance is already gone", async () => {
+		listInstances.mockResolvedValue([]);
+		await loadInstances("a");
+
+		await expect(removeInstance("ghost", "a")).resolves.toBeUndefined();
+		expect(unwatchWorktree).not.toHaveBeenCalled();
 	});
 });

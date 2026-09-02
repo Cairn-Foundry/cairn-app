@@ -42,9 +42,10 @@ import { get } from 'svelte/store';
   import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
   import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
   import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
-  import { onFsChanged, unwatchWorktree, watchWorktree } from '$lib/services/fs-watch-service';
+  import { onFsChanged, unwatchWorktree, watchDirs } from '$lib/services/fs-watch-service';
   import SaveConflict from './SaveConflict.svelte';
   import { mirrorDoc } from '$lib/utils/files/files-doc-mirror';
+  import { absoluteWatchSet } from '$lib/utils/files/files-watch-set';
   import { scheduleKeyed } from '$lib/utils/scheduler';
   import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -1178,6 +1179,16 @@ import { get } from 'svelte/store';
   export function openCommandPalette() { commandPaletteVisible.set(true); }
   export function openQuickOpen() { $quickOpenVisible = true; }
   export function getTree(): FileNode[] { return tree; }
+
+  /**
+   * Lets go of a worktree entirely: its watches and its cached tree. Called when a
+   * project's tab is closed or the project is deleted, the two cases where nothing
+   * is coming back to use either.
+   */
+  export function releaseWorktree(root: string) {
+    unwatchRoot(root);
+    treeCache.delete(root);
+  }
   export function openFileByPath(path: string) { quickOpenFile(path); }
 
   /** Expands every ancestor of a directory and selects it in the tree. */
@@ -1995,37 +2006,115 @@ import { get } from 'svelte/store';
   const WATCH_RETRY_MS = 15_000;
   /** Roots whose watch failed, with the time of the last attempt, so it is retried rather than given up on. */
   const watchFailures = new Map<string, number>();
-  /** In flight right now: a retry must not race a first attempt on the same root. */
-  const watchPending = new Set<string>();
+
+  /**
+   * Sends the set of directories to watch for a root. The backend diffs against
+   * what it holds, so the whole set goes on every change and the call is cheap
+   * when nothing moved.
+   *
+   * Only the worktree on screen has a set: a cached project the user is not
+   * looking at keeps just the root and the git metadata the backend always
+   * installs, which is what marks its tree stale if it moves while away.
+   *
+   * Two things had to be told apart, and one flag could not do both. `epoch`
+   * counts the calls started for a root and settles which answer is still the
+   * truth - a slower earlier call must not overwrite a later one, and a root
+   * released mid-flight must not be resurrected by a reply that predates the
+   * release. `inFlight` only coalesces: a request arriving while one is out is
+   * remembered and sent when it lands, rather than racing it.
+   */
+  const watchEpoch = new Map<string, number>();
+  const watchInFlight = new Set<string>();
+  const watchAgain = new Set<string>();
 
   function watchRoot(root: string) {
-    if (watchedRoots.has(root) || watchPending.has(root)) return;
-    watchPending.add(root);
-    watchWorktree(root).then(
-      () => {
-        // Evicted while the call was in flight: `unwatchRoot` already asked the
-        // backend to drop it, so adopting it here would resurrect a dead entry.
-        if (!watchPending.delete(root)) return;
+    if (watchInFlight.has(root)) {
+      watchAgain.add(root);
+      return;
+    }
+    watchInFlight.add(root);
+    const mine = (watchEpoch.get(root) ?? 0) + 1;
+    watchEpoch.set(root, mine);
+    const dirs = root === worktreePath ? currentWatchDirs(root) : [];
+    const settle = () => {
+      watchInFlight.delete(root);
+      // The view moved while this was out; send what it looks like now.
+      if (watchAgain.delete(root) && treeCache.has(root)) watchRoot(root);
+    };
+    watchDirs(root, dirs).then(
+      (report) => {
+        settle();
+        // Released or superseded while in flight: adopting this would resurrect a
+        // root the backend has already dropped, or undo a newer set.
+        if (watchEpoch.get(root) !== mine) return;
         watchFailures.delete(root);
         watchedRoots.add(root);
+        // Some directories were refused - an inotify quota, most likely. What is
+        // covered still is; the status bar says the view may lag behind.
+        watchPartial.set(root, report.failed.length);
         watchGeneration++;
         if (root === worktreePath) setGitWatched(true);
       },
       () => {
-        if (!watchPending.delete(root)) return;
+        settle();
+        if (watchEpoch.get(root) !== mine) return;
         watchFailures.set(root, Date.now());
         watchGeneration++;
       },
     );
   }
 
-  /** Retries the roots still cached whose watch failed and whose backoff has elapsed. */
+  /** The directories on screen for a root, absolute, as the backend wants them. */
+  function currentWatchDirs(root: string): string[] {
+    return absoluteWatchSet(root, expanded, panes.flatMap(p => p.tabs.map(t => t.path)));
+  }
+
+  /** How many directories the backend could not take, per root. */
+  const watchPartial = new Map<string, number>();
+
+  /**
+   * The watched set follows the view, so it is resent whenever the view changes:
+   * a directory expanded or collapsed, a tab opened or closed. Debounced, because
+   * expanding a few directories in a row would otherwise be one round trip each.
+   */
+  const WATCH_SYNC_DEBOUNCE_MS = 150;
+  let watchSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
+  function syncWatchedDirs() {
+    if (disposed) return;
+    if (watchSyncTimer) clearTimeout(watchSyncTimer);
+    watchSyncTimer = setTimeout(() => {
+      watchSyncTimer = null;
+      if (disposed || !worktreePath) return;
+      watchRoot(worktreePath);
+    }, WATCH_SYNC_DEBOUNCE_MS);
+  }
+  onDestroy(() => {
+    disposed = true;
+    if (watchSyncTimer) clearTimeout(watchSyncTimer);
+  });
+
+  /**
+   * Driven by what the set is actually made of, not by `panes`: that object is
+   * reassigned on every keystroke, cursor move and scroll, and depending on it
+   * restarted the debounce continuously - a directory expanded while the user
+   * kept typing would never have had its watch installed.
+   */
+  $: watchSetKey = worktreePath
+    ? currentWatchDirs(worktreePath).join('\n')
+    : '';
+  $: if (worktreePath && watchSetKey !== undefined) syncWatchedDirs();
+
+  /**
+   * Retries the roots still cached whose watch failed and whose backoff elapsed.
+   * Only the visible one: a background root is sent an empty set, so retrying it
+   * would diff that against what it holds and unwatch the directories the user
+   * had open there - and `watchedRoots` would then claim it is covered.
+   */
   function retryFailedWatches() {
-    const now = Date.now();
-    for (const [root, at] of watchFailures) {
-      if (!treeCache.has(root)) { watchFailures.delete(root); continue; }
-      if (now - at >= WATCH_RETRY_MS) watchRoot(root);
-    }
+    const root = worktreePath;
+    if (!root || !watchFailures.has(root) || !treeCache.has(root)) return;
+    if (Date.now() - (watchFailures.get(root) as number) >= WATCH_RETRY_MS) watchRoot(root);
   }
   function unwatchRoot(root: string) {
     watchFailures.delete(root);
@@ -2033,8 +2122,13 @@ import { get } from 'svelte/store';
     // cleared, or its promise resolves after the eviction and puts the root back
     // into `watchedRoots` - leaving an OS watcher installed, against the inotify
     // budget, for a worktree nothing tracks any more.
-    const wasPending = watchPending.delete(root);
-    if (!watchedRoots.delete(root) && !wasPending) return;
+    // Bumping the epoch is what makes an in-flight reply harmless: it can no
+    // longer claim this root, so nothing puts it back after the backend drops it.
+    watchEpoch.set(root, (watchEpoch.get(root) ?? 0) + 1);
+    const wasInFlight = watchInFlight.delete(root);
+    watchAgain.delete(root);
+    watchPartial.delete(root);
+    if (!watchedRoots.delete(root) && !wasInFlight) return;
     void unwatchWorktree(root).catch(() => {});
   }
   $: setGitWatched(worktreePath !== null && watchedRoots.has(worktreePath));
@@ -2050,8 +2144,10 @@ import { get } from 'svelte/store';
     // Only once the attempt has come back. A watch is installed asynchronously,
     // and treating "not yet watched" as "cannot be watched" would flash the
     // warning on every project that opens.
-    watchFailures.has(worktreePath) &&
-    !watchedRoots.has(worktreePath);
+    ((watchFailures.has(worktreePath) && !watchedRoots.has(worktreePath)) ||
+      // Partly covered counts too: some directories on screen report nothing, so
+      // the view can silently lag behind, which is what the indicator is about.
+      (watchPartial.get(worktreePath) ?? 0) > 0);
 
   let unlistenFsChanged: (() => void) | null = null;
   void onFsChanged(({ worktree, gitOnly }) => {
@@ -2065,7 +2161,7 @@ import { get } from 'svelte/store';
   }).then((off) => { unlistenFsChanged = off; });
   onDestroy(() => {
     unlistenFsChanged?.();
-    for (const root of new Set([...watchedRoots, ...watchPending])) unwatchRoot(root);
+    for (const root of new Set([...watchedRoots, ...watchInFlight])) unwatchRoot(root);
   });
 
   /**
@@ -2149,10 +2245,23 @@ import { get } from 'svelte/store';
   function showWorktree(root: string) {
     const cached = treeCache.get(root);
     if (cached) {
+      // Re-inserted so the cache evicts by last *visit*. Only `cacheTree` used to
+      // reorder, and it runs after a walk, so a project looked at constantly but
+      // never rewalked drifted to the front of the queue and was dropped before
+      // one nobody had opened in an hour.
+      treeCache.delete(root);
+      treeCache.set(root, cached);
       rawTree = cached.tree;
       tree = cached.tree;
       gitStatusMap = cached.status;
       gitStatusWorktree = root;
+      // Not `watchRoot` directly: `expanded` still holds the previous project's
+      // directories at this point - it is restored asynchronously - so the set
+      // would be computed against the wrong view and the diff would unwatch what
+      // the user actually has open. The debounced sync recomputes it once the
+      // restore has landed, and it is what installs the watch for a cached
+      // project whose own watch went away.
+      syncWatchedDirs();
       const trusted = watchedRoots.has(root) ? !cached.stale : Date.now() - cached.at <= TREE_CACHE_FRESH_MS;
       if (trusted) void refreshGitStore(true);
       else void loadTree(root, { silent: true });

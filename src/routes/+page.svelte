@@ -20,6 +20,7 @@
   import { initTests, disposeTests } from '$lib/stores/tests';
   import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '$lib/stores/integrations';
   import { listInstances } from '$lib/services/instance-service';
+  import { unwatchWorktree } from '$lib/services/fs-watch-service';
   import { settings } from '$lib/stores/settings';
   import { flushFileStates } from '$lib/services/file-state-service';
   import { getUiState, saveUiState, saveUiStateNow } from '$lib/services/ui-state-service';
@@ -126,11 +127,28 @@
       : null,
   );
 
-  /** Closing a project takes its language servers down with it. */
+  /**
+   * Closing a project takes its language servers down with it, and its filesystem
+   * watchers too. Closing a tab is the one moment the user says plainly that they
+   * are done with a project - it leaves the tab bar, and coming back means
+   * reopening it from the home screen - so there is nothing left for the watches
+   * or the cached tree to serve. Without this they lived on until the tree cache
+   * evicted them, which means every tab could be closed and eight repositories
+   * still watched.
+   */
   async function stopProjectLanguageServers(projectId: string) {
     const instances = await listInstances(projectId).catch(() => []);
     for (const instance of instances) {
-      if (instance.worktreePath) await stopServersForWorktree(instance.worktreePath);
+      if (!instance.worktreePath) continue;
+      await stopServersForWorktree(instance.worktreePath);
+      // The backend is told unconditionally: a project visited earlier this
+      // session keeps its watcher there even once the workspace is unmounted, so
+      // closing it from the home screen would otherwise leak exactly what this is
+      // meant to release. The view is told as well when it exists, so its tree
+      // cache lets go of the same worktree - leaving one half of the pair behind
+      // is how the two drift apart.
+      await unwatchWorktree(instance.worktreePath).catch(() => {});
+      workspaceView?.releaseWorktree?.(instance.worktreePath);
     }
   }
 

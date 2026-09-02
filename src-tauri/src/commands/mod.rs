@@ -128,4 +128,4 @@ pub use terminal::{TerminalState, terminal_create, terminal_has_children, termin
 pub use tests::{TestState, has_cargo_nextest, run_tests, stop_tests};
 pub use tests::state::{get_test_state, save_test_state};
 pub use ui_state::{get_ui_state, save_ui_state};
-pub use fs_watch::{watch_worktree, unwatch_worktree, WatchState};
+pub use fs_watch::{watch_dirs, unwatch_worktree, WatchState};

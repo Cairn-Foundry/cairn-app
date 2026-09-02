@@ -78,6 +78,9 @@
   let quickOpenTree: FileNode[] = [];
   $: if ($quickOpenVisible) quickOpenTree = filesView?.getTree() ?? [];
 
+  /** Frees what a closed or deleted project's worktree still held onto. */
+  export function releaseWorktree(root: string) { filesView?.releaseWorktree(root); }
+
 
   async function handleQuickOpen(hit: QuickSearchHit) {
     openStep('files');

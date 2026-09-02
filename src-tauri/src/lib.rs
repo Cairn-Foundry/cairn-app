@@ -244,7 +244,7 @@ pub fn run() {
             git_snapshot,
             git_diffs,
             read_dir_tree_cached,
-            watch_worktree,
+            watch_dirs,
             unwatch_worktree,
             git_stash_drop,
             git_tag_list,

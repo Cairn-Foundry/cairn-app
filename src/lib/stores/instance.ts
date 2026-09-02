@@ -4,6 +4,7 @@
 /** Instances of every loaded project, plus the base pseudo-instance standing for the repository itself. */
 import { derived, get, writable } from "svelte/store";
 import { t } from "$lib/i18n";
+import { unwatchWorktree } from "$lib/services/fs-watch-service";
 import type { CreateInstanceArgs } from "$lib/services/instance-service";
 import {
 	createInstance,
@@ -238,8 +239,18 @@ export async function removeInstance(
 	id: string,
 	projectId: string,
 ): Promise<void> {
+	// Read before the delete, while the instance still exists, and released before
+	// its worktree is gone: a watcher left on a deleted directory holds an inotify
+	// watch for the rest of the session and reports nothing anyone can act on.
+	const worktree = get(instancesByProject)[projectId]?.find(
+		(i) => i.id === id,
+	)?.worktreePath;
 	await removeInstanceTerminals(projectId, id);
 	removeInstanceConversations(projectId, id);
+	// Awaited, not fired and forgotten: `watch_dirs` re-creates a watcher whenever
+	// it does not find one, so a sync landing between an un-awaited release and the
+	// delete would reinstall a watcher on the directory being removed.
+	if (worktree) await unwatchWorktree(worktree).catch(() => {});
 	await deleteInstance(id, projectId);
 	patchProject(projectId, (list) => list.filter((i) => i.id !== id));
 }
