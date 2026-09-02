@@ -142,7 +142,7 @@
 
   interface LaneState { targetHash: string; color: string; branch?: string; }
   interface PathDef   { d: string; color: string; branch?: string; }
-  interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag'; }
+  interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag'; remotes?: string[]; }
 
   interface GraphRow {
     commit: GitGraphCommit;
@@ -178,11 +178,21 @@
    */
   let laneCache: { rows: GraphRow[]; lanes: (LaneState | null)[]; colorIdx: number } | null = null;
 
+  /**
+   * What the cache compares a laid-out row against. The refs belong in it as
+   * much as the hash: a push or a pull moves a ref onto a commit that is
+   * already laid out, and a layout kept on the hashes alone would go on drawing
+   * the chips - and colouring the lanes - as they were.
+   */
+  function rowKey(commit: GitGraphCommit): string {
+    return commit.refs.length > 0 ? `${commit.hash} ${commit.refs.join(' ')}` : commit.hash;
+  }
+
   /** Lays out the rows the cache does not already cover. */
   function graphRows(commits: GitGraphCommit[]): GraphRow[] {
     const cached = laneCache;
     const keep = cached
-      ? reusablePrefix(cached.rows.map(r => r.commit.hash), commits.map(c => c.hash))
+      ? reusablePrefix(cached.rows.map(r => rowKey(r.commit)), commits.map(rowKey))
       : 0;
 
     if (cached && keep > 0 && keep === commits.length) return cached.rows;
@@ -322,7 +332,29 @@
     const order: Record<RefChip['kind'], number> = {
       'head-branch': 0, 'head': 1, 'local': 2, 'remote': 3, 'tag': 4,
     };
-    return chips.sort((a, b) => order[a.kind] - order[b.kind]);
+    return groupRemotes(chips.sort((a, b) => order[a.kind] - order[b.kind]));
+  }
+
+  /**
+   * Folds `origin/x` into the chip of the local `x` when both sit on the same
+   * commit: one chip then says the branch is in sync, and the width the second
+   * one took goes back to the commit message. A branch whose remote ref sits on
+   * another commit keeps two chips - that gap is the whole point of showing them.
+   */
+  function groupRemotes(chips: RefChip[]): RefChip[] {
+    const locals = new Map<string, RefChip>();
+    for (const c of chips) {
+      if (c.kind === 'head-branch' || c.kind === 'local') locals.set(c.label, c);
+    }
+    if (locals.size === 0) return chips;
+    return chips.filter(c => {
+      if (c.kind !== 'remote') return true;
+      const slash = c.label.indexOf('/');
+      const local = slash > 0 ? locals.get(c.label.slice(slash + 1)) : undefined;
+      if (!local) return true;
+      local.remotes = [...(local.remotes ?? []), c.label.slice(0, slash)];
+      return false;
+    });
   }
 
   /** True for chips that name a real branch, excluding the remote HEAD symbolic refs. */
@@ -504,6 +536,12 @@
                 on:keydown={activate ? (e) => e.key === 'Enter' && activate() : undefined}
               >
                 {chip.label}
+                {#if chip.remotes}
+                  <span
+                    class="chip-remotes"
+                    title={chip.remotes.map(r => `${r}/${chip.label}`).join(', ')}
+                  >{chip.remotes.join(' ')}</span>
+                {/if}
                 {#if linkedInstance}
                   <span class="chip-ticket">{linkedInstance.ticket.id}</span>
                 {:else if canCreate}
@@ -765,6 +803,17 @@
     opacity: 0.65;
     font-weight: 400;
     letter-spacing: 0.02em;
+  }
+
+  /* Remote counterparts of a branch, folded into its own chip */
+  .chip-remotes {
+    font-size: 9px;
+    opacity: 0.7;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    padding-left: 4px;
+    margin-left: 1px;
+    border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
   }
 
   /* HEAD → branch: solid colored background, most prominent */

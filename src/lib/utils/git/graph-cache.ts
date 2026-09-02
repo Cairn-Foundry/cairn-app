@@ -11,14 +11,22 @@
  * invalidates the whole layout.
  */
 
-/** How much of `hashes` a layout of `computed` rows can still be reused for. */
+/**
+ * How much of `rows` a layout of `computed` rows can still be reused for.
+ *
+ * A row is identified by more than its hash - the refs drawn on it count too,
+ * since a push or a pull moves a ref onto a commit already laid out without
+ * touching a single hash. So the whole computed list is compared rather than
+ * its last entry: a change anywhere in it, at the top as much as at the end,
+ * has to redraw.
+ */
 export function reusablePrefix(
 	computed: readonly string[],
-	hashes: readonly string[],
+	rows: readonly string[],
 ): number {
-	if (computed.length === 0 || computed.length > hashes.length) return 0;
-	// The last computed row is enough to identify the prefix: the rows before it
-	// were checked the same way when they were themselves the last one.
-	if (computed[computed.length - 1] !== hashes[computed.length - 1]) return 0;
+	if (computed.length === 0 || computed.length > rows.length) return 0;
+	for (let i = 0; i < computed.length; i++) {
+		if (computed[i] !== rows[i]) return 0;
+	}
 	return computed.length;
 }

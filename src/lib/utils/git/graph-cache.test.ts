@@ -17,6 +17,15 @@ describe("reusablePrefix", () => {
 		expect(reusablePrefix(["a", "b"], ["a", "z", "c"])).toBe(0);
 	});
 
+	/**
+	 * A pull moves `origin/x` onto a commit already laid out: every hash stays
+	 * where it was and only the row keys differ, at the top of the list rather
+	 * than at its end.
+	 */
+	it("starts over when a ref moved onto a row already laid out", () => {
+		expect(reusablePrefix(["a x", "b"], ["a x origin/x", "b"])).toBe(0);
+	});
+
 	it("starts over when the list shrank, as a search does", () => {
 		expect(reusablePrefix(["a", "b", "c"], ["b"])).toBe(0);
 	});
