@@ -41,8 +41,10 @@ import { get } from 'svelte/store';
   import { Text } from '@codemirror/state';
   import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
   import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
-  import { readDirTree, readDirTreeCached, listDirNames, readFile, fileMtimes, writeFile, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
   import { onFsChanged, unwatchWorktree, watchWorktree } from '$lib/services/fs-watch-service';
+  import SaveConflict from './SaveConflict.svelte';
+  import { mirrorDoc } from '$lib/utils/files/files-doc-mirror';
   import { scheduleKeyed } from '$lib/utils/scheduler';
   import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -481,7 +483,10 @@ import { get } from 'svelte/store';
 
     if (isDirty(tab) && worktreePath) {
       const wc = denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF');
-      await writeFile(absolutePathOf(tab.path, worktreePath), wc);
+      // A tab on its way out cannot host a modal, and the user is not looking at it
+      // any more. Refusing the write keeps both versions; the flag brings the
+      // question back if the tab is reopened.
+      if (!(await writeTab(tab, wc, worktreePath))) tab.conflicted = true;
     }
 
     pane.editorStateCache.delete(tab.path);
@@ -524,16 +529,15 @@ import { get } from 'svelte/store';
   function handleChange(i: number, doc: Text, changes: LspContentChange[]) {
     const pane = panes[i];
     if (pane.activeTabIdx === -1) return;
-    const changedPath = pane.tabs[pane.activeTabIdx].path;
-    pane.tabs[pane.activeTabIdx].doc = doc;
-    const absolute = absoluteOf(changedPath);
+    const changed = pane.tabs[pane.activeTabIdx];
+    // A disk snapshot shares the path of the tab it sits beside but holds a
+    // deliberately different text. Mirroring in either direction would collapse
+    // the two versions the user was given to compare.
+    if (changed.diskSnapshot) return;
+    changed.doc = doc;
+    const absolute = absoluteOf(changed.path);
     if (absolute) lsp.change(absolute, changes);
-    for (let j = 0; j < panes.length; j++) {
-      if (j === i) continue;
-      for (const tab of panes[j].tabs) {
-        if (tab.path === changedPath) tab.doc = doc;
-      }
-    }
+    mirrorDoc(panes, i, changed, doc);
     invalidatePanes();
   }
 
@@ -553,6 +557,98 @@ import { get } from 'svelte/store';
   }
 
   /** Writes the pane's pending content to disk, optionally formatting first, and refreshes git state. */
+  /**
+   * A write the user still has to arbitrate: the file moved on disk since the tab
+   * read it. Held while the modal is up; there is only ever one, because the modal
+   * blocks the interactions that would start another save.
+   */
+  let conflict: {
+    paneIdx: number;
+    path: string;
+    content: string;
+    deleted: boolean;
+    /** Applied once the user has chosen, so the tab stops looking dirty. */
+    doc: Text;
+  } | null = null;
+
+  /**
+   * Writes a tab's content, refusing to clobber a file that moved since the tab
+   * last read it. Returns whether the write went through; the caller decides what
+   * a refusal means - raising the modal, or just marking the tab.
+   *
+   * The mtime check happens inside `write_file`, so nothing can slip between the
+   * check and the write.
+   */
+  async function writeTab(tab: Tab, content: string, root: string): Promise<boolean> {
+    const absolute = absolutePathOf(tab.path, root);
+    // The version comes from the read, not from a fresh stat taken here: stat'ing
+    // now would compare the file against itself and wave through the very
+    // overwrite this exists to catch. `readFile` records it as it receives the
+    // bytes, so it provably belongs to the content the tab is showing.
+    const outcome = await writeFile(absolute, content, tab.version ?? null);
+    if (isWriteConflict(outcome)) return false;
+    tab.version = outcome.version;
+    tab.conflicted = false;
+    return true;
+  }
+
+  /** Re-runs a refused write with no mtime guard: the user asked for their version to win. */
+  async function overwriteConflict() {
+    const c = conflict;
+    conflict = null;
+    if (!c || !worktreePath) return;
+    try {
+      const outcome = await writeFile(absolutePathOf(c.path, worktreePath), c.content, null);
+      for (const tab of panes.flatMap(p => p.tabs).filter(t => t.path === c.path && !t.diskSnapshot)) {
+        tab.savedDoc = c.doc;
+        tab.conflicted = false;
+        if (!isWriteConflict(outcome)) tab.version = outcome.version;
+      }
+      panes = panes;
+      void refreshGitStore(true);
+    } catch (e) {
+      // A read-only file or a full disk: the modal has already closed, so without
+      // this the write just vanishes and the tab stays dirty with no explanation.
+      error = String(e);
+    }
+  }
+
+  /**
+   * Opens what is on disk in the other pane, leaving both versions intact. The tab
+   * stays dirty and stays flagged, so the user can carry over what they need and
+   * save again when they are ready.
+   */
+  async function openDiskVersion() {
+    const c = conflict;
+    conflict = null;
+    if (!c || !worktreePath) return;
+    const absolute = absolutePathOf(c.path, worktreePath);
+    const read = await readFileVersioned(absolute);
+    const raw = read.text ?? '';
+    const le = detectLineEndings(raw);
+    const text = normalizeLineEndings(raw, le);
+    const doc = docFromString(text);
+    const other = c.paneIdx === 0 ? 1 : 0;
+    if (!splitMode) { splitMode = true; await tick(); }
+    const target = panes[other];
+    target.tabs = [
+      ...target.tabs,
+      {
+        path: c.path,
+        doc,
+        savedDoc: doc,
+        cursorPos: 0,
+        scrollTop: 0,
+        lineEndings: le,
+        lastUsedAt: Date.now(),
+        diskSnapshot: true,
+        version: read.version,
+      },
+    ];
+    target.activeTabIdx = target.tabs.length - 1;
+    panes = panes;
+  }
+
   async function flushSave(i: number) {
     const pane = panes[i];
     const tab = pane.tabs[pane.activeTabIdx] ?? null;
@@ -564,6 +660,24 @@ import { get } from 'svelte/store';
     const wasConflicted = gitStatusMap[tab.path] === 'conflicted';
     const hadMarkers = hasConflictMarkers(tab.savedDoc.toString());
     try {
+      // The conflict is settled before anything touches the buffer. Formatting
+      // first would reformat the document and only then discover the save cannot
+      // go through, leaving the user who picks "Cancel" - told nothing would be
+      // written - with a rewritten document and only undo to get back.
+      const absoluteEarly = absolutePathOf(tab.path, worktreePath);
+      const guard = await writeFile(absoluteEarly, '', tab.version ?? null, true);
+      if (isWriteConflict(guard)) {
+        tab.conflicted = true;
+        conflict = {
+          paneIdx: i,
+          path: tab.path,
+          content: denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF'),
+          deleted: guard.actualVersion === null,
+          doc: tab.doc,
+        };
+        panes = panes;
+        return;
+      }
       // Formatting happens before the write, so what lands on disk and what the
       // editor shows are the same text. A formatter that fails leaves the
       // document alone: a save must never be lost to a broken config.
@@ -577,7 +691,24 @@ import { get } from 'svelte/store';
       const current = pane.tabs[pane.activeTabIdx] ?? tab;
       const text = current.doc.toString();
       const writeContent = denormalizeLineEndings(text, current.lineEndings ?? 'LF');
-      await writeFile(absolutePathOf(tab.path, worktreePath), writeContent);
+      const absolute = absolutePathOf(tab.path, worktreePath);
+      const outcome = await writeFile(absolute, writeContent, current.version ?? null);
+      if (isWriteConflict(outcome)) {
+        // Automatic saves raise the modal too: skipping it silently would leave the
+        // file unsaved with nothing on screen to say so.
+        current.conflicted = true;
+        conflict = {
+          paneIdx: i,
+          path: tab.path,
+          content: writeContent,
+          deleted: outcome.actualVersion === null,
+          doc: current.doc,
+        };
+        panes = panes;
+        return;
+      }
+      current.conflicted = false;
+      current.version = outcome.version;
       pane.tabs[pane.activeTabIdx].savedDoc = current.doc;
       panes = panes;
       const savedAbsolute = absoluteOf(tab.path);
@@ -598,14 +729,30 @@ import { get } from 'svelte/store';
     }
   }
 
-  /** Fire-and-forget write of every dirty tab, used when leaving an instance or the view. */
+  /**
+   * Fire-and-forget write of every dirty tab, used when leaving an instance or the
+   * view. Nobody can be asked anything here - the view is going away - so a tab
+   * whose file moved is left untouched and flagged instead: neither version is
+   * lost, and the modal comes up when the user returns to it and saves again.
+   */
   function saveSnapshotToDisk(snapshots: Tab[][], wtp: string): void {
     for (const tab of snapshots.flat()) {
       if (!isDirty(tab)) continue;
       const path = tab.path;
       const wc = denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF');
-      tab.savedDoc = tab.doc; // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
-      writeFile(absolutePathOf(path, wtp), wc).catch(() => {});
+      const doc = tab.doc;
+      const absolute = absolutePathOf(path, wtp);
+      void writeFile(absolute, wc, tab.version ?? null)
+        .then((outcome) => {
+          if (isWriteConflict(outcome)) {
+            tab.conflicted = true;
+            return;
+          }
+          tab.version = outcome.version;
+          // shared ref - mutates original tabs[i] so saveCurrentState captures clean state
+          tab.savedDoc = doc;
+        })
+        .catch(() => {});
     }
   }
 
@@ -640,11 +787,12 @@ import { get } from 'svelte/store';
     }
     captureEditorState(i);
     try {
-      const raw2 = await readFile(absolutePathOf(node.path, worktreePath)) ?? '';
+      const read2 = await readFileVersioned(absolutePathOf(node.path, worktreePath));
+      const raw2 = read2.text ?? '';
       const le2 = detectLineEndings(raw2);
       const text2 = normalizeLineEndings(raw2, le2);
       const doc2 = docFromString(text2);
-      pane.tabs = [...pane.tabs, { path: node.path, doc: doc2, savedDoc: doc2, cursorPos: 0, scrollTop: 0, lineEndings: le2, lastUsedAt: Date.now() }];
+      pane.tabs = [...pane.tabs, { path: node.path, doc: doc2, savedDoc: doc2, cursorPos: 0, scrollTop: 0, lineEndings: le2, lastUsedAt: Date.now(), version: read2.version }];
       pane.activeTabIdx = pane.tabs.length - 1;
       panes = panes;
       if (i === 0) pushRecentFile(node.path);
@@ -1516,10 +1664,13 @@ import { get } from 'svelte/store';
     let focusDisposed = false;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-        if (focused && worktreePath) {
-          loadTree(worktreePath, { silent: true });
-          void reloadOpenFilesFromDisk();
-        }
+        // Nothing is re-read on focus. The watcher emits from its own thread and
+        // keeps running while the window is in the background, so whatever moved
+        // has already been walked, refreshed and reloaded by the event itself.
+        // Re-reading here repeated all of it - a tree, a status, a snapshot and a
+        // blame per open tab - on every single return to the window. A worktree
+        // the watcher could not take is surfaced in the status bar rather than
+        // compensated for behind the user's back.
         if (!focused && ($settings.saveOn) === 'windowChange') {
           for (let i = 0; i < panes.length; i++) flushSave(i);
         }
@@ -1553,10 +1704,10 @@ import { get } from 'svelte/store';
       });
     });
 
-    // External edits while the window stays focused - an agent, a script, git -
-    // are caught by polling the open tabs' mtimes; the focus handler above only
-    // covers edits made while the app was in the background.
-    const mtimeTimer = setInterval(() => void pollOpenFileMtimes(), 2000);
+    // External edits - an agent, a script, git - arrive as watcher events and are
+    // handled there, focused or not. Nothing polls the filesystem any more; this
+    // timer only gives a refused watch another chance.
+    const watchRetryTimer = setInterval(retryFailedWatches, WATCH_RETRY_MS);
 
     let prevInstId: string | null = null;
     let prevInstWtp: string | null = null;
@@ -1590,7 +1741,7 @@ import { get } from 'svelte/store';
       unlistenOsDrop?.();
       unsubInst();
       unsubProj();
-      clearInterval(mtimeTimer);
+      clearInterval(watchRetryTimer);
     };
   });
 
@@ -1788,13 +1939,16 @@ import { get } from 'svelte/store';
             return;
           }
           /* A scope left this session keeps its documents: coming back to it
-             costs no read of every open file through the IPC bridge. The mtime
-             poll catches a file edited meanwhile. */
+             paints at once instead of reading every open file through the IPC
+             bridge. Watcher events for a scope that is not on screen only mark
+             its tree stale, so the buffers are re-read right after - silently,
+             behind the painted view, and dirty tabs keep their edits. */
           const restored = saved
             ? restoreTabsFromMemory(persisted, saved.panes)
             : await rehydrateTabs(wtp, persisted);
           if (currentScope !== scope) return;
           panes = restored;
+          if (saved) void reloadOpenFilesFromDisk();
           syncActiveTabToTree();
           refreshDiff(0, panes[0].tabs[panes[0].activeTabIdx] ?? null);
           refreshDiff(1, panes[1].tabs[panes[1].activeTabIdx] ?? null);
@@ -1828,26 +1982,81 @@ import { get } from 'svelte/store';
   /**
    * Every cached worktree is watched: a change in a project the user left
    * marks its tree stale, and coming back to an unchanged one walks nothing.
-   * A worktree the watcher refuses (inotify limits) falls back to the age rule.
+   *
+   * A refused watch is not final. On Linux - the platform most installs run on -
+   * inotify watches are a per-user quota shared with every other process, so a
+   * repository can be refused on a machine that is otherwise healthy and become
+   * watchable a minute later once something else lets go. The retry below is what
+   * keeps a session from staying in the degraded mode for good after one bad
+   * moment; without it the fallbacks that hang off `watchedRoots` would run for
+   * the rest of the session.
    */
   const watchedRoots = new Set<string>();
+  const WATCH_RETRY_MS = 15_000;
+  /** Roots whose watch failed, with the time of the last attempt, so it is retried rather than given up on. */
+  const watchFailures = new Map<string, number>();
+  /** In flight right now: a retry must not race a first attempt on the same root. */
+  const watchPending = new Set<string>();
+
   function watchRoot(root: string) {
-    if (watchedRoots.has(root)) return;
+    if (watchedRoots.has(root) || watchPending.has(root)) return;
+    watchPending.add(root);
     watchWorktree(root).then(
-      () => { watchedRoots.add(root); if (root === worktreePath) setGitWatched(true); },
-      () => {},
+      () => {
+        // Evicted while the call was in flight: `unwatchRoot` already asked the
+        // backend to drop it, so adopting it here would resurrect a dead entry.
+        if (!watchPending.delete(root)) return;
+        watchFailures.delete(root);
+        watchedRoots.add(root);
+        watchGeneration++;
+        if (root === worktreePath) setGitWatched(true);
+      },
+      () => {
+        if (!watchPending.delete(root)) return;
+        watchFailures.set(root, Date.now());
+        watchGeneration++;
+      },
     );
   }
+
+  /** Retries the roots still cached whose watch failed and whose backoff has elapsed. */
+  function retryFailedWatches() {
+    const now = Date.now();
+    for (const [root, at] of watchFailures) {
+      if (!treeCache.has(root)) { watchFailures.delete(root); continue; }
+      if (now - at >= WATCH_RETRY_MS) watchRoot(root);
+    }
+  }
   function unwatchRoot(root: string) {
-    if (!watchedRoots.delete(root)) return;
+    watchFailures.delete(root);
+    // A watch still in flight has to be unwatched too, and the pending flag
+    // cleared, or its promise resolves after the eviction and puts the root back
+    // into `watchedRoots` - leaving an OS watcher installed, against the inotify
+    // budget, for a worktree nothing tracks any more.
+    const wasPending = watchPending.delete(root);
+    if (!watchedRoots.delete(root) && !wasPending) return;
     void unwatchWorktree(root).catch(() => {});
   }
   $: setGitWatched(worktreePath !== null && watchedRoots.has(worktreePath));
 
+  /**
+   * Recomputed whenever a watch is installed or refused - `watchGeneration` is
+   * bumped there, because a Set that is mutated in place moves nothing on its own.
+   */
+  let watchGeneration = 0;
+  $: watchUnavailable =
+    watchGeneration >= 0 &&
+    worktreePath !== null &&
+    // Only once the attempt has come back. A watch is installed asynchronously,
+    // and treating "not yet watched" as "cannot be watched" would flash the
+    // warning on every project that opens.
+    watchFailures.has(worktreePath) &&
+    !watchedRoots.has(worktreePath);
+
   let unlistenFsChanged: (() => void) | null = null;
   void onFsChanged(({ worktree, gitOnly }) => {
     if (worktree === worktreePath) {
-      if (!gitOnly) scheduleWalk(worktree);
+      if (!gitOnly) { scheduleWalk(worktree); scheduleOpenFileReload(); }
       scheduleGitRefresh();
       return;
     }
@@ -1856,7 +2065,7 @@ import { get } from 'svelte/store';
   }).then((off) => { unlistenFsChanged = off; });
   onDestroy(() => {
     unlistenFsChanged?.();
-    for (const root of [...watchedRoots]) unwatchRoot(root);
+    for (const root of new Set([...watchedRoots, ...watchPending])) unwatchRoot(root);
   });
 
   /**
@@ -1882,6 +2091,22 @@ import { get } from 'svelte/store';
     }, GIT_REFRESH_MIN_INTERVAL_MS);
   }
   onDestroy(() => { if (gitRefreshTimer) clearTimeout(gitRefreshTimer); });
+
+  /**
+   * A tree change may have touched an open tab. Reading the mtimes is cheap, but
+   * a build fires the watcher every 300 ms, so the check is spaced out the same
+   * way the walk is, with a trailing one so the last write still lands.
+   */
+  const OPEN_FILE_RELOAD_MIN_INTERVAL_MS = 500;
+  let openFileReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleOpenFileReload() {
+    if (openFileReloadTimer) return;
+    openFileReloadTimer = setTimeout(() => {
+      openFileReloadTimer = null;
+      void reloadOpenFilesFromDisk();
+    }, OPEN_FILE_RELOAD_MIN_INTERVAL_MS);
+  }
+  onDestroy(() => { if (openFileReloadTimer) clearTimeout(openFileReloadTimer); });
 
   const WALK_MIN_INTERVAL_MS = 3000;
   let lastWalkAt = 0;
@@ -1985,37 +2210,12 @@ import { get } from 'svelte/store';
     }
   }
 
-  let knownMtimes = new Map<string, number>();
-  let isPollingMtimes = false;
-
-  /** Reloads open tabs when a file's mtime moved under them; dirty tabs keep their edits. */
-  async function pollOpenFileMtimes() {
-    if (!worktreePath || isPollingMtimes) return;
-    isPollingMtimes = true;
-    const root = worktreePath;
-    try {
-      const paths = [...new Set(panes.flatMap(p => p.tabs.map(t => absolutePathOf(t.path, root))))];
-      if (paths.length === 0) { knownMtimes = new Map(); return; }
-      const mtimes = await fileMtimes(paths);
-      if (worktreePath !== root) return;
-      let changed = false;
-      const next = new Map<string, number>();
-      for (const path of paths) {
-        const mtime = mtimes[path];
-        if (mtime === undefined) continue;
-        const known = knownMtimes.get(path);
-        next.set(path, mtime);
-        if (known !== undefined && known !== mtime) changed = true;
-      }
-      knownMtimes = next;
-      if (changed) await reloadOpenFilesFromDisk();
-    } catch {
-    } finally {
-      isPollingMtimes = false;
-    }
-  }
-
-  /** On window focus, picks up external edits - only for tabs with nothing unsaved to lose. */
+  /**
+   * Re-reads the open tabs after the watcher reported the worktree moved; a tab
+   * with unsaved edits keeps them. No mtime pass in front of it: `readFile` goes
+   * through the `cairn://` cache, so an unchanged file is a 304 that transfers
+   * nothing, and the text comparison below settles the rest.
+   */
   async function reloadOpenFilesFromDisk() {
     if (!worktreePath) return;
     let changed = false;
@@ -2023,12 +2223,20 @@ import { get } from 'svelte/store';
     for (const pane of panes) {
       for (const tab of pane.tabs) {
         if (isBinaryPath(tab.path)) { hasBinaryTab = true; continue; }
+        // A snapshot is a frozen picture of one past moment; refreshing it would
+        // silently move the very thing the user is comparing against.
+        if (tab.diskSnapshot) continue;
         if (isDirty(tab)) continue;
         try {
-          const raw = await readFile(absolutePathOf(tab.path, worktreePath));
-          if (raw === null) continue;
-          const le = detectLineEndings(raw);
-          const text = normalizeLineEndings(raw, le);
+          const absolute = absolutePathOf(tab.path, worktreePath);
+          const read = await readFileVersioned(absolute);
+          if (read.text === null) continue;
+          const le = detectLineEndings(read.text);
+          const text = normalizeLineEndings(read.text, le);
+          // Adopted even when the text is identical: the tab now stands for that
+          // read, and keeping an older stamp would make the next save look like a
+          // conflict against a change this tab has already taken in.
+          tab.version = read.version;
           if (text === tab.savedDoc.toString()) continue;
           tab.doc = tab.savedDoc = docFromString(text);
           tab.lineEndings = le;
@@ -2196,9 +2404,21 @@ import { get } from 'svelte/store';
       pane.tabs = [...pane.tabs, { ...tab }];
     } else {
       try {
-        const text = await readFile(absolutePathOf(tab.path, worktreePath)) ?? tab.doc.toString();
-        const reopened = docFromString(text);
-        pane.tabs = [...pane.tabs, { ...tab, doc: reopened, savedDoc: reopened }];
+        const read = await readFileVersioned(absolutePathOf(tab.path, worktreePath));
+        if (tab.conflicted) {
+          // Closing this tab could not write it: the file had moved and there was
+          // nobody to ask. Its edits are the only copy left, so they come back as
+          // they were, still dirty and still flagged, over the disk text as the
+          // base to compare against - re-reading into `savedDoc` would drop them.
+          const onDisk = docFromString(read.text ?? tab.savedDoc.toString());
+          pane.tabs = [...pane.tabs, { ...tab, savedDoc: onDisk, version: read.version }];
+        } else {
+          const reopened = docFromString(read.text ?? tab.doc.toString());
+          pane.tabs = [
+            ...pane.tabs,
+            { ...tab, doc: reopened, savedDoc: reopened, version: read.version },
+          ];
+        }
       } catch {
         pane.tabs = [...pane.tabs, { ...tab }];
       }
@@ -2629,6 +2849,8 @@ import { get } from 'svelte/store';
           activeSpaceSize={activeSpaceSizes[i]}
           isDirty={isDirtyArr[i]}
           saving={pane.saving}
+          watchUnavailable={watchUnavailable}
+          onReloadProject={reloadProject}
           cursorLine={cursorLines[i]}
           cursorCol={cursorCols[i]}
           currentLineBlame={currentLineBlames[i]}
@@ -2675,6 +2897,16 @@ import { get } from 'svelte/store';
     {/each}
   </div>
 </div>
+
+{#if conflict}
+  <SaveConflict
+    path={conflict.path}
+    deleted={conflict.deleted}
+    on:overwrite={overwriteConflict}
+    on:openDisk={openDiskVersion}
+    on:cancel={() => { conflict = null; }}
+  />
+{/if}
 
 {#if suggestedServer}
   {@const needsInstall = suggestedInfo?.binaryPath === null}

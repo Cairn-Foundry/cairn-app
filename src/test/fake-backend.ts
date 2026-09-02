@@ -42,6 +42,8 @@ export interface FakeWorld {
 	instances: FakeInstance[];
 	/** File contents keyed by absolute path. */
 	files: Record<string, string>;
+	/** Modification counter per path, bumped on every write; drives conflict detection. */
+	mtimes: Record<string, number>;
 	/** Navigation state a previous run left behind, as `get_ui_state` returns it. */
 	uiState: Record<string, unknown> | null;
 	/** Worktree path -> branch name. */
@@ -117,6 +119,7 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 		projects: [],
 		instances: [],
 		files: {},
+		mtimes: {},
 		uiState: null,
 		branches: {},
 		...seed,
@@ -191,15 +194,31 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 			];
 		},
 		file_mtimes: (a) =>
-			Object.fromEntries((a.paths as string[]).map((p) => [p, 0])),
+			Object.fromEntries(
+				(a.paths as string[])
+					.filter((p) => p in world.files)
+					.map((p) => [p, world.mtimes[p] ?? 0]),
+			),
 		read_file_preview: (a) => ({
 			size: (world.files[a.path as string] ?? "").length,
 			headHex: "",
 		}),
 		write_file: (a) => {
 			const path = a.path as string;
+			const expected = a.expectedVersion as string | null | undefined;
+			const actual =
+				path in world.files ? `"v${world.mtimes[path] ?? 0}"` : null;
+			if (expected != null && expected !== actual) {
+				return {
+					kind: "conflict",
+					expectedVersion: expected,
+					actualVersion: actual,
+				};
+			}
 			world.files[path] = a.content as string;
+			world.mtimes[path] = (world.mtimes[path] ?? 0) + 1;
 			dirty.add(path);
+			return { version: `"v${world.mtimes[path]}"` };
 		},
 		delete_path: (a) => {
 			delete world.files[a.path as string];

@@ -52,6 +52,13 @@
   export let activeSpaceSize: number;
   export let isDirty: boolean;
   export let saving: boolean;
+  /**
+   * The worktree has no filesystem watcher: nothing will report an outside change
+   * on its own. Shown rather than compensated for - a save still refuses to
+   * overwrite a file that moved, so this costs freshness, never work.
+   */
+  export let watchUnavailable = false;
+  export let onReloadProject: () => void = () => {};
   export let cursorLine: number;
   export let cursorCol: number;
   export let currentLineBlame: BlameEntry | null;
@@ -163,6 +170,12 @@
         >
           {#if tab.pinned}<span class="tab-pin"><Icon name="pin" size={9}/></span>{/if}
           <span class="tab-name">{basename(tab.path)}</span>
+          {#if tab.diskSnapshot}<span class="tab-disk">{t('saveConflict.diskBadge')}</span>{/if}
+          {#if tab.conflicted}
+            <span class="tab-conflict" title={t('saveConflict.badgeHint') as string}>
+              <Icon name="alert" size={10}/>
+            </span>
+          {/if}
           {#if isTabDirty(tab)}<span class="tab-dot">●</span>{/if}
           {#if tab.pinned}
             <button type="button" class="tab-close" on:click={(e) => { e.stopPropagation(); onTabUnpin(i); }} aria-label={t('files.unpinTab') as string} title={t('files.unpinTabTitle') as string}>
@@ -240,7 +253,7 @@
             hidden={!activeTab || loadingPaths.has(activeTab.path) || isBinaryPath(activeTab.path)}
             content={activeTab?.doc ?? Text.empty}
             language={activeLang}
-            readonly={false}
+            readonly={activeTab?.diskSnapshot === true}
             minimapEnabled={$settings.showMinimap}
             stickyScrollEnabled={$settings.stickyScroll}
             lineWrap={$settings.lineWrap}
@@ -342,6 +355,18 @@
           <CopyButton value={currentLineBlame.hash} size={10}/>
         {/if}
       {/if}
+      {#if watchUnavailable}
+        {#if !currentLineBlame || !activeTab}<span class="statusbar-blame-spacer"></span>{/if}
+        <button
+          type="button"
+          class="statusbar-item statusbar-btn statusbar-unwatched"
+          on:click={onReloadProject}
+          title={t('files.watchUnavailableHint') as string}
+        >
+          <Icon name="alert" size={10}/>
+          <span>{t('files.watchUnavailable')}</span>
+        </button>
+      {/if}
     </div>
   {/if}
 </div>
@@ -410,6 +435,17 @@
     opacity: 0.6;
     flex-shrink: 0;
     line-height: 1;
+  }
+  .tab-conflict { display: inline-flex; color: var(--danger); flex: none; }
+  .tab-disk {
+    flex: none;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-3);
+    color: var(--fg-2);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   .tab-dot { color: var(--accent); font-size: 10px; line-height: 1; }
 
@@ -555,6 +591,7 @@
   }
   .statusbar-btn:hover { background: var(--bg-4); color: var(--fg-1); }
   .statusbar-active { color: var(--accent); }
+  .statusbar-unwatched { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); }
 
   .statusbar-blame-spacer { flex: 1; }
 

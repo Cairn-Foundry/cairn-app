@@ -117,7 +117,29 @@ export async function quickSearch(
 const FILE_CACHE_MAX = 64;
 const fileCache = new Map<string, { etag: string; text: string | null }>();
 
+/**
+ * A read, with the version stamp the content came with. The version is the ETag -
+ * mtime and size - captured at the instant the bytes were served, so it provably
+ * belongs to *this* text and not to whatever is on disk by the time the caller
+ * acts on it. Handed back to `writeFile`, which refuses to overwrite a file whose
+ * version moved since.
+ *
+ * It is returned rather than kept in a map keyed by path: two tabs can hold two
+ * different versions of one file - the live one and the disk snapshot opened
+ * beside it - and a shared per-path stamp would let the second read re-arm the
+ * guard the first one was relying on.
+ */
+export interface VersionedFile {
+	text: string | null;
+	version: string | null;
+}
+
+/** Content only, for the callers that have no version to keep. */
 export async function readFile(path: string): Promise<string | null> {
+	return (await readFileVersioned(path)).text;
+}
+
+export async function readFileVersioned(path: string): Promise<VersionedFile> {
 	return dedupeInflight(`read:${path}`, async () => {
 		const known = fileCache.get(path);
 		const response = await fetch(convertFileSrc(path, "cairn"), {
@@ -126,7 +148,7 @@ export async function readFile(path: string): Promise<string | null> {
 		if (response.status === 304 && known) {
 			fileCache.delete(path);
 			fileCache.set(path, known);
-			return known.text;
+			return { text: known.text, version: known.etag };
 		}
 		if (!response.ok) throw await response.text();
 		const bytes = await response.arrayBuffer();
@@ -147,7 +169,7 @@ export async function readFile(path: string): Promise<string | null> {
 				fileCache.delete(oldest);
 			}
 		}
-		return text;
+		return { text, version: etag || null };
 	});
 }
 
@@ -174,9 +196,51 @@ export async function readFileBase64(path: string): Promise<string> {
 	return invoke<string>("read_file_base64", { path });
 }
 
-/** Overwrites the file, creating it if needed. */
-export async function writeFile(path: string, content: string): Promise<void> {
-	return invoke<void>("write_file", { path, content });
+/** A write that went through, with the version the caller should now remember. */
+export interface FileWritten {
+	version: string | null;
+}
+
+/** A write refused because the file moved since the caller last read it. */
+export interface FileWriteConflict {
+	kind: "conflict";
+	expectedVersion: string | null;
+	/** What is on disk now; null when the file was deleted. */
+	actualVersion: string | null;
+}
+
+export type WriteOutcome = FileWritten | FileWriteConflict;
+
+export function isWriteConflict(
+	outcome: WriteOutcome,
+): outcome is FileWriteConflict {
+	return "kind" in outcome && outcome.kind === "conflict";
+}
+
+/**
+ * Overwrites the file, creating it if needed.
+ *
+ * `expectedVersion` is the version stamp the file had when the caller read it -
+ * what `readFile` recorded, available through `knownFileVersion`. When it no
+ * longer matches, the write is refused and a conflict comes back instead: the
+ * file changed under the editor, and only the user can say whether their version
+ * should win. Pass `null` to write unconditionally - a new file, or an overwrite
+ * the user has already confirmed.
+ *
+ * The check happens inside the command, so nothing can write between the two.
+ */
+export async function writeFile(
+	path: string,
+	content: string,
+	expectedVersion: string | null = null,
+	checkOnly = false,
+): Promise<WriteOutcome> {
+	return invoke<WriteOutcome>("write_file", {
+		path,
+		content,
+		expectedVersion,
+		checkOnly,
+	});
 }
 
 /** Deletes a file or a directory recursively; it does not go to the trash. */

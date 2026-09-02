@@ -1197,6 +1197,9 @@ export const en = {
 	},
 
 	files: {
+		watchUnavailable: "Not watched",
+		watchUnavailableHint:
+			"This project has no filesystem watcher, so changes made outside Cairn are not picked up on their own. Click to reload it. Saving still refuses to overwrite a file that changed on disk.",
 		selectFileToEdit: "Select a file to edit",
 		noFormatter:
 			"Nothing formatted this document: no formatter binary could be reached, and no language server answered for this language.",
@@ -2566,6 +2569,27 @@ export const en = {
 		description:
 			"This will remove the instance and delete its worktree. Your original project files will not be affected.",
 		deleteInstance: "Delete instance",
+	},
+
+	saveConflict: {
+		heading: "The file changed on disk",
+		changedLead:
+			"This file was modified outside Cairn since you opened it. Saving now would overwrite those changes with your version.",
+		deletedLead:
+			"This file was deleted outside Cairn since you opened it. Saving now would recreate it from your version.",
+		openDisk: "Open the disk version beside it",
+		openDiskHint:
+			"Opens what is on disk in the other pane so you can compare and carry over what you need. Nothing is written.",
+		cancel: "Cancel",
+		cancelHint: "Writes nothing. Your changes stay in the editor, unsaved.",
+		overwrite: "Overwrite",
+		overwriteHint: "Writes your version. The changes made on disk are lost.",
+		overwriteDeletedHint: "Recreates the file from your version.",
+		tabTitle: (name: string) => `${name} (on disk)`,
+		diskBadge: "disk",
+		badge: "Conflict",
+		badgeHint:
+			"This file changed on disk and could not be saved. Save it again to decide.",
 	},
 
 	finalizeInstance: {

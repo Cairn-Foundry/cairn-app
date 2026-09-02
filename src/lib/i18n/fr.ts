@@ -1220,6 +1220,9 @@ export const fr = {
 	},
 
 	files: {
+		watchUnavailable: "Non surveillé",
+		watchUnavailableHint:
+			"Ce projet n'a pas de surveillance du système de fichiers, donc les changements faits en dehors de Cairn ne remontent pas tout seuls. Cliquez pour le recharger. La sauvegarde refuse toujours d'écraser un fichier qui a changé sur le disque.",
 		selectFileToEdit: "Sélectionner un fichier à modifier",
 		noFormatter:
 			"Rien n'a formaté ce document : aucun binaire de formateur n'a pu être atteint, et aucun serveur de langage n'a répondu pour ce langage.",
@@ -2613,6 +2616,29 @@ export const fr = {
 		description:
 			"Cela supprimera l'instance et effacera son worktree. Vos fichiers originaux de projet ne seront pas affectés.",
 		deleteInstance: "Supprimer l'instance",
+	},
+
+	saveConflict: {
+		heading: "Le fichier a changé sur le disque",
+		changedLead:
+			"Ce fichier a été modifié en dehors de Cairn depuis que vous l'avez ouvert. Sauvegarder maintenant écraserait ces modifications par votre version.",
+		deletedLead:
+			"Ce fichier a été supprimé en dehors de Cairn depuis que vous l'avez ouvert. Sauvegarder maintenant le recréerait à partir de votre version.",
+		openDisk: "Ouvrir la version du disque à côté",
+		openDiskHint:
+			"Ouvre ce qui se trouve sur le disque dans l'autre volet, pour comparer et reporter ce qu'il faut. Rien n'est écrit.",
+		cancel: "Annuler",
+		cancelHint:
+			"N'écrit rien. Vos modifications restent dans l'éditeur, non sauvegardées.",
+		overwrite: "Écraser",
+		overwriteHint:
+			"Écrit votre version. Les modifications faites sur le disque sont perdues.",
+		overwriteDeletedHint: "Recrée le fichier à partir de votre version.",
+		tabTitle: (name: string) => `${name} (sur le disque)`,
+		diskBadge: "disque",
+		badge: "Conflit",
+		badgeHint:
+			"Ce fichier a changé sur le disque et n'a pas pu être sauvegardé. Sauvegardez-le à nouveau pour décider.",
 	},
 
 	finalizeInstance: {

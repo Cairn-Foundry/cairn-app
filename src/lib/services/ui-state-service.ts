@@ -61,3 +61,8 @@ export async function getUiState(): Promise<UiState> {
 export function saveUiState(state: UiState): void {
 	persist("the navigation state", invoke("save_ui_state", { state }));
 }
+
+/** Awaitable, for the window close, which has to know the write actually landed. */
+export function saveUiStateNow(state: UiState): Promise<void> {
+	return invoke<void>("save_ui_state", { state }).catch(() => {});
+}

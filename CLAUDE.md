@@ -136,6 +136,20 @@ Run a single test file: `bun run test -- src/lib/utils/files/files-tree.test.ts`
 
 Tauri v2 desktop app: **Rust backend** (`src-tauri/`) + **SvelteKit frontend** (`src/`).
 
+### Target platforms
+
+Cairn runs on **Linux first**, then macOS, then Windows, in that order of installed
+base. Linux is the majority platform, so it is the one a change has to be right on -
+not the one it is ported to afterwards. Two consequences worth keeping in mind:
+
+- The filesystem watcher uses inotify on Linux, where watches are a per-user quota
+  (`fs.inotify.max_user_watches`) shared with every other process. Watching a large
+  repository can fail with `ENOSPC` on a machine that is otherwise healthy. macOS
+  (FSEvents, one recursive watch) and Windows have no equivalent ceiling, so a
+  watcher bug that only shows under quota pressure is invisible on a Mac.
+- Paths, line endings and process spawning differ on Windows; anything shelling out
+  or building a path by hand needs a thought for it even though it comes last.
+
 ### Data flow
 
 ```

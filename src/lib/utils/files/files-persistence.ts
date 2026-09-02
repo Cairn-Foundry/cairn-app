@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { Text } from "@codemirror/state";
-import { isBinaryPath, readFile } from "$lib/services/file-service";
+import { isBinaryPath, readFileVersioned } from "$lib/services/file-service";
 import {
 	type FileState,
 	getFileState,
@@ -34,6 +34,30 @@ export interface Tab {
 	 * it reopens is equally old.
 	 */
 	lastUsedAt?: number;
+	/**
+	 * Set when a write was refused because the file had moved and no one could be
+	 * asked at the time - a save fired while the view was going away. The conflict
+	 * is resolved when the user comes back to the tab.
+	 */
+	conflicted?: boolean;
+	/**
+	 * The version stamp the content in this tab was read with, handed back to
+	 * `writeFile` so a save cannot overwrite a file that moved since. It belongs to
+	 * the tab and not to the path: the disk snapshot opened beside a conflicting
+	 * tab holds a newer version of the same file, and sharing one stamp per path
+	 * would let its read re-arm the guard the live tab depends on. Never persisted -
+	 * a restored session re-reads the file and gets a stamp that means something.
+	 */
+	version?: string | null;
+	/**
+	 * A snapshot of what was on disk, opened beside a tab whose save conflicted.
+	 * It carries the same `path` as the tab it is compared against, so it must
+	 * never be edited, saved, or mirrored into that tab: two panes on one path
+	 * normally share a single document, and this is the one case where the two
+	 * sides are meant to differ. Never persisted - a snapshot of a past disk state
+	 * means nothing on the next launch.
+	 */
+	diskSnapshot?: boolean;
 }
 
 /** The layout as stored, without any file content. */
@@ -60,18 +84,37 @@ export interface InstanceTabState {
 
 const RECENT_FILES_LIMIT = 10;
 
-/** The layout without any file content. */
+/**
+ * The layout without any file content.
+ *
+ * Disk snapshots are dropped rather than persisted. One is a picture of a single
+ * past moment, kept beside the tab it conflicts with; restoring it would reopen a
+ * second editable tab on the same path as the live one, and two tabs sharing a
+ * path share a document - precisely the collision the snapshot flag exists to
+ * prevent. The conflict flag is not persisted either: it is settled against the
+ * file as it is on the next launch, not as it was.
+ */
 export function toPersistedState(state: InstanceTabState): PersistedState {
 	return {
-		panes: state.panes.map((p) => ({
-			tabs: p.tabs.map((t) => ({
-				path: t.path,
-				cursorPos: t.cursorPos,
-				scrollTop: t.scrollTop,
-				pinned: t.pinned,
-			})),
-			activeTabIdx: p.activeTabIdx,
-		})),
+		panes: state.panes.map((p) => {
+			const active = p.tabs[p.activeTabIdx];
+			const tabs = p.tabs.filter((t) => !t.diskSnapshot);
+			return {
+				tabs: tabs.map((t) => ({
+					path: t.path,
+					cursorPos: t.cursorPos,
+					scrollTop: t.scrollTop,
+					pinned: t.pinned,
+				})),
+				// The active tab is followed by identity. Keeping its raw index would
+				// point at whatever slid into that slot once a snapshot before it was
+				// dropped - a file the user was not looking at.
+				activeTabIdx:
+					active && !active.diskSnapshot
+						? tabs.indexOf(active)
+						: Math.min(p.activeTabIdx, tabs.length - 1),
+			};
+		}),
 		expanded: [...state.expanded],
 		splitMode: state.splitMode,
 		splitLeftWidth: state.splitLeftWidth,
@@ -161,18 +204,21 @@ async function rehydrateTabList(
 ): Promise<Tab[]> {
 	const results = await Promise.all(
 		persistedTabs.map(async (p) => {
-			if (isBinaryPath(p.path)) return { path: p.path, text: "" };
+			if (isBinaryPath(p.path))
+				return { path: p.path, text: "", version: null as string | null };
 			try {
-				return {
-					path: p.path,
-					text: (await readFile(absolutePathOf(p.path, wtp))) ?? "",
-				};
+				const read = await readFileVersioned(absolutePathOf(p.path, wtp));
+				return { path: p.path, text: read.text ?? "", version: read.version };
 			} catch {
 				return null;
 			}
 		}),
 	);
-	const valid = results.filter(Boolean) as { path: string; text: string }[];
+	const valid = results.filter(Boolean) as {
+		path: string;
+		text: string;
+		version: string | null;
+	}[];
 	return valid.map((r) => {
 		const saved = persistedTabs.find((p) => p.path === r.path) as PersistedTab;
 		const le = detectLineEndings(r.text);
@@ -185,6 +231,7 @@ async function rehydrateTabList(
 			scrollTop: saved.scrollTop,
 			pinned: saved.pinned,
 			lineEndings: le,
+			version: r.version,
 		};
 	});
 }

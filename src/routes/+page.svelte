@@ -21,7 +21,8 @@
   import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '$lib/stores/integrations';
   import { listInstances } from '$lib/services/instance-service';
   import { settings } from '$lib/stores/settings';
-  import { getUiState, saveUiState } from '$lib/services/ui-state-service';
+  import { flushFileStates } from '$lib/services/file-state-service';
+  import { getUiState, saveUiState, saveUiStateNow } from '$lib/services/ui-state-service';
   import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
   import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
   import Home from '$lib/components/Home.svelte';
@@ -79,9 +80,13 @@
   let removeCopyHandler: (() => void) | null = null;
   let stopUpdateChecks: (() => void) | null = null;
   let unlistenCliOpen: (() => void) | null = null;
+  let unlistenClose: (() => void) | null = null;
+  let closeHookDisposed = false;
   onDestroy(() => {
     for (const unsubscribe of persistSubscriptions) unsubscribe();
-    if (saveTimer) clearTimeout(saveTimer);
+    flushPersistedState();
+    closeHookDisposed = true;
+    unlistenClose?.();
     removeCopyHandler?.();
     stopUpdateChecks?.();
     unlistenCliOpen?.();
@@ -131,24 +136,67 @@
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let lastPersisted = '';
+  /** The state to persist, and whether it differs from what was last written. */
+  function pendingUiState() {
+    snapshotCurrentProject();
+    const state = {
+      screen,
+      activeProjectId: get(activeProjectId),
+      openTabOrder: get(openTabOrder),
+      homeSection,
+      homeSettingsTab,
+      projectStates: getAllProjectStates(),
+    };
+    const serialized = JSON.stringify(state);
+    if (serialized === lastPersisted) return null;
+    lastPersisted = serialized;
+    return state;
+  }
+
+  /** Awaitable counterpart of `writeUiState`, for the window close. */
+  async function writeUiStateNow() {
+    const state = pendingUiState();
+    if (state) await saveUiStateNow(state);
+  }
+
+  function writeUiState() {
+    saveTimer = null;
+    const state = pendingUiState();
+    if (state) saveUiState(state);
+  }
+
   function persistUiState() {
     if (!mounted) return;
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      snapshotCurrentProject();
-      const state = {
-        screen,
-        activeProjectId: get(activeProjectId),
-        openTabOrder: get(openTabOrder),
-        homeSection,
-        homeSettingsTab,
-        projectStates: getAllProjectStates(),
-      };
-      const serialized = JSON.stringify(state);
-      if (serialized === lastPersisted) return;
-      lastPersisted = serialized;
-      saveUiState(state);
-    }, 300);
+    saveTimer = setTimeout(writeUiState, 300);
+  }
+
+  /**
+   * Both debounced writes go to disk now. Dropping the pending timers instead
+   * would lose whatever the last few hundred milliseconds changed - which, on a
+   * window close, is exactly the state the app must reopen on.
+   */
+  function flushPersistedState() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      writeUiState();
+    }
+    flushFileStates();
+  }
+
+  /**
+   * The window close is held until both writes have landed. `beforeunload` cannot
+   * do this: the writes are async IPC calls and the page is torn down without
+   * waiting on them, so the state the flush exists to rescue is exactly the state
+   * a real close would lose. `onCloseRequested` can defer, so it is the only hook
+   * where this promise is worth anything.
+   */
+  async function flushBeforeClose() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    await Promise.allSettled([writeUiStateNow(), flushFileStates()]);
   }
 
   let longtaskObs: PerformanceObserver | null = null;
@@ -156,6 +204,12 @@
 
   onMount(async () => {
     removeCopyHandler = installCopySelectionHandler();
+    import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
+      getCurrentWindow().onCloseRequested(async () => { await flushBeforeClose(); }),
+    ).then((off) => {
+      if (closeHookDisposed) off();
+      else unlistenClose = off;
+    }).catch(() => {});
 
     /* In dev only: names the frames that blew the budget, so a slow switch has
        a number attached to it instead of a feeling. */

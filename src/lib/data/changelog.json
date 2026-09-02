@@ -8,6 +8,69 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "Saving a file that changed on disk since you opened it no longer overwrites it silently. Cairn asks what to do: open the disk version in the pane beside it, cancel, or overwrite. The check runs inside the write itself, so nothing can slip in between.",
+					"fr": "Sauvegarder un fichier qui a changé sur le disque depuis que vous l'avez ouvert ne l'écrase plus silencieusement. Cairn demande quoi faire : ouvrir la version du disque dans le volet d'à côté, annuler, ou écraser. Le contrôle se fait à l'intérieur même de l'écriture, donc rien ne peut s'y glisser."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The open files are no longer compared against the disk on a timer, nor re-read every time the window regains focus. The filesystem watcher reports what moved, and it keeps running while Cairn is in the background.",
+					"fr": "Les fichiers ouverts ne sont plus comparés au disque à intervalle régulier, ni relus à chaque fois que la fenêtre reprend le focus. Le watcher du système de fichiers signale ce qui a bougé, et il continue de tourner pendant que Cairn est en arrière-plan."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The status bar says when a project could not be watched, instead of hiding it behind a poll. Saving stays safe either way: a file that changed on disk is still never overwritten without asking.",
+					"fr": "La barre de statut indique quand un projet n'a pas pu être surveillé, au lieu de le masquer derrière un poll. La sauvegarde reste sûre dans ce cas : un fichier qui a changé sur le disque n'est jamais écrasé sans demander."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Coming back to the Cairn window no longer re-reads the whole project. The tree, the git status and the open files were read again on every focus, even though the watcher had already reported anything that moved while the window was in the background.",
+					"fr": "Revenir sur la fenêtre de Cairn ne relit plus tout le projet. L'arbre, le statut git et les fichiers ouverts étaient relus à chaque prise de focus, alors que le watcher avait déjà signalé ce qui avait bougé pendant que la fenêtre était en arrière-plan."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A project whose filesystem watcher was refused is retried instead of staying degraded for the rest of the session. On Linux the number of watches is a quota shared with every other program, so a large repository can be refused at one moment and accepted a minute later.",
+					"fr": "Un projet dont la surveillance du système de fichiers a été refusée est réessayé au lieu de rester dégradé pour le reste de la session. Sous Linux le nombre de surveillances est un quota partagé avec tous les autres programmes, donc un gros dépôt peut être refusé à un instant et accepté une minute plus tard."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The open editor tabs are no longer checked against the disk once a second. They are re-read when the watcher reports the worktree moved, so an edit made by an agent or a script still lands immediately, and a project nobody is touching costs nothing.",
+					"fr": "Les onglets ouverts de l'éditeur ne sont plus comparés au disque une fois par seconde. Ils sont relus quand le watcher signale que le worktree a bougé, donc une modification faite par un agent ou un script arrive toujours immédiatement, et un projet auquel personne ne touche ne coûte rien."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A project writing to disk on its own - a Laravel storage/, a log, a build output - no longer makes the app rescan its worktree every few seconds. The watcher applies the .gitignore rules of the worktree, so a change to a file git ignores is ignored too.",
+					"fr": "Un projet qui écrit sur le disque tout seul - un storage/ Laravel, un log, une sortie de build - ne fait plus rescanner son worktree à l'application toutes les quelques secondes. Le watcher applique les règles du .gitignore du worktree, donc un changement sur un fichier que git ignore est ignoré aussi."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Sweeping the pointer across the project tabs no longer warms every project it passed over. Only the tab the pointer settled on is prefetched.",
+					"fr": "Balayer les onglets de projet avec le pointeur ne précharge plus chaque projet survolé au passage. Seul l'onglet sur lequel le pointeur s'est arrêté est préchargé."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The editor layout is written once a burst of changes has settled rather than on each one, and is flushed when the window closes, so nothing is lost.",
+					"fr": "La disposition de l'éditeur est écrite une fois qu'une rafale de changements est retombée plutôt qu'à chacun, et elle est vidée à la fermeture de la fenêtre, donc rien n'est perdu."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Opening a large project no longer freezes the window for several seconds: the test runner detection now lists the directories in one call instead of one call per directory.",

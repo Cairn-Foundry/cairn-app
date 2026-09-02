@@ -46,14 +46,61 @@ export async function getFileState(
 	}
 }
 
-/** Fire and forget: called on every cursor and scroll change, so it must never throw. */
+const SAVE_DEBOUNCE_MS = 400;
+const pending = new Map<
+	string,
+	{ state: FileState; timer: ReturnType<typeof setTimeout> }
+>();
+
+/**
+ * Fire and forget: called on every cursor, scroll, tab and instance change, so
+ * it must never throw. Writes are coalesced per instance - opening a few tabs
+ * or walking the tree used to write the same file half a dozen times in a
+ * couple of seconds. Only the last state of an instance is written, and each
+ * instance keeps its own timer, so switching away still saves the one left
+ * behind.
+ */
 export function saveFileState(
 	projectId: string,
 	instanceId: string,
 	state: FileState,
 ): void {
-	persist(
-		"the editor state",
-		invoke("save_file_state", { projectId, instanceId, state }),
-	);
+	const key = `${projectId}:${instanceId}`;
+	const entry = pending.get(key);
+	if (entry) {
+		entry.state = state;
+		return;
+	}
+	const timer = setTimeout(() => {
+		const last = pending.get(key);
+		pending.delete(key);
+		if (!last) return;
+		persist(
+			"the editor state",
+			invoke("save_file_state", { projectId, instanceId, state: last.state }),
+		);
+	}, SAVE_DEBOUNCE_MS);
+	pending.set(key, { state, timer });
+}
+
+/**
+ * Writes every coalesced state now; the app is closing or the view is going away.
+ * The returned promise settles once the writes have landed, so a caller that can
+ * hold the window open - `onCloseRequested` - actually waits for them.
+ */
+export function flushFileStates(): Promise<unknown> {
+	const writes: Promise<unknown>[] = [];
+	for (const [key, entry] of pending) {
+		clearTimeout(entry.timer);
+		const [projectId, instanceId] = key.split(":");
+		const write = invoke("save_file_state", {
+			projectId,
+			instanceId,
+			state: entry.state,
+		});
+		persist("the editor state", write);
+		writes.push(write.catch(() => {}));
+	}
+	pending.clear();
+	return Promise.allSettled(writes);
 }

@@ -12,11 +12,13 @@ import {
 	pushRecent,
 	rehydrateFromPersisted,
 	saveEditorState,
+	type Tab,
+	toPersistedState,
 } from "./files-persistence";
 
 vi.mock("$lib/services/file-service", () => ({
 	isBinaryPath: vi.fn().mockReturnValue(false),
-	readFile: vi.fn().mockResolvedValue(""),
+	readFileVersioned: vi.fn().mockResolvedValue({ text: "", version: null }),
 }));
 
 vi.mock("$lib/services/file-state-service", () => ({
@@ -27,7 +29,10 @@ vi.mock("$lib/services/file-state-service", () => ({
 beforeEach(() => {
 	vi.clearAllMocks();
 	vi.mocked(fileService.isBinaryPath).mockReturnValue(false);
-	vi.mocked(fileService.readFile).mockResolvedValue("");
+	vi.mocked(fileService.readFileVersioned).mockResolvedValue({
+		text: "",
+		version: null,
+	});
 	vi.mocked(fileStateService.getFileState).mockResolvedValue(null);
 });
 
@@ -153,7 +158,10 @@ describe("rehydrateFromPersisted", () => {
 	}
 
 	it("reads each tab's content back from disk", async () => {
-		vi.mocked(fileService.readFile).mockResolvedValue("hello");
+		vi.mocked(fileService.readFileVersioned).mockResolvedValue({
+			text: "hello",
+			version: '"v1"',
+		});
 		const result = await rehydrateFromPersisted(
 			"/wt",
 			statePersisting(["a.ts"], 0),
@@ -163,7 +171,10 @@ describe("rehydrateFromPersisted", () => {
 	});
 
 	it("normalizes CRLF content and records the original line endings", async () => {
-		vi.mocked(fileService.readFile).mockResolvedValue("a\r\nb");
+		vi.mocked(fileService.readFileVersioned).mockResolvedValue({
+			text: "a\r\nb",
+			version: null,
+		});
 		const result = await rehydrateFromPersisted(
 			"/wt",
 			statePersisting(["a.ts"], 0),
@@ -179,12 +190,12 @@ describe("rehydrateFromPersisted", () => {
 			statePersisting(["a.png"], 0),
 		);
 		expect(result.panes[0].tabs[0].savedDoc.toString()).toBe("");
-		expect(fileService.readFile).not.toHaveBeenCalled();
+		expect(fileService.readFileVersioned).not.toHaveBeenCalled();
 	});
 
 	it("drops a tab whose file no longer reads", async () => {
-		vi.mocked(fileService.readFile)
-			.mockResolvedValueOnce("kept")
+		vi.mocked(fileService.readFileVersioned)
+			.mockResolvedValueOnce({ text: "kept", version: null })
 			.mockRejectedValueOnce(new Error("gone"));
 		const result = await rehydrateFromPersisted(
 			"/wt",
@@ -194,8 +205,8 @@ describe("rehydrateFromPersisted", () => {
 	});
 
 	it("clamps an active index left past the end by a deleted file", async () => {
-		vi.mocked(fileService.readFile)
-			.mockResolvedValueOnce("kept")
+		vi.mocked(fileService.readFileVersioned)
+			.mockResolvedValueOnce({ text: "kept", version: null })
 			.mockRejectedValueOnce(new Error("gone"));
 		const result = await rehydrateFromPersisted(
 			"/wt",
@@ -205,7 +216,9 @@ describe("rehydrateFromPersisted", () => {
 	});
 
 	it("marks an emptied pane as having no active tab", async () => {
-		vi.mocked(fileService.readFile).mockRejectedValue(new Error("gone"));
+		vi.mocked(fileService.readFileVersioned).mockRejectedValue(
+			new Error("gone"),
+		);
 		const result = await rehydrateFromPersisted(
 			"/wt",
 			statePersisting(["a.ts"], 0),
@@ -230,5 +243,67 @@ describe("rehydrateFromPersisted", () => {
 		expect(result.expanded).toEqual(new Set(["src", "src/lib"]));
 		expect(result.splitMode).toBe(false);
 		expect(result.splitLeftWidth).toBe(0);
+	});
+});
+
+describe("toPersistedState", () => {
+	function tab(path: string, extra: Partial<Tab> = {}): Tab {
+		const doc = docFromString("x");
+		return { path, doc, savedDoc: doc, cursorPos: 0, scrollTop: 0, ...extra };
+	}
+
+	function state(tabs: Tab[], activeTabIdx: number): InstanceTabState {
+		return {
+			panes: [
+				{ tabs, activeTabIdx },
+				{ tabs: [], activeTabIdx: -1 },
+			],
+			expanded: new Set<string>(),
+			splitMode: false,
+			splitLeftWidth: 0,
+		};
+	}
+
+	/**
+	 * Restoring one would reopen a second editable tab on the path of the live one,
+	 * and two tabs sharing a path share a document - the collision the snapshot
+	 * flag exists to prevent.
+	 */
+	it("drops a disk snapshot rather than persisting it", () => {
+		const out = toPersistedState(
+			state([tab("a.ts"), tab("a.ts", { diskSnapshot: true })], 0),
+		);
+		expect(out.panes[0].tabs.map((t) => t.path)).toEqual(["a.ts"]);
+	});
+
+	it("keeps the active tab pointing at the same file once a snapshot is dropped", () => {
+		const live = tab("b.ts");
+		const out = toPersistedState(
+			state([tab("a.ts", { diskSnapshot: true }), live], 1),
+		);
+		expect(out.panes[0].tabs[out.panes[0].activeTabIdx].path).toBe("b.ts");
+	});
+
+	it("falls back to a valid index when the active tab was the snapshot", () => {
+		const out = toPersistedState(
+			state([tab("a.ts"), tab("a.ts", { diskSnapshot: true })], 1),
+		);
+		const { tabs, activeTabIdx } = out.panes[0];
+		expect(activeTabIdx).toBeLessThan(tabs.length);
+		expect(activeTabIdx).toBeGreaterThanOrEqual(0);
+	});
+
+	it("leaves a pane of ordinary tabs untouched", () => {
+		const out = toPersistedState(state([tab("a.ts"), tab("b.ts")], 1));
+		expect(out.panes[0].tabs.map((t) => t.path)).toEqual(["a.ts", "b.ts"]);
+		expect(out.panes[0].activeTabIdx).toBe(1);
+	});
+
+	it("survives a pane holding nothing but a snapshot", () => {
+		const out = toPersistedState(
+			state([tab("a.ts", { diskSnapshot: true })], 0),
+		);
+		expect(out.panes[0].tabs).toEqual([]);
+		expect(out.panes[0].activeTabIdx).toBe(-1);
 	});
 });

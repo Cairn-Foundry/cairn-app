@@ -414,15 +414,84 @@ pub async fn read_file_base64(path: String) -> Result<String, String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
+/// The version stamp of a file: modification time in nanoseconds and size, in the
+/// exact shape the `cairn://` protocol puts in its ETag. Both sides must build it
+/// the same way, or a file read through the protocol could never be written back.
+/// `None` when the file does not exist.
+pub fn file_version(path: &Path) -> Option<String> {
+    let meta = fs::metadata(path).ok()?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    Some(format!("\"{modified:x}-{:x}\"", meta.len()))
+}
+
+/// Refusal of a write whose target moved since the caller last read it. `actual`
+/// is what is on disk now, so the frontend can adopt it once the user has decided.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteConflict {
+    pub kind: String,
+    pub expected_version: Option<String>,
+    pub actual_version: Option<String>,
+}
+
+/// What a write answers: the new version to remember, or the conflict that stopped it.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum WriteOutcome {
+    Written { version: Option<String> },
+    Conflict(WriteConflict),
+}
+
 #[tauri::command]
 /// Writes the file, creating missing parent directories.
-pub async fn write_file(path: String, content: String) -> Result<(), String> {
+///
+/// `expected_version` is the stamp the caller believes the file still carries -
+/// the one it got when it read the file, or from its own last write. When it does
+/// not match what is on disk, the file changed underneath the editor and the write
+/// is refused rather than silently overwriting someone else's work; the caller
+/// then asks the user what to do. Passing `None` writes unconditionally, which is
+/// what a brand new file and an explicit overwrite both want.
+///
+/// The check and the write happen here, in one command, so nothing can slip in
+/// between them. Stat'ing from the frontend and writing in a second call would
+/// leave exactly that window open.
+pub async fn write_file(
+    path: String,
+    content: String,
+    expected_version: Option<String>,
+    check_only: Option<bool>,
+) -> Result<WriteOutcome, String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     let p = PathBuf::from(&expanded);
+    if let Some(expected) = expected_version {
+        let actual = file_version(&p);
+        // A file that vanished is a conflict too: writing would resurrect something
+        // the user may have deleted on purpose.
+        if actual.as_deref() != Some(expected.as_str()) {
+            return Ok(WriteOutcome::Conflict(WriteConflict {
+                kind: "conflict".to_string(),
+                expected_version: Some(expected),
+                actual_version: actual,
+            }));
+        }
+    }
+    // `check_only` answers the version question without writing, for a caller that
+    // must know whether the save can go through before it changes the document -
+    // formatting on save, which would otherwise rewrite a buffer it then cannot
+    // persist. It reports what a real write would have found, nothing more.
+    if check_only == Some(true) {
+        return Ok(WriteOutcome::Written { version: file_version(&p) });
+    }
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&p, content).map_err(|e| e.to_string())
+    fs::write(&p, content).map_err(|e| e.to_string())?;
+    Ok(WriteOutcome::Written { version: file_version(&p) })
 }
 
 #[tauri::command]
@@ -632,6 +701,163 @@ pub async fn search_in_files(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod write_conflict_tests {
+    use super::*;
+
+    fn temp() -> PathBuf {
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "cairn-write-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[tokio::test]
+    async fn writes_and_reports_the_new_version_when_nothing_moved() {
+        let dir = temp();
+        let file = dir.join("a.txt");
+        fs::write(&file, "one").unwrap();
+        let before = file_version(&file).unwrap();
+
+        let out = write_file(file.to_string_lossy().into(), "two".into(), Some(before), None)
+            .await
+            .unwrap();
+        match out {
+            WriteOutcome::Written { version } => assert!(version.is_some()),
+            WriteOutcome::Conflict(_) => panic!("an untouched file must not conflict"),
+        }
+        assert_eq!(fs::read_to_string(&file).unwrap(), "two");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn refuses_to_write_over_a_file_that_moved() {
+        let dir = temp();
+        let file = dir.join("a.txt");
+        fs::write(&file, "one").unwrap();
+        let stale = file_version(&file).unwrap();
+        // Rewriting from outside is what an agent or another editor would do.
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        fs::write(&file, "someone else's work").unwrap();
+
+        let out = write_file(file.to_string_lossy().into(), "mine".into(), Some(stale.clone()), None)
+            .await
+            .unwrap();
+        match out {
+            WriteOutcome::Conflict(c) => {
+                assert_eq!(c.expected_version, Some(stale));
+                assert!(c.actual_version.is_some());
+            }
+            WriteOutcome::Written { .. } => panic!("a moved file must not be overwritten"),
+        }
+        assert_eq!(
+            fs::read_to_string(&file).unwrap(),
+            "someone else's work",
+            "the disk version must survive"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn a_deleted_file_is_a_conflict_rather_than_a_resurrection() {
+        let dir = temp();
+        let file = dir.join("gone.txt");
+
+        let out = write_file(file.to_string_lossy().into(), "back".into(), Some("\"1-2\"".into()), None)
+            .await
+            .unwrap();
+        match out {
+            WriteOutcome::Conflict(c) => assert_eq!(c.actual_version, None),
+            WriteOutcome::Written { .. } => panic!("a vanished file must not be silently recreated"),
+        }
+        assert!(!file.exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn no_expected_version_writes_unconditionally() {
+        let dir = temp();
+        let file = dir.join("new.txt");
+
+        let out = write_file(file.to_string_lossy().into(), "fresh".into(), None, None).await.unwrap();
+        assert!(matches!(out, WriteOutcome::Written { .. }));
+        assert_eq!(fs::read_to_string(&file).unwrap(), "fresh");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The frontend tells the two apart by the presence of `kind`, so the shapes
+    /// must not drift into each other.
+    #[test]
+    fn the_two_outcomes_serialize_to_distinguishable_shapes() {
+        let written =
+            serde_json::to_value(WriteOutcome::Written { version: Some("v".into()) }).unwrap();
+        assert_eq!(written["version"], "v");
+        assert!(written.get("kind").is_none());
+
+        let conflict = serde_json::to_value(WriteOutcome::Conflict(WriteConflict {
+            kind: "conflict".into(),
+            expected_version: Some("a".into()),
+            actual_version: Some("b".into()),
+        }))
+        .unwrap();
+        assert_eq!(conflict["kind"], "conflict");
+        assert_eq!(conflict["actualVersion"], "b");
+    }
+
+    #[tokio::test]
+    async fn check_only_reports_the_verdict_without_touching_the_file() {
+        let dir = temp();
+        let file = dir.join("a.txt");
+        fs::write(&file, "one").unwrap();
+        let good = file_version(&file).unwrap();
+
+        let ok = write_file(file.to_string_lossy().into(), "ignored".into(), Some(good), Some(true))
+            .await
+            .unwrap();
+        assert!(matches!(ok, WriteOutcome::Written { .. }));
+        assert_eq!(fs::read_to_string(&file).unwrap(), "one", "a check must not write");
+
+        let bad = write_file(
+            file.to_string_lossy().into(),
+            "ignored".into(),
+            Some("\"0-0\"".into()),
+            Some(true),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(bad, WriteOutcome::Conflict(_)));
+        assert_eq!(fs::read_to_string(&file).unwrap(), "one");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The frontend reads a file through the `cairn://` protocol and hands its
+    /// ETag straight back as the expected version. If the two formulas ever drift
+    /// apart, every save would look like a conflict - or worse, none would.
+    #[test]
+    fn the_version_matches_the_etag_the_protocol_serves() {
+        let dir = temp();
+        let file = dir.join("a.txt");
+        fs::write(&file, "hello").unwrap();
+
+        let meta = fs::metadata(&file).unwrap();
+        let modified = meta
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let etag = format!("\"{modified:x}-{:x}\"", meta.len());
+
+        assert_eq!(file_version(&file), Some(etag));
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
 
 #[cfg(test)]
