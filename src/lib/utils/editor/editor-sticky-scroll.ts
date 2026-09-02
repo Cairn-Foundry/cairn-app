@@ -61,7 +61,7 @@ export function buildStickyScroll(enabled: boolean): Extension {
 				view.scrollDOM.addEventListener("scroll", this.onScroll, {
 					passive: true,
 				});
-				this.render();
+				view.requestMeasure({ read: () => this.render() });
 			}
 
 			update(update: ViewUpdate) {
@@ -70,7 +70,7 @@ export function buildStickyScroll(enabled: boolean): Extension {
 					update.viewportChanged ||
 					update.geometryChanged
 				) {
-					this.render();
+					update.view.requestMeasure({ read: () => this.render() });
 				}
 			}
 

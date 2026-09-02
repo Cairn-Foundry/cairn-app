@@ -258,3 +258,32 @@ describe("getAllProjectStates", () => {
 		expect(getAllProjectStates().p1.gitLogSearch).toBe("fix:");
 	});
 });
+
+/**
+ * The switch is a single synchronous step: the moment the new project is
+ * active, its own state is already in the ui stores. Deferring the restore
+ * leaves a window where a snapshot - which reads the *new* id but the *old*
+ * store values - overwrites the target project's saved state with the one it
+ * was switched away from, and the view stops being scoped per project.
+ */
+describe("switching project", () => {
+	it("never snapshots the previous project's view onto the target", () => {
+		initViewStates({
+			p1: { activeStep: "git" } as ProjectUiState,
+			p2: { activeStep: "agent" } as ProjectUiState,
+		});
+
+		activeProjectId.set("p1");
+		applyProjectState("p1");
+		expect(get(activeStep)).toBe("git");
+
+		// The switch as switchTo() performs it: id and state move together.
+		activeProjectId.set("p2");
+		applyProjectState("p2");
+
+		// A debounced persist landing right after must not carry "git" over.
+		snapshotCurrentProject();
+		expect(getAllProjectStates().p2.activeStep).toBe("agent");
+		expect(getAllProjectStates().p1.activeStep).toBe("git");
+	});
+});

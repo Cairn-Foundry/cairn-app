@@ -1848,7 +1848,7 @@ import { get } from 'svelte/store';
   void onFsChanged(({ worktree, gitOnly }) => {
     if (worktree === worktreePath) {
       if (!gitOnly) scheduleWalk(worktree);
-      void refreshGitStore(true);
+      scheduleGitRefresh();
       return;
     }
     const cached = treeCache.get(worktree);
@@ -1866,6 +1866,23 @@ import { get } from 'svelte/store';
    * ponytail: a full walk per burst; patch the tree from the event paths if a
    * profile still shows the walk during long builds
    */
+  /**
+   * The same burst hits git: every event used to run a full status, which is
+   * about eight git processes a tick, at the watcher's 300 ms ceiling. The 5 s
+   * background poll is the fallback, so a trailing refresh per second loses
+   * nothing the user can see.
+   */
+  const GIT_REFRESH_MIN_INTERVAL_MS = 1000;
+  let gitRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleGitRefresh() {
+    if (gitRefreshTimer) return;
+    gitRefreshTimer = setTimeout(() => {
+      gitRefreshTimer = null;
+      void refreshGitStore(true);
+    }, GIT_REFRESH_MIN_INTERVAL_MS);
+  }
+  onDestroy(() => { if (gitRefreshTimer) clearTimeout(gitRefreshTimer); });
+
   const WALK_MIN_INTERVAL_MS = 3000;
   let lastWalkAt = 0;
   let walkTimer: ReturnType<typeof setTimeout> | null = null;

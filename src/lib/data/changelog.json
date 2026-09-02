@@ -160,6 +160,27 @@
 					"en": "A review whose target branch was never checked out locally no longer fails. A merge request names its target as a bare branch (\"feat/v2.11.0\"), which a worktree often holds only as \"origin/feat/v2.11.0\"; the diff, the guide and the file reads now resolve it through the remote, the way the branch comparison already did. Fetching could not help before, since the reference was already there under its remote name.",
 					"fr": "Une review dont la branche cible n'a jamais été extraite localement n'échoue plus. Une merge request nomme sa cible comme une branche simple (« feat/v2.11.0 »), qu'un arbre de travail ne possède souvent que sous « origin/feat/v2.11.0 » ; le diff, le guide et la lecture des fichiers la résolvent désormais via la remote, comme le faisait déjà la comparaison de branches. Récupérer n'y changeait rien, la référence étant déjà là sous son nom distant."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching project restores that project's own view again. The step, the git tab and the open tool were applied a moment after the switch, so a save landing in that gap wrote the previous project's view onto the one being opened.",
+					"fr": "Changer de projet restaure à nouveau la vue propre à ce projet. Le step, l'onglet git et l'outil ouvert étaient appliqués un instant après le changement, si bien qu'une sauvegarde tombant dans cet intervalle écrivait la vue du projet précédent sur celui qu'on ouvrait."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a file no longer freezes the editor. The sticky header pinned above the code read the layout while the editor was still updating, which crashed its plugin and left the view stuck.",
+					"fr": "Ouvrir un fichier ne fige plus l'éditeur. L'en-tête collant épinglé au-dessus du code lisait la mise en page pendant que l'éditeur se mettait encore à jour, ce qui faisait planter son plugin et laissait la vue bloquée."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching project no longer cross-fades. The transition held the captured frame until the new project had settled, which read as a pause; the switch is now immediate.",
+					"fr": "Changer de projet ne fait plus de fondu. La transition retenait l'image capturée jusqu'à ce que le nouveau projet soit en place, ce qui se lisait comme une pause ; le changement est désormais immédiat."
+				}
 			}
 		]
 	},

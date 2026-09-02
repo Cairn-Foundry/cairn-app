@@ -9,7 +9,7 @@
    */
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { withViewTransition, withViewTransitionThen } from '$lib/utils/view-transition';
+  import { withViewTransition } from '$lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '$lib/stores/ui.js';
   import { activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
   import { takePendingCliPaths } from '$lib/services/cli-service';
@@ -257,13 +257,9 @@
   async function switchTo(id: string) {
     snapshotCurrentProject();
     if (!hasInstances(id)) await loadInstances(id);
-    withViewTransitionThen(
-      () => {
-        activeProjectId.set(id);
-        lastOpenedProjectId.set(id);
-      },
-      () => applyProjectState(id),
-    );
+    activeProjectId.set(id);
+    lastOpenedProjectId.set(id);
+    applyProjectState(id);
   }
 
   async function handleProjectChange(newId: string) {
