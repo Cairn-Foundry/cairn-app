@@ -15,6 +15,7 @@
   import { t } from '$lib/i18n';
   import { publishReview, reviewMarkdown, type ReviewScope } from '$lib/stores/review';
   import type { ReviewState, ReviewVerdict } from '$lib/types/review';
+  import { errorMessage } from '$lib/utils/error-message';
 
   export let scope: ReviewScope;
   export let state: ReviewState;
@@ -47,7 +48,7 @@
       if (!isPartial) dispatch('close');
       else error = t('review.publishPartial') as string;
     } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+      error = errorMessage(err);
     } finally {
       isSubmitting = false;
     }

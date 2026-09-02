@@ -2129,7 +2129,7 @@ export const fr = {
 		resolved: "Résolue",
 		fetchHead: "Récupérer",
 		fetchHeadBody:
-			"Le commit de tête de la merge request n'est pas encore dans cet arbre de travail.",
+			"Une révision de cette comparaison n'est pas encore dans cet arbre de travail : le diff ne peut pas être lu.",
 		approve: "Approuver",
 		revoke: "Retirer l'approbation",
 		markReady: "Marquer comme prête",

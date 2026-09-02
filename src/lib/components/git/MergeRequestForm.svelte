@@ -25,6 +25,7 @@
   import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
   import { buildMrDescriptionPrompt } from '$lib/utils/integrations/prompts';
   import { toIntegrationError } from '$lib/services/integration-service';
+  import { errorMessage } from '$lib/utils/error-message';
 
   export let projectId: string;
   export let instanceId: string;
@@ -128,7 +129,7 @@
       if (e instanceof AiAssistError) {
         if (e.kind !== 'cancelled') generateError = aiErrorMessage(e);
       } else {
-        generateError = String(e);
+        generateError = errorMessage(e);
       }
     } finally {
       aiStatusMessage = '';

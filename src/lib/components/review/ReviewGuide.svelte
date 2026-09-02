@@ -59,6 +59,8 @@
   export let mrDescription = '';
   export let ticket: { key: string; title: string } | null = null;
   export let hasMergeRequest = false;
+  /** A revision of the comparison is absent from the worktree: git would fail. */
+  export let isHeadMissing = false;
 
   const dispatch = createEventDispatcher<{
     openInDiff: { path: string; line: number; side: 'old' | 'new' };
@@ -181,6 +183,10 @@
   }
 
   async function generate({ resetProgress = false } = {}) {
+    // git resolves neither end of `base...head` when the worktree is missing
+    // one of them, so the run is refused here rather than left to fail with
+    // git's own "ambiguous argument" further down.
+    if (isHeadMissing) return;
     await generateGuide(scope, {
       resetProgress,
       base,
@@ -542,7 +548,7 @@
     <h3>{t('review.generateGuide')}</h3>
     <p class="note">{t('review.generateGuideBody')}</p>
     {#if error}<p class="note error">{error}</p>{/if}
-    <button class="btn primary small" on:click={() => void generate()} disabled={!base}>
+    <button class="btn primary small" on:click={() => void generate()} disabled={!base || isHeadMissing}>
       <Icon name="sparkles" size={12}/> {t('review.generateGuide')}
     </button>
   </div>
@@ -551,7 +557,7 @@
     <div class="banner">
       <Icon name="info" size={12}/>
       <span>{t('review.guideStale')}</span>
-      <button class="btn small" on:click={askRegenerate}>{t('review.regenerate')}</button>
+      <button class="btn small" on:click={askRegenerate} disabled={isHeadMissing}>{t('review.regenerate')}</button>
     </div>
   {/if}
   {#if error}

@@ -22,6 +22,7 @@ import type {
 	ReviewVerdict,
 } from "$lib/types/review";
 import { emptyReviewState } from "$lib/types/review";
+import { errorMessage } from "$lib/utils/error-message";
 import {
 	buildReviewCommentPrompt,
 	buildReviewGuidePrompt,
@@ -238,7 +239,7 @@ export async function generateGuide(
 			...(options.resetProgress ? { seenHunks: [] } : {}),
 		}));
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+		const message = errorMessage(error);
 		// Cancelling is the user's own doing, not a failure to report back.
 		if (message !== "cancelled")
 			_errors.update((map) => ({ ...map, [key]: message }));

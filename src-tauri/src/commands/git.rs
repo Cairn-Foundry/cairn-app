@@ -1601,6 +1601,32 @@ pub struct GitFileBetween {
     pub new_content: Option<String>,
 }
 
+/// The revision git can actually resolve for `rev`, preferring `origin/<rev>`.
+///
+/// A merge request names its target as a bare branch ("feat/v2.11.0"), but a
+/// worktree that never checked that branch out only has it under
+/// `refs/remotes/origin/`. Passing the bare name to `git diff` then fails with
+/// "ambiguous argument", and fetching does not help - the ref was already
+/// there, under its remote name. A SHA and an existing local branch resolve on
+/// their own and are handed back untouched.
+pub fn resolve_revision(worktree: &str, rev: &str) -> String {
+    let resolves = |candidate: &str| {
+        git_cmd(worktree)
+            .args(["rev-parse", "--verify", "--quiet", &format!("{candidate}^{{commit}}")])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+    if resolves(rev) {
+        return rev.to_string();
+    }
+    let remote = format!("origin/{rev}");
+    if resolves(&remote) {
+        return remote;
+    }
+    rev.to_string()
+}
+
 fn three_dot_range(base: &str, head: &str) -> String {
     format!("{base}...{head}")
 }
@@ -1615,7 +1641,10 @@ pub async fn git_diff_files_between(
     reject_option_like(&base)?;
     reject_option_like(&head)?;
     let expanded = expand(&worktree_path);
-    let range = three_dot_range(&base, &head);
+    let range = three_dot_range(
+        &resolve_revision(&expanded, &base),
+        &resolve_revision(&expanded, &head),
+    );
     let statuses = run(git_cmd(&expanded).args([
         "diff", "--name-status", "--no-renames", "--no-color", &range,
     ]))?;
@@ -1664,6 +1693,8 @@ pub async fn git_diff_file_between(
     reject_option_like(&base)?;
     reject_option_like(&head)?;
     let expanded = expand(&worktree_path);
+    let base = resolve_revision(&expanded, &base);
+    let head = resolve_revision(&expanded, &head);
     let merge_base = run(git_cmd(&expanded).args(["merge-base", &base, &head]))?;
     let merge_base = merge_base.trim();
     Ok(GitFileBetween {
@@ -1677,8 +1708,9 @@ pub async fn git_diff_file_between(
 pub async fn git_commit_exists(worktree_path: String, commit_hash: String) -> Result<bool, GitError> {
     reject_option_like(&commit_hash)?;
     let expanded = expand(&worktree_path);
+    let resolved = resolve_revision(&expanded, &commit_hash);
     let output = git_cmd(&expanded)
-        .args(["cat-file", "-e", &format!("{commit_hash}^{{commit}}")])
+        .args(["cat-file", "-e", &format!("{resolved}^{{commit}}")])
         .output()?;
     Ok(output.status.success())
 }
@@ -2703,6 +2735,74 @@ diff --git a/two.txt b/two.txt
 
         let out = suggest_base_branches(repo.wt(), "master".into()).await.unwrap();
         assert!(out.is_empty(), "the only branch cannot be its own base");
+    }
+
+    /// The regression: a merge request names its target as a bare branch, but a
+    /// worktree that never checked it out only holds it under
+    /// `refs/remotes/origin/`. `git diff feat/x...<sha>` then died with
+    /// "ambiguous argument", and fetching could not help - the ref was already
+    /// there under its remote name.
+    #[tokio::test]
+    async fn a_branch_only_on_the_remote_resolves_through_origin() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "feat/target"]);
+        origin.commit("t.txt", "target\n", "target work");
+        origin.git(&["checkout", "-q", "master"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["checkout", "-q", "-b", "master", "origin/master"]);
+
+        // The bare name is exactly what a merge request hands over, and exactly
+        // what the worktree has no local ref for.
+        assert!(
+            !clone
+                .git(&["rev-parse", "--verify", "--quiet", "feat/target^{commit}"])
+                .status
+                .success(),
+            "the local ref must be absent for the test to mean anything",
+        );
+        assert_eq!(resolve_revision(&clone.wt(), "feat/target"), "origin/feat/target");
+
+        // A local branch and a SHA already resolve and are handed back as they are.
+        assert_eq!(resolve_revision(&clone.wt(), "master"), "master");
+        let sha = String::from_utf8(clone.git(&["rev-parse", "HEAD"]).stdout).unwrap();
+        let sha = sha.trim();
+        assert_eq!(resolve_revision(&clone.wt(), sha), sha);
+        // Nothing resolves it: handed back untouched so git reports its own error.
+        assert_eq!(resolve_revision(&clone.wt(), "no/such/branch"), "no/such/branch");
+    }
+
+    /// `git diff` over the range is what actually broke; the resolver is only
+    /// useful if the command that carries it now answers.
+    #[tokio::test]
+    async fn a_diff_against_a_remote_only_base_reads_its_files() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "feat/target"]);
+        origin.commit("t.txt", "target\n", "target work");
+        origin.git(&["checkout", "-q", "master"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["checkout", "-q", "-b", "work", "origin/feat/target"]);
+        clone.commit("mine.txt", "mine\n", "my work");
+
+        let files = git_diff_files_between(clone.wt(), "feat/target".into(), "HEAD".into())
+            .await
+            .expect("a remote-only base must not fail the diff");
+        assert!(
+            files.iter().any(|f| f.file_path == "mine.txt"),
+            "the change on top of the remote-only base must be listed",
+        );
+
+        assert!(
+            git_commit_exists(clone.wt(), "feat/target".into()).await.unwrap(),
+            "a remote-only branch is present, so the fetch banner must not show",
+        );
     }
 
     #[tokio::test]

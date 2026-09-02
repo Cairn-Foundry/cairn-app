@@ -2091,7 +2091,7 @@ export const en = {
 		resolved: "Resolved",
 		fetchHead: "Fetch",
 		fetchHeadBody:
-			"The head commit of the merge request is not in this worktree yet.",
+			"A revision of this comparison is not in this worktree yet, so the diff cannot be read.",
 		approve: "Approve",
 		revoke: "Revoke approval",
 		markReady: "Mark as ready",

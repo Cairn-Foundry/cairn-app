@@ -10,6 +10,7 @@ import {
 	type Update,
 } from "$lib/services/update-service";
 import { settings } from "$lib/stores/settings";
+import { errorMessage } from "$lib/utils/error-message";
 
 /** Delay before the first check, so it does not compete with the app opening. */
 export const STARTUP_CHECK_DELAY_MS = 5_000;
@@ -66,11 +67,6 @@ export const hasPendingUpdate = derived(
 // The Update handle the plugin returned, kept out of the store: it is a Rust resource, not state.
 let pending: Update | null = null;
 
-/** Renders an unknown thrown value as a message the modal can show. */
-function toMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}
-
 /** Each check hands back a new Rust-side resource; drop the previous one. */
 async function releasePending(): Promise<void> {
 	if (!pending) return;
@@ -112,7 +108,7 @@ export async function checkForUpdates({ silent = false } = {}): Promise<void> {
 		update((s) => ({
 			...s,
 			phase: "error",
-			error: toMessage(error),
+			error: errorMessage(error),
 			lastCheckedAt: Date.now(),
 		}));
 	}
@@ -136,7 +132,7 @@ export async function installUpdate(): Promise<void> {
 		update((s) => ({ ...s, phase: "installing" }));
 		await restartApp();
 	} catch (error) {
-		update((s) => ({ ...s, phase: "error", error: toMessage(error) }));
+		update((s) => ({ ...s, phase: "error", error: errorMessage(error) }));
 	}
 }
 

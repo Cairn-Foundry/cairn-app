@@ -127,19 +127,31 @@
   let isHeadMissing = false;
   let isFetching = false;
   let headCheckedFor = '';
-  $: if (mr && worktreePath) {
-    const key = `${worktreePath}:${mr.headSha}`;
+  /*
+    Both ends are checked, not just the head: `git diff base...head` fails the
+    same way on either, and a target branch the worktree never fetched is as
+    absent as a head commit. What the check answers gates every read of the
+    comparison - the diff and the guide alike - so nothing shells out to git
+    with a revision it already knows is not there.
+  */
+  $: if (worktreePath && (mr || base)) {
+    const key = `${worktreePath}:${base}:${head}`;
     if (headCheckedFor !== key) {
       headCheckedFor = key;
-      void checkHead(worktreePath, mr.headSha);
+      void checkRevisions(worktreePath, base, head);
     }
   } else {
     isHeadMissing = false;
   }
 
-  async function checkHead(path: string, sha: string) {
+  async function checkRevisions(path: string, baseRev: string, headRev: string) {
     try {
-      isHeadMissing = !(await commitExists(path, sha));
+      const present = await Promise.all(
+        [baseRev, headRev]
+          .filter((rev) => rev && rev !== 'HEAD')
+          .map((rev) => commitExists(path, rev)),
+      );
+      isHeadMissing = present.some((exists) => !exists);
       if (isHeadMissing) gitError = '';
     } catch {
       isHeadMissing = false;
@@ -315,8 +327,8 @@
         on:select={(e) => showMode(e.detail === 'diff')}
       />
     {/if}
-    {#if isGuideMode && reviewState.guide}
-      <button class="btn ghost small icon-only" on:click={() => guideView?.askRegenerate()} title={t('review.regenerate') as string} aria-label={t('review.regenerate') as string}>
+    {#if isGuideMode && reviewState.guide && !isHeadMissing}
+      <button class="btn ghost small icon-only regenerate-guide" on:click={() => guideView?.askRegenerate()} title={t('review.regenerate') as string} aria-label={t('review.regenerate') as string}>
         <Icon name="sparkles" size={12}/>
       </button>
     {/if}
@@ -337,7 +349,7 @@
       <span>{gitError}</span>
     </div>
   {/if}
-  {#if mr && isHeadMissing}
+  {#if isHeadMissing}
     <div class="banner">
       <Icon name="info" size={12}/>
       <span>{t('review.fetchHeadBody')}</span>
@@ -372,6 +384,7 @@
       {head}
       state={reviewState}
       {hunks}
+      {isHeadMissing}
       mrTitle={mr?.title ?? ''}
       mrDescription={mr?.description ?? ''}
       ticket={instance?.ticket.key ? { key: instance.ticket.key, title: instance.ticket.title } : null}

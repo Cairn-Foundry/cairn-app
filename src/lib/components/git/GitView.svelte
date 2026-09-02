@@ -77,6 +77,7 @@
   import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { renderCommitPrompt } from '$lib/utils/git/commit-message';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
+  import { errorMessage } from '$lib/utils/error-message';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
 
@@ -908,7 +909,7 @@
       if (e instanceof AiAssistError) {
         if (e.kind !== 'cancelled') generateError = aiErrorMessage(e);
       } else {
-        generateError = String(e);
+        generateError = errorMessage(e);
       }
     } finally {
       // An error is announced by its own alert, a cancel by the button coming

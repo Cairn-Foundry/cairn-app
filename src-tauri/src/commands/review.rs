@@ -7,6 +7,7 @@
 use std::fs;
 use std::process::Command;
 use serde::{Deserialize, Serialize};
+use crate::commands::git::resolve_revision;
 use crate::commands::git_error::GitError;
 use crate::storage::{instance_review_state_file, write_json_atomic};
 
@@ -302,6 +303,11 @@ fn split_files(raw: &str) -> Vec<SplitFile> {
 
 /// The raw `base...head` diff with the generated files dropped.
 fn raw_diff(worktree: &str, base: &str, head: &str, ignore_whitespace: bool) -> Result<String, GitError> {
+    // A merge request's target is a bare branch name the worktree may only hold
+    // under `refs/remotes/origin/`; resolved here so every read of the range
+    // goes through the same rule as the rest of git.rs.
+    let base = resolve_revision(worktree, base);
+    let head = resolve_revision(worktree, head);
     let range = format!("{base}...{head}");
     let mut cmd = git_cmd(worktree);
     cmd.args(["diff", "--no-color", "--no-renames", "--unified=3"]);

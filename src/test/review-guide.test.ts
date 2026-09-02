@@ -160,9 +160,19 @@ afterEach(() => {
 	while (afterEachRestore.length) afterEachRestore.pop()?.();
 });
 
-function mount(state: ReviewState = guideState()) {
+function mount(
+	state: ReviewState = guideState(),
+	extra: Record<string, unknown> = {},
+) {
 	return render(ReviewGuide, {
-		props: { scope, base: "main", head: "head1", state, hunks: HUNKS },
+		props: {
+			scope,
+			base: "main",
+			head: "head1",
+			state,
+			hunks: HUNKS,
+			...extra,
+		},
 		events: {
 			openInDiff: (e: CustomEvent) => openedInDiff.push(e.detail),
 		},
@@ -197,6 +207,26 @@ beforeEach(() => {
 });
 
 describe("ReviewGuide", () => {
+	/**
+	 * The regression: generation read `base...head` through git without honouring
+	 * the check the diff already made, so asking for a guide on a worktree that
+	 * is missing one end failed with git's own "ambiguous argument".
+	 */
+	describe("a revision the worktree does not have", () => {
+		it("generates no guide", async () => {
+			const { generateGuide } = await import("$lib/stores/review");
+			mount({ ...guideState(), guide: null }, { isHeadMissing: true });
+			await settle();
+			const button = Array.from(
+				document.querySelectorAll<HTMLButtonElement>("button"),
+			).find((b) => b.classList.contains("primary")) as HTMLButtonElement;
+			expect(button.disabled).toBe(true);
+			button.click();
+			await settle();
+			expect(generateGuide).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("the opening page", () => {
 		/** The branch has to be explained before its code means anything. */
 		it("opens on the overview rather than the first extract", async () => {
