@@ -91,9 +91,10 @@ for (const { dir, pattern, keys } of PLATFORMS) {
 	const signature = readFileSync(signaturePath, "utf-8").trim();
 	if (!signature) fail(`empty signature for ${basename(bundle)}`);
 
-	// The bundle name comes from productName, which contains a space: it has to be
-	// percent-encoded or the updater cannot resolve the URL.
-	const url = `https://github.com/${repository}/releases/download/${tag}/${encodeURIComponent(basename(bundle))}`;
+	// GitHub renames an uploaded asset: every space in its name becomes a dot, so
+	// the URL has to point at that name, not at the file the bundler wrote.
+	const assetName = basename(bundle).replace(/ /g, ".");
+	const url = `https://github.com/${repository}/releases/download/${tag}/${encodeURIComponent(assetName)}`;
 	for (const key of keys) platforms[key] = { signature, url };
 }
 
