@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "Cairn no longer freezes the whole desktop after a long session with several terminals. A terminal you switched away from kept its output as text, and each time you left it that text was re-serialized on top of what it already held, without ever being trimmed. It grew without bound until the webview asked for an impossible amount of memory and was killed, taking the window with it. The backlog of a hibernated terminal is now capped the same way whichever path writes it.",
+					"fr": "Cairn ne fige plus l'ensemble du bureau après une longue session avec plusieurs terminaux. Un terminal que vous aviez quitté conservait sa sortie sous forme de texte, et à chaque fois que vous le quittiez ce texte était re-sérialisé par-dessus ce qu'il contenait déjà, sans jamais être tronqué. Il grossissait sans limite jusqu'à ce que la webview réclame une quantité de mémoire impossible et soit tuée, emportant la fenêtre avec elle. L'historique d'un terminal en veille est désormais plafonné de la même façon quel que soit le chemin qui l'écrit."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Cairn now watches only the directories you have open - the expanded folders and the ones holding your open files - instead of every directory in the repository. On Linux the number of watches is a quota shared with every other program, and a large project could use it up on its own; a project now costs a few dozen watches rather than thousands.",

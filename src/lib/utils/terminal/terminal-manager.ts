@@ -37,7 +37,7 @@ interface ManagedTerminal {
 }
 
 /** What a hibernated terminal keeps of its output: the newest bytes, up to this many. */
-const FROZEN_MAX = 1_000_000;
+export const FROZEN_MAX = 1_000_000;
 
 const managed = new Map<string, ManagedTerminal>();
 
@@ -291,8 +291,17 @@ function write(id: string, data: string): void {
 		m.term.write(data);
 		return;
 	}
-	m.frozen += data;
-	if (m.frozen.length > FROZEN_MAX) m.frozen = m.frozen.slice(-FROZEN_MAX);
+	setFrozen(m, m.frozen + data);
+}
+
+/** Keeps the newest `FROZEN_MAX` characters of a hibernated terminal's backlog. */
+export function capFrozen(text: string): string {
+	return text.length > FROZEN_MAX ? text.slice(-FROZEN_MAX) : text;
+}
+
+/** The one writer of `frozen`, so the cap cannot be bypassed by a new caller. */
+function setFrozen(m: ManagedTerminal, text: string): void {
+	m.frozen = capFrozen(text);
 }
 
 /** Registers a terminal; its xterm instance is only built on the first attach. */
@@ -349,7 +358,7 @@ function wake(id: string, m: ManagedTerminal): void {
 	// xterm reflows its buffer on resize, whereas fitting first replays the old
 	// absolute cursor positioning into a new grid.
 	const backlog = m.frozen;
-	m.frozen = "";
+	setFrozen(m, "");
 	m.term = term;
 	m.fit = fit;
 	m.serialize = serialize;
@@ -391,7 +400,7 @@ export function detach(id: string): void {
 	unloadRenderer(m);
 	m.observer?.disconnect();
 	m.observer = null;
-	m.frozen = (m.serialize?.serialize({ scrollback: 2000 }) ?? "") + m.frozen;
+	setFrozen(m, (m.serialize?.serialize({ scrollback: 2000 }) ?? "") + m.frozen);
 	m.term.dispose();
 	m.term = null;
 	m.fit = null;
