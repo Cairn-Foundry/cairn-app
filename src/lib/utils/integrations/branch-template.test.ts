@@ -9,6 +9,7 @@ import {
 	renderBranchTemplate,
 	slugSegment,
 	titleSlug,
+	ticketFromBranch,
 } from "./branch-template";
 
 describe("branchKeySegment", () => {
@@ -215,5 +216,43 @@ describe("renderBranchTemplate", () => {
 
 	it("leaves a template without placeholders alone", () => {
 		expect(renderBranchTemplate("wip", { key: "X-1", slug: "s" })).toBe("wip");
+	});
+});
+
+describe("ticketFromBranch", () => {
+	it("takes the ticket key the branch carries, and reads the rest as a title", () => {
+		expect(ticketFromBranch("fix/PORE-3243-mikrotik-casing")).toEqual({
+			id: "PORE-3243",
+			title: "Mikrotik casing",
+		});
+	});
+
+	it("finds the key wherever in the branch it sits", () => {
+		expect(ticketFromBranch("cairn-42/dark-mode")).toEqual({
+			id: "CAIRN-42",
+			title: "Dark mode",
+		});
+		expect(ticketFromBranch("feat/x-9")).toEqual({ id: "X-9", title: "X 9" });
+	});
+
+	/** Most branches carry no ticket at all; the name is still what the work is. */
+	it("falls back to the last segment when no key reads as a ticket", () => {
+		expect(ticketFromBranch("feat/adopt-an-existing-worktree")).toEqual({
+			id: "adopt-an-existing-worktree",
+			title: "Adopt an existing worktree",
+		});
+		expect(ticketFromBranch("wip")).toEqual({ id: "wip", title: "Wip" });
+	});
+
+	it("reads an underscore as a separator too", () => {
+		expect(ticketFromBranch("fix/CAIRN-7_broken_pipe")).toEqual({
+			id: "CAIRN-7",
+			title: "Broken pipe",
+		});
+	});
+
+	it("has nothing to say about a branch with no name", () => {
+		expect(ticketFromBranch("")).toBeNull();
+		expect(ticketFromBranch("///")).toBeNull();
 	});
 });

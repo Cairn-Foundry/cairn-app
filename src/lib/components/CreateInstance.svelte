@@ -38,7 +38,7 @@
   import type { Ticket, TicketQuery } from '$lib/types/integrations';
   import type { Instance, InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
-  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, slugSegment, titleSlug } from '$lib/utils/integrations/branch-template';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, slugSegment, ticketFromBranch, titleSlug } from '$lib/utils/integrations/branch-template';
   import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
   import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
@@ -50,9 +50,28 @@
 
   const dispatch = createEventDispatcher<{ close: void; create: { instanceId: string } }>();
 
-  // step: 0 = ticket, 1 = mode, 2 = git config
+  /**
+   * Which panels a mode walks through, in order. What the wizard asks first is
+   * always what it is about to do; after that the order follows what is already
+   * known. Creating a branch keeps the ticket before it, because the branch name
+   * is generated from the ticket through `branchTemplate`. The two modes that
+   * start from a branch that already exists put the ticket last instead and fill
+   * it in from that branch, so nothing has to be typed before the thing it
+   * describes has even been chosen.
+   */
+  const SEQUENCES = {
+    create:   ['mode', 'ticket', 'branch'],
+    existing: ['mode', 'branch', 'ticket'],
+    worktree: ['mode', 'worktree', 'ticket'],
+  } as const;
+
+  type Panel = (typeof SEQUENCES)[keyof typeof SEQUENCES][number];
+
   let step = 0;
   let mode: 'create' | 'existing' | 'worktree' = 'create';
+  $: sequence = SEQUENCES[mode] as readonly Panel[];
+  $: panel = sequence[Math.min(step, sequence.length - 1)];
+  $: isLastStep = step >= sequence.length - 1;
   let ticketId = '';
   let ticketTitle = '';
   let branchName = '';
@@ -214,6 +233,9 @@
     if (!match) return;
     mode = 'existing';
     existingBranch = match;
+    // The mode is settled by the ref the modal was opened on, so the first
+    // panel has nothing left to ask.
+    step = 1;
     const segment = match.split('/').find(s => TICKET_SEGMENT.test(s));
     if (segment) ticketId = segment.toUpperCase();
   }
@@ -432,14 +454,15 @@
 
   $: worktreePath = `${$channel.displayDir}/worktrees/${effectiveBranch.replace(/\//g, '-')}`;
 
-  $: totalSteps = 3;
+  $: totalSteps = sequence.length;
 
   $: displayStep = step + 1;
 
-  const stepMeta: Record<number, { label: string; title: string }> = {
-    0: { label: t('createInstance.stepLabels.ticket') as string, title: t('createInstance.stepTitles.ticket') as string },
-    1: { label: t('createInstance.stepLabels.mode') as string, title: t('createInstance.stepTitles.mode') as string },
-    2: { label: t('createInstance.stepLabels.branch') as string, title: t('createInstance.stepTitles.branch') as string },
+  const stepMeta: Record<Panel, { label: string; title: string }> = {
+    ticket:   { label: t('createInstance.stepLabels.ticket') as string,   title: t('createInstance.stepTitles.ticket') as string },
+    mode:     { label: t('createInstance.stepLabels.mode') as string,     title: t('createInstance.stepTitles.mode') as string },
+    branch:   { label: t('createInstance.stepLabels.branch') as string,   title: t('createInstance.stepTitles.branch') as string },
+    worktree: { label: t('createInstance.stepLabels.worktree') as string, title: t('createInstance.stepTitles.worktree') as string },
   };
 
   $: duplicateBranch = mode === 'create'
@@ -451,18 +474,41 @@
     && $instances.some(i => i.branch === existingLocalName);
 
   $: canNext =
-    step === 0 ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
-    step === 1 ? isGitRepo :
-    step === 2 ? (mode === 'create'
+    panel === 'ticket' ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
+    panel === 'mode' ? isGitRepo :
+    panel === 'branch' ? (mode === 'create'
       ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch && !isNamingBranch
-      : mode === 'worktree'
-        ? isGitRepo && selectedWorktree.length > 0
-        : isGitRepo && existingBranch.length > 0 && !existingInUse) :
+      : isGitRepo && existingBranch.length > 0 && !existingInUse) :
+    panel === 'worktree' ? isGitRepo && selectedWorktree.length > 0 :
     true;
 
   function next() {
     error = '';
-    step = Math.min(2, step + 1);
+    const leaving = panel;
+    step = Math.min(sequence.length - 1, step + 1);
+    // The branch is now known, so the ticket step has something to open with.
+    if (leaving === 'branch') suggestTicket(existingLocalName);
+    if (leaving === 'worktree') {
+      suggestTicket(unclaimed.find(w => w.path === selectedWorktree)?.branch ?? '');
+    }
+  }
+
+  /**
+   * Fills the ticket in from a branch name, leaving anything the user typed
+   * alone: a field is only written while it still holds what was suggested for
+   * it, so going back and picking another branch updates it, and typing over it
+   * settles the matter.
+   */
+  let suggestedId = '';
+  let suggestedTitle = '';
+
+  function suggestTicket(branch: string) {
+    const derived = branch ? ticketFromBranch(branch) : null;
+    if (!derived) return;
+    if (!ticketId.trim() || ticketId === suggestedId) ticketId = derived.id;
+    if (!ticketTitle.trim() || ticketTitle === suggestedTitle) ticketTitle = derived.title;
+    suggestedId = derived.id;
+    suggestedTitle = derived.title;
   }
 
   function back() {
@@ -472,7 +518,7 @@
     step = Math.max(0, step - 1);
   }
 
-  $: dots = [0, 1, 2];
+  $: dots = sequence.map((_, i) => i);
 
   /** Spawns the instance and its worktree; yields two frames first so the spinner is painted before the blocking call. */
   async function handleCreate() {
@@ -534,8 +580,8 @@
   <div class="modal" on:click|stopPropagation role="presentation">
     <div class="modal-head">
       <div>
-        <div class="step-count">{(t('common.stepOf') as (s: number, t: number) => string)(displayStep, totalSteps)} - {stepMeta[step].label}</div>
-        <h3>{stepMeta[step].title}</h3>
+        <div class="step-count">{(t('common.stepOf') as (s: number, t: number) => string)(displayStep, totalSteps)} - {stepMeta[panel].label}</div>
+        <h3>{stepMeta[panel].title}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')}><Icon name="x" size={16}/></button>
     </div>
@@ -548,7 +594,7 @@
         </div>
       {/if}
 
-      {#if step === 0}
+      {#if panel === 'ticket'}
         {#if hasTracker}
           <div class="ticket-tabs" role="tablist">
             <button role="tab" aria-selected={ticketMode === 'ticket'} class="ticket-tab" class:active={ticketMode === 'ticket'} on:click={() => switchTicketMode('ticket')}>{t('createInstance.fromTicket')}</button>
@@ -654,7 +700,7 @@
         {/if}
       {/if}
 
-      {#if step === 1}
+      {#if panel === 'mode'}
         {#if isGitRepo}
           <div class="mode-grid">
             <button
@@ -690,7 +736,7 @@
         {/if}
       {/if}
 
-      {#if step === 2 && mode === 'create'}
+      {#if panel === 'branch' && mode === 'create'}
         <div class="form-row">
           <div class="field-label">{t('createInstance.baseBranch')}</div>
           {#if ticketBaseSuggestions.length > 0}
@@ -846,7 +892,7 @@
         </div>
       {/if}
 
-      {#if step === 2 && mode === 'worktree'}
+      {#if panel === 'worktree'}
         <div class="form-row">
           <div class="field-label">{t('createInstance.selectWorktree')}</div>
           <div class="branch-list-wrap">
@@ -900,7 +946,7 @@
         {/if}
       {/if}
 
-      {#if step === 2 && mode === 'existing'}
+      {#if panel === 'branch' && mode === 'existing'}
         <div class="form-row">
           <div class="field-label">{t('createInstance.selectExistingBranch')}</div>
           {#if availableBranches.length > 0 || remoteBranches.length > 0}
@@ -1059,7 +1105,7 @@
         <button class="btn primary" on:click={() => dispatch('create', { instanceId: createdInstanceId })}>
           {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
-      {:else if step < 2}
+      {:else if !isLastStep}
         <button
           class="btn primary"
           disabled={!canNext}

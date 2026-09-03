@@ -394,6 +394,13 @@
 					"en": "Deleting an instance prunes the right worktree. Git was asked for the one whose name matched the branch, which is only how Cairn names its own: a worktree registered under any other name was left behind as a stale entry in the repository.",
 					"fr": "Supprimer une instance nettoie le bon worktree. Git était interrogé sur celui dont le nom correspondait à la branche, ce qui n'est vrai que des worktrees nommés par Cairn : un worktree enregistré sous un autre nom restait dans le dépôt comme une entrée morte."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The New instance dialog asks what it is about to do first, and what the work is called last. The three modes then follow what is already known: creating a branch keeps the ticket before it, since the branch name is generated from it, while starting from a branch or a worktree that already exists fills the ticket in from that branch - the key it carries becomes the id, the rest of the name the title, both there to be overwritten. Opening the dialog from a ref in the graph skips straight to the branch, the mode being settled by the ref itself.",
+					"fr": "La boîte Nouvelle instance demande d'abord ce qu'elle va faire, et en dernier comment le travail s'appelle. Les trois modes suivent ensuite ce qui est déjà connu : créer une branche garde le ticket avant elle, puisque le nom de branche en est généré, tandis que partir d'une branche ou d'un worktree existant remplit le ticket depuis cette branche - la clé qu'elle porte devient l'identifiant, le reste du nom devient le titre, l'un et l'autre restant modifiables. Ouvrir la boîte depuis une ref du graph saute directement à la branche, le mode étant déjà tranché par la ref."
+				}
 			}
 		]
 	},

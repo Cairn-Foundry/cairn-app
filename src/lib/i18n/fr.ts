@@ -90,11 +90,13 @@ export const fr = {
 			ticket: "Ticket",
 			mode: "Mode",
 			branch: "Branche",
+			worktree: "Worktree",
 		},
 		stepTitles: {
 			ticket: "Décrire le travail",
-			mode: "Choisir un mode de branche",
+			mode: "Choisir comment démarrer",
 			branch: "Configurer le worktree",
+			worktree: "Choisir le worktree à adopter",
 		},
 		createBranch: "Créer une branche",
 		createBranchDesc:
