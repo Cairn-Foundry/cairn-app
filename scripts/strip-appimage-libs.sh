@@ -37,6 +37,7 @@ if [ ${#images[@]} -eq 0 ]; then
 fi
 
 for image in "${images[@]}"; do
+  image=$(realpath "$image")
   work=$(mktemp -d)
   chmod +x "$image"
 
@@ -71,7 +72,9 @@ for image in "${images[@]}"; do
   fi
   chmod +x "$tool"
 
-  ARCH=$(uname -m) "$tool" --no-appstream "$work/squashfs-root" "$image" >/dev/null
+  # The runner has no FUSE, so the tool unpacks itself instead of mounting.
+  ARCH=$(uname -m) APPIMAGE_EXTRACT_AND_RUN=1 \
+    "$tool" --no-appstream "$work/squashfs-root" "$image" >/dev/null
 
   # The bundle changed, so the signature the bundler produced no longer matches
   # it. The updater checks that signature, so it is regenerated here.

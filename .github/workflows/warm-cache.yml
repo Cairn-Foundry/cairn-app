@@ -1,0 +1,67 @@
+name: Warm build cache
+
+# The release workflow only runs on tag pushes, and a tag ref can only restore
+# caches saved on that same ref or on the default branch. Nothing used to save
+# one on main, so every release compiled Rust from scratch on all five targets.
+# This job runs the same compile on main and leaves the cache where the next
+# tag build finds it. The matrix must stay identical to the one in release.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/**"
+      - ".github/workflows/warm-cache.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: warm-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { artifact: bundle-linux-x86_64, runner: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+          - { artifact: bundle-macos-universal, runner: macos-latest, target: universal-apple-darwin }
+          - { artifact: bundle-windows-x86_64, runner: windows-latest, target: x86_64-pc-windows-msvc }
+          - { artifact: bundle-windows-aarch64, runner: windows-11-arm, target: aarch64-pc-windows-msvc }
+          - { artifact: bundle-linux-aarch64, runner: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: startsWith(matrix.runner, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            libxdo-dev libssl-dev build-essential curl wget file xdg-utils
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: ${{ matrix.artifact }}
+          cache-on-failure: true
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build the CLI launcher sidecar
+        shell: bash
+        run: scripts/build-cli-launcher.sh ${{ matrix.target }}
+
+      - name: Build
+        run: bun run tauri build --target ${{ matrix.target }} --no-bundle
