@@ -52,13 +52,9 @@ pub fn respond(request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
     if meta.len() > MAX_TEXT_FILE_BYTES {
         return plain(StatusCode::PAYLOAD_TOO_LARGE, format!("File too large to open: {} bytes", meta.len()));
     }
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let etag = format!("\"{modified:x}-{:x}\"", meta.len());
+    let Some(etag) = crate::commands::files::file_version(&path) else {
+        return plain(StatusCode::NOT_FOUND, format!("File not found: {}", path.display()));
+    };
     let known = request
         .headers()
         .get(header::IF_NONE_MATCH)

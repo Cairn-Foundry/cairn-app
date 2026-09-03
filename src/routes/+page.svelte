@@ -200,10 +200,8 @@
    * window close, is exactly the state the app must reopen on.
    */
   function flushPersistedState() {
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      writeUiState();
-    }
+    if (saveTimer) clearTimeout(saveTimer);
+    writeUiState();
     flushFileStates();
   }
 

@@ -1,6 +1,6 @@
 [package]
 name = "cairn"
-version = "1.0.0"
+version = "1.0.1"
 description = "Cairn Foundry - a desktop workspace for developing with an AI coding agent"
 authors = ["Benjamin Bonneton"]
 edition = "2024"

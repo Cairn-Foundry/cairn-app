@@ -484,10 +484,18 @@ import { get } from 'svelte/store';
 
     if (isDirty(tab) && worktreePath) {
       const wc = denormalizeLineEndings(tab.doc.toString(), tab.lineEndings ?? 'LF');
-      // A tab on its way out cannot host a modal, and the user is not looking at it
-      // any more. Refusing the write keeps both versions; the flag brings the
-      // question back if the tab is reopened.
-      if (!(await writeTab(tab, wc, worktreePath))) tab.conflicted = true;
+      // A refused write means the edits exist nowhere but in this tab: the reopen
+      // stack is bounded and never persisted, so closing anyway would drop them
+      // for good. The tab stays open on the conflict modal instead, which is the
+      // only place the user can choose which version wins.
+      const written = await writeTab(tab, wc, worktreePath);
+      if (!written.written) {
+        tab.conflicted = true;
+        pane.activeTabIdx = idx;
+        conflict = { paneIdx: i, path: tab.path, content: wc, deleted: written.deleted, doc: tab.doc };
+        panes = panes;
+        return;
+      }
     }
 
     pane.editorStateCache.delete(tab.path);
@@ -580,17 +588,21 @@ import { get } from 'svelte/store';
    * The mtime check happens inside `write_file`, so nothing can slip between the
    * check and the write.
    */
-  async function writeTab(tab: Tab, content: string, root: string): Promise<boolean> {
+  async function writeTab(
+    tab: Tab,
+    content: string,
+    root: string,
+  ): Promise<{ written: true } | { written: false; deleted: boolean }> {
     const absolute = absolutePathOf(tab.path, root);
     // The version comes from the read, not from a fresh stat taken here: stat'ing
     // now would compare the file against itself and wave through the very
     // overwrite this exists to catch. `readFile` records it as it receives the
     // bytes, so it provably belongs to the content the tab is showing.
     const outcome = await writeFile(absolute, content, tab.version ?? null);
-    if (isWriteConflict(outcome)) return false;
+    if (isWriteConflict(outcome)) return { written: false, deleted: outcome.actualVersion === null };
     tab.version = outcome.version;
     tab.conflicted = false;
-    return true;
+    return { written: true };
   }
 
   /** Re-runs a refused write with no mtime guard: the user asked for their version to win. */
@@ -2038,8 +2050,9 @@ import { get } from 'svelte/store';
     const dirs = root === worktreePath ? currentWatchDirs(root) : [];
     const settle = () => {
       watchInFlight.delete(root);
-      // The view moved while this was out; send what it looks like now.
-      if (watchAgain.delete(root) && treeCache.has(root)) watchRoot(root);
+      const again = watchAgain.delete(root);
+      if (watchEpoch.get(root) !== mine) return;
+      if (again && treeCache.has(root)) watchRoot(root);
     };
     watchDirs(root, dirs).then(
       (report) => {
@@ -2335,13 +2348,24 @@ import { get } from 'svelte/store';
         // A snapshot is a frozen picture of one past moment; refreshing it would
         // silently move the very thing the user is comparing against.
         if (tab.diskSnapshot) continue;
-        if (isDirty(tab)) continue;
+        const dirty = isDirty(tab);
         try {
           const absolute = absolutePathOf(tab.path, worktreePath);
           const read = await readFileVersioned(absolute);
           if (read.text === null) continue;
           const le = detectLineEndings(read.text);
           const text = normalizeLineEndings(read.text, le);
+          // A dirty tab keeps its edits, so it is never rewritten from disk. It
+          // does adopt the stamp when the bytes match what it already saved:
+          // that read proves the file did not move under it, and holding an
+          // older stamp would raise a conflict modal on the next save for a
+          // change that never happened. When the bytes differ the tab keeps its
+          // old stamp on purpose - that is a real divergence, and the guard has
+          // to fire.
+          if (dirty) {
+            if (text === tab.savedDoc.toString()) tab.version = read.version;
+            continue;
+          }
           // Adopted even when the text is identical: the tab now stands for that
           // read, and keeping an older stamp would make the next save look like a
           // conflict against a change this tab has already taken in.

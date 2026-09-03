@@ -1,66 +1,31 @@
 [
 	{
 		"version": "1.0.1",
-		"date": "",
+		"date": "2026-09-03",
 		"summary": {
-			"en": "A CLI you started keeps running until you stop it. Navigating between steps, instances and projects no longer takes a conversation down behind your back, nothing is relaunched on its own, and closing a terminal now takes the whole process tree with it.",
-			"fr": "Un CLI que vous avez lancé continue de tourner tant que vous ne l'arrêtez pas. Naviguer entre les steps, les instances et les projets ne coupe plus une conversation dans votre dos, plus rien n'est relancé tout seul, et fermer un terminal emporte désormais tout l'arbre de processus."
+			"en": "A stability release. Long sessions no longer grow until the window is killed, a project costs a few dozen filesystem watches instead of thousands, and a file that changed on disk is never overwritten without asking. A CLI you started also keeps running until you stop it.",
+			"fr": "Une version de stabilité. Les longues sessions ne grossissent plus jusqu'à ce que la fenêtre soit tuée, un projet coûte quelques dizaines de surveillances du système de fichiers au lieu de milliers, et un fichier qui a changé sur le disque n'est jamais écrasé sans demander. Un CLI que vous avez lancé continue par ailleurs de tourner tant que vous ne l'arrêtez pas."
 		},
 		"changes": [
 			{
-				"kind": "fixed",
+				"kind": "added",
 				"text": {
-					"en": "Cairn no longer freezes the whole desktop after a long session with several terminals. A terminal you switched away from kept its output as text, and each time you left it that text was re-serialized on top of what it already held, without ever being trimmed. It grew without bound until the webview asked for an impossible amount of memory and was killed, taking the window with it. The backlog of a hibernated terminal is now capped the same way whichever path writes it.",
-					"fr": "Cairn ne fige plus l'ensemble du bureau après une longue session avec plusieurs terminaux. Un terminal que vous aviez quitté conservait sa sortie sous forme de texte, et à chaque fois que vous le quittiez ce texte était re-sérialisé par-dessus ce qu'il contenait déjà, sans jamais être tronqué. Il grossissait sans limite jusqu'à ce que la webview réclame une quantité de mémoire impossible et soit tuée, emportant la fenêtre avec elle. L'historique d'un terminal en veille est désormais plafonné de la même façon quel que soit le chemin qui l'écrit."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A language server sending a corrupted or desynchronised message frame can no longer bring Cairn down. The announced length of a message was trusted as-is and used to reserve that much memory before a single byte of the body was read, so a broken frame could ask for an impossible amount at once. An implausible length is now rejected and the connection to that server simply ends.",
-					"fr": "Un serveur de langage qui envoie une trame de message corrompue ou désynchronisée ne peut plus faire tomber Cairn. La longueur annoncée d'un message était utilisée telle quelle pour réserver d'emblée autant de mémoire, avant même d'avoir lu le moindre octet du corps, si bien qu'une trame cassée pouvait en réclamer une quantité impossible d'un seul coup. Une longueur invraisemblable est désormais refusée et la connexion à ce serveur prend simplement fin."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A CLI stuck printing without end during a headless run no longer grows Cairn's memory until something gives. Its output is now bounded: past the ceiling the run is stopped and reports that it produced too much, rather than being silently cut short and failing later as an unreadable answer. Error output is kept to its last few pages, which is the part that says what went wrong.",
-					"fr": "Un CLI bloqué à écrire sans fin pendant une exécution headless ne fait plus grossir la mémoire de Cairn jusqu'à la rupture. Sa sortie est désormais bornée : au-delà du plafond l'exécution est arrêtée et signale qu'elle a trop produit, au lieu d'être tronquée en silence et d'échouer plus tard sur une réponse illisible. La sortie d'erreur est conservée sur ses dernières pages, celles qui disent ce qui a échoué."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Cairn now watches only the directories you have open - the expanded folders and the ones holding your open files - instead of every directory in the repository. On Linux the number of watches is a quota shared with every other program, and a large project could use it up on its own; a project now costs a few dozen watches rather than thousands.",
-					"fr": "Cairn ne surveille plus que les dossiers que vous avez ouverts - ceux qui sont dépliés et ceux qui contiennent vos fichiers ouverts - au lieu de tous les dossiers du dépôt. Sous Linux le nombre de surveillances est un quota partagé avec tous les autres programmes, et un gros projet pouvait l'épuiser à lui seul ; un projet coûte désormais quelques dizaines de surveillances au lieu de milliers."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A file created in an ignored folder you had expanded now appears. Their events were dropped wholesale, so an open node_modules or storage never refreshed until you collapsed and reopened it.",
-					"fr": "Un fichier créé dans un dossier ignoré que vous aviez déplié apparaît désormais. Leurs événements étaient jetés en bloc, donc un node_modules ou un storage ouvert ne se rafraîchissait pas tant que vous ne le repliiez pas."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Closing a project tab or deleting an instance now releases what it was watching. Both left their watchers behind until the app closed, and the project cache kept the tree of a worktree that no longer existed.",
-					"fr": "Fermer l'onglet d'un projet ou supprimer une instance libère désormais ce qui était surveillé. Les deux laissaient leurs surveillances derrière eux jusqu'à la fermeture de l'application, et le cache gardait l'arbre d'un worktree qui n'existait plus."
+					"en": "Saving a file that changed on disk since you opened it no longer overwrites it silently. Cairn asks what to do: open the disk version in the pane beside it, cancel, or overwrite. Closing such a file keeps the tab open on the same question rather than dropping your edits.",
+					"fr": "Enregistrer un fichier qui a changé sur le disque depuis son ouverture ne l'écrase plus en silence. Cairn demande quoi faire : ouvrir la version du disque dans le volet d'à côté, annuler, ou écraser. Fermer un tel fichier laisse l'onglet ouvert sur la même question au lieu d'abandonner vos modifications."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "Saving a file that changed on disk since you opened it no longer overwrites it silently. Cairn asks what to do: open the disk version in the pane beside it, cancel, or overwrite. The check runs inside the write itself, so nothing can slip in between.",
-					"fr": "Sauvegarder un fichier qui a changé sur le disque depuis que vous l'avez ouvert ne l'écrase plus silencieusement. Cairn demande quoi faire : ouvrir la version du disque dans le volet d'à côté, annuler, ou écraser. Le contrôle se fait à l'intérieur même de l'écriture, donc rien ne peut s'y glisser."
+					"en": "A Stop button on a conversation, to close its CLI when you are done with it. A CLI busy running a command of its own asks for confirmation first, since stopping it stops that work too.",
+					"fr": "Un bouton Arrêter sur une conversation, pour fermer son CLI quand vous en avez fini. Un CLI occupé à exécuter une commande demande d'abord confirmation, puisque l'arrêter interrompt aussi ce travail."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "The open files are no longer compared against the disk on a timer, nor re-read every time the window regains focus. The filesystem watcher reports what moved, and it keeps running while Cairn is in the background.",
-					"fr": "Les fichiers ouverts ne sont plus comparés au disque à intervalle régulier, ni relus à chaque fois que la fenêtre reprend le focus. Le watcher du système de fichiers signale ce qui a bougé, et il continue de tourner pendant que Cairn est en arrière-plan."
+					"en": "When an instance is created from a ticket, the branches whose name carries the ticket key are offered above the base branch list, so the work starts from the branch the ticket belongs to.",
+					"fr": "À la création d'une instance depuis un ticket, les branches dont le nom porte la clé du ticket sont proposées au-dessus de la liste des branches de base, pour partir de la branche à laquelle le ticket appartient."
 				}
 			},
 			{
@@ -71,31 +36,59 @@
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "added",
 				"text": {
-					"en": "Coming back to the Cairn window no longer re-reads the whole project. The tree, the git status and the open files were read again on every focus, even though the watcher had already reported anything that moved while the window was in the background.",
-					"fr": "Revenir sur la fenêtre de Cairn ne relit plus tout le projet. L'arbre, le statut git et les fichiers ouverts étaient relus à chaque prise de focus, alors que le watcher avait déjà signalé ce qui avait bougé pendant que la fenêtre était en arrière-plan."
+					"en": "A development or beta build now keeps its data in its own directory rather than sharing the installed app's. Set APP_ENVIRONMENT to dev or beta and the app runs on ~/.cairn-dev or ~/.cairn-beta, with its channel shown next to the version number, so it can run alongside your installed Cairn without the two overwriting each other's settings, projects and worktrees.",
+					"fr": "Une version de développement ou de bêta conserve désormais ses données dans son propre répertoire au lieu de partager celui de l'application installée. Définissez APP_ENVIRONMENT à dev ou beta et l'application tourne sur ~/.cairn-dev ou ~/.cairn-beta, son canal affiché à côté du numéro de version, ce qui lui permet de tourner à côté de votre Cairn installé sans que les deux n'écrasent mutuellement leurs réglages, leurs projets et leurs worktrees."
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "changed",
 				"text": {
-					"en": "A project whose filesystem watcher was refused is retried instead of staying degraded for the rest of the session. On Linux the number of watches is a quota shared with every other program, so a large repository can be refused at one moment and accepted a minute later.",
-					"fr": "Un projet dont la surveillance du système de fichiers a été refusée est réessayé au lieu de rester dégradé pour le reste de la session. Sous Linux le nombre de surveillances est un quota partagé avec tous les autres programmes, donc un gros dépôt peut être refusé à un instant et accepté une minute plus tard."
+					"en": "A conversation's CLI now runs until you stop it. The sweep that closed the CLIs of conversations left quiet in the background is gone: going back and forth between steps, instances and projects no longer finds a conversation stopped on return.",
+					"fr": "Le CLI d'une conversation tourne désormais jusqu'à ce que vous l'arrêtiez. Le balayage qui fermait les CLI des conversations laissées silencieuses en arrière-plan a disparu : les allers-retours entre steps, instances et projets ne font plus retrouver une conversation arrêtée."
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "changed",
 				"text": {
-					"en": "The open editor tabs are no longer checked against the disk once a second. They are re-read when the watcher reports the worktree moved, so an edit made by an agent or a script still lands immediately, and a project nobody is touching costs nothing.",
-					"fr": "Les onglets ouverts de l'éditeur ne sont plus comparés au disque une fois par seconde. Ils sont relus quand le watcher signale que le worktree a bougé, donc une modification faite par un agent ou un script arrive toujours immédiatement, et un projet auquel personne ne touche ne coûte rien."
+					"en": "Opening the Agent step, or reopening the app, no longer relaunches the CLI of the conversation that was selected. It is shown with its Resume button and starts when you ask for it, so nothing spawns processes you did not want.",
+					"fr": "Ouvrir la step Agent, ou rouvrir l'application, ne relance plus le CLI de la conversation sélectionnée. Elle s'affiche avec son bouton Reprendre et démarre quand vous le demandez, pour ne plus lancer de processus dont vous n'aviez pas besoin."
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "changed",
 				"text": {
-					"en": "A project writing to disk on its own - a Laravel storage/, a log, a build output - no longer makes the app rescan its worktree every few seconds. The watcher applies the .gitignore rules of the worktree, so a change to a file git ignores is ignored too.",
-					"fr": "Un projet qui écrit sur le disque tout seul - un storage/ Laravel, un log, une sortie de build - ne fait plus rescanner son worktree à l'application toutes les quelques secondes. Le watcher applique les règles du .gitignore du worktree, donc un changement sur un fichier que git ignore est ignoré aussi."
+					"en": "Cairn now watches only the folders you have open - the expanded ones and those holding your open files - instead of every folder in the repository, and it watches git's metadata where it matters rather than wholesale. On Linux the number of watches is a quota shared with every other program, and a large project could use it up on its own; a project now costs a few dozen watches rather than thousands.",
+					"fr": "Cairn ne surveille plus que les dossiers que vous avez ouverts - ceux qui sont dépliés et ceux qui contiennent vos fichiers ouverts - au lieu de tous les dossiers du dépôt, et il surveille les métadonnées git là où c'est utile plutôt qu'en bloc. Sous Linux le nombre de surveillances est un quota partagé avec tous les autres programmes, et un gros projet pouvait l'épuiser à lui seul ; un projet coûte désormais quelques dizaines de surveillances au lieu de milliers."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The open files are no longer compared against the disk on a timer, nor re-read every time the window regains focus. The filesystem watcher reports what moved, and it keeps running while Cairn is in the background.",
+					"fr": "Les fichiers ouverts ne sont plus comparés au disque à intervalle régulier, ni relus à chaque fois que la fenêtre reprend le focus. Le watcher du système de fichiers signale ce qui a bougé, et il continue de tourner pendant que Cairn est en arrière-plan."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching between two open projects is now near-instant. A project you come back to reappears with the git data it was left on instead of being read from scratch, the refresh runs in the background, and the steps you are not looking at no longer read the repository on the way past.",
+					"fr": "Passer d'un projet ouvert à l'autre est désormais quasi instantané. Un projet sur lequel vous revenez réapparaît avec les données git sur lesquelles vous l'aviez laissé au lieu d'être relu de zéro, le rafraîchissement s'exécute en arrière-plan, et les steps que vous ne regardez pas ne lisent plus le dépôt au passage."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching project no longer cross-fades. The transition held the captured frame until the new project had settled, which read as a pause; the switch is now immediate.",
+					"fr": "Changer de projet ne fait plus de fondu. La transition retenait l'image capturée jusqu'à ce que le nouveau projet soit en place, ce qui se lisait comme une pause ; le changement est désormais immédiat."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Switching project no longer fetches the remote behind your back. The branch list is read from the local refs; the Fetch button and the branch switcher still refresh them.",
+					"fr": "Changer de projet ne fait plus de fetch du dépôt distant dans votre dos. La liste des branches est lue depuis les refs locales ; le bouton Fetch et le sélecteur de branche les rafraîchissent toujours."
 				}
 			},
 			{
@@ -108,155 +101,15 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "The editor layout is written once a burst of changes has settled rather than on each one, and is flushed when the window closes, so nothing is lost.",
-					"fr": "La disposition de l'éditeur est écrite une fois qu'une rafale de changements est retombée plutôt qu'à chacun, et elle est vidée à la fermeture de la fenêtre, donc rien n'est perdu."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening a large project no longer freezes the window for several seconds: the test runner detection now lists the directories in one call instead of one call per directory.",
-					"fr": "Ouvrir un gros projet ne fige plus la fenêtre plusieurs secondes : la détection des runners de tests liste désormais les dossiers en un seul appel au lieu d'un appel par dossier."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The git status poll now recognises an unchanged repository. Its version was rounded on the way through JavaScript, so every poll re-published the whole status and re-rendered the git view for nothing.",
-					"fr": "Le poll du statut git reconnaît désormais un dépôt inchangé. Sa version était arrondie en passant par JavaScript, donc chaque poll republiait tout le statut et re-rendait la vue Git pour rien."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Switching project no longer fetches the remote behind your back. The branch list is read from the local refs; the Fetch button and the branch switcher still refresh them.",
-					"fr": "Changer de projet ne fait plus de fetch du dépôt distant dans votre dos. La liste des branches est lue depuis les refs locales ; le bouton Fetch et le sélecteur de branche les rafraîchissent toujours."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching instance is lighter: the Tests, Formatting and Review views only load their data while on screen, the tag list is read once per worktree, and the generated .env file is not rewritten when its content did not change.",
-					"fr": "Changer d'instance est plus léger : les vues Tests, Formatage et Review ne chargent leurs données que lorsqu'elles sont à l'écran, la liste des tags est lue une fois par worktree, et le fichier .env généré n'est plus réécrit quand son contenu n'a pas changé."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The Commit and Commit and push buttons now show a spinner and stay disabled while the commit runs, instead of looking idle during a slow pre-commit hook.",
-					"fr": "Les boutons Commit et Commit et push affichent desormais un spinner et restent desactives pendant le commit, au lieu de paraitre inactifs pendant un hook pre-commit lent."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "A conversation's CLI now runs until you stop it. The sweep that closed the CLIs of conversations left quiet in the background is gone: going back and forth between steps, instances and projects no longer finds a conversation stopped on return.",
-					"fr": "Le CLI d'une conversation tourne désormais jusqu'à ce que vous l'arrêtiez. Le balayage qui fermait les CLI des conversations laissées silencieuses en arrière-plan a disparu : les allers-retours entre steps, instances et projets ne font plus retrouver une conversation arrêtée."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A Stop button on a conversation, to close its CLI when you are done with it. A CLI busy running a command of its own asks for confirmation first, since stopping it stops that work too.",
-					"fr": "Un bouton Arrêter sur une conversation, pour fermer son CLI quand vous en avez fini. Un CLI occupé à exécuter une commande demande d'abord confirmation, puisque l'arrêter interrompt aussi ce travail."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Opening the Agent step, or reopening the app, no longer relaunches the CLI of the conversation that was selected. It is shown with its Resume button and starts when you ask for it, so nothing spawns processes you did not want.",
-					"fr": "Ouvrir la step Agent, ou rouvrir l'application, ne relance plus le CLI de la conversation sélectionnée. Elle s'affiche avec son bouton Reprendre et démarre quand vous le demandez, pour ne plus lancer de processus dont vous n'aviez pas besoin."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Closing a terminal now stops everything it started, not just its shell. A dev server, a watcher or a build launched from a terminal no longer survives it, holding its port and its memory until the machine is restarted.",
-					"fr": "Fermer un terminal arrête maintenant tout ce qu'il a lancé, et pas seulement son shell. Un serveur de développement, un watcher ou un build démarré depuis un terminal ne lui survit plus en gardant son port et sa mémoire jusqu'au redémarrage de la machine."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
 					"en": "A pane now keeps at most twenty-four editor tabs. Past that, opening a file closes the tab you looked at longest ago, so a session spent reading across a repository stops holding every file it ever opened in memory. A pinned tab, one with unsaved edits and the one on screen are never closed, and a closed tab comes straight back with Reopen closed tab.",
 					"fr": "Un panneau conserve désormais vingt-quatre onglets d'éditeur au maximum. Au-delà, ouvrir un fichier ferme l'onglet consulté le plus anciennement, pour qu'une session passée à parcourir un dépôt cesse de garder en mémoire tous les fichiers ouverts depuis le début. Un onglet épinglé, un onglet contenant des modifications non enregistrées et celui affiché ne sont jamais fermés, et un onglet fermé revient tel quel avec Rouvrir l'onglet fermé."
 				}
 			},
 			{
-				"kind": "fixed",
-				"text": {
-					"en": "Linux, AppImage: git over HTTPS and the tools launched from Cairn no longer fail with a nghttp2 symbol lookup error. The bundle stopped imposing its own copy of that library on the processes it starts.",
-					"fr": "Linux, AppImage : git en HTTPS et les outils lancés depuis Cairn n'échouent plus avec une erreur de symbole nghttp2. Le bundle n'impose plus sa propre copie de cette bibliothèque aux processus qu'il démarre."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A development or beta build now keeps its data in its own directory rather than sharing the installed app's. Set APP_ENVIRONMENT to dev or beta and the app runs on ~/.cairn-dev or ~/.cairn-beta, with its channel shown next to the version number, so it can run alongside your installed Cairn without the two overwriting each other's settings, projects and worktrees.",
-					"fr": "Une version de développement ou de bêta conserve désormais ses données dans son propre répertoire au lieu de partager celui de l'application installée. Définissez APP_ENVIRONMENT à dev ou beta et l'application tourne sur ~/.cairn-dev ou ~/.cairn-beta, son canal affiché à côté du numéro de version, ce qui lui permet de tourner à côté de votre Cairn installé sans que les deux n'écrasent mutuellement leurs réglages, leurs projets et leurs worktrees."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Restarting a Claude Code conversation no longer fails with \"process exited with code 1\". Cairn was resuming a session the CLI had never written, because typing in a conversation was taken as proof the session existed. The session is now confirmed against Claude Code's own transcripts before being resumed, and a resume that is refused anyway falls back to a fresh session instead of leaving a dead terminal.",
-					"fr": "Redémarrer une conversation Claude Code n'échoue plus avec « process exited with code 1 ». Cairn reprenait une session que le CLI n'avait jamais écrite, parce que taper dans une conversation valait preuve de son existence. La session est désormais confirmée dans les transcriptions de Claude Code avant d'être reprise, et une reprise malgré tout refusée repart sur une session neuve au lieu de laisser un terminal mort."
-				}
-			},
-			{
-				"kind": "removed",
-				"text": {
-					"en": "The Reload the CLI button in the conversation header. Stopping a CLI and resuming it does the same thing deliberately, and the Restart button still appears on a conversation whose CLI has exited.",
-					"fr": "Le bouton Relancer le CLI dans l'en-tête d'une conversation. Arrêter un CLI puis le reprendre fait la même chose de façon délibérée, et le bouton Redémarrer reste proposé sur une conversation dont le CLI s'est arrêté."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A conversation no longer opens onto the \"this CLI has exited\" banner while its CLI is running, and Restart now relaunches it. A terminal Cairn closed itself was reporting its exit once the replacement had already started, which marked the new CLI as dead; a session Cairn asked to close is now silent, and the banner is cleared as soon as the conversation is relaunched.",
-					"fr": "Une conversation ne s'ouvre plus sur la bannière « ce CLI s'est arrêté » alors que son CLI tourne, et Redémarrer le relance vraiment. Un terminal fermé par Cairn signalait sa fin une fois le remplaçant déjà démarré, ce qui marquait le nouveau CLI comme mort ; une session que Cairn demande à fermer reste désormais silencieuse, et la bannière disparaît dès que la conversation est relancée."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
-					"en": "Switching between two open projects is now near-instant. A project you come back to reappears with the git data it was left on instead of being read from scratch, the refresh runs behind the cross-fade rather than freezing it, and the steps you are not looking at no longer read the repository on the way past.",
-					"fr": "Passer d'un projet ouvert à l'autre est désormais quasi instantané. Un projet sur lequel vous revenez réapparaît avec les données git sur lesquelles vous l'aviez laissé au lieu d'être relu de zéro, le rafraîchissement s'exécute derrière le fondu plutôt que de le figer, et les steps que vous ne regardez pas ne lisent plus le dépôt au passage."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The remarks of a guided review now land on the line they are about. The diff handed to the model carries the number of every line, so an anchor is read rather than counted, instead of falling three or four lines below the code it refers to.",
-					"fr": "Les remarques d'une review guidée tombent désormais sur la ligne qu'elles visent. Le diff transmis au modèle porte le numéro de chaque ligne, si bien qu'une ancre est lue plutôt que comptée, au lieu de se poser trois ou quatre lignes sous le code concerné."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Every remark of a chapter is now reachable. The panel lists the whole chapter rather than only the extract on screen, and picking a remark moves the reading onto the extract that holds it - a remark anchored outside every extract could previously be neither read nor turned into a comment.",
-					"fr": "Toutes les remarques d'un chapitre sont désormais accessibles. Le panneau liste le chapitre entier plutôt que le seul extrait affiché, et choisir une remarque déplace la lecture sur l'extrait qui la contient : une remarque ancrée hors de tout extrait ne pouvait auparavant être ni lue ni transformée en commentaire."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Drafting a review comment now returns the comment itself. The assist was asked to write one in terms an agent read as an order to post it, and answered with its own report of having done so rather than the text you were meant to edit.",
-					"fr": "La rédaction assistée d'un commentaire de review renvoie désormais le commentaire lui-même. L'assistant recevait une consigne qu'un agent lisait comme l'ordre de le publier, et répondait par son propre compte rendu au lieu du texte que vous deviez relire."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Changing instance now reloads the review step on the new one. The guide and the diff kept the file, the scroll and the pending comment of the instance you came from, which showed most clearly just after creating an instance.",
-					"fr": "Changer d'instance recharge désormais la step de review sur la nouvelle. Le guide et le diff conservaient le fichier, le défilement et le commentaire en cours de l'instance quittée, ce qui se voyait surtout juste après la création d'une instance."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A wide branch no longer loses most of its files from the guide. The size ceiling stopped the reading at the first file too large to fit, hiding every file after it; files are now skipped one by one and named to the model, which says which ones it could not read.",
-					"fr": "Une branche large ne perd plus la majorité de ses fichiers dans le guide. Le plafond de taille interrompait la lecture au premier fichier trop gros, masquant tous les suivants ; les fichiers sont désormais écartés un à un et nommés au modèle, qui indique ceux qu'il n'a pas pu lire."
+					"en": "The editor layout is written once a burst of changes has settled rather than on each one, and is flushed when the window closes, so nothing is lost.",
+					"fr": "La disposition de l'éditeur est écrite une fois qu'une rafale de changements est retombée plutôt qu'à chacun, et elle est vidée à la fermeture de la fenêtre, donc rien n'est perdu."
 				}
 			},
 			{
@@ -281,59 +134,136 @@
 				}
 			},
 			{
-				"kind": "added",
-				"text": {
-					"en": "When an instance is created from a ticket, the branches whose name carries the ticket key are offered above the base branch list, so the work starts from the branch the ticket belongs to.",
-					"fr": "À la création d'une instance depuis un ticket, les branches dont le nom porte la clé du ticket sont proposées au-dessus de la liste des branches de base, pour partir de la branche à laquelle le ticket appartient."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A failed review guide generation now says what went wrong. When the backend reported its error as an object rather than a message, every screen that surfaces one showed \"[object Object]\"; the message is now read out of it, or its content shown as a last resort.",
-					"fr": "L'échec de la génération d'un guide de review dit désormais ce qui n'a pas marché. Quand le backend signalait son erreur sous forme d'objet plutôt que de message, tous les écrans qui en affichent un montraient « [object Object] » ; le message est maintenant lu dedans, ou son contenu affiché en dernier recours."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "A review whose target branch was never checked out locally no longer fails. A merge request names its target as a bare branch (\"feat/v2.11.0\"), which a worktree often holds only as \"origin/feat/v2.11.0\"; the diff, the guide and the file reads now resolve it through the remote, the way the branch comparison already did. Fetching could not help before, since the reference was already there under its remote name.",
-					"fr": "Une review dont la branche cible n'a jamais été extraite localement n'échoue plus. Une merge request nomme sa cible comme une branche simple (« feat/v2.11.0 »), qu'un arbre de travail ne possède souvent que sous « origin/feat/v2.11.0 » ; le diff, le guide et la lecture des fichiers la résolvent désormais via la remote, comme le faisait déjà la comparaison de branches. Récupérer n'y changeait rien, la référence étant déjà là sous son nom distant."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Switching project restores that project's own view again. The step, the git tab and the open tool were applied a moment after the switch, so a save landing in that gap wrote the previous project's view onto the one being opened.",
-					"fr": "Changer de projet restaure à nouveau la vue propre à ce projet. Le step, l'onglet git et l'outil ouvert étaient appliqués un instant après le changement, si bien qu'une sauvegarde tombant dans cet intervalle écrivait la vue du projet précédent sur celui qu'on ouvrait."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Opening a file no longer freezes the editor. The sticky header pinned above the code read the layout while the editor was still updating, which crashed its plugin and left the view stuck.",
-					"fr": "Ouvrir un fichier ne fige plus l'éditeur. L'en-tête collant épinglé au-dessus du code lisait la mise en page pendant que l'éditeur se mettait encore à jour, ce qui faisait planter son plugin et laissait la vue bloquée."
-				}
-			},
-			{
 				"kind": "changed",
 				"text": {
-					"en": "Switching project no longer cross-fades. The transition held the captured frame until the new project had settled, which read as a pause; the switch is now immediate.",
-					"fr": "Changer de projet ne fait plus de fondu. La transition retenait l'image capturée jusqu'à ce que le nouveau projet soit en place, ce qui se lisait comme une pause ; le changement est désormais immédiat."
+					"en": "Opening the Terminal step no longer rewrites the generated environment file, nor reads your git identity to do so. A terminal is a shell in the worktree; the file is written when the variables are edited.",
+					"fr": "Ouvrir l'étape Terminal ne réécrit plus le fichier d'environnement généré, ni ne lit votre identité git pour le faire. Un terminal est un shell dans le worktree ; le fichier est écrit quand les variables sont modifiées."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Switching to a project with a file open in the editor no longer stalls the window for a moment: the tab bar scrolled the whole workspace to reveal the active tab while the editor was still mounting, and every mounted editor injected its own style rules into the window, more of them as the session went on. Test runner detection is no longer redone on every switch either, and the editor stays mounted behind the empty state instead of being rebuilt whenever a tab reappears.",
-					"fr": "Passer sur un projet dont un fichier est ouvert dans l'éditeur ne bloque plus la fenêtre un instant : la barre d'onglets faisait défiler tout l'espace de travail pour révéler l'onglet actif pendant que l'éditeur se montait encore, et chaque éditeur monté injectait ses propres règles de style dans la fenêtre, de plus en plus nombreuses au fil de la session. La détection des runners de tests n'est plus relancée à chaque switch non plus, et l'éditeur reste monté derrière l'état vide au lieu d'être reconstruit chaque fois qu'un onglet réapparaît."
+					"en": "Cairn no longer freezes the whole desktop after a long session with several terminals. The backlog of a terminal you had switched away from grew without bound until the webview was killed for asking too much memory; it is now capped whichever path writes it.",
+					"fr": "Cairn ne fige plus l'ensemble du bureau après une longue session avec plusieurs terminaux. L'historique d'un terminal que vous aviez quitté grossissait sans limite jusqu'à ce que la webview soit tuée pour avoir réclamé trop de mémoire ; il est désormais plafonné quel que soit le chemin qui l'écrit."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The workflow views you had not opened were being started in the background, not just preloaded. Each one then re-read its own state - formatting, review, git, providers - every time you switched instance or project, while you were looking at another step. They are now preloaded without being started, so the open stays instant and the switch stops paying for views you are not using.",
-					"fr": "Les vues de workflow que vous n'aviez pas ouvertes étaient démarrées en arrière-plan, et pas seulement préchargées. Chacune relisait alors son propre état - formatage, revue, git, fournisseurs - à chaque changement d'instance ou de projet, pendant que vous regardiez une autre étape. Elles sont désormais préchargées sans être démarrées : l'ouverture reste instantanée et le changement ne paie plus pour des vues que vous n'utilisez pas."
+					"en": "Closing a terminal now stops everything it started, not just its shell. A dev server, a watcher or a build launched from a terminal no longer survives it, holding its port and its memory until the machine is restarted, and the close itself can no longer hang the window.",
+					"fr": "Fermer un terminal arrête maintenant tout ce qu'il a lancé, et pas seulement son shell. Un serveur de développement, un watcher ou un build démarré depuis un terminal ne lui survit plus en gardant son port et sa mémoire jusqu'au redémarrage de la machine, et la fermeture elle-même ne peut plus bloquer la fenêtre."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Coming back to the Agent step no longer shows a black terminal until you click in it. The restored screen was written before the GPU renderer took over, which then started from an empty canvas and painted only what changed afterwards.",
+					"fr": "Revenir sur la step Agent n'affiche plus un terminal noir jusqu'à ce que vous cliquiez dedans. L'écran restauré était écrit avant que le rendu GPU ne prenne la main, celui-ci repartant alors d'un canvas vide et ne peignant plus que ce qui changeait ensuite."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A language server sending a corrupted or desynchronised message can no longer bring Cairn down. An implausible announced length is now refused and the connection to that server simply ends, instead of reserving that much memory on the spot.",
+					"fr": "Un serveur de langage qui envoie un message corrompu ou désynchronisé ne peut plus faire tomber Cairn. Une longueur annoncée invraisemblable est désormais refusée et la connexion à ce serveur prend simplement fin, au lieu de réserver d'emblée autant de mémoire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A CLI stuck printing without end during a headless run no longer grows Cairn's memory until something gives. Past the ceiling the run is stopped and says it produced too much, rather than being silently cut short and failing later as an unreadable answer.",
+					"fr": "Un CLI bloqué à écrire sans fin pendant une exécution headless ne fait plus grossir la mémoire de Cairn jusqu'à la rupture. Au-delà du plafond l'exécution est arrêtée et signale qu'elle a trop produit, au lieu d'être tronquée en silence et d'échouer plus tard sur une réponse illisible."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Restarting a Claude Code conversation no longer fails with \"process exited with code 1\". The session is confirmed against Claude Code's own transcripts before being resumed, and a resume that is refused anyway falls back to a fresh session instead of leaving a dead terminal.",
+					"fr": "Redémarrer une conversation Claude Code n'échoue plus avec « process exited with code 1 ». La session est confirmée dans les transcriptions de Claude Code avant d'être reprise, et une reprise malgré tout refusée repart sur une session neuve au lieu de laisser un terminal mort."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A conversation no longer opens onto the \"this CLI has exited\" banner while its CLI is running, and Restart now relaunches it. A session Cairn asked to close stays silent instead of reporting its exit once the replacement had started, and the banner clears as soon as the conversation is relaunched.",
+					"fr": "Une conversation ne s'ouvre plus sur la bannière « ce CLI s'est arrêté » alors que son CLI tourne, et Redémarrer le relance vraiment. Une session que Cairn demande à fermer reste silencieuse au lieu de signaler sa fin une fois le remplaçant démarré, et la bannière disparaît dès que la conversation est relancée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Saving a file that an external tool rewrote within the same second no longer overwrites it silently. A formatter changing a single character used to go unnoticed on filesystems that only keep whole seconds - a worktree on a network or synchronised folder.",
+					"fr": "Enregistrer un fichier qu'un outil externe a réécrit dans la même seconde ne l'écrase plus en silence. Le passage d'un formateur sur un seul caractère échappait à la détection sur les systèmes de fichiers qui ne retiennent que la seconde - un worktree sur un dossier réseau ou synchronisé."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A workflow step whose code could not be fetched no longer stays blank for the rest of the session. A failed load is released and the step loads on the next visit, instead of showing nothing but its spinner.",
+					"fr": "Une étape du workflow dont le code n'a pas pu être récupéré ne reste plus vide pour le reste de la session. Un chargement échoué est libéré et l'étape se charge à la visite suivante, au lieu de n'afficher que son indicateur d'attente."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The view you were on is restored more reliably after a close. The last few hundred milliseconds of navigation could be lost when the close interrupted a save that had just started.",
+					"fr": "La vue sur laquelle vous étiez est restaurée plus fidèlement après une fermeture. Les dernières centaines de millisecondes de navigation pouvaient être perdues quand la fermeture interrompait un enregistrement à peine parti."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Leaving a project releases its filesystem watches for good, whichever way its path was spelled. Closing a project tab or deleting an instance releases them too, and the cache no longer keeps the tree of a worktree that no longer exists.",
+					"fr": "Quitter un projet libère définitivement ses veilles de système de fichiers, quelle que soit l'orthographe de son chemin. Fermer l'onglet d'un projet ou supprimer une instance les libère aussi, et le cache ne garde plus l'arbre d'un worktree qui n'existe plus."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A project whose filesystem watcher was refused is retried instead of staying degraded for the rest of the session. On Linux the number of watches is a quota shared with every other program, so a large repository can be refused at one moment and accepted a minute later.",
+					"fr": "Un projet dont la surveillance du système de fichiers a été refusée est réessayé au lieu de rester dégradé pour le reste de la session. Sous Linux le nombre de surveillances est un quota partagé avec tous les autres programmes, donc un gros dépôt peut être refusé à un instant et accepté une minute plus tard."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A file created in an ignored folder you had expanded now appears. Their events were dropped wholesale, so an open node_modules or storage never refreshed until you collapsed and reopened it.",
+					"fr": "Un fichier créé dans un dossier ignoré que vous aviez déplié apparaît désormais. Leurs événements étaient jetés en bloc, donc un node_modules ou un storage ouvert ne se rafraîchissait pas tant que vous ne le repliiez pas."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A project writing to disk on its own - a Laravel storage/, a log, a build output - no longer makes the app rescan its worktree every few seconds. The watcher applies the .gitignore rules of the worktree, so a change to a file git ignores is ignored too.",
+					"fr": "Un projet qui écrit sur le disque tout seul - un storage/ Laravel, un log, une sortie de build - ne fait plus rescanner son worktree à l'application toutes les quelques secondes. Le watcher applique les règles du .gitignore du worktree, donc un changement sur un fichier que git ignore est ignoré aussi."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Coming back to the Cairn window no longer re-reads the whole project, and the open editor tabs are no longer checked against the disk once a second. They are re-read when the watcher reports the worktree moved, so an edit made by an agent or a script still lands immediately.",
+					"fr": "Revenir sur la fenêtre de Cairn ne relit plus tout le projet, et les onglets ouverts de l'éditeur ne sont plus comparés au disque une fois par seconde. Ils sont relus quand le watcher signale que le worktree a bougé, donc une modification faite par un agent ou un script arrive toujours immédiatement."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a large project no longer freezes the window for several seconds: the test runner detection now lists the directories in one call instead of one call per directory, and it no longer misses a package because a neighbouring one ignores its directory name.",
+					"fr": "Ouvrir un gros projet ne fige plus la fenêtre plusieurs secondes : la détection des runners de tests liste désormais les dossiers en un seul appel au lieu d'un appel par dossier, et elle ne rate plus un paquet parce qu'un paquet voisin ignore le nom de son répertoire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching to a project with a file open in the editor no longer stalls the window for a moment. The workspace no longer scrolls itself while the editor is still mounting, the editor stays mounted behind the empty state instead of being rebuilt whenever a tab reappears, and its style rules stop accumulating as the session goes on.",
+					"fr": "Passer sur un projet dont un fichier est ouvert dans l'éditeur ne bloque plus la fenêtre un instant. L'espace de travail ne défile plus pendant que l'éditeur se monte encore, l'éditeur reste monté derrière l'état vide au lieu d'être reconstruit chaque fois qu'un onglet réapparaît, et ses règles de style cessent de s'accumuler au fil de la session."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The workflow views you had not opened were being started in the background, not just preloaded. Each one then re-read its own state - formatting, review, git, providers - every time you switched instance or project. They are now preloaded without being started, so the open stays instant and the switch stops paying for views you are not using.",
+					"fr": "Les vues de workflow que vous n'aviez pas ouvertes étaient démarrées en arrière-plan, et pas seulement préchargées. Chacune relisait alors son propre état - formatage, revue, git, fournisseurs - à chaque changement d'instance ou de projet. Elles sont désormais préchargées sans être démarrées : l'ouverture reste instantanée et le changement ne paie plus pour des vues que vous n'utilisez pas."
 				}
 			},
 			{
@@ -346,15 +276,106 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "Switching instance is lighter: the Tests, Formatting and Review views only load their data while on screen, the tag list is read once per worktree, and the generated .env file is not rewritten when its content did not change.",
+					"fr": "Changer d'instance est plus léger : les vues Tests, Formatage et Review ne chargent leurs données que lorsqu'elles sont à l'écran, la liste des tags est lue une fois par worktree, et le fichier .env généré n'est plus réécrit quand son contenu n'a pas changé."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Switching project restores that project's own view again. The step, the git tab and the open tool were applied a moment after the switch, so a save landing in that gap wrote the previous project's view onto the one being opened.",
+					"fr": "Changer de projet restaure à nouveau la vue propre à ce projet. Le step, l'onglet git et l'outil ouvert étaient appliqués un instant après le changement, si bien qu'une sauvegarde tombant dans cet intervalle écrivait la vue du projet précédent sur celui qu'on ouvrait."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The git status poll now recognises an unchanged repository. Its version was rounded on the way through JavaScript, so every poll re-published the whole status and re-rendered the git view for nothing.",
+					"fr": "Le poll du statut git reconnaît désormais un dépôt inchangé. Sa version était arrondie en passant par JavaScript, donc chaque poll republiait tout le statut et re-rendait la vue Git pour rien."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Opening a file no longer freezes the editor. The sticky header pinned above the code read the layout while the editor was still updating, which crashed its plugin and left the view stuck.",
+					"fr": "Ouvrir un fichier ne fige plus l'éditeur. L'en-tête collant épinglé au-dessus du code lisait la mise en page pendant que l'éditeur se mettait encore à jour, ce qui faisait planter son plugin et laissait la vue bloquée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Commit and Commit and push buttons now show a spinner and stay disabled while the commit runs, instead of looking idle during a slow pre-commit hook.",
+					"fr": "Les boutons Commit et Commit et push affichent désormais un spinner et restent désactivés pendant le commit, au lieu de paraître inactifs pendant un hook pre-commit lent."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "Editing a global or project variable now reaches every instance it applies to, instead of only the one on screen. The generated file is rewritten whenever you switch to an instance, so the others pick the change up as you open them.",
 					"fr": "Modifier une variable globale ou de projet touche désormais toutes les instances concernées, et plus seulement celle affichée. Le fichier généré est réécrit à chaque passage sur une instance, de sorte que les autres prennent la modification en compte à leur ouverture."
 				}
 			},
 			{
-				"kind": "changed",
+				"kind": "fixed",
 				"text": {
-					"en": "Opening the Terminal step no longer rewrites the generated environment file, nor reads your git identity to do so. A terminal is a shell in the worktree; the file is written when the variables are edited.",
-					"fr": "Ouvrir l'étape Terminal ne réécrit plus le fichier d'environnement généré, ni ne lit votre identité git pour le faire. Un terminal est un shell dans le worktree ; le fichier est écrit quand les variables sont modifiées."
+					"en": "The remarks of a guided review now land on the line they are about. The diff handed to the model carries the number of every line, so an anchor is read rather than counted, instead of falling three or four lines below the code it refers to.",
+					"fr": "Les remarques d'une review guidée tombent désormais sur la ligne qu'elles visent. Le diff transmis au modèle porte le numéro de chaque ligne, si bien qu'une ancre est lue plutôt que comptée, au lieu de se poser trois ou quatre lignes sous le code concerné."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Every remark of a chapter is now reachable. The panel lists the whole chapter rather than only the extract on screen, and picking a remark moves the reading onto the extract that holds it - a remark anchored outside every extract could previously be neither read nor turned into a comment.",
+					"fr": "Toutes les remarques d'un chapitre sont désormais accessibles. Le panneau liste le chapitre entier plutôt que le seul extrait affiché, et choisir une remarque déplace la lecture sur l'extrait qui la contient : une remarque ancrée hors de tout extrait ne pouvait auparavant être ni lue ni transformée en commentaire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A wide branch no longer loses most of its files from the guide. The size ceiling stopped the reading at the first file too large to fit, hiding every file after it; files are now skipped one by one and named to the model, which says which ones it could not read.",
+					"fr": "Une branche large ne perd plus la majorité de ses fichiers dans le guide. Le plafond de taille interrompait la lecture au premier fichier trop gros, masquant tous les suivants ; les fichiers sont désormais écartés un à un et nommés au modèle, qui indique ceux qu'il n'a pas pu lire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Drafting a review comment now returns the comment itself. The assist was asked to write one in terms an agent read as an order to post it, and answered with its own report of having done so rather than the text you were meant to edit.",
+					"fr": "La rédaction assistée d'un commentaire de review renvoie désormais le commentaire lui-même. L'assistant recevait une consigne qu'un agent lisait comme l'ordre de le publier, et répondait par son propre compte rendu au lieu du texte que vous deviez relire."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Changing instance now reloads the review step on the new one. The guide and the diff kept the file, the scroll and the pending comment of the instance you came from, which showed most clearly just after creating an instance.",
+					"fr": "Changer d'instance recharge désormais la step de review sur la nouvelle. Le guide et le diff conservaient le fichier, le défilement et le commentaire en cours de l'instance quittée, ce qui se voyait surtout juste après la création d'une instance."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A review whose target branch was never checked out locally no longer fails. A merge request names its target as a bare branch (\"feat/v2.11.0\"), which a worktree often holds only as \"origin/feat/v2.11.0\"; the diff, the guide and the file reads now resolve it through the remote, the way the branch comparison already did.",
+					"fr": "Une review dont la branche cible n'a jamais été extraite localement n'échoue plus. Une merge request nomme sa cible comme une branche simple (« feat/v2.11.0 »), qu'un arbre de travail ne possède souvent que sous « origin/feat/v2.11.0 » ; le diff, le guide et la lecture des fichiers la résolvent désormais via la remote, comme le faisait déjà la comparaison de branches."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A failed review guide generation now says what went wrong. When the backend reported its error as an object rather than a message, every screen that surfaces one showed \"[object Object]\"; the message is now read out of it, or its content shown as a last resort.",
+					"fr": "L'échec de la génération d'un guide de review dit désormais ce qui n'a pas marché. Quand le backend signalait son erreur sous forme d'objet plutôt que de message, tous les écrans qui en affichent un montraient « [object Object] » ; le message est maintenant lu dedans, ou son contenu affiché en dernier recours."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Linux, AppImage: git over HTTPS and the tools launched from Cairn no longer fail with a nghttp2 symbol lookup error. The bundle stopped imposing its own copy of that library on the processes it starts.",
+					"fr": "Linux, AppImage : git en HTTPS et les outils lancés depuis Cairn n'échouent plus avec une erreur de symbole nghttp2. Le bundle n'impose plus sa propre copie de cette bibliothèque aux processus qu'il démarre."
+				}
+			},
+			{
+				"kind": "removed",
+				"text": {
+					"en": "The Reload the CLI button in the conversation header. Stopping a CLI and resuming it does the same thing deliberately, and the Restart button still appears on a conversation whose CLI has exited.",
+					"fr": "Le bouton Relancer le CLI dans l'en-tête d'une conversation. Arrêter un CLI puis le reprendre fait la même chose de façon délibérée, et le bouton Redémarrer reste proposé sur une conversation dont le CLI s'est arrêté."
 				}
 			}
 		]

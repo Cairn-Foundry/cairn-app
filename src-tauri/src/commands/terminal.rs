@@ -300,7 +300,7 @@ pub async fn terminal_create(
             kill_group(pid);
         }
         let _ = sess.child.kill();
-        let exit_code = sess.child.wait().ok().map(|status| status.exit_code() as i32);
+        let exit_code = wait_bounded(&mut sess.child);
         let _ = app_out.emit("terminal-exit", TerminalExit { id: reader_id, exit_code });
     });
 
@@ -380,6 +380,33 @@ fn has_descendants(_pid: u32) -> bool {
     true
 }
 
+/// How long a killed child is waited on before it is left to init.
+const REAP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+const REAP_POLL: std::time::Duration = std::time::Duration::from_millis(10);
+
+/// Reaps the child, giving up after `REAP_TIMEOUT`.
+///
+/// A plain `wait()` is unbounded, and a process stuck in uninterruptible sleep -
+/// blocked on an unresponsive network mount, most often - does not leave it even
+/// for SIGKILL. On the reader thread that would swallow the `terminal-exit`
+/// event and leave the terminal marked as running for the rest of the session;
+/// on the shutdown path it would hang the window close. A zombie left behind is
+/// the lesser outcome, and it is reaped by init when the app exits.
+fn wait_bounded(child: &mut Box<dyn portable_pty::Child + Send + Sync>) -> Option<i32> {
+    let deadline = std::time::Instant::now() + REAP_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Some(status.exit_code() as i32),
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        std::thread::sleep(REAP_POLL);
+    }
+}
+
 /// Terminates a session's shell and everything it spawned.
 ///
 /// Killing the PTY leader alone leaves its descendants behind - a dev server, a
@@ -392,33 +419,24 @@ fn kill_session(sess: &mut TerminalSession) {
         kill_group(pid);
     }
     let _ = sess.child.kill();
-    let _ = sess.child.wait();
+    let _ = wait_bounded(&mut sess.child);
 }
 
 /// Signals the session's whole process group, leaving the leader itself to the
 /// caller.
 ///
-/// The group is only signalled once it has been confirmed to still be this
-/// session's: the leader may already have exited, and a reaped pid is free for
-/// the kernel to reuse, so a blind negative-pid signal could hit whatever group
-/// inherited it - up to the app's own. `pgrep -g` answers that question, and an
-/// empty group is also the case where there is nothing left to kill.
+/// Called while the leader is still alive and unreaped, which is what makes the
+/// negative-pid signal safe: the kernel cannot hand its pid - and therefore its
+/// pgid - to anything else until it has been waited on, and the caller only
+/// kills and reaps it afterwards. Asking `pgrep -g` first, as this used to,
+/// bought nothing and opened a window: the leader could exit and be reaped
+/// between the answer and the signal, which is exactly the case the check was
+/// meant to rule out. It also made the whole cleanup depend on a `pgrep` binary
+/// that a minimal container image does not ship, and every descendant leaked
+/// when it was missing.
 #[cfg(not(windows))]
 fn kill_group(pid: u32) {
     if pid <= 1 {
-        return;
-    }
-    let Ok(members) = std::process::Command::new("pgrep").arg("-g").arg(pid.to_string()).output()
-    else {
-        return;
-    };
-    // The leader lists itself, so a group that is only the leader is one where
-    // nothing was left behind.
-    let alive = String::from_utf8_lossy(&members.stdout)
-        .split_whitespace()
-        .filter_map(|p| p.parse::<u32>().ok())
-        .any(|member| member != pid);
-    if !alive {
         return;
     }
     let _ = std::process::Command::new("kill")

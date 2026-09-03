@@ -363,7 +363,18 @@ function wake(id: string, m: ManagedTerminal): void {
 	m.fit = fit;
 	m.serialize = serialize;
 	term.open(m.el);
-	if (backlog) term.write(backlog);
+	// The renderer goes in before the backlog is written, not after. WebGL takes
+	// over with an empty canvas and only paints what changes from then on, so a
+	// screen already written through the DOM renderer is not redrawn: the pane
+	// stays black until something forces a refresh, which is what the click that
+	// "fixes" it was doing.
+	loadRenderer(m);
+	// Repainted from the write callback, not after it: `write` parses on its own
+	// schedule, so a refresh issued here would run against a buffer that is not
+	// filled yet. The explicit repaint covers the case where the fit below
+	// changes nothing - `fit()` is a no-op at an unchanged size, and the restored
+	// screen would then never be drawn.
+	if (backlog) term.write(backlog, () => term.refresh(0, term.rows - 1));
 	refitTerminal(m);
 
 	// A slot with no layout yet makes fit() throw, which leaves xterm at its

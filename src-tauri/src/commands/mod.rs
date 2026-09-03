@@ -28,7 +28,6 @@ pub mod instances;
 pub mod integrations;
 pub mod lsp;
 pub mod mcp;
-pub mod memory_log;
 pub mod native_agents;
 pub mod ports;
 pub mod projects;

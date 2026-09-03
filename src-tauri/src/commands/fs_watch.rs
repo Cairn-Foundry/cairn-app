@@ -121,16 +121,44 @@ fn gitdir_of(root: &Path) -> PathBuf {
     dot_git
 }
 
+/// The git metadata directories worth a watch: the gitdir itself, where the
+/// status files live, and the `refs` tree, whose subdirectories are what a
+/// branch or a fetch moves. Deliberately shallow - `refs/remotes/<remote>` is
+/// covered, the per-branch directories below it are not, and a repository that
+/// nests its refs deeper reports the change on the nearest watched parent.
+fn git_watch_dirs(gitdir: &Path) -> Vec<PathBuf> {
+    let mut dirs = vec![gitdir.to_path_buf()];
+    let refs = gitdir.join("refs");
+    if !refs.is_dir() {
+        return dirs;
+    }
+    dirs.push(refs.clone());
+    if let Ok(entries) = std::fs::read_dir(&refs) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if let Ok(nested) = std::fs::read_dir(&path) {
+                for sub in nested.flatten() {
+                    let sub = sub.path();
+                    if sub.is_dir() {
+                        dirs.push(sub);
+                    }
+                }
+            }
+            dirs.push(path);
+        }
+    }
+    dirs
+}
+
 /// What `watch_dirs` answers: how many directories are covered, and which of the
 /// requested ones could not be, so the frontend can say the view may be stale
 /// rather than pretend everything is seen.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchReport {
-    /// Directories this watcher was asked to cover. Not the number of OS watches:
-    /// `.git` is watched recursively, which on Linux expands to one inotify watch
-    /// per directory under it. The count is what the frontend requested, useful to
-    /// see the set move; it is deliberately not presented as a quota figure.
     pub watched: usize,
     pub failed: Vec<String>,
 }
@@ -193,17 +221,13 @@ pub async fn watch_dirs(
     path: String,
     dirs: Vec<String>,
 ) -> Result<WatchReport, String> {
-    // Canonicalised on both sides before anything is compared. `notify` reports
-    // resolved paths, and a worktree under a symlinked home or /tmp would
-    // otherwise fail every `starts_with` below: `wanted` would collapse to the
-    // root alone and the diff would unwatch everything, silently, with an empty
-    // `failed` so nothing would say the view had stopped updating.
     let root = resolve(&PathBuf::from(shellexpand::tilde(&path).into_owned()));
     let gitdir = resolve(&gitdir_of(&root));
     let state = app.state::<WatchState>();
     let mut watchers = state.watchers.lock().map_err(|e| e.to_string())?;
 
-    if !watchers.contains_key(&path) {
+    let key_path = root.to_string_lossy().into_owned();
+    if !watchers.contains_key(&key_path) {
         let tx = sender(&app);
         let (cb_root, cb_gitdir, key) = (root.clone(), gitdir.clone(), path.clone());
         let watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -219,27 +243,20 @@ pub async fn watch_dirs(
             }
         })
         .map_err(|e| e.to_string())?;
-        // The root and the gitdir are not installed here: they are part of `wanted`
-        // below, so the same diff loop places them and records a refusal the same
-        // way it does for any other directory.
-        watchers.insert(path.clone(), Watched { watcher, dirs: Default::default(), failed: Vec::new() });
+        watchers.insert(key_path.clone(), Watched { watcher, dirs: Default::default(), failed: Vec::new() });
     }
 
-    let w = watchers.get_mut(&path).ok_or("watcher vanished")?;
-    // Cleared so the report describes this call rather than accumulating every
-    // refusal of the session; the loop below re-records anything still failing.
+    let w = watchers.get_mut(&key_path).ok_or("watcher vanished")?;
     w.failed.clear();
 
     let mut wanted: std::collections::HashSet<PathBuf> = dirs
         .iter()
         .map(|d| resolve(&PathBuf::from(shellexpand::tilde(d).into_owned())))
-        // A path outside the worktree is not this watcher's business.
         .filter(|d| d.starts_with(&root))
         .collect();
-    // The fixed watches are part of the set and are never dropped by a diff.
     wanted.insert(root.clone());
-    if gitdir.is_dir() {
-        wanted.insert(gitdir.clone());
+    for dir in git_watch_dirs(&gitdir) {
+        wanted.insert(dir);
     }
 
     for stale in w.dirs.difference(&wanted).cloned().collect::<Vec<_>>() {
@@ -247,8 +264,7 @@ pub async fn watch_dirs(
     }
     for dir in &wanted {
         if !w.dirs.contains(dir) && dir.is_dir() {
-            let mode = if dir == &gitdir { RecursiveMode::Recursive } else { RecursiveMode::NonRecursive };
-            w.add(dir, mode);
+            w.add(dir, RecursiveMode::NonRecursive);
         }
     }
 
@@ -260,7 +276,10 @@ pub async fn watch_dirs(
 
 #[tauri::command]
 pub async fn unwatch_worktree(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    app.state::<WatchState>().watchers.lock().map_err(|e| e.to_string())?.remove(&path);
+    let key = resolve(&PathBuf::from(shellexpand::tilde(&path).into_owned()))
+        .to_string_lossy()
+        .into_owned();
+    app.state::<WatchState>().watchers.lock().map_err(|e| e.to_string())?.remove(&key);
     Ok(())
 }
 
@@ -272,8 +291,6 @@ mod tests {
         let path = std::env::temp_dir().join(format!("cairn-fswatch-{}-{}", std::process::id(), label));
         let _ = std::fs::remove_dir_all(&path);
         std::fs::create_dir_all(&path).unwrap();
-        // macOS resolves the temp dir through a symlink; `notify` reports the real
-        // path, so strip_prefix in classify would fail against the symlinked one.
         path.canonicalize().unwrap()
     }
 

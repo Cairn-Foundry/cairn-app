@@ -41,12 +41,20 @@
     void load().catch(() => (warmed = false));
   }
 
+  // A chunk that fails to resolve must release `pending`, otherwise the guard
+  // below can never fire again and the view stays on its spinner for the rest
+  // of the session, with no way back.
   $: if (active && !Comp && !pending) {
     pending = true;
-    load().then((m) => {
-      Comp = m.default;
-      pending = false;
-    });
+    load().then(
+      (m) => {
+        Comp = m.default;
+        pending = false;
+      },
+      () => {
+        pending = false;
+      },
+    );
   }
 </script>
 

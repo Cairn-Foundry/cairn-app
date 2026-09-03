@@ -318,27 +318,33 @@ fn read_names(dir: &Path) -> Vec<String> {
 pub async fn list_dir_names_deep(path: String, depth: u32) -> std::collections::HashMap<String, Vec<String>> {
     let root = PathBuf::from(shellexpand::tilde(&path).into_owned());
     let mut out = std::collections::HashMap::new();
-    let mut ignore = ignore::gitignore::GitignoreBuilder::new(&root);
-    let mut matcher = None;
-    let mut frontier = vec![(String::new(), root.clone())];
+    let mut frontier = vec![(String::new(), root.clone(), Vec::<Arc<ignore::gitignore::Gitignore>>::new())];
     for _ in 0..=depth {
         let mut next = Vec::new();
-        for (rel, dir) in frontier {
+        for (rel, dir, inherited) in frontier {
             let names = read_names(&dir);
+            let mut matchers = inherited;
             if names.iter().any(|n| n == ".gitignore") {
-                ignore.add(dir.join(".gitignore"));
-                matcher = ignore.build().ok();
+                let mut builder = ignore::gitignore::GitignoreBuilder::new(&dir);
+                builder.add(dir.join(".gitignore"));
+                if let Ok(matcher) = builder.build() {
+                    matchers.push(Arc::new(matcher));
+                }
             }
             for name in &names {
                 if name.starts_with('.') || SWEEP_SKIP_DIRS.contains(&name.as_str()) {
                     continue;
                 }
                 let child = dir.join(name);
-                let ignored = matcher
-                    .as_ref()
-                    .is_some_and(|m| m.matched_path_or_any_parents(&child, true).is_ignore());
+                let ignored = matchers
+                    .iter()
+                    .any(|m| m.matched_path_or_any_parents(&child, true).is_ignore());
                 if !ignored && child.is_dir() {
-                    next.push((if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") }, child));
+                    next.push((
+                        if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") },
+                        child,
+                        matchers.clone(),
+                    ));
                 }
             }
             out.insert(rel, names);
@@ -414,10 +420,19 @@ pub async fn read_file_base64(path: String) -> Result<String, String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
-/// The version stamp of a file: modification time in nanoseconds and size, in the
-/// exact shape the `cairn://` protocol puts in its ETag. Both sides must build it
-/// the same way, or a file read through the protocol could never be written back.
+/// The version stamp of a file: modification time, size and inode, in the exact
+/// shape the `cairn://` protocol puts in its ETag. Both sides must build it the
+/// same way, or a file read through the protocol could never be written back.
 /// `None` when the file does not exist.
+///
+/// The inode is part of it because the mtime alone is not enough to notice a
+/// change. Its resolution is a property of the filesystem, not of the clock:
+/// ext4 stores nanoseconds, but a FAT, exFAT or SMB mount - a worktree in a
+/// synchronised folder, say - rounds to the second or worse. A formatter that
+/// rewrites one character within that window leaves mtime and length untouched,
+/// and the overwrite guard would wave the write through. Every tool that
+/// rewrites through a temporary file and renames it lands on a new inode, which
+/// catches exactly that case.
 pub fn file_version(path: &Path) -> Option<String> {
     let meta = fs::metadata(path).ok()?;
     let modified = meta
@@ -426,7 +441,19 @@ pub fn file_version(path: &Path) -> Option<String> {
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    Some(format!("\"{modified:x}-{:x}\"", meta.len()))
+    Some(format!("\"{modified:x}-{:x}-{:x}\"", meta.len(), inode_of(&meta)))
+}
+
+/// The inode on unix, where the stamp gains from it. Windows has no cheap
+/// equivalent in `Metadata`, so the stamp there stays mtime and size.
+#[cfg(unix)]
+fn inode_of(meta: &fs::Metadata) -> u64 {
+    std::os::unix::fs::MetadataExt::ino(meta)
+}
+
+#[cfg(not(unix))]
+fn inode_of(_meta: &fs::Metadata) -> u64 {
+    0
 }
 
 /// Refusal of a write whose target moved since the caller last read it. `actual`
@@ -846,16 +873,19 @@ mod write_conflict_tests {
         let file = dir.join("a.txt");
         fs::write(&file, "hello").unwrap();
 
-        let meta = fs::metadata(&file).unwrap();
-        let modified = meta
-            .modified()
+        let request = tauri::http::Request::builder()
+            .uri(format!("cairn://localhost/{}", file.to_string_lossy().replace('/', "%2F")))
+            .body(Vec::new())
+            .unwrap();
+        let response = crate::commands::file_protocol::respond(&request);
+        let served = response
+            .headers()
+            .get(tauri::http::header::ETAG)
             .unwrap()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let etag = format!("\"{modified:x}-{:x}\"", meta.len());
+            .to_str()
+            .unwrap();
 
-        assert_eq!(file_version(&file), Some(etag));
+        assert_eq!(file_version(&file).as_deref(), Some(served));
         let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -104,6 +104,14 @@ const awaitingFirstInput = new Map<
 	{ ref: ConversationRef; id: string }
 >();
 
+/**
+ * Unsubscribers of the resume watchers, keyed by terminal id. A conversation the
+ * app closes itself gets no exit event - the backend stays silent for a session
+ * it was asked to close - so the watcher would never remove itself, and every
+ * resume of the session would leave one more listener registered for good.
+ */
+const resumeWatchers = new Map<string, () => void>();
+
 /** Records that the CLI of this terminal now has a session worth resuming. */
 function markSessionStarted(terminalId: string): void {
 	const pending = awaitingFirstInput.get(terminalId);
@@ -474,6 +482,7 @@ function watchResumeFailure(
 	const stop = manager.onTerminalExit(({ id: exited, exitCode }) => {
 		if (exited !== terminalId) return;
 		stop();
+		resumeWatchers.delete(terminalId);
 		if (!exitCode || Date.now() - startedAt > RESUME_FAILURE_MS) return;
 		// The PTY of a killed run reports its exit after the next one started, so
 		// the run is what says whether this exit is still the one being watched.
@@ -486,6 +495,8 @@ function watchResumeFailure(
 		closeConversation(id);
 		void openConversation(ref, id, { fresh: true }).catch(() => {});
 	});
+	resumeWatchers.get(terminalId)?.();
+	resumeWatchers.set(terminalId, stop);
 }
 
 /** Kills the CLI. The entry stays: reopening it is what resume is for. */
@@ -494,6 +505,8 @@ export function closeConversation(id: string): void {
 	if (!terminalId) return;
 	awaitingTitle.delete(terminalId);
 	awaitingFirstInput.delete(terminalId);
+	resumeWatchers.get(terminalId)?.();
+	resumeWatchers.delete(terminalId);
 	void closeTerminal(terminalId).catch(() => {});
 	manager.dispose(terminalId);
 	conversationTerminals.update((m) => {

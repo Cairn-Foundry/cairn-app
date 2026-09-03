@@ -83,7 +83,6 @@ pub fn run() {
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
             commands::lsp::spawn_idle_reaper(app.handle().clone());
-            commands::memory_log::spawn_sampler();
 
             /* Transparency is decided when the window is created and cannot be
                changed afterwards, so the window is built here rather than

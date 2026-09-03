@@ -92,11 +92,6 @@ pub fn projects_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("projects.json"))
 }
 
-/// Where the memory sampler appends its readings, one line every ten minutes.
-pub fn memory_log_file() -> Result<PathBuf, String> {
-    Ok(cairn_dir()?.join("memory.log"))
-}
-
 /// Project order and folder groupings of the home list.
 pub fn listing_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("listing.json"))

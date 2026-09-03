@@ -15,7 +15,7 @@
 //! as a silently empty commit message.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -381,9 +381,15 @@ fn run_blocking(
     let mut output = String::new();
     let mut overflowed = false;
     if let Some(out) = stdout {
-        for line in BufReader::new(out).lines() {
-            let Ok(line) = line else { break };
-            if output.len() + line.len() + 1 > MAX_STDOUT_BYTES {
+        let mut reader = BufReader::new(out);
+        let mut chunk = [0u8; 64 * 1024];
+        let mut bytes = Vec::new();
+        loop {
+            let Ok(read) = reader.read(&mut chunk) else { break };
+            if read == 0 {
+                break;
+            }
+            if bytes.len() + read > MAX_STDOUT_BYTES {
                 overflowed = true;
                 if let Ok(mut slot) = handle.child.lock()
                     && let Some(mut c) = slot.take()
@@ -392,9 +398,9 @@ fn run_blocking(
                 }
                 break;
             }
-            output.push_str(&line);
-            output.push('\n');
+            bytes.extend_from_slice(&chunk[..read]);
         }
+        output = String::from_utf8_lossy(&bytes).into_owned();
     }
 
     let status = handle
