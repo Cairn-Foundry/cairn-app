@@ -36,6 +36,8 @@ vi.mock("$lib/components/files/CodeEditor.svelte", async () => ({
 
 const { default: Page } = await import("../routes/+page.svelte");
 
+await import("$lib/components/Workspace.svelte");
+
 const WORKTREE = "/worktrees/p1/feature";
 
 /** A world with one project, one instance on it, and two files in the worktree. */
@@ -117,15 +119,12 @@ afterEach(() => {
 });
 
 /**
- * Mounts the application and lets it finish its launch reads. The workspace is
- * a dynamic import - it is not pulled in until a project is opened - so the
- * module has to be awaited before its own mount work can settle.
+ * Mounts the application and lets it finish its launch reads, including the
+ * mount work of the workspace when the saved state reopens on it.
  */
 async function launch() {
 	const view = render(Page);
-	await settle();
-	await import("$lib/components/Workspace.svelte");
-	await settle();
+	await settle(24);
 	return view;
 }
 
@@ -338,7 +337,6 @@ describe("parcours: restarting on the previous view", () => {
 		try {
 			render(Page);
 			await vi.advanceTimersByTimeAsync(50);
-			await import("$lib/components/Workspace.svelte");
 			await vi.advanceTimersByTimeAsync(1000);
 
 			const saved = backend.world.uiState as { screen: string } | null;
