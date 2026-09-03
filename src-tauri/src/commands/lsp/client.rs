@@ -15,6 +15,13 @@ use serde_json::{json, Value};
 
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Ceiling on one framed message. `Content-Length` is whatever the server
+/// printed, and a desynchronised or corrupted frame turns it into the size of
+/// an allocation we would make before reading a single byte of the body. No
+/// real LSP payload approaches this; a larger one is a broken stream, so the
+/// read fails and the reader thread ends rather than aborting the process.
+const MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
+
 type Pending = Arc<Mutex<HashMap<i64, Sender<Result<Value, String>>>>>;
 
 /// A connected language server. Requests block the caller until the reader
@@ -23,6 +30,12 @@ pub struct LspClient {
     stdin:   Mutex<ChildStdin>,
     next_id: AtomicI64,
     pending: Pending,
+}
+
+/// The body length to allocate for a frame, or None when the header is missing
+/// or names a size no real payload has.
+fn framed_body_len(length: Option<usize>) -> Option<usize> {
+    length.filter(|n| *n <= MAX_MESSAGE_BYTES)
 }
 
 /// Frames one message with its `Content-Length` header, as LSP requires.
@@ -48,7 +61,8 @@ fn read_message(reader: &mut BufReader<ChildStdout>) -> Option<Value> {
             length = value.trim().parse::<usize>().ok();
         }
     }
-    let mut buf = vec![0u8; length?];
+    let length = framed_body_len(length)?;
+    let mut buf = vec![0u8; length];
     reader.read_exact(&mut buf).ok()?;
     serde_json::from_slice(&buf).ok()
 }
@@ -152,5 +166,31 @@ impl LspClient {
                 Err(format!("{method} timed out"))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{framed_body_len, MAX_MESSAGE_BYTES};
+
+    #[test]
+    fn accepts_an_ordinary_payload() {
+        assert_eq!(framed_body_len(Some(4096)), Some(4096));
+    }
+
+    #[test]
+    fn accepts_the_ceiling_itself() {
+        assert_eq!(framed_body_len(Some(MAX_MESSAGE_BYTES)), Some(MAX_MESSAGE_BYTES));
+    }
+
+    #[test]
+    fn refuses_a_desynchronised_length() {
+        assert_eq!(framed_body_len(Some(MAX_MESSAGE_BYTES + 1)), None);
+        assert_eq!(framed_body_len(Some(usize::MAX)), None);
+    }
+
+    #[test]
+    fn refuses_a_missing_header() {
+        assert_eq!(framed_body_len(None), None);
     }
 }

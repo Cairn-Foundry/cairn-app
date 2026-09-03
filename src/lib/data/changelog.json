@@ -15,6 +15,20 @@
 				}
 			},
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "A language server sending a corrupted or desynchronised message frame can no longer bring Cairn down. The announced length of a message was trusted as-is and used to reserve that much memory before a single byte of the body was read, so a broken frame could ask for an impossible amount at once. An implausible length is now rejected and the connection to that server simply ends.",
+					"fr": "Un serveur de langage qui envoie une trame de message corrompue ou désynchronisée ne peut plus faire tomber Cairn. La longueur annoncée d'un message était utilisée telle quelle pour réserver d'emblée autant de mémoire, avant même d'avoir lu le moindre octet du corps, si bien qu'une trame cassée pouvait en réclamer une quantité impossible d'un seul coup. Une longueur invraisemblable est désormais refusée et la connexion à ce serveur prend simplement fin."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A CLI stuck printing without end during a headless run no longer grows Cairn's memory until something gives. Its output is now bounded: past the ceiling the run is stopped and reports that it produced too much, rather than being silently cut short and failing later as an unreadable answer. Error output is kept to its last few pages, which is the part that says what went wrong.",
+					"fr": "Un CLI bloqué à écrire sans fin pendant une exécution headless ne fait plus grossir la mémoire de Cairn jusqu'à la rupture. Sa sortie est désormais bornée : au-delà du plafond l'exécution est arrêtée et signale qu'elle a trop produit, au lieu d'être tronquée en silence et d'échouer plus tard sur une réponse illisible. La sortie d'erreur est conservée sur ses dernières pages, celles qui disent ce qui a échoué."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Cairn now watches only the directories you have open - the expanded folders and the ones holding your open files - instead of every directory in the repository. On Linux the number of watches is a quota shared with every other program, and a large project could use it up on its own; a project now costs a few dozen watches rather than thousands.",

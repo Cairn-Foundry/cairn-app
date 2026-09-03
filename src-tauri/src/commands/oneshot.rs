@@ -27,6 +27,24 @@ use tauri::Manager;
 
 use crate::commands::cli_providers::{kill_tree, new_command, resolve_binary};
 
+/// Ceilings on what one headless run may print. A CLI stuck in a loop would
+/// otherwise grow these buffers until the process is killed for it.
+const MAX_STDOUT_BYTES: usize = 64 * 1024 * 1024;
+const MAX_STDERR_BYTES: usize = 256 * 1024;
+
+/// The last `max` bytes of `text`, cut on a character boundary so the result
+/// stays valid UTF-8. Used where only the end carries meaning.
+fn keep_tail(text: String, max: usize) -> String {
+    if text.len() <= max {
+        return text;
+    }
+    let mut start = text.len() - max;
+    while start < text.len() && !text.is_char_boundary(start) {
+        start += 1;
+    }
+    text[start..].to_string()
+}
+
 /// Where a CLI puts the object it was asked for.
 #[derive(Clone, Copy, PartialEq)]
 enum AnswerSource {
@@ -351,14 +369,29 @@ fn run_blocking(
         std::thread::spawn(move || {
             let mut buf = String::new();
             let _ = err.read_to_string(&mut buf);
-            buf
+            // Only ever shown as error text, so the tail is the useful end.
+            keep_tail(buf, MAX_STDERR_BYTES)
         })
     });
 
+    // The whole of stdout is parsed as one JSON envelope, so it cannot be
+    // truncated: a clipped answer would fail as "did not answer with JSON" and
+    // send the user hunting for a parsing bug. Past the ceiling the run is
+    // stopped and says so instead.
     let mut output = String::new();
+    let mut overflowed = false;
     if let Some(out) = stdout {
         for line in BufReader::new(out).lines() {
             let Ok(line) = line else { break };
+            if output.len() + line.len() + 1 > MAX_STDOUT_BYTES {
+                overflowed = true;
+                if let Ok(mut slot) = handle.child.lock()
+                    && let Some(mut c) = slot.take()
+                {
+                    kill_tree(&mut c);
+                }
+                break;
+            }
             output.push_str(&line);
             output.push('\n');
         }
@@ -375,6 +408,13 @@ fn run_blocking(
 
     if handle.cancelled.load(Ordering::SeqCst) {
         return Err("cancelled".to_string());
+    }
+    if overflowed {
+        return Err(format!(
+            "{} produced more than {} MB of output and was stopped.",
+            cli.binary,
+            MAX_STDOUT_BYTES / (1024 * 1024)
+        ));
     }
     if let Some(status) = status
         && !status.success()
@@ -488,5 +528,26 @@ mod tests {
             file.0.clone()
         };
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn keep_tail_leaves_a_short_text_alone() {
+        assert_eq!(keep_tail("short".to_string(), 64), "short");
+    }
+
+    #[test]
+    fn keep_tail_keeps_the_end() {
+        assert_eq!(keep_tail("abcdefgh".to_string(), 3), "fgh");
+    }
+
+    #[test]
+    fn keep_tail_never_splits_a_character() {
+        // "e" acute is two bytes: a naive cut lands inside it and panics.
+        let text = "éééé".to_string();
+        for max in 1..=text.len() {
+            let tail = keep_tail(text.clone(), max);
+            assert!(tail.len() <= max);
+            assert!(text.ends_with(&tail));
+        }
     }
 }
