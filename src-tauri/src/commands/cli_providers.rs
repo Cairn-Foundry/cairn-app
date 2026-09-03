@@ -17,6 +17,7 @@ use std::process::Command;
 use std::sync::RwLock;
 
 use serde::Serialize;
+use crate::child_env;
 
 pub const CLAUDE_CODE: &str = "claude-code";
 pub const CODEX: &str = "codex";
@@ -191,11 +192,11 @@ pub fn new_command(path: &Path) -> Command {
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case("cmd") || e.eq_ignore_ascii_case("bat"));
         let mut cmd = if is_shim {
-            let mut c = Command::new("cmd");
+            let mut c = child_env::command("cmd");
             c.arg("/C").arg(path);
             c
         } else {
-            Command::new(path)
+            child_env::command(path)
         };
         cmd.creation_flags(CREATE_NO_WINDOW);
         cmd
@@ -203,7 +204,7 @@ pub fn new_command(path: &Path) -> Command {
     #[cfg(not(target_os = "windows"))]
     {
         use std::os::unix::process::CommandExt;
-        let mut cmd = Command::new(path);
+        let mut cmd = child_env::command(path);
         cmd.process_group(0);
         cmd
     }
@@ -522,7 +523,7 @@ fn parse_rfc3339_millis(text: &str) -> Option<i64> {
 /// rather than its database - the schema of that is its own business.
 fn opencode_session(cwd: &str, started_after: i64) -> Option<String> {
     let binary = resolve_binary(binary_name(OPENCODE), None)?;
-    let out = Command::new(binary)
+    let out = child_env::command(binary)
         .args(["session", "list", "--format", "json", "-n", "40"])
         .stdin(std::process::Stdio::null())
         .output()
@@ -575,13 +576,13 @@ pub fn kill_tree(child: &mut std::process::Child) {
     }
     #[cfg(target_os = "windows")]
     {
-        let _ = Command::new("taskkill")
+        let _ = child_env::command("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .output();
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = Command::new("kill")
+        let _ = child_env::command("kill")
             .args(["-TERM", &format!("-{pid}")])
             .output();
     }
@@ -620,7 +621,7 @@ fn version_in(line: &str) -> Option<String> {
 fn probe_version(path: &Path) -> Option<String> {
     // stdin is closed so a prompt like the one above cannot block detection
     // waiting on an answer nobody is there to give.
-    let out = Command::new(path)
+    let out = child_env::command(path)
         .arg("--version")
         .stdin(std::process::Stdio::null())
         .output()

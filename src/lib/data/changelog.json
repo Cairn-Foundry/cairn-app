@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.0.2",
+		"date": "",
+		"summary": {
+			"en": "A quieter 1.0: what Cairn starts for you - terminals, coding CLIs, language servers, formatters - runs in your environment rather than in the app's own.",
+			"fr": "Un 1.0 plus sage : ce que Cairn lance pour vous - terminaux, CLI de code, serveurs de langage, formateurs - tourne dans votre environnement plutôt que dans celui de l'application."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The programs Cairn starts - the terminals, the coding CLIs running in them, the language servers, the formatters, git - no longer inherit the environment of the AppImage itself. In an AppImage build that environment points at the temporary mount the app runs from, which broke python3 in a Cairn terminal (\"Failed to import encodings module\"), took down anything else written in Python such as a Python language server, and could link a system binary against a bundled library instead of its own.",
+					"fr": "Les programmes lancés par Cairn - les terminaux, les CLI de code qui y tournent, les serveurs de langage, les formateurs, git - n'héritent plus de l'environnement de l'AppImage elle-même. Dans un build AppImage, cet environnement pointe vers le montage temporaire depuis lequel l'application tourne, ce qui cassait python3 dans un terminal de Cairn (\"Failed to import encodings module\"), emportait tout ce qui est écrit en Python comme un serveur de langage Python, et pouvait lier un binaire du système à une bibliothèque embarquée au lieu de la sienne."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.1",
 		"date": "2026-09-03",
 		"summary": {

@@ -12,6 +12,7 @@ use std::sync::Mutex;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use crate::child_env;
 use crate::commands::cli_providers::resolve_binary;
 use crate::storage::{instance_terminal_state_file, project_terminal_state_file, write_json_atomic};
 
@@ -192,6 +193,8 @@ pub async fn terminal_create(
             cmd.cwd(expanded);
         }
     }
+    // Before anything the caller asked for, so an explicit override still wins.
+    child_env::scrub_pty(&mut cmd);
     cmd.env("TERM", "xterm-256color");
     ensure_utf8_locale(&mut cmd);
     for (key, value) in env.unwrap_or_default() {
@@ -360,7 +363,7 @@ pub async fn terminal_has_children(app: tauri::AppHandle, id: String) -> bool {
 /// group with more than the leader in it is a CLI doing something.
 #[cfg(not(windows))]
 fn has_descendants(pid: u32) -> bool {
-    let Ok(out) = std::process::Command::new("pgrep").arg("-P").arg(pid.to_string()).output()
+    let Ok(out) = child_env::command("pgrep").arg("-P").arg(pid.to_string()).output()
     else {
         return true;
     };
@@ -439,7 +442,7 @@ fn kill_group(pid: u32) {
     if pid <= 1 {
         return;
     }
-    let _ = std::process::Command::new("kill")
+    let _ = child_env::command("kill")
         .args(["-TERM", &format!("-{pid}")])
         .output();
 }
@@ -449,7 +452,7 @@ fn kill_group(pid: u32) {
     if pid <= 1 {
         return;
     }
-    let _ = std::process::Command::new("taskkill")
+    let _ = child_env::command("taskkill")
         .args(["/PID", &pid.to_string(), "/T", "/F"])
         .output();
 }

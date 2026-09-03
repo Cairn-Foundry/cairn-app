@@ -7,6 +7,7 @@
 //! Application entry point: builds the Tauri app, registers the managed state
 //! and wires every `#[tauri::command]` exposed to the frontend.
 
+pub mod child_env;
 pub mod storage;
 pub mod commands;
 
