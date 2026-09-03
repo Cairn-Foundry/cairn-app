@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.0.2",
+		"date": "",
+		"summary": {
+			"en": "An AppImage build behaves like an installed one: what Cairn starts runs in your environment, and the cairn command outlives the window that installed it.",
+			"fr": "Un build AppImage se comporte comme une installation classique : ce que Cairn lance tourne dans votre environnement, et la commande cairn survit à la fenêtre qui l'a installée."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The cairn command installed from an AppImage build keeps working once the app is closed. It was written as a link into the temporary mount the AppImage runs from - a directory that disappears when the app exits and is named differently at every launch - so the command died with the window that installed it, and reinstalling it only helped until the next close. It now leads to the image file itself, and tells you to reinstall it if you move the image.",
+					"fr": "La commande cairn installée depuis un build AppImage continue de fonctionner après la fermeture de l'application. Elle était écrite comme un lien vers le montage temporaire depuis lequel l'AppImage tourne - un répertoire qui disparaît à la fermeture et porte un nom différent à chaque lancement - si bien que la commande mourait avec la fenêtre qui l'avait installée, et la réinstaller ne servait que jusqu'à la fermeture suivante. Elle mène désormais au fichier image lui-même, et vous invite à la réinstaller si vous déplacez l'image."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.1",
 		"date": "2026-09-03",
 		"summary": {

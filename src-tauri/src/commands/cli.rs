@@ -124,6 +124,90 @@ fn launcher_path() -> Option<PathBuf> {
     if candidate.is_file() { Some(candidate) } else { None }
 }
 
+/// The `.AppImage` this build was started from, `None` when it was not.
+///
+/// The runtime sets `APPIMAGE` to the image file itself - where the user put
+/// it - while `current_exe()` lands in `/tmp/.mount_XXXXXX`, a FUSE mount the
+/// runtime creates per launch and removes when the app exits. The image path is
+/// therefore the only way back into this build that outlives the process.
+fn appimage_path() -> Option<PathBuf> {
+    let raw = std::env::var("APPIMAGE").ok().filter(|p| !p.is_empty())?;
+    let path = PathBuf::from(raw);
+    path.is_file().then_some(path)
+}
+
+/// What the `cairn` command has to lead to for this build: the image file when
+/// the app runs from an AppImage, the launcher shipped next to the binary
+/// otherwise.
+fn expected_target() -> Option<PathBuf> {
+    appimage_path().or_else(launcher_path)
+}
+
+/// A path as one single-quoted `sh` word. An app bundle is named "Cairn
+/// Foundry", so its path holds a space, and single quotes are the only quoting
+/// that survives one - a quote inside is closed, escaped and reopened.
+fn sh_quote(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', r"'\''"))
+}
+
+/// The path a single-quoted `sh` word holds, `None` when it is not one.
+fn sh_unquote(word: &str) -> Option<String> {
+    let inner = word.strip_prefix('\'')?.strip_suffix('\'')?;
+    Some(inner.replace(r"'\''", "'"))
+}
+
+/// The `cairn` command of an AppImage build. A link is no use here: it would
+/// point inside the mount, so it would break the moment the app exits and stay
+/// broken, the next launch having a different mount. The script names the image
+/// instead, and starts it detached the way the launcher does, so the shell gets
+/// its prompt back rather than waiting for the window to close.
+const LAUNCHER_SCRIPT: &str = r#"#!/bin/sh
+# Written by Cairn Foundry. An AppImage runs from a temporary mount whose path
+# changes at every launch, so this names the image file instead of the launcher
+# inside it. Reinstall the command from the settings if you move the image.
+IMAGE=@IMAGE@
+if [ ! -x "$IMAGE" ]; then
+  echo "cairn: $IMAGE is gone - reinstall the cairn command from Cairn Foundry's settings." >&2
+  exit 1
+fi
+if command -v setsid >/dev/null 2>&1; then
+  setsid "$IMAGE" "$@" >/dev/null 2>&1 &
+else
+  "$IMAGE" "$@" >/dev/null 2>&1 &
+fi
+"#;
+
+#[cfg(unix)]
+fn write_launcher_script(link: &Path, image: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(link, LAUNCHER_SCRIPT.replace("@IMAGE@", &sh_quote(image)))?;
+    std::fs::set_permissions(link, std::fs::Permissions::from_mode(0o755))
+}
+
+/// The image a script written here names, so the status can tell a command
+/// installed for this build from one left behind by another image.
+fn recorded_image(link: &Path) -> Option<PathBuf> {
+    let content = std::fs::read_to_string(link).ok()?;
+    let word = content.lines().find_map(|l| l.strip_prefix("IMAGE="))?;
+    sh_unquote(word).map(PathBuf::from)
+}
+
+/// Puts the `cairn` entry in place: a script for an AppImage build, a link to
+/// the launcher for an installed one.
+fn install_entry(link: &Path, target: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        if appimage_path().is_some() {
+            return write_launcher_script(link, target);
+        }
+        std::os::unix::fs::symlink(target, link)
+    }
+    #[cfg(windows)]
+    {
+        std::fs::copy(target, link).map(|_| ())
+    }
+}
+
 /// Tested by actually creating a file: the permission bits alone do not answer
 /// it on a directory the user only appears to own.
 fn is_writable_dir(dir: &Path) -> bool {
@@ -146,7 +230,7 @@ pub async fn get_cli_status() -> CliStatus {
 }
 
 fn read_cli_status() -> CliStatus {
-    let target = launcher_path();
+    let target = expected_target();
     let target_str = target.as_ref().map(|p| p.to_string_lossy().into_owned());
     for dir in candidate_dirs() {
         let link = dir.join(LINK_NAME);
@@ -155,6 +239,7 @@ fn read_cli_status() -> CliStatus {
         }
         let resolved = std::fs::read_link(&link)
             .ok()
+            .or_else(|| recorded_image(&link))
             .or_else(|| Some(link.clone()))
             .map(|p| p.to_string_lossy().into_owned());
         let up_to_date = match (&resolved, &target_str) {
@@ -183,7 +268,7 @@ fn read_cli_status() -> CliStatus {
 /// the user sees why `/usr/local/bin` was refused as well as the fallback.
 #[tauri::command]
 pub async fn install_cli() -> Result<CliStatus, String> {
-    let target = launcher_path()
+    let target = expected_target()
         .ok_or_else(|| "The cairn launcher was not found next to the application binary.".to_string())?;
 
     let mut errors: Vec<String> = Vec::new();
@@ -202,11 +287,7 @@ pub async fn install_cli() -> Result<CliStatus, String> {
                 errors.push(format!("{}: {}", link.display(), e));
                 continue;
             }
-        #[cfg(unix)]
-        let created = std::os::unix::fs::symlink(&target, &link);
-        #[cfg(windows)]
-        let created = std::fs::copy(&target, &link).map(|_| ());
-        match created {
+        match install_entry(&link, &target) {
             Ok(()) => return Ok(read_cli_status()),
             Err(e) => errors.push(format!("{}: {}", link.display(), e)),
         }
@@ -271,6 +352,103 @@ mod tests {
         assert!(req.open_dir.is_none());
         assert!(req.clone_url.is_none());
         std::fs::remove_file(&file).unwrap();
+    }
+
+    /// A directory of this test's own, so a run leaves nothing behind and two
+    /// tests never fight over the same name.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("cairn-cli-test-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_path_with_a_space_or_a_quote_survives_the_quoting() {
+        let path = PathBuf::from("/home/someone/Cairn Foundry_1.0.0.AppImage");
+        assert_eq!(sh_quote(&path), "'/home/someone/Cairn Foundry_1.0.0.AppImage'");
+        assert_eq!(sh_unquote(&sh_quote(&path)).as_deref(), path.to_str());
+
+        let awkward = PathBuf::from("/home/someone/it's here/Cairn.AppImage");
+        assert_eq!(sh_unquote(&sh_quote(&awkward)).as_deref(), awkward.to_str());
+        assert_eq!(sh_unquote("not quoted"), None);
+    }
+
+    /// The status has to recognise a command installed for this very image, so
+    /// the script it wrote must be readable back.
+    #[cfg(unix)]
+    #[test]
+    fn the_script_names_the_image_it_was_written_for() {
+        let dir = scratch("recorded");
+        let image = dir.join("Cairn Foundry 1.0.0.AppImage");
+        std::fs::write(&image, b"#!/bin/sh\n").unwrap();
+        let link = dir.join(LINK_NAME);
+        write_launcher_script(&link, &image).unwrap();
+
+        assert_eq!(recorded_image(&link), Some(image));
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&link).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o755, "the command has to be executable");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The one that matters: the generated command actually starts the image and
+    /// hands it the arguments as they were typed, spaces included.
+    #[cfg(unix)]
+    #[test]
+    fn the_command_starts_the_image_with_the_arguments_it_was_given() {
+        let dir = scratch("forwards");
+        let seen = dir.join("seen.txt");
+        // Stands in for the AppImage: it records the arguments it was started with.
+        let image = dir.join("Cairn Foundry.AppImage");
+        std::fs::write(
+            &image,
+            format!("#!/bin/sh\nfor a in \"$@\"; do echo \"$a\" >> '{}'; done\n", seen.display()),
+        )
+        .unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&image, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let link = dir.join(LINK_NAME);
+        write_launcher_script(&link, &image).unwrap();
+
+        let status = std::process::Command::new(&link)
+            .arg("/tmp/a file.txt")
+            .arg("--flag")
+            .status()
+            .expect("the installed command should be runnable");
+        assert!(status.success(), "the command returns to the shell at once");
+
+        // The image is started detached, so its output lands whenever it lands.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let recorded = loop {
+            if let Ok(content) = std::fs::read_to_string(&seen)
+                && content.lines().count() >= 2
+            {
+                break content;
+            }
+            assert!(std::time::Instant::now() < deadline, "the image was never started");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert_eq!(recorded.lines().collect::<Vec<_>>(), vec!["/tmp/a file.txt", "--flag"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Moving the image leaves the command in place: it has to say so instead of
+    /// failing the way a dangling link does.
+    #[cfg(unix)]
+    #[test]
+    fn the_command_explains_itself_when_the_image_is_gone() {
+        let dir = scratch("gone");
+        let link = dir.join(LINK_NAME);
+        write_launcher_script(&link, &dir.join("moved-away.AppImage")).unwrap();
+
+        let out = std::process::Command::new(&link).output().unwrap();
+        assert_eq!(out.status.code(), Some(1));
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(err.contains("moved-away.AppImage"), "{err}");
+        assert!(err.contains("reinstall"), "{err}");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
