@@ -10,17 +10,21 @@ import type { Instance } from "$lib/types/instance";
 import type { Ticket } from "$lib/types/integrations";
 
 const spawnInstance = vi.fn<(...a: unknown[]) => unknown>();
+const adoptWorktree = vi.fn<(...a: unknown[]) => unknown>();
 const instancesStore = writable<Instance[]>([]);
 vi.mock("$lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	instances: { subscribe: instancesStore.subscribe },
 	spawnInstance: (...a: unknown[]) => spawnInstance(...a),
+	adoptWorktree: (...a: unknown[]) => adoptWorktree(...a),
 }));
 
 const listBranchesDetailed = vi.fn<(...a: unknown[]) => unknown>();
+const listUnclaimedWorktrees = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listBranchesDetailed: (...a: unknown[]) => listBranchesDetailed(...a),
+	listUnclaimedWorktrees: (...a: unknown[]) => listUnclaimedWorktrees(...a),
 }));
 
 const gitFetch = vi.fn<(...a: unknown[]) => unknown>();
@@ -180,6 +184,15 @@ beforeEach(() => {
 		return 0;
 	});
 	spawnInstance.mockReset().mockResolvedValue({ id: "new-i", projectId: "p1" });
+	adoptWorktree.mockReset().mockResolvedValue({ id: "new-i", projectId: "p1" });
+	listUnclaimedWorktrees.mockReset().mockResolvedValue([
+		{
+			name: "cairn-app-cairncmd",
+			path: "/home/someone/elsewhere",
+			branch: "fix/cli",
+		},
+		{ name: "detached", path: "/home/someone/detached" },
+	]);
 	listBranchesDetailed
 		.mockReset()
 		.mockResolvedValue({ local: ["main", "develop"], remote: ["origin/main"] });
@@ -976,6 +989,86 @@ describe("CreateInstance", () => {
 			mount({ initialBranch: "feat/cairn-42" });
 			await settle();
 			expect((field("ticket-id") as HTMLInputElement).value).toBe("CAIRN-42");
+		});
+	});
+
+	describe("adopting a worktree that already exists", () => {
+		const worktreeItems = () =>
+			Array.from(document.querySelectorAll<HTMLElement>(".wt-item"));
+
+		async function toWorktreeStep() {
+			await toModeStep();
+			await userEvent.click(modeCards()[2]);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+		}
+
+		it("offers adopting a worktree as its own way in", async () => {
+			mount();
+			await settle();
+			await toModeStep();
+			expect(modeCards()).toHaveLength(3);
+			expect(modeCards()[2].textContent).toContain("worktree");
+		});
+
+		it("lists the worktrees no instance stands for, with their path", async () => {
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect(worktreeItems()).toHaveLength(2);
+			expect(worktreeItems()[0].textContent).toContain("fix/cli");
+			expect(worktreeItems()[0].textContent).toContain(
+				"/home/someone/elsewhere",
+			);
+		});
+
+		/** A detached HEAD is a checkout, not a unit of work. */
+		it("refuses the one with no branch", async () => {
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect((worktreeItems()[1] as HTMLButtonElement).disabled).toBe(true);
+		});
+
+		it("refuses to go on before a worktree is chosen", async () => {
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect(primary().disabled).toBe(true);
+			await userEvent.click(worktreeItems()[0]);
+			await settle();
+			expect(primary().disabled).toBe(false);
+		});
+
+		/** Adopting creates no worktree, so it must not go through the call that does. */
+		it("adopts the chosen path instead of creating anything", async () => {
+			const { onCreate } = mount();
+			await settle();
+			await toWorktreeStep();
+			await userEvent.click(worktreeItems()[0]);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+
+			expect(spawnInstance).not.toHaveBeenCalled();
+			expect(adoptWorktree).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: "p1",
+					path: "/home/someone/elsewhere",
+					ticket: expect.objectContaining({ id: "CAIRN-42" }),
+				}),
+			);
+			expect(onCreate).toHaveBeenCalledWith({ instanceId: "new-i" });
+		});
+
+		it("says so when every worktree already has an instance", async () => {
+			listUnclaimedWorktrees.mockResolvedValue([]);
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect(worktreeItems()).toHaveLength(0);
+			expect(document.querySelector(".branch-empty")?.textContent).toBeTruthy();
 		});
 	});
 });

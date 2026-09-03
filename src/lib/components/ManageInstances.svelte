@@ -169,13 +169,13 @@
     pendingDeleteInst = inst;
   }
 
-  async function confirmDelete() {
+  async function confirmDelete(e: CustomEvent<{ removeWorktree: boolean }>) {
     if (!$activeProject || !pendingDeleteInst) return;
     const inst = pendingDeleteInst;
     pendingDeleteInst = null;
     deletingId = inst.id;
     try {
-      await removeInstance(inst.id, $activeProject.id);
+      await removeInstance(inst.id, $activeProject.id, e.detail.removeWorktree);
     } finally {
       deletingId = null;
     }

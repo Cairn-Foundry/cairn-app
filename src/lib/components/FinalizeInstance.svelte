@@ -191,11 +191,11 @@
       await setInstanceStatus(instance.id, instance.projectId, 'idle');
     });
 
-  async function confirmDelete() {
+  async function confirmDelete(e: CustomEvent<{ removeWorktree: boolean }>) {
     pendingDelete = false;
     deleting = true;
     try {
-      await removeInstance(instance.id, instance.projectId);
+      await removeInstance(instance.id, instance.projectId, e.detail.removeWorktree);
       dispatch('close');
     } finally {
       deleting = false;

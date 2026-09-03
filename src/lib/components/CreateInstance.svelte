@@ -18,8 +18,8 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import { activeProject } from '$lib/stores/project';
-  import { spawnInstance, instances } from '$lib/stores/instance';
-  import { type BaseSuggestion, listBranchesDetailed, suggestBaseBranches } from '$lib/services/instance-service';
+  import { adoptWorktree, spawnInstance, instances } from '$lib/stores/instance';
+  import { type BaseSuggestion, type UnclaimedWorktree, listBranchesDetailed, listUnclaimedWorktrees, suggestBaseBranches } from '$lib/services/instance-service';
   import { fetch as gitFetch } from '$lib/services/git-service';
   import { forgeFindMergeRequest } from '$lib/services/integration-service';
   import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
@@ -52,7 +52,7 @@
 
   // step: 0 = ticket, 1 = mode, 2 = git config
   let step = 0;
-  let mode: 'create' | 'existing' = 'create';
+  let mode: 'create' | 'existing' | 'worktree' = 'create';
   let ticketId = '';
   let ticketTitle = '';
   let branchName = '';
@@ -400,6 +400,34 @@
     ? existingBranch.split('/').slice(1).join('/')
     : existingBranch;
 
+  /** Worktrees of the repository no instance stands for, for the adopt mode. */
+  let unclaimed: UnclaimedWorktree[] = [];
+  let selectedWorktree = '';
+  let loadingWorktrees = false;
+  let worktreesLoadedFor = '';
+
+  async function loadUnclaimedWorktrees() {
+    if (!$activeProject) return;
+    loadingWorktrees = true;
+    try {
+      unclaimed = await listUnclaimedWorktrees($activeProject.id, $activeProject.path);
+      if (!unclaimed.some(w => w.path === selectedWorktree)) selectedWorktree = '';
+    } catch {
+      unclaimed = [];
+    } finally {
+      loadingWorktrees = false;
+    }
+  }
+
+  // Read when the mode is picked, and again on every visit: a worktree can be
+  // made from a terminal while this very dialog is open.
+  $: if (mode === 'worktree' && $activeProject && worktreesLoadedFor !== $activeProject.id) {
+    worktreesLoadedFor = $activeProject.id;
+    void loadUnclaimedWorktrees();
+  }
+
+  $: adoptable = unclaimed.filter(w => !!w.branch);
+
   $: effectiveBranch = mode === 'create' ? branchName : existingLocalName;
 
   $: worktreePath = `${$channel.displayDir}/worktrees/${effectiveBranch.replace(/\//g, '-')}`;
@@ -427,7 +455,9 @@
     step === 1 ? isGitRepo :
     step === 2 ? (mode === 'create'
       ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch && !isNamingBranch
-      : isGitRepo && existingBranch.length > 0 && !existingInUse) :
+      : mode === 'worktree'
+        ? isGitRepo && selectedWorktree.length > 0
+        : isGitRepo && existingBranch.length > 0 && !existingInUse) :
     true;
 
   function next() {
@@ -462,15 +492,22 @@
         }
       : { id: ticketId.trim(), title: ticketTitle.trim() };
     try {
-      const instance = await spawnInstance({
+      const common = {
         id: crypto.randomUUID(),
         projectId: $activeProject.id,
         projectPath: $activeProject.path,
         ticket,
-        ...(mode === 'create'
-          ? { branch: branchName.trim(), baseBranch, linkExisting: false }
-          : { branch: existingBranch, baseBranch: existingBase.trim(), linkExisting: true }),
-      });
+      };
+      // Adopting touches no directory, so it goes through its own call rather
+      // than through the worktree-creating one.
+      const instance = mode === 'worktree'
+        ? await adoptWorktree({ ...common, path: selectedWorktree })
+        : await spawnInstance({
+            ...common,
+            ...(mode === 'create'
+              ? { branch: branchName.trim(), baseBranch, linkExisting: false }
+              : { branch: existingBranch, baseBranch: existingBase.trim(), linkExisting: true }),
+          });
       if (selectedTicket) {
         setTicket(instance.projectId, instance.id, selectedTicket);
         const onCreate = $projectBindings.autoTransition.onCreate;
@@ -636,6 +673,14 @@
               <span class="mode-label">{t('createInstance.existingBranch')}</span>
               <span class="mode-desc">{t('createInstance.existingBranchDesc')}</span>
             </button>
+            <button
+              class="mode-card {mode === 'worktree' ? 'active' : ''}"
+              on:click={() => mode = 'worktree'}
+            >
+              <span class="mode-icon"><Icon name="folder" size={22}/></span>
+              <span class="mode-label">{t('createInstance.adoptWorktree')}</span>
+              <span class="mode-desc">{t('createInstance.adoptWorktreeDesc')}</span>
+            </button>
           </div>
         {:else}
           <div class="info-box">
@@ -799,6 +844,60 @@
             {t('createInstance.worktreeInfoSuffix')}
           </div>
         </div>
+      {/if}
+
+      {#if step === 2 && mode === 'worktree'}
+        <div class="form-row">
+          <div class="field-label">{t('createInstance.selectWorktree')}</div>
+          <div class="branch-list-wrap">
+            <div class="branch-search-row">
+              <Icon name="folder" size={13}/>
+              <span class="wt-count">{adoptable.length}</span>
+              <button
+                class="branch-refresh"
+                type="button"
+                title={t('createInstance.refreshWorktrees') as string}
+                disabled={loadingWorktrees}
+                on:click={loadUnclaimedWorktrees}
+              >
+                {#if loadingWorktrees}
+                  <Spinner size={12} trackColor="var(--stroke-1)" color="var(--accent)"/>
+                {:else}
+                  <Icon name="refresh" size={13}/>
+                {/if}
+              </button>
+            </div>
+            <div class="branch-list">
+              {#if loadingWorktrees && unclaimed.length === 0}
+                <Skeleton lines={2} height={28} gap={6}/>
+              {:else if unclaimed.length === 0}
+                <div class="branch-empty">{t('createInstance.noWorktrees')}</div>
+              {/if}
+              {#each unclaimed as w (w.path)}
+                <button
+                  class="branch-item wt-item {selectedWorktree === w.path ? 'active' : ''}"
+                  disabled={!w.branch}
+                  title={w.branch ? w.path : (t('createInstance.worktreeDetached') as string)}
+                  on:click={() => selectedWorktree = w.path}
+                >
+                  <Icon name="branch" size={13}/>
+                  <span class="wt-text">
+                    <span class="branch-name">{w.branch ?? t('createInstance.worktreeDetached')}</span>
+                    <span class="wt-path">{w.path}</span>
+                  </span>
+                  {#if selectedWorktree === w.path}<Icon name="check" size={12}/>{/if}
+                </button>
+              {/each}
+            </div>
+          </div>
+        </div>
+
+        {#if selectedWorktree}
+          <div class="info-box">
+            <div class="info-icon"><Icon name="info" size={14}/></div>
+            <div>{t('createInstance.adoptInfo')}</div>
+          </div>
+        {/if}
       {/if}
 
       {#if step === 2 && mode === 'existing'}
@@ -1350,6 +1449,28 @@
   .branch-item:disabled { opacity: 0.45; cursor: not-allowed; }
   .branch-item:disabled:hover { background: none; color: var(--fg-2); }
   .branch-name { flex: 1; }
+
+  /* Adopted worktrees: the path matters as much as the branch, so the row
+     carries both, the branch reading as the title. */
+  .wt-item { align-items: flex-start; }
+  .wt-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .wt-path {
+    font-size: 10.5px;
+    color: var(--fg-4);
+    overflow-wrap: anywhere;
+  }
+  .wt-count {
+    flex: 1;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--fg-4);
+  }
 
   /* Loading overlay */
   :global(.modal-body.loading) { position: relative; }

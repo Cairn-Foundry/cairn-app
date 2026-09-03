@@ -14,11 +14,14 @@ import {
 } from "./instance";
 
 const listInstances = vi.hoisted(() => vi.fn());
+const deleteInstance = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const adoptWorktree = vi.hoisted(() => vi.fn());
 
 vi.mock("$lib/services/instance-service", () => ({
 	listInstances,
 	createInstance: vi.fn(),
-	deleteInstance: vi.fn().mockResolvedValue(undefined),
+	deleteInstance,
+	adoptWorktree,
 	duplicateInstance: vi.fn(),
 	updateInstanceStatus: vi.fn(),
 }));
@@ -92,6 +95,33 @@ describe("activeInstance across a project switch", () => {
 		expect(get(instances).map((i) => i.id)).toEqual(["a1"]);
 		activeProjectId.set("b");
 		expect(get(instances).map((i) => i.id)).toEqual(["b1"]);
+	});
+
+	/**
+	 * What becomes of the worktree is decided in the modal and has to reach the
+	 * backend untouched; left out, the backend applies its own default.
+	 */
+	it("carries the worktree decision through to the service", async () => {
+		listInstances.mockImplementation(async (id: string) => [
+			instance(`${id}1`, id),
+			instance(`${id}2`, id),
+		]);
+		await loadInstances("a");
+
+		await removeInstance("a1", "a", false);
+		expect(deleteInstance).toHaveBeenLastCalledWith("a1", "a", false);
+
+		await removeInstance("a2", "a", true);
+		expect(deleteInstance).toHaveBeenLastCalledWith("a2", "a", true);
+	});
+
+	it("leaves the decision to the backend when none was made", async () => {
+		listInstances.mockImplementation(async (id: string) => [
+			instance(`${id}1`, id),
+		]);
+		await loadInstances("a");
+		await removeInstance("a1", "a");
+		expect(deleteInstance).toHaveBeenLastCalledWith("a1", "a", undefined);
 	});
 
 	it("removes an instance from its own project only", async () => {
