@@ -5,8 +5,8 @@
 //! back by the home Ports screen so a forgotten dev server can be found and
 //! killed without leaving the app.
 
-use std::process::Command;
 use serde::{Deserialize, Serialize};
+use crate::child_env;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +54,7 @@ fn split_endpoint(name: &str) -> Option<(String, u16)> {
 /// The full command line of a process, empty when it cannot be read.
 #[allow(dead_code)]
 fn command_line(pid: i32) -> String {
-    let out = Command::new("ps")
+    let out = child_env::command("ps")
         .args(["-o", "command=", "-p", &pid.to_string()])
         .output();
     match out {
@@ -195,7 +195,7 @@ fn parse_netstat(out: &str, names: &std::collections::HashMap<i32, String>) -> V
 #[cfg(unix)]
 #[tauri::command]
 pub async fn list_listening_ports() -> Result<Vec<ListeningPort>, String> {
-    let out = Command::new("lsof")
+    let out = child_env::command("lsof")
         .args(["-nP", "-iTCP", "-sTCP:LISTEN", "-F", "pcLtn"])
         .output()
         .map_err(|e| format!("lsof failed: {e}"))?;
@@ -216,7 +216,7 @@ pub async fn list_listening_ports() -> Result<Vec<ListeningPort>, String> {
 #[cfg(windows)]
 #[tauri::command]
 pub async fn list_listening_ports() -> Result<Vec<ListeningPort>, String> {
-    let out = Command::new("netstat")
+    let out = child_env::command("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
         .map_err(|e| format!("netstat failed: {e}"))?;
@@ -225,7 +225,7 @@ pub async fn list_listening_ports() -> Result<Vec<ListeningPort>, String> {
     if text.trim().is_empty() && !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
-    let names = Command::new("tasklist")
+    let names = child_env::command("tasklist")
         .args(["/fo", "csv", "/nh"])
         .output()
         .map(|o| parse_tasklist(&String::from_utf8_lossy(&o.stdout)))
@@ -241,7 +241,7 @@ pub async fn kill_process(pid: i32, force: bool) -> Result<(), String> {
         return Err(format!("refusing to kill pid {pid}"));
     }
     let signal = if force { "-9" } else { "-15" };
-    let out = Command::new("kill")
+    let out = child_env::command("kill")
         .args([signal, &pid.to_string()])
         .output()
         .map_err(|e| format!("kill failed: {e}"))?;
@@ -259,7 +259,7 @@ pub async fn kill_process(pid: i32, force: bool) -> Result<(), String> {
     if pid <= 4 {
         return Err(format!("refusing to kill pid {pid}"));
     }
-    let mut cmd = Command::new("taskkill");
+    let mut cmd = child_env::command("taskkill");
     cmd.args(["/pid", &pid.to_string()]);
     if force {
         cmd.arg("/f");

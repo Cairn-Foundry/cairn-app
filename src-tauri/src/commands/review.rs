@@ -7,6 +7,7 @@
 use std::fs;
 use std::process::Command;
 use serde::{Deserialize, Serialize};
+use crate::child_env;
 use crate::commands::git::resolve_revision;
 use crate::commands::git_error::GitError;
 use crate::storage::{instance_review_state_file, write_json_atomic};
@@ -167,7 +168,7 @@ fn expand(path: &str) -> String {
 }
 
 fn git_cmd(worktree: &str) -> Command {
-    let mut cmd = Command::new("git");
+    let mut cmd = child_env::command("git");
     cmd.current_dir(worktree);
     cmd.env("LC_ALL", "C").env("LANG", "C");
     cmd
