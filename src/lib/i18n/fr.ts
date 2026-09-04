@@ -537,6 +537,9 @@ export const fr = {
 		exited: "Ce CLI s'est arrêté.",
 		exitedWithCode: (code: number) =>
 			`Ce CLI s'est arrêté avec le code ${code}.`,
+		freshSession: "Nouvelle session",
+		freshSessionHint:
+			"Abandonne la session que cette conversation n'arrive pas à reprendre et en démarre une nouvelle dans le même worktree.",
 		noActiveInstance: "Aucune instance active",
 		picker: {
 			title: "Demarrer une conversation",

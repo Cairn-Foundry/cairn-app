@@ -499,6 +499,34 @@ function watchResumeFailure(
 	resumeWatchers.set(terminalId, stop);
 }
 
+/**
+ * Drops the session a conversation was resuming and reopens it on a new one, in
+ * the same worktree and under the same title.
+ *
+ * For a session its CLI never wrote to disk, `sessionStarted` claims there is
+ * something to resume, the CLI answers that there is not, and a restart resumes
+ * the same missing session again. Nothing else clears that flag, so the entry
+ * would otherwise only be archivable.
+ *
+ * This is the way out the automatic fallback cannot cover: it only catches a
+ * `--resume` the CLI refuses outright, not a CLI that comes up on a session
+ * with nothing in it.
+ */
+export async function startFreshSession(
+	ref: ConversationRef,
+	id: string,
+): Promise<void> {
+	const meta = conversationsOf(ref).find((c) => c.id === id);
+	if (!meta) return;
+	closeConversation(id);
+	patch(ref, id, {
+		sessionId: mintsSessionId(meta.cli) ? crypto.randomUUID() : null,
+		sessionStarted: false,
+		sessionConfirmed: false,
+	});
+	await openConversation(ref, id, { fresh: true });
+}
+
 /** Kills the CLI. The entry stays: reopening it is what resume is for. */
 export function closeConversation(id: string): void {
 	const terminalId = terminalOf(id);
