@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.0.2",
+		"date": "",
+		"summary": {
+			"en": "Fixes for self-hosted instances.",
+			"fr": "Corrections pour les instances auto-hébergées."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Create a token button of an integration now opens the token page of the instance whose URL you entered, instead of always going to the vendor's cloud. Jira is unchanged, as its tokens are always issued on id.atlassian.com.",
+					"fr": "Le bouton Créer un jeton d'une intégration ouvre désormais la page des jetons de l'instance dont vous avez saisi l'URL, au lieu de toujours renvoyer vers le cloud de l'éditeur. Jira est inchangé, ses jetons étant toujours émis sur id.atlassian.com."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.1",
 		"date": "2026-09-03",
 		"summary": {

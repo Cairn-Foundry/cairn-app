@@ -79,6 +79,11 @@ pub struct IntegrationKindDescriptor {
     pub default_base_url: Option<String>,
     pub credential_fields: Vec<CredentialField>,
     pub token_help_url: String,
+    /* Path to the token page on the instance itself, resolved against the base
+       URL the user typed - self-hosted GitLab and GitHub Enterprise issue their
+       own tokens. None for kinds whose tokens live on the vendor's side
+       whatever the instance, which is the case of Jira. */
+    pub token_help_path: Option<String>,
     pub required_scopes: Vec<String>,
     pub provides: Vec<Capability>,
     pub terms: KindTerms,

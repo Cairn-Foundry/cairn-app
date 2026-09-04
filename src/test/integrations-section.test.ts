@@ -61,6 +61,7 @@ function descriptor(kind = "github"): IntegrationKindDescriptor {
 		provides: ["forge"],
 		terms: {},
 		tokenHelpUrl: "",
+		tokenHelpPath: null,
 		requiredScopes: [],
 		credentialFields: [{ key: "token", label: "Token" }],
 	} as unknown as IntegrationKindDescriptor;
