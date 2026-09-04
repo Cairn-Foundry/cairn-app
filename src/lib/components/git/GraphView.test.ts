@@ -191,18 +191,23 @@ describe("GraphView", () => {
 			mount({
 				commits: [
 					commit("a", [], {
-						refs: ["tag: v1", "origin/main", "feature", "HEAD -> main"],
+						refs: ["tag: v1", "origin/release", "feature", "HEAD -> main"],
 					}),
 				],
 			});
-			expect(chipLabels(0)).toEqual(["main", "feature", "origin/main", "v1"]);
+			expect(chipLabels(0)).toEqual([
+				"main",
+				"feature",
+				"origin/release",
+				"v1",
+			]);
 		});
 
 		it("classifies each ref by what it is", () => {
 			mount({
 				commits: [
 					commit("a", [], {
-						refs: ["HEAD -> main", "tag: v1", "origin/main", "feature"],
+						refs: ["HEAD -> main", "tag: v1", "origin/release", "feature"],
 					}),
 				],
 			});
@@ -222,6 +227,82 @@ describe("GraphView", () => {
 		it("shows no chips on a commit carrying no ref", () => {
 			mount({ commits: [commit("a")] });
 			expect(chipsOf(0)).toHaveLength(0);
+		});
+
+		/**
+		 * A branch in sync with its remote takes one chip, not two: the row is
+		 * narrow and the second label said nothing the first one did not.
+		 */
+		it("folds the remote ref into the chip of its local branch", () => {
+			mount({
+				commits: [
+					commit("a", [], { refs: ["HEAD -> develop", "origin/develop"] }),
+				],
+			});
+			expect(chipsOf(0)).toHaveLength(1);
+			expect(chipLabels(0)).toEqual(["develop"]);
+			expect(chipsOf(0)[0].querySelector(".chip-remotes")?.textContent).toBe(
+				"origin",
+			);
+		});
+
+		it("folds a local branch that is not HEAD just the same", () => {
+			mount({
+				commits: [commit("a", [], { refs: ["master", "origin/master"] })],
+			});
+			expect(chipLabels(0)).toEqual(["master"]);
+			expect(chipsOf(0)[0].className).toContain("chip-local");
+		});
+
+		it("names every remote the branch is in sync with", () => {
+			mount({
+				commits: [
+					commit("a", [], {
+						refs: ["main", "origin/main", "upstream/main"],
+					}),
+				],
+			});
+			expect(chipsOf(0)).toHaveLength(1);
+			expect(chipsOf(0)[0].querySelector(".chip-remotes")?.textContent).toBe(
+				"origin upstream",
+			);
+		});
+
+		/** The gap between a branch and its remote is what the two chips are for. */
+		it("keeps the remote ref on its own commit when it lags behind", () => {
+			mount({
+				commits: [
+					commit("a", ["b"], { refs: ["HEAD -> develop"] }),
+					commit("b", [], { refs: ["origin/develop"] }),
+				],
+			});
+			expect(chipLabels(0)).toEqual(["develop"]);
+			expect(chipsOf(0)[0].querySelector(".chip-remotes")).toBeNull();
+			expect(chipLabels(1)).toEqual(["origin/develop"]);
+		});
+
+		it("folds a remote ref of a branch whose name has slashes", () => {
+			mount({
+				commits: [
+					commit("a", [], {
+						refs: ["HEAD -> fix/graph", "origin/fix/graph"],
+					}),
+				],
+			});
+			expect(chipsOf(0)).toHaveLength(1);
+			expect(chipLabels(0)).toEqual(["fix/graph"]);
+		});
+
+		/** `origin/HEAD` names no local branch, so it has nothing to fold into. */
+		it("leaves the remote HEAD symbolic ref alone", () => {
+			mount({
+				commits: [
+					commit("a", [], {
+						refs: ["HEAD -> main", "origin/main", "origin/HEAD"],
+					}),
+				],
+			});
+			expect(chipLabels(0)).toEqual(["main", "origin/HEAD"]);
 		});
 	});
 
@@ -451,6 +532,32 @@ describe("GraphView", () => {
 			});
 			scrollNearBottom(scroller());
 			expect(loadMore).toHaveBeenCalledTimes(2);
+		});
+
+		/**
+		 * The lane layout is cached across renders, and a pull or a push moves a
+		 * ref without adding a commit: the chips have to follow anyway.
+		 */
+		it("redraws the chips when a ref moves without the commits changing", async () => {
+			const { rerender } = mount({
+				commits: [
+					commit("a", ["b"], { refs: ["HEAD -> develop"] }),
+					commit("b", [], { refs: ["origin/develop"] }),
+				],
+				currentBranch: "develop",
+			});
+			expect(chipLabels(1)).toEqual(["origin/develop"]);
+			await rerender({
+				commits: [
+					commit("a", ["b"], { refs: ["HEAD -> develop", "origin/develop"] }),
+					commit("b", []),
+				],
+				currentBranch: "develop",
+			});
+			expect(chipsOf(0)[0].querySelector(".chip-remotes")?.textContent).toBe(
+				"origin",
+			);
+			expect(chipsOf(1)).toHaveLength(0);
 		});
 
 		it("asks for a refresh on request", async () => {
