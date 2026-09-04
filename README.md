@@ -29,7 +29,8 @@ Built with [Tauri v2](https://tauri.app) (Rust backend) and
 
 ## Requirements
 
-- [Bun](https://bun.sh)
+- [Bun](https://bun.sh) 1.2 or newer, which is what reads the committed
+  `bun.lock`; older versions silently ignore it and install unpinned versions
 - A Rust toolchain (for the Tauri shell)
 - The [Claude Code](https://claude.com/claude-code) CLI on your `PATH` for the
   agent features
