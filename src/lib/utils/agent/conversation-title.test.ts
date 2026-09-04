@@ -37,6 +37,12 @@ describe("captureTitle", () => {
 		expect(type(`${ESC}[2Kfix it${ESC}[0m\r`)).toBe("Fix it");
 	});
 
+	it("drops SGR mouse reports, which use a private CSI parameter byte", () => {
+		expect(type(`${ESC}[<35;18;14M`, `${ESC}[<35;20;14M`, "fix it\r")).toBe(
+			"Fix it",
+		);
+	});
+
 	it("treats an empty Enter as no title rather than an empty one", () => {
 		expect(type("\r")).toBeNull();
 		expect(type("   \r")).toBeNull();
