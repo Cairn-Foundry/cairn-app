@@ -3,7 +3,7 @@
   "productName": "Cairn Foundry",
   "identifier": "com.bonneton-dev.cairn-foundry",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bash scripts/build-cli-launcher.sh && bun run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "bun run build && bash scripts/build-cli-launcher.sh",
     "frontendDist": "../build"
