@@ -4,12 +4,17 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { readFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 const vitestConfig = {
   include: ["src/**/*.{test,spec}.{js,ts}"],
   environment: "jsdom",
   setupFiles: ["src/test/setup.ts"],
+
+  // A jsdom per worker makes Vitest's default - one per core but one - an
+  // oversubscription, and a test waiting on a deadline pays for it.
+  maxWorkers: Math.max(2, Math.ceil(availableParallelism() / 2)),
   coverage: {
     provider: "istanbul",
     reporter: ["text", "cobertura"],

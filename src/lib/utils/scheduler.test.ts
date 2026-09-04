@@ -4,9 +4,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { schedule, scheduleKeyed } from "./scheduler";
 
-// The module drains through a MessageChannel, whose delivery jsdom schedules as
-// a macrotask. Waiting on a real timer is what lets a tick actually run.
-const tick = () => new Promise((r) => setTimeout(r, 0));
+// The drain and a timer are two task sources, and the timer can win: a tick
+// waits on a message of its own, posted after the module's.
+const tick = () =>
+	new Promise((resolve) => {
+		const channel = new MessageChannel();
+		channel.port1.onmessage = () => resolve(undefined);
+		channel.port2.postMessage(null);
+	});
 
 describe("schedule", () => {
 	it("defers the task rather than running it inline", async () => {
