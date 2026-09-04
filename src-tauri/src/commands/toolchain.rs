@@ -6,10 +6,11 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::SystemTime;
 use serde::Serialize;
+use crate::child_env;
 
 /// One command per package manager. The same shape serves installing and
 /// removing, so the two can never drift apart in the catalogue.
@@ -123,7 +124,7 @@ pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
     }
     // dpkg's own database is the only reliable signal: `/usr/bin` also holds
     // whatever the OS image shipped with, not just what apt put there.
-    if Command::new("dpkg")
+    if child_env::command("dpkg")
         .args(["-S", &resolved.to_string_lossy()])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -165,13 +166,13 @@ pub fn spawn_shell_full(
     group: bool,
 ) -> std::io::Result<std::process::Child> {
     #[cfg(windows)]
-    let mut process = Command::new("cmd");
+    let mut process = child_env::command("cmd");
     #[cfg(windows)]
     process.args(["/c", command]);
     #[cfg(not(windows))]
     let mut process = {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        Command::new(shell)
+        child_env::command(shell)
     };
     #[cfg(not(windows))]
     process.args(["-lc", command]);
@@ -507,7 +508,7 @@ pub fn detect_version(path: &Path) -> Option<String> {
 }
 
 fn read_version(path: &Path) -> Option<String> {
-    let output = Command::new(path)
+    let output = child_env::command(path)
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

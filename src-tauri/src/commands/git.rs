@@ -10,6 +10,7 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::{LazyLock, Mutex};
 use git2::{Repository, BranchType};
+use crate::child_env;
 use crate::commands::git_error::GitError;
 use serde::Serialize;
 
@@ -88,7 +89,7 @@ fn expand(path: &str) -> String {
 
 /// A `git` invocation rooted in the worktree, with the locale pinned to C.
 fn git_cmd(worktree: &str) -> Command {
-    let mut cmd = Command::new("git");
+    let mut cmd = child_env::command("git");
     cmd.current_dir(worktree);
     // Error classification matches git's English messages, so the locale is
     // pinned rather than inherited from the user's environment.
