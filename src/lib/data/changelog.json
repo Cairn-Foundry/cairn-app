@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.0.2",
+		"date": "",
+		"summary": {
+			"en": "A fix for resuming conversations started before 1.0.1.",
+			"fr": "Un correctif pour la reprise des conversations démarrées avant la 1.0.1."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Reopening an Agent conversation started before 1.0.1 no longer fails with \"Session ID ... is already in use\". Such a conversation now recognizes its own session on the CLI's disk and resumes it instead of trying to recreate it.",
+					"fr": "Rouvrir une conversation Agent démarrée avant la 1.0.1 n'échoue plus avec « Session ID ... is already in use ». Une telle conversation reconnaît désormais sa propre session sur le disque du CLI et la reprend au lieu d'essayer de la recréer."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.0.1",
 		"date": "2026-09-03",
 		"summary": {

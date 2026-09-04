@@ -214,6 +214,46 @@ describe("reopening a conversation", () => {
 		);
 	});
 
+	it("confirms and resumes a session the CLI refuses to create over", async () => {
+		// The id was minted before `sessionConfirmed` existed, so it looks
+		// unconfirmed even though the CLI already has a real session under it -
+		// `--session-id` refuses and exits at once instead of creating one.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+		expect(lastArgv()).toEqual(["claude", "--session-id", meta.sessionId]);
+
+		createTerminal.mockClear();
+		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+		emitExit(`conversation:${meta.id}`, 1);
+		await vi.advanceTimersByTimeAsync(100);
+
+		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
+		const after = conversationsOf(ref).find((c) => c.id === meta.id);
+		expect(after?.sessionConfirmed).toBe(true);
+	});
+
+	it("leaves the banner for an early exit the CLI's store does not confirm", async () => {
+		// An early exit alone is not proof of a collision - a broken CLI fails the
+		// same way, and it must not be silently retried as though it were one.
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		closeConversation(meta.id);
+		createTerminal.mockClear();
+
+		await openConversation(ref, meta.id);
+		createTerminal.mockClear();
+		emitExit(`conversation:${meta.id}`, 1);
+		await vi.advanceTimersByTimeAsync(100);
+
+		expect(createTerminal).not.toHaveBeenCalled();
+		const after = conversationsOf(ref).find((c) => c.id === meta.id);
+		expect(after?.sessionConfirmed).not.toBe(true);
+	});
+
 	it("leaves a session the user quit alone", async () => {
 		// An ordinary exit, seconds later and with no error: relaunching that
 		// behind the user's back is exactly what stopping is meant to prevent.
