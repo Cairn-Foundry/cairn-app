@@ -40,9 +40,11 @@ vi.mock("$lib/services/terminal-service", () => ({
 }));
 
 const discoverCliSession = vi.fn().mockResolvedValue(null);
+const cliSessionIdExists = vi.fn().mockResolvedValue(false);
 vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	discoverCliSession: (...a: unknown[]) => discoverCliSession(...a),
+	cliSessionIdExists: (...a: unknown[]) => cliSessionIdExists(...a),
 }));
 
 const exitHandlers = vi.hoisted(
@@ -80,6 +82,7 @@ beforeEach(() => {
 	vi.useFakeTimers();
 	exitHandlers.clear();
 	discoverCliSession.mockResolvedValue(null);
+	cliSessionIdExists.mockResolvedValue(false);
 	terminalHasChildren.mockResolvedValue(false);
 	instanceConversations.set({});
 	projectConversations.set({});
@@ -227,7 +230,7 @@ describe("reopening a conversation", () => {
 		expect(lastArgv()).toEqual(["claude", "--session-id", meta.sessionId]);
 
 		createTerminal.mockClear();
-		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+		cliSessionIdExists.mockResolvedValueOnce(true);
 		emitExit(`conversation:${meta.id}`, 1);
 		await vi.advanceTimersByTimeAsync(100);
 

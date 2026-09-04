@@ -13,6 +13,7 @@
 import { get, type Writable, writable } from "svelte/store";
 import {
 	type CliProviderId,
+	cliSessionIdExists,
 	discoverCliSession,
 } from "$lib/services/cli-provider-service";
 import {
@@ -400,9 +401,7 @@ export async function openConversation(
 			terminalId,
 			startedAt,
 			meta.cli,
-			meta.cwd,
 			meta.sessionId,
-			meta.createdAt,
 		);
 	}
 	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
@@ -528,6 +527,10 @@ function watchResumeFailure(
  * exact id already exists, tells the two apart - and only then is the id treated
  * as confirmed and the conversation reopened with `--resume`, keeping the
  * history the wipe in `watchResumeFailure` would have thrown away.
+ *
+ * The lookup is by id, not `discoverCliSession`'s "most recent session in this
+ * cwd": that one drifts to whatever else has run there since, which anything
+ * short-lived - another conversation, a subagent - makes constant.
  */
 function watchCreateCollision(
 	ref: ConversationRef,
@@ -536,9 +539,7 @@ function watchCreateCollision(
 	terminalId: string,
 	startedAt: number,
 	cli: CliProviderId,
-	cwd: string,
 	sessionId: string,
-	createdAt: number,
 ): void {
 	const stop = manager.onTerminalExit(({ id: exited, exitCode }) => {
 		if (exited !== terminalId) return;
@@ -546,9 +547,9 @@ function watchCreateCollision(
 		resumeWatchers.delete(terminalId);
 		if (!exitCode || Date.now() - startedAt > RESUME_FAILURE_MS) return;
 		if (runOf(id) !== run || terminalOf(id) !== terminalId) return;
-		void discoverCliSession(cli, cwd, createdAt)
-			.then((found) => {
-				if (found !== sessionId) return;
+		void cliSessionIdExists(cli, sessionId)
+			.then((exists) => {
+				if (!exists) return;
 				if (runOf(id) !== run || terminalOf(id) !== terminalId) return;
 				patch(ref, id, { sessionConfirmed: true });
 				closeConversation(id);

@@ -298,6 +298,7 @@ pub fn run() {
             stop_oneshot,
             list_cli_providers,
             discover_cli_session,
+            cli_session_id_exists,
             reached_providers,
             list_native_agents,
             save_native_agent,
