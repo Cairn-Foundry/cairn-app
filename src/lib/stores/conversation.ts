@@ -13,6 +13,7 @@
 import { get, type Writable, writable } from "svelte/store";
 import {
 	type CliProviderId,
+	cliSessionIdExists,
 	discoverCliSession,
 } from "$lib/services/cli-provider-service";
 import {
@@ -392,6 +393,17 @@ export async function openConversation(
 	conversationRuns.update((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
 	const run = runOf(id);
 	if (resuming) watchResumeFailure(ref, id, run, terminalId, startedAt);
+	else if (meta.sessionId) {
+		watchCreateCollision(
+			ref,
+			id,
+			run,
+			terminalId,
+			startedAt,
+			meta.cli,
+			meta.sessionId,
+		);
+	}
 	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
 	if (!meta.title) {
 		awaitingTitle.set(terminalId, { ref, id, pending: "" });
@@ -494,6 +506,56 @@ function watchResumeFailure(
 		});
 		closeConversation(id);
 		void openConversation(ref, id, { fresh: true }).catch(() => {});
+	});
+	resumeWatchers.get(terminalId)?.();
+	resumeWatchers.set(terminalId, stop);
+}
+
+/**
+ * Confirms a session and resumes it when minting it was refused.
+ *
+ * `--session-id` is meant to create a session the CLI has never seen, but the id
+ * it is asked to create can already be a real one: a conversation from before
+ * `sessionConfirmed` existed only ever recorded `sessionStarted`, so after an
+ * update it looks unconfirmed even though its session was written to disk long
+ * ago. The CLI refuses to create over it and exits within a moment - unlike a
+ * fresh, random id, which has nothing to collide with.
+ *
+ * An early exit alone is not enough to act on: on its own it is indistinguishable
+ * from a CLI that is simply broken, which must still surface as the banner the
+ * user can restart from. Only a lookup in the CLI's own store, confirming that
+ * exact id already exists, tells the two apart - and only then is the id treated
+ * as confirmed and the conversation reopened with `--resume`, keeping the
+ * history the wipe in `watchResumeFailure` would have thrown away.
+ *
+ * The lookup is by id, not `discoverCliSession`'s "most recent session in this
+ * cwd": that one drifts to whatever else has run there since, which anything
+ * short-lived - another conversation, a subagent - makes constant.
+ */
+function watchCreateCollision(
+	ref: ConversationRef,
+	id: string,
+	run: number,
+	terminalId: string,
+	startedAt: number,
+	cli: CliProviderId,
+	sessionId: string,
+): void {
+	const stop = manager.onTerminalExit(({ id: exited, exitCode }) => {
+		if (exited !== terminalId) return;
+		stop();
+		resumeWatchers.delete(terminalId);
+		if (!exitCode || Date.now() - startedAt > RESUME_FAILURE_MS) return;
+		if (runOf(id) !== run || terminalOf(id) !== terminalId) return;
+		void cliSessionIdExists(cli, sessionId)
+			.then((exists) => {
+				if (!exists) return;
+				if (runOf(id) !== run || terminalOf(id) !== terminalId) return;
+				patch(ref, id, { sessionConfirmed: true });
+				closeConversation(id);
+				void openConversation(ref, id).catch(() => {});
+			})
+			.catch(() => {});
 	});
 	resumeWatchers.get(terminalId)?.();
 	resumeWatchers.set(terminalId, stop);

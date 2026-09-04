@@ -322,14 +322,52 @@ pub fn discover_session_id(id: &str, cwd: &str, started_after: i64) -> Option<St
     }
 }
 
+/// Whether a CLI already has a session recorded under exactly this id - what
+/// `--session-id` collides with when it refuses to create one.
+///
+/// This is a different question from `discover_session_id`: that one answers
+/// "what did this CLI most recently write in this cwd", which drifts to
+/// whatever else has run there since - another conversation, a subagent - the
+/// moment the cwd sees any unrelated activity. An id is unique on its own, so
+/// answering "does this exact one exist" needs neither a cwd nor a time floor.
+pub fn session_id_exists(id: &str, session_id: &str) -> bool {
+    match id {
+        CLAUDE_CODE => claude_session_file_exists(session_id),
+        // Other CLIs are not asked by id yet: none of them is launched with
+        // `--session-id`, so none can hit this exact collision (see
+        // `mints_session_id`).
+        _ => false,
+    }
+}
+
+fn claude_session_file_exists(session_id: &str) -> bool {
+    match home() {
+        Some(home) => claude_session_file_exists_in(&home.join(".claude").join("projects"), session_id),
+        None => false,
+    }
+}
+
+fn claude_session_file_exists_in(root: &Path, session_id: &str) -> bool {
+    let Ok(entries) = fs::read_dir(root) else {
+        return false;
+    };
+    entries
+        .flatten()
+        .any(|entry| entry.path().join(format!("{session_id}.jsonl")).is_file())
+}
+
 /// Claude Code keeps one JSONL transcript per session under
 /// `~/.claude/projects/<slug>/<session id>.jsonl`, where the slug is the cwd
 /// with its separators and dots replaced by dashes.
 ///
-/// The slug is not reconstructed here: every line of the transcript carries the
-/// real `cwd`, so matching on that field survives any change to how the
-/// directory name is derived. The id is the file stem, which the entries repeat
-/// as `sessionId`; the stem is preferred because it is what `--resume` takes.
+/// The slug is not reconstructed here: the first line of the transcript that
+/// carries a `cwd` repeats the real one, so matching on that field survives
+/// any change to how the directory name is derived. That line is not always
+/// the first one on disk: a transcript now opens with a few header entries
+/// (`last-prompt`, `mode`, `permission-mode`) that carry no `cwd` at all, so a
+/// short prefix of the file is scanned rather than only its very first line.
+/// The id is the file stem, which the entries repeat as `sessionId`; the stem
+/// is preferred because it is what `--resume` takes.
 ///
 /// A session Claude Code has not written yet simply is not found, which costs a
 /// resume rather than opening the wrong conversation.
@@ -337,15 +375,21 @@ fn claude_session(cwd: &str, started_after: i64) -> Option<String> {
     claude_session_in(&home()?.join(".claude").join("projects"), cwd, started_after)
 }
 
+// Past the handful of header lines a transcript now opens with, without
+// reading a whole multi-megabyte file just to learn which cwd it belongs to.
+const CLAUDE_HEADER_SCAN_LINES: usize = 20;
+
 fn claude_session_in(root: &Path, cwd: &str, started_after: i64) -> Option<String> {
     let mut best: Option<(i64, String)> = None;
     for path in newest_files(root, "jsonl", 60) {
         let Ok(file) = fs::File::open(&path) else { continue };
-        let mut first = String::new();
-        if std::io::BufRead::read_line(&mut std::io::BufReader::new(file), &mut first).is_err() {
-            continue;
-        }
-        let Ok(entry) = serde_json::from_str::<serde_json::Value>(&first) else { continue };
+        let reader = std::io::BufReader::new(file);
+        let entry = std::io::BufRead::lines(reader)
+            .take(CLAUDE_HEADER_SCAN_LINES)
+            .filter_map(|line| line.ok())
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(&line).ok())
+            .find(|entry| entry.get("cwd").is_some());
+        let Some(entry) = entry else { continue };
         if entry.get("cwd").and_then(|c| c.as_str()) != Some(cwd) {
             continue;
         }
@@ -1084,6 +1128,13 @@ pub async fn discover_cli_session(
     discover_session_id(&cli, &cwd, started_after)
 }
 
+/// Asked when a session id Cairn minted was refused, to tell a genuine
+/// collision with an id that already exists from a CLI that is simply broken.
+#[tauri::command]
+pub async fn cli_session_id_exists(cli: String, session_id: String) -> bool {
+    session_id_exists(&cli, &session_id)
+}
+
 #[tauri::command]
 pub async fn reached_providers(
     kind: String,
@@ -1124,6 +1175,22 @@ pub fn mcp_providers_at(path: &Path, pointer: &[String], scope: &str, project_pa
 mod tests {
     use super::*;
 
+    /// A session id is unique on its own, so confirming it exists needs
+    /// neither a cwd nor a time floor - unlike discovering the most recent
+    /// one, which drifts to whatever else has run in the same cwd since.
+    #[test]
+    fn a_session_file_is_found_by_its_exact_id_regardless_of_project() {
+        let dir = std::env::temp_dir().join(format!("cairn-claude-exists-{}", std::process::id()));
+        let project = dir.join("-repo-wt");
+        fs::create_dir_all(&project).unwrap();
+        let sid = "b007ec14-2905-4418-bdd9-6f5be80f8f7e";
+        fs::write(project.join(format!("{sid}.jsonl")), "{}").unwrap();
+
+        assert!(claude_session_file_exists_in(&dir, sid));
+        assert!(!claude_session_file_exists_in(&dir, "not-a-real-session-id"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     /// The id `--resume` takes is the file stem, and a transcript from another
     /// worktree must never be offered for this one.
     #[test]
@@ -1147,6 +1214,34 @@ mod tests {
 
         assert_eq!(found.as_deref(), Some(sid));
         assert_eq!(claude_session_in(&dir, "/repo/other", 0), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A transcript now opens with a few header lines carrying no `cwd` at
+    /// all - `last-prompt`, `mode`, `permission-mode` - before the line that
+    /// does. Assuming the first line always has it left every current
+    /// session unmatched.
+    #[test]
+    fn a_claude_session_is_found_past_its_leading_header_lines() {
+        let dir = std::env::temp_dir().join(format!("cairn-claude-hdr-{}", std::process::id()));
+        let project = dir.join("-repo-wt");
+        fs::create_dir_all(&project).unwrap();
+        let sid = "b007ec14-2905-4418-bdd9-6f5be80f8f7e";
+        fs::write(
+            project.join(format!("{sid}.jsonl")),
+            [
+                r#"{"type":"last-prompt","sessionId":"b007ec14-2905-4418-bdd9-6f5be80f8f7e"}"#,
+                r#"{"type":"mode","mode":"normal"}"#,
+                r#"{"type":"permission-mode","permissionMode":"auto"}"#,
+                r#"{"cwd":"/repo/wt","timestamp":"2026-09-01T10:00:00.000Z"}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let found = claude_session_in(&dir, "/repo/wt", 0);
+
+        assert_eq!(found.as_deref(), Some(sid));
         let _ = fs::remove_dir_all(&dir);
     }
 

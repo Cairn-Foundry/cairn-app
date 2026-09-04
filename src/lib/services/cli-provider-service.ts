@@ -86,6 +86,21 @@ export async function discoverCliSession(
 }
 
 /**
+ * Whether a CLI already has a session recorded under exactly this id - what
+ * `--session-id` collides with when it refuses to create one.
+ *
+ * Unlike `discoverCliSession`, which answers "what did this CLI most recently
+ * write in this cwd" and drifts to whatever else has run there since, an id is
+ * unique on its own: this needs neither a cwd nor a time floor.
+ */
+export async function cliSessionIdExists(
+	cli: CliProviderId,
+	sessionId: string,
+): Promise<boolean> {
+	return await invoke("cli_session_id_exists", { cli, sessionId });
+}
+
+/**
  * The agents that would end up reading an entry written for `targets` - not the
  * same list, because a write location is often read by agents that were never
  * asked for. Answered by the registry rather than mirrored here, so the two

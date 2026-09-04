@@ -105,7 +105,9 @@ pub use lsp::{
     lsp_references, lsp_rename, lsp_format,
 };
 pub use cli::{PendingCliPaths, get_cli_status, install_cli, uninstall_cli, take_pending_cli_paths};
-pub use cli_providers::{discover_cli_session, list_cli_providers, reached_providers};
+pub use cli_providers::{
+    cli_session_id_exists, discover_cli_session, list_cli_providers, reached_providers,
+};
 pub use oneshot::{OneshotState, list_oneshot_providers, run_oneshot, stop_oneshot};
 pub use secrets::{delete_provider_api_key, get_api_key_statuses, set_provider_api_key};
 pub use mcp::{
