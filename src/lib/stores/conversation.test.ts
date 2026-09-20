@@ -260,9 +260,6 @@ describe("reopening a conversation", () => {
 describe("recovering a conversation whose session is gone", () => {
 	it("opens a new session instead of resuming the one the CLI lost", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
-		// Confirmed once, so reopening resumes it - and the CLI can have lost it
-		// since. A CLI that comes up on an empty session rather than exiting is
-		// what the automatic fallback never sees.
 		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
 		await vi.advanceTimersByTimeAsync(2_000);
 		closeConversation(meta.id);
