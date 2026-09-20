@@ -133,7 +133,7 @@ describe("reopening a conversation", () => {
 		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
 	});
 
-	it("relaunches under the minted id while the session is unwritten", async () => {
+	it("relaunches under the minted id while the session is unconfirmed", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
 		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
 		closeConversation(meta.id);
