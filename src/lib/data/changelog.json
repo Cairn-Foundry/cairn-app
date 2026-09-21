@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "Accented characters typed in a terminal no longer resend what was already on the line. The hidden field the webview types into keeps every character until the line is submitted, and xterm's dead-key fallback sent that whole field instead of the one accented character - so \"peut-\u00eatre\" arrived as \"peut-\u00eatre\" preceded by \"peut-\u00ea\", and the further into the line the accent sat, the more it repeated. The field is now emptied between keystrokes.",
+					"fr": "Les caract\u00e8res accentu\u00e9s saisis dans un terminal ne renvoient plus ce qui \u00e9tait d\u00e9j\u00e0 sur la ligne. Le champ cach\u00e9 dans lequel la webview \u00e9crit conserve chaque caract\u00e8re jusqu'\u00e0 la validation de la ligne, et le repli d'xterm pour les touches mortes envoyait ce champ entier au lieu du seul caract\u00e8re accentu\u00e9 - si bien que \u00ab peut-\u00eatre \u00bb arrivait pr\u00e9c\u00e9d\u00e9 de \u00ab peut-\u00ea \u00bb, et plus l'accent \u00e9tait loin dans la ligne, plus il se r\u00e9p\u00e9tait. Le champ est d\u00e9sormais vid\u00e9 entre les frappes."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "A New session button next to Restart when a CLI has exited, for a conversation whose session the CLI no longer knows: it leaves the missing session behind and starts a new one in the same worktree, keeping the title. Restarting alone would ask the CLI to resume the same missing session again.",

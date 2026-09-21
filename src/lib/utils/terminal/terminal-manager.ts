@@ -323,6 +323,35 @@ export function create(id: string): void {
 	});
 }
 
+/**
+ * Empties xterm's hidden input textarea whenever it is not composing.
+ *
+ * xterm only clears it on blur, Enter and Ctrl+C, so a focused terminal holds
+ * the whole line typed so far - and `CompositionHelper`'s dead-key fallback
+ * sends that entire value rather than the difference. Cleared, it can only ever
+ * send the one character it stands for. The clear is deferred by a task: xterm
+ * reads the textarea from its own `setTimeout` after `compositionend`, and
+ * these listeners are registered after its own, so that read comes first.
+ */
+export function keepHelperTextareaEmpty(textarea: HTMLTextAreaElement): void {
+	let composing = false;
+	const clearLater = () => {
+		setTimeout(() => {
+			if (!composing) textarea.value = "";
+		}, 0);
+	};
+	textarea.addEventListener("compositionstart", () => {
+		composing = true;
+	});
+	textarea.addEventListener("compositionend", () => {
+		composing = false;
+		clearLater();
+	});
+	textarea.addEventListener("input", () => {
+		if (!composing) clearLater();
+	});
+}
+
 /** Builds the xterm instance of a terminal and wires its I/O. */
 function wake(id: string, m: ManagedTerminal): void {
 	const term = new Terminal({
@@ -364,6 +393,7 @@ function wake(id: string, m: ManagedTerminal): void {
 	m.fit = fit;
 	m.serialize = serialize;
 	term.open(m.el);
+	if (term.textarea) keepHelperTextareaEmpty(term.textarea);
 	// The renderer goes in before the backlog is written, not after. WebGL takes
 	// over with an empty canvas and only paints what changes from then on, so a
 	// screen already written through the DOM renderer is not redrawn: the pane
