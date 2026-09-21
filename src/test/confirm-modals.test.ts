@@ -16,6 +16,7 @@ import DeleteSkillModal from "$lib/components/home/skills/DeleteSkillModal.svelt
 import UninstallServerModal from "$lib/components/home/UninstallServerModal.svelte";
 import type { CustomCommand } from "$lib/services/custom-command-service";
 import type { LanguageServerInfo } from "$lib/services/lsp-service";
+import type { Instance } from "$lib/types/instance";
 
 function languageServer(
 	name: string,
@@ -385,5 +386,55 @@ describe("what each modal says beyond the shared contract", () => {
 			props: { server: languageServer("my-lsp"), manager: "nothing" },
 		});
 		expect(body().textContent).not.toContain("npm rm -g");
+	});
+});
+
+/**
+ * The instance modal is the only one of these carrying a decision: what becomes
+ * of the worktree. The default follows who made it, and either default can be
+ * overridden - a worktree outside `.cairn` can still be cleaned up.
+ */
+describe("DeleteInstanceModal: what becomes of the worktree", () => {
+	function mount(overrides: Partial<Instance> = {}) {
+		const onConfirm = vi.fn();
+		render(DeleteInstanceModal, {
+			props: { instance: instance("my-instance", "p1", overrides) },
+			events: { confirm: (e: CustomEvent) => onConfirm(e.detail) },
+		});
+		return {
+			onConfirm,
+			toggle: () => document.querySelector(".toggle-btn") as HTMLElement,
+		};
+	}
+
+	it("clears away a worktree Cairn made", async () => {
+		const { onConfirm } = mount();
+		await userEvent.click(confirmButton());
+		expect(onConfirm).toHaveBeenCalledWith({ removeWorktree: true });
+	});
+
+	it("leaves an adopted worktree alone", async () => {
+		const { onConfirm } = mount({ external: true });
+		await userEvent.click(confirmButton());
+		expect(onConfirm).toHaveBeenCalledWith({ removeWorktree: false });
+	});
+
+	it("clears away an adopted worktree when asked to", async () => {
+		const { onConfirm, toggle } = mount({ external: true });
+		await userEvent.click(toggle());
+		await userEvent.click(confirmButton());
+		expect(onConfirm).toHaveBeenCalledWith({ removeWorktree: true });
+	});
+
+	it("keeps one of its own when asked to", async () => {
+		const { onConfirm, toggle } = mount();
+		await userEvent.click(toggle());
+		await userEvent.click(confirmButton());
+		expect(onConfirm).toHaveBeenCalledWith({ removeWorktree: false });
+	});
+
+	it("says where the worktree is, so the choice is made knowingly", () => {
+		mount({ external: true, worktreePath: "/home/someone/elsewhere" });
+		expect(body().textContent).toContain("/home/someone/elsewhere");
 	});
 });

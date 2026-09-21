@@ -586,7 +586,9 @@ describe("FinalizeInstance", () => {
 				document.querySelector(".btn.danger") as HTMLElement,
 			);
 			await settle();
-			expect(removeInstance).toHaveBeenCalledWith("i1", "p1");
+			// The modal decides what becomes of the worktree; for one Cairn
+			// created that is to clear it away.
+			expect(removeInstance).toHaveBeenCalledWith("i1", "p1", true);
 			expect(onClose).toHaveBeenCalled();
 		});
 	});

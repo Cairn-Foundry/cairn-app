@@ -36,4 +36,9 @@ export interface Instance {
 	createdAt: number;
 	baseBranch: string;
 	parentInstanceId?: string;
+	/**
+	 * True for a worktree Cairn adopted rather than created. It lives wherever
+	 * the user put it, so deleting the instance defaults to leaving it alone.
+	 */
+	external?: boolean;
 }

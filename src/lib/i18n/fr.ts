@@ -84,17 +84,29 @@ export const fr = {
 			ticket: "Ticket",
 			mode: "Mode",
 			branch: "Branche",
+			worktree: "Worktree",
 		},
 		stepTitles: {
 			ticket: "Décrire le travail",
-			mode: "Choisir un mode de branche",
+			mode: "Choisir comment démarrer",
 			branch: "Configurer le worktree",
+			worktree: "Choisir le worktree à adopter",
 		},
 		createBranch: "Créer une branche",
 		createBranchDesc:
 			"Démarrer une nouvelle branche depuis une branche de base.",
 		existingBranch: "Utiliser une branche existante",
 		existingBranchDesc: "Rattacher l'instance à une branche qui existe déjà.",
+		adoptWorktree: "Adopter un worktree",
+		adoptWorktreeDesc:
+			"Reprendre un worktree de ce dépôt qu'aucune instance ne représente.",
+		selectWorktree: "Worktrees non réclamés",
+		noWorktrees:
+			"Tous les worktrees de ce dépôt ont déjà une instance. Un worktree créé en dehors de Cairn - à la main, ou par un autre outil - apparaîtrait ici.",
+		worktreeDetached: "HEAD détachée : aucune branche sur laquelle travailler.",
+		adoptInfo:
+			"Le worktree reste où il est : Cairn enregistre l'instance et rien d'autre. Supprimer l'instance plus tard proposera de laisser le répertoire en place.",
+		refreshWorktrees: "Rafraîchir la liste",
 		selectExistingBranch: "Branche existante",
 		noExistingBranches: "Ce projet n'a pas encore de branche à rattacher.",
 		branchInUse: (name: string) =>
@@ -2666,6 +2678,13 @@ export const fr = {
 		title: (name: string) => `Supprimer "${name}" ?`,
 		description:
 			"Cela supprimera l'instance et effacera son worktree. Vos fichiers originaux de projet ne seront pas affectés.",
+		descriptionAdopted:
+			"Ce worktree n'a pas été créé par Cairn : par défaut il est conservé et seule l'instance est oubliée. Dans les deux cas, vos fichiers originaux de projet ne seront pas affectés.",
+		removeWorktree: "Effacer aussi le worktree",
+		removeWorktreeDesc:
+			"Le répertoire disparaît, et la branche locale avec lui. Ce qui n'y est pas commité est perdu.",
+		keepWorktreeDesc:
+			"Le répertoire reste où il est, branche comprise. Seule l'instance est oubliée.",
 		deleteInstance: "Supprimer l'instance",
 	},
 

@@ -83,16 +83,28 @@ export const en = {
 			ticket: "Ticket",
 			mode: "Mode",
 			branch: "Branch",
+			worktree: "Worktree",
 		},
 		stepTitles: {
 			ticket: "Describe the work",
-			mode: "Choose a branch mode",
+			mode: "Choose how to start",
 			branch: "Shape the worktree",
+			worktree: "Pick the worktree to adopt",
 		},
 		createBranch: "Create a branch",
 		createBranchDesc: "Start a new branch from a base branch.",
 		existingBranch: "Use an existing branch",
 		existingBranchDesc: "Attach the instance to a branch that already exists.",
+		adoptWorktree: "Adopt a worktree",
+		adoptWorktreeDesc:
+			"Take over a worktree of this repository that no instance stands for.",
+		selectWorktree: "Unclaimed worktrees",
+		noWorktrees:
+			"Every worktree of this repository already has an instance. One created outside Cairn - by hand, or by another tool - would show up here.",
+		worktreeDetached: "Detached HEAD: no branch to work on.",
+		adoptInfo:
+			"The worktree stays where it is: Cairn records the instance and nothing else. Deleting the instance later offers to leave the directory alone.",
+		refreshWorktrees: "Refresh the list",
 		selectExistingBranch: "Existing branch",
 		noExistingBranches: "This project has no branches to link yet.",
 		branchInUse: (name: string) =>
@@ -2618,6 +2630,13 @@ export const en = {
 		title: (name: string) => `Delete "${name}"?`,
 		description:
 			"This will remove the instance and delete its worktree. Your original project files will not be affected.",
+		descriptionAdopted:
+			"Cairn did not create this worktree, so it keeps it by default and only forgets the instance. Your original project files will not be affected either way.",
+		removeWorktree: "Delete the worktree too",
+		removeWorktreeDesc:
+			"The directory goes, and the local branch with it. Anything uncommitted in there is lost.",
+		keepWorktreeDesc:
+			"The directory stays where it is, branch included. Only the instance is forgotten.",
 		deleteInstance: "Delete instance",
 	},
 

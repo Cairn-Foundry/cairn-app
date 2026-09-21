@@ -5,6 +5,7 @@
 //! branch and a worktree under the project's `worktrees/` directory; deleting
 //! one takes both away again.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -49,6 +50,11 @@ pub struct StoredInstance {
     pub base_branch: String,
     #[serde(rename = "parentInstanceId", default, skip_serializing_if = "Option::is_none")]
     pub parent_instance_id: Option<String>,
+    /// True for a worktree Cairn adopted rather than created. It owns nothing
+    /// of it, so deleting the instance defaults to letting the directory be -
+    /// the caller can still ask for it to be cleaned up.
+    #[serde(default)]
+    pub external: bool,
 }
 
 /// The same instance as handed to the frontend, with its project id attached.
@@ -68,6 +74,7 @@ pub struct Instance {
     pub base_branch: String,
     #[serde(rename = "parentInstanceId", skip_serializing_if = "Option::is_none")]
     pub parent_instance_id: Option<String>,
+    pub external: bool,
 }
 
 impl StoredInstance {
@@ -83,6 +90,7 @@ impl StoredInstance {
             created_at: self.created_at,
             base_branch: self.base_branch,
             parent_instance_id: self.parent_instance_id,
+            external: self.external,
         }
     }
 }
@@ -102,6 +110,160 @@ pub struct CreateInstanceArgs {
     pub base_branch: Option<String>,
     #[serde(rename = "linkExisting", default)]
     pub link_existing: bool,
+}
+
+/// A linked worktree of the project no instance stands for. `branch` is `None`
+/// on a detached HEAD, which is a checkout rather than a unit of work.
+#[derive(Serialize)]
+pub struct UnclaimedWorktree {
+    /// The name git registered it under, which is the directory name and not
+    /// necessarily anything to do with the branch.
+    pub name: String,
+    pub path: String,
+    pub branch: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct AdoptWorktreeArgs {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "projectPath")]
+    pub project_path: String,
+    pub path: String,
+    pub ticket: InstanceTicket,
+    #[serde(rename = "baseBranch", default)]
+    pub base_branch: Option<String>,
+}
+
+/// A path as the filesystem knows it, falling back to the path itself when it
+/// cannot be resolved - a worktree whose directory is already gone still has to
+/// compare equal to the instance that named it.
+fn resolved(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Whether deleting an instance takes its worktree with it.
+///
+/// Cairn created the worktree of an ordinary instance, so clearing it away is
+/// what deleting one means; an adopted worktree is the user's own directory,
+/// wherever they put it, so by default the instance is merely forgotten. The
+/// caller overrides both ways: a worktree outside `.cairn` can still be cleaned
+/// up on request, and one of Cairn's own can still be left on disk.
+fn should_remove_worktree(requested: Option<bool>, external: bool) -> bool {
+    requested.unwrap_or(!external)
+}
+
+/// The branch a worktree has checked out, `None` when its HEAD is detached.
+fn worktree_branch(path: &Path) -> Option<String> {
+    let repo = Repository::open(path).ok()?;
+    let head = repo.head().ok()?;
+    if !head.is_branch() {
+        return None;
+    }
+    head.shorthand().ok().map(str::to_string)
+}
+
+/// The worktree registered for `path`, whatever git named it. Deriving the name
+/// from the branch only ever worked for the worktrees Cairn created itself.
+fn worktree_at(repo: &Repository, path: &Path) -> Option<git2::Worktree> {
+    let target = resolved(path);
+    let names = repo.worktrees().ok()?;
+    names
+        .iter()
+        .filter_map(|name| name.ok().flatten())
+        .filter_map(|name| repo.find_worktree(name).ok())
+        .find(|wt| resolved(wt.path()) == target)
+}
+
+/// The project's linked worktrees that no instance claims - the ones made by
+/// hand outside Cairn, and the ones it created but lost track of. The main
+/// checkout is not among them: git only lists the linked ones, and the project
+/// itself is already the base instance.
+#[tauri::command]
+pub fn list_unclaimed_worktrees(
+    project_id: String,
+    project_path: String,
+) -> Result<Vec<UnclaimedWorktree>, String> {
+    let expanded = shellexpand::tilde(&project_path).into_owned();
+    let repo = Repository::open(&expanded).map_err(|e| e.to_string())?;
+    let claimed: HashSet<PathBuf> = read_instances(&project_id)?
+        .iter()
+        .map(|i| resolved(Path::new(&shellexpand::tilde(&i.worktree_path).into_owned())))
+        .collect();
+
+    let names = repo.worktrees().map_err(|e| e.to_string())?;
+    let mut out: Vec<UnclaimedWorktree> = names
+        .iter()
+        .filter_map(|name| name.ok().flatten())
+        .filter_map(|name| repo.find_worktree(name).ok().map(|wt| (name.to_string(), wt)))
+        // A worktree whose directory is gone is for git to prune, not for the
+        // user to adopt.
+        .filter(|(_, wt)| wt.validate().is_ok())
+        .filter(|(_, wt)| !claimed.contains(&resolved(wt.path())))
+        .map(|(name, wt)| UnclaimedWorktree {
+            name,
+            path: wt.path().to_string_lossy().into_owned(),
+            branch: worktree_branch(wt.path()),
+        })
+        .collect();
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(out)
+}
+
+/// Makes an instance of a worktree that already exists, leaving the directory
+/// exactly where it is: the path is stored as it stands, and every view reads it
+/// from the instance rather than assuming where Cairn puts its own.
+/// Async only for symmetry with `create_instance` - this one just reads git.
+#[tauri::command]
+pub async fn adopt_worktree(args: AdoptWorktreeArgs) -> Result<Instance, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let expanded_project = shellexpand::tilde(&args.project_path).into_owned();
+        let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
+        let path = PathBuf::from(shellexpand::tilde(&args.path).into_owned());
+
+        let worktree = worktree_at(&repo, &path)
+            .ok_or_else(|| format!("'{}' is not a worktree of this project.", args.path))?;
+        if worktree.validate().is_err() {
+            return Err(format!("The directory of '{}' is missing.", args.path));
+        }
+        let branch = worktree_branch(worktree.path()).ok_or_else(|| {
+            "That worktree has a detached HEAD, so it has no branch to work on.".to_string()
+        })?;
+
+        let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
+        let mut instances = read_instances(&args.project_id)?;
+        let target = resolved(worktree.path());
+        if instances
+            .iter()
+            .any(|i| resolved(Path::new(&shellexpand::tilde(&i.worktree_path).into_owned())) == target)
+        {
+            return Err("That worktree already has an instance.".to_string());
+        }
+        if instances.iter().any(|i| i.branch == branch) {
+            return Err(format!("An instance is already on branch '{branch}'."));
+        }
+
+        let stored = StoredInstance {
+            id: args.id,
+            ticket: args.ticket,
+            branch,
+            worktree_path: worktree.path().to_string_lossy().into_owned(),
+            status: "idle".to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64,
+            base_branch: args.base_branch.unwrap_or_default(),
+            parent_instance_id: None,
+            external: true,
+        };
+        instances.push(stored.clone());
+        write_instances(&args.project_id, &instances)?;
+        Ok(stored.with_project(args.project_id))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Empty for a project that has no instance yet.
@@ -282,6 +444,7 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
                 .as_millis() as u64,
             base_branch: args.base_branch.unwrap_or_default(),
             parent_instance_id: None,
+            external: false,
         };
 
         let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
@@ -374,6 +537,7 @@ pub async fn duplicate_instance(args: DuplicateInstanceArgs) -> Result<Instance,
                 .as_millis() as u64,
             base_branch: source.base_branch.clone(),
             parent_instance_id: Some(args.source_id.clone()),
+            external: false,
         };
 
         let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
@@ -433,7 +597,11 @@ pub fn update_instance_base_branch(id: String, project_id: String, base_branch: 
 /// best effort: a missing worktree or branch must not block the deletion.
 /// Async: removing the worktree directory blocks long enough to freeze the UI thread.
 #[tauri::command]
-pub async fn delete_instance(id: String, project_id: String) -> Result<(), String> {
+pub async fn delete_instance(
+    id: String,
+    project_id: String,
+    remove_worktree: Option<bool>,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = INSTANCES_WRITE_LOCK.lock().map_err(|e| e.to_string())?;
         let mut instances = read_instances(&project_id)?;
@@ -441,10 +609,9 @@ pub async fn delete_instance(id: String, project_id: String) -> Result<(), Strin
             .ok_or_else(|| format!("Instance '{}' not found", id))?
             .clone();
 
-        let wt_path = PathBuf::from(&instance.worktree_path);
-        if wt_path.exists() {
-            fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
-        }
+        let remove = should_remove_worktree(remove_worktree, instance.external);
+
+        let wt_path = PathBuf::from(shellexpand::tilde(&instance.worktree_path).into_owned());
 
         let projects = read_projects()?;
         let expanded_project = projects.iter()
@@ -454,13 +621,20 @@ pub async fn delete_instance(id: String, project_id: String) -> Result<(), Strin
 
         let repo = Repository::open(&expanded_project).map_err(|e| e.to_string())?;
 
-        let slug = instance.branch.replace('/', "-");
-        if let Ok(wt) = repo.find_worktree(&slug) {
-            let _ = wt.prune(None);
+        if remove {
+            // Resolved before the directory goes: a path that no longer exists
+            // cannot be matched against the worktrees git has registered.
+            let registered = worktree_at(&repo, &wt_path);
+            if wt_path.exists() {
+                fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
+            }
+            if let Some(wt) = registered {
+                let _ = wt.prune(None);
+            }
+            if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
+                let _ = branch.delete();
+            };
         }
-        if let Ok(mut branch) = repo.find_branch(&instance.branch, BranchType::Local) {
-            let _ = branch.delete();
-        };
 
         instances.retain(|i| i.id != id);
         write_instances(&project_id, &instances)?;
@@ -492,6 +666,7 @@ mod tests {
             created_at: 1_700_000_000,
             base_branch: "main".to_string(),
             parent_instance_id: None,
+            external: false,
         }
     }
 
@@ -597,6 +772,152 @@ mod tests {
         assert!(serde_json::from_str::<StoredInstance>("not json").is_err());
     }
 
+    /// A repository built by hand, with worktrees added by hand: the git CLI
+    /// does it in a line each, and adopting is about worktrees Cairn did not
+    /// make. Nothing here reads or writes `~/.cairn` - a project id nobody
+    /// stored has no instances file, and `read_instances` answers with none.
+    struct Scratch {
+        dir: PathBuf,
+    }
+
+    impl Scratch {
+        fn new(name: &str) -> Scratch {
+            let dir = std::env::temp_dir()
+                .join(format!("cairn-adopt-test-{name}-{}", std::process::id()));
+            let _ = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).unwrap();
+            let scratch = Scratch { dir };
+            let repo = scratch.dir.join("repo");
+            fs::create_dir_all(&repo).unwrap();
+            scratch.git(&repo, &["init", "-q"]);
+            scratch.git(&repo, &["config", "user.name", "Test"]);
+            scratch.git(&repo, &["config", "user.email", "test@example.com"]);
+            scratch.git(&repo, &["config", "commit.gpgsign", "false"]);
+            fs::write(repo.join("a.txt"), b"x").unwrap();
+            scratch.git(&repo, &["add", "."]);
+            scratch.git(&repo, &["commit", "-q", "-m", "first"]);
+            scratch
+        }
+
+        fn repo(&self) -> PathBuf {
+            self.dir.join("repo")
+        }
+
+        fn git(&self, cwd: &Path, args: &[&str]) {
+            let status = std::process::Command::new("git")
+                .current_dir(cwd)
+                .args(args)
+                .status()
+                .expect("git should be runnable");
+            assert!(status.success(), "git {args:?} failed");
+        }
+
+        /// A linked worktree whose directory name deliberately has nothing to do
+        /// with its branch - the case a name derived from the branch misses.
+        fn worktree(&self, dir_name: &str, branch: &str) -> PathBuf {
+            let path = self.dir.join(dir_name);
+            let repo = self.repo();
+            self.git(&repo, &["worktree", "add", "-q", "-b", branch, path.to_str().unwrap()]);
+            path
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    #[test]
+    fn a_worktree_is_found_by_its_path_whatever_git_named_it() {
+        let scratch = Scratch::new("by-path");
+        let path = scratch.worktree("somewhere-else", "feat/deep/name");
+        let repo = Repository::open(scratch.repo()).unwrap();
+
+        let found = worktree_at(&repo, &path).expect("the worktree should be found by its path");
+        assert_eq!(resolved(found.path()), resolved(&path));
+        // The name git registered is the directory's, so deriving it from the
+        // branch - "feat-deep-name" - finds nothing at all.
+        assert_eq!(found.name().ok().flatten(), Some("somewhere-else"));
+        assert!(repo.find_worktree("feat-deep-name").is_err());
+        assert!(worktree_at(&repo, &scratch.dir.join("never-a-worktree")).is_none());
+    }
+
+    #[test]
+    fn a_worktree_reports_the_branch_it_has_checked_out() {
+        let scratch = Scratch::new("branch");
+        let path = scratch.worktree("wt", "feat/x");
+        assert_eq!(worktree_branch(&path).as_deref(), Some("feat/x"));
+
+        scratch.git(&path, &["checkout", "-q", "--detach"]);
+        assert_eq!(worktree_branch(&path), None, "a detached HEAD names no branch");
+    }
+
+    #[test]
+    fn the_unclaimed_worktrees_are_the_ones_no_instance_stands_for() {
+        let scratch = Scratch::new("unclaimed");
+        let first = scratch.worktree("alpha", "feat/one");
+        let second = scratch.worktree("beta", "feat/two");
+
+        // A project id nobody ever stored: every worktree is unclaimed.
+        let listed = list_unclaimed_worktrees(
+            format!("adopt-test-{}", std::process::id()),
+            scratch.repo().to_string_lossy().into_owned(),
+        )
+        .expect("the listing should succeed");
+
+        let paths: Vec<PathBuf> = listed.iter().map(|w| resolved(Path::new(&w.path))).collect();
+        assert!(paths.contains(&resolved(&first)), "{paths:?}");
+        assert!(paths.contains(&resolved(&second)), "{paths:?}");
+        // The main checkout is not one of them: it is the base instance already.
+        assert!(!paths.contains(&resolved(&scratch.repo())), "{paths:?}");
+
+        let branches: Vec<Option<String>> = listed.iter().map(|w| w.branch.clone()).collect();
+        assert!(branches.contains(&Some("feat/one".to_string())), "{branches:?}");
+        assert!(branches.contains(&Some("feat/two".to_string())), "{branches:?}");
+    }
+
+    /// A worktree whose directory the user removed by hand is git's to prune,
+    /// not a unit of work to offer.
+    #[test]
+    fn a_worktree_whose_directory_is_gone_is_not_offered() {
+        let scratch = Scratch::new("stale");
+        let path = scratch.worktree("ghost", "feat/ghost");
+        fs::remove_dir_all(&path).unwrap();
+
+        let listed = list_unclaimed_worktrees(
+            format!("adopt-test-stale-{}", std::process::id()),
+            scratch.repo().to_string_lossy().into_owned(),
+        )
+        .unwrap();
+        assert!(
+            !listed.iter().any(|w| resolved(Path::new(&w.path)) == resolved(&path)),
+            "a worktree with no directory was offered"
+        );
+    }
+
+    #[test]
+    fn who_made_the_worktree_decides_what_deleting_it_means() {
+        // Cairn's own: cleaned up, unless the user asks for it to be left.
+        assert!(should_remove_worktree(None, false));
+        assert!(!should_remove_worktree(Some(false), false));
+        // Adopted: left alone, unless the user asks for the cleanup - being
+        // outside `.cairn` is no reason to refuse.
+        assert!(!should_remove_worktree(None, true));
+        assert!(should_remove_worktree(Some(true), true));
+    }
+
+    #[test]
+    fn an_adopted_instance_says_so_when_it_is_read_back() {
+        let json = r#"{"id":"i1","ticket":{"id":"t","title":"T"},"branch":"b",
+            "worktreePath":"/elsewhere/wt","status":"idle","createdAt":1,"external":true}"#;
+        assert!(from_json(json).external, "the flag has to survive a round trip");
+        // Every instance written before the flag existed is one Cairn created.
+        let older = r#"{"id":"i1","ticket":{"id":"t","title":"T"},"branch":"b",
+            "worktreePath":"/w","status":"idle","createdAt":1}"#;
+        assert!(!from_json(older).external);
+    }
+
     #[test]
     fn it_serializes_under_the_names_the_frontend_reads() {
         let json = serde_json::to_value(stored("i1").with_project("p1".to_string()))
@@ -611,6 +932,7 @@ mod tests {
             "status",
             "createdAt",
             "baseBranch",
+            "external",
         ] {
             assert!(object.contains_key(key), "{key} is missing from the payload");
         }

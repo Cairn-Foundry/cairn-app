@@ -69,6 +69,34 @@
 					"en": "A Claude Code conversation is recognized as resumable again. A recent CLI change opens a session's transcript with a few header lines before the one naming its working directory, which made every conversation look unconfirmed and relaunch instead of resume.",
 					"fr": "Une conversation Claude Code est de nouveau reconnue comme reprenable. Un changement récent du CLI ouvre le transcript d'une session par quelques lignes d'en-tête avant celle qui nomme son répertoire de travail, ce qui faisait paraître toute conversation non confirmée et la relançait au lieu de la reprendre."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Adopting a worktree: the New instance dialog has a third way in, listing the worktrees of the repository that no instance stands for - the ones created by hand in a terminal, and the ones Cairn created but lost track of. Picking one records the instance and nothing else: the directory stays where it is, wherever that is. A worktree with a detached HEAD is shown but cannot be adopted, having no branch to work on.",
+					"fr": "L'adoption d'un worktree : la boîte Nouvelle instance offre une troisième entrée, qui liste les worktrees du dépôt qu'aucune instance ne représente - ceux créés à la main dans un terminal, et ceux que Cairn a créés puis perdus de vue. En choisir un enregistre l'instance et rien d'autre : le répertoire reste où il est, où qu'il soit. Un worktree en HEAD détachée est affiché mais ne peut pas être adopté, faute de branche sur laquelle travailler."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Deleting an instance asks what becomes of its worktree, and shows where it is. A worktree Cairn created is cleared away as before; one it merely adopted is kept, and only the instance is forgotten. Either default can be overridden - a worktree outside the Cairn directory can still be cleaned up on request.",
+					"fr": "Supprimer une instance demande ce qu'il advient de son worktree, et affiche où il se trouve. Un worktree créé par Cairn est effacé comme avant ; un worktree simplement adopté est conservé, et seule l'instance est oubliée. Les deux valeurs par défaut se laissent forcer : un worktree hors du répertoire de Cairn peut tout de même être nettoyé sur demande."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Deleting an instance prunes the right worktree. Git was asked for the one whose name matched the branch, which is only how Cairn names its own: a worktree registered under any other name was left behind as a stale entry in the repository.",
+					"fr": "Supprimer une instance nettoie le bon worktree. Git était interrogé sur celui dont le nom correspondait à la branche, ce qui n'est vrai que des worktrees nommés par Cairn : un worktree enregistré sous un autre nom restait dans le dépôt comme une entrée morte."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The New instance dialog asks what it is about to do first, and what the work is called last. The three modes then follow what is already known: creating a branch keeps the ticket before it, since the branch name is generated from it, while starting from a branch or a worktree that already exists fills the ticket in from that branch - the key it carries becomes the id, the rest of the name the title, both there to be overwritten. Opening the dialog from a ref in the graph skips straight to the branch, the mode being settled by the ref itself.",
+					"fr": "La boîte Nouvelle instance demande d'abord ce qu'elle va faire, et en dernier comment le travail s'appelle. Les trois modes suivent ensuite ce qui est déjà connu : créer une branche garde le ticket avant elle, puisque le nom de branche en est généré, tandis que partir d'une branche ou d'un worktree existant remplit le ticket depuis cette branche - la clé qu'elle porte devient l'identifiant, le reste du nom devient le titre, l'un et l'autre restant modifiables. Ouvrir la boîte depuis une ref du graph saute directement à la branche, le mode étant déjà tranché par la ref."
+				}
 			}
 		]
 	},

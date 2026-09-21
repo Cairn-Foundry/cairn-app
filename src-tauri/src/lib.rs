@@ -163,6 +163,8 @@ pub fn run() {
             list_instances,
             create_instance,
             duplicate_instance,
+            adopt_worktree,
+            list_unclaimed_worktrees,
             delete_instance,
             update_instance_status,
             update_instance_ticket,

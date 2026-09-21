@@ -5,8 +5,12 @@
 import { derived, get, writable } from "svelte/store";
 import { t } from "$lib/i18n";
 import { unwatchWorktree } from "$lib/services/fs-watch-service";
-import type { CreateInstanceArgs } from "$lib/services/instance-service";
+import type {
+	AdoptWorktreeArgs,
+	CreateInstanceArgs,
+} from "$lib/services/instance-service";
 import {
+	adoptWorktree as adoptWorktreeService,
 	createInstance,
 	deleteInstance,
 	duplicateInstance as duplicateInstanceService,
@@ -162,6 +166,19 @@ export async function spawnInstance(
 	return instance;
 }
 
+/**
+ * Makes an instance of a worktree that already exists and switches to it. The
+ * directory is left where it is, so nothing is created on disk.
+ */
+export async function adoptWorktree(
+	args: AdoptWorktreeArgs,
+): Promise<Instance> {
+	const instance = await adoptWorktreeService(args);
+	patchProject(args.projectId, (list) => [...list, instance]);
+	await activateInstance(args.projectId, instance.id);
+	return instance;
+}
+
 /** Branches a new instance off an existing one, numbering its ticket after the siblings already made from it. */
 export async function duplicateInstance(
 	source: {
@@ -234,10 +251,16 @@ export async function setInstanceBaseBranch(
 	);
 }
 
-/** Deletes an instance and everything hanging off it: terminals, agent markers, worktree. */
+/**
+ * Deletes an instance and everything hanging off it: terminals, agent markers,
+ * and the worktree itself unless `removeWorktree` says otherwise. Undefined
+ * leaves the choice to the backend, which keeps an adopted worktree and removes
+ * one of its own.
+ */
 export async function removeInstance(
 	id: string,
 	projectId: string,
+	removeWorktree?: boolean,
 ): Promise<void> {
 	// Read before the delete, while the instance still exists, and released before
 	// its worktree is gone: a watcher left on a deleted directory holds an inotify
@@ -251,7 +274,7 @@ export async function removeInstance(
 	// it does not find one, so a sync landing between an un-awaited release and the
 	// delete would reinstall a watcher on the directory being removed.
 	if (worktree) await unwatchWorktree(worktree).catch(() => {});
-	await deleteInstance(id, projectId);
+	await deleteInstance(id, projectId, removeWorktree);
 	patchProject(projectId, (list) => list.filter((i) => i.id !== id));
 }
 

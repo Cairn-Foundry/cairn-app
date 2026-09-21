@@ -50,6 +50,50 @@ export async function duplicateInstance(
 	return invoke<Instance>("duplicate_instance", { args });
 }
 
+/** A linked worktree of the project that no instance stands for. */
+export interface UnclaimedWorktree {
+	/** The name git registered, which is the directory name, not the branch. */
+	name: string;
+	path: string;
+	/** Absent on a detached HEAD, which cannot become an instance. */
+	branch?: string;
+}
+
+/**
+ * The worktrees of the project no instance claims: the ones made by hand
+ * outside Cairn, and the ones it created but lost track of. The project
+ * checkout itself is not one - it is already the base instance.
+ */
+export async function listUnclaimedWorktrees(
+	projectId: string,
+	projectPath: string,
+): Promise<UnclaimedWorktree[]> {
+	return invoke<UnclaimedWorktree[]>("list_unclaimed_worktrees", {
+		projectId,
+		projectPath,
+	});
+}
+
+/** `path` is stored as it stands: an adopted worktree is not moved. */
+export interface AdoptWorktreeArgs {
+	id: string;
+	projectId: string;
+	projectPath: string;
+	path: string;
+	ticket: InstanceTicket;
+	baseBranch?: string;
+}
+
+/**
+ * Records an instance for a worktree that already exists, leaving the directory
+ * where it is. Nothing is created on disk, so this one is cheap.
+ */
+export async function adoptWorktree(
+	args: AdoptWorktreeArgs,
+): Promise<Instance> {
+	return invoke<Instance>("adopt_worktree", { args });
+}
+
 /** Writes the instance back to instances.json; the worktree is untouched. */
 export async function updateInstanceStatus(
 	id: string,
@@ -80,15 +124,17 @@ export async function updateInstanceTicket(
 }
 
 /**
- * Destructive well beyond instances.json: it removes the worktree directory,
- * prunes it, deletes the local branch and drops the instance's saved state.
- * Uncommitted work in that worktree is gone.
+ * Drops the instance and its saved state. With `removeWorktree` it also removes
+ * the worktree directory, prunes it and deletes the local branch - uncommitted
+ * work in there is then gone. Left undefined, the backend removes the worktree
+ * of an instance it created and keeps the one it merely adopted.
  */
 export async function deleteInstance(
 	id: string,
 	projectId: string,
+	removeWorktree?: boolean,
 ): Promise<void> {
-	return invoke<void>("delete_instance", { id, projectId });
+	return invoke<void>("delete_instance", { id, projectId, removeWorktree });
 }
 
 /** Local branch names of the project checkout, not of a worktree. */
