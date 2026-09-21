@@ -9,11 +9,12 @@ pub mod catalog;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::child_env;
 use crate::commands::toolchain::{
     detect_version, manager_options, owning_manager, resolve_binary, resolve_command,
     spawn_shell, BinaryCache, ManagerOption,
@@ -434,7 +435,7 @@ pub async fn format_document(
         let extra = adapters::extra_args(def.id, &style);
         let args = build_args(&template, &extra, config.as_deref(), &path);
 
-        let mut child = Command::new(&binary)
+        let mut child = child_env::command(&binary)
             .args(&args)
             .current_dir(&root)
             .stdin(Stdio::piped())

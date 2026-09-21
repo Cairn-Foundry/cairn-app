@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use serde::{Deserialize, Serialize};
+use crate::child_env;
 use crate::storage::{
     global_env_file, instance_env_file, project_env_file, write_json_atomic,
 };
@@ -196,7 +196,7 @@ pub async fn ensure_env_ignored(worktree_path: String, file_name: String) -> Res
     let dir = shellexpand::tilde(&worktree_path).into_owned();
     if !Path::new(&dir).is_dir() { return Ok(false); }
 
-    let already = Command::new("git")
+    let already = child_env::command("git")
         .current_dir(&dir)
         .args(["check-ignore", "-q", "--", &file_name])
         .output()
@@ -205,7 +205,7 @@ pub async fn ensure_env_ignored(worktree_path: String, file_name: String) -> Res
         .success();
     if already { return Ok(false); }
 
-    let out = Command::new("git")
+    let out = child_env::command("git")
         .current_dir(&dir)
         .args(["rev-parse", "--path-format=absolute", "--git-common-dir"])
         .output()

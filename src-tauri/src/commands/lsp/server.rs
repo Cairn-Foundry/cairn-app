@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -23,6 +23,7 @@ use serde_json::{json, Value};
 use tauri::Emitter;
 use super::client::{LspClient, REQUEST_TIMEOUT};
 use super::registry::{resolve_binary, LanguageServerDef};
+use crate::child_env;
 
 /// A cold `initialize` on a large repository takes seconds - rust-analyzer
 /// indexes the whole workspace before answering.
@@ -236,7 +237,7 @@ pub fn start(
         args_override.to_vec()
     };
 
-    let mut child = Command::new(&resolved)
+    let mut child = child_env::command(&resolved)
         .args(&args)
         .current_dir(root)
         .stdin(Stdio::piped())

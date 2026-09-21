@@ -69,6 +69,13 @@
 					"en": "A Claude Code conversation is recognized as resumable again. A recent CLI change opens a session's transcript with a few header lines before the one naming its working directory, which made every conversation look unconfirmed and relaunch instead of resume.",
 					"fr": "Une conversation Claude Code est de nouveau reconnue comme reprenable. Un changement récent du CLI ouvre le transcript d'une session par quelques lignes d'en-tête avant celle qui nomme son répertoire de travail, ce qui faisait paraître toute conversation non confirmée et la relançait au lieu de la reprendre."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The programs Cairn starts - the terminals, the coding CLIs running in them, the language servers, the formatters, git, and the terminal emulator or file manager opened from a path - no longer inherit the environment of the AppImage itself. In an AppImage build that environment points at the temporary mount the app runs from, which broke python3 in a Cairn terminal (\"Failed to import encodings module\"), took down anything else written in Python such as a Python language server, and could link a system binary against a bundled library instead of its own.",
+					"fr": "Les programmes lancés par Cairn - les terminaux, les CLI de code qui y tournent, les serveurs de langage, les formateurs, git, et l'émulateur de terminal ou le gestionnaire de fichiers ouvert depuis un chemin - n'héritent plus de l'environnement de l'AppImage elle-même. Dans un build AppImage, cet environnement pointe vers le montage temporaire depuis lequel l'application tourne, ce qui cassait python3 dans un terminal de Cairn (\"Failed to import encodings module\"), emportait tout ce qui est écrit en Python comme un serveur de langage Python, et pouvait lier un binaire du système à une bibliothèque embarquée au lieu de la sienne."
+				}
 			}
 		]
 	},

@@ -6,10 +6,11 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 use serde::Serialize;
+use crate::child_env;
 
 /// One command per package manager. The same shape serves installing and
 /// removing, so the two can never drift apart in the catalogue.
@@ -112,7 +113,7 @@ pub fn owning_manager(binary_path: &Path) -> Option<&'static str> {
     if path.contains("/homebrew/") {
         return Some("brew");
     }
-    if Command::new("dpkg")
+    if child_env::command("dpkg")
         .args(["-S", &resolved.to_string_lossy()])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -180,13 +181,13 @@ pub fn spawn_shell_full(
     group: bool,
 ) -> std::io::Result<std::process::Child> {
     #[cfg(windows)]
-    let mut process = Command::new("cmd");
+    let mut process = child_env::command("cmd");
     #[cfg(windows)]
     process.args(["/c", command]);
     #[cfg(not(windows))]
     let mut process = {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        Command::new(shell)
+        child_env::command(shell)
     };
     #[cfg(not(windows))]
     process.args(["-lc", command]);
@@ -534,7 +535,7 @@ pub fn detect_version(path: &Path) -> Option<String> {
 /// never exit: waiting on `output()` would hang the whole scan, so the child is
 /// killed once it has had its chance.
 fn read_version(path: &Path) -> Option<String> {
-    let mut child = Command::new(path)
+    let mut child = child_env::command(path)
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

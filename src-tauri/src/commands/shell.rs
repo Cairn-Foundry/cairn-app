@@ -5,7 +5,8 @@
 //! have no plugin: opening a terminal, revealing a file, cloning a repo.
 
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+use crate::child_env;
 use crate::storage::{CommandOutput, copy_dir_recursive};
 
 /// Runs a program to completion and captures its output. A spawn failure comes
@@ -13,7 +14,7 @@ use crate::storage::{CommandOutput, copy_dir_recursive};
 /// Async: the callers shell out to git, which blocks the UI thread.
 #[tauri::command]
 pub async fn run_shell_command(program: String, args: Vec<String>, cwd: Option<String>) -> CommandOutput {
-    let mut cmd = Command::new(&program);
+    let mut cmd = child_env::command(&program);
     cmd.args(&args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -35,7 +36,7 @@ pub async fn run_shell_command(program: String, args: Vec<String>, cwd: Option<S
 /// Same, with `stdin` written to the process before its output is read.
 #[tauri::command]
 pub async fn run_shell_command_with_stdin(program: String, args: Vec<String>, cwd: Option<String>, stdin: String) -> CommandOutput {
-    let mut cmd = Command::new(&program);
+    let mut cmd = child_env::command(&program);
     cmd.args(&args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -69,17 +70,17 @@ pub async fn open_in_terminal(path: String) -> Result<(), String> {
         if p.is_dir() { expanded.clone() } else { p.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or(expanded.clone()) }
     };
     #[cfg(target_os = "macos")]
-    Command::new("open").args(["-a", "Terminal", &dir]).spawn().map_err(|e| e.to_string())?;
+    child_env::command("open").args(["-a", "Terminal", &dir]).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "windows")]
-    Command::new("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
+    child_env::command("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
     {
         let launched =
-            Command::new("x-terminal-emulator").current_dir(&dir).spawn().is_ok() ||
-            Command::new("gnome-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
-            Command::new("xfce4-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
-            Command::new("konsole").args(["--workdir", &dir]).spawn().is_ok() ||
-            Command::new("xterm").current_dir(&dir).spawn().is_ok();
+            child_env::command("x-terminal-emulator").current_dir(&dir).spawn().is_ok() ||
+            child_env::command("gnome-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
+            child_env::command("xfce4-terminal").arg(format!("--working-directory={}", dir)).spawn().is_ok() ||
+            child_env::command("konsole").args(["--workdir", &dir]).spawn().is_ok() ||
+            child_env::command("xterm").current_dir(&dir).spawn().is_ok();
         if !launched {
             return Err("No supported terminal emulator found. Install gnome-terminal, xfce4-terminal, konsole, or x-terminal-emulator.".to_string());
         }
@@ -92,20 +93,20 @@ pub async fn open_in_terminal(path: String) -> Result<(), String> {
 pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
     let expanded = shellexpand::tilde(&path).into_owned();
     #[cfg(target_os = "macos")]
-    Command::new("open").arg("-R").arg(&expanded).spawn().map_err(|e| e.to_string())?;
+    child_env::command("open").arg("-R").arg(&expanded).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "windows")]
-    Command::new("explorer").arg(format!("/select,{}", expanded)).spawn().map_err(|e| e.to_string())?;
+    child_env::command("explorer").arg(format!("/select,{}", expanded)).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
     {
         let p = std::path::Path::new(&expanded);
         let parent = p.parent().unwrap_or(p);
         let launched =
-            Command::new("nautilus").args(["--select", &expanded]).spawn().is_ok() ||
-            Command::new("dolphin").args(["--select", &expanded]).spawn().is_ok() ||
-            Command::new("nemo").arg(&expanded).spawn().is_ok() ||
-            Command::new("thunar").arg(&expanded).spawn().is_ok();
+            child_env::command("nautilus").args(["--select", &expanded]).spawn().is_ok() ||
+            child_env::command("dolphin").args(["--select", &expanded]).spawn().is_ok() ||
+            child_env::command("nemo").arg(&expanded).spawn().is_ok() ||
+            child_env::command("thunar").arg(&expanded).spawn().is_ok();
         if !launched {
-            Command::new("xdg-open").arg(parent).spawn().map_err(|e| e.to_string())?;
+            child_env::command("xdg-open").arg(parent).spawn().map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -153,7 +154,7 @@ pub async fn clone_repository(url: String, dest_parent: String, name: String) ->
         if dest.exists() {
             return Err(format!("Destination already exists: {}", dest.display()));
         }
-        let output = Command::new("git")
+        let output = child_env::command("git")
             .args(["clone", "--", &url, dest.to_str().unwrap_or(&name)])
             .output()
             .map_err(|e| format!("Failed to run git: {}", e))?;

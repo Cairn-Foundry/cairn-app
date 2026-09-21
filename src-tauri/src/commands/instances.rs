@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use git2::{Repository, BranchType};
 use serde::{Deserialize, Serialize};
+use crate::child_env;
 use crate::storage::{instances_file, worktrees_dir, copy_dir_recursive, write_json_atomic};
 use super::file_state::delete_file_state_dir;
 use super::projects::read_projects;
@@ -170,14 +171,14 @@ fn same_volume(_a: &Path, _b: &Path) -> bool {
 
 #[cfg(target_os = "macos")]
 fn clone_command(from: &Path, to: &Path) -> std::process::Command {
-    let mut cmd = std::process::Command::new("cp");
+    let mut cmd = child_env::command("cp");
     cmd.args(["-c", "-R"]).arg(from).arg(to);
     cmd
 }
 
 #[cfg(not(target_os = "macos"))]
 fn clone_command(from: &Path, to: &Path) -> std::process::Command {
-    let mut cmd = std::process::Command::new("cp");
+    let mut cmd = child_env::command("cp");
     cmd.args(["-R", "--reflink=always"]).arg(from).arg(to);
     cmd
 }
