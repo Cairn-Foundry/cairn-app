@@ -15,7 +15,8 @@ export type AiFeatureId =
 	| "ciFix"
 	| "reviewGuide"
 	| "reviewComment"
-	| "ticketPlan";
+	| "ticketPlan"
+	| "branchName";
 
 interface AiFeatureDef {
 	id: AiFeatureId;
@@ -107,6 +108,16 @@ Close with what you would leave undone, and why.
 
 Judge only from the titles, labels and descriptions given: say when a ticket is too vague to place rather than guessing at it. Write in {{language}}.`;
 
+const DEFAULT_BRANCH_NAME_TEMPLATE = `Name the git branch for this ticket.
+
+Ticket: {{ticket.key}}
+Type: {{ticket.kind}}
+Title: {{ticket.title}}
+{{ticket.description}}
+Answer with the slug only, in the \`slug\` field: the descriptive part of the branch name, without the ticket key and without any prefix - Cairn adds those itself from its own template.
+
+Lower-case ASCII words joined by single hyphens, no accent, no slash, no underscore, five words at most. English, whatever language the ticket is written in, because that is what the rest of the repository is in. Name the outcome the work produces, not the ticket: \`drop-stale-sessions-on-logout\`, not \`fix-session-bug\`.`;
+
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
 		id: "commitMessage",
@@ -150,6 +161,12 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		runsProvider: true,
 		defaultPromptTemplate: DEFAULT_TICKET_PLAN_TEMPLATE,
 	},
+	{
+		id: "branchName",
+		icon: "branch",
+		runsProvider: true,
+		defaultPromptTemplate: DEFAULT_BRANCH_NAME_TEMPLATE,
+	},
 ];
 
 /**
@@ -178,6 +195,12 @@ export const FEATURE_SCHEMAS: Record<string, Record<string, unknown>> = {
 			title: { type: "string" },
 			description: { type: "string" },
 		},
+	},
+	branchName: {
+		type: "object",
+		required: ["slug"],
+		additionalProperties: false,
+		properties: { slug: { type: "string" } },
 	},
 };
 

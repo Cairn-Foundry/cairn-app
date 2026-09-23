@@ -124,6 +124,11 @@ export const fr = {
 		baseBranchPlaceholder: "main",
 		baseForTicket: (key: string) => `Branches qui mentionnent ${key}`,
 		newBranchName: "Nom de la nouvelle branche",
+		aiNameBranch: "Nommer avec l'IA",
+		aiNameUnavailable:
+			"Le CLI d'assistance n'est pas installé sur cette machine.",
+		aiNameEmpty: "Le modèle n'a renvoyé aucun nom exploitable.",
+		aiNameFailed: "Le nom n'a pas pu être généré.",
 		duplicateBranch: (name: string) =>
 			`Une branche nommée ${name} existe déjà dans ce projet.`,
 		worktreeInfoPrefix: "créera un environnement isolé dans",
@@ -150,9 +155,14 @@ export const fr = {
 		heading: "Modifier le projet",
 		subheading: "Renommer & recolorer",
 		tabIdentity: "Identité",
+		tabBranch: "Branche",
 		tabIntegrations: "Intégrations",
 		projectName: "Nom du projet",
 		color: "Couleur",
+		branchTemplate: "Modèle de nom de branche",
+		branchTemplateHint:
+			"Redéfinit le modèle global pour ce dépôt. {{kind}} est le type du ticket ramené à un préfixe conventionnel, {{key}} la clé du ticket dans sa casse d'origine, {{slug}} le résumé de son titre. Laissez vide pour suivre le réglage global.",
+		branchTemplatePreview: "Aperçu",
 		saveChanges: "Enregistrer les modifications",
 	},
 
@@ -2469,6 +2479,10 @@ export const fr = {
 					label: "Commentaire de review",
 					desc: "Transforme une remarque du guide en brouillon de commentaire que le reviewer modifie avant de l'envoyer.",
 				},
+				branchName: {
+					label: "Nom de branche",
+					desc: "Lit un ticket et nomme sa branche d'après ce que le travail produit, dans la fenêtre de nouvelle instance.",
+				},
 			},
 		},
 		agents: {
@@ -2984,6 +2998,12 @@ export const fr = {
 			deleteConfirmBody: (label: string) =>
 				`Êtes-vous sûr de vouloir supprimer le profil "${label}" ? Cette action est irréversible.`,
 			deleteConfirm: "Supprimer",
+			branchGroupTitle: "Noms de branche",
+			branchGroupDesc:
+				"Comment la branche d'une nouvelle instance est nommée à partir de son ticket. {{kind}} est le type du ticket ramené à un préfixe conventionnel, {{key}} la clé du ticket dans sa casse d'origine, {{slug}} le résumé de son titre. Un projet peut le redéfinir dans ses propres réglages.",
+			branchTemplate: "Modèle de nom de branche",
+			branchTemplatePreview: "Aperçu",
+			branchTemplateReset: "Par défaut",
 		},
 		shortcuts: {
 			groupFallback: "Autre",

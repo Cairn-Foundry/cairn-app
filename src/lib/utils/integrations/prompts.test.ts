@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+	buildBranchNamePrompt,
 	buildCiFixPrompt,
 	buildMrDescriptionPrompt,
 	buildReviewCommentPrompt,
@@ -131,5 +132,43 @@ describe("buildTicketStartPrompt", () => {
 		expect(prompt).toContain("Users want it.");
 		expect(prompt).toContain("Labels: ui");
 		expect(prompt).toContain("https://g/4");
+	});
+});
+
+describe("buildBranchNamePrompt", () => {
+	it("gives the model the ticket and asks for the slug alone", () => {
+		const prompt = buildBranchNamePrompt({
+			key: "APP-214",
+			title: "Suppression des sessions expirées lors de la déconnexion",
+			kind: "Bug",
+			description: "La session reste ouverte côté serveur.",
+		});
+		expect(prompt).toContain("APP-214");
+		expect(prompt).toContain("Suppression des sessions expirées");
+		expect(prompt).toContain("Bug");
+		expect(prompt).toContain("La session reste ouverte côté serveur.");
+		expect(prompt).toContain("`slug`");
+	});
+
+	it("leaves the description block out when the ticket has none", () => {
+		const prompt = buildBranchNamePrompt({
+			key: "X-1",
+			title: "Add dark mode",
+			kind: null,
+			description: "",
+		});
+		expect(prompt).not.toContain("Description:");
+	});
+
+	/** A Jira description can run for pages; the branch name needs its head. */
+	it("truncates a long description", () => {
+		const prompt = buildBranchNamePrompt({
+			key: "X-1",
+			title: "t",
+			kind: null,
+			description: "a".repeat(5000),
+		});
+		expect(prompt).toContain("a".repeat(2000));
+		expect(prompt).not.toContain("a".repeat(2001));
 	});
 });

@@ -11,6 +11,8 @@
   import { t } from '$lib/i18n';
   import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
   import { editProject } from '$lib/stores/project';
+  import { settings } from '$lib/stores/settings';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '$lib/utils/integrations/branch-template';
   import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '$lib/stores/integrations';
   import { getRemoteUrl } from '$lib/services/git-service';
   import type { Project } from '$lib/types/project';
@@ -20,11 +22,12 @@
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
-  type Tab = 'identity' | 'integrations';
+  type Tab = 'identity' | 'branch' | 'integrations';
   let activeTab: Tab = 'identity';
 
   let name = project.name;
   let color = project.color;
+  let branchTemplate = project.branchTemplate ?? '';
   let loading = false;
   let error = '';
   let remoteUrl = '';
@@ -42,16 +45,25 @@
   });
 
   $: hasBindingChanges = JSON.stringify(bindings) !== pristineBindings;
+  $: globalTemplate = $settings.branchTemplate?.trim() || DEFAULT_BRANCH_TEMPLATE;
+  /** Empty means "no override": the project follows the global template again. */
+  $: templateOverride = branchTemplate.trim() || null;
+  $: hasTemplateChange = templateOverride !== (project.branchTemplate?.trim() || null);
+  $: templatePreview = renderBranchTemplate(branchTemplate.trim() || globalTemplate, {
+    key: 'APP-214',
+    slug: 'drop-stale-sessions-on-logout',
+    kind: 'Bug',
+  });
   $: canSave = name.trim().length > 0
-    && (name.trim() !== project.name || color !== project.color || hasBindingChanges);
+    && (name.trim() !== project.name || color !== project.color || hasTemplateChange || hasBindingChanges);
 
   async function save() {
     if (!canSave || loading) return;
     loading = true;
     error = '';
     try {
-      if (name.trim() !== project.name || color !== project.color) {
-        await editProject(project.id, name.trim(), color);
+      if (name.trim() !== project.name || color !== project.color || hasTemplateChange) {
+        await editProject(project.id, name.trim(), color, templateOverride);
       }
       if (hasBindingChanges) await saveProjectIntegrations(project.id, bindings);
       dispatch('close');
@@ -101,6 +113,15 @@
           {t('editProject.tabIdentity')}
         </button>
         <button
+          class="ep-tab {activeTab === 'branch' ? 'active' : ''}"
+          role="tab"
+          aria-selected={activeTab === 'branch'}
+          on:click={() => activeTab = 'branch'}
+        >
+          <Icon name="branch" size={14}/>
+          {t('editProject.tabBranch')}
+        </button>
+        <button
           class="ep-tab {activeTab === 'integrations' ? 'active' : ''}"
           role="tab"
           aria-selected={activeTab === 'integrations'}
@@ -132,6 +153,25 @@
           </div>
 
           <ProjectPreviewPill name={name || project.name} {color} />
+        {:else if activeTab === 'branch'}
+          <div class="form-section">
+            <label class="ep-label" for="edit-branch-template">
+              {t('editProject.branchTemplate')}
+            </label>
+            <input
+              id="edit-branch-template"
+              class="ep-input mono"
+              bind:value={branchTemplate}
+              placeholder={globalTemplate}
+              spellcheck="false"
+              autocomplete="off"
+            />
+            <div class="ep-hint">{t('editProject.branchTemplateHint')}</div>
+            <div class="ep-preview">
+              <span class="ep-preview-label">{t('editProject.branchTemplatePreview')}</span>
+              <span class="mono selectable">{templatePreview}</span>
+            </div>
+          </div>
         {:else}
           <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
         {/if}
@@ -236,6 +276,35 @@
     box-shadow: 0 0 0 3px var(--accent-weak);
   }
   .ep-input::placeholder { color: var(--fg-4); opacity: 1; }
+  .mono { font-family: var(--font-mono); }
+
+  .ep-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--fg-3);
+    line-height: 1.5;
+  }
+
+  .ep-preview {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    color: var(--fg-1);
+  }
+  .ep-preview-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--fg-3);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
 
   .ep-error {
     display: flex;

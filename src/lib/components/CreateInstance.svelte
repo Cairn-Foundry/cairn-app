@@ -39,7 +39,11 @@
   import type { Instance, InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
-  import { renderBranchTemplate } from '$lib/utils/integrations/branch-template';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, titleSlug } from '$lib/utils/integrations/branch-template';
+  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
+  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
+  import { buildBranchNamePrompt } from '$lib/utils/integrations/prompts';
 
   export let initialBranch = '';
   /** Preselected ticket when the modal is opened from the tickets overview. */
@@ -227,6 +231,7 @@
         runTicketSearch();
       }
     }
+    if ($settings.aiEnabled) void loadCliProviders();
     await loadBranchList();
     if (initialBranch) applyInitialBranch();
     if (initialTicket) {
@@ -237,16 +242,101 @@
 
   onDestroy(() => {
     if (searchTimer) clearTimeout(searchTimer);
+    namingAbort?.abort();
     resetTicketSearch();
   });
 
+  /**
+   * The template the project brought, or the global one. A repository whose
+   * team names branches its own way should not have to be renamed by hand on
+   * every instance.
+   */
+  $: branchTemplate =
+    $activeProject?.branchTemplate?.trim() ||
+    $settings.branchTemplate?.trim() ||
+    DEFAULT_BRANCH_TEMPLATE;
+
+  /**
+   * The branch name suggested for the ticket. The descriptive half comes from
+   * the ticket title, never from its key: `{{key}}` already carries the key,
+   * and a slug repeating it produced names like `feat/app-214-app-214`.
+   * A title Cairn was given nothing to work with falls back to the key.
+   */
   $: if (ticketId) {
-    const slug = slugify(ticketId);
-    const generated = selectedTicket
-      ? renderBranchTemplate($settings.branchTemplate, { key: selectedTicket.key, slug, kind: selectedTicket.kind })
-      : `feat/${slug}`;
+    const slug = titleSlug(ticketTitle, ticketId) || slugify(ticketId);
+    const generated = renderBranchTemplate(branchTemplate, {
+      key: ticketId,
+      slug,
+      kind: selectedTicket?.kind ?? null,
+    });
     if (branchName === prevSlug) branchName = generated;
     prevSlug = generated;
+  }
+
+  /**
+   * The slug asked of a model instead of derived. The deterministic slug stays
+   * in the language of the ticket and repeats its wording; a model reads the
+   * description too and names the outcome. Only the slug is replaced - the
+   * prefix and the key stay the template's business.
+   */
+  let isNamingBranch = false;
+  let namingError = '';
+  let namingAbort: AbortController | null = null;
+
+  $: branchNameFeature = resolveAiFeature('branchName', $settings.aiFeatures, $isAssistCliInstalled);
+  $: canNameWithAi =
+    $settings.aiEnabled &&
+    !branchNameFeature.unavailable &&
+    !isNamingBranch &&
+    ticketTitle.trim().length > 0 &&
+    !!$activeProject;
+
+  /** Yields two frames first so the spinner is painted before the blocking call, like `handleCreate`. */
+  async function nameBranchWithAi() {
+    const project = $activeProject;
+    if (!canNameWithAi || !project) return;
+    isNamingBranch = true;
+    namingError = '';
+    namingAbort = new AbortController();
+    await tick();
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    try {
+      const answer = await runOneShotShaped<{ slug: string }>(
+        buildBranchNamePrompt(
+          {
+            key: ticketId,
+            title: ticketTitle,
+            kind: selectedTicket?.kind ?? null,
+            description: selectedTicket?.description ?? '',
+          },
+          $settings.aiFeatures,
+        ),
+        project.path,
+        branchNameFeature.providerId,
+        FEATURE_SCHEMAS.branchName,
+        { model: branchNameFeature.model || undefined, signal: namingAbort.signal },
+      );
+      const slug = titleSlug(answer.slug ?? '');
+      if (!slug) {
+        namingError = t('createInstance.aiNameEmpty') as string;
+        return;
+      }
+      // `prevSlug` keeps the derived name on purpose: the suggestion block only
+      // overwrites a name still equal to it, so a name asked of a model is left
+      // alone afterwards, exactly like one the user typed.
+      branchName = renderBranchTemplate(branchTemplate, {
+        key: ticketId,
+        slug,
+        kind: selectedTicket?.kind ?? null,
+      });
+    } catch (e) {
+      if (!(e instanceof AiAssistError && e.kind === 'cancelled')) {
+        namingError = t('createInstance.aiNameFailed') as string;
+      }
+    } finally {
+      isNamingBranch = false;
+      namingAbort = null;
+    }
   }
 
   /**
@@ -640,16 +730,42 @@
         </div>
         <div class="form-row">
           <label for="branch-name">{t('createInstance.newBranchName')}</label>
-          <input
-            id="branch-name"
-            type="text"
-            bind:value={branchName}
-            class:input-error={duplicateBranch}
-          />
+          <div class="branch-name-row">
+            <input
+              id="branch-name"
+              type="text"
+              bind:value={branchName}
+              class:input-error={duplicateBranch}
+            />
+            {#if $settings.aiEnabled}
+              {#if isNamingBranch}
+                <button type="button" class="ai-name-btn" on:click={() => namingAbort?.abort()}>
+                  <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
+                  {t('common.cancel')}
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  class="ai-name-btn"
+                  disabled={!canNameWithAi}
+                  title={branchNameFeature.unavailable ? (t('createInstance.aiNameUnavailable') as string) : undefined}
+                  on:click={nameBranchWithAi}
+                >
+                  <Icon name="sparkles" size={12}/>
+                  {t('createInstance.aiNameBranch')}
+                </button>
+              {/if}
+            {/if}
+          </div>
           {#if duplicateBranch}
             <div class="field-error">
               <Icon name="info" size={12}/>
               {(t('createInstance.duplicateBranch') as (name: string) => string)(branchName.trim())}
+            </div>
+          {/if}
+          {#if namingError}
+            <div class="field-error" role="alert">
+              <Icon name="info" size={12}/> {namingError}
             </div>
           {/if}
         </div>
@@ -845,6 +961,31 @@
 </div>
 
 <style>
+  .branch-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .branch-name-row input { flex: 1; min-width: 0; }
+
+  .ai-name-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    color: var(--fg-2);
+    font-size: 12px;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .ai-name-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); }
+  .ai-name-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .branch-suggestions { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
   .branch-suggestion-row { display: flex; flex-wrap: wrap; gap: 5px; }
   .branch-suggestion {

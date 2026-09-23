@@ -28,13 +28,23 @@ export async function removeProject(id: string): Promise<Project[]> {
 	return invoke<Project[]>("remove_project", { id });
 }
 
-/** Only the name and colour are editable; the path is fixed at registration. */
+/**
+ * The name, the colour and the project's own branch template are editable; the
+ * path is fixed at registration. An empty template clears the override and
+ * hands the project back to the global setting.
+ */
 export async function updateProject(
 	id: string,
 	name: string,
 	color: string,
+	branchTemplate: string | null = null,
 ): Promise<Project[]> {
-	return invoke<Project[]>("update_project", { id, name, color });
+	return invoke<Project[]>("update_project", {
+		id,
+		name,
+		color,
+		branchTemplate,
+	});
 }
 
 /** Registers a second project over the same checkout, named "Copy of ..." and with no instances. */

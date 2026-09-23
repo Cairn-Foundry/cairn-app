@@ -10,6 +10,27 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "The branch suggested for a new instance no longer repeats the ticket key twice. The descriptive half of the name now comes from the ticket title rather than from its key, which is what produced names like feat/app-214-app-214, and the key itself keeps the case the tracker gave it - APP-214, not app-214, so the branch still matches what you search for everywhere else.",
+					"fr": "La branche suggérée pour une nouvelle instance ne répète plus deux fois la clé du ticket. La partie descriptive du nom vient désormais du titre du ticket et non de sa clé, ce qui produisait des noms comme feat/app-214-app-214, et la clé garde la casse que le tracker lui a donnée - APP-214 et non app-214, pour que la branche corresponde encore à ce que vous cherchez partout ailleurs."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name is derived from the ticket title without asking a model: accents folded, filler words dropped, cut to a handful of words, and the tracker issue type mapped to the prefix a repository actually uses (Bug becomes fix, User Story becomes feat). A \"Name with AI\" button next to the field replaces the slug with one a model wrote from the ticket title and description, for when the deterministic one reads poorly.",
+					"fr": "Le nom de branche est dérivé du titre du ticket sans solliciter de modèle : accents repliés, mots vides retirés, coupé à une poignée de mots, et le type du ticket ramené au préfixe qu'un dépôt utilise réellement (Bug devient fix, User Story devient feat). Un bouton « Nommer avec l'IA » à côté du champ remplace le slug par un slug rédigé par un modèle à partir du titre et de la description du ticket, pour les cas où celui dérivé se lit mal."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name template is editable. The global one lives in Settings > Git, with its placeholders ({{kind}}, {{key}}, {{slug}}) and a live preview, and every project can override it from its own Branch tab - a repository whose team names branches its own way no longer has to be renamed by hand on every instance. The default is now {{kind}}/{{key}}/{{slug}}.",
+					"fr": "Le modèle de nom de branche est modifiable. Le modèle global se trouve dans Réglages > Git, avec ses variables ({{kind}}, {{key}}, {{slug}}) et un aperçu en direct, et chaque projet peut le redéfinir depuis son propre onglet Branche - un dépôt dont l'équipe nomme ses branches à sa façon n'a plus à être renommé à la main à chaque instance. Le modèle par défaut est désormais {{kind}}/{{key}}/{{slug}}."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "Opening a search result now reliably lands on the matching line. Two faults compounded: the editor's handle was dropped whenever the open tabs were restored, after which every jump silently did nothing, and the jump that did run was fired on a fixed 60 ms timer, so it clamped to line 1 whenever the document was not yet in the editor - a large file, a cold read, a slow disk. The handle now survives a restore, and the jump waits until the editor is actually showing the target file.",
 					"fr": "Ouvrir un résultat de recherche arrive désormais de façon fiable sur la ligne correspondante. Deux défauts se cumulaient : la référence de l'éditeur était perdue à chaque restauration des onglets, après quoi tout saut ne faisait plus rien en silence, et le saut qui s'exécutait était déclenché par un minuteur fixe de 60 ms, si bien qu'il retombait sur la ligne 1 lorsque le document n'était pas encore dans l'éditeur - fichier volumineux, lecture à froid, disque lent. La référence survit maintenant à une restauration, et le saut attend que l'éditeur affiche réellement le fichier visé."
 				}
