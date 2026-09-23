@@ -8,6 +8,34 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The AI assists that read nothing off the disk are much faster and far cheaper. A branch name, a review guide, a review comment and a ticket plan all carry everything the model needs inside the prompt, yet the CLI was started as a full working session: your MCP servers, the project's CLAUDE.md, the plugins, the hooks and every tool definition - forty-eight thousand tokens of context to name a branch, and a first tool-use turn before the answer. Those four now run without them: the same answer on six thousand tokens, one turn, and a run that no longer waits for an MCP server to boot. The commit message and the merge request description are untouched, because their prompts ask the model to run git itself.",
+					"fr": "Les assistances IA qui ne lisent rien sur le disque sont bien plus rapides et nettement moins coûteuses. Un nom de branche, un guide de review, un commentaire de review et un plan des tickets portent tout ce qu'il faut au modèle dans leur prompt, et pourtant la CLI démarrait comme une session de travail complète : vos serveurs MCP, le CLAUDE.md du projet, les plugins, les hooks et l'intégralité des définitions d'outils - quarante-huit mille tokens de contexte pour nommer une branche, et un premier tour d'outil avant la réponse. Ces quatre-là tournent désormais sans tout cela : la même réponse sur six mille tokens, un seul tour, et plus d'attente pendant le démarrage d'un serveur MCP. Le message de commit et la description de merge request sont inchangés, car leurs prompts demandent au modèle de lancer git lui-même."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The branch suggested for a new instance no longer repeats the ticket key twice. The descriptive half of the name now comes from the ticket title rather than from its key, which is what produced names like feat/app-214-app-214, and the key itself keeps the case the tracker gave it - APP-214, not app-214, so the branch still matches what you search for everywhere else.",
+					"fr": "La branche suggérée pour une nouvelle instance ne répète plus deux fois la clé du ticket. La partie descriptive du nom vient désormais du titre du ticket et non de sa clé, ce qui produisait des noms comme feat/app-214-app-214, et la clé garde la casse que le tracker lui a donnée - APP-214 et non app-214, pour que la branche corresponde encore à ce que vous cherchez partout ailleurs."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name is derived from the ticket title without asking a model: accents folded, filler words dropped, cut to a handful of words, and the tracker issue type mapped to the prefix a repository actually uses (Bug becomes fix, User Story becomes feat). A \"Name with AI\" button next to the field replaces the slug with one a model wrote from the ticket title and description, for when the deterministic one reads poorly.",
+					"fr": "Le nom de branche est dérivé du titre du ticket sans solliciter de modèle : accents repliés, mots vides retirés, coupé à une poignée de mots, et le type du ticket ramené au préfixe qu'un dépôt utilise réellement (Bug devient fix, User Story devient feat). Un bouton « Nommer avec l'IA » à côté du champ remplace le slug par un slug rédigé par un modèle à partir du titre et de la description du ticket, pour les cas où celui dérivé se lit mal."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name template is editable. The global one lives in Settings > Git, with its placeholders ({{kind}}, {{key}}, {{slug}}) and a live preview, and every project can override it from its own Branch tab - a repository whose team names branches its own way no longer has to be renamed by hand on every instance. The default is now {{kind}}/{{key}}/{{slug}}.",
+					"fr": "Le modèle de nom de branche est modifiable. Le modèle global se trouve dans Réglages > Git, avec ses variables ({{kind}}, {{key}}, {{slug}}) et un aperçu en direct, et chaque projet peut le redéfinir depuis son propre onglet Branche - un dépôt dont l'équipe nomme ses branches à sa façon n'a plus à être renommé à la main à chaque instance. Le modèle par défaut est désormais {{kind}}/{{key}}/{{slug}}."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Opening a search result now reliably lands on the matching line. Two faults compounded: the editor's handle was dropped whenever the open tabs were restored, after which every jump silently did nothing, and the jump that did run was fired on a fixed 60 ms timer, so it clamped to line 1 whenever the document was not yet in the editor - a large file, a cold read, a slow disk. The handle now survives a restore, and the jump waits until the editor is actually showing the target file.",

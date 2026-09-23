@@ -11,6 +11,7 @@ import {
 import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
 import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
 import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
+import { DEFAULT_BRANCH_TEMPLATE } from "$lib/utils/integrations/branch-template";
 import { setCustomServers } from "$lib/utils/languages/servers";
 import { reportPersistError } from "$lib/utils/persist-error";
 
@@ -41,7 +42,7 @@ const DEFAULTS: CairnSettings = {
 	autoCheckUpdates: true,
 	aiEnabled: true,
 	integrationsPollSeconds: 10,
-	branchTemplate: "feat/{{key}}-{{slug}}",
+	branchTemplate: DEFAULT_BRANCH_TEMPLATE,
 	syntaxThemes: [],
 	activeSyntaxThemeId: "",
 	languageServers: [],

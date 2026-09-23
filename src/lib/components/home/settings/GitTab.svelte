@@ -11,6 +11,7 @@
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { pendingGitAction } from '$lib/stores/ui';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '$lib/utils/integrations/branch-template';
   import type { GitProfile } from '$lib/services/settings-service';
 
   // Modal state
@@ -112,6 +113,31 @@
 
   $: canSave = modalName.trim().length > 0 && modalEmail.trim().length > 0;
 
+  let branchTemplate = '';
+  let templateLoaded = false;
+  $: if (!templateLoaded && $settings.branchTemplate !== undefined) {
+    branchTemplate = $settings.branchTemplate || DEFAULT_BRANCH_TEMPLATE;
+    templateLoaded = true;
+  }
+
+  $: templatePreview = renderBranchTemplate(branchTemplate.trim() || DEFAULT_BRANCH_TEMPLATE, {
+    key: 'APP-214',
+    slug: 'drop-stale-sessions-on-logout',
+    kind: 'Bug',
+  });
+
+  /** An emptied field is the default template, not a project with no branch name. */
+  function saveTemplate() {
+    const next = branchTemplate.trim() || DEFAULT_BRANCH_TEMPLATE;
+    branchTemplate = next;
+    if (next !== $settings.branchTemplate) settings.save({ branchTemplate: next });
+  }
+
+  function resetTemplate() {
+    branchTemplate = DEFAULT_BRANCH_TEMPLATE;
+    saveTemplate();
+  }
+
   onMount(() => {
     if ($pendingGitAction === 'createProfile') {
       pendingGitAction.set(null);
@@ -149,6 +175,33 @@
   <button class="add-profile-btn" on:click={openCreate}>
     <Icon name="plus" size={12} /> {t('settings.git.addProfile')}
   </button>
+</div>
+
+<div class="settings-group">
+  <div class="settings-group-title">{t('settings.git.branchGroupTitle')}</div>
+  <p class="group-desc">{t('settings.git.branchGroupDesc')}</p>
+
+  <div class="template-field">
+    <input
+      id="git-branch-template"
+      class="template-input"
+      bind:value={branchTemplate}
+      placeholder={DEFAULT_BRANCH_TEMPLATE}
+      spellcheck="false"
+      autocomplete="off"
+      aria-label={t('settings.git.branchTemplate') as string}
+      on:change={saveTemplate}
+      on:blur={saveTemplate}
+    />
+    <button class="btn ghost" on:click={resetTemplate}>
+      <Icon name="refresh" size={12} /> {t('settings.git.branchTemplateReset')}
+    </button>
+  </div>
+
+  <div class="template-preview">
+    <span class="template-preview-label">{t('settings.git.branchTemplatePreview')}</span>
+    <span class="mono selectable">{templatePreview}</span>
+  </div>
 </div>
 
 {#if modalOpen}
@@ -258,6 +311,53 @@
 {/if}
 
 <style>
+  .template-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .template-input {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .template-input:focus {
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px var(--accent-weak);
+  }
+  .template-input::placeholder { color: var(--fg-4); opacity: 1; }
+
+  .template-preview {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    color: var(--fg-1);
+  }
+  .template-preview-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--fg-3);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .mono { font-family: var(--font-mono); }
+
   .group-desc {
     font-size: 12px;
     color: var(--fg-3);

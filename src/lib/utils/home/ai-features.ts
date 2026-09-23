@@ -15,13 +15,22 @@ export type AiFeatureId =
 	| "ciFix"
 	| "reviewGuide"
 	| "reviewComment"
-	| "ticketPlan";
+	| "ticketPlan"
+	| "branchName";
 
 interface AiFeatureDef {
 	id: AiFeatureId;
 	icon: string;
 	/** Whether the feature runs a provider itself, or only composes a prompt. */
 	runsProvider: boolean;
+	/**
+	 * Whether the model has to go and read the repository, or whether the prompt
+	 * already carries everything it needs. An assist that reads nothing runs the
+	 * CLI without its MCP servers, its tools or the project's CLAUDE.md: they
+	 * cost the whole startup and tens of thousands of tokens of context for an
+	 * answer that never touches them.
+	 */
+	readsRepository: boolean;
 	/** Editable on the Features page; empty for a feature that has no template. */
 	defaultPromptTemplate: string;
 }
@@ -107,48 +116,72 @@ Close with what you would leave undone, and why.
 
 Judge only from the titles, labels and descriptions given: say when a ticket is too vague to place rather than guessing at it. Write in {{language}}.`;
 
+const DEFAULT_BRANCH_NAME_TEMPLATE = `Name the git branch for this ticket.
+
+Ticket: {{ticket.key}}
+Type: {{ticket.kind}}
+Title: {{ticket.title}}
+{{ticket.description}}
+Answer with the slug only, in the \`slug\` field: the descriptive part of the branch name, without the ticket key and without any prefix - Cairn adds those itself from its own template.
+
+Lower-case ASCII words joined by single hyphens, no accent, no slash, no underscore, five words at most. English, whatever language the ticket is written in, because that is what the rest of the repository is in. Name the outcome the work produces, not the ticket: \`drop-stale-sessions-on-logout\`, not \`fix-session-bug\`.`;
+
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
 		id: "commitMessage",
 		icon: "git",
 		runsProvider: true,
+		readsRepository: true,
 		defaultPromptTemplate: DEFAULT_COMMIT_TEMPLATE,
 	},
 	{
 		id: "testFix",
 		icon: "beaker",
 		runsProvider: false,
+		readsRepository: false,
 		defaultPromptTemplate: "",
 	},
 	{
 		id: "mrDescription",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: true,
 		defaultPromptTemplate: DEFAULT_MR_DESCRIPTION_TEMPLATE,
 	},
 	{
 		id: "ciFix",
 		icon: "ci",
 		runsProvider: false,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_CI_FIX_TEMPLATE,
 	},
 	{
 		id: "reviewGuide",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_REVIEW_GUIDE_TEMPLATE,
 	},
 	{
 		id: "reviewComment",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_REVIEW_COMMENT_TEMPLATE,
 	},
 	{
 		id: "ticketPlan",
 		icon: "ticket",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_TICKET_PLAN_TEMPLATE,
+	},
+	{
+		id: "branchName",
+		icon: "branch",
+		runsProvider: true,
+		readsRepository: false,
+		defaultPromptTemplate: DEFAULT_BRANCH_NAME_TEMPLATE,
 	},
 ];
 
@@ -179,10 +212,25 @@ export const FEATURE_SCHEMAS: Record<string, Record<string, unknown>> = {
 			description: { type: "string" },
 		},
 	},
+	branchName: {
+		type: "object",
+		required: ["slug"],
+		additionalProperties: false,
+		properties: { slug: { type: "string" } },
+	},
 };
 
 export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
 	return AI_FEATURES.find((f) => f.id === id);
+}
+
+/**
+ * Whether the feature's run may skip the context a working session loads. The
+ * one place that reads `readsRepository`, so a call site that has no resolved
+ * feature at hand still answers it the same way.
+ */
+export function isLeanFeature(id: AiFeatureId): boolean {
+	return featureDef(id)?.readsRepository === false;
 }
 
 /**
@@ -224,6 +272,8 @@ export interface ResolvedAiFeature {
 	promptTemplate: string;
 	/** The assist CLI is not on this machine, so the caller must not run it. */
 	unavailable: boolean;
+	/** The run may skip the context a working session loads; see `readsRepository`. */
+	lean: boolean;
 }
 
 /**
@@ -256,5 +306,6 @@ export function resolveAiFeature(
 		model: assigned?.model ?? "",
 		promptTemplate: template,
 		unavailable: !isInstalled(providerId),
+		lean: isLeanFeature(id),
 	};
 }

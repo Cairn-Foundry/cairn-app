@@ -18,6 +18,10 @@ pub struct Project {
     pub color: String,
     #[serde(rename = "activeInstanceId")]
     pub active_instance_id: Option<String>,
+    /// Overrides `branchTemplate` from the global settings for this repository;
+    /// `None` leaves it to the global one.
+    #[serde(rename = "branchTemplate", default, skip_serializing_if = "Option::is_none")]
+    pub branch_template: Option<String>,
 }
 
 /// Empty on a first launch; shared with the other command modules.
@@ -79,13 +83,19 @@ pub fn remove_project(id: String) -> Result<Vec<Project>, String> {
 
 /// Renames and recolors only: the path is fixed once registered.
 #[tauri::command]
-pub fn update_project(id: String, name: String, color: String) -> Result<Vec<Project>, String> {
+pub fn update_project(
+    id: String,
+    name: String,
+    color: String,
+    branch_template: Option<String>,
+) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
     let p = projects.iter_mut()
         .find(|p| p.id == id)
         .ok_or_else(|| format!("Project '{}' not found", id))?;
     p.name = name;
     p.color = color;
+    p.branch_template = branch_template.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
     write_projects(&projects)?;
     Ok(projects)
 }
@@ -105,6 +115,7 @@ pub fn duplicate_project(id: String, new_id: String) -> Result<Vec<Project>, Str
         path: original.path,
         color: original.color,
         active_instance_id: None,
+        branch_template: original.branch_template,
     };
     fs::create_dir_all(worktrees_dir(&new_id)?).map_err(|e| e.to_string())?;
     projects.push(duplicate);
@@ -199,6 +210,7 @@ mod tests {
             path: "/repos/mon été".to_string(),
             color: "#ff0000".to_string(),
             active_instance_id: Some("i1".to_string()),
+            branch_template: None,
         };
         let json = serde_json::to_string(&original).expect("should serialize");
         let back = project_from_json(&json).expect("should parse");
@@ -216,6 +228,7 @@ mod tests {
             path: "/repos/p1".to_string(),
             color: "#fff".to_string(),
             active_instance_id: None,
+            branch_template: None,
         };
         let json = serde_json::to_string(&original).expect("should serialize");
         assert!(project_from_json(&json)
@@ -242,6 +255,7 @@ mod tests {
             path: "/repos/p1".to_string(),
             color: "#fff".to_string(),
             active_instance_id: None,
+            branch_template: None,
         })
         .expect("should serialize");
         let object = json.as_object().expect("project should be an object");

@@ -121,8 +121,9 @@ export async function editProject(
 	id: string,
 	name: string,
 	color: string,
+	branchTemplate: string | null = null,
 ): Promise<void> {
-	const updated = await updateProject(id, name, color);
+	const updated = await updateProject(id, name, color, branchTemplate);
 	projects.set(updated);
 }
 

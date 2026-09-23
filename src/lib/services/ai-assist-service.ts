@@ -49,6 +49,13 @@ export interface OneShotOptions {
 	signal?: AbortSignal;
 	/** Gives up after this long; 0 waits forever. */
 	timeoutMs?: number;
+	/**
+	 * The prompt carries everything the model needs, so the CLI answers the
+	 * question instead of booting a working session first - no MCP servers, no
+	 * tools, no CLAUDE.md. False for an assist whose prompt tells the model to
+	 * go and read the repository.
+	 */
+	lean?: boolean;
 }
 
 /**
@@ -78,7 +85,7 @@ export async function runOneShotShaped<T>(
 	schema: Record<string, unknown>,
 	options: OneShotOptions = {},
 ): Promise<T> {
-	const { signal, timeoutMs = 120_000, model } = options;
+	const { signal, timeoutMs = 120_000, model, lean = false } = options;
 	if (!providerId) throw new AiAssistError("unavailable");
 	if (signal?.aborted) throw new AiAssistError("cancelled");
 
@@ -105,6 +112,7 @@ export async function runOneShotShaped<T>(
 				model: model || null,
 				binaryPath: null,
 				env: {},
+				lean,
 			},
 		});
 		if (result === null || result === undefined)

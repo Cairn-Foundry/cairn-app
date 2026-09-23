@@ -4,9 +4,11 @@
 import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 import {
+	AI_FEATURES,
 	ASSIST_CLI,
 	ASSIST_CLIS,
 	FEATURE_SCHEMAS,
+	isLeanFeature,
 	resolveAiFeature,
 } from "./ai-features";
 
@@ -130,5 +132,58 @@ describe("the feature schemas", () => {
 	it("closes both shapes to extra fields", () => {
 		expect(FEATURE_SCHEMAS.commitMessage.additionalProperties).toBe(false);
 		expect(FEATURE_SCHEMAS.mrDescription.additionalProperties).toBe(false);
+	});
+});
+
+describe("which assists read the repository", () => {
+	/**
+	 * The split is the whole point of running lean: an assist whose prompt tells
+	 * the model to run `git` needs its tools, one whose prompt already carries
+	 * the diff does not.
+	 */
+	it("keeps the git-reading assists on a full session", () => {
+		expect(isLeanFeature("commitMessage")).toBe(false);
+		expect(isLeanFeature("mrDescription")).toBe(false);
+	});
+
+	it("runs the prompt-only assists lean", () => {
+		expect(isLeanFeature("branchName")).toBe(true);
+		expect(isLeanFeature("reviewGuide")).toBe(true);
+		expect(isLeanFeature("reviewComment")).toBe(true);
+		expect(isLeanFeature("ticketPlan")).toBe(true);
+	});
+
+	/** A new assist has to say which it is, rather than defaulting silently. */
+	it("answers for every feature in the registry", () => {
+		for (const feature of AI_FEATURES) {
+			expect(typeof feature.readsRepository).toBe("boolean");
+		}
+	});
+
+	/**
+	 * An assist that reads the repository must keep its tools, so its prompt is
+	 * the only place that may ask the model to run a command.
+	 */
+	it("only lets a repository-reading assist ask for git", () => {
+		for (const feature of AI_FEATURES) {
+			if (/\bgit (diff|log)\b/.test(feature.defaultPromptTemplate)) {
+				expect(feature.readsRepository).toBe(true);
+			}
+		}
+	});
+
+	it("carries the answer onto the resolved feature", () => {
+		const lean = resolveAiFeature(
+			"branchName",
+			undefined,
+			installed(ASSIST_CLI),
+		);
+		const full = resolveAiFeature(
+			"commitMessage",
+			undefined,
+			installed(ASSIST_CLI),
+		);
+		expect(lean.lean).toBe(true);
+		expect(full.lean).toBe(false);
 	});
 });

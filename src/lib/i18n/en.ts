@@ -121,6 +121,10 @@ export const en = {
 		baseBranchPlaceholder: "main",
 		baseForTicket: (key: string) => `Branches naming ${key}`,
 		newBranchName: "New branch name",
+		aiNameBranch: "Name with AI",
+		aiNameUnavailable: "The assist CLI is not installed on this machine.",
+		aiNameEmpty: "The model answered with no usable name.",
+		aiNameFailed: "The name could not be generated.",
 		duplicateBranch: (name: string) =>
 			`A branch named ${name} already exists in this project.`,
 		worktreeInfoPrefix: "will create an isolated environment at",
@@ -147,9 +151,14 @@ export const en = {
 		heading: "Edit project",
 		subheading: "Rename & recolor",
 		tabIdentity: "Identity",
+		tabBranch: "Branch",
 		tabIntegrations: "Integrations",
 		projectName: "Project name",
 		color: "Color",
+		branchTemplate: "Branch name template",
+		branchTemplateHint:
+			"Overrides the global template for this repository. {{kind}} is the issue type as a conventional prefix, {{key}} the ticket key in its own case, {{slug}} the summary of its title. Leave it empty to follow the global setting.",
+		branchTemplatePreview: "Preview",
 		saveChanges: "Save changes",
 	},
 
@@ -2426,6 +2435,10 @@ export const en = {
 					label: "Review comment",
 					desc: "Turns a remark of the guide into the comment draft the reviewer edits before sending.",
 				},
+				branchName: {
+					label: "Branch name",
+					desc: "Reads a ticket and names the branch after what the work produces, in the new instance dialog.",
+				},
 			},
 		},
 		agents: {
@@ -2926,6 +2939,12 @@ export const en = {
 			deleteConfirmBody: (label: string) =>
 				`Are you sure you want to delete the profile "${label}"? This action cannot be undone.`,
 			deleteConfirm: "Delete",
+			branchGroupTitle: "Branch names",
+			branchGroupDesc:
+				"How the branch of a new instance is named from its ticket. {{kind}} is the issue type as a conventional prefix, {{key}} the ticket key in its own case, {{slug}} the summary of its title. A project can override this in its own settings.",
+			branchTemplate: "Branch name template",
+			branchTemplatePreview: "Preview",
+			branchTemplateReset: "Default",
 		},
 		shortcuts: {
 			groupFallback: "Other",

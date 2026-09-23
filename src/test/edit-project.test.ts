@@ -52,6 +52,8 @@ const cancelButton = () =>
 const tabs = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".ep-tab"));
 const errorText = () => document.querySelector(".ep-error")?.textContent;
+const templateField = () =>
+	document.getElementById("edit-branch-template") as HTMLInputElement;
 
 async function settle() {
 	await tick();
@@ -117,7 +119,55 @@ describe("EditProject", () => {
 			await userEvent.type(nameField(), "  new  ");
 			await userEvent.click(saveButton());
 			await settle();
-			expect(editProject).toHaveBeenCalledWith("p1", "new", expect.anything());
+			expect(editProject).toHaveBeenCalledWith(
+				"p1",
+				"new",
+				expect.anything(),
+				null,
+			);
+		});
+
+		it("saves the project's own branch template, trimmed", async () => {
+			mount();
+			await settle();
+			await userEvent.click(tabs()[1]);
+			await settle();
+			await userEvent.type(templateField(), "  {{{{kind}}/{{{{key}}  ");
+			await userEvent.click(saveButton());
+			await settle();
+			expect(editProject).toHaveBeenCalledWith(
+				"p1",
+				"p1",
+				expect.anything(),
+				"{{kind}}/{{key}}",
+			);
+		});
+
+		/** An emptied field hands the project back to the global template. */
+		it("clears the override when the field is emptied", async () => {
+			mount({ branchTemplate: "wip/{{key}}" });
+			await settle();
+			await userEvent.click(tabs()[1]);
+			await settle();
+			await userEvent.clear(templateField());
+			await userEvent.click(saveButton());
+			await settle();
+			expect(editProject).toHaveBeenCalledWith(
+				"p1",
+				"p1",
+				expect.anything(),
+				null,
+			);
+		});
+
+		it("refuses to save a template retyped identically", async () => {
+			mount({ branchTemplate: "wip/{{key}}" });
+			await settle();
+			await userEvent.click(tabs()[1]);
+			await settle();
+			await userEvent.clear(templateField());
+			await userEvent.type(templateField(), "wip/{{{{key}}");
+			expect(saveButton().disabled).toBe(true);
 		});
 
 		/** A name typed back to what it was is not a change. */
