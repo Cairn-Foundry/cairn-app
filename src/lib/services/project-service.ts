@@ -28,13 +28,23 @@ export async function removeProject(id: string): Promise<Project[]> {
 	return invoke<Project[]>("remove_project", { id });
 }
 
-/** Only the name and colour; the path changes through relocateProject. */
+/**
+ * The name, the colour and the project's own branch template; the path changes
+ * through relocateProject. An empty template clears the override and hands the
+ * project back to the global setting.
+ */
 export async function updateProject(
 	id: string,
 	name: string,
 	color: string,
+	branchTemplate: string | null = null,
 ): Promise<Project[]> {
-	return invoke<Project[]>("update_project", { id, name, color });
+	return invoke<Project[]>("update_project", {
+		id,
+		name,
+		color,
+		branchTemplate,
+	});
 }
 
 /** Points the project at a moved checkout and repairs its instance worktrees; throws on a missing or taken path. */

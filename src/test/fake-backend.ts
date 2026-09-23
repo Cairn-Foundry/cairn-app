@@ -23,6 +23,7 @@ export interface FakeProject {
 	path: string;
 	color: string;
 	activeInstanceId: string | null;
+	branchTemplate?: string | null;
 }
 
 export interface FakeInstance {
@@ -170,9 +171,16 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 			if (project) project.activeInstanceId = a.instanceId as string | null;
 		},
 		update_project: (a) => {
-			const next = a.project as FakeProject;
-			const at = world.projects.findIndex((p) => p.id === next.id);
-			if (at !== -1) world.projects[at] = next;
+			const at = world.projects.findIndex((p) => p.id === a.id);
+			if (at !== -1) {
+				world.projects[at] = {
+					...world.projects[at],
+					name: a.name as string,
+					color: a.color as string,
+					branchTemplate: (a.branchTemplate as string | null) ?? null,
+				};
+			}
+			return world.projects;
 		},
 
 		get_ui_state: () => world.uiState,

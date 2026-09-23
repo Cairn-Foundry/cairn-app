@@ -174,6 +174,27 @@
 					"en": "The programs Cairn starts - the terminals, the coding CLIs running in them, the language servers, the formatters, git, the terminal emulator or file manager opened from a path, and the browser or viewer a link or a file is opened in - no longer inherit the environment of the AppImage itself, nor the X11 backend and stock theme it forces on GTK applications, and no longer start inside its mount. In an AppImage build that environment points at the temporary mount the app runs from, which broke python3 in a Cairn terminal (\"Failed to import encodings module\"), took down anything else written in Python such as a Python language server, and could link a system binary against a bundled library instead of its own.",
 					"fr": "Les programmes lancés par Cairn - les terminaux, les CLI de code qui y tournent, les serveurs de langage, les formateurs, git, l'émulateur de terminal ou le gestionnaire de fichiers ouvert depuis un chemin, et le navigateur ou la visionneuse dans lesquels s'ouvre un lien ou un fichier - n'héritent plus de l'environnement de l'AppImage elle-même, ni du backend X11 et du thème par défaut qu'elle impose aux applications GTK, et ne démarrent plus dans son montage. Dans un build AppImage, cet environnement pointe vers le montage temporaire depuis lequel l'application tourne, ce qui cassait python3 dans un terminal de Cairn (\"Failed to import encodings module\"), emportait tout ce qui est écrit en Python comme un serveur de langage Python, et pouvait lier un binaire du système à une bibliothèque embarquée au lieu de la sienne."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The branch suggested for a new instance no longer repeats the ticket key twice. The descriptive half of the name now comes from the ticket title rather than from its key, which is what produced names like feat/app-214-app-214, and the key itself keeps the case the tracker gave it - APP-214, not app-214, so the branch still matches what you search for everywhere else.",
+					"fr": "La branche suggérée pour une nouvelle instance ne répète plus deux fois la clé du ticket. La partie descriptive du nom vient désormais du titre du ticket et non de sa clé, ce qui produisait des noms comme feat/app-214-app-214, et la clé garde la casse que le tracker lui a donnée - APP-214 et non app-214, pour que la branche corresponde encore à ce que vous cherchez partout ailleurs."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name is derived from the ticket title without asking a model: accents folded, every word kept, cut to a handful of words, and the tracker issue type mapped to the prefix a repository actually uses (Bug becomes fix, User Story becomes feat). A Generate button next to the field replaces the slug with one a model wrote from the ticket title and description, for when the deterministic one reads poorly.",
+					"fr": "Le nom de branche est dérivé du titre du ticket sans solliciter de modèle : accents repliés, tous les mots conservés, coupé à une poignée de mots, et le type du ticket ramené au préfixe qu'un dépôt utilise réellement (Bug devient fix, User Story devient feat). Un bouton « Générer » à côté du champ remplace le slug par un slug rédigé par un modèle à partir du titre et de la description du ticket, pour les cas où celui dérivé se lit mal."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch name template is editable. The global one lives in Settings > Git, with its placeholders ({{kind}}, {{key}}, {{slug}}) and a live preview, and every project can override it from its own Branch tab - a repository whose team names branches its own way no longer has to be renamed by hand on every instance. The default is now {{kind}}/{{key}}/{{slug}}.",
+					"fr": "Le modèle de nom de branche est modifiable. Le modèle global se trouve dans Réglages > Git, avec ses variables ({{kind}}, {{key}}, {{slug}}) et un aperçu en direct, et chaque projet peut le redéfinir depuis son propre onglet Branche - un dépôt dont l'équipe nomme ses branches à sa façon n'a plus à être renommé à la main à chaque instance. Le modèle par défaut est désormais {{kind}}/{{key}}/{{slug}}."
+				}
 			}
 		]
 	},

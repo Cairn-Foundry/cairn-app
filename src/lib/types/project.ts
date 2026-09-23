@@ -8,6 +8,8 @@ export interface Project {
 	path: string;
 	color: string;
 	activeInstanceId: string | null;
+	/** Overrides the global `branchTemplate` for this repository; absent leaves it to the global one. */
+	branchTemplate?: string | null;
 }
 
 /** A grouping in the home project list; membership and order live in listing.json. */

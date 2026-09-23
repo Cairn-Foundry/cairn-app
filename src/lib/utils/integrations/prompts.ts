@@ -261,3 +261,22 @@ export function buildTicketPlanPrompt(
 		language,
 	});
 }
+
+/**
+ * The branch slug asked of a model, for the user who pressed the button next to
+ * a name Cairn already derived from the title. The description is included and
+ * truncated: a two-word title says too little to name a branch from, and a
+ * whole Jira description says far more than is needed.
+ */
+export function buildBranchNamePrompt(
+	ticket: Pick<Ticket, "key" | "title" | "kind" | "description">,
+	assignments?: Record<string, AiFeatureAssignment>,
+): string {
+	const description = (ticket.description ?? "").trim().slice(0, 2000);
+	return renderPromptTemplate(templateOf("branchName", assignments), {
+		"ticket.key": ticket.key,
+		"ticket.title": ticket.title,
+		"ticket.kind": ticket.kind ?? "",
+		"ticket.description": description ? `\nDescription:\n${description}\n` : "",
+	});
+}

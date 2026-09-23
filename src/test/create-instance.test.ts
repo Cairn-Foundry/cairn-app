@@ -70,6 +70,22 @@ vi.mock("$lib/stores/settings", async (importOriginal) => ({
 	settings: { subscribe: settingsState.subscribe },
 }));
 
+const runOneShotShaped = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	runOneShotShaped: (...a: unknown[]) => runOneShotShaped(...a),
+}));
+
+const assistInstalled = writable(true);
+vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	isAssistCliInstalled: {
+		subscribe: (run: (v: (id: string) => boolean) => void) =>
+			assistInstalled.subscribe((yes) => run(() => yes)),
+	},
+	loadCliProviders: vi.fn(),
+}));
+
 const { projects, activeProjectId } = await import("$lib/stores/project");
 const { project, instance } = await import("./fixtures");
 const { default: CreateInstance } = await import(
@@ -130,6 +146,8 @@ const fieldError = () =>
 	document.querySelector(".field-error")?.textContent ?? "";
 const branchSearch = () =>
 	document.querySelector(".branch-search") as HTMLInputElement;
+const aiNameButton = () =>
+	document.querySelector(".ai-name-btn") as HTMLButtonElement | null;
 
 async function settle() {
 	for (let i = 0; i < 8; i++) await tick();
@@ -183,6 +201,8 @@ beforeEach(() => {
 	projects.set([project("p1", { path: "/repo" })]);
 	activeProjectId.set("p1");
 	settingsState.set({ branchTemplate: "feat/{{slug}}" });
+	runOneShotShaped.mockReset();
+	assistInstalled.set(true);
 });
 
 describe("CreateInstance", () => {
@@ -433,12 +453,13 @@ describe("CreateInstance", () => {
 	});
 
 	describe("naming the branch", () => {
-		it("derives the branch name from the ticket", async () => {
+		/** The slug says what the work is, the key says which ticket it is. */
+		it("derives the branch name from the ticket title, not its key", async () => {
 			mount();
 			await settle();
 			await toBranchStep();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/cairn-42",
+				"feat/fix-parser",
 			);
 		});
 
@@ -455,8 +476,94 @@ describe("CreateInstance", () => {
 			await userEvent.click(primary());
 			await settle();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"bug/cairn-42",
+				"fix/CAIRN-42",
 			);
+		});
+
+		/** A project names its branches its own way; the global template is a fallback. */
+		it("prefers the project's own template over the global one", async () => {
+			projects.set([
+				project("p1", {
+					path: "/repo",
+					branchTemplate: "{{kind}}/{{key}}/{{slug}}",
+				}),
+			]);
+			capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
+			ticketSearch.update((st) => ({ ...st, results: [ticket()] }));
+			mount();
+			await settle();
+			await userEvent.click(ticketItems()[0]);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"fix/CAIRN-42/fix-parser",
+			);
+		});
+
+		/**
+		 * A ticket typed by hand carries no issue type, and a branch with no
+		 * prefix at all is what nobody wants.
+		 */
+		it("prefixes a hand-typed ticket with feat", async () => {
+			settingsState.set({ branchTemplate: "{{kind}}/{{key}}/{{slug}}" });
+			mount();
+			await settle();
+			await toBranchStep();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"feat/CAIRN-42/fix-parser",
+			);
+		});
+
+		it("replaces only the slug with the one a model wrote", async () => {
+			settingsState.set({
+				branchTemplate: "{{kind}}/{{key}}/{{slug}}",
+				aiEnabled: true,
+			});
+			capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
+			ticketSearch.update((st) => ({ ...st, results: [ticket()] }));
+			runOneShotShaped.mockResolvedValue({ slug: "Parse-Nested-Blocks" });
+			mount();
+			await settle();
+			await userEvent.click(ticketItems()[0]);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"fix/CAIRN-42/parse-nested-blocks",
+			);
+		});
+
+		it("says so and keeps the derived name when the model fails", async () => {
+			settingsState.set({
+				branchTemplate: "feat/{{slug}}",
+				aiEnabled: true,
+			});
+			runOneShotShaped.mockRejectedValue(new Error("nope"));
+			mount();
+			await settle();
+			await toBranchStep();
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"feat/fix-parser",
+			);
+			expect(document.body.textContent).toContain("could not be generated");
+		});
+
+		/** The whole AI surface is behind the master switch. */
+		it("offers no AI naming when AI is off", async () => {
+			settingsState.set({ branchTemplate: "feat/{{slug}}", aiEnabled: false });
+			mount();
+			await settle();
+			await toBranchStep();
+			expect(aiNameButton()).toBeNull();
 		});
 
 		/**
@@ -490,18 +597,19 @@ describe("CreateInstance", () => {
 			await userEvent.click(backButton());
 			await settle();
 			await fill(field("ticket-id") as HTMLInputElement, "CAIRN-99");
+			await fill(field("ticket-title") as HTMLInputElement, "Widen the cache");
 			await userEvent.click(primary());
 			await settle();
 			await userEvent.click(primary());
 			await settle();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/cairn-99",
+				"feat/widen-cache",
 			);
 		});
 
 		/** Two instances cannot share a branch. */
 		it("refuses a branch another instance already has", async () => {
-			instancesStore.set([instance("i1", "p1", { branch: "feat/cairn-42" })]);
+			instancesStore.set([instance("i1", "p1", { branch: "feat/fix-parser" })]);
 			mount();
 			await settle();
 			await toBranchStep();
@@ -641,7 +749,7 @@ describe("CreateInstance", () => {
 			expect(spawnInstance.mock.calls[0][0]).toMatchObject({
 				projectId: "p1",
 				projectPath: "/repo",
-				branch: "feat/cairn-42",
+				branch: "feat/fix-parser",
 				baseBranch: "main",
 				linkExisting: false,
 				ticket: { id: "CAIRN-42", title: "Fix the parser" },
