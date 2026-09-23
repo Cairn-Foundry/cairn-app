@@ -23,6 +23,14 @@ interface AiFeatureDef {
 	icon: string;
 	/** Whether the feature runs a provider itself, or only composes a prompt. */
 	runsProvider: boolean;
+	/**
+	 * Whether the model has to go and read the repository, or whether the prompt
+	 * already carries everything it needs. An assist that reads nothing runs the
+	 * CLI without its MCP servers, its tools or the project's CLAUDE.md: they
+	 * cost the whole startup and tens of thousands of tokens of context for an
+	 * answer that never touches them.
+	 */
+	readsRepository: boolean;
 	/** Editable on the Features page; empty for a feature that has no template. */
 	defaultPromptTemplate: string;
 }
@@ -122,48 +130,56 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		id: "commitMessage",
 		icon: "git",
 		runsProvider: true,
+		readsRepository: true,
 		defaultPromptTemplate: DEFAULT_COMMIT_TEMPLATE,
 	},
 	{
 		id: "testFix",
 		icon: "beaker",
 		runsProvider: false,
+		readsRepository: false,
 		defaultPromptTemplate: "",
 	},
 	{
 		id: "mrDescription",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: true,
 		defaultPromptTemplate: DEFAULT_MR_DESCRIPTION_TEMPLATE,
 	},
 	{
 		id: "ciFix",
 		icon: "ci",
 		runsProvider: false,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_CI_FIX_TEMPLATE,
 	},
 	{
 		id: "reviewGuide",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_REVIEW_GUIDE_TEMPLATE,
 	},
 	{
 		id: "reviewComment",
 		icon: "review",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_REVIEW_COMMENT_TEMPLATE,
 	},
 	{
 		id: "ticketPlan",
 		icon: "ticket",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_TICKET_PLAN_TEMPLATE,
 	},
 	{
 		id: "branchName",
 		icon: "branch",
 		runsProvider: true,
+		readsRepository: false,
 		defaultPromptTemplate: DEFAULT_BRANCH_NAME_TEMPLATE,
 	},
 ];
@@ -216,6 +232,15 @@ export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
 }
 
 /**
+ * Whether the feature's run may skip the context a working session loads. The
+ * one place that reads `readsRepository`, so a call site that has no resolved
+ * feature at hand still answers it the same way.
+ */
+export function isLeanFeature(id: AiFeatureId): boolean {
+	return featureDef(id)?.readsRepository === false;
+}
+
+/**
  * The CLIs an assist can be served by, and the one it falls back to.
  *
  * This is not the Agent step, which runs whichever CLI the user picked in a
@@ -254,6 +279,8 @@ export interface ResolvedAiFeature {
 	promptTemplate: string;
 	/** The assist CLI is not on this machine, so the caller must not run it. */
 	unavailable: boolean;
+	/** The run may skip the context a working session loads; see `readsRepository`. */
+	lean: boolean;
 }
 
 /**
@@ -286,5 +313,6 @@ export function resolveAiFeature(
 		model: assigned?.model ?? "",
 		promptTemplate: template,
 		unavailable: !isInstalled(providerId),
+		lean: isLeanFeature(id),
 	};
 }

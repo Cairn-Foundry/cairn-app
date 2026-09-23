@@ -12,6 +12,9 @@ import { invoke } from "@tauri-apps/api/core";
  * answered with. `schema` is handed to the CLI as a flag, so the shape is
  * enforced rather than requested and the answer needs no parsing. Rejects with
  * "cancelled" when `stopOneshot` killed the run.
+ *
+ * `lean` says the question carries everything the model needs, so the CLI can
+ * skip the context a working session loads first.
  */
 export async function runOneshot<T>(
 	workingDir: string,
@@ -22,6 +25,7 @@ export async function runOneshot<T>(
 	model?: string,
 	binaryPath?: string,
 	env: Record<string, string> = {},
+	lean = false,
 ): Promise<T> {
 	return invoke<T>("run_oneshot", {
 		request: {
@@ -33,6 +37,7 @@ export async function runOneshot<T>(
 			model: model ?? null,
 			binaryPath: binaryPath ?? null,
 			env,
+			lean,
 		},
 	});
 }

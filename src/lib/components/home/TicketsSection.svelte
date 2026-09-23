@@ -98,7 +98,7 @@
         ),
         workingDir,
         resolvedFeature.providerId,
-        { model: resolvedFeature.model || undefined, signal: planAbort.signal },
+        { model: resolvedFeature.model || undefined, signal: planAbort.signal, lean: resolvedFeature.lean },
       );
     } catch (e) {
       if (!(e instanceof AiAssistError && e.kind === 'cancelled')) {

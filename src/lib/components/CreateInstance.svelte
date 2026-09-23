@@ -348,7 +348,7 @@
         project.path,
         branchNameFeature.providerId,
         FEATURE_SCHEMAS.branchName,
-        { model: branchNameFeature.model || undefined, signal: namingAbort.signal },
+        { model: branchNameFeature.model || undefined, signal: namingAbort.signal, lean: branchNameFeature.lean },
       );
       if (ticketId !== askedFor) return;
       // Only the characters are cleaned up: the words are the model's answer,
