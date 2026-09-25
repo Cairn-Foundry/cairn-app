@@ -43,6 +43,18 @@ describe("captureTitle", () => {
 		);
 	});
 
+	it("drops the terminal's replies to the CLI's colour queries", () => {
+		expect(type(`${ESC}]11;rgb:0e0e/0c0c/0909${ESC}\\`, "fix it\r")).toBe(
+			"Fix it",
+		);
+		expect(type(`${ESC}]10;rgb:ffff/ffff/ffff\x07fix it\r`)).toBe("Fix it");
+		expect(type(`${ESC}P>|xterm.js(5.5.0)${ESC}\\fix it\r`)).toBe("Fix it");
+	});
+
+	it("drops application-mode cursor keys whole", () => {
+		expect(type(`fix${ESC}OD${ESC}OC it\r`)).toBe("Fix it");
+	});
+
 	it("treats an empty Enter as no title rather than an empty one", () => {
 		expect(type("\r")).toBeNull();
 		expect(type("   \r")).toBeNull();

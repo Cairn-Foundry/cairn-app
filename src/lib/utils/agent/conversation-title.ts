@@ -50,10 +50,15 @@ export function titleFromPrompt(line: string): string {
 
 const ESC = String.fromCharCode(27);
 const DEL = String.fromCharCode(127);
+const BEL = String.fromCharCode(7);
 
-/** CSI / OSC escape sequences an interactive prompt sends while editing. */
+/**
+ * CSI / OSC / DCS / SS3 sequences reaching the PTY besides keystrokes: the
+ * prompt's editing keys, mouse reports, and the terminal's answers to the
+ * CLI's queries (an OSC 11 background-colour reply at startup).
+ */
 const ESCAPE_SEQUENCE = new RegExp(
-	`${ESC}\\[[0-9:;<=>?]*[ -/]*[@-~]|${ESC}.`,
+	`${ESC}[\\]P_^X][^${BEL}${ESC}]*(?:${BEL}|${ESC}\\\\)?|${ESC}\\[[0-9:;<=>?]*[ -/]*[@-~]|${ESC}O.|${ESC}.`,
 	"g",
 );
 

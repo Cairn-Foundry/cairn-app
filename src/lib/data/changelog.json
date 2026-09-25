@@ -10,6 +10,13 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "An agent conversation is no longer named with a stray `11;rgb:...` in front of the prompt. Claude Code asks the terminal for its background colour when it starts, and the terminal's answer was read as if the user had typed it.",
+					"fr": "Une conversation d'agent n'est plus nommée avec un `11;rgb:...` parasite devant le prompt. Claude Code demande au terminal sa couleur de fond au démarrage, et la réponse du terminal était lue comme si l'utilisateur l'avait tapée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "Opening a search result now reliably lands on the matching line. Two faults compounded: the editor's handle was dropped whenever the open tabs were restored, after which every jump silently did nothing, and the jump that did run was fired on a fixed 60 ms timer, so it clamped to line 1 whenever the document was not yet in the editor - a large file, a cold read, a slow disk. The handle now survives a restore, and the jump waits until the editor is actually showing the target file.",
 					"fr": "Ouvrir un résultat de recherche arrive désormais de façon fiable sur la ligne correspondante. Deux défauts se cumulaient : la référence de l'éditeur était perdue à chaque restauration des onglets, après quoi tout saut ne faisait plus rien en silence, et le saut qui s'exécutait était déclenché par un minuteur fixe de 60 ms, si bien qu'il retombait sur la ligne 1 lorsque le document n'était pas encore dans l'éditeur - fichier volumineux, lecture à froid, disque lent. La référence survit maintenant à une restauration, et le saut attend que l'éditeur affiche réellement le fichier visé."
 				}
