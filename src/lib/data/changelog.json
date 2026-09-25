@@ -10,6 +10,13 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "An agent conversation is no longer named with a stray `11;rgb:...` in front of the prompt. Claude Code asks the terminal for its background colour when it starts, and the terminal's answer was read as if the user had typed it.",
+					"fr": "Une conversation d'agent n'est plus nommée avec un `11;rgb:...` parasite devant le prompt. Claude Code demande au terminal sa couleur de fond au démarrage, et la réponse du terminal était lue comme si l'utilisateur l'avait tapée."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "Closing or reloading Cairn with a terminal open no longer leaves its processes behind or kills the wrong one on Linux. An interactive shell gives every job its own process group, so closing a terminal reached the shell but not what it had started: those jobs outlived it, adopted by the process that runs the graphical session. Every process of the terminal is now stopped with it. A reload also no longer kills the terminal that was just respawned under the same tab.",
 					"fr": "Fermer ou recharger Cairn avec un terminal ouvert ne laisse plus ses processus derrière lui et ne tue plus le mauvais sous Linux. Un shell interactif place chaque tâche dans son propre groupe de processus : fermer un terminal atteignait le shell mais pas ce qu'il avait lancé, et ces tâches lui survivaient, adoptées par le processus qui porte la session graphique. Chaque processus du terminal est désormais arrêté avec lui. Un rechargement ne tue plus non plus le terminal qui venait d'être relancé dans le même onglet."
 				}
