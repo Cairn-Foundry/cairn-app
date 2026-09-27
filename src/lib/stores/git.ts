@@ -54,16 +54,32 @@ type GitState = {
 	isLoadingBranches: boolean;
 	log: GitCommit[];
 	graph: GitGraphCommit[];
+	/** The stashes the graph places above the commits they were taken on. */
+	graphStashes: GitGraphCommit[];
 	stashes: GitStash[];
 	tags: GitTag[];
+	/**
+	 * Tags the remote holds, by name. Null while unknown - never read, no
+	 * remote, or offline - which the tag list must not read as "not pushed".
+	 */
+	remoteTags: string[] | null;
+	remotes: gitService.GitRemote[];
 	remoteStatus: RemoteStatus | null;
 	operationState: GitOperationState | null;
 	logHasMore: boolean;
 	graphHasMore: boolean;
+	/**
+	 * Where the next graph page stands. `failed` stops the infinite scroll until
+	 * the user asks again: re-arming it on its own would retry forever behind a
+	 * spinner that never says why.
+	 */
+	graphPaging: GraphPaging;
 	isLoading: boolean;
 	isGitRepo: boolean;
 	error: GitError | null;
 };
+
+export type GraphPaging = "idle" | "loading" | "failed";
 
 /** Page sizes of the log and graph lists; both load more on scroll. */
 const LOG_PAGE = 50;
@@ -89,12 +105,16 @@ const INITIAL: GitState = {
 	isLoadingBranches: false,
 	log: [],
 	graph: [],
+	graphStashes: [],
 	stashes: [],
 	tags: [],
+	remoteTags: null,
+	remotes: [],
 	remoteStatus: null,
 	operationState: null,
 	logHasMore: false,
 	graphHasMore: false,
+	graphPaging: "idle",
 	isLoading: false,
 	isGitRepo: true,
 	error: null,
@@ -247,6 +267,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				operationState: null,
 				log: [],
 				graph: [],
+				graphStashes: [],
 				stashes: [],
 				tags: [],
 				isGitRepo: false,
@@ -329,43 +350,71 @@ export async function loadMoreLog(): Promise<void> {
  */
 let graphRead = false;
 
+/** The stashes are a garnish on the graph: failing to read them must not fail it. */
+function readGraphStashes(path: string): Promise<GitGraphCommit[]> {
+	return gitService.getGraphStashes(path).catch(() => []);
+}
+
 /** Reloads the first page of the graph; falls back to the project path when no instance is active. */
 export async function refreshGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
 	graphRead = true;
 	try {
-		const graph = await gitService.getGraph(path, GRAPH_PAGE, 0);
+		const [graph, graphStashes] = await Promise.all([
+			gitService.getGraph(path, GRAPH_PAGE, 0),
+			readGraphStashes(path),
+		]);
 		_git.update((s) => ({
 			...s,
 			graph,
+			graphStashes,
 			graphHasMore: graph.length === GRAPH_PAGE,
+			graphPaging: "idle",
 		}));
 	} catch {
 		// Non-fatal
 	}
 }
 
-/** Appends the next graph page, skipping duplicates. */
+/**
+ * Appends the next graph page, skipping duplicates. A page that brings nothing
+ * new ends the scroll - asking again would get the same page back - and a
+ * failed one is reported instead of leaving the spinner running.
+ */
 export async function loadMoreGraph(): Promise<void> {
 	const path = worktree() ?? get(activeProject)?.path;
 	if (!path) return;
 	const state = get(_git);
-	if (!state.graphHasMore) return;
+	if (!state.graphHasMore || state.graphPaging === "loading") return;
 	graphRead = true;
+	_git.update((s) => ({ ...s, graphPaging: "loading" }));
+	let paging: GraphPaging = "failed";
 	try {
 		const more = await gitService.getGraph(
 			path,
 			GRAPH_PAGE,
 			state.graph.length,
 		);
+		// The page belongs to the graph it was asked for; after a switch it
+		// would be appended to another worktree's history.
+		if ((worktree() ?? get(activeProject)?.path) !== path) return;
 		_git.update((s) => {
 			const seen = new Set(s.graph.map((c) => c.hash));
-			const merged = [...s.graph, ...more.filter((c) => !seen.has(c.hash))];
-			return { ...s, graph: merged, graphHasMore: more.length === GRAPH_PAGE };
+			const fresh = more.filter((c) => !seen.has(c.hash));
+			return {
+				...s,
+				graph: fresh.length > 0 ? [...s.graph, ...fresh] : s.graph,
+				graphHasMore: more.length === GRAPH_PAGE && fresh.length > 0,
+			};
 		});
-	} catch {
-		// Non-fatal
+		paging = "idle";
+	} catch (e) {
+		_git.update((s) => ({ ...s, error: gitService.toGitError(e) }));
+	} finally {
+		if ((worktree() ?? get(activeProject)?.path) === path) {
+			_git.update((s) => ({ ...s, graphPaging: paging }));
+		}
 	}
 }
 
@@ -387,8 +436,11 @@ export async function loadAllGraph(): Promise<void> {
 	if (!path) return;
 	graphRead = true;
 	try {
-		const graph = await gitService.getGraph(path, 1_000_000, 0);
-		_git.update((s) => ({ ...s, graph, graphHasMore: false }));
+		const [graph, graphStashes] = await Promise.all([
+			gitService.getGraph(path, 1_000_000, 0),
+			readGraphStashes(path),
+		]);
+		_git.update((s) => ({ ...s, graph, graphStashes, graphHasMore: false }));
 	} catch {
 		// Non-fatal
 	}
@@ -425,14 +477,14 @@ async function runSyncGraph(): Promise<void> {
 	if (!path || !graphRead) return;
 	const loaded = get(_git).graph.length;
 	try {
-		const graph = await gitService.getGraph(
-			path,
-			Math.max(loaded, GRAPH_PAGE),
-			0,
-		);
+		const [graph, graphStashes] = await Promise.all([
+			gitService.getGraph(path, Math.max(loaded, GRAPH_PAGE), 0),
+			readGraphStashes(path),
+		]);
 		_git.update((s) => ({
 			...s,
 			graph,
+			graphStashes,
 			graphHasMore: loaded === 0 ? graph.length === GRAPH_PAGE : s.graphHasMore,
 		}));
 	} catch {
@@ -735,12 +787,83 @@ export async function createBranch(
 	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
 }
 
-/** Deletes a local branch. */
-export async function deleteBranch(branchName: string): Promise<void> {
+/** Rereads the branch lists without fetching: a local write needs no network to show. */
+function afterBranchWrite(wt: string): Promise<unknown> {
+	return Promise.all([
+		loadBranches(wt, { fetch: false }),
+		refreshStatus(),
+		syncGraph(),
+	]);
+}
+
+/** Deletes a local branch; `force` deletes it even when its commits are not merged. */
+export async function deleteBranch(
+	branchName: string,
+	{ force = false } = {},
+): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
-	await mutate(() => gitService.deleteBranch(wt, branchName));
-	await Promise.all([refreshStatus(), syncGraph()]);
+	await mutate(() => gitService.deleteBranch(wt, branchName, force));
+	await afterBranchWrite(wt);
+}
+
+/** Deletes a branch on the remote, leaving the local one in place. */
+export async function deleteRemoteBranch(
+	branchName: string,
+	remote = "origin",
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.deleteRemoteBranch(wt, remote, branchName));
+	await afterBranchWrite(wt);
+}
+
+/** Renames a local branch. */
+export async function renameBranch(
+	oldName: string,
+	newName: string,
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => gitService.renameBranch(wt, oldName, newName));
+	await afterBranchWrite(wt);
+}
+
+/** Reloads the configured remotes. */
+export async function refreshRemotes(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	try {
+		const remotes = await gitService.listRemotes(wt);
+		_git.update((s) => ({ ...s, remotes }));
+	} catch {
+		// Non-fatal
+	}
+}
+
+/** Adds, renames, re-points or removes a remote, then rereads what it touched. */
+export async function editRemote(
+	edit:
+		| { kind: "add"; name: string; url: string }
+		| { kind: "rename"; oldName: string; newName: string }
+		| { kind: "set-url"; name: string; url: string }
+		| { kind: "remove"; name: string },
+): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	await mutate(() => {
+		switch (edit.kind) {
+			case "add":
+				return gitService.addRemote(wt, edit.name, edit.url);
+			case "rename":
+				return gitService.renameRemote(wt, edit.oldName, edit.newName);
+			case "set-url":
+				return gitService.setRemoteUrl(wt, edit.name, edit.url);
+			case "remove":
+				return gitService.removeRemote(wt, edit.name);
+		}
+	});
+	await Promise.all([refreshRemotes(), afterBranchWrite(wt)]);
 }
 
 /** Commit subject being typed; kept in the store so it survives leaving the view. */
@@ -774,8 +897,11 @@ const WORKTREE_FIELDS = [
 	"remoteBranches",
 	"log",
 	"graph",
+	"graphStashes",
 	"stashes",
 	"tags",
+	"remoteTags",
+	"remotes",
 	"remoteStatus",
 	"operationState",
 	"logHasMore",
@@ -799,8 +925,11 @@ const EMPTY: WorktreeData = {
 	remoteBranches: [],
 	log: [],
 	graph: [],
+	graphStashes: [],
 	stashes: [],
 	tags: [],
+	remoteTags: null,
+	remotes: [],
 	remoteStatus: null,
 	operationState: null,
 	logHasMore: false,
@@ -866,6 +995,7 @@ function switchWorktree(prev: string | null, next: string | null): void {
 	_git.update((s) => ({
 		...s,
 		...data,
+		graphPaging: "idle",
 		isLoading: false,
 		error: null,
 	}));
@@ -983,6 +1113,12 @@ export async function refreshStashes(): Promise<void> {
 	} catch {
 		// Non-fatal
 	}
+	// A pop or a drop leaves the worktree status as it was, so the status poll
+	// would never tell the graph its stashes moved.
+	if (graphRead) {
+		const graphStashes = await readGraphStashes(wt);
+		_git.update((s) => ({ ...s, graphStashes }));
+	}
 }
 
 /** Reloads the tag list. */
@@ -997,16 +1133,42 @@ export async function refreshTags(): Promise<void> {
 	}
 }
 
-/** Creates a tag on `commitHash`, or on HEAD when it is empty. */
+/** Asks the remote which tags it holds; leaves the answer unknown when it cannot. */
+export async function refreshRemoteTags(remote = "origin"): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	try {
+		const remoteTags = await gitService.tagRemoteList(wt, remote);
+		_git.update((s) => ({ ...s, remoteTags }));
+	} catch {
+		_git.update((s) => ({ ...s, remoteTags: null }));
+	}
+}
+
+function markRemoteTag(name: string, isOnRemote: boolean): void {
+	_git.update((s) => {
+		if (!s.remoteTags) return s;
+		const others = s.remoteTags.filter((n) => n !== name);
+		return { ...s, remoteTags: isOnRemote ? [...others, name] : others };
+	});
+}
+
+/**
+ * Creates a tag on `commitHash`, or on HEAD when it is empty, and pushes it
+ * right away when asked. A failed push leaves the tag created locally and
+ * reaches the error banner, rather than failing a creation that succeeded.
+ */
 export async function createTag(
 	name: string,
 	message: string,
 	commitHash = "",
+	push = false,
 ): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.tagCreate(wt, name, message, commitHash));
 	await Promise.all([refreshTags(), syncGraph()]);
+	if (push) await pushTag(name).catch(() => {});
 }
 
 /** Deletes a tag locally. */
@@ -1022,6 +1184,7 @@ export async function pushTag(name: string, remote = "origin"): Promise<void> {
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.tagPush(wt, remote, name));
+	markRemoteTag(name, true);
 }
 
 /** Deletes a tag on the remote, leaving the local one in place. */
@@ -1032,6 +1195,7 @@ export async function deleteRemoteTag(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.tagDeleteRemote(wt, remote, name));
+	markRemoteTag(name, false);
 	await refreshTags();
 }
 

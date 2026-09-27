@@ -1069,11 +1069,41 @@ pub async fn git_create_branch(worktree_path: String, branch_name: String, from_
 }
 
 #[tauri::command]
-/// Deletes a branch, refusing if it is not merged.
-pub async fn git_delete_branch(worktree_path: String, branch_name: String) -> Result<(), GitError> {
+/// Deletes a local branch. Without `force` git refuses a branch whose commits
+/// are not merged anywhere; with it (`-D`) those commits are left unreferenced.
+pub async fn git_delete_branch(worktree_path: String, branch_name: String, force: bool) -> Result<(), GitError> {
     reject_option_like(&branch_name)?;
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["branch", "-d", "--", &branch_name]).output()?;
+    let flag = if force { "-D" } else { "-d" };
+    let out = git_cmd(&expanded).args(["branch", flag, "--", &branch_name]).output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+/// Deletes a branch on `remote`, leaving any local branch of that name alone.
+pub async fn git_delete_remote_branch(worktree_path: String, remote: String, branch_name: String) -> Result<(), GitError> {
+    reject_option_like(&branch_name)?;
+    reject_option_like(&remote)?;
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded)
+        .args(["push", &remote, "--delete", &format!("refs/heads/{branch_name}")])
+        .output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+/// Renames a local branch. Its upstream, if any, keeps the old name until pushed anew.
+pub async fn git_rename_branch(worktree_path: String, old_name: String, new_name: String) -> Result<(), GitError> {
+    reject_option_like(&old_name)?;
+    reject_option_like(&new_name)?;
+    let expanded = expand(&worktree_path);
+    let out = git_cmd(&expanded).args(["branch", "-m", "--", &old_name, &new_name]).output()?;
     if !out.status.success() {
         return Err(GitError::from_process(&out));
     }
@@ -1195,6 +1225,89 @@ pub async fn git_remote_url(worktree_path: String) -> Result<String, GitError> {
         return Ok(String::new());
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// A configured remote and where it fetches from and pushes to.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRemote {
+    pub name: String,
+    pub fetch_url: String,
+    pub push_url: String,
+}
+
+#[tauri::command]
+/// Every configured remote, in the order git lists them.
+pub async fn git_remote_list(worktree_path: String) -> Result<Vec<GitRemote>, GitError> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args(["remote", "-v"]))?;
+    Ok(parse_remotes(&raw))
+}
+
+/// Folds the `name\turl (fetch|push)` lines of `git remote -v`, two per remote.
+fn parse_remotes(raw: &str) -> Vec<GitRemote> {
+    let mut remotes: Vec<GitRemote> = Vec::new();
+    for line in raw.lines() {
+        let Some((name, rest)) = line.split_once('\t') else { continue };
+        let (url, kind) = match rest.rsplit_once(' ') {
+            Some((url, kind)) => (url, kind),
+            None => (rest, "(fetch)"),
+        };
+        let idx = match remotes.iter().position(|r| r.name == name) {
+            Some(i) => i,
+            None => {
+                remotes.push(GitRemote { name: name.to_string(), fetch_url: String::new(), push_url: String::new() });
+                remotes.len() - 1
+            }
+        };
+        if kind == "(push)" {
+            remotes[idx].push_url = url.to_string();
+        } else {
+            remotes[idx].fetch_url = url.to_string();
+        }
+    }
+    remotes
+}
+
+/// Runs a `git remote` subcommand, turning a failure into a classified error.
+fn remote_op(worktree_path: &str, args: &[&str]) -> Result<(), GitError> {
+    let expanded = expand(worktree_path);
+    let out = git_cmd(&expanded).arg("remote").args(args).output()?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+/// Adds a remote without fetching it.
+pub async fn git_remote_add(worktree_path: String, name: String, url: String) -> Result<(), GitError> {
+    reject_option_like(&name)?;
+    reject_option_like(&url)?;
+    remote_op(&worktree_path, &["add", "--", &name, &url])
+}
+
+#[tauri::command]
+/// Renames a remote; git moves its remote-tracking branches and upstreams with it.
+pub async fn git_remote_rename(worktree_path: String, old_name: String, new_name: String) -> Result<(), GitError> {
+    reject_option_like(&old_name)?;
+    reject_option_like(&new_name)?;
+    remote_op(&worktree_path, &["rename", "--", &old_name, &new_name])
+}
+
+#[tauri::command]
+/// Points a remote at another URL, for fetching and pushing alike.
+pub async fn git_remote_set_url(worktree_path: String, name: String, url: String) -> Result<(), GitError> {
+    reject_option_like(&name)?;
+    reject_option_like(&url)?;
+    remote_op(&worktree_path, &["set-url", "--", &name, &url])
+}
+
+#[tauri::command]
+/// Removes a remote and its remote-tracking branches. Nothing on the server changes.
+pub async fn git_remote_remove(worktree_path: String, name: String) -> Result<(), GitError> {
+    reject_option_like(&name)?;
+    remote_op(&worktree_path, &["remove", "--", &name])
 }
 
 /// Divergence from a base branch; `base_ref` is empty when the base was not found.
@@ -1570,7 +1683,12 @@ pub struct GitGraphCommit {
     pub short_hash: String,
     pub message: String,
     pub author: String,
+    #[serde(rename = "authorEmail")]
+    pub author_email: String,
     pub date: String,
+    pub committer: String,
+    #[serde(rename = "committerDate")]
+    pub committer_date: String,
     pub parents: Vec<String>,
     pub refs: Vec<String>,
 }
@@ -1582,13 +1700,42 @@ pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Re
     let raw = run(git_cmd(&expanded).args([
         // `--all` covers heads and remotes but not tags: without `--tags` a
         // commit only a tag points at is missing from the graph entirely.
-        "log", "--all", "--tags", "--topo-order",
+        //
+        // `refs/stash` is left out: `--all` would bring in the latest stash
+        // alone, as an ordinary commit next to its index commit.
+        // `git_graph_stashes` lists every stash for the view to place instead.
+        "log", "--exclude=refs/stash", "--all", "--tags", "--topo-order",
         &format!("--skip={}", offset),
         &format!("-{}", limit),
-        "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%D\x1f%s",
+        "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%D\x1f%ae\x1f%cn\x1f%cI\x1f%s",
     ]))?;
-    let commits = raw.lines().filter(|l| !l.is_empty()).map(|line| {
-        let p: Vec<&str> = line.splitn(7, '\x1f').collect();
+    Ok(parse_graph(&raw))
+}
+
+#[tauri::command]
+/// Every stash as a graph commit hanging off the commit it was taken on. Only
+/// the first parent is kept: the others are the index and untracked snapshots
+/// git stores the stash as, not history anyone made.
+pub async fn git_graph_stashes(worktree_path: String) -> Result<Vec<GitGraphCommit>, GitError> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args([
+        "stash", "list",
+        "--format=%H\x1f%h\x1f%P\x1f%an\x1f%aI\x1f%gd\x1f%ae\x1f%cn\x1f%cI\x1f%gs",
+    ]))?;
+    Ok(parse_stash_graph(&raw))
+}
+
+fn parse_stash_graph(raw: &str) -> Vec<GitGraphCommit> {
+    parse_graph(raw).into_iter().map(|mut c| {
+        c.parents.truncate(1);
+        c
+    }).collect()
+}
+
+/// Parses the `git log` lines `git_graph` asks for, the subject last since it is free text.
+fn parse_graph(raw: &str) -> Vec<GitGraphCommit> {
+    raw.lines().filter(|l| !l.is_empty()).map(|line| {
+        let p: Vec<&str> = line.splitn(10, '\x1f').collect();
         let parents = p.get(2).unwrap_or(&"")
             .split_whitespace().filter(|s| !s.is_empty()).map(String::from).collect();
         let refs = p.get(5).unwrap_or(&"")
@@ -1600,10 +1747,12 @@ pub async fn git_graph(worktree_path: String, limit: usize, offset: usize) -> Re
             author:      p.get(3)   .unwrap_or(&"").to_string(),
             date:        p.get(4)   .unwrap_or(&"").to_string(),
             refs,
-            message:     p.get(6).map(|s| s.trim_end()).unwrap_or("").to_string(),
+            author_email:   p.get(6).unwrap_or(&"").to_string(),
+            committer:      p.get(7).unwrap_or(&"").to_string(),
+            committer_date: p.get(8).unwrap_or(&"").to_string(),
+            message:     p.get(9).map(|s| s.trim_end()).unwrap_or("").to_string(),
         }
-    }).collect();
-    Ok(commits)
+    }).collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -2219,6 +2368,27 @@ pub async fn git_tag_delete_remote(
     Ok(())
 }
 
+/// Names of the tags `remote` holds, read from the remote itself: git keeps no
+/// local record of which tags were pushed, so this is the only way to know.
+#[tauri::command]
+pub async fn git_tag_remote_list(worktree_path: String, remote: String) -> Result<Vec<String>, GitError> {
+    let expanded = expand(&worktree_path);
+    reject_option_like(&remote)?;
+    let out = run(git_cmd(&expanded)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .args(["ls-remote", "--tags", "--refs", &remote]))?;
+    Ok(parse_remote_tags(&out))
+}
+
+/// Tag names out of `ls-remote --tags --refs` lines: `<hash>\trefs/tags/<name>`.
+fn parse_remote_tags(raw: &str) -> Vec<String> {
+    raw.lines()
+        .filter_map(|line| line.split('\t').nth(1))
+        .filter_map(|r| r.strip_prefix("refs/tags/"))
+        .map(String::from)
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -2226,6 +2396,49 @@ pub async fn git_tag_delete_remote(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_remotes_folds_fetch_and_push_lines() {
+        let raw = "origin\tgit@host:a/b.git (fetch)\norigin\tgit@host:a/b.git (push)\nfork\thttps://x/y (fetch)\nfork\thttps://x/z (push)\n";
+        assert_eq!(parse_remotes(raw), vec![
+            GitRemote { name: "origin".into(), fetch_url: "git@host:a/b.git".into(), push_url: "git@host:a/b.git".into() },
+            GitRemote { name: "fork".into(), fetch_url: "https://x/y".into(), push_url: "https://x/z".into() },
+        ]);
+    }
+
+    #[test]
+    fn parse_remotes_of_a_repository_without_any_is_empty() {
+        assert!(parse_remotes("").is_empty());
+    }
+
+    #[test]
+    fn parse_stash_graph_keeps_the_base_commit_as_only_parent() {
+        let raw = "s1\x1fs1\x1fbase idx untracked\x1fAda\x1f2026-01-01T00:00:00Z\x1fstash@{0}\x1fa@b\x1fAda\x1f2026-01-01T00:00:00Z\x1fWIP on main: abc two\n";
+        let stashes = parse_stash_graph(raw);
+        assert_eq!(stashes[0].parents, vec!["base"]);
+        assert_eq!(stashes[0].refs, vec!["stash@{0}"]);
+        assert_eq!(stashes[0].message, "WIP on main: abc two");
+    }
+
+    #[test]
+    fn parse_remote_tags_keeps_the_names_only() {
+        let raw = "abc\trefs/tags/v1.0\ndef\trefs/tags/release/2\n\n";
+        assert_eq!(parse_remote_tags(raw), vec!["v1.0", "release/2"]);
+    }
+
+    #[test]
+    fn parse_graph_reads_every_field_and_keeps_the_subject_whole() {
+        let raw = "abc123\x1fabc\x1fp1 p2\x1fAda\x1f2026-01-02T03:04:05+01:00\x1fHEAD -> main, tag: v1\x1fada@example.com\x1fBob\x1f2026-01-03T00:00:00+00:00\x1ffix: a\x1fb\n";
+        let commits = parse_graph(raw);
+        assert_eq!(commits.len(), 1);
+        let c = &commits[0];
+        assert_eq!(c.parents, vec!["p1", "p2"]);
+        assert_eq!(c.refs, vec!["HEAD -> main", "tag: v1"]);
+        assert_eq!(c.author_email, "ada@example.com");
+        assert_eq!(c.committer, "Bob");
+        assert_eq!(c.committer_date, "2026-01-03T00:00:00+00:00");
+        assert_eq!(c.message, "fix: a\x1fb");
+    }
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 

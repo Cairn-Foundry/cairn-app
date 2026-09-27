@@ -20,6 +20,8 @@
   export let hidden = false;
   export let onOpen: (path: string, line: number, col: number) => void;
   export let onClose: () => void;
+  /** Every hit of the current search, so the editor can mark them in its minimap. */
+  export let onResults: ((matches: SearchMatch[]) => void) | undefined = undefined;
 
   interface GroupedResult {
     path: string;
@@ -199,6 +201,8 @@
   $: resultCount = results.length;
   $: fileCount = groups.length;
   $: capped = resultCount >= 2000;
+  // The global search is what the editor's minimap marks; a closed panel clears them.
+  $: onResults?.(hidden ? [] : results);
 </script>
 
 <div class="search-panel" class:search-panel-hidden={hidden}>

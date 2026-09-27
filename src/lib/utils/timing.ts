@@ -8,8 +8,10 @@
 export const CLIPBOARD_CLEAR_DELAY = 1500;
 /** Typing settle time before a search is actually issued. */
 export const SEARCH_DEBOUNCE_MS = 280;
-/** Lets the editor lay out before scrolling to a position in a fresh tab. */
-export const EDITOR_JUMP_DELAY_MS = 60;
+/** Delay before re-attempting a jump whose target document is not in the view yet. */
+export const EDITOR_JUMP_RETRY_MS = 30;
+/** Past this, a jump that still has not found its document is dropped rather than retried forever. */
+export const EDITOR_JUMP_READY_TIMEOUT_MS = 3000;
 /**
  * A `didChange` on every keystroke saturates a language server, so the editor
  * batches them. Long enough to swallow a burst of typing, short enough that

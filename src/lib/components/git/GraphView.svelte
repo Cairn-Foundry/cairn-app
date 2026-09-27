@@ -8,25 +8,40 @@
    * ref chips, search and infinite scroll.
    * Instances are matched to commits by branch name to offer switching or branching off a ref.
    */
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import type { CommitAction, GitGraphCommit } from '$lib/services/git-service';
+  import type { GraphPaging } from '$lib/stores/git';
+  import type { BranchRequest } from '$lib/components/git/BranchView.svelte';
   import type { Instance } from '$lib/types/instance';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
+  import { formatDateTimeFull, relativeTime } from '$lib/utils/format';
   import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
   import { reusablePrefix } from '$lib/utils/git/graph-cache';
+  import { spliceStashes, stashIndexOf } from '$lib/utils/git/graph-stashes';
   import { virtualWindow } from '$lib/utils/virtual-window';
   import { clickOutside } from '$lib/utils/click-outside';
   import CommitMenu, { commitMenuPosition } from '$lib/components/git/CommitMenu.svelte';
 
   export let commits: GitGraphCommit[];
+  /** Stashes as graph commits; each is drawn above the commit it was taken on. */
+  export let stashes: GitGraphCommit[] = [];
+  /**
+   * Local branch names. A decoration alone cannot tell `feat/x` the local
+   * branch from a remote ref: both hold a slash. Without the list, a slash
+   * reads as remote.
+   */
+  export let localBranches: string[] = [];
   export let currentBranch: string;
   export let instances: Instance[] = [];
   export let selectedHash = '';
   export let hasMore = false;
+  export let paging: GraphPaging = 'idle';
+  /** Reads a commit's message body for the hover card; without it the card shows the subject only. */
+  export let fetchBody: ((hash: string) => Promise<string>) | null = null;
 
-  const dispatch = createEventDispatcher<{ switchInstance: Instance; createInstanceFromRef: string; selectCommit: GitGraphCommit; loadMore: void; searchToggle: boolean; refresh: void; commitAction: { action: CommitAction; commit: GitGraphCommit } }>();
+  const dispatch = createEventDispatcher<{ switchInstance: Instance; createInstanceFromRef: string; selectCommit: GitGraphCommit; selectStash: number; branchAction: BranchRequest; loadMore: void; searchToggle: boolean; refresh: void; commitAction: { action: CommitAction; commit: GitGraphCommit } }>();
 
   let menuCommit: GitGraphCommit | null = null;
   let menuX = 0;
@@ -34,8 +49,33 @@
 
   function openCommitMenu(e: MouseEvent, commit: GitGraphCommit) {
     e.preventDefault();
+    hideHoverCard();
+    if (stashIndexOf(commit) !== null) return;
     menuCommit = commit;
     ({ x: menuX, y: menuY } = commitMenuPosition(e));
+  }
+
+  /* Clicking a chip switches instance, so the destructive branch actions sit
+     behind a right-click instead, the same gesture as the commit menu. */
+  let chipMenu: { x: number; y: number; branch: string; canRename: boolean } | null = null;
+
+  function openChipMenu(e: MouseEvent, chip: RefChip) {
+    e.preventDefault();
+    e.stopPropagation();
+    hideHoverCard();
+    menuCommit = null;
+    chipMenu = {
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - 80),
+      branch: chip.label,
+      canRename: chip.kind !== 'remote',
+    };
+  }
+
+  function runChipAction(action: BranchRequest['action']) {
+    if (!chipMenu) return;
+    dispatch('branchAction', { action, branch: chipMenu.branch });
+    chipMenu = null;
   }
 
   function runCommitAction(action: CommitAction) {
@@ -43,10 +83,6 @@
     dispatch('commitAction', { action, commit: menuCommit });
     menuCommit = null;
   }
-
-  let isLoadingMore = false;
-  let lastCount = 0;
-  $: if (commits.length !== lastCount) { lastCount = commits.length; isLoadingMore = false; }
 
   /* Rows are a fixed height, so only the ones the viewport can show go into the
      DOM and two spacers stand in for the rest - the same treatment the log
@@ -65,16 +101,66 @@
     return { destroy: () => observer.disconnect() };
   }
 
-  /** Asks for another page once the scroll gets within 200px of the bottom. */
-  function handleScroll(e: Event) {
-    const el = e.currentTarget as HTMLElement;
-    scrollTop = el.scrollTop;
-    if (isLoadingMore || !hasMore) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-      isLoadingMore = true;
-      dispatch('loadMore');
+  /* --- Hover card --------------------------------------------------------- */
+
+  const HOVER_DELAY_MS = 450;
+  const CARD_W = 380;
+  let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+  let hoverCard: { commit: GitGraphCommit; left: number; top?: number; bottom?: number } | null = null;
+  const bodies = new Map<string, string>();
+  let hoverBody = '';
+
+  function scheduleHoverCard(e: MouseEvent | FocusEvent, commit: GitGraphCommit) {
+    clearTimeout(hoverTimer);
+    const row = e.currentTarget as HTMLElement;
+    const pointerX = e instanceof MouseEvent ? e.clientX : null;
+    hoverTimer = setTimeout(() => showHoverCard(row, commit, pointerX), HOVER_DELAY_MS);
+  }
+
+  function showHoverCard(row: HTMLElement, commit: GitGraphCommit, pointerX: number | null) {
+    if (menuCommit) return;
+    const rect = row.getBoundingClientRect();
+    const left = Math.max(8, Math.min((pointerX ?? rect.left + 40) + 12, window.innerWidth - CARD_W - 8));
+    const below = rect.bottom + 220 < window.innerHeight;
+    hoverCard = below
+      ? { commit, left, top: rect.bottom + 4 }
+      : { commit, left, bottom: window.innerHeight - rect.top + 4 };
+    void loadHoverBody(commit.hash);
+  }
+
+  async function loadHoverBody(hash: string) {
+    hoverBody = bodies.get(hash) ?? '';
+    if (!fetchBody || bodies.has(hash)) return;
+    try {
+      const body = await fetchBody(hash);
+      bodies.set(hash, body);
+      if (hoverCard?.commit.hash === hash) hoverBody = body;
+    } catch {
+      bodies.set(hash, '');
     }
   }
+
+  function hideHoverCard() {
+    clearTimeout(hoverTimer);
+    hoverCard = null;
+  }
+
+  onDestroy(() => clearTimeout(hoverTimer));
+
+  let scroller: HTMLElement;
+
+  /** Asks for another page once the scroll gets within 200px of the bottom. */
+  function requestMoreIfNearBottom() {
+    if (!scroller || paging !== 'idle' || !hasMore || appliedSearch.trim()) return;
+    if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 200) dispatch('loadMore');
+  }
+
+  function handleScroll(e: Event) {
+    scrollTop = (e.currentTarget as HTMLElement).scrollTop;
+    hideHoverCard();
+    requestMoreIfNearBottom();
+  }
+
 
   $: branchToInstance = new Map(instances.map(i => [i.branch, i]));
 
@@ -118,10 +204,19 @@
     }
   }
 
+  /** A stash row opens that stash; every other row selects its commit. */
+  function activateRow(commit: GitGraphCommit) {
+    const stash = stashIndexOf(commit);
+    if (stash !== null) dispatch('selectStash', stash);
+    else dispatch('selectCommit', commit);
+  }
+
+  $: withStashes = spliceStashes(commits, stashes);
+
   $: processedCommits = (() => {
-    if (!appliedSearch.trim()) return commits;
+    if (!appliedSearch.trim()) return withStashes;
     const q = appliedSearch.toLowerCase();
-    return commits.filter(c =>
+    return withStashes.filter(c =>
       c.message.toLowerCase().includes(q) ||
       c.author.toLowerCase().includes(q) ||
       c.hash.toLowerCase().includes(q) ||
@@ -160,7 +255,7 @@
 
   interface LaneState { targetHash: string; color: string; branch?: string; }
   interface PathDef   { d: string; color: string; branch?: string; }
-  interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag'; remotes?: string[]; }
+  interface RefChip   { label: string; kind: 'head' | 'head-branch' | 'local' | 'remote' | 'tag' | 'stash'; remotes?: string[]; }
 
   interface GraphRow {
     commit: GitGraphCommit;
@@ -331,6 +426,9 @@
     return chips.find(c => c.kind === 'remote')?.label;
   }
 
+  let localSet = new Set<string>();
+  $: localSet = new Set(localBranches);
+
   /** Classifies raw decoration strings into typed chips, sorted HEAD first then tags last. */
   function parseRefs(refs: string[]): RefChip[] {
     const chips: RefChip[] = [];
@@ -339,16 +437,18 @@
         chips.push({ label: r.slice(8), kind: 'head-branch' });
       } else if (r === 'HEAD') {
         chips.push({ label: 'HEAD', kind: 'head' });
+      } else if (/^stash@\{\d+\}$/.test(r)) {
+        chips.push({ label: r, kind: 'stash' });
       } else if (r.startsWith('tag: ')) {
         chips.push({ label: r.slice(5), kind: 'tag' });
-      } else if (r.includes('/')) {
+      } else if (r.includes('/') && !localSet.has(r)) {
         chips.push({ label: r, kind: 'remote' });
       } else {
         chips.push({ label: r, kind: 'local' });
       }
     }
     const order: Record<RefChip['kind'], number> = {
-      'head-branch': 0, 'head': 1, 'local': 2, 'remote': 3, 'tag': 4,
+      'head-branch': 0, 'head': 1, 'local': 2, 'remote': 3, 'tag': 4, 'stash': 5,
     };
     return groupRemotes(chips.sort((a, b) => order[a.kind] - order[b.kind]));
   }
@@ -381,21 +481,18 @@
     return !chip.label.endsWith('/HEAD');
   }
 
-  /** Compact age label, falling back to a formatted date beyond a month. */
-  function relativeTime(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return 'now';
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    const d = Math.floor(h / 24);
-    if (d < 30) return `${d}d`;
-    if (d < 365) return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
-  }
-
   $: rows = graphRows(processedCommits);
+
+  /* A page that does not fill the panel leaves nothing to scroll, so no scroll
+     event would ever ask for the next one: the list is topped up until it
+     overflows. Skipped until the panel has been laid out, since a zero-height
+     scroller would read as always at the bottom. */
+  $: if (viewportH > 0 && paging === 'idle' && hasMore) void topUp(rows.length);
+
+  async function topUp(_rowCount: number) {
+    await tick();
+    requestMoreIfNearBottom();
+  }
   $: win = virtualWindow(rows.length, scrollTop, viewportH || 2000, ROW_H, OVERSCAN);
   $: visibleRows = rows.slice(win.first, win.last);
   $: globalMaxLane = rows.reduce((acc, r) => Math.max(acc, r.maxLaneInRow), 0);
@@ -448,7 +545,7 @@
     </button>
   </div>
 
-  <div class="graph-scroll" use:measureViewport on:scroll={handleScroll}>
+  <div class="graph-scroll" bind:this={scroller} use:measureViewport on:scroll={handleScroll}>
     {#if win.padTop > 0}<div style="height:{win.padTop}px"></div>{/if}
     {#each visibleRows as row (row.commit.hash)}
       {@const chips = parseRefs(row.commit.refs)}
@@ -456,16 +553,22 @@
         r === currentBranch || r.endsWith(`-> ${currentBranch}`) || r === `HEAD -> ${currentBranch}`
       )}
       {@const isOnBranch = currentBranchAncestors.has(row.commit.hash)}
+      {@const isStash = stashIndexOf(row.commit) !== null}
       <div
         class="commit-outer"
         class:is-current={isCurrent}
         class:is-on-branch={isOnBranch && !isCurrent}
         class:is-selected={row.commit.hash === selectedHash}
+        class:is-stash={isStash}
         role="button"
         tabindex="0"
-        on:click={() => dispatch('selectCommit', row.commit)}
-        on:keydown={(e) => e.key === 'Enter' && dispatch('selectCommit', row.commit)}
+        on:click={() => activateRow(row.commit)}
+        on:keydown={(e) => e.key === 'Enter' && activateRow(row.commit)}
         on:contextmenu={(e) => openCommitMenu(e, row.commit)}
+        on:mouseenter={(e) => scheduleHoverCard(e, row.commit)}
+        on:mouseleave={hideHoverCard}
+        on:focus={(e) => scheduleHoverCard(e, row.commit)}
+        on:blur={hideHoverCard}
       >
         <div class="graph-row">
           <div
@@ -501,7 +604,10 @@
               cx={laneX(row.lane)}
               cy={ROW_H / 2}
               r={DOT_R}
-              fill={row.color}
+              fill={isStash ? 'var(--bg-2)' : row.color}
+              stroke={isStash ? row.color : undefined}
+              stroke-width={isStash ? 1.5 : undefined}
+              stroke-dasharray={isStash ? '2 1.5' : undefined}
               class:branch-line={!!row.branch}
               role={row.branch ? 'presentation' : undefined}
               on:mousemove={row.branch ? (e) => showBranchTip(e, row.branch) : undefined}
@@ -553,6 +659,7 @@
                   : ''}
                 on:click={activate}
                 on:keydown={activate ? (e) => e.key === 'Enter' && activate() : undefined}
+                on:contextmenu={isBranchChip(chip) ? (e) => openChipMenu(e, chip) : undefined}
               >
                 {chip.label}
                 {#if chip.remotes}
@@ -578,6 +685,14 @@
       <div class="graph-empty">{t('git.noHistory')}</div>
     {:else if rows.length === 0}
       <div class="graph-empty">{t('git.graphNoResults')}</div>
+    {:else if paging === 'failed' && !appliedSearch.trim()}
+      <div class="graph-loading-more graph-load-failed">
+        <span>{t('git.graphLoadFailed')}</span>
+        <button class="graph-retry-btn" on:click={() => dispatch('loadMore')}>
+          <Icon name="refresh" size={11}/>
+          {t('git.graphLoadRetry')}
+        </button>
+      </div>
     {:else if hasMore && !appliedSearch.trim()}
       <div class="graph-loading-more">
         <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
@@ -593,6 +708,59 @@
     on:pick={(e) => runCommitAction(e.detail)}
     on:close={() => (menuCommit = null)}
   />
+{/if}
+
+{#if chipMenu}
+  <div
+    class="chip-menu"
+    role="menu"
+    aria-label={t('git.branchList.chipMenuLabel') as string}
+    style="left:{chipMenu.x}px; top:{chipMenu.y}px"
+    use:clickOutside={() => (chipMenu = null)}
+  >
+    {#if chipMenu.canRename}
+      <button role="menuitem" on:click={() => runChipAction('rename')}>
+        <Icon name="edit" size={12}/>
+        {t('git.branchList.rename')}
+      </button>
+    {/if}
+    <button role="menuitem" class="danger" on:click={() => runChipAction('delete')}>
+      <Icon name="trash" size={12}/>
+      {chipMenu.canRename ? t('git.branchList.delete') : t('git.branchList.deleteOnRemote')}
+    </button>
+  </div>
+{/if}
+
+<svelte:window on:keydown={chipMenu ? (e) => e.key === 'Escape' && (chipMenu = null) : undefined}/>
+
+{#if hoverCard}
+  {@const c = hoverCard.commit}
+  <div
+    class="commit-card"
+    role="tooltip"
+    style="left:{hoverCard.left}px; {hoverCard.top !== undefined ? `top:${hoverCard.top}px` : `bottom:${hoverCard.bottom}px`}"
+  >
+    <div class="commit-card-subject">{c.message}</div>
+    {#if hoverBody}
+      <div class="commit-card-body">{hoverBody}</div>
+    {/if}
+    <dl class="commit-card-meta">
+      <dt>{t('git.commitCard.author')}</dt>
+      <dd>{c.author}{#if c.authorEmail} <span class="commit-card-email">&lt;{c.authorEmail}&gt;</span>{/if}</dd>
+      <dt>{t('git.commitCard.authored')}</dt>
+      <dd>{formatDateTimeFull(c.date)}</dd>
+      {#if c.committer && c.committer !== c.author}
+        <dt>{t('git.commitCard.committer')}</dt>
+        <dd>{c.committer}</dd>
+      {/if}
+      {#if c.committerDate && formatDateTimeFull(c.committerDate) !== formatDateTimeFull(c.date)}
+        <dt>{t('git.commitCard.committed')}</dt>
+        <dd>{formatDateTimeFull(c.committerDate)}</dd>
+      {/if}
+      <dt>{t('git.commitCard.hash')}</dt>
+      <dd class="commit-card-hash">{c.hash}</dd>
+    </dl>
+  </div>
 {/if}
 
 {#if branchTip}
@@ -627,6 +795,82 @@
     white-space: nowrap;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
   }
+
+  .commit-card {
+    position: fixed;
+    z-index: 1000;
+    width: 380px;
+    max-height: 60vh;
+    overflow: hidden;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg-1);
+    color: var(--fg-1);
+    border: 1px solid var(--stroke-1);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    font-size: 11.5px;
+    font-family: var(--font-ui);
+  }
+  .commit-card-subject {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--fg-0);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .commit-card-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    color: var(--fg-2);
+    max-height: 14em;
+    overflow: hidden;
+  }
+  .commit-card-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 10px;
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--stroke-0);
+  }
+  .commit-card-meta dt { color: var(--fg-4); }
+  .commit-card-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .commit-card-email { color: var(--fg-3); }
+  .commit-card-hash { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-2); }
+
+  .chip-menu {
+    position: fixed;
+    z-index: 1200;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    gap: 1px;
+    background: var(--bg-1);
+    border: 1px solid var(--stroke-0);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.28);
+  }
+  .chip-menu button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 7px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--fg-1);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .chip-menu button:hover { background: var(--bg-2); color: var(--fg-0); }
+  .chip-menu button.danger { color: var(--danger); }
 
   .graph-toolbar {
     display: flex;
@@ -874,6 +1118,14 @@
     outline-offset: -1px;
   }
 
+  /* Stashes: dashed, like the hollow dot of their row */
+  .chip-stash {
+    color: var(--fg-3);
+    outline: 1px dashed var(--stroke-1);
+    outline-offset: -1px;
+  }
+  .commit-outer.is-stash .commit-text { font-style: italic; color: var(--fg-3); }
+
   /* Tags */
   .chip-tag {
     background: color-mix(in srgb, #e8c245 14%, transparent);
@@ -924,6 +1176,26 @@
     justify-content: center;
     padding: 12px;
   }
+
+  .graph-load-failed {
+    gap: 8px;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    color: var(--fg-3);
+  }
+  .graph-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+    background: var(--bg-0);
+    color: var(--fg-2);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .graph-retry-btn:hover { color: var(--fg-0); border-color: var(--stroke-1); background: var(--bg-1); }
 
   .graph-empty {
     padding: 48px 20px;

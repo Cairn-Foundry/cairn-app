@@ -11,6 +11,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
+  import { relativeTime } from '$lib/utils/format';
   import {
     git,
     pushStash,
@@ -172,19 +173,6 @@
     } finally {
       loadingIndex = null;
     }
-  }
-
-  /** Compact age label, falling back to a formatted date beyond a month. */
-  function relativeTime(dateStr: string): string {
-    if (!dateStr) return '';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return 'just now';
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    const d = Math.floor(h / 24);
-    return d < 30 ? `${d}d` : new Date(dateStr).toLocaleDateString();
   }
 
   function handleKey(e: KeyboardEvent) {

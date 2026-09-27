@@ -16,8 +16,8 @@ import {
 	toggleBlockComment,
 	toggleComment,
 } from "@codemirror/commands";
-import { gotoLine } from "@codemirror/search";
-import type { Extension } from "@codemirror/state";
+import { getSearchQuery, gotoLine, searchPanelOpen } from "@codemirror/search";
+import type { EditorState, Extension } from "@codemirror/state";
 import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import { showMinimap } from "@replit/codemirror-minimap";
 import { toCmKey } from "$lib/stores/shortcuts";
@@ -99,7 +99,7 @@ const minimapMousedownGuard = ViewPlugin.fromClass(
 /** The minimap plus its two corrections; nothing at all when disabled. */
 export function buildMinimap(
 	enabled: boolean,
-	diffGutter?: Record<number, string>,
+	markers?: Record<number, string>,
 ): Extension {
 	if (!enabled) return [];
 	return [
@@ -107,11 +107,41 @@ export function buildMinimap(
 			create: () => ({ dom: document.createElement("div") }),
 			displayText: "blocks",
 			showOverlay: "always",
-			gutters: diffGutter ? [diffGutter] : undefined,
+			gutters: markers ? [markers] : undefined,
 		}),
 		minimapOverlayTheme,
 		minimapMousedownGuard,
 	];
+}
+
+/** How many search hits the minimap will paint; past that the marks stop meaning anything. */
+const SEARCH_MARKER_LIMIT = 2000;
+
+/**
+ * The lines the current in-file search matches, for the minimap markers. Only
+ * reported while the search panel is open, so a search that was used once and
+ * left behind does not keep painting the overview. An invalid query (an
+ * unfinished regexp) yields nothing rather than throwing.
+ */
+export function searchMatchLines(state: EditorState): number[] {
+	if (!searchPanelOpen(state)) return [];
+	const query = getSearchQuery(state);
+	if (!query.valid) return [];
+	const lines: number[] = [];
+	let last = 0;
+	const cursor = query.getCursor(state);
+	for (let step = cursor.next(); !step.done; step = cursor.next()) {
+		if (lines.length >= SEARCH_MARKER_LIMIT) break;
+		const { from, to } = step.value;
+		const line = state.doc.lineAt(Math.min(from, state.doc.length)).number;
+		if (line !== last) {
+			lines.push(line);
+			last = line;
+		}
+		// A zero-width match (an empty regexp) would otherwise loop forever.
+		if (to <= from) break;
+	}
+	return lines;
 }
 
 /** Read-only diff views: no current line highlight, the selection is the markers. */

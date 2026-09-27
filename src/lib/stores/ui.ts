@@ -80,10 +80,18 @@ export const commandPaletteVisible = writable(false);
 /** An action requested elsewhere that the Git view performs once it is mounted, then clears. */
 export const pendingGitAction = writable<"createProfile" | null>(null);
 
+export type GitLeftTab =
+	| "changes"
+	| "log"
+	| "graph"
+	| "stash"
+	| "tag"
+	| "branch"
+	| "mergerebase"
+	| "gitignore";
+
 /** Selected tab of the Git view left pane; persisted with the rest of the project state. */
-export const gitLeftTab = writable<
-	"changes" | "log" | "graph" | "stash" | "tag" | "mergerebase" | "gitignore"
->("changes");
+export const gitLeftTab = writable<GitLeftTab>("changes");
 
 /** True while the welcome tour is on screen; set from the first launch or from Settings. */
 export const showWelcomeTour = writable(false);

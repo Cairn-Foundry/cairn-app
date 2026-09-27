@@ -1,6 +1,8 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { getLocale, type TranslationKey, t } from "$lib/i18n";
+
 /** Convert arbitrary text to a URL/branch-friendly slug. */
 export function slugify(text: string): string {
 	return text
@@ -113,15 +115,38 @@ export function formatDuration(ms: number): string {
 	return rest === 0 ? `${hours}h` : `${hours}h${rest}min`;
 }
 
-/** Compact age label, falling back to a formatted date beyond a month. */
+/**
+ * Compact age label, falling back to a date past a month. Both halves follow
+ * the interface language: a French UI reads "2j", not "2d", next to a French date.
+ */
 export function relativeTime(dateStr: string): string {
 	if (!dateStr) return "";
-	const diff = Date.now() - new Date(dateStr).getTime();
-	const minutes = Math.floor(diff / 60000);
-	if (minutes < 1) return "just now";
-	if (minutes < 60) return `${minutes}m`;
+	const date = new Date(dateStr);
+	const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+	if (minutes < 1) return t("common.age.now") as string;
+	if (minutes < 60) return ageLabel("common.age.minutes", minutes);
 	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h`;
+	if (hours < 24) return ageLabel("common.age.hours", hours);
 	const days = Math.floor(hours / 24);
-	return days < 30 ? `${days}d` : new Date(dateStr).toLocaleDateString();
+	if (days < 30) return ageLabel("common.age.days", days);
+	return date.toLocaleDateString(
+		getLocale(),
+		days < 365
+			? { month: "short", day: "numeric" }
+			: { year: "numeric", month: "short" },
+	);
+}
+
+function ageLabel(key: TranslationKey, value: number): string {
+	return (t(key) as (n: number) => string)(value);
+}
+
+/** The full date and time in the interface language, for a tooltip under a relative age. */
+export function formatDateTimeFull(dateStr: string): string {
+	const date = new Date(dateStr);
+	if (Number.isNaN(date.getTime())) return "";
+	return new Intl.DateTimeFormat(getLocale(), {
+		dateStyle: "full",
+		timeStyle: "medium",
+	}).format(date);
 }

@@ -29,7 +29,7 @@
   import { lspChangesOf, type LspContentChange } from '$lib/utils/files/document-model';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import {
-    buildEditorTheme, buildHighlight, buildDiffGutterTheme, conflictColor, diffColors,
+    buildEditorTheme, buildHighlight, buildDiffGutterTheme, conflictColor, diffColors, searchMarkColor,
     resolveLanguageExtension, type EditorLanguage,
   } from '$lib/utils/editor/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
@@ -61,7 +61,7 @@
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
     type GutterChunk,
   } from '$lib/utils/editor/editor-diff-gutter';
-  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, SHORTCUT_COMMANDS, unselectableGutters } from '$lib/utils/editor/editor-extensions';
+  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, searchMatchLines, SHORTCUT_COMMANDS, unselectableGutters } from '$lib/utils/editor/editor-extensions';
   import { buildConflictResolver, conflictLines } from '$lib/utils/editor/editor-conflict';
   import { buildStickyScroll, stickyScrollTheme } from '$lib/utils/editor/editor-sticky-scroll';
   import { buildMarkdownWysiwyg, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
@@ -89,6 +89,8 @@
   export let showWhitespace: boolean = false;
   export let savedState: EditorState | null = null;
   export let docPath: string | null = null;
+  /* 1-based lines of the workspace search hits in this file; the minimap marks them. */
+  export let searchLines: number[] = [];
   export let onOpenLink: ((path: string, anchor: string | null) => void) | undefined = undefined;
   export let lspDoc: LspDocRef | null = null;
   export let lspDiagnostics: LspDiagnostic[] = [];
@@ -182,9 +184,16 @@
     return view?.state ?? null;
   }
 
-  /** Moves the cursor to a clamped line/column and centers it in the viewport. */
-  export function jumpTo(line: number, col: number) {
-    if (!view) return;
+  /**
+   * Moves the cursor to a clamped line/column and centers it in the viewport.
+   * Returns false when the document on screen is not the one the caller is
+   * waiting for: the pane keeps one view across tabs, so a jump scheduled for a
+   * tab that is still loading would otherwise land in whatever document is there.
+   * `shownDocPath`, not the `docPath` prop, is the truth: the prop is updated a
+   * flush before the view actually swaps its document.
+   */
+  export function jumpTo(line: number, col: number, path: string | null = null): boolean {
+    if (!view || (path !== null && shownDocPath !== path)) return false;
     const doc = view.state.doc;
     const lineObj = doc.line(Math.max(1, Math.min(line, doc.lines)));
     const pos = Math.min(lineObj.from + Math.max(0, col - 1), lineObj.to);
@@ -193,6 +202,7 @@
       effects: EditorView.scrollIntoView(pos, { y: 'center' }),
     });
     view.focus();
+    return true;
   }
 
   export function setContent(text: string): void {
@@ -423,7 +433,7 @@
       buildDiffGutter({ onChunkClick: (chunk) => onChunkClick?.(chunk) }),
       buildDiffGutterTheme(),
       buildConflictResolver(),
-      minimapCompartment.of(buildMinimap(minimapEnabled, minimapDiffGutter)),
+      minimapCompartment.of(buildMinimap(minimapEnabled, minimapMarkers)),
       stickyScrollCompartment.of(buildStickyScroll(stickyScrollEnabled)),
       stickyScrollTheme,
       themeCompartment.of(buildEditorTheme(theme)),
@@ -473,8 +483,8 @@
   // -- Reactive sync ----------------------------------------------------------
 
   let syncedBase: string | null | undefined = undefined;
-  let minimapDiffGutter: Record<number, string> = {};
-  let minimapDiffKey = '';
+  let minimapMarkers: Record<number, string> = {};
+  let minimapMarkersKey = '';
 
   $: if (view) syncDocAndBase(content, baseContent);
 
@@ -534,7 +544,7 @@
     syncedDiagnostics = undefined;
     syncedDocPath = undefined;
     syncedStickyScroll = !stickyScrollEnabled;
-    minimapDiffKey = '';
+    minimapMarkersKey = '';
     if (!cached) {
       if (initialCursorPos > 0) {
         const pos = Math.min(initialCursorPos, view.state.doc.length);
@@ -570,6 +580,9 @@
 
   $: if (view) syncMinimap(editorTheme, minimapEnabled, true);
 
+  /* A new set of workspace hits repaints the markers; the key comparison keeps a re-render from the parent from doing any work. */
+  $: { searchLines; if (view) syncMinimap(editorTheme, minimapEnabled); }
+
   let syncedStickyScroll = true;
   $: if (view && stickyScrollEnabled !== syncedStickyScroll) {
     syncedStickyScroll = stickyScrollEnabled;
@@ -578,7 +591,7 @@
     });
   }
 
-  /** Mirrors the git gutter into the minimap so changes stay locatable in long files. */
+  /** Mirrors the git gutter, conflicts and the current search into the minimap, so they stay locatable in long files. */
   function syncMinimap(themeName: string, enabled: boolean, force = false) {
     if (!view) return;
     const colors = diffColors(themeName);
@@ -593,10 +606,19 @@
       next[line] = conflictTone;
       key += `${line}c`;
     }
-    if (!force && key === minimapDiffKey) return;
-    minimapDiffKey = key;
-    minimapDiffGutter = next;
-    view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(enabled, minimapDiffGutter)) });
+    const searchTone = searchMarkColor(themeName);
+    for (const line of searchMatchLines(view.state)) {
+      next[line] = searchTone;
+      key += `${line}s`;
+    }
+    for (const line of searchLines) {
+      next[line] = searchTone;
+      key += `${line}w`;
+    }
+    if (!force && key === minimapMarkersKey) return;
+    minimapMarkersKey = key;
+    minimapMarkers = next;
+    view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(enabled, minimapMarkers)) });
   }
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });

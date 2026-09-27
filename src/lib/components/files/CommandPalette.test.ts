@@ -82,13 +82,6 @@ describe("CommandPalette", () => {
 			expect(labels()).toEqual(["deploy", "quickOpen", "saveFile"]);
 		});
 
-		it("leaves out the shortcuts kept out of the palette", () => {
-			mount({
-				shortcutDefs: [def("shown"), def("secret", { hidden: true })],
-			});
-			expect(labels()).toEqual(["shown"]);
-		});
-
 		it("selects the first entry to begin with", () => {
 			mount({ customCommands: [command("deploy")] });
 			expect(selected()).toBe("deploy");

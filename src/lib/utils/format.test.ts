@@ -10,6 +10,7 @@ import {
 	formatDuration,
 	formatTokens,
 	formatUsd,
+	relativeTime,
 	slugify,
 } from "./format";
 
@@ -291,5 +292,25 @@ describe("formatTokens", () => {
 	it("falls back to zero rather than rendering NaN", () => {
 		expect(formatTokens(Number.NaN)).toBe("0");
 		expect(formatTokens(Number.POSITIVE_INFINITY)).toBe("0");
+	});
+});
+
+describe("relativeTime", () => {
+	const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+	const MIN = 60_000;
+
+	it("reads nothing for a missing date", () => {
+		expect(relativeTime("")).toBe("");
+	});
+
+	it("goes through the dictionary for the short units", () => {
+		expect(relativeTime(ago(10_000))).toBe("now");
+		expect(relativeTime(ago(12 * MIN))).toBe("12m");
+		expect(relativeTime(ago(5 * 60 * MIN))).toBe("5h");
+		expect(relativeTime(ago(2 * 24 * 60 * MIN))).toBe("2d");
+	});
+
+	it("falls back to a date past a month", () => {
+		expect(relativeTime(ago(40 * 24 * 60 * MIN))).not.toMatch(/^\d+d$/);
 	});
 });

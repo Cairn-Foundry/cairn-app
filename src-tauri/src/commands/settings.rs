@@ -106,6 +106,9 @@ pub struct CairnSettings {
     pub split_mode: bool,
     #[serde(rename = "splitLeftWidth", default = "default_split_left_width")]
     pub split_left_width: u32,
+    /// Share of the git view taken by its left column, between 0 and 1.
+    #[serde(rename = "gitSplitRatio", default = "default_git_split_ratio")]
+    pub git_split_ratio: f64,
     #[serde(default, deserialize_with = "deserialize_shortcuts")]
     pub shortcuts: Vec<ShortcutConfig>,
     #[serde(default = "default_theme")]
@@ -231,6 +234,7 @@ fn default_ui_scale() -> f64 { 1.0 }
 fn default_editor_font_family() -> String { "Menlo, ui-monospace, monospace".to_string() }
 fn default_split_mode() -> bool { false }
 fn default_split_left_width() -> u32 { 0 }
+fn default_git_split_ratio() -> f64 { 0.5 }
 fn default_theme() -> String { "default".to_string() }
 fn default_accent_color() -> String { "#6c8eff".to_string() }
 pub(crate) fn default_integrations_poll_seconds() -> u64 { 10 }
@@ -248,6 +252,7 @@ impl Default for CairnSettings {
             editor_font_family: default_editor_font_family(),
             split_mode: false,
             split_left_width: 0,
+            git_split_ratio: default_git_split_ratio(),
             shortcuts: Vec::new(),
             theme: default_theme(),
             accent_color: default_accent_color(),

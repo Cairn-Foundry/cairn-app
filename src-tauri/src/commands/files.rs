@@ -360,13 +360,14 @@ pub async fn list_dir_names_deep(path: String, depth: u32) -> std::collections::
 pub const MAX_TEXT_FILE_BYTES: u64 = 10 * 1024 * 1024;
 
 #[tauri::command]
-/// Last-modified time in milliseconds for each path; a path that cannot be
-/// read simply has no entry, which the caller treats as unchanged.
+/// Last-modified time in milliseconds for each path; a path that is not a
+/// readable file (missing, or a directory) simply has no entry.
 pub async fn file_mtimes(paths: Vec<String>) -> Result<std::collections::HashMap<String, u64>, String> {
     let mut out = std::collections::HashMap::new();
     for path in paths {
         let expanded = shellexpand::tilde(&path).into_owned();
         let Ok(meta) = fs::metadata(&expanded) else { continue };
+        if !meta.is_file() { continue }
         let Ok(modified) = meta.modified() else { continue };
         let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) else { continue };
         out.insert(path, dur.as_millis() as u64);
@@ -926,6 +927,17 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    #[test]
+    fn mtimes_answer_files_only() {
+        let tree = TempTree::new();
+        tree.write("src/a.ts", "a");
+        let file = tree.path.join("src/a.ts").to_string_lossy().into_owned();
+        let dir = tree.path.join("src").to_string_lossy().into_owned();
+        let missing = tree.path.join("nope.ts").to_string_lossy().into_owned();
+        let out = tauri::async_runtime::block_on(file_mtimes(vec![file.clone(), dir, missing])).unwrap();
+        assert_eq!(out.keys().collect::<Vec<_>>(), vec![&file]);
     }
 
     fn names(nodes: &[FileNode]) -> Vec<&str> {

@@ -3,6 +3,12 @@
 
 export const fr = {
 	common: {
+		age: {
+			now: "maintenant",
+			minutes: (n: number) => `${n}min`,
+			hours: (n: number) => `${n}h`,
+			days: (n: number) => `${n}j`,
+		},
 		close: "Fermer",
 		clear: "Effacer",
 		cancel: "Annuler",
@@ -377,12 +383,12 @@ export const fr = {
 			goToDefinition: {
 				label: "Aller à la définition",
 				description:
-					"Cliquer sur un symbole dans l'éditeur pour sauter à sa définition",
+					"Sauter à la définition du symbole cliqué, ou de celui sous le curseur",
 			},
 			findReferences: {
 				label: "Rechercher les références",
 				description:
-					"Cliquer sur un symbole dans l'éditeur pour lister ses définitions, implémentations et usages",
+					"Lister les définitions, implémentations et usages du symbole cliqué, ou de celui sous le curseur",
 			},
 			renameSymbol: {
 				label: "Renommer le symbole",
@@ -989,6 +995,7 @@ export const fr = {
 		emptyHint:
 			"Aucun terminal ouvert pour cette instance. Ouvrez-en un pour lancer des commandes dans son worktree.",
 		noInstance: "Aucune instance active",
+		openLinkHint: (key: string) => `${key}+clic pour ouvrir`,
 	},
 
 	integrations: {
@@ -1802,6 +1809,55 @@ export const fr = {
 		graphSortDateAsc: "Date (ancien d'abord)",
 		graphSortName: "Nom",
 		graphNoResults: "Aucun résultat ne correspond à votre recherche.",
+		graphLoadFailed: "Les commits suivants n'ont pas pu être chargés.",
+		graphLoadRetry: "Réessayer",
+		branchList: {
+			local: "Locales",
+			remote: "Distantes",
+			none: "Aucune branche",
+			current: "courante",
+			isCurrent:
+				"La branche extraite ici ne peut être ni renommée ni supprimée",
+			usedByInstance: (id: string) =>
+				`Utilisée par l'instance ${id} : renommez-la ou supprimez-la depuis celle-ci`,
+			rename: "Renommer la branche",
+			renameFrom: "Renommer",
+			newName: "Nouveau nom",
+			renameHint:
+				"La branche distante garde l'ancien nom : poussez de nouveau la branche pour la publier sous le nouveau.",
+			renameAction: "Renommer",
+			delete: "Supprimer la branche",
+			deleteOnRemote: "Supprimer sur le distant",
+			deleteLocal: "Supprimer la branche locale",
+			deleteLocalDesc: "Retire la branche de ce dépôt",
+			force: "Même si elle n'est pas fusionnée",
+			forceDesc: "Ses commits ne seront plus sur aucune branche",
+			deleteOn: (remote: string) => `Supprimer sur ${remote}`,
+			deleteOnDesc: "Retire la branche publiée pour tout le monde",
+			notMerged:
+				"Cette branche contient des commits fusionnés nulle part. Activez l'option de forçage pour la supprimer malgré tout.",
+			chipMenuLabel: "Actions sur la branche",
+		},
+		remotes: {
+			title: "Distants",
+			none: "Aucun distant",
+			add: "Ajouter un distant",
+			edit: "Modifier le distant",
+			remove: "Retirer le distant",
+			removeConfirm:
+				"Le distant et ses branches de suivi sont retirés de ce dépôt. Rien ne change sur le serveur.",
+			name: "Nom",
+			url: "URL",
+			push: "push :",
+		},
+		commitCard: {
+			author: "Auteur",
+			authored: "Date",
+			committer: "Committeur",
+			committed: "Committé le",
+			hash: "Hash",
+		},
+		resizeColumns: "Redimensionner les colonnes",
 		createInstanceFromBranch: "Créer une instance depuis cette branche",
 		commitDiffEmpty: "Ce commit n'apporte aucune modification de fichier.",
 		stashTab: "Stash",
@@ -1835,6 +1891,11 @@ export const fr = {
 		tagDelete: "Supprimer le tag",
 		tagPush: "Pousser",
 		tagPushTitle: "Pousser ce tag vers le distant",
+		tagOnRemoteTitle: "Déjà présent sur origin",
+		tagLocalOnly: "local",
+		tagLocalOnlyTitle: "Non poussé : origin n'a pas ce tag",
+		tagPushOnCreate: "Pousser vers origin tout de suite",
+		tagPushOnCreateDesc: "Publie le tag dès sa création",
 		tagEmpty: "Aucun tag pour le moment",
 		tagNoResults: "Aucun tag ne correspond à la recherche",
 		tagSearchPlaceholder: "Rechercher dans les tags...",
@@ -1914,6 +1975,13 @@ export const fr = {
 			"reset-hard": "Reset ici (hard)",
 			revert: "Revert ce commit",
 			"cherry-pick": "Cherry-pick",
+			rebase: "Rebaser la branche courante ici",
+		},
+		rebaseOntoCommit: {
+			title: (branch: string) => `Rebaser ${branch} sur ce commit`,
+			confirm:
+				"Les commits de la branche courante sont rejoués par-dessus ce commit, ce qui les réécrit. Une branche déjà poussée demandera un push forcé. En cas de conflit, le rebase s'arrête et le résolveur s'ouvre.",
+			action: "Rebaser",
 		},
 		commitMenuUnavailable: "indisponible",
 		pullMoreActions: "Plus d'options de pull",

@@ -173,7 +173,7 @@ export async function readFileVersioned(path: string): Promise<VersionedFile> {
 	});
 }
 
-/** Last-modified time in milliseconds per path; a missing file has no entry. */
+/** Last-modified time in milliseconds per path; a missing file or a directory has no entry. */
 export async function fileMtimes(
 	paths: string[],
 ): Promise<Record<string, number>> {

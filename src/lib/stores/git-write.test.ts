@@ -22,11 +22,25 @@ const service = vi.hoisted(() => ({
 	getSnapshot: vi.fn(),
 	getLog: vi.fn(),
 	getGraph: vi.fn(),
+	tagCreate: vi.fn(),
+	tagPush: vi.fn(),
+	tagDeleteRemote: vi.fn(),
+	tagRemoteList: vi.fn(),
+	getTagList: vi.fn(),
+	deleteBranch: vi.fn(),
+	deleteRemoteBranch: vi.fn(),
+	renameBranch: vi.fn(),
+	listRemotes: vi.fn(),
+	addRemote: vi.fn(),
+	renameRemote: vi.fn(),
+	setRemoteUrl: vi.fn(),
+	removeRemote: vi.fn(),
 	toGitError: vi.fn((e: unknown) => ({ code: "unknown", raw: String(e) })),
 }));
 
 vi.mock("$lib/services/git-service", () => ({
 	...service,
+	getGraphStashes: vi.fn().mockResolvedValue([]),
 	getStatusFull: vi.fn().mockResolvedValue({}),
 	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),
@@ -42,9 +56,10 @@ vi.mock("./terminal", () => ({
 }));
 
 const listInstances = vi.hoisted(() => vi.fn());
+const branchLists = vi.hoisted(() => vi.fn());
 vi.mock("$lib/services/instance-service", () => ({
 	listInstances,
-	listBranchesDetailed: vi.fn(),
+	listBranchesDetailed: branchLists,
 	createInstance: vi.fn(),
 	deleteInstance: vi.fn(),
 	duplicateInstance: vi.fn(),
@@ -56,6 +71,11 @@ import {
 	clearGitError,
 	commitChanges,
 	commitDraft,
+	createTag,
+	deleteBranch,
+	deleteRemoteBranch,
+	deleteRemoteTag,
+	editRemote,
 	fetchRemote,
 	git,
 	loadMoreGraph,
@@ -64,7 +84,9 @@ import {
 	pushBranch,
 	recoverFromGitError,
 	refreshGraph,
+	refreshRemoteTags,
 	refreshStatus,
+	renameBranch,
 	resetGitStore,
 	setCommitBody,
 	setCommitMessage,
@@ -113,6 +135,24 @@ beforeEach(async () => {
 	service.fetch.mockResolvedValue(undefined);
 	service.merge.mockResolvedValue(clean());
 	service.removeIndexLock.mockResolvedValue(undefined);
+	service.tagCreate.mockResolvedValue(undefined);
+	service.tagPush.mockResolvedValue(undefined);
+	service.tagDeleteRemote.mockResolvedValue(undefined);
+	service.tagRemoteList.mockResolvedValue([]);
+	service.getTagList.mockResolvedValue([]);
+	for (const fn of [
+		service.deleteBranch,
+		service.deleteRemoteBranch,
+		service.renameBranch,
+		service.addRemote,
+		service.renameRemote,
+		service.setRemoteUrl,
+		service.removeRemote,
+	]) {
+		fn.mockResolvedValue(undefined);
+	}
+	service.listRemotes.mockResolvedValue([]);
+	branchLists.mockResolvedValue({ local: ["main"], remote: [] });
 	service.toGitError.mockImplementation((e: unknown) => ({
 		code: "unknown",
 		raw: String(e),
@@ -384,6 +424,174 @@ describe("keeping the graph in step with the writes", () => {
 		service.getGraph.mockResolvedValue([]);
 		await pushBranch();
 		expect(service.getGraph).toHaveBeenCalledWith(WORKTREE, 40, 0);
+	});
+});
+
+describe("loadMoreGraph", () => {
+	const page = (prefix: string) =>
+		Array.from({ length: 20 }, (_, i) => graphRow(`${prefix}${i}`));
+
+	beforeEach(async () => {
+		service.getGraph.mockResolvedValue(page("a"));
+		await refreshGraph();
+	});
+
+	it("appends the next page and keeps the scroll armed", async () => {
+		service.getGraph.mockResolvedValue(page("b"));
+		await loadMoreGraph();
+		expect(get(git).graph).toHaveLength(40);
+		expect(get(git).graphHasMore).toBe(true);
+		expect(get(git).graphPaging).toBe("idle");
+	});
+
+	/** The same page again would come back forever: nothing new ends the scroll. */
+	it("ends the scroll on a page of commits already listed", async () => {
+		service.getGraph.mockResolvedValue(page("a"));
+		await loadMoreGraph();
+		expect(get(git).graph).toHaveLength(20);
+		expect(get(git).graphHasMore).toBe(false);
+		expect(get(git).graphPaging).toBe("idle");
+	});
+
+	it("reports a failed page instead of swallowing it", async () => {
+		service.getGraph.mockRejectedValue(new Error("boom"));
+		await loadMoreGraph();
+		expect(get(git).graphPaging).toBe("failed");
+		expect(get(git).error).not.toBeNull();
+		expect(get(git).graphHasMore).toBe(true);
+	});
+
+	/** A page landing after a switch belongs to the worktree it was asked for. */
+	it("drops a page that arrives after the worktree changed", async () => {
+		let resolvePage: (rows: ReturnType<typeof graphRow>[]) => void = () => {};
+		service.getGraph.mockReturnValue(
+			new Promise((resolve) => {
+				resolvePage = resolve;
+			}),
+		);
+		const pending = loadMoreGraph();
+		withoutWorktree();
+		resolvePage(page("b"));
+		await pending;
+		expect(get(git).graph.map((c) => c.hash)).not.toContain("b0");
+		expect(get(git).graphPaging).toBe("idle");
+	});
+
+	it("retries a failed page when asked again", async () => {
+		service.getGraph.mockRejectedValue(new Error("boom"));
+		await loadMoreGraph();
+		service.getGraph.mockResolvedValue(page("b"));
+		await loadMoreGraph();
+		expect(get(git).graph).toHaveLength(40);
+		expect(get(git).graphPaging).toBe("idle");
+	});
+});
+
+describe("tags and the remote", () => {
+	it("leaves the remote state unknown until the remote answered", async () => {
+		expect(get(git).remoteTags).toBeNull();
+		service.tagRemoteList.mockResolvedValue(["v1"]);
+		await refreshRemoteTags();
+		expect(get(git).remoteTags).toEqual(["v1"]);
+	});
+
+	/** Offline is not "nothing pushed": the list must not claim tags are local only. */
+	it("falls back to unknown when the remote cannot be reached", async () => {
+		service.tagRemoteList.mockResolvedValue(["v1"]);
+		await refreshRemoteTags();
+		service.tagRemoteList.mockRejectedValue(new Error("offline"));
+		await refreshRemoteTags();
+		expect(get(git).remoteTags).toBeNull();
+	});
+
+	it("pushes a tag right after creating it when asked", async () => {
+		await refreshRemoteTags();
+		await createTag("v2", "", "", true);
+		expect(service.tagCreate).toHaveBeenCalledWith(WORKTREE, "v2", "", "");
+		expect(service.tagPush).toHaveBeenCalledWith(WORKTREE, "origin", "v2");
+		expect(get(git).remoteTags).toEqual(["v2"]);
+	});
+
+	it("does not push when not asked", async () => {
+		await createTag("v2", "", "");
+		expect(service.tagPush).not.toHaveBeenCalled();
+	});
+
+	/** The tag exists either way; a failed push must not read as a failed creation. */
+	it("keeps the creation when the push fails, and reports the push", async () => {
+		service.tagPush.mockRejectedValue(new Error("rejected"));
+		await expect(createTag("v2", "", "", true)).resolves.toBeUndefined();
+		expect(get(git).error).not.toBeNull();
+	});
+
+	it("drops a tag deleted on the remote from the remote list", async () => {
+		service.tagRemoteList.mockResolvedValue(["v1", "v2"]);
+		await refreshRemoteTags();
+		await deleteRemoteTag("v1");
+		expect(get(git).remoteTags).toEqual(["v2"]);
+	});
+});
+
+describe("branches and remotes", () => {
+	it("deletes a branch safely unless forced", async () => {
+		await deleteBranch("feat/x");
+		expect(service.deleteBranch).toHaveBeenLastCalledWith(
+			WORKTREE,
+			"feat/x",
+			false,
+		);
+		await deleteBranch("feat/x", { force: true });
+		expect(service.deleteBranch).toHaveBeenLastCalledWith(
+			WORKTREE,
+			"feat/x",
+			true,
+		);
+	});
+
+	/** A local write needs no network to show: the lists are reread without a fetch. */
+	it("rereads the branch lists after a write, without fetching", async () => {
+		branchLists.mockResolvedValue({ local: ["main", "renamed"], remote: [] });
+		await renameBranch("old", "renamed");
+		expect(service.renameBranch).toHaveBeenCalledWith(
+			WORKTREE,
+			"old",
+			"renamed",
+		);
+		expect(get(git).branches).toEqual(["main", "renamed"]);
+		expect(service.fetch).not.toHaveBeenCalled();
+	});
+
+	it("deletes on the remote apart from the local branch", async () => {
+		await deleteRemoteBranch("feat/x", "upstream");
+		expect(service.deleteRemoteBranch).toHaveBeenCalledWith(
+			WORKTREE,
+			"upstream",
+			"feat/x",
+		);
+		expect(service.deleteBranch).not.toHaveBeenCalled();
+	});
+
+	it("surfaces a refused deletion and rethrows it", async () => {
+		service.deleteBranch.mockRejectedValue(new Error("not fully merged"));
+		await expect(deleteBranch("feat/x")).rejects.toThrow();
+		expect(get(git).error).not.toBeNull();
+	});
+
+	it("routes each remote edit to its command and rereads the remotes", async () => {
+		service.listRemotes.mockResolvedValue([
+			{ name: "up", fetchUrl: "u", pushUrl: "u" },
+		]);
+		await editRemote({ kind: "add", name: "up", url: "u" });
+		await editRemote({ kind: "rename", oldName: "up", newName: "up2" });
+		await editRemote({ kind: "set-url", name: "up2", url: "v" });
+		await editRemote({ kind: "remove", name: "up2" });
+		expect(service.addRemote).toHaveBeenCalledWith(WORKTREE, "up", "u");
+		expect(service.renameRemote).toHaveBeenCalledWith(WORKTREE, "up", "up2");
+		expect(service.setRemoteUrl).toHaveBeenCalledWith(WORKTREE, "up2", "v");
+		expect(service.removeRemote).toHaveBeenCalledWith(WORKTREE, "up2");
+		expect(get(git).remotes).toEqual([
+			{ name: "up", fetchUrl: "u", pushUrl: "u" },
+		]);
 	});
 });
 

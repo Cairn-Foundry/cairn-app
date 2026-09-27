@@ -8,14 +8,23 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
-import { Terminal } from "@xterm/xterm";
+import { type ILink, type ILinkProvider, Terminal } from "@xterm/xterm";
+import { t } from "$lib/i18n";
+import { fileMtimes } from "$lib/services/file-service";
 import { osDropPoint } from "$lib/utils/files/files-editor-drop";
+import { pathWithinWorktree } from "$lib/utils/files/files-tree";
 import { IS_MAC } from "$lib/utils/platform";
 import "@xterm/xterm/css/xterm.css";
 import {
 	resizeTerminal,
 	writeToTerminal,
 } from "$lib/services/terminal-service";
+import {
+	findLinkCandidates,
+	type LinkCandidate,
+	readLogicalLine,
+	resolveLinkPath,
+} from "./terminal-links";
 
 // The terminals, kept outside the component tree so one survives switching
 // view. Only a terminal on screen holds an xterm instance: the others are
@@ -284,6 +293,98 @@ function unloadRenderer(m: ManagedTerminal): void {
 	m.webgl = null;
 }
 
+/** Where a file link printed in a terminal is resolved and opened. */
+export interface FileLinkTarget {
+	/** The worktree a relative path is read against, null when none is active. */
+	worktree(): string | null;
+	open(path: string, line: number, col: number): void;
+}
+
+let fileLinkTarget: FileLinkTarget | null = null;
+
+/** Registers the file link target; passing null leaves file paths unlinked. */
+export function setFileLinkTarget(target: FileLinkTarget | null): void {
+	fileLinkTarget = target;
+}
+
+/** The same accelerator as go-to-definition, so a bare click still just focuses or selects. */
+function isLinkClick(e: MouseEvent): boolean {
+	return isMac ? e.metaKey : e.ctrlKey;
+}
+
+/** Keeps the URLs, and the paths that name a file actually on disk. */
+async function existingLinks(
+	candidates: LinkCandidate[],
+): Promise<{ candidate: LinkCandidate; absolute: string | null }[]> {
+	const base = fileLinkTarget?.worktree() ?? null;
+	const resolved = candidates.map((candidate) => ({
+		candidate,
+		absolute:
+			candidate.kind === "path" && fileLinkTarget
+				? resolveLinkPath(candidate.path, base)
+				: null,
+	}));
+	const paths = resolved.flatMap((r) => (r.absolute ? [r.absolute] : []));
+	const present = paths.length ? await fileMtimes(paths) : {};
+	return resolved.filter(
+		(r) => r.candidate.kind === "url" || (r.absolute && r.absolute in present),
+	);
+}
+
+function activateLink(candidate: LinkCandidate, absolute: string | null): void {
+	if (candidate.kind === "url") {
+		void import("@tauri-apps/plugin-opener")
+			.then((m) => m.openUrl(candidate.url))
+			.catch(() => {});
+		return;
+	}
+	const target = fileLinkTarget;
+	if (!target || !absolute) return;
+	target.open(
+		pathWithinWorktree(absolute, target.worktree()),
+		candidate.line,
+		candidate.col,
+	);
+}
+
+/** Underlines the paths and URLs of the hovered line, opened on a Cmd/Ctrl+click. */
+function linkProvider(term: Terminal, host: HTMLElement): ILinkProvider {
+	return {
+		provideLinks(y, callback) {
+			const line = readLogicalLine(term.buffer.active, y - 1);
+			const candidates = findLinkCandidates(line.text);
+			if (!candidates.length) {
+				callback(undefined);
+				return;
+			}
+			existingLinks(candidates)
+				.then((found) => {
+					const links: ILink[] = found.map(({ candidate, absolute }) => ({
+						range: {
+							start: line.cells[candidate.start],
+							end: line.cells[candidate.end - 1],
+						},
+						text: line.text.slice(candidate.start, candidate.end),
+						decorations: { underline: true, pointerCursor: true },
+						activate: (e) => {
+							if (isLinkClick(e)) activateLink(candidate, absolute);
+						},
+						hover: () => {
+							host.title = (
+								t("terminal.openLinkHint") as (key: string) => string
+							)(isMac ? "Cmd" : "Ctrl");
+						},
+						leave: () => {
+							host.title = "";
+						},
+					}));
+					callback(links.length ? links : undefined);
+				})
+				.catch(() => callback(undefined));
+		},
+	};
+}
+
 /** Writes PTY output to the live instance, or keeps it for the next attach. */
 function write(id: string, data: string): void {
 	const m = managed.get(id);
@@ -372,6 +473,7 @@ function wake(id: string, m: ManagedTerminal): void {
 	term.loadAddon(serialize);
 
 	term.attachCustomKeyEventHandler((e) => handleClipboardKey(term, e));
+	term.registerLinkProvider(linkProvider(term, m.el));
 
 	term.onData((data) => {
 		enqueueWrite(id, data);

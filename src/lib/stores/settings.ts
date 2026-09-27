@@ -25,6 +25,7 @@ const DEFAULTS: CairnSettings = {
 	fontFamily: "Menlo, ui-monospace, monospace",
 	splitMode: false,
 	splitLeftWidth: 0,
+	gitSplitRatio: 0.5,
 	shortcuts: [],
 	theme: "default",
 	accentColor: DEFAULT_ACCENT,

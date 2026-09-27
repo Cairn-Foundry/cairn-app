@@ -8,12 +8,12 @@
    * offered locally and on the remote separately: the two are distinct in git,
    * and dropping a tag locally leaves the published one in place.
    */
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
-  import { git, createTag, deleteTag, pushTag, deleteRemoteTag } from '$lib/stores/git';
+  import { git, createTag, deleteTag, pushTag, deleteRemoteTag, refreshRemoteTags } from '$lib/stores/git';
   import type { GitTag } from '$lib/services/git-service';
   import { relativeTime } from '$lib/utils/format';
 
@@ -25,6 +25,7 @@
   let newName = '';
   let newMessage = '';
   let newTarget = '';
+  let newPush = false;
   let isSaving = false;
   let newNameInput: HTMLInputElement;
   let createError = '';
@@ -36,6 +37,14 @@
   let isDeleting = false;
 
   $: tags = $git.tags;
+  $: remoteTags = $git.remoteTags ? new Set($git.remoteTags) : null;
+
+  /** True or false once the remote answered; undefined while its state is unknown. */
+  function isOnRemote(tag: GitTag): boolean | undefined {
+    return remoteTags ? remoteTags.has(tag.name) : undefined;
+  }
+
+  onMount(() => { void refreshRemoteTags(); });
   $: currentBranch = $git.currentBranch;
   $: targetOptions = [
     { value: '', label: t('git.tagTargetHead') as string },
@@ -55,6 +64,7 @@
     newName = '';
     newMessage = '';
     newTarget = '';
+    newPush = false;
     createError = '';
     newOpen = true;
     await tick();
@@ -71,7 +81,7 @@
     isSaving = true;
     createError = '';
     try {
-      await createTag(newName.trim(), newMessage.trim(), newTarget);
+      await createTag(newName.trim(), newMessage.trim(), newTarget, newPush);
       newOpen = false;
     } catch (error) {
       createError = error instanceof Error ? error.message : String(error);
@@ -160,19 +170,30 @@
             <span class="tag-subject">{tag.subject}</span>
           {/if}
         </div>
+        {#if isOnRemote(tag) === true}
+          <span class="tag-remote-state is-pushed" title={t('git.tagOnRemoteTitle') as string}>
+            <Icon name="cloud" size={10}/>
+          </span>
+        {:else if isOnRemote(tag) === false}
+          <span class="tag-remote-state" title={t('git.tagLocalOnlyTitle') as string}>
+            {t('git.tagLocalOnly')}
+          </span>
+        {/if}
         <span class="tag-hash selectable">{tag.shortHash}</span>
         <span class="tag-date">{relativeTime(tag.date)}</span>
         <div class="tag-item-actions">
           {#if loadingName === tag.name}
             <Spinner size={11} trackColor="var(--bg-3)" color="var(--fg-3)"/>
           {:else}
-            <button
-              class="tag-action-btn"
-              title={t('git.tagPushTitle') as string}
-              on:click|stopPropagation={() => handlePush(tag)}
-            >
-              {t('git.tagPush')}
-            </button>
+            {#if isOnRemote(tag) !== true}
+              <button
+                class="tag-action-btn"
+                title={t('git.tagPushTitle') as string}
+                on:click|stopPropagation={() => handlePush(tag)}
+              >
+                {t('git.tagPush')}
+              </button>
+            {/if}
             <button
               class="tag-action-btn icon-only danger"
               title={t('git.tagDelete') as string}
@@ -242,6 +263,16 @@
           />
           <span class="tag-field-hint">{t('git.tagMessageHint')}</span>
         </div>
+        <label class="tag-option">
+          <div class="tag-option-text">
+            <span class="tag-option-label">{t('git.tagPushOnCreate')}</span>
+            <span class="tag-option-desc">{t('git.tagPushOnCreateDesc')}</span>
+          </div>
+          <span class="toggle">
+            <input type="checkbox" bind:checked={newPush}/>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </span>
+        </label>
         {#if createError}
           <div class="tag-error">{createError}</div>
         {/if}
@@ -279,16 +310,18 @@
       </div>
       <div class="modal-body">
         <p class="tag-confirm">{t('git.tagDeleteConfirm')} <strong>{deleteTarget.name}</strong></p>
-        <label class="tag-option">
-          <div class="tag-option-text">
-            <span class="tag-option-label">{t('git.tagDeleteRemote')}</span>
-            <span class="tag-option-desc">{t('git.tagDeleteRemoteDesc')}</span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" bind:checked={deleteOnRemote}/>
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        {#if isOnRemote(deleteTarget) !== false}
+          <label class="tag-option">
+            <div class="tag-option-text">
+              <span class="tag-option-label">{t('git.tagDeleteRemote')}</span>
+              <span class="tag-option-desc">{t('git.tagDeleteRemoteDesc')}</span>
+            </div>
+            <span class="toggle">
+              <input type="checkbox" bind:checked={deleteOnRemote}/>
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </span>
           </label>
-        </label>
+        {/if}
       </div>
       <div class="modal-foot">
         <div class="spacer"></div>
@@ -413,6 +446,24 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .tag-remote-state {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    font-size: 9.5px;
+    color: var(--fg-4);
+    padding: 0 5px;
+    height: 15px;
+    border-radius: var(--r-xs);
+    outline: 1px solid var(--stroke-1);
+    outline-offset: -1px;
+  }
+  .tag-remote-state.is-pushed {
+    color: var(--fg-3);
+    outline: none;
+    padding: 0 2px;
   }
 
   .tag-hash {

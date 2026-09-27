@@ -3,6 +3,12 @@
 
 export const en = {
 	common: {
+		age: {
+			now: "now",
+			minutes: (n: number) => `${n}m`,
+			hours: (n: number) => `${n}h`,
+			days: (n: number) => `${n}d`,
+		},
 		close: "Close",
 		clear: "Clear",
 		cancel: "Cancel",
@@ -366,12 +372,13 @@ export const en = {
 			},
 			goToDefinition: {
 				label: "Go to definition",
-				description: "Click a symbol in the editor to jump to its definition",
+				description:
+					"Jump to the definition of the clicked symbol, or of the one under the cursor",
 			},
 			findReferences: {
 				label: "Find references",
 				description:
-					"Click a symbol in the editor to list its definitions, implementations and usages",
+					"List the definitions, implementations and usages of the clicked symbol, or of the one under the cursor",
 			},
 			renameSymbol: {
 				label: "Rename symbol",
@@ -966,6 +973,7 @@ export const en = {
 		closeSplit: "Close the split view",
 		emptyHint: "No terminal open for this instance. Open one to run commands.",
 		noInstance: "No active instance",
+		openLinkHint: (key: string) => `${key}+click to open`,
 	},
 
 	integrations: {
@@ -1770,6 +1778,54 @@ export const en = {
 		graphSortDateAsc: "Date (oldest first)",
 		graphSortName: "Name",
 		graphNoResults: "No results match your search.",
+		graphLoadFailed: "The next commits could not be loaded.",
+		graphLoadRetry: "Retry",
+		branchList: {
+			local: "Local",
+			remote: "Remote",
+			none: "No branch",
+			current: "current",
+			isCurrent: "The branch checked out here cannot be renamed or deleted",
+			usedByInstance: (id: string) =>
+				`Used by the instance ${id}: rename or delete it from there`,
+			rename: "Rename branch",
+			renameFrom: "Renaming",
+			newName: "New name",
+			renameHint:
+				"The upstream keeps the old name: push the branch again to publish it under the new one.",
+			renameAction: "Rename",
+			delete: "Delete branch",
+			deleteOnRemote: "Delete on the remote",
+			deleteLocal: "Delete the local branch",
+			deleteLocalDesc: "Removes the branch from this repository",
+			force: "Even if it is not merged",
+			forceDesc: "Its commits are no longer on any branch afterwards",
+			deleteOn: (remote: string) => `Delete on ${remote}`,
+			deleteOnDesc: "Removes the published branch for everyone",
+			notMerged:
+				"This branch has commits that are not merged anywhere. Turn on the force option to delete it anyway.",
+			chipMenuLabel: "Branch actions",
+		},
+		remotes: {
+			title: "Remotes",
+			none: "No remote",
+			add: "Add remote",
+			edit: "Edit remote",
+			remove: "Remove remote",
+			removeConfirm:
+				"The remote and its remote-tracking branches are removed from this repository. Nothing changes on the server.",
+			name: "Name",
+			url: "URL",
+			push: "push:",
+		},
+		commitCard: {
+			author: "Author",
+			authored: "Date",
+			committer: "Committer",
+			committed: "Committed",
+			hash: "Hash",
+		},
+		resizeColumns: "Resize the columns",
 		createInstanceFromBranch: "Create an instance from this branch",
 		commitDiffEmpty: "This commit has no file changes.",
 		stashTab: "Stash",
@@ -1799,6 +1855,11 @@ export const en = {
 		tagDelete: "Delete tag",
 		tagPush: "Push",
 		tagPushTitle: "Push this tag to the remote",
+		tagOnRemoteTitle: "Already on origin",
+		tagLocalOnly: "local",
+		tagLocalOnlyTitle: "Not pushed: origin does not have this tag",
+		tagPushOnCreate: "Push to origin right away",
+		tagPushOnCreateDesc: "Publishes the tag as soon as it is created",
 		tagEmpty: "No tag yet",
 		tagNoResults: "No tag matches the search",
 		tagSearchPlaceholder: "Search tags...",
@@ -1875,6 +1936,13 @@ export const en = {
 			"reset-hard": "Reset here (hard)",
 			revert: "Revert this commit",
 			"cherry-pick": "Cherry-pick",
+			rebase: "Rebase current branch here",
+		},
+		rebaseOntoCommit: {
+			title: (branch: string) => `Rebase ${branch} onto this commit`,
+			confirm:
+				"The commits of the current branch are replayed on top of this commit, which rewrites them. A branch that was already pushed will need a force push. On a conflict, the rebase stops and the resolver opens.",
+			action: "Rebase",
 		},
 		commitMenuUnavailable: "unavailable",
 		pullMoreActions: "More pull options",

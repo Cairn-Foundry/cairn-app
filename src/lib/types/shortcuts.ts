@@ -107,8 +107,6 @@ export interface ShortcutDef {
 	default: ShortcutBinding | null;
 	/** Bound to a mouse click rather than a key: recorded and matched on a click. */
 	mouse?: boolean;
-	/** Kept out of the command palette. */
-	hidden?: boolean;
 }
 
 /** A user override of a ShortcutDef; a null binding means the command has been unbound. */

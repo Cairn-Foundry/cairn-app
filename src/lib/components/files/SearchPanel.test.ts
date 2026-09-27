@@ -35,14 +35,16 @@ function match(
 function mount(props: Record<string, unknown> = {}) {
 	const onOpen = vi.fn();
 	const onClose = vi.fn();
+	const onResults = vi.fn();
 	const result = render(SearchPanel, {
 		worktreePath: "/repo",
 		hidden: false,
 		onOpen,
 		onClose,
+		onResults,
 		...props,
 	});
-	return { ...result, onOpen, onClose };
+	return { ...result, onOpen, onClose, onResults };
 }
 
 const queryField = () =>
@@ -125,6 +127,20 @@ describe("SearchPanel", () => {
 			mount();
 			await search("nothing");
 			expect(document.querySelector(".summary-text.dimmed")).not.toBeNull();
+		});
+
+		/** The editor's minimap paints these, so every hit is handed up as it lands. */
+		it("reports the hits it found, then clears them when it closes", async () => {
+			searchInFiles.mockResolvedValue([match("a.ts", 3), match("b.ts", 7)]);
+			const { onResults, rerender } = mount();
+			await search("value");
+			expect(onResults).toHaveBeenLastCalledWith([
+				expect.objectContaining({ path: "a.ts", line: 3 }),
+				expect.objectContaining({ path: "b.ts", line: 7 }),
+			]);
+			await rerender({ worktreePath: "/repo", hidden: true });
+			await tick();
+			expect(onResults).toHaveBeenLastCalledWith([]);
 		});
 
 		/** A slow answer for a query the user has moved past must not land. */

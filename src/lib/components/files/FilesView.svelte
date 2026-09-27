@@ -41,7 +41,7 @@ import { get } from 'svelte/store';
   import { Text } from '@codemirror/state';
   import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
   import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
-  import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry } from '$lib/services/file-service';
+  import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry, type SearchMatch } from '$lib/services/file-service';
   import { onFsChanged, unwatchWorktree, watchDirs } from '$lib/services/fs-watch-service';
   import SaveConflict from './SaveConflict.svelte';
   import { mirrorDoc } from '$lib/utils/files/files-doc-mirror';
@@ -111,7 +111,7 @@ import { get } from 'svelte/store';
     findDropTargetDir,
   } from '$lib/utils/files/files-drag-ghost';
   import { tabsToEvict } from '$lib/utils/files/files-tab-cap';
-  import { EDITOR_JUMP_DELAY_MS } from '$lib/utils/timing';
+  import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '$lib/utils/timing';
   import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '$lib/utils/editor/editor-config';
   import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
 
@@ -159,11 +159,27 @@ import { get } from 'svelte/store';
   }
 
   let panes: PaneState[] = [makePane(), makePane()];
+  /**
+   * The pane objects are replaced wholesale whenever a scope is restored, and a
+   * `bind:` into a replaced object does not fire again for the child that is
+   * reused: the new pane would hold `undefined` for the rest of the session, and
+   * every editorRef call site (jump, cursor capture, LSP, format) would silently
+   * do nothing. Binding into these stable arrays instead keeps the refs across
+   * the swap; the reactive block below mirrors them back onto the panes.
+   */
+  let editorRefs: (CodeEditor | undefined)[] = [undefined, undefined];
+  let paneRootEls: (HTMLElement | null)[] = [null, null];
+  let paneTabsBarEls: (HTMLElement | null)[] = [null, null];
+  $: for (let i = 0; i < panes.length; i++) {
+    panes[i].editorRef = editorRefs[i];
+    panes[i].rootEl = paneRootEls[i];
+    panes[i].tabsBarEl = paneTabsBarEls[i];
+  }
   /** Bumped whenever a binary tab (image, PDF) must re-read its file from disk without remounting. */
   let binaryReloadToken = 0;
   let cursorLines: number[] = [1, 1];
   let cursorCols: number[] = [1, 1];
-  let pendingJumps: ({ line: number; col: number; anchor?: string | null } | null)[] = [null, null];
+  let pendingJumps: ({ line: number; col: number; anchor?: string | null; path: string } | null)[] = [null, null];
 
   /** Records a file in the recents and persists the editor state along with it. */
   function pushRecentFile(path: string) {
@@ -1282,6 +1298,25 @@ import { get } from 'svelte/store';
 
   $: searchPanelOpen = $activeProjectId ? (searchPanelByProject.get($activeProjectId) ?? false) : false;
 
+  /** The workspace search hits per file, as 1-based line numbers, for the minimap. */
+  const NO_SEARCH_LINES: number[] = [];
+  let globalSearchLines = new Map<string, number[]>();
+  function handleSearchResults(matches: SearchMatch[]): void {
+    const byPath = new Map<string, number[]>();
+    for (const match of matches) {
+      const lines = byPath.get(match.path);
+      if (lines) {
+        if (lines[lines.length - 1] !== match.line) lines.push(match.line);
+      } else {
+        byPath.set(match.path, [match.line]);
+      }
+    }
+    globalSearchLines = byPath;
+  }
+  $: activeSearchLines = panes.map(
+    (p) => globalSearchLines.get(p.tabs[p.activeTabIdx]?.path ?? '') ?? NO_SEARCH_LINES,
+  );
+
   function toggleSearchPanel() {
     const id = $activeProjectId;
     if (!id) return;
@@ -1576,6 +1611,8 @@ import { get } from 'svelte/store';
       case 'fontSizeDown':      bumpFontSize(-1); break;
       case 'fontSizeReset':     resetFontSize(); break;
       case 'commandPalette':    commandPaletteVisible.set(true); break;
+      case 'goToDefinition':    await runGoToDefinition(); break;
+      case 'findReferences':    await runFindReferences(); break;
       case 'renameSymbol':      startRenameSymbol(); break;
       case 'formatDocument':    await runFormatDocument(); break;
       case 'reloadEditor':      await reloadOpenFiles(); break;
@@ -2660,28 +2697,48 @@ import { get } from 'svelte/store';
   export async function openFileAtLine(path: string, line: number, col = 1) {
     const node = { path, name: basename(path), isDir: false };
     const targetPane = splitMode && focusedPane === 1 ? 1 : 0;
-    pendingJumps[targetPane] = { line, col };
+    pendingJumps[targetPane] = { line, col, path };
     if (targetPane === 1) await openFileInPane(1, node);
     else await openFile(node);
   }
 
   $: for (let i = 0; i < panes.length; i++) {
-    if (activeTabs[i] && pendingJumps[i]) {
-      const idx = i;
-      const jump = pendingJumps[i]!;
+    const jump = pendingJumps[i];
+    if (jump && activeTabs[i]?.path === jump.path) {
       pendingJumps[i] = null;
+      scheduleJump(i, jump);
+    }
+  }
+
+  /**
+   * Applies a queued jump once the editor is actually showing the target document.
+   * A fixed delay was the old gate, and it landed on line 1 whenever a cold read
+   * of a large file took longer than it; the editor view refusing the jump until
+   * its document is the target is the gate now, retried while the tab is read.
+   */
+  function scheduleJump(
+    idx: number,
+    jump: { line: number; col: number; anchor?: string | null; path: string },
+  ) {
+    const deadline = Date.now() + EDITOR_JUMP_READY_TIMEOUT_MS;
+    const attempt = () => {
+      const pane = panes[idx];
+      // The tab moved on: a newer navigation superseded this jump.
+      if (!pane || pane.tabs[pane.activeTabIdx]?.path !== jump.path) return;
       // An anchor only resolves once the target file content is loaded.
       const line = jump.anchor
         ? findHeadingLine(activeTabs[idx]?.savedDoc.toString() ?? '', jump.anchor) ?? jump.line
         : jump.line;
-      setTimeout(() => panes[idx].editorRef?.jumpTo(line, jump.col), EDITOR_JUMP_DELAY_MS);
-    }
+      if (pane.editorRef?.jumpTo(line, jump.col, jump.path)) return;
+      if (Date.now() < deadline) setTimeout(attempt, EDITOR_JUMP_RETRY_MS);
+    };
+    attempt();
   }
 
   // Shift-click on a markdown link pointing at another file of the project.
   async function openMarkdownLink(paneIndex: number, path: string, anchor: string | null) {
     const node = { path, name: basename(path), isDir: false };
-    if (anchor) pendingJumps[paneIndex] = { line: 1, col: 1, anchor };
+    if (anchor) pendingJumps[paneIndex] = { line: 1, col: 1, anchor, path };
     if (paneIndex === 1) await openFileInPane(1, node);
     else await openFile(node);
   }
@@ -2920,6 +2977,7 @@ import { get } from 'svelte/store';
     hidden={!searchPanelOpen}
     onOpen={openFileAtLine}
     onClose={closeSearchPanel}
+    onResults={handleSearchResults}
   />
 
   <ReferencesPanel
@@ -2963,9 +3021,9 @@ import { get } from 'svelte/store';
           paneClass={(splitMode && focusedPane === i) ? 'pane-focused' : ''}
           dropHint={paneDropHints[i]}
           paneStyle={i === 0 && splitMode && splitLeftWidth > 0 ? `width: ${splitLeftWidth}px; flex: none` : 'flex: 1'}
-          bind:rootEl={pane.rootEl}
-          bind:tabsBarEl={pane.tabsBarEl}
-          bind:editorRef={pane.editorRef}
+          bind:rootEl={paneRootEls[i]}
+          bind:tabsBarEl={paneTabsBarEls[i]}
+          bind:editorRef={editorRefs[i]}
           tabs={pane.tabs}
           activeTabIdx={pane.activeTabIdx}
           activeTab={activeTabs[i]}
@@ -2993,6 +3051,7 @@ import { get } from 'svelte/store';
           treeFilePaths={treeFilePaths}
           worktreePath={worktreePath}
           binaryReloadToken={binaryReloadToken}
+          searchLines={activeSearchLines[i]}
           placeholderText={t('files.selectFileToEdit') as string}
           showRecentFiles={true}
           onPaneFocus={() => { focusedPane = i as 0 | 1; }}

@@ -198,13 +198,12 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "editor",
 		default: {
 			key: MOUSE_KEY,
-			mod: false,
-			shift: true,
+			mod: true,
+			shift: false,
 			alt: false,
 			ctrl: false,
 		},
 		mouse: true,
-		hidden: true,
 	},
 	{
 		id: "findReferences",
@@ -212,13 +211,12 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 		group: "editor",
 		default: {
 			key: MOUSE_KEY,
-			mod: false,
+			mod: true,
 			shift: true,
 			alt: false,
-			ctrl: true,
+			ctrl: false,
 		},
 		mouse: true,
-		hidden: true,
 	},
 	{
 		id: "renameSymbol",

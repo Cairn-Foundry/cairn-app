@@ -34,6 +34,7 @@
       items: [
         { action: 'cherry-pick', icon: 'git' },
         { action: 'revert', icon: 'undo' },
+        { action: 'rebase', icon: 'upload' },
       ],
     },
     {

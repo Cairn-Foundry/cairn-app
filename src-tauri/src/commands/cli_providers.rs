@@ -569,18 +569,18 @@ fn antigravity_conversation(cwd: &str, started_after: i64) -> Option<String> {
         })
 }
 
-/// The process group id of `pid`, read from field 5 of `/proc/<pid>/stat`.
+/// The process group id of `pid`, or `None` when no such process exists.
 ///
-/// The stat line is `pid (comm) state ppid pgrp ...`. `comm` is a parenthesised
-/// name that may itself contain spaces and parentheses, so the fields after it
-/// are counted from the last `)` rather than by splitting the whole line - a
-/// process named `sh )( ` would otherwise shift every field that follows.
+/// Asked of the kernel through `getpgid` rather than read from
+/// `/proc/<pid>/stat`: macOS has no `/proc`, so the file read answered `None`
+/// for every pid there and the group signal was never sent.
 #[cfg(not(target_os = "windows"))]
 fn process_group_of(pid: u32) -> Option<u32> {
-    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-    let after_comm = stat.rsplit_once(')')?.1;
-    // Fields after `comm`: state (index 0), ppid (1), pgrp (2).
-    after_comm.split_whitespace().nth(2)?.parse().ok()
+    let pid = libc::pid_t::try_from(pid).ok()?;
+    // SAFETY: getpgid only reads the pid it is given and reports a missing
+    // process through its return value.
+    let pgid = unsafe { libc::getpgid(pid) };
+    u32::try_from(pgid).ok()
 }
 
 /// Send SIGTERM to the process group led by `pid`, but only when `pid` is still
@@ -589,8 +589,8 @@ fn process_group_of(pid: u32) -> Option<u32> {
 /// A negative-pid `kill` signals a whole process group, which is how a CLI and
 /// everything it spawned are taken down at once. It is only safe when `pid` is
 /// the group leader we launched: a process spawned with `process_group(0)` has
-/// `pgrp == pid`, and that equality is what this checks. If `/proc/<pid>` is
-/// gone the process already exited and its pid - and pgid - are free for the
+/// `pgrp == pid`, and that equality is what this checks. If no process has
+/// that pid any more, it already exited and its pid - and pgid - are free for the
 /// kernel to hand to a stranger; if `pgrp != pid` the pid has been recycled onto
 /// a process that leads no group of ours, or leads someone else's. Either way
 /// the group signal is withheld, so a recycled pid can never carry `kill -TERM

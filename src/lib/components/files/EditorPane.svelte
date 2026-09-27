@@ -73,6 +73,8 @@
   export let formatting = false;
   export let worktreePath: string | null = null;
   export let binaryReloadToken = 0;
+  /** 1-based lines of the workspace search hits in the active file, for the minimap. */
+  export let searchLines: number[] = [];
 
   let svgPreview = true;
   let showLineHistory = false;
@@ -277,6 +279,7 @@
             onChange={onChange}
             onBlur={onBlur}
             onCursorChange={onCursorChange}
+            {searchLines}
           />
       {#if activeTab && isSvgTab && svgPreview}
         <div class="editor-preview-overlay">

@@ -32,6 +32,7 @@
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
   import { withViewTransition } from '$lib/utils/view-transition';
+  import { setFileLinkTarget } from '$lib/utils/terminal/terminal-manager';
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
   import { matchesSearch } from '$lib/utils/files/files-search';
@@ -379,6 +380,18 @@
 
   let stopGitPolling: (() => void) | null = null;
   onMount(() => { stopGitPolling = startGitPolling(); });
+
+  onMount(() => {
+    setFileLinkTarget({
+      worktree: () => activeInstance?.worktreePath ?? null,
+      open: async (path, line, col) => {
+        openStep('files');
+        await tick();
+        filesView?.openFileAtLine(path, line, col);
+      },
+    });
+    return () => setFileLinkTarget(null);
+  });
 
   /* The workflow views are code-split, so the first Cmd+3 used to pay for an
      import. Fetching the chunks once the workspace is painted makes every

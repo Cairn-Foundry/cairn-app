@@ -424,7 +424,7 @@ mod kill_tests {
     fn a_group_signal_is_withheld_unless_the_pid_leads_its_own_group() {
         use crate::commands::cli_providers::kill_process_group;
 
-        // A pid that does not exist: /proc/<pid> is gone, so no signal.
+        // A pid that does not exist: it has no group, so no signal.
         assert!(!kill_process_group(u32::MAX - 1));
 
         // The test runner itself: launched by cargo, it is not the leader of
@@ -432,7 +432,7 @@ mod kill_tests {
         assert!(!kill_process_group(std::process::id()));
 
         // A child spawned with process_group(0) IS its own group leader, so the
-        // guard lets the signal through. `sleep` gives /proc time to be read.
+        // guard lets the signal through. `sleep` keeps it alive while it is checked.
         let mut child = spawn_shell_full("sleep 5", None, true).expect("spawn");
         assert!(kill_process_group(child.id()));
         let _ = child.kill();

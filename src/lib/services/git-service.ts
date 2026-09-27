@@ -452,12 +452,38 @@ export async function createBranch(
 	return invoke("git_create_branch", { worktreePath, branchName, fromBranch });
 }
 
-/** Deletes a branch; an unmerged one comes back as `branch_not_merged`. */
+/**
+ * Deletes a local branch; without `force` an unmerged one comes back as
+ * `branch_not_merged`.
+ */
 export async function deleteBranch(
 	worktreePath: string,
 	branchName: string,
+	force: boolean,
 ): Promise<void> {
-	return invoke("git_delete_branch", { worktreePath, branchName });
+	return invoke("git_delete_branch", { worktreePath, branchName, force });
+}
+
+/** Deletes a branch on the remote, leaving the local one alone. */
+export async function deleteRemoteBranch(
+	worktreePath: string,
+	remote: string,
+	branchName: string,
+): Promise<void> {
+	return invoke("git_delete_remote_branch", {
+		worktreePath,
+		remote,
+		branchName,
+	});
+}
+
+/** Renames a local branch. */
+export async function renameBranch(
+	worktreePath: string,
+	oldName: string,
+	newName: string,
+): Promise<void> {
+	return invoke("git_rename_branch", { worktreePath, oldName, newName });
 }
 
 /** Pushes and answers with git's own output; `force` is a lease-less force. */
@@ -596,6 +622,53 @@ export async function getRemoteUrl(worktreePath: string): Promise<string> {
 	return invoke("git_remote_url", { worktreePath });
 }
 
+/** A configured remote; the push URL differs from the fetch one only when set apart. */
+export type GitRemote = {
+	name: string;
+	fetchUrl: string;
+	pushUrl: string;
+};
+
+/** Every configured remote. */
+export async function listRemotes(worktreePath: string): Promise<GitRemote[]> {
+	return invoke("git_remote_list", { worktreePath });
+}
+
+/** Adds a remote without fetching it. */
+export async function addRemote(
+	worktreePath: string,
+	name: string,
+	url: string,
+): Promise<void> {
+	return invoke("git_remote_add", { worktreePath, name, url });
+}
+
+/** Renames a remote, its remote-tracking branches with it. */
+export async function renameRemote(
+	worktreePath: string,
+	oldName: string,
+	newName: string,
+): Promise<void> {
+	return invoke("git_remote_rename", { worktreePath, oldName, newName });
+}
+
+/** Points a remote at another URL. */
+export async function setRemoteUrl(
+	worktreePath: string,
+	name: string,
+	url: string,
+): Promise<void> {
+	return invoke("git_remote_set_url", { worktreePath, name, url });
+}
+
+/** Removes a remote locally; the server is left alone. */
+export async function removeRemote(
+	worktreePath: string,
+	name: string,
+): Promise<void> {
+	return invoke("git_remote_remove", { worktreePath, name });
+}
+
 /** Divergence against a base; `baseRef` is the ref actually resolved for it. */
 export type BranchDivergence = {
 	ahead: number;
@@ -634,7 +707,10 @@ export type GitGraphCommit = {
 	shortHash: string;
 	message: string;
 	author: string;
+	authorEmail: string;
 	date: string;
+	committer: string;
+	committerDate: string;
 	parents: string[];
 	refs: string[];
 };
@@ -646,6 +722,13 @@ export async function getGraph(
 	offset = 0,
 ): Promise<GitGraphCommit[]> {
 	return invoke("git_graph", { worktreePath, limit, offset });
+}
+
+/** Every stash as a graph commit, its only parent the commit it was taken on. */
+export async function getGraphStashes(
+	worktreePath: string,
+): Promise<GitGraphCommit[]> {
+	return invoke("git_graph_stashes", { worktreePath });
 }
 
 /** What a commit changed, against its first parent. */
@@ -767,7 +850,8 @@ export type CommitAction =
 	| "reset-mixed"
 	| "reset-hard"
 	| "revert"
-	| "cherry-pick";
+	| "cherry-pick"
+	| "rebase";
 
 /** Reset modes, from the one that keeps the most work to the one that keeps none. */
 export type ResetMode = "soft" | "mixed" | "hard";
@@ -848,4 +932,12 @@ export async function tagDeleteRemote(
 	name: string,
 ): Promise<void> {
 	return invoke("git_tag_delete_remote", { worktreePath, remote, name });
+}
+
+/** Names of the tags the remote holds; asks the remote, so it needs the network. */
+export async function tagRemoteList(
+	worktreePath: string,
+	remote: string,
+): Promise<string[]> {
+	return invoke("git_tag_remote_list", { worktreePath, remote });
 }

@@ -20,7 +20,10 @@ function commit(
 		shortHash: hash.slice(0, 7),
 		message: `commit ${hash}`,
 		author: "someone",
+		authorEmail: "someone@example.com",
 		date: new Date().toISOString(),
+		committer: "someone",
+		committerDate: new Date().toISOString(),
 		parents,
 		refs: [],
 		...overrides,
@@ -30,6 +33,8 @@ function commit(
 function mount(props: Record<string, unknown> = {}) {
 	const events = {
 		selectCommit: vi.fn(),
+		selectStash: vi.fn(),
+		branchAction: vi.fn(),
 		switchInstance: vi.fn(),
 		createInstanceFromRef: vi.fn(),
 		loadMore: vi.fn(),
@@ -508,30 +513,94 @@ describe("GraphView", () => {
 			expect(loadMore).not.toHaveBeenCalled();
 		});
 
+		/** Measures the scroller as a real layout would: a panel `panel` tall holding `content`. */
+		function laidOut(panel: number, content: number) {
+			const proto = HTMLElement.prototype;
+			const saved = {
+				clientHeight: Object.getOwnPropertyDescriptor(proto, "clientHeight"),
+				scrollHeight: Object.getOwnPropertyDescriptor(proto, "scrollHeight"),
+			};
+			Object.defineProperty(proto, "clientHeight", {
+				get: () => panel,
+				configurable: true,
+			});
+			Object.defineProperty(proto, "scrollHeight", {
+				get: () => content,
+				configurable: true,
+			});
+			return () => {
+				for (const [key, desc] of Object.entries(saved)) {
+					if (desc) Object.defineProperty(proto, key, desc);
+					else delete (proto as unknown as Record<string, unknown>)[key];
+				}
+			};
+		}
+
+		/** Nothing to scroll means no scroll event: the list must fill the panel on its own. */
+		it("tops the list up while it does not fill the panel", async () => {
+			const restore = laidOut(900, 400);
+			try {
+				const { loadMore } = mount({ commits: [commit("a")], hasMore: true });
+				await tick();
+				await tick();
+				expect(loadMore).toHaveBeenCalledTimes(1);
+			} finally {
+				restore();
+			}
+		});
+
+		it("waits for a scroll once the list overflows the panel", async () => {
+			const restore = laidOut(400, 3000);
+			try {
+				const { loadMore } = mount({ commits: [commit("a")], hasMore: true });
+				await tick();
+				await tick();
+				expect(loadMore).not.toHaveBeenCalled();
+			} finally {
+				restore();
+			}
+		});
+
 		/** One request at a time: scrolling further must not stack pages. */
-		it("does not ask twice while a page is still coming", () => {
+		it("asks for nothing while a page is still coming", () => {
 			const { loadMore } = mount({
 				commits: [commit("a")],
 				hasMore: true,
+				paging: "loading",
 			});
 			scrollNearBottom(scroller());
-			scrollNearBottom(scroller());
-			expect(loadMore).toHaveBeenCalledTimes(1);
+			expect(loadMore).not.toHaveBeenCalled();
 		});
 
-		it("asks again once the new commits arrived", async () => {
+		it("asks again once the page arrived", async () => {
 			const { loadMore, rerender } = mount({
 				commits: [commit("a")],
 				hasMore: true,
+				paging: "loading",
 			});
-			scrollNearBottom(scroller());
 			await rerender({
 				commits: [commit("a"), commit("b")],
 				currentBranch: "main",
 				hasMore: true,
+				paging: "idle",
 			});
 			scrollNearBottom(scroller());
-			expect(loadMore).toHaveBeenCalledTimes(2);
+			expect(loadMore).toHaveBeenCalledTimes(1);
+		});
+
+		/** A failed page must not spin forever: it says so and offers a retry. */
+		it("offers a retry instead of a spinner when a page failed", async () => {
+			const { loadMore } = mount({
+				commits: [commit("a")],
+				hasMore: true,
+				paging: "failed",
+			});
+			scrollNearBottom(scroller());
+			expect(loadMore).not.toHaveBeenCalled();
+			await userEvent.click(
+				document.querySelector(".graph-retry-btn") as HTMLElement,
+			);
+			expect(loadMore).toHaveBeenCalledTimes(1);
 		});
 
 		/**
@@ -567,6 +636,141 @@ describe("GraphView", () => {
 			);
 			expect(refresh).toHaveBeenCalled();
 		});
+	});
+});
+
+describe("stashes", () => {
+	const stash = commit("s0", ["b"], {
+		refs: ["stash@{0}"],
+		message: "WIP on main: b",
+	});
+
+	it("draws a stash above the commit it was taken on, with its own chip", () => {
+		mount({
+			commits: [commit("c", ["b"]), commit("b")],
+			stashes: [stash],
+		});
+		expect(messages()).toEqual(["commit c", "WIP on main: b", "commit b"]);
+		expect(chipsOf(1)[0].classList.contains("chip-stash")).toBe(true);
+	});
+
+	it("opens the stash rather than selecting a commit", async () => {
+		const { selectCommit, selectStash } = mount({
+			commits: [commit("b")],
+			stashes: [stash],
+		});
+		await userEvent.click(rows()[0]);
+		expect(selectStash).toHaveBeenCalledWith(0);
+		expect(selectCommit).not.toHaveBeenCalled();
+	});
+
+	it("offers no commit menu on a stash", async () => {
+		mount({ commits: [commit("b")], stashes: [stash] });
+		rows()[0].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+		await tick();
+		expect(document.querySelector(".commit-menu")).toBeNull();
+	});
+});
+
+describe("the branch chip menu", () => {
+	const rightClick = (el: HTMLElement) =>
+		el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+	const menuItems = () =>
+		Array.from(document.querySelectorAll<HTMLElement>(".chip-menu button"));
+
+	it("offers rename and delete on a local branch, not the commit menu", async () => {
+		const { branchAction } = mount({
+			commits: [commit("a", [], { refs: ["feat/x"] })],
+			localBranches: ["feat/x"],
+		});
+		rightClick(chipsOf(0)[0]);
+		await tick();
+		expect(document.querySelector(".commit-menu")).toBeNull();
+		expect(menuItems()).toHaveLength(2);
+		await userEvent.click(menuItems()[1]);
+		expect(branchAction).toHaveBeenCalledWith({
+			action: "delete",
+			branch: "feat/x",
+		});
+	});
+
+	/** A remote-tracking ref has no local name to change. */
+	it("offers only the remote deletion on a remote branch", async () => {
+		const { branchAction } = mount({
+			commits: [commit("a", [], { refs: ["origin/feat/y"] })],
+		});
+		rightClick(chipsOf(0)[0]);
+		await tick();
+		expect(menuItems()).toHaveLength(1);
+		await userEvent.click(menuItems()[0]);
+		expect(branchAction).toHaveBeenCalledWith({
+			action: "delete",
+			branch: "origin/feat/y",
+		});
+	});
+
+	it("leaves the click on a chip as it was", async () => {
+		const { branchAction, createInstanceFromRef } = mount({
+			commits: [commit("a", [], { refs: ["feat/x"] })],
+			localBranches: ["feat/x"],
+		});
+		await userEvent.click(chipsOf(0)[0]);
+		expect(createInstanceFromRef).toHaveBeenCalledWith("feat/x");
+		expect(branchAction).not.toHaveBeenCalled();
+	});
+});
+
+describe("the hover card", () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	const card = () => document.querySelector(".commit-card");
+
+	async function hover(row: HTMLElement) {
+		row.dispatchEvent(new MouseEvent("mouseenter", { clientX: 10 }));
+		await vi.advanceTimersByTimeAsync(500);
+		await tick();
+	}
+
+	/** The row truncates the subject; the card is where it can be read whole. */
+	it("shows the full subject, the body, the author and the full hash", async () => {
+		const long = "feat: a subject far too long to fit in the row of the graph";
+		const fetchBody = vi.fn().mockResolvedValue("The body of the commit.");
+		mount({
+			commits: [commit("abcdef1234567890", [], { message: long })],
+			fetchBody,
+		});
+		await hover(rows()[0]);
+		expect(card()?.textContent).toContain(long);
+		expect(card()?.textContent).toContain("The body of the commit.");
+		expect(card()?.textContent).toContain("someone@example.com");
+		expect(card()?.textContent).toContain("abcdef1234567890");
+		expect(fetchBody).toHaveBeenCalledWith("abcdef1234567890");
+	});
+
+	it("waits before showing, and leaves with the pointer", async () => {
+		mount({ commits: [commit("a")] });
+		rows()[0].dispatchEvent(new MouseEvent("mouseenter"));
+		await tick();
+		expect(card()).toBeNull();
+		await vi.advanceTimersByTimeAsync(500);
+		await tick();
+		expect(card()).not.toBeNull();
+		rows()[0].dispatchEvent(new MouseEvent("mouseleave"));
+		await tick();
+		expect(card()).toBeNull();
+	});
+
+	it("names the committer only when it differs from the author", async () => {
+		mount({
+			commits: [commit("a", [], { committer: "a maintainer" })],
+		});
+		await hover(rows()[0]);
+		expect(card()?.textContent).toContain("a maintainer");
 	});
 });
 

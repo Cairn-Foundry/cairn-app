@@ -20,6 +20,7 @@
   import CommitMenu, { commitMenuPosition } from '$lib/components/git/CommitMenu.svelte';
   import StashView from '$lib/components/git/StashView.svelte';
   import TagView from '$lib/components/git/TagView.svelte';
+  import BranchView, { type BranchRequest } from '$lib/components/git/BranchView.svelte';
   import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
   import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
   import GitignoreView from '$lib/components/git/GitignoreView.svelte';
@@ -29,6 +30,7 @@
   import { describeGitError } from '$lib/utils/git/git-error';
   import type { GitErrorAction } from '$lib/utils/git/git-error';
   import { t } from '$lib/i18n';
+  import { relativeTime } from '$lib/utils/format';
   import {
     git,
     refreshStatus,
@@ -58,6 +60,7 @@
     revertCommit,
     cherryPickCommits,
     resetToCommit,
+    rebaseOnto,
     createBranch,
     createTag,
     clearGitError,
@@ -73,7 +76,7 @@
   import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
   import { activateInstance } from '$lib/stores/project';
   import { settings } from '$lib/stores/settings';
-  import { activeStep, pendingGitAction, gitLeftTab } from '$lib/stores/ui';
+  import { activeStep, pendingGitAction, gitLeftTab, type GitLeftTab } from '$lib/stores/ui';
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
@@ -418,6 +421,11 @@
     }
   }
 
+  function fetchGraphCommitBody(hash: string): Promise<string> {
+    const path = instance?.worktreePath;
+    return path ? getCommitBody(path, hash) : Promise.resolve('');
+  }
+
   /** Toggles the commit detail, remembering the selection per worktree. */
   async function selectCommit(commit: SelectedCommitInfo) {
     if (!instance?.worktreePath) return;
@@ -445,12 +453,17 @@
   type MenuCommit = Pick<GitGraphCommit, 'hash' | 'shortHash' | 'message'>;
   let refPrompt: { kind: 'branch' | 'tag'; commit: MenuCommit } | null = null;
   let refName = '';
+  let refPush = false;
   let refError = '';
   let isCreatingRef = false;
 
   /** Set while a reset onto a graph commit waits for confirmation; every mode goes through it. */
   let pendingReset: { commit: MenuCommit; mode: ResetMode } | null = null;
   let isResetting = false;
+
+  /** Set while a rebase of the current branch onto a picked commit waits for confirmation. */
+  let pendingRebase: MenuCommit | null = null;
+  let isRebasing = false;
 
   async function handleCommitAction(
     e: CustomEvent<{ action: CommitAction; commit: GitGraphCommit }>,
@@ -470,6 +483,7 @@
       case 'tag-from':
         refPrompt = { kind: action === 'branch-from' ? 'branch' : 'tag', commit };
         refName = '';
+        refPush = false;
         refError = '';
         return;
       case 'reset-soft':
@@ -489,6 +503,27 @@
         await doCherryPick(commit.hash);
         dispatch('filesChanged');
         return;
+      case 'rebase':
+        pendingRebase = commit;
+        return;
+    }
+  }
+
+  /**
+   * A conflict stops the rebase half-way, like a cherry-pick: the shared
+   * merge/rebase resolver takes over from there.
+   */
+  async function runRebase(commit: MenuCommit) {
+    isRebasing = true;
+    try {
+      const result = await rebaseOnto(commit.hash);
+      if (result?.hasConflicts) gitLeftTab.set('mergerebase');
+      dispatch('filesChanged');
+    } catch {
+      // The failure reaches the error banner through the store.
+    } finally {
+      isRebasing = false;
+      pendingRebase = null;
     }
   }
 
@@ -511,7 +546,7 @@
       if (refPrompt.kind === 'branch') {
         await createBranch(refName.trim(), refPrompt.commit.hash);
       } else {
-        await createTag(refName.trim(), '', refPrompt.commit.hash);
+        await createTag(refName.trim(), '', refPrompt.commit.hash, refPush);
       }
       refPrompt = null;
       await refreshGraph();
@@ -774,26 +809,78 @@
   }
 
   /** Switches the left tab, refreshing the data that tab owns and dropping stale selections. */
-  function setLeftTab(tab: 'changes' | 'log' | 'graph' | 'stash' | 'tag' | 'mergerebase' | 'gitignore') {
+  /* --- Column split ---------------------------------------------------- */
+
+  const MIN_COL_W = 260;
+  let layoutEl: HTMLElement;
+  let splitRatio = 0.5;
+  let isSplitResizing = false;
+  $: if (!isSplitResizing) splitRatio = $settings.gitSplitRatio;
+
+  function clampRatio(ratio: number): number {
+    const width = layoutEl?.getBoundingClientRect().width ?? 0;
+    const min = width > MIN_COL_W * 2 ? MIN_COL_W / width : 0.5;
+    return Math.max(min, Math.min(1 - min, ratio));
+  }
+
+  function startSplitResize(e: PointerEvent) {
+    isSplitResizing = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  function onSplitResizeMove(e: PointerEvent) {
+    if (!isSplitResizing || !layoutEl) return;
+    const rect = layoutEl.getBoundingClientRect();
+    splitRatio = clampRatio((e.clientX - rect.left) / rect.width);
+  }
+
+  function stopSplitResize() {
+    if (!isSplitResizing) return;
+    isSplitResizing = false;
+    saveSplitRatio(splitRatio);
+  }
+
+  function saveSplitRatio(ratio: number) {
+    splitRatio = ratio;
+    settings.save({ gitSplitRatio: Math.round(ratio * 1000) / 1000 });
+  }
+
+  function onSplitKeydown(e: KeyboardEvent) {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    if (e.key === 'ArrowLeft') saveSplitRatio(clampRatio(splitRatio - step));
+    else if (e.key === 'ArrowRight') saveSplitRatio(clampRatio(splitRatio + step));
+    else if (e.key === 'Home' || e.key === 'Enter') saveSplitRatio(0.5);
+    else return;
+    e.preventDefault();
+  }
+
+  /** Stashes live in their own tab, which knows how to show and apply one. */
+  async function openStashFromGraph(index: number) {
+    gitLeftTab.set('stash');
+    clearSelectedCommit();
+    await refreshStashes();
+    const stash = $git.stashes.find(s => s.index === index);
+    if (stash) await handleSelectStash(stash);
+  }
+
+  /** A rename or a delete asked for from a graph chip, handed to the branch list to open. */
+  let branchRequest: BranchRequest | null = null;
+
+  function openBranchAction(request: BranchRequest) {
+    branchRequest = request;
+    setLeftTab('branch');
+  }
+
+  function setLeftTab(tab: GitLeftTab) {
     gitLeftTab.set(tab);
     if (tab === 'changes') { clearSelectedCommit(); selectedStash = null; }
     if (tab === 'log') { refreshLog(); selectedStash = null; }
     if (tab === 'graph') { refreshGraph(); selectedStash = null; }
     if (tab === 'stash') { clearSelectedCommit(); refreshStashes(); }
     if (tab === 'tag') { clearSelectedCommit(); selectedStash = null; refreshTags(); }
+    if (tab === 'branch') { clearSelectedCommit(); selectedStash = null; }
     if (tab === 'gitignore') { clearSelectedCommit(); selectedStash = null; }
-  }
-
-  /** Compact age label, falling back to an absolute date past a month. */
-  function relativeTime(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return 'just now';
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    const d = Math.floor(h / 24);
-    return d < 30 ? `${d}d` : new Date(dateStr).toLocaleDateString();
   }
 
   let isLoadingMoreLog = false;
@@ -1426,9 +1513,9 @@
 <GitBranchBar on:openMergeRebase={() => setLeftTab('mergerebase')} on:filesChanged={() => dispatch('filesChanged')} />
 
 {#if state.isGitRepo}
-<div class="git-layout">
+<div class="git-layout" bind:this={layoutEl}>
   <!-- Left column: changes / log tabs -->
-  <div class="git-col">
+  <div class="git-col git-col-left" style="flex-basis:{splitRatio * 100}%">
     <div class="git-col-head tab-head" bind:offsetHeight={tabHeadHeight}>
       <button
         class="col-tab"
@@ -1457,6 +1544,13 @@
         {#if state.tags.length > 0}
           <span class="col-tab-count">{state.tags.length}</span>
         {/if}
+      </button>
+      <button
+        class="col-tab"
+        class:active={$gitLeftTab === 'branch'}
+        on:click={() => setLeftTab('branch')}
+      >
+        {t('git.branches')}
       </button>
       <button
         class="col-tab"
@@ -1682,15 +1776,21 @@
     {:else if $gitLeftTab === 'graph'}
       <GraphView
         commits={state.graph}
+        stashes={state.graphStashes}
+        localBranches={state.branches}
         currentBranch={state.currentBranch}
         instances={projectInstances}
         selectedHash={selectedCommit?.hash ?? ''}
         hasMore={state.graphHasMore}
+        paging={state.graphPaging}
+        fetchBody={fetchGraphCommitBody}
         on:loadMore={loadMoreGraph}
         on:searchToggle={(e) => handleGraphSearchToggle(e.detail)}
         on:switchInstance={(e) => instance && activateInstance(instance.projectId, e.detail.id)}
         on:createInstanceFromRef={(e) => dispatch('createInstanceFromRef', e.detail)}
         on:selectCommit={(e) => selectCommit(e.detail)}
+        on:selectStash={(e) => openStashFromGraph(e.detail)}
+        on:branchAction={(e) => openBranchAction(e.detail)}
         on:refresh={() => refreshGraph()}
         on:commitAction={handleCommitAction}
       />
@@ -1701,6 +1801,8 @@
       />
     {:else if $gitLeftTab === 'tag'}
       <TagView />
+    {:else if $gitLeftTab === 'branch'}
+      <BranchView request={branchRequest} on:requestHandled={() => (branchRequest = null)} />
     {:else if $gitLeftTab === 'mergerebase'}
       <MergeRebaseView
         on:openFile={(e) => dispatch('openFile', e.detail)}
@@ -1710,6 +1812,25 @@
       <GitignoreView />
     {/if}
   </div>
+
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
+  <div
+    class="git-split-handle"
+    class:is-active={isSplitResizing}
+    role="separator"
+    aria-orientation="vertical"
+    aria-label={t('git.resizeColumns') as string}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={Math.round(splitRatio * 100)}
+    tabindex="0"
+    on:pointerdown={startSplitResize}
+    on:pointermove={onSplitResizeMove}
+    on:pointerup={stopSplitResize}
+    on:pointercancel={stopSplitResize}
+    on:dblclick={() => saveSplitRatio(0.5)}
+    on:keydown={onSplitKeydown}
+  ></div>
 
   <!-- Right column: commit diff / stash diff when selected, else staged + commit -->
   <div class="git-col">
@@ -2421,6 +2542,18 @@
           placeholder={t(refPrompt.kind === 'branch' ? 'git.branchNamePlaceholder' : 'git.tagNamePlaceholder') as string}
           on:keydown={(e) => e.key === 'Enter' && confirmRef()}
         />
+        {#if refPrompt.kind === 'tag'}
+          <label class="option-item ref-push-option">
+            <span class="option-text">
+              <span class="option-label">{t('git.tagPushOnCreate')}</span>
+              <span class="option-desc">{t('git.tagPushOnCreateDesc')}</span>
+            </span>
+            <label class="settings-toggle">
+              <input type="checkbox" bind:checked={refPush} />
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </label>
+          </label>
+        {/if}
         {#if refError}<div class="ref-error">{refError}</div>{/if}
       </div>
       <div class="modal-foot">
@@ -2476,8 +2609,51 @@
   </div>
 {/if}
 
+{#if pendingRebase}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    on:click={() => !isRebasing && (pendingRebase = null)}
+    on:keydown={(e) => e.key === 'Escape' && !isRebasing && (pendingRebase = null)}
+  >
+    <div class="modal ref-modal" on:click|stopPropagation role="presentation">
+      <div class="modal-head">
+        <div>
+          <div class="step-count">GIT</div>
+          <h3>{(t('git.rebaseOntoCommit.title') as (branch: string) => string)(state.currentBranch)}</h3>
+        </div>
+        <button class="icon-btn close" disabled={isRebasing} on:click={() => (pendingRebase = null)} aria-label={t('common.close') as string}>
+          <Icon name="x" size={16}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="ref-target">
+          <span class="ref-target-hash selectable">{pendingRebase.shortHash}</span>
+          <span class="ref-target-msg">{pendingRebase.message}</span>
+        </p>
+        <p class="ref-warning">{t('git.rebaseOntoCommit.confirm')}</p>
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button class="btn ghost" disabled={isRebasing} on:click={() => (pendingRebase = null)}>{t('common.cancel')}</button>
+        <button
+          class="btn primary"
+          disabled={isRebasing}
+          on:click={() => pendingRebase && runRebase(pendingRebase)}
+        >
+          {#if isRebasing}<Spinner size={11}/>{:else}{t('git.rebaseOntoCommit.action')}{/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .ref-modal { width: min(440px, 92vw); }
+  .ref-push-option { margin-top: 10px; }
   .ref-target {
     display: flex;
     align-items: baseline;
@@ -2568,7 +2744,25 @@
     overflow: hidden;
     border-right: 1px solid var(--stroke-0);
   }
+  .git-col-left {
+    flex: 0 0 50%;
+    border-right: none;
+  }
   .git-col:last-child { border-right: none; }
+
+  .git-split-handle {
+    flex-shrink: 0;
+    width: 3px;
+    margin: 0 -1px;
+    z-index: 1;
+    cursor: col-resize;
+    background: var(--stroke-0);
+    transition: background 0.15s;
+    outline: none;
+  }
+  .git-split-handle:hover,
+  .git-split-handle:focus-visible,
+  .git-split-handle.is-active { background: var(--accent); }
 
   /* Column header */
   .git-col-head {

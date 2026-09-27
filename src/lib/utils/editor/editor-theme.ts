@@ -679,6 +679,16 @@ export function conflictColor(theme: string): string {
 	return p.diffDeleted;
 }
 
+/**
+ * The colour the minimap paints search hits with. A search is a temporary,
+ * "find me" signal, so it takes the theme's own accent rather than a new
+ * palette field - it already means "this is what you were looking for".
+ */
+export function searchMarkColor(theme: string): string {
+	const p = PALETTES[theme as ThemeName] ?? PALETTE_DEFAULT;
+	return p.accent;
+}
+
 /** The theme extension, falling back to the default palette for an unknown id. */
 export function buildEditorTheme(theme: string): Extension {
 	const cached = editorThemeCache.get(theme);

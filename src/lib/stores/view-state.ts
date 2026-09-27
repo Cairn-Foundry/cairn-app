@@ -14,6 +14,7 @@ import {
 	commandsActive,
 	envActive,
 	formattingActive,
+	type GitLeftTab,
 	gitLeftTab,
 	lastCli,
 	referencesPanelOpen,
@@ -102,16 +103,7 @@ export function snapshotCurrentProject(): void {
 export function applyProjectState(id: string): void {
 	const ps = get(_states)[id] ?? DEFAULT;
 	activeStep.set(ps.activeStep as WorkflowStep);
-	gitLeftTab.set(
-		ps.gitLeftTab as
-			| "changes"
-			| "log"
-			| "graph"
-			| "stash"
-			| "tag"
-			| "mergerebase"
-			| "gitignore",
-	);
+	gitLeftTab.set(ps.gitLeftTab as GitLeftTab);
 	referencesPanelOpen.set(ps.referencesPanelOpen);
 	referencesQuery.set(ps.referencesQuery);
 	lastCli.set(ps.lastCli);

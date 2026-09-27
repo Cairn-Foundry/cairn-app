@@ -69,19 +69,22 @@ pub use git::{
     git_stage_file, git_unstage_file, git_stage_all, git_unstage_all,
     git_get_identity, git_commit, git_amend_commit, git_head_message,
     git_current_branch, git_checkout_branch, git_create_branch, git_delete_branch,
+    git_delete_remote_branch, git_rename_branch,
     git_push, git_pull, git_fetch, git_remote_status, git_remote_url,
+    git_remote_list, git_remote_add, git_remote_rename, git_remote_set_url, git_remote_remove,
     git_branch_divergence, git_remove_index_lock,
     git_operation_state, git_rm, git_merge, git_merge_continue, git_merge_abort,
     git_cherry_pick, git_cherry_pick_continue, git_cherry_pick_skip, git_cherry_pick_abort,
     git_rebase, git_rebase_continue, git_rebase_skip, git_rebase_abort,
     git_log,
-    git_graph,
+    git_graph, git_graph_stashes,
     git_diff_commit,
     git_commit_body,
     git_diff_files_between, git_diff_file_between, git_commit_exists,
     git_stash_list, git_stash_push, git_stash_pop, git_stash_apply,
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_tag_list, git_tag_create, git_tag_delete, git_tag_push, git_tag_delete_remote,
+    git_tag_remote_list,
     git_revert_commit, git_reset, git_discard_file, git_snapshot, git_diffs};
 pub use instances::{list_instances, create_instance, duplicate_instance, delete_instance, update_instance_status, update_instance_ticket, update_instance_base_branch};
 pub use integrations::{
