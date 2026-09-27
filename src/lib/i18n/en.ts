@@ -608,6 +608,8 @@ export const en = {
 			done: "Your turn",
 			exited: "Exited",
 			running: "Running",
+			notifyWaiting: "needs your approval",
+			notifyDone: "finished, your turn",
 		},
 		picker: {
 			title: "Start a conversation",
@@ -2967,6 +2969,9 @@ export const en = {
 				enable: "Enable AI features",
 				enableDesc:
 					"The Agent step, the providers, agents, skills and MCP pages, the review guide and every assisted draft. Turned off, none of it is shown or run.",
+				notifications: "Notify when an agent needs you",
+				notificationsDesc:
+					"A system notification when a conversation finishes its turn or asks for approval while Cairn is in the background.",
 			},
 			cli: {
 				groupTitle: "Command line",

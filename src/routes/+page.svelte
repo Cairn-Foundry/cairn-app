@@ -13,6 +13,7 @@
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
   import { selectConversation } from '#lib/stores/conversation';
+  import { openRequest } from '#lib/stores/agent-status';
   import { takePendingCliPaths } from '#lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
   import { collapsedTicketProjects } from '#lib/stores/tickets-overview';
@@ -346,6 +347,12 @@
   });
 
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
+
+  $: if ($openRequest) {
+    const request = $openRequest;
+    openRequest.set(null);
+    void handleOpenConversation(request);
+  }
 
   const persistSubscriptions = [
     activeStep,

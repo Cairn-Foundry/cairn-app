@@ -308,9 +308,18 @@ controlling terminal, so it cannot print into the conversation: it writes `worki
 `conversation:*` terminal. `commands/agent_signals.rs` keeps one non-recursive watch on that
 directory and emits `agent-signal`. `stores/agent-status.ts` turns signals, keystrokes, output
 silence and exits into a status per conversation (transitions in `utils/agent/agent-status.ts`),
-and clears the user's turn once that conversation is on screen in a focused window. Window focus
-comes from Tauri's `onFocusChanged`: WebKitGTK fires no DOM `blur` when another application takes
-the focus. The status is in memory only - a restart relaunches no CLI. It feeds the home Activity section, the
+clears the user's turn once that conversation is on screen in a focused window, and sends an OS
+notification (`agentNotifications` setting) when the window is not focused. Window focus comes from
+Tauri's `onFocusChanged`: WebKitGTK fires no DOM `blur` when another application takes the focus.
+
+Notifications go through `notify_agent`, not the notification plugin's `sendNotification`: on Linux
+the plugin's JS relies on replacing `window.Notification`, which WebKitGTK ignores, and its Rust
+side sends over a D-Bus connection it drops at once - GNOME Shell withdraws a notification tied to
+an application (any process with a window) as soon as its sender leaves the bus. `notify_agent`
+holds the connection with notify-rust until the notification is clicked or closed; a click focuses
+the window and emits `agent-notification-opened`, which lands on that conversation. The plugin is
+still used for the permission checks, and for sending on macOS and Windows.
+The status is in memory only - a restart relaunches no CLI. It feeds the home Activity section, the
 project card badge and the dots of the conversation list. A CLI without hooks only shows "running"
 and "exited".
 

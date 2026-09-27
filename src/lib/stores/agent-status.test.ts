@@ -9,6 +9,7 @@ const hooks = vi.hoisted(() => ({
 	signal: null as
 		| null
 		| ((e: { payload: { conversationId: string; signal: string } }) => void),
+	opened: null as null | ((e: { payload: { conversationId: string } }) => void),
 	input: null as null | ((id: string, data: string) => void),
 	output: null as null | ((id: string) => void),
 	exit: null as null | ((e: { id: string; exitCode: number | null }) => void),
@@ -17,6 +18,7 @@ const hooks = vi.hoisted(() => ({
 vi.mock("@tauri-apps/api/event", () => ({
 	listen: vi.fn((event: string, handler: never) => {
 		if (event === "agent-signal") hooks.signal = handler;
+		if (event === "agent-notification-opened") hooks.opened = handler;
 		return Promise.resolve(() => {});
 	}),
 }));
@@ -36,6 +38,11 @@ vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	},
 }));
 
+const notify = vi.fn().mockResolvedValue(undefined);
+vi.mock("#lib/services/notification-service", () => ({
+	notifyConversation: (...a: unknown[]) => notify(...a),
+}));
+
 vi.mock("#lib/stores/instance", async () => {
 	const { writable } = await import("svelte/store");
 	return {
@@ -53,11 +60,13 @@ import {
 } from "#lib/stores/conversation";
 import { activeInstance, loadedInstances } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
+import { settings } from "#lib/stores/settings";
 import { activeScreen, activeStep } from "#lib/stores/ui";
 import {
 	agentStatus,
 	attentionByProject,
 	liveConversations,
+	openRequest,
 	QUIET_MS,
 	windowFocused,
 } from "./agent-status";
@@ -93,6 +102,7 @@ function show(id: string) {
 
 beforeEach(() => {
 	vi.useFakeTimers();
+	notify.mockClear();
 	agentStatus.set({});
 	conversationTerminals.set({});
 	conversationHosts.set({});
@@ -127,6 +137,7 @@ beforeEach(() => {
 			},
 		],
 	});
+	void settings.save({ agentNotifications: true }).catch(() => {});
 });
 
 afterEach(() => {
@@ -134,15 +145,18 @@ afterEach(() => {
 });
 
 describe("a conversation reporting its turn", () => {
-	it("marks the turn while the window is in the background", () => {
+	it("marks the turn and notifies while the window is in the background", () => {
 		run("c1");
 		signal("c1", "working");
 		signal("c1", "done");
 
 		expect(get(agentStatus).c1).toBe("done");
+		expect(notify).toHaveBeenCalledTimes(1);
+		expect(notify.mock.lastCall?.[1]).toBe("Refactor auth");
+		expect(notify.mock.lastCall?.[2]).toContain("Cairn · Fix the login");
 	});
 
-	it("does not mark a turn that ends under the user's eyes", () => {
+	it("neither marks nor notifies a turn that ends under the user's eyes", () => {
 		run("c1");
 		windowFocused.set(true);
 		show("c1");
@@ -150,14 +164,16 @@ describe("a conversation reporting its turn", () => {
 		signal("c1", "done");
 
 		expect(get(agentStatus).c1).toBeUndefined();
+		expect(notify).not.toHaveBeenCalled();
 	});
 
-	it("marks a conversation that is not the one on screen", () => {
+	it("marks without notifying when the window is focused elsewhere", () => {
 		run("c1");
 		windowFocused.set(true);
 		signal("c1", "waiting");
 
 		expect(get(agentStatus).c1).toBe("waiting");
+		expect(notify).not.toHaveBeenCalled();
 	});
 
 	it("clears the mark once the conversation is on screen in a focused window", () => {
@@ -168,6 +184,15 @@ describe("a conversation reporting its turn", () => {
 
 		windowFocused.set(true);
 		expect(get(agentStatus).c1).toBeUndefined();
+	});
+
+	it("stays silent when notifications are turned off", async () => {
+		await settings.save({ agentNotifications: false }).catch(() => {});
+		run("c1");
+		signal("c1", "done");
+
+		expect(get(agentStatus).c1).toBe("done");
+		expect(notify).not.toHaveBeenCalled();
 	});
 
 	it("ignores a signal for a conversation that is not running", () => {
@@ -221,5 +246,23 @@ describe("the global view", () => {
 			instanceLabel: "Fix the login",
 		});
 		expect(get(attentionByProject)).toEqual({ p: 1 });
+	});
+});
+
+describe("clicking a notification", () => {
+	it("asks for the conversation it was about, where it was launched", () => {
+		run("c1");
+		hooks.opened?.({ payload: { conversationId: "c1" } });
+		expect(get(openRequest)).toEqual({
+			projectId: "p",
+			instanceId: "i",
+			conversationId: "c1",
+		});
+	});
+
+	it("does nothing for a conversation that is no longer running", () => {
+		openRequest.set(null);
+		hooks.opened?.({ payload: { conversationId: "gone" } });
+		expect(get(openRequest)).toBeNull();
 	});
 });

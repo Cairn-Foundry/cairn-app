@@ -626,6 +626,8 @@ export const fr = {
 			done: "À vous",
 			exited: "Terminé",
 			running: "Lancé",
+			notifyWaiting: "attend votre accord",
+			notifyDone: "a terminé, à vous",
 		},
 		picker: {
 			title: "Demarrer une conversation",
@@ -3020,6 +3022,9 @@ export const fr = {
 				enable: "Activer les fonctionnalités IA",
 				enableDesc:
 					"L'étape Agent, les pages fournisseurs, agents, skills et MCP, le guide de revue et chaque brouillon assisté. Désactivée, plus rien de tout cela n'est affiché ni exécuté.",
+				notifications: "Prévenir quand un agent a besoin de vous",
+				notificationsDesc:
+					"Une notification système quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan.",
 			},
 			cli: {
 				groupTitle: "Ligne de commande",

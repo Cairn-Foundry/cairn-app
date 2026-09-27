@@ -102,6 +102,57 @@ pub fn start(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NotificationOpened {
+    conversation_id: String,
+}
+
+/// Brings the window forward and tells the frontend which conversation to show.
+fn open_from_notification(app: &tauri::AppHandle, conversation_id: String) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    let _ = app.emit("agent-notification-opened", NotificationOpened { conversation_id });
+}
+
+/// Tells the user a conversation needs them.
+///
+/// Not the notification plugin on Linux: it sends each notification over a
+/// connection it drops at once, and GNOME Shell withdraws a notification tied
+/// to an application as soon as its sender leaves the bus - the window makes
+/// the process an application, so every one vanished unseen. The connection is
+/// held here until the notification is clicked or closed, which is also what
+/// lets a click open the conversation.
+#[tauri::command]
+pub fn notify_agent(app: tauri::AppHandle, conversation_id: String, title: String, body: String) {
+    #[cfg(all(unix, not(target_os = "macos")))]
+    std::thread::spawn(move || {
+        let shown = notify_rust::Notification::new()
+            .summary(&title)
+            .body(&body)
+            .auto_icon()
+            .action("default", "Open")
+            .show();
+        match shown {
+            Ok(handle) => handle.wait_for_action(|action| {
+                if action == "default" {
+                    open_from_notification(&app, conversation_id);
+                }
+            }),
+            Err(e) => eprintln!("agent notification failed: {e}"),
+        }
+    });
+    #[cfg(not(all(unix, not(target_os = "macos"))))]
+    {
+        use tauri_plugin_notification::NotificationExt;
+        let _ = conversation_id;
+        let _ = app.notification().builder().title(title).body(body).show();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

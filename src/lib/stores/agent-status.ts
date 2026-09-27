@@ -12,6 +12,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { derived, get, writable } from "svelte/store";
 import { t } from "#lib/i18n";
+import { notifyConversation } from "#lib/services/notification-service";
 import {
 	activeConversationId,
 	conversationHosts,
@@ -27,6 +28,7 @@ import {
 	loadedInstances,
 } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
+import { settings } from "#lib/stores/settings";
 import {
 	activeScreen,
 	activeStep,
@@ -134,6 +136,7 @@ export function applyAgentEvent(id: string, event: AgentEvent): void {
 	}
 	if (next === prev) return;
 	setStatus(id, next);
+	if (needsAttention(next) && !get(windowFocused)) announce(id, next);
 }
 
 /** One running conversation, with what the activity list needs to name it. */
@@ -222,6 +225,30 @@ export const attentionCount = derived(
 	(list) => list.filter((c) => needsAttention(c.status)).length,
 );
 
+function announce(id: string, status: AgentStatus): void {
+	if (!get(settings).agentNotifications) return;
+	const live = get(liveConversations).find((c) => c.id === id);
+	if (!live) return;
+	const title = live.title || (t("agent.history.untitled") as string);
+	const what = t(
+		status === "waiting"
+			? "agent.status.notifyWaiting"
+			: "agent.status.notifyDone",
+	) as string;
+	void notifyConversation(
+		id,
+		title,
+		`${live.projectName} · ${live.instanceLabel} - ${what}`,
+	).catch(() => {});
+}
+
+/** A conversation to bring on screen, set when its notification is clicked. */
+export const openRequest = writable<{
+	projectId: string;
+	instanceId: string;
+	conversationId: string;
+} | null>(null);
+
 function forget(id: string): void {
 	disarmQuiet(id);
 	lastOutput.delete(id);
@@ -268,6 +295,12 @@ void listen<{ conversationId: string; signal: AgentEvent }>(
 	"agent-signal",
 	(e) => applyAgentEvent(e.payload.conversationId, e.payload.signal),
 ).catch(() => {});
+
+void listen<{ conversationId: string }>("agent-notification-opened", (e) => {
+	const id = e.payload.conversationId;
+	const host = get(conversationHosts)[id];
+	if (host) openRequest.set({ ...host, conversationId: id });
+}).catch(() => {});
 
 // WebKitGTK fires no DOM `blur` when another application takes the focus, so
 // the window's own focus events are the only reliable source on Linux.
