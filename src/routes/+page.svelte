@@ -12,6 +12,7 @@
   import { withViewTransition } from '#lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
+  import { selectConversation } from '#lib/stores/conversation';
   import { takePendingCliPaths } from '#lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
   import { collapsedTicketProjects } from '#lib/stores/tickets-overview';
@@ -406,6 +407,15 @@
     showCreate = true;
   }
 
+  /** Lands on one conversation of the Agent step, from wherever the app was. */
+  async function handleOpenConversation(detail: { projectId: string; instanceId: string; conversationId: string }) {
+    await handleOpenProject(detail.projectId);
+    if ($activeInstance?.id !== detail.instanceId) await activateInstance(detail.projectId, detail.instanceId);
+    showTool(null);
+    activeStep.set('agent');
+    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
+  }
+
   function handleCloseProject(id: string) {
     void stopProjectLanguageServers(id);
     closeProjectTab(id);
@@ -601,6 +611,7 @@
       on:addProjectShown={() => { homeOpenAddProjectMode = null; }}
       on:sectionChange={handleSectionChange}
       on:startTicket={(e) => handleStartTicket(e.detail)}
+      on:openConversation={(e) => handleOpenConversation(e.detail)}
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>

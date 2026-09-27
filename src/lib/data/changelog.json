@@ -223,6 +223,13 @@
 					"en": "A terminal button in the conversation header continues the open conversation in the system terminal: the embedded CLI is stopped and the same session is resumed outside, in the same worktree. On Linux and Windows it opens as a new tab of the terminal window already open when the emulator supports it (GNOME Terminal, Ptyxis, Konsole, Windows Terminal...), on macOS in a new Terminal window. The conversation then says in the app that it goes on outside, and resumes there by itself if no terminal could be opened. It appears once the CLI has saved the session; a running CLI asks for confirmation first, since it is stopped and reopened in the terminal.",
 					"fr": "Un bouton terminal dans l'en-tête de la conversation la poursuit dans le terminal du système : le CLI intégré est arrêté et la même session reprise à l'extérieur, dans le même worktree. Sous Linux et Windows elle s'ouvre dans un nouvel onglet de la fenêtre de terminal déjà ouverte quand l'émulateur le permet (GNOME Terminal, Ptyxis, Konsole, Windows Terminal…), sous macOS dans une nouvelle fenêtre de Terminal. La conversation indique alors dans l'application qu'elle se poursuit à l'extérieur, et y reprend d'elle-même si aucun terminal n'a pu s'ouvrir. Il apparaît dès que le CLI a enregistré la session ; un CLI en cours demande d'abord confirmation, car il est arrêté puis rouvert dans le terminal."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn now knows which conversations are waiting for you. Claude Code reports its turn - working, asking for approval, finished - and the Activity page of the home screen lists every running conversation across projects and instances, what needs you first; a click lands on that project, that instance and that conversation. Project cards and the conversation list carry the same marks, which clear once the conversation is on screen. Cairn passes its hooks to Claude Code at launch and never writes into your Claude settings; other CLIs only show whether they are running.",
+					"fr": "Cairn sait désormais quelles conversations vous attendent. Claude Code signale son tour - au travail, en attente d'un accord, terminé - et la page Activité de l'accueil liste toutes les conversations lancées, sur tous les projets et toutes les instances, ce qui vous attend en premier ; un clic mène à ce projet, cette instance et cette conversation. Les cartes de projet et la liste des conversations portent les mêmes marques, qui s'effacent dès que la conversation est à l'écran. Cairn transmet ses hooks à Claude Code au lancement et n'écrit jamais dans vos réglages Claude ; les autres CLI indiquent seulement s'ils sont lancés."
+				}
 			}
 		]
 	},

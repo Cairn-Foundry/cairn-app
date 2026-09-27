@@ -120,6 +120,7 @@ pub fn run() {
         })
         .manage(OneshotState::new())
         .manage(TerminalState::new())
+        .manage(commands::agent_signals::AgentSignalState::default())
         .manage(TestState::new())
         .manage(LspState::new())
         .manage(commands::WatchState::default())
@@ -129,6 +130,9 @@ pub fn run() {
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
             commands::lsp::spawn_idle_reaper(app.handle().clone());
+            if let Err(e) = commands::agent_signals::start(app.handle()) {
+                eprintln!("agent signals unavailable: {e}");
+            }
 
             window_builder(app.handle(), commands::editor_windows::MAIN_WINDOW, tauri::WebviewUrl::default())
                 .inner_size(1440.0, 900.0)

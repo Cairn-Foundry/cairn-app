@@ -32,6 +32,7 @@ import {
 	mintsSessionId,
 	newConversationArgv,
 	resumeArgv,
+	statusArgv,
 } from "#lib/utils/agent/cli-launch";
 import { captureTitle } from "#lib/utils/agent/conversation-title";
 import { isTerminalReply } from "#lib/utils/agent/terminal-reply";
@@ -71,6 +72,11 @@ export const activeConversationId = writable<Record<string, string | null>>({});
  * the output and cannot tell an answer from a prompt.
  */
 export const conversationTerminals = writable<Record<string, string>>({});
+
+/** Where each running conversation was launched from, keyed by conversation id. */
+export const conversationHosts = writable<
+	Record<string, { projectId: string; instanceId: string }>
+>({});
 
 /**
  * How many times each conversation's CLI has been launched.
@@ -438,10 +444,13 @@ export async function openConversation(
 	if (taken) patch(ref, id, { sessionStarted: true, sessionConfirmed: true });
 
 	const resuming = !fresh && (meta.sessionConfirmed === true || taken);
-	const argv = resuming
-		? resumeArgv(meta.cli, meta.sessionId)
-		: (newConversationArgv(meta.cli, meta.sessionId ?? "") ??
-			freshArgv(meta.cli));
+	const argv = [
+		...(resuming
+			? resumeArgv(meta.cli, meta.sessionId)
+			: (newConversationArgv(meta.cli, meta.sessionId ?? "") ??
+				freshArgv(meta.cli))),
+		...statusArgv(meta.cli),
+	];
 
 	const startedAt = Date.now();
 	const terminalId = conversationTerminalId(id);
@@ -453,6 +462,10 @@ export async function openConversation(
 		manager.dispose(terminalId);
 		throw e;
 	}
+	conversationHosts.update((m) => ({
+		...m,
+		[id]: { projectId: ref.projectId, instanceId: ref.instanceId },
+	}));
 	conversationTerminals.update((m) => ({ ...m, [id]: terminalId }));
 	conversationRuns.update((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
 	const run = runOf(id);
@@ -613,11 +626,13 @@ export function closeConversation(id: string): void {
 	activityTrackers.delete(terminalId);
 	void closeTerminal(terminalId).catch(() => {});
 	manager.dispose(terminalId);
-	conversationTerminals.update((m) => {
+	const drop = <T>(m: Record<string, T>) => {
 		const next = { ...m };
 		delete next[id];
 		return next;
-	});
+	};
+	conversationTerminals.update(drop);
+	conversationHosts.update(drop);
 }
 
 /**

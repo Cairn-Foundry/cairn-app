@@ -620,6 +620,13 @@ export const fr = {
 		freshSessionHint:
 			"Abandonne la session que cette conversation n'arrive pas à reprendre et en démarre une nouvelle dans le même worktree.",
 		noActiveInstance: "Aucune instance active",
+		status: {
+			working: "En cours",
+			waiting: "Attend votre accord",
+			done: "À vous",
+			exited: "Terminé",
+			running: "Lancé",
+		},
 		picker: {
 			title: "Demarrer une conversation",
 			subtitle: "Choisissez le CLI a lancer dans ce worktree.",
@@ -2553,9 +2560,11 @@ export const fr = {
 			ticketsDesc:
 				"Ce qu'il reste à faire sur tous les projets ayant un tracker.",
 			activity: "Activité",
-			activityDesc: "Événements récents sur toutes les instances.",
-			activityEmpty:
-				"Aucune activité pour l'instant - les événements apparaîtront ici au fil des instances.",
+			activityDesc:
+				"Toutes les conversations lancées, sur tous les projets et toutes les instances. Ce qui vous attend passe en premier.",
+			activityEmpty: "Aucune conversation n'est lancée.",
+			activityHooksHint:
+				"L'activité et l'attente sont signalées par Claude Code. Les autres CLI indiquent seulement s'ils sont lancés.",
 		},
 		sidebar: {
 			workspace: "Espace de travail",
@@ -2774,6 +2783,7 @@ export const fr = {
 		},
 		projects: {
 			inboxTitle: "Tickets ouverts qui me sont assignés",
+			attentionTitle: "Conversations qui vous attendent",
 			newProject: "Nouveau projet",
 			newProjectDesc: "Créer un projet depuis n'importe quel répertoire local.",
 			openProject: "Ouvrir un projet",

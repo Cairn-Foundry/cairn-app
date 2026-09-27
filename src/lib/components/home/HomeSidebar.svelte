@@ -17,6 +17,7 @@
   import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
   import UpdateCard from '#lib/components/layout/UpdateCard.svelte';
   import { aiEnabled } from '#lib/stores/settings';
+  import { attentionCount } from '#lib/stores/agent-status';
   import { channel } from '#lib/stores/channel';
   import { openUrl } from '#lib/services/opener-service';
   import { ISSUES_URL } from '#lib/utils/links';
@@ -44,6 +45,7 @@
   </button>
   <button class="home-nav-item {activeSection === 'activity'    ? 'active' : ''}" on:click={() => dispatch('select', 'activity')}>
     <Icon name="clock" size={15}/> {t('home.sidebar.activity')}
+    {#if $attentionCount}<span class="nav-badge" title={t('home.projects.attentionTitle') as string}>{$attentionCount}</span>{/if}
   </button>
 
   {#if $aiEnabled}
@@ -88,6 +90,16 @@
 </aside>
 
 <style>
+  .nav-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--warning);
+    background: var(--warning-weak);
+    border-radius: 10px;
+    padding: 0 7px;
+    line-height: 1.6;
+  }
   .version {
     padding: 0 8px 6px;
     font-size: 11px;
