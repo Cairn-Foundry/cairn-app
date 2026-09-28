@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 const openPath = vi.fn();
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("$lib/services/opener-service", () => ({
 	openPath: (...a: unknown[]) => openPath(...a),
 }));
 

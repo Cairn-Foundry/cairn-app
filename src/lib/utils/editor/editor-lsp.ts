@@ -199,7 +199,7 @@ function openDocLink(href: string, onOpenFile?: LspOpenFile): void {
 
 	const target = parseLinkTarget(clean);
 	if (target.kind === "external") {
-		void import("@tauri-apps/plugin-opener")
+		void import("$lib/services/opener-service")
 			.then((m) => m.openUrl(target.href))
 			.catch(() => {});
 	} else if (target.kind === "file" && onOpenFile) {

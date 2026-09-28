@@ -4,13 +4,18 @@
 -->
 <script lang="ts">
   /**
-   * Root layout: mirrors the appearance settings onto the document, and applies the window
-   * zoom and vibrancy that only the Tauri webview can set.
+   * Root layout: mirrors the appearance settings onto the document, applies the window
+   * zoom and vibrancy that only the Tauri webview can set, and sends external links to
+   * the system browser.
    */
   import '../app.css';
+  import { onMount } from 'svelte';
   import { settings } from '$lib/stores/settings';
   import { foregroundOn } from '$lib/utils/home/contrast';
   import { setWindowVibrancy } from '$lib/services/settings-service';
+  import { interceptExternalLinks } from '$lib/utils/external-links';
+
+  onMount(() => interceptExternalLinks());
 
   let vibrancyApplied: boolean | null = null;
 

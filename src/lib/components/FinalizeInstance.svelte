@@ -9,7 +9,7 @@
    * previous one is satisfied by the real git state.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CopyButton from '$lib/components/CopyButton.svelte';

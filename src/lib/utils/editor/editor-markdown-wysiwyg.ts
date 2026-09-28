@@ -918,7 +918,7 @@ function buildLinkClickHandler(options: MarkdownLinkOptions) {
 			event.preventDefault();
 
 			if (parsed.kind === "external") {
-				void import("@tauri-apps/plugin-opener")
+				void import("$lib/services/opener-service")
 					.then((m) => m.openUrl(parsed.href))
 					.catch(() => {});
 				return true;

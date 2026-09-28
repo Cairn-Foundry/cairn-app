@@ -63,8 +63,9 @@ Component -> Store -> Service -> invoke() -> Rust command -> ~/.cairn/*.json
 
 Known exceptions to the service boundary: `utils/terminal/terminal-manager.ts` pipes PTY data
 through the Tauri event API directly, `stores/language-server.ts` subscribes to Tauri events,
-and components may use plugin APIs (dialog, opener, window, webview) for native dialogs, opening
-URLs, zoom and window dragging. Everything else goes through a service.
+and components may use plugin APIs (dialog, window, webview) for native dialogs, zoom and window
+dragging. Opening a URL or a file goes through `opener-service.ts` (`open_external`), never a
+plugin: the spawned opener must get the environment `child_env` cleans. Everything else goes through a service.
 
 The boundary is enforced by `src/test/ipc-contract.test.ts`: it statically confronts every TS
 `invoke("name", {args})` with the Rust `#[tauri::command]` signatures, so a renamed command or
@@ -567,7 +568,7 @@ There is no separate preview pane - the document is always editable. Mermaid blo
 
 Links are styled and carry their destination in a `data-cm-md-href` attribute; a plain click stays
 an ordinary text click so the document remains editable, and shift-click follows the link.
-`parseLinkTarget` decides how: http/https/mailto go to the system browser through `plugin-opener`,
+`parseLinkTarget` decides how: http/https/mailto go to the system browser through `opener-service`,
 `#anchor` scrolls to the matching heading in the current document, and a relative path is resolved
 against the edited file and opened as a tab by `FilesView`, jumping to its anchor once the content
 is loaded. Any other scheme is ignored.

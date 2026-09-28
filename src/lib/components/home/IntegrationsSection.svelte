@@ -9,7 +9,7 @@
    * returns; the token never comes back from Rust, only whether one is stored.
    */
   import { onMount } from 'svelte';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { t, type TranslationKey } from '$lib/i18n';
   import Icon from '$lib/components/Icon.svelte';
   import Select from '$lib/components/Select.svelte';

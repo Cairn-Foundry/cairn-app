@@ -53,7 +53,7 @@ vi.mock("$lib/stores/ui", async (importOriginal) => {
 });
 
 const openUrl = vi.fn();
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("$lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 

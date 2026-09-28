@@ -19,7 +19,7 @@
   import { draggableRegion } from '$lib/utils/window-drag.js';
   import { aiEnabled } from '$lib/stores/settings';
   import { channel } from '$lib/stores/channel';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { ISSUES_URL } from '$lib/utils/links';
 
   export let activeSection: HomeSection;

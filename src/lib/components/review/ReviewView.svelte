@@ -10,7 +10,7 @@
    * always comes from the local repository; only the discussions go through the
    * network.
    */
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';

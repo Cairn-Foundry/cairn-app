@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Instance } from "$lib/types/instance";
 
 const openUrl = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("$lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 

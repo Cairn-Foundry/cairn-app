@@ -8,7 +8,7 @@
    * Dispatches `close` when the last step is done or the tour is dismissed.
    */
   import { createEventDispatcher } from 'svelte';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import Icon from '$lib/components/Icon.svelte';
   import WelcomeIllustration from '$lib/components/WelcomeIllustration.svelte';
   import { t } from '$lib/i18n';

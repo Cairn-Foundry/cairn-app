@@ -112,6 +112,44 @@ pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Opens a URL or a file with the application the desktop associates with it.
+/// Goes through `child_env`: an opener inheriting the AppImage environment starts
+/// the browser or the viewer on the bundle's libraries.
+#[tauri::command]
+pub async fn open_external(target: String) -> Result<(), String> {
+    let target = openable(&target).ok_or_else(|| format!("Refusing to open {target}"))?;
+    #[cfg(target_os = "linux")]
+    {
+        let mut last = String::from("No opener found");
+        for mut cmd in open::commands(&target) {
+            child_env::scrub(&mut cmd);
+            match cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+                Ok(mut child) => {
+                    // Some openers wait for the application they start.
+                    std::thread::spawn(move || child.wait());
+                    return Ok(());
+                }
+                Err(e) => last = e.to_string(),
+            }
+        }
+        Err(last)
+    }
+    #[cfg(not(target_os = "linux"))]
+    open::that_detached(&target).map_err(|e| e.to_string())
+}
+
+/// What `open_external` agrees to hand to the desktop: a web, mail or phone
+/// link, or a file that exists.
+fn openable(target: &str) -> Option<String> {
+    let lower = target.to_ascii_lowercase();
+    if ["http://", "https://", "mailto:", "tel:"].iter().any(|s| lower.starts_with(s)) {
+        return Some(target.to_string());
+    }
+    let expanded = shellexpand::tilde(target).into_owned();
+    let path = std::path::Path::new(&expanded);
+    (path.is_absolute() && path.exists()).then_some(expanded)
+}
+
 /// Copies a file or a whole directory, creating the missing parents.
 #[tauri::command]
 pub async fn copy_path(from: String, to: String) -> Result<(), String> {
@@ -168,4 +206,39 @@ pub async fn clone_repository(url: String, dest_parent: String, name: String) ->
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn opens_the_web_and_mail_links() {
+        for url in ["https://forge/mr/1", "HTTP://example.com", "mailto:a@b.c", "tel:+331"] {
+            assert_eq!(openable(url).as_deref(), Some(url));
+        }
+    }
+
+    #[test]
+    fn refuses_any_other_scheme() {
+        for url in ["file:///etc/passwd", "javascript:alert(1)", "smb://host/share", "ftp://host"] {
+            assert_eq!(openable(url), None, "{url}");
+        }
+    }
+
+    #[test]
+    fn opens_a_file_that_exists() {
+        let dir = std::env::temp_dir();
+        let file = dir.join("cairn-open-external-test");
+        std::fs::write(&file, b"x").unwrap();
+        let path = file.to_string_lossy().into_owned();
+        assert_eq!(openable(&path), Some(path.clone()));
+        std::fs::remove_file(&file).unwrap();
+        assert_eq!(openable(&path), None);
+    }
+
+    #[test]
+    fn refuses_a_relative_path() {
+        assert_eq!(openable("Cargo.toml"), None);
+    }
 }

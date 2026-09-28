@@ -424,6 +424,7 @@ dependencies = [
  "lsp-types",
  "notify",
  "nucleo-matcher",
+ "open",
  "portable-pty",
  "regex",
  "reqwest 0.12.28",
@@ -436,7 +437,6 @@ dependencies = [
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
- "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
@@ -3136,7 +3136,6 @@ version = "5.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f3bab717c29a857abf75fcef718d441ec7cb2725f937343c734740a985d37fd"
 dependencies = [
- "dunce",
  "is-wsl",
  "libc",
  "pathdiff",
@@ -5046,28 +5045,6 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.9.12+spec-1.1.0",
  "url",
-]
-
-[[package]]
-name = "tauri-plugin-opener"
-version = "2.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc624469b06f59f5a29f874bbc61a2ed737c0f9c23ef09855a292c389c42e83f"
-dependencies = [
- "dunce",
- "glob",
- "objc2-app-kit",
- "objc2-foundation",
- "open",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.18",
- "url",
- "windows",
- "zbus",
 ]
 
 [[package]]

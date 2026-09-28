@@ -101,7 +101,6 @@ pub fn run() {
     };
 
     builder
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -194,6 +193,7 @@ pub fn run() {
             reveal_in_file_manager,
             copy_path,
             open_in_terminal,
+            open_external,
             validate_directory,
             clone_repository,
             list_branches,

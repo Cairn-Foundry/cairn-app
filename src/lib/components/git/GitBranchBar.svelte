@@ -9,7 +9,7 @@
    */
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';

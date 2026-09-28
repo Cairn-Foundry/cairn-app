@@ -49,7 +49,7 @@
   import { requestMergeRequestForm } from '$lib/stores/merge-request';
   import { requestReviewAction } from '$lib/stores/review';
   import { forgeLink } from '$lib/utils/integrations/links';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import Spinner from '$lib/components/Spinner.svelte';
   import ManageInstances from '$lib/components/ManageInstances.svelte';
   import EditProject from '$lib/components/EditProject.svelte';

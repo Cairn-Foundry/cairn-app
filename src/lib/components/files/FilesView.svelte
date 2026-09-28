@@ -48,7 +48,7 @@ import { get } from 'svelte/store';
   import { absoluteWatchSet } from '$lib/utils/files/files-watch-set';
   import { scheduleKeyed } from '$lib/utils/scheduler';
   import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { capabilities } from '$lib/stores/integrations';
   import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
   import { resolveTabClose } from '$lib/utils/files/files-tab-close';

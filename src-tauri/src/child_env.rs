@@ -28,6 +28,12 @@ use std::process::Command;
 /// when the app exits.
 const MARKERS: [&str; 4] = ["APPDIR", "APPIMAGE", "ARGV0", "OWD"];
 
+/// Forced by the GTK hook the Tauri bundler ships (`linuxdeploy-plugin-gtk`),
+/// which overwrites rather than prepends. They do not lead into the mount, but
+/// left in place they pin every GTK child to XWayland and the stock Adwaita
+/// theme; unset, GTK goes back to its own detection.
+const GTK_HOOK: [&str; 2] = ["GDK_BACKEND", "GTK_THEME"];
+
 /// A `Command` whose child will not inherit the AppImage mount.
 pub fn command<S: AsRef<OsStr>>(program: S) -> Command {
     let mut cmd = Command::new(program);
@@ -64,7 +70,11 @@ pub fn scrub_pty(cmd: &mut portable_pty::CommandBuilder) {
 fn from_current_env() -> Vec<(String, Option<String>)> {
     let appdir = std::env::var("APPDIR").ok().filter(|d| !d.is_empty());
     match appdir {
-        Some(dir) => overrides(std::env::vars(), &dir),
+        Some(dir) => overrides(
+            std::env::vars_os()
+                .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?))),
+            &dir,
+        ),
         None => Vec::new(),
     }
 }
@@ -82,7 +92,7 @@ where
     let under = |entry: &str| entry == appdir || entry.starts_with(&prefix);
     let mut out = Vec::new();
     for (key, value) in vars {
-        if MARKERS.contains(&key.as_str()) {
+        if MARKERS.contains(&key.as_str()) || GTK_HOOK.contains(&key.as_str()) {
             out.push((key, None));
             continue;
         }
@@ -163,6 +173,15 @@ mod tests {
         ]);
         assert!(out.iter().all(|(_, v)| v.is_none()));
         assert_eq!(out.len(), 4);
+    }
+
+    #[test]
+    fn unsets_what_the_gtk_hook_forced() {
+        let out = applied(&[("GDK_BACKEND", "x11"), ("GTK_THEME", "Adwaita:dark")]);
+        assert_eq!(
+            out,
+            vec![("GDK_BACKEND".to_string(), None), ("GTK_THEME".to_string(), None)]
+        );
     }
 
     #[test]

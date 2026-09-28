@@ -9,7 +9,7 @@
    * service through `stores/pipelines.ts`; without a `ci` capability the step points to Integrations.
    */
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';

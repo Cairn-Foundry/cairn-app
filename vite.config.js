@@ -53,7 +53,6 @@ export default defineConfig(async () => ({
       "@codemirror/language-data > *",
       "@tauri-apps/plugin-clipboard-manager",
       "@tauri-apps/plugin-dialog",
-      "@tauri-apps/plugin-opener",
       "@tauri-apps/plugin-process",
       "@tauri-apps/plugin-updater",
     ],

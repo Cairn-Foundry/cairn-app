@@ -199,7 +199,14 @@ pub fn spawn_shell_full(
     }
 
     if let Some(dir) = resolved_tool_dir(command) {
-        let existing = std::env::var_os("PATH").unwrap_or_default();
+        let existing = process
+            .get_envs()
+            .find(|(key, _)| *key == "PATH")
+            .map_or_else(
+                || std::env::var_os("PATH"),
+                |(_, value)| value.map(ToOwned::to_owned),
+            )
+            .unwrap_or_default();
         let dirs = std::iter::once(dir).chain(std::env::split_paths(&existing));
         if let Ok(path) = std::env::join_paths(dirs) {
             process.env("PATH", path);

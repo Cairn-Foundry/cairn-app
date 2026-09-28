@@ -9,7 +9,7 @@
    * the tracker and a hand-off to the agent. A manual id with no tracker ticket
    * offers to link it. The open flag lives in memory only.
    */
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
   import Icon from '$lib/components/Icon.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';

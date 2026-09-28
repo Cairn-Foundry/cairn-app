@@ -333,7 +333,7 @@ async function existingLinks(
 
 function activateLink(candidate: LinkCandidate, absolute: string | null): void {
 	if (candidate.kind === "url") {
-		void import("@tauri-apps/plugin-opener")
+		void import("$lib/services/opener-service")
 			.then((m) => m.openUrl(candidate.url))
 			.catch(() => {});
 		return;

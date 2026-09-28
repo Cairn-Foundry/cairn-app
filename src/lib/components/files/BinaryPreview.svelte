@@ -113,7 +113,7 @@
   }
 
   async function openWithSystemApp() {
-    const { openPath } = await import('@tauri-apps/plugin-opener');
+    const { openPath } = await import('$lib/services/opener-service');
     await openPath(path).catch(() => {});
   }
 </script>

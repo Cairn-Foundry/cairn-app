@@ -70,7 +70,7 @@
   } from '$lib/stores/git';
   import type { CommitAction, GitGraphCommit, GitStash, ResetMode } from '$lib/services/git-service';
   import { activeInstance, instances } from '$lib/stores/instance';
-  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { openUrl } from '$lib/services/opener-service';
   import { capabilities } from '$lib/stores/integrations';
   import { getRemoteUrl } from '$lib/stores/git';
   import type { WebLinkTarget } from '$lib/types/integrations';

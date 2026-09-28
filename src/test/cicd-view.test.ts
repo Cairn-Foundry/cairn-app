@@ -10,7 +10,7 @@ import type { InstancePipelineState } from "$lib/stores/pipelines";
 import type { Pipeline, PipelineJob } from "$lib/types/integrations";
 
 const openUrl = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("$lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 
