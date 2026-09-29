@@ -23,7 +23,7 @@ import type {
 } from "$lib/types/review";
 import { emptyReviewState } from "$lib/types/review";
 import { errorMessage } from "$lib/utils/error-message";
-import { isLeanFeature } from "$lib/utils/home/ai-features";
+import { assistContext } from "$lib/utils/home/ai-features";
 import {
 	buildReviewCommentPrompt,
 	buildReviewGuidePrompt,
@@ -223,7 +223,7 @@ export async function generateGuide(
 			options.model,
 			options.binaryPath,
 			{},
-			isLeanFeature("reviewGuide"),
+			assistContext("reviewGuide"),
 		);
 		const guide = resolveGuide(
 			raw,
@@ -459,7 +459,7 @@ export async function draftCommentFor(
 			options.model,
 			options.binaryPath,
 			{},
-			isLeanFeature("reviewComment"),
+			assistContext("reviewComment"),
 		);
 		return typeof answer.comment === "string" ? answer.comment : "";
 	} finally {

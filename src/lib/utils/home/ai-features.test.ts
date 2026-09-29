@@ -7,8 +7,8 @@ import {
 	AI_FEATURES,
 	ASSIST_CLI,
 	ASSIST_CLIS,
+	assistContext,
 	FEATURE_SCHEMAS,
-	isLeanFeature,
 	resolveAiFeature,
 } from "./ai-features";
 
@@ -152,29 +152,49 @@ describe("the feature schemas", () => {
 	});
 });
 
-describe("which assists read the repository", () => {
+describe("how much of the project each assist needs", () => {
 	/**
-	 * The split is the whole point of running lean: an assist whose prompt tells
-	 * the model to run `git` needs its tools, one whose prompt already carries
-	 * the diff does not.
+	 * The split is the whole point: an assist whose prompt tells the model to
+	 * run `git` needs its tools, one whose prompt already carries the diff does
+	 * not, and one that judges by house rules still wants to see them.
 	 */
 	it("keeps the git-reading assists on a full session", () => {
-		expect(isLeanFeature("commitMessage")).toBe(false);
-		expect(isLeanFeature("mrDescription")).toBe(false);
+		expect(assistContext("commitMessage")).toBe("repository");
+		expect(assistContext("mrDescription")).toBe("repository");
 	});
 
-	it("runs the prompt-only assists lean", () => {
-		expect(isLeanFeature("branchName")).toBe(true);
-		expect(isLeanFeature("reviewGuide")).toBe(true);
-		expect(isLeanFeature("reviewComment")).toBe(true);
-		expect(isLeanFeature("ticketPlan")).toBe(true);
+	/** Their prompts work in the worktree, whatever runs them. */
+	it("keeps the assists that fix code on a full session", () => {
+		expect(assistContext("ciFix")).toBe("repository");
+		expect(assistContext("testFix")).toBe("repository");
 	});
 
-	/** A new assist has to say which it is, rather than defaulting silently. */
+	it("runs the prompt-only assists with nothing of the project", () => {
+		expect(assistContext("branchName")).toBe("prompt");
+		expect(assistContext("reviewComment")).toBe("prompt");
+		expect(assistContext("ticketPlan")).toBe("prompt");
+	});
+
+	/**
+	 * The guide raises remarks against the conventions the repository writes
+	 * down; judging a diff without them raises the wrong ones.
+	 */
+	it("leaves the review guide the project's own rules", () => {
+		expect(assistContext("reviewGuide")).toBe("conventions");
+	});
+
+	/** A new assist has to say what it needs, rather than defaulting silently. */
 	it("answers for every feature in the registry", () => {
 		for (const feature of AI_FEATURES) {
-			expect(typeof feature.readsRepository).toBe("boolean");
+			expect(["repository", "conventions", "prompt"]).toContain(
+				feature.context,
+			);
 		}
+	});
+
+	/** An id nobody declared runs the full session: the safe answer. */
+	it("falls back to the full session for an unknown feature", () => {
+		expect(assistContext("nope" as never)).toBe("repository");
 	});
 
 	/**
@@ -184,23 +204,18 @@ describe("which assists read the repository", () => {
 	it("only lets a repository-reading assist ask for git", () => {
 		for (const feature of AI_FEATURES) {
 			if (/\bgit (diff|log)\b/.test(feature.defaultPromptTemplate)) {
-				expect(feature.readsRepository).toBe(true);
+				expect(feature.context).toBe("repository");
 			}
 		}
 	});
 
 	it("carries the answer onto the resolved feature", () => {
-		const lean = resolveAiFeature(
-			"branchName",
-			undefined,
-			installed(ASSIST_CLI),
-		);
-		const full = resolveAiFeature(
-			"commitMessage",
-			undefined,
-			installed(ASSIST_CLI),
-		);
-		expect(lean.lean).toBe(true);
-		expect(full.lean).toBe(false);
+		expect(
+			resolveAiFeature("branchName", undefined, installed(ASSIST_CLI)).context,
+		).toBe("prompt");
+		expect(
+			resolveAiFeature("commitMessage", undefined, installed(ASSIST_CLI))
+				.context,
+		).toBe("repository");
 	});
 });
