@@ -147,7 +147,9 @@ const fieldError = () =>
 const branchSearch = () =>
 	document.querySelector(".branch-search") as HTMLInputElement;
 const aiNameButton = () =>
-	document.querySelector(".ai-name-btn") as HTMLButtonElement | null;
+	document.querySelector(
+		".branch-name-row .ai-btn",
+	) as HTMLButtonElement | null;
 
 async function settle() {
 	for (let i = 0; i < 8; i++) await tick();
@@ -459,7 +461,7 @@ describe("CreateInstance", () => {
 			await settle();
 			await toBranchStep();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/fix-parser",
+				"feat/fix-the-parser",
 			);
 		});
 
@@ -499,7 +501,7 @@ describe("CreateInstance", () => {
 			await userEvent.click(primary());
 			await settle();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"fix/CAIRN-42/fix-parser",
+				"fix/CAIRN-42/fix-the-parser",
 			);
 		});
 
@@ -513,7 +515,7 @@ describe("CreateInstance", () => {
 			await settle();
 			await toBranchStep();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/CAIRN-42/fix-parser",
+				"feat/CAIRN-42/fix-the-parser",
 			);
 		});
 
@@ -540,6 +542,46 @@ describe("CreateInstance", () => {
 			);
 		});
 
+		/**
+		 * Ask for a name, go back, change the ticket: the answer that lands is
+		 * written for the ticket that is gone, and applying it showed the new
+		 * key next to the old ticket's slug.
+		 */
+		it("drops an answer that arrives after the ticket changed", async () => {
+			settingsState.set({
+				branchTemplate: "feat/{{key}}/{{slug}}",
+				aiEnabled: true,
+			});
+			let land: (answer: { slug: string }) => void = () => {};
+			runOneShotShaped.mockReturnValue(
+				new Promise((resolve) => {
+					land = resolve;
+				}),
+			);
+			mount();
+			await settle();
+			await toBranchStep();
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+
+			await userEvent.click(backButton());
+			await settle();
+			await userEvent.click(backButton());
+			await settle();
+			await fill(field("ticket-id") as HTMLInputElement, "CAIRN-99");
+			await fill(field("ticket-title") as HTMLInputElement, "Widen the cache");
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+
+			land({ slug: "parse-nested-blocks" });
+			await settle();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"feat/CAIRN-99/widen-the-cache",
+			);
+		});
+
 		it("says so and keeps the derived name when the model fails", async () => {
 			settingsState.set({
 				branchTemplate: "feat/{{slug}}",
@@ -552,7 +594,7 @@ describe("CreateInstance", () => {
 			await userEvent.click(aiNameButton() as HTMLElement);
 			await settle();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/fix-parser",
+				"feat/fix-the-parser",
 			);
 			expect(document.body.textContent).toContain("could not be generated");
 		});
@@ -603,13 +645,15 @@ describe("CreateInstance", () => {
 			await userEvent.click(primary());
 			await settle();
 			expect((field("branch-name") as HTMLInputElement).value).toBe(
-				"feat/widen-cache",
+				"feat/widen-the-cache",
 			);
 		});
 
 		/** Two instances cannot share a branch. */
 		it("refuses a branch another instance already has", async () => {
-			instancesStore.set([instance("i1", "p1", { branch: "feat/fix-parser" })]);
+			instancesStore.set([
+				instance("i1", "p1", { branch: "feat/fix-the-parser" }),
+			]);
 			mount();
 			await settle();
 			await toBranchStep();
@@ -749,7 +793,7 @@ describe("CreateInstance", () => {
 			expect(spawnInstance.mock.calls[0][0]).toMatchObject({
 				projectId: "p1",
 				projectPath: "/repo",
-				branch: "feat/fix-parser",
+				branch: "feat/fix-the-parser",
 				baseBranch: "main",
 				linkExisting: false,
 				ticket: { id: "CAIRN-42", title: "Fix the parser" },

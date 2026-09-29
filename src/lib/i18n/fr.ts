@@ -130,7 +130,8 @@ export const fr = {
 		baseBranchPlaceholder: "main",
 		baseForTicket: (key: string) => `Branches qui mentionnent ${key}`,
 		newBranchName: "Nom de la nouvelle branche",
-		aiNameBranch: "Nommer avec l'IA",
+		aiNaming: "Rédaction du nom de branche",
+		aiNamed: "Nom de branche prêt",
 		aiNameUnavailable:
 			"Le CLI d'assistance n'est pas installé sur cette machine.",
 		aiNameEmpty: "Le modèle n'a renvoyé aucun nom exploitable.",

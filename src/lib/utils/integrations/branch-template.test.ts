@@ -7,6 +7,7 @@ import {
 	branchKindSegment,
 	DEFAULT_BRANCH_TEMPLATE,
 	renderBranchTemplate,
+	slugSegment,
 	titleSlug,
 } from "./branch-template";
 
@@ -34,6 +35,24 @@ describe("branchKindSegment", () => {
 		expect(branchKindSegment("Change Request")).toBe("change-request");
 	});
 
+	/**
+	 * GitHub answers `issue` or `pull_request` for everything it tracks and
+	 * GitLab defaults to `issue`, so kept as prefixes they would turn every
+	 * ticket of those two into `issue/...`.
+	 */
+	it("treats a tracker-wide type as no type at all", () => {
+		expect(branchKindSegment("issue")).toBe("feat");
+		expect(branchKindSegment("pull_request")).toBe("feat");
+		expect(branchKindSegment("merge_request")).toBe("feat");
+		expect(branchKindSegment("Issue")).toBe("feat");
+	});
+
+	/** GitLab sends its own `issue_type`, which does say something. */
+	it("still reads a GitLab issue type that names the work", () => {
+		expect(branchKindSegment("incident")).toBe("fix");
+		expect(branchKindSegment("test_case")).toBe("test-case");
+	});
+
 	/** A ticket typed by hand has no type, and a branch still needs its prefix. */
 	it("falls back to feat for a ticket with no type", () => {
 		expect(branchKindSegment(null)).toBe("feat");
@@ -43,34 +62,47 @@ describe("branchKindSegment", () => {
 });
 
 describe("titleSlug", () => {
-	it("drops the filler words of a French title", () => {
+	it("keeps the words of a French title, in order", () => {
 		expect(
 			titleSlug("Suppression des sessions expirées lors de la déconnexion"),
-		).toBe("suppression-sessions-expirees-deconnexion");
+		).toBe("suppression-des-sessions-expirees-lors-de");
 	});
 
-	it("drops the filler words of an English title", () => {
+	it("keeps the words of an English title, in order", () => {
 		expect(titleSlug("Drop the stale sessions on logout of the user")).toBe(
-			"drop-stale-sessions-logout-user",
+			"drop-the-stale-sessions-on-logout",
 		);
 	});
 
-	it("folds accents and punctuation away", () => {
+	/**
+	 * The reason the filler list is gone: it held `no`, `not`, `ne`, `pas` and
+	 * `sans`, so the slug could name the opposite of the ticket.
+	 */
+	it("keeps a negation, which a filler list would have dropped", () => {
+		expect(titleSlug("Do not send emails to unsubscribed users")).toBe(
+			"do-not-send-emails-to-unsubscribed",
+		);
+		expect(titleSlug("Ne plus envoyer de mails sans consentement")).toBe(
+			"ne-plus-envoyer-de-mails-sans",
+		);
+	});
+
+	it("folds accents away and drops the elisions the split leaves behind", () => {
 		expect(titleSlug("Éviter l'envoi d'un e-mail : doublon")).toBe(
-			"eviter-envoi-mail-doublon",
+			"eviter-envoi-un-mail-doublon",
 		);
 	});
 
 	it("drops a ticket key the title repeats", () => {
 		expect(titleSlug("[APP-214] Suppression des sessions", "APP-214")).toBe(
-			"suppression-sessions",
+			"suppression-des-sessions",
 		);
 		expect(titleSlug("APP-214 : Suppression des sessions")).toBe(
-			"suppression-sessions",
+			"suppression-des-sessions",
 		);
 	});
 
-	it("keeps its words when they are all filler", () => {
+	it("keeps a title that is nothing but short words", () => {
 		expect(titleSlug("Pour le tout")).toBe("pour-le-tout");
 	});
 
@@ -85,6 +117,41 @@ describe("titleSlug", () => {
 	it("answers with nothing for a title made of nothing", () => {
 		expect(titleSlug("")).toBe("");
 		expect(titleSlug("   ---   ")).toBe("");
+	});
+});
+
+describe("slugSegment", () => {
+	/**
+	 * The words are the model's answer. Passing them back through `titleSlug`
+	 * rewrote them - `drop-stale-sessions-on-logout` lost its `on`, and a
+	 * `do-not-retry` would have lost the `not` that carries the meaning.
+	 */
+	it("keeps every word the model chose", () => {
+		expect(slugSegment("drop-stale-sessions-on-logout")).toBe(
+			"drop-stale-sessions-on-logout",
+		);
+		expect(slugSegment("do-not-retry-failed-uploads")).toBe(
+			"do-not-retry-failed-uploads",
+		);
+	});
+
+	it("makes it safe for a ref, and nothing more", () => {
+		expect(slugSegment("Clear Expired Sessions")).toBe(
+			"clear-expired-sessions",
+		);
+		expect(slugSegment("fix/éviter le doublon")).toBe("fix-eviter-le-doublon");
+		expect(slugSegment("--trimmed--")).toBe("trimmed");
+	});
+
+	it("stays bounded without leaving a trailing separator", () => {
+		const slug = slugSegment("a".repeat(40) + "-" + "b".repeat(40));
+		expect(slug.length).toBeLessThanOrEqual(52);
+		expect(slug.endsWith("-")).toBe(false);
+	});
+
+	it("answers with nothing for an answer made of nothing", () => {
+		expect(slugSegment("")).toBe("");
+		expect(slugSegment("///")).toBe("");
 	});
 });
 

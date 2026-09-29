@@ -39,7 +39,7 @@
   import type { Instance, InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
   import { slugify } from '$lib/utils/format';
-  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, titleSlug } from '$lib/utils/integrations/branch-template';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, slugSegment, titleSlug } from '$lib/utils/integrations/branch-template';
   import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
   import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
   import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
@@ -282,6 +282,7 @@
   let isNamingBranch = false;
   let namingError = '';
   let namingAbort: AbortController | null = null;
+  let namingStatus = '';
 
   $: branchNameFeature = resolveAiFeature('branchName', $settings.aiFeatures, $isAssistCliInstalled);
   $: canNameWithAi =
@@ -291,22 +292,24 @@
     ticketTitle.trim().length > 0 &&
     !!$activeProject;
 
-  /** Yields two frames first so the spinner is painted before the blocking call, like `handleCreate`. */
   async function nameBranchWithAi() {
     const project = $activeProject;
     if (!canNameWithAi || !project) return;
+    // The answer belongs to the ticket that was on screen when it was asked
+    // for; going back and picking another one makes it stale.
+    const askedFor = ticketId;
+    const askedKind = selectedTicket?.kind ?? null;
     isNamingBranch = true;
     namingError = '';
+    namingStatus = t('createInstance.aiNaming') as string;
     namingAbort = new AbortController();
-    await tick();
-    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     try {
       const answer = await runOneShotShaped<{ slug: string }>(
         buildBranchNamePrompt(
           {
-            key: ticketId,
+            key: askedFor,
             title: ticketTitle,
-            kind: selectedTicket?.kind ?? null,
+            kind: askedKind,
             description: selectedTicket?.description ?? '',
           },
           $settings.aiFeatures,
@@ -316,7 +319,10 @@
         FEATURE_SCHEMAS.branchName,
         { model: branchNameFeature.model || undefined, signal: namingAbort.signal },
       );
-      const slug = titleSlug(answer.slug ?? '');
+      if (ticketId !== askedFor) return;
+      // Only the characters are cleaned up: the words are the model's answer,
+      // and dropping one of them can reverse what the branch says.
+      const slug = slugSegment(answer.slug ?? '');
       if (!slug) {
         namingError = t('createInstance.aiNameEmpty') as string;
         return;
@@ -325,10 +331,11 @@
       // overwrites a name still equal to it, so a name asked of a model is left
       // alone afterwards, exactly like one the user typed.
       branchName = renderBranchTemplate(branchTemplate, {
-        key: ticketId,
+        key: askedFor,
         slug,
-        kind: selectedTicket?.kind ?? null,
+        kind: askedKind,
       });
+      namingStatus = t('createInstance.aiNamed') as string;
     } catch (e) {
       if (!(e instanceof AiAssistError && e.kind === 'cancelled')) {
         namingError = t('createInstance.aiNameFailed') as string;
@@ -430,6 +437,8 @@
 
   function back() {
     error = '';
+    // Leaving the branch step drops the name being written for it.
+    namingAbort?.abort();
     step = Math.max(0, step - 1);
   }
 
@@ -731,32 +740,45 @@
         <div class="form-row">
           <label for="branch-name">{t('createInstance.newBranchName')}</label>
           <div class="branch-name-row">
-            <input
-              id="branch-name"
-              type="text"
-              bind:value={branchName}
-              class:input-error={duplicateBranch}
-            />
+            <div class="ai-field" class:is-generating={isNamingBranch}>
+              <input
+                id="branch-name"
+                type="text"
+                bind:value={branchName}
+                disabled={isNamingBranch}
+                aria-busy={isNamingBranch}
+                class:input-error={duplicateBranch}
+              />
+              {#if isNamingBranch}
+                <span class="ai-sweep" aria-hidden="true"></span>
+              {/if}
+            </div>
             {#if $settings.aiEnabled}
               {#if isNamingBranch}
-                <button type="button" class="ai-name-btn" on:click={() => namingAbort?.abort()}>
-                  <Spinner size={12} trackColor="var(--bg-3)" color="var(--fg-3)"/>
-                  {t('common.cancel')}
+                <button
+                  type="button"
+                  class="btn ghost ai-btn is-busy"
+                  title={t('git.aiCancel') as string}
+                  on:click={() => namingAbort?.abort()}
+                >
+                  <Icon name="sparkles" size={12}/> {t('git.aiCancel')}
                 </button>
               {:else}
                 <button
                   type="button"
-                  class="ai-name-btn"
+                  class="btn ghost ai-btn"
                   disabled={!canNameWithAi}
-                  title={branchNameFeature.unavailable ? (t('createInstance.aiNameUnavailable') as string) : undefined}
+                  title={branchNameFeature.unavailable
+                    ? (t('createInstance.aiNameUnavailable') as string)
+                    : (t('git.generateWithAi') as string)}
                   on:click={nameBranchWithAi}
                 >
-                  <Icon name="sparkles" size={12}/>
-                  {t('createInstance.aiNameBranch')}
+                  <Icon name="sparkles" size={12}/> {t('git.generateWithAi')}
                 </button>
               {/if}
             {/if}
           </div>
+          <span class="sr-only" role="status" aria-live="polite">{namingStatus}</span>
           {#if duplicateBranch}
             <div class="field-error">
               <Icon name="info" size={12}/>
@@ -966,25 +988,20 @@
     align-items: center;
     gap: 8px;
   }
-  .branch-name-row input { flex: 1; min-width: 0; }
+  .branch-name-row .ai-field { flex: 1; min-width: 0; }
+  .branch-name-row :global(input) { width: 100%; box-sizing: border-box; }
 
-  .ai-name-btn {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    border: 1px solid var(--stroke-1);
-    border-radius: var(--r-sm);
-    background: var(--bg-2);
-    color: var(--fg-2);
-    font-size: 12px;
-    font-family: var(--font-ui);
-    cursor: pointer;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
     white-space: nowrap;
+    border: 0;
   }
-  .ai-name-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); }
-  .ai-name-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .branch-suggestions { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
   .branch-suggestion-row { display: flex; flex-wrap: wrap; gap: 5px; }
