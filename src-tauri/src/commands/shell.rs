@@ -120,9 +120,12 @@ pub async fn open_external(target: String) -> Result<(), String> {
     let target = openable(&target).ok_or_else(|| format!("Refusing to open {target}"))?;
     #[cfg(target_os = "linux")]
     {
+        use std::os::unix::process::CommandExt;
         let mut last = String::from("No opener found");
         for mut cmd in open::commands(&target) {
             child_env::scrub(&mut cmd);
+            // Out of Cairn's group, a Ctrl+C in the terminal that launched it spares the browser.
+            cmd.process_group(0);
             match cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
                 Ok(mut child) => {
                     // Some openers wait for the application they start.
