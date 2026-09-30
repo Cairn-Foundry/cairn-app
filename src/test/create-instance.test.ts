@@ -582,6 +582,18 @@ describe("CreateInstance", () => {
 			);
 		});
 
+		it("keeps Create disabled while the model writes the name", async () => {
+			settingsState.set({ branchTemplate: "feat/{{slug}}", aiEnabled: true });
+			runOneShotShaped.mockReturnValue(new Promise(() => {}));
+			mount();
+			await settle();
+			await toBranchStep();
+			expect(primary().disabled).toBe(false);
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+			expect(primary().disabled).toBe(true);
+		});
+
 		it("says so and keeps the derived name when the model fails", async () => {
 			settingsState.set({
 				branchTemplate: "feat/{{slug}}",

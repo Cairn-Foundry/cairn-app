@@ -97,8 +97,23 @@ describe("titleSlug", () => {
 		expect(titleSlug("[APP-214] Suppression des sessions", "APP-214")).toBe(
 			"suppression-des-sessions",
 		);
-		expect(titleSlug("APP-214 : Suppression des sessions")).toBe(
+		expect(titleSlug("APP-214 : Suppression des sessions", "APP-214")).toBe(
 			"suppression-des-sessions",
+		);
+	});
+
+	it("keeps a leading word that only looks like a key", () => {
+		expect(titleSlug("UTF-8 filenames break the tree", "APP-1")).toBe(
+			"utf-filenames-break-the-tree",
+		);
+	});
+
+	it("drops the key alone, not a longer number it prefixes", () => {
+		expect(titleSlug("Crash after #50 merged", "#5")).toBe(
+			"crash-after-50-merged",
+		);
+		expect(titleSlug("Follow-up of APP-12", "APP-1")).toBe(
+			"follow-up-of-app-12",
 		);
 	});
 

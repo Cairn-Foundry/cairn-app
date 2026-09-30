@@ -38,7 +38,6 @@
   import type { Ticket, TicketQuery } from '$lib/types/integrations';
   import type { Instance, InstanceTicket } from '$lib/types/instance';
   import { matchesSearch } from '$lib/utils/files/files-search';
-  import { slugify } from '$lib/utils/format';
   import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate, slugSegment, titleSlug } from '$lib/utils/integrations/branch-template';
   import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
   import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
@@ -260,10 +259,11 @@
    * The branch name suggested for the ticket. The descriptive half comes from
    * the ticket title, never from its key: `{{key}}` already carries the key,
    * and a slug repeating it produced names like `feat/app-214-app-214`.
-   * A title Cairn was given nothing to work with falls back to the key.
+   * A title with nothing to slug leaves `{{slug}}` empty, and the template
+   * collapses around it rather than repeating the key.
    */
   $: if (ticketId) {
-    const slug = titleSlug(ticketTitle, ticketId) || slugify(ticketId);
+    const slug = titleSlug(ticketTitle, ticketId);
     const generated = renderBranchTemplate(branchTemplate, {
       key: ticketId,
       slug,
@@ -426,7 +426,7 @@
     step === 0 ? ticketId.trim().length > 0 && ticketTitle.trim().length > 0 :
     step === 1 ? isGitRepo :
     step === 2 ? (mode === 'create'
-      ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch
+      ? isGitRepo && branchName.trim().length > 0 && !duplicateBranch && !isNamingBranch
       : isGitRepo && existingBranch.length > 0 && !existingInUse) :
     true;
 

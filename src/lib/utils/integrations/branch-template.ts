@@ -3,8 +3,7 @@
 
 // The branch name derived from a ticket, through the user's template
 // (`branchTemplate`, global or overridden per project, default
-// `{{kind}}/{{key}}/{{slug}}`), and the reverse: what a branch name says about
-// the ticket it was cut for.
+// `{{kind}}/{{key}}/{{slug}}`).
 
 const PLACEHOLDER = /\{\{\s*(key|slug|kind)\s*\}\}/g;
 
@@ -131,14 +130,14 @@ const MAX_SLUG_CHARS = 52;
  * is exactly the doubling this avoids.
  */
 function stripLeadingKey(title: string, key: string): string {
-	let out = title;
-	if (key.trim()) {
-		const escaped = key.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-		out = out.replace(new RegExp(escaped, "gi"), " ");
-	}
-	return out
-		.replace(/^\s*[[(]?\s*[A-Za-z][A-Za-z0-9]*[-_]\d+\s*[)\]]?\s*/, " ")
-		.replace(/^[\s\-–—:;,.]+/, "");
+	const trimmed = key.trim();
+	if (!trimmed) return title;
+	const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	// Bounded on both sides, so `#5` leaves `#50` whole and `APP-1` leaves `APP-12`.
+	return title.replace(
+		new RegExp(`(?<![A-Za-z0-9])${escaped}(?![A-Za-z0-9])`, "gi"),
+		" ",
+	);
 }
 
 /**
