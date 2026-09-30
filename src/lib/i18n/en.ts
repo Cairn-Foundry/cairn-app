@@ -115,6 +115,8 @@ export const en = {
 		noExistingBranches: "This project has no branches to link yet.",
 		branchInUse: (name: string) =>
 			`Branch ${name} is already linked to another instance.`,
+		branchInWorktree: (name: string, path: string) =>
+			`Branch ${name} is already checked out in the worktree at ${path}. Adopt that worktree instead.`,
 		ticketId: "Ticket ID",
 		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Title",
@@ -2758,8 +2760,10 @@ export const en = {
 		title: (name: string) => `Delete "${name}"?`,
 		description:
 			"This will remove the instance and delete its worktree. Your original project files will not be affected.",
-		descriptionAdopted:
-			"Cairn did not create this worktree, so it keeps it by default and only forgets the instance. Your original project files will not be affected either way.",
+		descriptionKeep:
+			"This will remove the instance and keep its worktree on disk. Your original project files will not be affected.",
+		adoptedHint:
+			"Cairn did not create this worktree, so it keeps it by default.",
 		removeWorktree: "Delete the worktree too",
 		removeWorktreeDesc:
 			"The directory goes, and the local branch with it. Anything uncommitted in there is lost.",

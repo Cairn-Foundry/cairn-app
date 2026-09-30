@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Instances: one git worktree and branch per unit of work. Creating one adds a
-//! branch and a worktree under the project's `worktrees/` directory; deleting
-//! one takes both away again.
+//! branch and a worktree under the project's `worktrees/` directory; adopting
+//! one records a worktree that already exists, wherever it lives. Deleting one
+//! takes the worktree and the branch away again, or leaves them on disk when
+//! asked to (the default for an adopted worktree).
 
 use std::collections::HashSet;
 use std::fs;
@@ -117,9 +119,6 @@ pub struct CreateInstanceArgs {
 /// on a detached HEAD, which is a checkout rather than a unit of work.
 #[derive(Serialize)]
 pub struct UnclaimedWorktree {
-    /// The name git registered it under, which is the directory name and not
-    /// necessarily anything to do with the branch.
-    pub name: String,
     pub path: String,
     pub branch: Option<String>,
 }
@@ -142,6 +141,63 @@ pub struct AdoptWorktreeArgs {
 /// compare equal to the instance that named it.
 fn resolved(path: &Path) -> PathBuf {
     fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// A path in the form Cairn stores its own worktree paths in. libgit2 answers
+/// with forward slashes on Windows, where a path Cairn builds itself carries
+/// backslashes; rebuilding it from its components gives both the same form, so
+/// the two compare equal as strings wherever a view keys on `worktreePath`.
+fn stored_path(path: &Path) -> String {
+    path.components().collect::<PathBuf>().to_string_lossy().into_owned()
+}
+
+/// The checkouts registered as projects: the project itself and any other
+/// project that happens to be a linked worktree of the same repository. Each
+/// one is already a base instance, and deleting it as an instance would take
+/// the project's own files with it.
+fn project_checkouts(project_path: &Path) -> HashSet<PathBuf> {
+    let mut paths: HashSet<PathBuf> = read_projects()
+        .unwrap_or_default()
+        .iter()
+        .map(|p| resolved(Path::new(&shellexpand::tilde(&p.path).into_owned())))
+        .collect();
+    paths.insert(resolved(project_path));
+    paths
+}
+
+/// The linked worktree, still on disk, that has `branch` checked out.
+fn worktree_holding_branch(repo: &Repository, branch: &str) -> Option<PathBuf> {
+    let names = repo.worktrees().ok()?;
+    names
+        .iter()
+        .filter_map(|name| name.ok().flatten())
+        .filter_map(|name| repo.find_worktree(name).ok())
+        .filter(|wt| wt.validate().is_ok())
+        .find(|wt| worktree_branch(wt.path()).as_deref() == Some(branch))
+        .map(|wt| wt.path().to_path_buf())
+}
+
+/// Why a new worktree for `branch` under the name `slug` must not be made: a
+/// live worktree already holds the branch, or one is registered under that
+/// name. Both are work the user may still have - a worktree kept on disk when
+/// its instance was deleted, one made by hand - and clearing the way for the
+/// new one would delete it. Only a registration whose directory is gone is
+/// stale, and that one is cleared as before.
+fn worktree_conflict(repo: &Repository, branch: &str, slug: &str) -> Option<String> {
+    let held = worktree_holding_branch(repo, branch).or_else(|| {
+        repo.find_worktree(slug)
+            .ok()
+            .filter(|wt| wt.validate().is_ok())
+            .map(|wt| wt.path().to_path_buf())
+    })?;
+    Some(format!(
+        "A worktree already exists for '{branch}' at {}. Adopt it instead of creating a new one.",
+        held.display()
+    ))
+}
+
+fn is_locked(wt: &git2::Worktree) -> bool {
+    matches!(wt.is_locked(), Ok(git2::WorktreeLockStatus::Locked(_)))
 }
 
 /// Whether deleting an instance takes its worktree with it.
@@ -180,31 +236,39 @@ fn worktree_at(repo: &Repository, path: &Path) -> Option<git2::Worktree> {
 /// The project's linked worktrees that no instance claims - the ones made by
 /// hand outside Cairn, and the ones it created but lost track of. The main
 /// checkout is not among them: git only lists the linked ones, and the project
-/// itself is already the base instance.
+/// itself is already the base instance, and so is any registered project that
+/// is a linked worktree of the same repository.
+/// Async: it opens every worktree, which blocks on a large or slow filesystem.
 #[tauri::command]
-pub fn list_unclaimed_worktrees(
+pub async fn list_unclaimed_worktrees(
     project_id: String,
     project_path: String,
 ) -> Result<Vec<UnclaimedWorktree>, String> {
-    let expanded = shellexpand::tilde(&project_path).into_owned();
+    tauri::async_runtime::spawn_blocking(move || unclaimed_worktrees(&project_id, &project_path))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn unclaimed_worktrees(project_id: &str, project_path: &str) -> Result<Vec<UnclaimedWorktree>, String> {
+    let expanded = shellexpand::tilde(project_path).into_owned();
     let repo = Repository::open(&expanded).map_err(|e| e.to_string())?;
-    let claimed: HashSet<PathBuf> = read_instances(&project_id)?
+    let mut claimed: HashSet<PathBuf> = read_instances(project_id)?
         .iter()
         .map(|i| resolved(Path::new(&shellexpand::tilde(&i.worktree_path).into_owned())))
         .collect();
+    claimed.extend(project_checkouts(Path::new(&expanded)));
 
     let names = repo.worktrees().map_err(|e| e.to_string())?;
     let mut out: Vec<UnclaimedWorktree> = names
         .iter()
         .filter_map(|name| name.ok().flatten())
-        .filter_map(|name| repo.find_worktree(name).ok().map(|wt| (name.to_string(), wt)))
+        .filter_map(|name| repo.find_worktree(name).ok())
         // A worktree whose directory is gone is for git to prune, not for the
         // user to adopt.
-        .filter(|(_, wt)| wt.validate().is_ok())
-        .filter(|(_, wt)| !claimed.contains(&resolved(wt.path())))
-        .map(|(name, wt)| UnclaimedWorktree {
-            name,
-            path: wt.path().to_string_lossy().into_owned(),
+        .filter(|wt| wt.validate().is_ok())
+        .filter(|wt| !claimed.contains(&resolved(wt.path())))
+        .map(|wt| UnclaimedWorktree {
+            path: stored_path(wt.path()),
             branch: worktree_branch(wt.path()),
         })
         .collect();
@@ -228,6 +292,9 @@ pub async fn adopt_worktree(args: AdoptWorktreeArgs) -> Result<Instance, String>
         if worktree.validate().is_err() {
             return Err(format!("The directory of '{}' is missing.", args.path));
         }
+        if project_checkouts(Path::new(&expanded_project)).contains(&resolved(worktree.path())) {
+            return Err("That worktree is a project checkout, not a unit of work.".to_string());
+        }
         let branch = worktree_branch(worktree.path()).ok_or_else(|| {
             "That worktree has a detached HEAD, so it has no branch to work on.".to_string()
         })?;
@@ -249,7 +316,7 @@ pub async fn adopt_worktree(args: AdoptWorktreeArgs) -> Result<Instance, String>
             id: args.id,
             ticket: args.ticket,
             branch,
-            worktree_path: worktree.path().to_string_lossy().into_owned(),
+            worktree_path: stored_path(worktree.path()),
             status: "idle".to_string(),
             created_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -287,9 +354,11 @@ pub fn list_instances(project_id: String) -> Result<Vec<Instance>, String> {
     Ok(stored.into_iter().map(|i| i.with_project(project_id.clone())).collect())
 }
 
-/// Creates the branch and its worktree, then records the instance. A stale git
-/// worktree entry or leftover directory under the same slug is cleared first,
-/// and a branch this call created is deleted again if the worktree fails.
+/// Creates the branch and its worktree, then records the instance. A branch
+/// some live worktree already holds is refused, the user being pointed at
+/// adopting it; a stale git worktree entry (its directory gone) or a leftover
+/// directory under the same slug is cleared first, and a branch this call
+/// created is deleted again if the worktree fails.
 /// Async: worktree creation blocks long enough to freeze the UI thread.
 /// Dependency folders are git-ignored and take minutes and gigabytes to
 /// rebuild per worktree; APFS, btrfs and XFS copy a directory in milliseconds,
@@ -395,6 +464,14 @@ pub async fn create_instance(args: CreateInstanceArgs) -> Result<Instance, Strin
 
             let slug = branch.replace('/', "-");
             let worktree_path = worktrees_dir(&args.project_id)?.join(&slug);
+
+            if let Some(conflict) = worktree_conflict(&repo, &branch, &slug) {
+                if branch_created
+                    && let Ok(mut b) = repo.find_branch(&branch, BranchType::Local) {
+                        let _ = b.delete();
+                    };
+                return Err(conflict);
+            }
 
             let git_worktree_entry = repo.path().join("worktrees").join(&slug);
             if git_worktree_entry.exists() {
@@ -593,9 +670,12 @@ pub fn update_instance_base_branch(id: String, project_id: String, base_branch: 
     Ok(updated.with_project(project_id))
 }
 
-/// Removes the worktree directory, prunes the git worktree entry, deletes the
-/// branch, then drops the instance and its editor state. The git cleanup is
-/// best effort: a missing worktree or branch must not block the deletion.
+/// Drops the instance and its editor state and, when `remove_worktree` asks
+/// for it (by default for a worktree Cairn made, not for an adopted one),
+/// removes the worktree directory, prunes its git entry and deletes the
+/// branch. A locked worktree is refused before anything is touched; the rest of
+/// the git cleanup is best effort, since a missing worktree or branch must not
+/// block the deletion.
 /// Async: removing the worktree directory blocks long enough to freeze the UI thread.
 #[tauri::command]
 pub async fn delete_instance(
@@ -626,6 +706,14 @@ pub async fn delete_instance(
             // Resolved before the directory goes: a path that no longer exists
             // cannot be matched against the worktrees git has registered.
             let registered = worktree_at(&repo, &wt_path);
+            if let Some(wt) = &registered
+                && is_locked(wt)
+            {
+                return Err(format!(
+                    "The worktree at {} is locked. Unlock it with `git worktree unlock` or keep it on disk.",
+                    wt_path.display()
+                ));
+            }
             if wt_path.exists() {
                 fs::remove_dir_all(&wt_path).map_err(|e| e.to_string())?;
             }
@@ -861,9 +949,9 @@ mod tests {
         let second = scratch.worktree("beta", "feat/two");
 
         // A project id nobody ever stored: every worktree is unclaimed.
-        let listed = list_unclaimed_worktrees(
-            format!("adopt-test-{}", std::process::id()),
-            scratch.repo().to_string_lossy().into_owned(),
+        let listed = unclaimed_worktrees(
+            &format!("adopt-test-{}", std::process::id()),
+            &scratch.repo().to_string_lossy(),
         )
         .expect("the listing should succeed");
 
@@ -886,15 +974,81 @@ mod tests {
         let path = scratch.worktree("ghost", "feat/ghost");
         fs::remove_dir_all(&path).unwrap();
 
-        let listed = list_unclaimed_worktrees(
-            format!("adopt-test-stale-{}", std::process::id()),
-            scratch.repo().to_string_lossy().into_owned(),
+        let listed = unclaimed_worktrees(
+            &format!("adopt-test-stale-{}", std::process::id()),
+            &scratch.repo().to_string_lossy(),
         )
         .unwrap();
         assert!(
             !listed.iter().any(|w| resolved(Path::new(&w.path)) == resolved(&path)),
             "a worktree with no directory was offered"
         );
+    }
+
+    /// A project registered on a linked worktree sees itself in the list git
+    /// keeps for the whole repository; offering it would duplicate the base
+    /// instance, and deleting that would take the project's own files.
+    #[test]
+    fn a_project_that_is_a_linked_worktree_is_not_offered_to_itself() {
+        let scratch = Scratch::new("self");
+        let project = scratch.worktree("project-checkout", "feat/project");
+        let other = scratch.worktree("other", "feat/other");
+
+        let listed = unclaimed_worktrees(
+            &format!("adopt-test-self-{}", std::process::id()),
+            &project.to_string_lossy(),
+        )
+        .unwrap();
+        let paths: Vec<PathBuf> = listed.iter().map(|w| resolved(Path::new(&w.path))).collect();
+        assert!(!paths.contains(&resolved(&project)), "{paths:?}");
+        assert!(paths.contains(&resolved(&other)), "{paths:?}");
+        assert!(project_checkouts(&project).contains(&resolved(&project)));
+    }
+
+    /// A worktree kept on disk when its instance was deleted still holds the
+    /// user's work; creating a new instance on the same branch must not clear
+    /// it out of the way.
+    #[test]
+    fn a_branch_a_live_worktree_holds_is_not_given_a_second_one() {
+        let scratch = Scratch::new("conflict");
+        let kept = scratch.worktree("feat-kept", "feat/kept");
+        let repo = Repository::open(scratch.repo()).unwrap();
+
+        let conflict = worktree_conflict(&repo, "feat/kept", "feat-kept")
+            .expect("the kept worktree should block a new one");
+        assert!(conflict.contains("feat/kept"), "{conflict}");
+        assert_eq!(worktree_holding_branch(&repo, "feat/kept").map(|p| resolved(&p)), Some(resolved(&kept)));
+        // Registered under the slug but on another branch: still someone's work.
+        assert!(worktree_conflict(&repo, "feat/other", "feat-kept").is_some());
+        assert!(worktree_conflict(&repo, "feat/free", "feat-free").is_none());
+    }
+
+    /// Only a registration whose directory is gone is stale, and stale is what
+    /// creating an instance still clears.
+    #[test]
+    fn a_stale_registration_does_not_block_a_new_worktree() {
+        let scratch = Scratch::new("stale-slug");
+        let path = scratch.worktree("feat-gone", "feat/gone");
+        fs::remove_dir_all(&path).unwrap();
+        let repo = Repository::open(scratch.repo()).unwrap();
+        assert!(worktree_conflict(&repo, "feat/gone", "feat-gone").is_none());
+    }
+
+    #[test]
+    fn a_locked_worktree_is_reported_as_such() {
+        let scratch = Scratch::new("locked");
+        let path = scratch.worktree("wt", "feat/locked");
+        let repo = Repository::open(scratch.repo()).unwrap();
+        assert!(!is_locked(&worktree_at(&repo, &path).unwrap()));
+        scratch.git(&scratch.repo(), &["worktree", "lock", path.to_str().unwrap()]);
+        assert!(is_locked(&worktree_at(&repo, &path).unwrap()));
+    }
+
+    #[test]
+    fn a_stored_path_keeps_its_components() {
+        let path = Path::new("/home/me/work/wt");
+        assert_eq!(PathBuf::from(stored_path(path)), path.to_path_buf());
+        assert_eq!(stored_path(Path::new("/home/me/work/wt/")), stored_path(path));
     }
 
     #[test]

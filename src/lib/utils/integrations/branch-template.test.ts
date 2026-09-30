@@ -6,10 +6,11 @@ import {
 	branchKeySegment,
 	branchKindSegment,
 	DEFAULT_BRANCH_TEMPLATE,
+	isTicketKey,
 	renderBranchTemplate,
 	slugSegment,
-	titleSlug,
 	ticketFromBranch,
+	titleSlug,
 } from "./branch-template";
 
 describe("branchKeySegment", () => {
@@ -232,7 +233,15 @@ describe("ticketFromBranch", () => {
 			id: "CAIRN-42",
 			title: "Dark mode",
 		});
-		expect(ticketFromBranch("feat/x-9")).toEqual({ id: "X-9", title: "X 9" });
+	});
+
+	/** The key read back as a sentence is no title; the tracker or the user has one. */
+	it("leaves the title empty when the branch holds nothing beyond the key", () => {
+		expect(ticketFromBranch("feat/x-9")).toEqual({ id: "X-9", title: "" });
+		expect(ticketFromBranch("feat/APP-214")).toEqual({
+			id: "APP-214",
+			title: "",
+		});
 	});
 
 	/** Most branches carry no ticket at all; the name is still what the work is. */
@@ -254,5 +263,14 @@ describe("ticketFromBranch", () => {
 	it("has nothing to say about a branch with no name", () => {
 		expect(ticketFromBranch("")).toBeNull();
 		expect(ticketFromBranch("///")).toBeNull();
+	});
+});
+
+describe("isTicketKey", () => {
+	it("recognises a tracker key and nothing else", () => {
+		expect(isTicketKey("CAIRN-42")).toBe(true);
+		expect(isTicketKey(" app-7 ")).toBe(true);
+		expect(isTicketKey("adopt-an-existing-worktree")).toBe(false);
+		expect(isTicketKey("")).toBe(false);
 	});
 });

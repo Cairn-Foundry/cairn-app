@@ -433,6 +433,18 @@ describe("DeleteInstanceModal: what becomes of the worktree", () => {
 		expect(onConfirm).toHaveBeenCalledWith({ removeWorktree: false });
 	});
 
+	/** The summary has to describe what the button is about to do, not the default. */
+	it("describes the deletion the toggle currently asks for", async () => {
+		const { toggle } = mount();
+		expect(document.querySelector(".del-desc")?.textContent).toContain(
+			"delete its worktree",
+		);
+		await userEvent.click(toggle());
+		expect(document.querySelector(".del-desc")?.textContent).toContain(
+			"keep its worktree on disk",
+		);
+	});
+
 	it("says where the worktree is, so the choice is made knowingly", () => {
 		mount({ external: true, worktreePath: "/home/someone/elsewhere" });
 		expect(body().textContent).toContain("/home/someone/elsewhere");

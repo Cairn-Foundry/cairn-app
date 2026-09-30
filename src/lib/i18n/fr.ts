@@ -117,6 +117,8 @@ export const fr = {
 		noExistingBranches: "Ce projet n'a pas encore de branche à rattacher.",
 		branchInUse: (name: string) =>
 			`La branche ${name} est déjà rattachée à une autre instance.`,
+		branchInWorktree: (name: string, path: string) =>
+			`La branche ${name} est déjà extraite dans le worktree ${path}. Adoptez plutôt ce worktree.`,
 		ticketId: "ID du ticket",
 		ticketIdPlaceholder: "FEAT-42, BUG-118, ...",
 		title: "Titre",
@@ -2807,8 +2809,10 @@ export const fr = {
 		title: (name: string) => `Supprimer "${name}" ?`,
 		description:
 			"Cela supprimera l'instance et effacera son worktree. Vos fichiers originaux de projet ne seront pas affectés.",
-		descriptionAdopted:
-			"Ce worktree n'a pas été créé par Cairn : par défaut il est conservé et seule l'instance est oubliée. Dans les deux cas, vos fichiers originaux de projet ne seront pas affectés.",
+		descriptionKeep:
+			"Cela supprimera l'instance et conservera son worktree sur le disque. Vos fichiers originaux de projet ne seront pas affectés.",
+		adoptedHint:
+			"Ce worktree n'a pas été créé par Cairn : il est conservé par défaut.",
 		removeWorktree: "Effacer aussi le worktree",
 		removeWorktreeDesc:
 			"Le répertoire disparaît, et la branche locale avec lui. Ce qui n'y est pas commité est perdu.",

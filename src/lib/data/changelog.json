@@ -384,8 +384,8 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Deleting an instance asks what becomes of its worktree, and shows where it is. A worktree Cairn created is cleared away as before; one it merely adopted is kept, and only the instance is forgotten. Either default can be overridden - a worktree outside the Cairn directory can still be cleaned up on request.",
-					"fr": "Supprimer une instance demande ce qu'il advient de son worktree, et affiche où il se trouve. Un worktree créé par Cairn est effacé comme avant ; un worktree simplement adopté est conservé, et seule l'instance est oubliée. Les deux valeurs par défaut se laissent forcer : un worktree hors du répertoire de Cairn peut tout de même être nettoyé sur demande."
+					"en": "Deleting an instance asks what becomes of its worktree, and shows where it is. A worktree Cairn created is cleared away as before; one it merely adopted is kept, and only the instance is forgotten. Either default can be overridden - a worktree outside the Cairn directory can still be cleaned up on request. A locked worktree is refused rather than half removed.",
+					"fr": "Supprimer une instance demande ce qu'il advient de son worktree, et affiche où il se trouve. Un worktree créé par Cairn est effacé comme avant ; un worktree simplement adopté est conservé, et seule l'instance est oubliée. Les deux valeurs par défaut se laissent forcer : un worktree hors du répertoire de Cairn peut tout de même être nettoyé sur demande. Un worktree verrouillé est refusé plutôt qu'à moitié supprimé."
 				}
 			},
 			{
@@ -396,10 +396,17 @@
 				}
 			},
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "Creating an instance on a branch a worktree still holds is refused, pointing at adopting that worktree instead. The worktree was cleared out of the way before, uncommitted work included - reachable as soon as a deleted instance kept its worktree on disk.",
+					"fr": "Créer une instance sur une branche qu'un worktree détient encore est refusé, en invitant à adopter ce worktree. Il était auparavant effacé pour faire place nette, travail non commité compris - un cas atteint dès qu'une instance supprimée gardait son worktree sur le disque."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
-					"en": "The New instance dialog asks what it is about to do first, and what the work is called last. The three modes then follow what is already known: creating a branch keeps the ticket before it, since the branch name is generated from it, while starting from a branch or a worktree that already exists fills the ticket in from that branch - the key it carries becomes the id, the rest of the name the title, both there to be overwritten. Opening the dialog from a ref in the graph skips straight to the branch, the mode being settled by the ref itself.",
-					"fr": "La boîte Nouvelle instance demande d'abord ce qu'elle va faire, et en dernier comment le travail s'appelle. Les trois modes suivent ensuite ce qui est déjà connu : créer une branche garde le ticket avant elle, puisque le nom de branche en est généré, tandis que partir d'une branche ou d'un worktree existant remplit le ticket depuis cette branche - la clé qu'elle porte devient l'identifiant, le reste du nom devient le titre, l'un et l'autre restant modifiables. Ouvrir la boîte depuis une ref du graph saute directement à la branche, le mode étant déjà tranché par la ref."
+					"en": "The New instance dialog asks what it is about to do first, and what the work is called last. The three modes then follow what is already known: creating a branch keeps the ticket before it, since the branch name is generated from it, while starting from a branch or a worktree that already exists fills the ticket in from that branch - the key it carries becomes the id, the rest of the name the title, both there to be overwritten. Opening the dialog from a ref in the graph skips straight to the branch, the mode being settled by the ref itself. With a tracker connected, the ticket the branch key names is picked from the tracker when it knows it.",
+					"fr": "La boîte Nouvelle instance demande d'abord ce qu'elle va faire, et en dernier comment le travail s'appelle. Les trois modes suivent ensuite ce qui est déjà connu : créer une branche garde le ticket avant elle, puisque le nom de branche en est généré, tandis que partir d'une branche ou d'un worktree existant remplit le ticket depuis cette branche - la clé qu'elle porte devient l'identifiant, le reste du nom devient le titre, l'un et l'autre restant modifiables. Ouvrir la boîte depuis une ref du graph saute directement à la branche, le mode étant déjà tranché par la ref. Avec un tracker connecté, le ticket que nomme la clé de la branche est repris du tracker lorsqu'il le connaît."
 				}
 			}
 		]

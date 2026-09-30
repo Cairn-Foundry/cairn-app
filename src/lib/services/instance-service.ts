@@ -52,17 +52,16 @@ export async function duplicateInstance(
 
 /** A linked worktree of the project that no instance stands for. */
 export interface UnclaimedWorktree {
-	/** The name git registered, which is the directory name, not the branch. */
-	name: string;
 	path: string;
-	/** Absent on a detached HEAD, which cannot become an instance. */
-	branch?: string;
+	/** Null on a detached HEAD, which cannot become an instance. */
+	branch: string | null;
 }
 
 /**
  * The worktrees of the project no instance claims: the ones made by hand
  * outside Cairn, and the ones it created but lost track of. The project
- * checkout itself is not one - it is already the base instance.
+ * checkout itself is not one - it is already the base instance - and neither
+ * is any other registered project on the same repository.
  */
 export async function listUnclaimedWorktrees(
 	projectId: string,

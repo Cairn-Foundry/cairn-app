@@ -43,8 +43,11 @@
     </div>
     <div class="modal-body">
       <p class="del-desc">
-        {instance.external ? t('deleteInstance.descriptionAdopted') : t('deleteInstance.description')}
+        {removeWorktree ? t('deleteInstance.description') : t('deleteInstance.descriptionKeep')}
       </p>
+      {#if instance.external}
+        <p class="del-hint">{t('deleteInstance.adoptedHint')}</p>
+      {/if}
 
       <label class="del-toggle">
         <div class="del-toggle-text">
@@ -83,6 +86,11 @@
     color: var(--fg-2);
     line-height: 1.6;
     margin: 0 0 18px;
+  }
+  .del-hint {
+    font-size: 11.5px;
+    color: var(--fg-3);
+    margin: -12px 0 18px;
   }
 
   .del-toggle {

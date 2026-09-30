@@ -181,6 +181,10 @@ export function slugSegment(slug: string): string {
 /** A branch segment that reads as a ticket key: `PORE-3243`, `CAIRN-42`. */
 const TICKET_SEGMENT = /^[a-z][a-z0-9]*-\d+$/i;
 
+export function isTicketKey(text: string): boolean {
+	return TICKET_SEGMENT.test(text.trim());
+}
+
 export interface TicketFromBranch {
 	id: string;
 	title: string;
@@ -194,8 +198,9 @@ export interface TicketFromBranch {
  * The id is the segment reading as a ticket key when there is one - the whole
  * point, since that is what a tracker knows the work by - and the last segment
  * of the branch otherwise. The title is that same segment read back as a
- * sentence, the separators becoming spaces. Both are suggestions: they land in
- * fields the user is looking at and can overwrite.
+ * sentence, the separators becoming spaces, and stays empty when the branch
+ * holds nothing beyond the key: the key read back is no title. Both are
+ * suggestions: they land in fields the user is looking at and can overwrite.
  */
 export function ticketFromBranch(branch: string): TicketFromBranch | null {
 	const segments = branch
@@ -211,7 +216,7 @@ export function ticketFromBranch(branch: string): TicketFromBranch | null {
 	const inKey = last.match(/^([a-z][a-z0-9]*-\d+)[-_](.+)$/i);
 	const id = key ? key.toUpperCase() : inKey ? inKey[1].toUpperCase() : last;
 	const words = inKey ? inKey[2] : key === last ? "" : last;
-	return { id, title: deslug(words || last) };
+	return { id, title: deslug(words) };
 }
 
 /** A slug read back as a sentence: separators become spaces, the first letter grows. */

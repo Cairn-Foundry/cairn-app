@@ -21,10 +21,12 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 
 const listBranchesDetailed = vi.fn<(...a: unknown[]) => unknown>();
 const listUnclaimedWorktrees = vi.fn<(...a: unknown[]) => unknown>();
+const suggestBaseBranches = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("$lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listBranchesDetailed: (...a: unknown[]) => listBranchesDetailed(...a),
 	listUnclaimedWorktrees: (...a: unknown[]) => listUnclaimedWorktrees(...a),
+	suggestBaseBranches: (...a: unknown[]) => suggestBaseBranches(...a),
 }));
 
 const gitFetch = vi.fn<(...a: unknown[]) => unknown>();
@@ -200,12 +202,12 @@ beforeEach(() => {
 	adoptWorktree.mockReset().mockResolvedValue({ id: "new-i", projectId: "p1" });
 	listUnclaimedWorktrees.mockReset().mockResolvedValue([
 		{
-			name: "cairn-app-cairncmd",
 			path: "/home/someone/elsewhere",
 			branch: "fix/PORE-3243-mikrotik-casing",
 		},
-		{ name: "detached", path: "/home/someone/detached" },
+		{ path: "/home/someone/detached", branch: null },
 	]);
+	suggestBaseBranches.mockReset().mockResolvedValue([]);
 	listBranchesDetailed
 		.mockReset()
 		.mockResolvedValue({ local: ["main", "develop"], remote: ["origin/main"] });
@@ -502,11 +504,8 @@ describe("CreateInstance", () => {
 			]);
 			capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
 			ticketSearch.update((st) => ({ ...st, results: [ticket()] }));
-			mount();
-			await settle();
+			await mountOnTicket();
 			await userEvent.click(ticketItems()[0]);
-			await settle();
-			await userEvent.click(primary());
 			await settle();
 			await userEvent.click(primary());
 			await settle();
@@ -537,11 +536,8 @@ describe("CreateInstance", () => {
 			capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
 			ticketSearch.update((st) => ({ ...st, results: [ticket()] }));
 			runOneShotShaped.mockResolvedValue({ slug: "Parse-Nested-Blocks" });
-			mount();
-			await settle();
+			await mountOnTicket();
 			await userEvent.click(ticketItems()[0]);
-			await settle();
-			await userEvent.click(primary());
 			await settle();
 			await userEvent.click(primary());
 			await settle();
@@ -576,12 +572,8 @@ describe("CreateInstance", () => {
 
 			await userEvent.click(backButton());
 			await settle();
-			await userEvent.click(backButton());
-			await settle();
 			await fill(field("ticket-id") as HTMLInputElement, "CAIRN-99");
 			await fill(field("ticket-title") as HTMLInputElement, "Widen the cache");
-			await userEvent.click(primary());
-			await settle();
 			await userEvent.click(primary());
 			await settle();
 
@@ -675,6 +667,20 @@ describe("CreateInstance", () => {
 			expect(fieldError()).not.toBe("");
 		});
 
+		/** A worktree kept on disk still holds its branch, and the work in it. */
+		it("refuses a branch a worktree left on disk still holds", async () => {
+			mount();
+			await settle();
+			await toBranchStep();
+			await fill(
+				field("branch-name") as HTMLInputElement,
+				"fix/PORE-3243-mikrotik-casing",
+			);
+			await settle();
+			expect(primary().disabled).toBe(true);
+			expect(fieldError()).toContain("/home/someone/elsewhere");
+		});
+
 		it("allows a branch nothing else uses", async () => {
 			instancesStore.set([instance("i1", "p1", { branch: "other" })]);
 			mount();
@@ -740,6 +746,22 @@ describe("CreateInstance", () => {
 			await userEvent.click(remote);
 			await settle();
 			expect(primary().disabled).toBe(true);
+		});
+
+		/** Cutting a second worktree for it would clear the first one away. */
+		it("refuses a branch a worktree left on disk still holds", async () => {
+			listBranchesDetailed.mockResolvedValue({
+				local: ["main", "fix/PORE-3243-mikrotik-casing"],
+				remote: [],
+			});
+			mount();
+			await settle();
+			await toExistingStep();
+			const held = branchItems().find(
+				(b) => b.textContent?.trim() === "fix/PORE-3243-mikrotik-casing",
+			) as HTMLButtonElement;
+			expect(held.disabled).toBe(true);
+			expect(held.title).toContain("/home/someone/elsewhere");
 		});
 
 		it("allows a branch nothing else uses", async () => {
@@ -1103,6 +1125,112 @@ describe("CreateInstance", () => {
 				}),
 			);
 			expect(onCreate).toHaveBeenCalledWith({ instanceId: "new-i" });
+		});
+
+		it("resolves the base of the adopted branch and records it", async () => {
+			suggestBaseBranches.mockResolvedValue([
+				{ branch: "develop", reason: "fork" },
+			]);
+			mount();
+			await settle();
+			await toWorktreeStep();
+			await userEvent.click(worktreeItems()[0]);
+			await settle();
+			expect(suggestBaseBranches).toHaveBeenCalledWith(
+				"/repo",
+				"fix/PORE-3243-mikrotik-casing",
+			);
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			expect(adoptWorktree).toHaveBeenCalledWith(
+				expect.objectContaining({ baseBranch: "develop" }),
+			);
+		});
+
+		/** Its branch already has an instance, so adopting could only fail at the end. */
+		it("refuses a worktree whose branch another instance holds", async () => {
+			instancesStore.set([
+				instance("i1", "p1", { branch: "fix/PORE-3243-mikrotik-casing" }),
+			]);
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect((worktreeItems()[0] as HTMLButtonElement).disabled).toBe(true);
+		});
+
+		/** A worktree made from a terminal while the dialog is open shows up. */
+		it("reads the worktrees again on every visit", async () => {
+			mount();
+			await settle();
+			await toWorktreeStep();
+			expect(listUnclaimedWorktrees).toHaveBeenCalledTimes(1);
+			await userEvent.click(backButton());
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			expect(listUnclaimedWorktrees).toHaveBeenCalledTimes(2);
+		});
+
+		describe("with a tracker bound", () => {
+			beforeEach(() => {
+				capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
+			});
+
+			async function toTicketStep() {
+				mount();
+				await settle();
+				await toWorktreeStep();
+				await userEvent.click(worktreeItems()[0]);
+				await settle();
+				await userEvent.click(primary());
+				await settle();
+			}
+
+			/** The search would hide the suggestion; the manual fields show it. */
+			it("shows the ticket read from the branch when the tracker does not know it", async () => {
+				await toTicketStep();
+				expect(resolveTicketInput).toHaveBeenCalledWith("p1", "PORE-3243");
+				expect((field("ticket-id") as HTMLInputElement).value).toBe(
+					"PORE-3243",
+				);
+				expect((field("ticket-title") as HTMLInputElement).value).toBe(
+					"Mikrotik casing",
+				);
+			});
+
+			it("picks the tracker's ticket the branch names", async () => {
+				resolveTicketInput.mockResolvedValue(
+					ticket({ key: "PORE-3243", title: "Casing for the Mikrotik" }),
+				);
+				await toTicketStep();
+				expect(
+					document.querySelector(".selected-ticket")?.textContent,
+				).toContain("Casing for the Mikrotik");
+				await userEvent.click(primary());
+				await settle();
+				expect(adoptWorktree).toHaveBeenCalledWith(
+					expect.objectContaining({
+						ticket: expect.objectContaining({ key: "PORE-3243" }),
+					}),
+				);
+			});
+
+			it("keeps the suggestion when switching back to manual", async () => {
+				resolveTicketInput.mockResolvedValue(
+					ticket({ key: "PORE-3243", title: "Casing for the Mikrotik" }),
+				);
+				await toTicketStep();
+				await userEvent.click(tabs()[1]);
+				await settle();
+				expect((field("ticket-id") as HTMLInputElement).value).toBe(
+					"PORE-3243",
+				);
+				expect((field("ticket-title") as HTMLInputElement).value).toBe(
+					"Mikrotik casing",
+				);
+			});
 		});
 
 		it("says so when every worktree already has an instance", async () => {
