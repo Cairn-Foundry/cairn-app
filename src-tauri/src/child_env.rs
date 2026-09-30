@@ -19,8 +19,14 @@
 //! already had, so dropping them restores what the user's shell would have
 //! seen. Outside an AppImage there is no `APPDIR` and nothing to do at all,
 //! which is why none of this shows up under `tauri dev`.
+//!
+//! The working directory leaks the same way: `AppRun` starts the app from
+//! `$APPDIR/usr`, so a child spawned without a `current_dir` of its own would
+//! run inside the mount, keep it busy, and be left in a deleted directory once
+//! the app exits. It starts from where the AppImage was launched instead.
 
 use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Set by the AppImage runtime to describe itself. A child inherits them
@@ -44,6 +50,11 @@ pub fn command<S: AsRef<OsStr>>(program: S) -> Command {
 /// Takes the mount back out of the environment of an already built `Command`.
 pub fn scrub(cmd: &mut Command) {
     apply(cmd, &from_current_env());
+    if cmd.get_current_dir().is_none()
+        && let Some(dir) = working_dir_from_current_env()
+    {
+        cmd.current_dir(dir);
+    }
 }
 
 fn apply(cmd: &mut Command, changes: &[(String, Option<String>)]) {
@@ -63,6 +74,34 @@ pub fn scrub_pty(cmd: &mut portable_pty::CommandBuilder) {
             None => cmd.env_remove(key),
         }
     }
+    if cmd.get_cwd().is_none()
+        && let Some(dir) = working_dir_from_current_env()
+    {
+        cmd.cwd(dir);
+    }
+}
+
+/// The directory a child should start in when the app's own lies in the
+/// mount; `None` when it does not, or outside an AppImage.
+fn working_dir_from_current_env() -> Option<PathBuf> {
+    let appdir = std::env::var("APPDIR").ok().filter(|d| !d.is_empty())?;
+    let cwd = std::env::current_dir().ok()?;
+    let owd = std::env::var_os("OWD").map(PathBuf::from);
+    working_dir(&cwd, &appdir, owd.as_deref(), dirs::home_dir().as_deref())
+}
+
+/// `OWD`, where the runtime recorded the AppImage was launched from, then the
+/// home directory, whichever exists and is not itself in the mount.
+fn working_dir(cwd: &Path, appdir: &str, owd: Option<&Path>, home: Option<&Path>) -> Option<PathBuf> {
+    let mount = Path::new(appdir);
+    if !cwd.starts_with(mount) {
+        return None;
+    }
+    [owd, home]
+        .into_iter()
+        .flatten()
+        .find(|dir| dir.is_dir() && !dir.starts_with(mount))
+        .map(Path::to_path_buf)
 }
 
 /// The changes to apply to what this process inherited; empty when the app was
@@ -182,6 +221,36 @@ mod tests {
             out,
             vec![("GDK_BACKEND".to_string(), None), ("GTK_THEME".to_string(), None)]
         );
+    }
+
+    #[test]
+    fn starts_a_child_where_the_appimage_was_launched() {
+        let owd = std::env::temp_dir();
+        let cwd = Path::new(APPDIR).join("usr");
+        assert_eq!(working_dir(&cwd, APPDIR, Some(&owd), None), Some(owd));
+    }
+
+    #[test]
+    fn falls_back_to_home_when_the_launch_directory_is_gone() {
+        let home = std::env::temp_dir();
+        let cwd = Path::new(APPDIR).join("usr");
+        let gone = Path::new("/nonexistent/cairn-owd");
+        assert_eq!(working_dir(&cwd, APPDIR, Some(gone), Some(&home)), Some(home));
+    }
+
+    #[test]
+    fn keeps_the_working_directory_when_it_is_outside_the_mount() {
+        let home = std::env::temp_dir();
+        assert_eq!(working_dir(&home, APPDIR, Some(&home), Some(&home)), None);
+    }
+
+    /// `Path::starts_with` compares components, so a sibling whose name merely
+    /// extends the mount's is not mistaken for it.
+    #[test]
+    fn does_not_take_a_sibling_of_the_mount_for_the_mount_as_working_dir() {
+        let home = std::env::temp_dir();
+        let cwd = Path::new("/tmp/.mount_Cairn BObaJM-other/usr");
+        assert_eq!(working_dir(cwd, APPDIR, None, Some(&home)), None);
     }
 
     #[test]
