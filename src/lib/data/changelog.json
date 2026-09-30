@@ -167,6 +167,13 @@
 					"en": "A generated commit message no longer puts a placeholder such as \"Commit title generated\" in the title and the whole message in the description.",
 					"fr": "Un message de commit généré ne met plus un texte générique comme \"Commit title generated\" dans le titre et tout le message dans la description."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The programs Cairn starts - the terminals, the coding CLIs running in them, the language servers, the formatters, git, the terminal emulator or file manager opened from a path, and the browser or viewer a link or a file is opened in - no longer inherit the environment of the AppImage itself, nor the X11 backend and stock theme it forces on GTK applications, and no longer start inside its mount. In an AppImage build that environment points at the temporary mount the app runs from, which broke python3 in a Cairn terminal (\"Failed to import encodings module\"), took down anything else written in Python such as a Python language server, and could link a system binary against a bundled library instead of its own.",
+					"fr": "Les programmes lancés par Cairn - les terminaux, les CLI de code qui y tournent, les serveurs de langage, les formateurs, git, l'émulateur de terminal ou le gestionnaire de fichiers ouvert depuis un chemin, et le navigateur ou la visionneuse dans lesquels s'ouvre un lien ou un fichier - n'héritent plus de l'environnement de l'AppImage elle-même, ni du backend X11 et du thème par défaut qu'elle impose aux applications GTK, et ne démarrent plus dans son montage. Dans un build AppImage, cet environnement pointe vers le montage temporaire depuis lequel l'application tourne, ce qui cassait python3 dans un terminal de Cairn (\"Failed to import encodings module\"), emportait tout ce qui est écrit en Python comme un serveur de langage Python, et pouvait lier un binaire du système à une bibliothèque embarquée au lieu de la sienne."
+				}
 			}
 		]
 	},
@@ -344,13 +351,6 @@
 				"text": {
 					"en": "Clicking in a scrolled file while the editor did not have focus selected text instead of placing the cursor, because the editor jumped back to the top before reading the click.",
 					"fr": "Un clic dans un fichier défilé alors que l'éditeur n'avait pas le focus sélectionnait du texte au lieu de placer le curseur, car l'éditeur revenait en haut avant de lire le clic."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The programs Cairn starts - the terminals, the coding CLIs running in them, the language servers, the formatters, git, the terminal emulator or file manager opened from a path, and the browser or viewer a link or a file is opened in - no longer inherit the environment of the AppImage itself, nor the X11 backend and stock theme it forces on GTK applications, and no longer start inside its mount. In an AppImage build that environment points at the temporary mount the app runs from, which broke python3 in a Cairn terminal (\"Failed to import encodings module\"), took down anything else written in Python such as a Python language server, and could link a system binary against a bundled library instead of its own.",
-					"fr": "Les programmes lancés par Cairn - les terminaux, les CLI de code qui y tournent, les serveurs de langage, les formateurs, git, l'émulateur de terminal ou le gestionnaire de fichiers ouvert depuis un chemin, et le navigateur ou la visionneuse dans lesquels s'ouvre un lien ou un fichier - n'héritent plus de l'environnement de l'AppImage elle-même, ni du backend X11 et du thème par défaut qu'elle impose aux applications GTK, et ne démarrent plus dans son montage. Dans un build AppImage, cet environnement pointe vers le montage temporaire depuis lequel l'application tourne, ce qui cassait python3 dans un terminal de Cairn (\"Failed to import encodings module\"), emportait tout ce qui est écrit en Python comme un serveur de langage Python, et pouvait lier un binaire du système à une bibliothèque embarquée au lieu de la sienne."
 				}
 			}
 		]
