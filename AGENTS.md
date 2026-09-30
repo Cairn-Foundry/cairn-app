@@ -67,6 +67,11 @@ and components may use plugin APIs (dialog, window, webview) for native dialogs,
 dragging. Opening a URL or a file goes through `opener-service.ts` (`open_external`), never a
 plugin: the spawned opener must get the environment `child_env` cleans. Everything else goes through a service.
 
+Every child process is built through `child_env::command` (or `child_env::scrub` /
+`scrub_pty` on a command built elsewhere), never a bare `Command::new`: in an AppImage the app's
+environment and working directory lead into its temporary mount, and a child inheriting them
+breaks (python3, language servers, GTK applications).
+
 The boundary is enforced by `src/test/ipc-contract.test.ts`: it statically confronts every TS
 `invoke("name", {args})` with the Rust `#[tauri::command]` signatures, so a renamed command or
 argument fails the suite.

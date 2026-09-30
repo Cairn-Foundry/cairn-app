@@ -66,18 +66,14 @@ fn apply(cmd: &mut Command, changes: &[(String, Option<String>)]) {
     }
 }
 
-/// Same, for the command a PTY is opened on.
+/// Same, for the command a PTY is opened on. Its working directory is left
+/// alone: portable-pty already falls back to the home directory, never the mount.
 pub fn scrub_pty(cmd: &mut portable_pty::CommandBuilder) {
     for (key, value) in from_current_env() {
         match value {
             Some(v) => cmd.env(key, v),
             None => cmd.env_remove(key),
         }
-    }
-    if cmd.get_cwd().is_none()
-        && let Some(dir) = working_dir_from_current_env()
-    {
-        cmd.cwd(dir);
     }
 }
 

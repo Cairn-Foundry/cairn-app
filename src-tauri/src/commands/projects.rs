@@ -132,7 +132,7 @@ fn repair_worktrees(project_id: &str, repo: &str) {
         .filter(|p| PathBuf::from(p).is_dir())
         .collect();
     if worktrees.is_empty() { return; }
-    let _ = std::process::Command::new("git")
+    let _ = crate::child_env::command("git")
         .current_dir(repo)
         .args(["worktree", "repair"])
         .args(&worktrees)
