@@ -9,6 +9,7 @@
 // the answer back, so it goes through `run_oneshot` instead.
 
 import { invoke } from "@tauri-apps/api/core";
+import type { AssistContext } from "$lib/utils/home/ai-features";
 
 /** Which of the actionable failures happened; the view words each one differently. */
 export type AiAssistErrorKind =
@@ -49,6 +50,12 @@ export interface OneShotOptions {
 	signal?: AbortSignal;
 	/** Gives up after this long; 0 waits forever. */
 	timeoutMs?: number;
+	/**
+	 * How much of the project the assist needs in front of the model. Anything
+	 * short of the default lets the CLI answer the question instead of booting a
+	 * working session first.
+	 */
+	context?: AssistContext;
 }
 
 /**
@@ -78,7 +85,12 @@ export async function runOneShotShaped<T>(
 	schema: Record<string, unknown>,
 	options: OneShotOptions = {},
 ): Promise<T> {
-	const { signal, timeoutMs = 120_000, model } = options;
+	const {
+		signal,
+		timeoutMs = 120_000,
+		model,
+		context = "repository",
+	} = options;
 	if (!providerId) throw new AiAssistError("unavailable");
 	if (signal?.aborted) throw new AiAssistError("cancelled");
 
@@ -105,6 +117,7 @@ export async function runOneShotShaped<T>(
 				model: model || null,
 				binaryPath: null,
 				env: {},
+				context,
 			},
 		});
 		if (result === null || result === undefined)

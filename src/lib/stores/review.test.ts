@@ -30,6 +30,7 @@ const {
 	addComment,
 	deleteComment,
 	dismissRemark,
+	draftCommentFor,
 	generateGuide,
 	markChapterSeen,
 	markHunkSeen,
@@ -165,6 +166,16 @@ describe("generateGuide", () => {
 	});
 
 	/**
+	 * The diff is in the prompt, so the run needs no tools and no MCP server -
+	 * but the remarks it raises are judged against the conventions the
+	 * repository writes down, which is why its CLAUDE.md stays.
+	 */
+	it("asks for the run that keeps the project's own rules", async () => {
+		await generate();
+		expect(runOneshot.mock.calls[0][8]).toBe("conventions");
+	});
+
+	/**
 	 * The overview explains the branch before its code means anything, and an
 	 * empty `currentChapterId` is what the view reads as "not started".
 	 */
@@ -219,6 +230,27 @@ describe("generateGuide", () => {
 			headSha: "h",
 		});
 		expect(stateFor(scope).guide?.overview).toBe("It adds login.");
+	});
+});
+
+describe("draftCommentFor", () => {
+	const remark = {
+		id: "r1",
+		kind: "issue" as const,
+		title: "Null check",
+		body: "It can be null.",
+		path: "a.ts",
+		line: 3,
+		side: "new" as const,
+		status: "open" as const,
+	};
+
+	/** Path, line, excerpt and remark are all in the prompt already. */
+	it("asks for a run with nothing of the project", async () => {
+		runOneshot.mockResolvedValue({ comment: "Please guard this." });
+		const comment = await draftCommentFor(scope, remark, "const a = b.c;");
+		expect(comment).toBe("Please guard this.");
+		expect(runOneshot.mock.calls[0][8]).toBe("prompt");
 	});
 });
 

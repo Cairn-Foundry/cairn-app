@@ -596,6 +596,26 @@ describe("CreateInstance", () => {
 			expect(primary().disabled).toBe(true);
 		});
 
+		/**
+		 * The prompt carries the whole ticket, so the CLI has no reason to load
+		 * the MCP servers, the tools and the project's CLAUDE.md first.
+		 */
+		it("asks for a run with nothing of the project", async () => {
+			settingsState.set({
+				branchTemplate: "feat/{{slug}}",
+				aiEnabled: true,
+			});
+			runOneShotShaped.mockResolvedValue({ slug: "parse-nested-blocks" });
+			mount();
+			await settle();
+			await toBranchStep();
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+			expect(runOneShotShaped.mock.calls[0][4]).toMatchObject({
+				context: "prompt",
+			});
+		});
+
 		it("says so and keeps the derived name when the model fails", async () => {
 			settingsState.set({
 				branchTemplate: "feat/{{slug}}",

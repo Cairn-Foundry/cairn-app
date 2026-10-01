@@ -8,6 +8,24 @@
 import { CLAUDE_CODE } from "$lib/services/cli-provider-service";
 import type { AiFeatureAssignment } from "$lib/services/settings-service";
 
+/**
+ * How much of the project an assist needs in front of the model. Anything short
+ * of `repository` runs the CLI without its MCP servers and without its tools -
+ * they cost the whole startup and tens of thousands of tokens of context for an
+ * answer that never touches them.
+ */
+export type AssistContext =
+	/** The model goes and reads the repository: the full working session. */
+	| "repository"
+	/**
+	 * Reads nothing, but judges by the rules the repository writes down, so its
+	 * CLAUDE.md stays. A guide that raises remarks against house conventions it
+	 * cannot see raises the wrong ones.
+	 */
+	| "conventions"
+	/** Everything the model needs is already in the prompt. */
+	| "prompt";
+
 export type AiFeatureId =
 	| "commitMessage"
 	| "testFix"
@@ -23,6 +41,8 @@ interface AiFeatureDef {
 	icon: string;
 	/** Whether the feature runs a provider itself, or only composes a prompt. */
 	runsProvider: boolean;
+	/** How much of the project the assist needs in front of the model. */
+	context: AssistContext;
 	/** Editable on the Features page; empty for a feature that has no template. */
 	defaultPromptTemplate: string;
 }
@@ -122,48 +142,56 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		id: "commitMessage",
 		icon: "git",
 		runsProvider: true,
+		context: "repository",
 		defaultPromptTemplate: DEFAULT_COMMIT_TEMPLATE,
 	},
 	{
 		id: "testFix",
 		icon: "beaker",
 		runsProvider: false,
+		context: "repository",
 		defaultPromptTemplate: "",
 	},
 	{
 		id: "mrDescription",
 		icon: "review",
 		runsProvider: true,
+		context: "repository",
 		defaultPromptTemplate: DEFAULT_MR_DESCRIPTION_TEMPLATE,
 	},
 	{
 		id: "ciFix",
 		icon: "ci",
 		runsProvider: false,
+		context: "repository",
 		defaultPromptTemplate: DEFAULT_CI_FIX_TEMPLATE,
 	},
 	{
 		id: "reviewGuide",
 		icon: "review",
 		runsProvider: true,
+		context: "conventions",
 		defaultPromptTemplate: DEFAULT_REVIEW_GUIDE_TEMPLATE,
 	},
 	{
 		id: "reviewComment",
 		icon: "review",
 		runsProvider: true,
+		context: "prompt",
 		defaultPromptTemplate: DEFAULT_REVIEW_COMMENT_TEMPLATE,
 	},
 	{
 		id: "ticketPlan",
 		icon: "ticket",
 		runsProvider: true,
+		context: "prompt",
 		defaultPromptTemplate: DEFAULT_TICKET_PLAN_TEMPLATE,
 	},
 	{
 		id: "branchName",
 		icon: "branch",
 		runsProvider: true,
+		context: "prompt",
 		defaultPromptTemplate: DEFAULT_BRANCH_NAME_TEMPLATE,
 	},
 ];
@@ -216,6 +244,16 @@ export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
 }
 
 /**
+ * How much of the project the feature's run needs. The one place that reads
+ * `context` off the registry, so a call site with no resolved feature at hand
+ * still answers it the same way. An id nobody declared runs the full session:
+ * the expensive answer is the safe one.
+ */
+export function assistContext(id: AiFeatureId): AssistContext {
+	return featureDef(id)?.context ?? "repository";
+}
+
+/**
  * The CLIs an assist can be served by, and the one it falls back to.
  *
  * This is not the Agent step, which runs whichever CLI the user picked in a
@@ -254,6 +292,8 @@ export interface ResolvedAiFeature {
 	promptTemplate: string;
 	/** The assist CLI is not on this machine, so the caller must not run it. */
 	unavailable: boolean;
+	/** How much of the project the run needs; see `AssistContext`. */
+	context: AssistContext;
 }
 
 /**
@@ -286,5 +326,6 @@ export function resolveAiFeature(
 		model: assigned?.model ?? "",
 		promptTemplate: template,
 		unavailable: !isInstalled(providerId),
+		context: assistContext(id),
 	};
 }

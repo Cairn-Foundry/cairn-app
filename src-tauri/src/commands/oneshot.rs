@@ -21,7 +21,7 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Manager;
 
@@ -73,6 +73,29 @@ struct HeadlessCli {
     /// goes past it - macOS, with a single 1 MB budget for the whole vector,
     /// never showed it.
     prompt_on_stdin: bool,
+    /// What to add for an assist that reads nothing off the disk, so the CLI
+    /// answers the question instead of booting a working session first. Empty
+    /// for a CLI with no documented equivalent: guessing a flag is worse than
+    /// paying the startup.
+    lean_args: &'static [&'static str],
+    /// Added on top of those when the project's own rules are not needed
+    /// either. Separate because an assist can have nothing to read and still
+    /// have to judge by the conventions the repository writes down.
+    isolated_args: &'static [&'static str],
+}
+
+/// How much of the project the assist needs in front of the model.
+#[derive(Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RunContext {
+    /// The model goes and reads the repository: the full working session.
+    #[default]
+    Repository,
+    /// Reads nothing, but judges by the project's own rules, so its CLAUDE.md
+    /// stays in front of the model.
+    Conventions,
+    /// Everything the model needs is already in the prompt.
+    Prompt,
 }
 
 /// The CLIs whose answer can be forced into a shape.
@@ -91,6 +114,21 @@ const HEADLESS_CLIS: &[HeadlessCli] = &[
         model_flag: "--model",
         answer: AnswerSource::StructuredOutput,
         prompt_on_stdin: true,
+        // The MCP servers are where the startup actually goes, and `--tools ""`
+        // is what stops the model taking a tool-use turn before answering,
+        // which doubled the run.
+        lean_args: &[
+            "--strict-mcp-config",
+            "--tools",
+            "",
+            "--no-session-persistence",
+        ],
+        // `--safe-mode` also drops CLAUDE.md, skills, plugins, hooks and custom
+        // agents, which is why it is not in `lean_args`: an assist judging a
+        // diff wants the conventions the repository writes down. `--bare` would
+        // be cheaper still, but it forces ANTHROPIC_API_KEY and breaks every
+        // account signed in through OAuth.
+        isolated_args: &["--safe-mode"],
     },
     // `--skip-git-repo-check` because an assist may run in a worktree Cairn
     // created before its first commit, where codex otherwise refuses to start.
@@ -110,6 +148,8 @@ const HEADLESS_CLIS: &[HeadlessCli] = &[
         model_flag: "--model",
         answer: AnswerSource::LastMessageFile,
         prompt_on_stdin: false,
+        lean_args: &[],
+        isolated_args: &[],
     },
 ];
 
@@ -203,6 +243,10 @@ pub struct OneshotRequest {
     pub binary_path: Option<String>,
     #[serde(default)]
     pub env: Option<HashMap<String, String>>,
+    /// How much of the project the assist needs; absent means the full
+    /// working session.
+    #[serde(default)]
+    pub context: Option<RunContext>,
 }
 
 /// Runs the assigned CLI once in the working directory and returns the object
@@ -219,6 +263,7 @@ pub async fn run_oneshot(app: tauri::AppHandle, request: OneshotRequest) -> Resu
         model,
         binary_path,
         env,
+        context,
     } = request;
 
     let requested = provider.unwrap_or_default();
@@ -249,17 +294,44 @@ pub async fn run_oneshot(app: tauri::AppHandle, request: OneshotRequest) -> Resu
         .map_err(|e| e.to_string())?
         .insert(run_id.clone(), handle.clone());
 
-    let result = run_blocking(
+    let env = env.unwrap_or_default();
+    let context = context.unwrap_or_default();
+    let mut result = run_blocking(
         cli,
         &binary,
         &working_dir,
         &prompt,
         &schema,
         &run_id,
-        model,
-        env.unwrap_or_default(),
+        model.clone(),
+        env.clone(),
+        context,
         &handle,
     );
+
+    // The lean flags are younger than the schema flag the assists already
+    // needed, so a CLI that has not been updated in a while refuses them and
+    // takes down four assists that worked for that user before. Rather than
+    // keeping a table of which flag landed in which release - one that goes
+    // stale on its own - the run pays one fast failure and starts again with
+    // the arguments every version has understood.
+    if context != RunContext::Repository
+        && !handle.cancelled.load(Ordering::SeqCst)
+        && matches!(&result, Err(e) if refuses_an_argument(e))
+    {
+        result = run_blocking(
+            cli,
+            &binary,
+            &working_dir,
+            &prompt,
+            &schema,
+            &run_id,
+            model,
+            env,
+            RunContext::Repository,
+            &handle,
+        );
+    }
 
     if let Ok(mut running) = app.state::<OneshotState>().running.lock() {
         running.remove(&run_id);
@@ -268,6 +340,16 @@ pub async fn run_oneshot(app: tauri::AppHandle, request: OneshotRequest) -> Resu
         return Err("cancelled".to_string());
     }
     result
+}
+
+/// Whether the CLI turned the run down over an argument it does not know,
+/// rather than over the question it was asked. Worded differently by each
+/// parser, so the match stays on the words they share.
+fn refuses_an_argument(error: &str) -> bool {
+    let lowered = error.to_lowercase();
+    ["unknown option", "unrecognized option", "unrecognised option", "unexpected argument", "unknown flag", "unknown argument"]
+        .iter()
+        .any(|phrase| lowered.contains(phrase))
 }
 
 /// A scratch file for one run, removed when the run ends whatever happened.
@@ -287,6 +369,41 @@ fn write_scratch(run_id: &str, suffix: &str, contents: &str) -> Result<ScratchFi
     Ok(ScratchFile(path))
 }
 
+/// The argument vector of one run, with everything the scratch files decided
+/// already resolved. Apart from `run_blocking` so that it can be read - and
+/// tested - without spawning anything.
+fn build_args(
+    cli: &HeadlessCli,
+    schema_arg: &str,
+    message_file: Option<&str>,
+    model: Option<&str>,
+    prompt: Option<&str>,
+    context: RunContext,
+) -> Vec<String> {
+    let mut args: Vec<String> = cli.args.iter().map(|a| a.to_string()).collect();
+    if context != RunContext::Repository {
+        args.extend(cli.lean_args.iter().map(|a| a.to_string()));
+    }
+    if context == RunContext::Prompt {
+        args.extend(cli.isolated_args.iter().map(|a| a.to_string()));
+    }
+    args.push(cli.schema_flag.to_string());
+    args.push(schema_arg.to_string());
+    if let Some(path) = message_file {
+        args.push("-o".to_string());
+        args.push(path.to_string());
+    }
+    if let Some(model) = model {
+        args.push(cli.model_flag.to_string());
+        args.push(model.to_string());
+    }
+    // Always last: a CLI taking the prompt as an argument reads it positionally.
+    if let Some(prompt) = prompt {
+        args.push(prompt.to_string());
+    }
+    args
+}
+
 #[allow(clippy::too_many_arguments)]
 fn run_blocking(
     cli: &HeadlessCli,
@@ -297,10 +414,9 @@ fn run_blocking(
     run_id: &str,
     model: Option<String>,
     env: HashMap<String, String>,
+    context: RunContext,
     handle: &RunningChild,
 ) -> Result<Value, String> {
-    let mut args: Vec<String> = cli.args.iter().map(|a| a.to_string()).collect();
-
     // Held for the whole run: dropping either file early would pull it from
     // under the CLI still reading or writing it.
     let schema_file = if cli.schema_is_file {
@@ -308,28 +424,28 @@ fn run_blocking(
     } else {
         None
     };
-    args.push(cli.schema_flag.to_string());
-    args.push(match &schema_file {
-        Some(file) => file.0.to_string_lossy().into_owned(),
-        None => schema.to_string(),
-    });
-
     let message_file = if cli.answer == AnswerSource::LastMessageFile {
-        let path = std::env::temp_dir().join(format!("cairn-oneshot-{run_id}-answer.json"));
-        args.push("-o".to_string());
-        args.push(path.to_string_lossy().into_owned());
-        Some(ScratchFile(path))
+        Some(ScratchFile(
+            std::env::temp_dir().join(format!("cairn-oneshot-{run_id}-answer.json")),
+        ))
     } else {
         None
     };
 
-    if let Some(model) = model.filter(|m| !m.is_empty()) {
-        args.push(cli.model_flag.to_string());
-        args.push(model);
-    }
-    if !cli.prompt_on_stdin {
-        args.push(prompt.to_string());
-    }
+    let args = build_args(
+        cli,
+        &match &schema_file {
+            Some(file) => file.0.to_string_lossy().into_owned(),
+            None => schema.to_string(),
+        },
+        message_file
+            .as_ref()
+            .map(|f| f.0.to_string_lossy().into_owned())
+            .as_deref(),
+        model.as_deref().filter(|m| !m.is_empty()),
+        Some(prompt).filter(|_| !cli.prompt_on_stdin),
+        context,
+    );
 
     let mut cmd = new_command(binary);
     cmd.args(&args)
@@ -465,6 +581,136 @@ pub async fn stop_oneshot(app: tauri::AppHandle, run_id: String) -> Result<(), S
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn claude() -> &'static HeadlessCli {
+        headless_cli("claude-code").expect("claude-code should be in the table")
+    }
+
+    #[test]
+    fn a_full_run_carries_no_lean_argument() {
+        let args = build_args(claude(), "{}", None, None, None, RunContext::Repository);
+        assert_eq!(args, ["--output-format", "json", "-p", "--json-schema", "{}"]);
+    }
+
+    /// An assist reading nothing off the disk skips the context a working
+    /// session needs - that is where its seconds and its tokens went.
+    #[test]
+    fn a_prompt_only_run_skips_the_session_context() {
+        let args = build_args(claude(), "{}", None, Some("sonnet"), None, RunContext::Prompt);
+        assert_eq!(
+            args,
+            [
+                "--output-format",
+                "json",
+                "-p",
+                "--strict-mcp-config",
+                "--tools",
+                "",
+                "--no-session-persistence",
+                "--safe-mode",
+                "--json-schema",
+                "{}",
+                "--model",
+                "sonnet",
+            ]
+        );
+    }
+
+    /// An assist judging a diff reads nothing either, but the rules it judges
+    /// by are the ones the repository writes down, so its CLAUDE.md stays.
+    #[test]
+    fn a_conventions_run_keeps_the_project_in_front_of_the_model() {
+        let args = build_args(claude(), "{}", None, None, None, RunContext::Conventions);
+        assert!(args.iter().any(|a| a == "--strict-mcp-config"));
+        assert!(args.iter().any(|a| a == "--tools"));
+        assert!(!args.iter().any(|a| a == "--safe-mode"));
+    }
+
+    /// `--tools` takes an empty value; dropping it would hand the CLI the
+    /// schema flag as the tool list.
+    #[test]
+    fn the_empty_tool_list_survives_as_its_own_argument() {
+        let args = build_args(claude(), "{}", None, None, None, RunContext::Prompt);
+        let at = args.iter().position(|a| a == "--tools").expect("--tools");
+        assert_eq!(args[at + 1], "");
+    }
+
+    /// Codex has no documented equivalent, so a lean run changes nothing for it.
+    #[test]
+    fn a_cli_with_no_lean_arguments_runs_the_same_whatever_the_context() {
+        let codex = headless_cli("codex").expect("codex should be in the table");
+        let full = build_args(codex, "/tmp/s.json", Some("/tmp/a.json"), None, Some("p"), RunContext::Repository);
+        for context in [RunContext::Conventions, RunContext::Prompt] {
+            assert_eq!(
+                build_args(codex, "/tmp/s.json", Some("/tmp/a.json"), None, Some("p"), context),
+                full,
+            );
+        }
+    }
+
+    #[test]
+    fn an_empty_model_leaves_the_cli_on_its_own() {
+        let args = build_args(claude(), "{}", None, None, None, RunContext::Repository);
+        assert!(!args.iter().any(|a| a == "--model"));
+    }
+
+    /// A CLI taking the prompt positionally reads it last, whatever else is on.
+    #[test]
+    fn the_prompt_stays_the_last_argument() {
+        let codex = headless_cli("codex").expect("codex should be in the table");
+        let args = build_args(codex, "/tmp/s.json", Some("/tmp/a.json"), Some("gpt"), Some("ask"), RunContext::Prompt);
+        assert_eq!(args.last().map(String::as_str), Some("ask"));
+    }
+
+    /// A CLI too old for the lean flags turns the run down over the argument,
+    /// which is what earns the second attempt.
+    #[test]
+    fn an_unknown_argument_is_told_apart_from_a_failed_question() {
+        assert!(refuses_an_argument("error: unknown option '--safe-mode'"));
+        assert!(refuses_an_argument(
+            "error: unexpected argument '--tools' found"
+        ));
+        assert!(refuses_an_argument("Unrecognized option: --tools"));
+        assert!(!refuses_an_argument("Invalid API key"));
+        assert!(!refuses_an_argument(
+            "The model could not honour the schema."
+        ));
+    }
+
+    /// The default is the full session: a request that says nothing about its
+    /// context must not silently lose the repository.
+    #[test]
+    fn a_request_with_no_context_runs_the_full_session() {
+        assert_eq!(RunContext::default(), RunContext::Repository);
+        let request: OneshotRequest = serde_json::from_value(json!({
+            "workingDir": "/repo",
+            "prompt": "p",
+            "schema": {},
+            "runId": "r1"
+        }))
+        .expect("a request without a context should parse");
+        assert_eq!(request.context, None);
+    }
+
+    /// The frontend sends the tier by name; a rename on one side must not pass.
+    #[test]
+    fn the_context_arrives_under_the_name_the_frontend_sends() {
+        for (sent, expected) in [
+            ("repository", RunContext::Repository),
+            ("conventions", RunContext::Conventions),
+            ("prompt", RunContext::Prompt),
+        ] {
+            let request: OneshotRequest = serde_json::from_value(json!({
+                "workingDir": "/repo",
+                "prompt": "p",
+                "schema": {},
+                "runId": "r1",
+                "context": sent
+            }))
+            .expect("a known context should parse");
+            assert_eq!(request.context, Some(expected));
+        }
+    }
 
     #[test]
     fn the_structured_field_is_the_answer() {

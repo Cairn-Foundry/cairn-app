@@ -6,12 +6,16 @@
 // conversation. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
+import type { AssistContext } from "$lib/utils/home/ai-features";
 
 /**
  * Asks the model one question in `workingDir` and returns the object it
  * answered with. `schema` is handed to the CLI as a flag, so the shape is
  * enforced rather than requested and the answer needs no parsing. Rejects with
  * "cancelled" when `stopOneshot` killed the run.
+ *
+ * `context` says how much of the project the model needs in front of it, so a
+ * question carrying its own answer skips what a working session loads first.
  */
 export async function runOneshot<T>(
 	workingDir: string,
@@ -22,6 +26,7 @@ export async function runOneshot<T>(
 	model?: string,
 	binaryPath?: string,
 	env: Record<string, string> = {},
+	context: AssistContext = "repository",
 ): Promise<T> {
 	return invoke<T>("run_oneshot", {
 		request: {
@@ -33,6 +38,7 @@ export async function runOneshot<T>(
 			model: model ?? null,
 			binaryPath: binaryPath ?? null,
 			env,
+			context,
 		},
 	});
 }

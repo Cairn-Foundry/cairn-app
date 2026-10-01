@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.1.1",
+		"date": "",
+		"summary": {
+			"en": "The assists that need no repository context now start a lean CLI.",
+			"fr": "Les assistants qui n'ont pas besoin du dépôt démarrent désormais un CLI allégé."
+		},
+		"changes": [
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The AI assists that read nothing off the disk are much faster and far cheaper. A branch name, a review guide, a review comment and a ticket plan all carry everything the model needs inside the prompt, yet the CLI was started as a full working session: your MCP servers, the project's CLAUDE.md, the plugins, the hooks and every tool definition - forty-eight thousand tokens of context to name a branch, and a first tool-use turn before the answer. Those four now run without them: the same answer on six thousand tokens, one turn, and a run that no longer waits for an MCP server to boot. The review guide keeps the project's own CLAUDE.md, since the remarks it raises are judged against the conventions a repository writes down. The commit message and the merge request description are untouched, because their prompts ask the model to run git itself. A CLI too old to understand the new flags is not left broken either: the run starts again with the arguments every version has understood.",
+					"fr": "Les assistances IA qui ne lisent rien sur le disque sont bien plus rapides et nettement moins coûteuses. Un nom de branche, un guide de review, un commentaire de review et un plan des tickets portent tout ce qu'il faut au modèle dans leur prompt, et pourtant la CLI démarrait comme une session de travail complète : vos serveurs MCP, le CLAUDE.md du projet, les plugins, les hooks et l'intégralité des définitions d'outils - quarante-huit mille tokens de contexte pour nommer une branche, et un premier tour d'outil avant la réponse. Ces quatre-là tournent désormais sans tout cela : la même réponse sur six mille tokens, un seul tour, et plus d'attente pendant le démarrage d'un serveur MCP. Le guide de review conserve le CLAUDE.md du projet, car les remarques qu'il soulève se jugent à l'aune des conventions qu'un dépôt écrit noir sur blanc. Le message de commit et la description de merge request sont inchangés, car leurs prompts demandent au modèle de lancer git lui-même. Une CLI trop ancienne pour comprendre les nouveaux drapeaux n'est pas laissée en panne pour autant : le lancement reprend avec les arguments que toutes les versions comprennent."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.1.0",
 		"date": "2026-10-01",
 		"summary": {
