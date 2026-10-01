@@ -7,6 +7,7 @@ import {
 	activeConversationId,
 	type ConversationRef,
 	closeConversation,
+	conversationHosts,
 	conversationsOf,
 	conversationTerminals,
 	deleteConversation,
@@ -73,9 +74,11 @@ const ref: ConversationRef = {
 	scope: "instance",
 };
 
-/** The argv `terminal_create` was last called with. */
+/** The argv `terminal_create` was last called with, without the status hooks. */
 function lastArgv(): string[] {
-	return createTerminal.mock.lastCall?.[6] as string[];
+	const argv = createTerminal.mock.lastCall?.[6] as string[];
+	const at = argv.indexOf("--settings");
+	return at === -1 ? argv : argv.filter((_, i) => i !== at && i !== at + 1);
 }
 
 beforeEach(() => {
@@ -101,6 +104,27 @@ describe("starting a conversation", () => {
 		expect(meta.sessionId).toMatch(/^[0-9a-f-]{36}$/);
 		expect(lastArgv()).toEqual(["claude", "--session-id", meta.sessionId]);
 		expect(createTerminal.mock.lastCall?.[1]).toBe("/repo/wt");
+	});
+
+	it("launches Claude Code with the hooks that report its turn", async () => {
+		await startConversation(ref, "claude-code", "/repo/wt");
+
+		const argv = createTerminal.mock.lastCall?.[6] as string[];
+		const settings = JSON.parse(argv[argv.indexOf("--settings") + 1]);
+		expect(Object.keys(settings.hooks)).toEqual(
+			expect.arrayContaining(["UserPromptSubmit", "Notification", "Stop"]),
+		);
+	});
+
+	it("records where a running conversation was launched from, until it is closed", async () => {
+		const meta = await startConversation(ref, "codex", "/repo/wt");
+		expect(get(conversationHosts)[meta.id]).toEqual({
+			projectId: "p",
+			instanceId: "i",
+		});
+
+		closeConversation(meta.id);
+		expect(get(conversationHosts)[meta.id]).toBeUndefined();
 	});
 
 	it("leaves no session id for a CLI that mints its own, and launches it bare", async () => {

@@ -27,6 +27,7 @@
   import McpSection from '$lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '$lib/components/home/IntegrationsSection.svelte';
   import TicketsSection from '$lib/components/home/TicketsSection.svelte';
+  import ActivitySection from '$lib/components/home/ActivitySection.svelte';
   import type { SettingsTab } from '$lib/utils/home/settings-registry';
   import { aiEnabled } from '$lib/stores/settings';
 
@@ -38,6 +39,7 @@
     addProjectShown: void;
     sectionChange: { section: string; settingsTab: string };
     startTicket: { projectId: string; ticket: Ticket };
+    openConversation: { projectId: string; instanceId: string; conversationId: string };
   }>();
 
   export let openSection: HomeSection | null = null;
@@ -122,8 +124,10 @@
         <h1 style="font-size: 22px">{t('home.sections.activity')}</h1>
         <div class="sub">{t('home.sections.activityDesc')}</div>
       </div>
-      <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-        {t('home.sections.activityEmpty')}
+      <div style="margin-top: 24px;">
+        <ActivitySection
+          onOpen={(c) => dispatch('openConversation', { projectId: c.projectId, instanceId: c.instanceId, conversationId: c.id })}
+        />
       </div>
 
     {:else if activeSection === 'providers'}

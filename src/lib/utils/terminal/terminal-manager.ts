@@ -177,7 +177,7 @@ export function onTerminalExit(
 
 const listenersReady: Promise<UnlistenFn[]> = Promise.all([
 	listen<{ id: string; data: string }>("terminal-output", (e) => {
-		onOutput?.(e.payload.id);
+		for (const fn of outputObservers) fn(e.payload.id);
 		write(e.payload.id, e.payload.data);
 	}),
 	listen<TerminalExit>("terminal-exit", (e) => {
@@ -228,33 +228,35 @@ const writeQueues = new Map<string, Promise<void>>();
 
 /**
  * Told about every byte typed into a terminal, before it reaches the PTY. The
- * Agent step uses it to name a conversation from its first prompt; nothing else
- * listens, and nothing ever reads the output side.
+ * Agent step uses it to name a conversation from its first prompt and to know
+ * a prompt was answered; nothing ever reads the output side.
  */
-let onInput: ((id: string, data: string) => void) | null = null;
+const inputObservers = new Set<(id: string, data: string) => void>();
 
-/** Registers the input observer; passing null removes it. */
+/** Registers an input observer, returning the unsubscribe. */
 export function observeInput(
-	fn: ((id: string, data: string) => void) | null,
-): void {
-	onInput = fn;
+	fn: (id: string, data: string) => void,
+): () => void {
+	inputObservers.add(fn);
+	return () => inputObservers.delete(fn);
 }
 
 /**
- * Told that a terminal produced output, without being told what. The Agent step
- * uses it to know a CLI is still doing something; the bytes themselves are not
- * passed on, because nothing in Cairn reads them.
+ * Told that a terminal produced output, without being told what. The agent
+ * status uses it to know a CLI is still doing something; the bytes themselves
+ * are not passed on, because nothing in Cairn reads them.
  */
-let onOutput: ((id: string) => void) | null = null;
+const outputObservers = new Set<(id: string) => void>();
 
-/** Registers the output observer; passing null removes it. */
-export function observeOutput(fn: ((id: string) => void) | null): void {
-	onOutput = fn;
+/** Registers an output observer, returning the unsubscribe. */
+export function observeOutput(fn: (id: string) => void): () => void {
+	outputObservers.add(fn);
+	return () => outputObservers.delete(fn);
 }
 
 /** Queues a PTY write behind the ones already in flight for that terminal. */
 function enqueueWrite(id: string, data: string): void {
-	onInput?.(id, data);
+	for (const fn of inputObservers) fn(id, data);
 	const pending = writeQueues.get(id) ?? Promise.resolve();
 	const next = pending.then(() => writeToTerminal(id, data)).catch(() => {});
 	writeQueues.set(id, next);

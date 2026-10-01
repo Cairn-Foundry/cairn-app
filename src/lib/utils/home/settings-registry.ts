@@ -32,6 +32,12 @@ const s = t as (k: string) => string;
 
 const STATIC_SETTINGS: SettingEntry[] = [
 	{
+		label: s("settings.general.ai.notifications"),
+		desc: s("settings.general.ai.notificationsDesc"),
+		tab: "general",
+		group: s("settings.general.ai.groupTitle"),
+	},
+	{
 		label: s("settings.general.updates.autoCheck"),
 		desc: s("settings.general.updates.autoCheckDesc"),
 		tab: "general",

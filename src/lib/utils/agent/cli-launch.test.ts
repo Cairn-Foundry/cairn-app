@@ -8,6 +8,7 @@ import {
 	mintsSessionId,
 	newConversationArgv,
 	resumeArgv,
+	statusArgv,
 } from "./cli-launch";
 
 const ALL: CliProviderId[] = [
@@ -81,5 +82,31 @@ describe("starting a conversation", () => {
 			expect(mintsSessionId(cli)).toBe(false);
 			expect(newConversationArgv(cli, SID)).toBeNull();
 		}
+	});
+});
+
+describe("reporting whose turn it is", () => {
+	it("gives Claude Code hooks that write into the file the backend names", () => {
+		const [flag, json] = statusArgv("claude-code");
+		expect(flag).toBe("--settings");
+		const { hooks } = JSON.parse(json);
+		const command = (event: string) => hooks[event][0].hooks[0].command;
+		expect(command("UserPromptSubmit")).toContain("printf working");
+		expect(command("PostToolUse")).toContain("printf working");
+		expect(command("Notification")).toContain("printf waiting");
+		expect(command("Stop")).toContain("printf done");
+		expect(command("Stop")).toContain('"$CAIRN_AGENT_SIGNAL"');
+	});
+
+	it("only counts a dialog as waiting, not the idle reminder after a turn", () => {
+		const { hooks } = JSON.parse(statusArgv("claude-code")[1]);
+		expect(hooks.Notification[0].matcher).toBe(
+			"permission_prompt|elicitation_dialog",
+		);
+	});
+
+	it("adds nothing for a CLI that has no hooks", () => {
+		expect(statusArgv("codex")).toEqual([]);
+		expect(statusArgv("gemini")).toEqual([]);
 	});
 });

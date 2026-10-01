@@ -106,11 +106,13 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .register_asynchronous_uri_scheme_protocol("cairn", |_ctx, request, responder| {
             std::thread::spawn(move || responder.respond(commands::file_protocol::respond(&request)));
         })
         .manage(OneshotState::new())
         .manage(TerminalState::new())
+        .manage(commands::agent_signals::AgentSignalState::default())
         .manage(TestState::new())
         .manage(LspState::new())
         .manage(commands::WatchState::default())
@@ -120,6 +122,9 @@ pub fn run() {
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
             commands::lsp::spawn_idle_reaper(app.handle().clone());
+            if let Err(e) = commands::agent_signals::start(app.handle()) {
+                eprintln!("agent signals unavailable: {e}");
+            }
 
             window_builder(app.handle(), commands::editor_windows::MAIN_WINDOW, tauri::WebviewUrl::default())
                 .inner_size(1440.0, 900.0)
@@ -165,6 +170,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::agent_signals::notify_agent,
             get_cli_status,
             editor_window_at_cursor,
             editor_drag_start,

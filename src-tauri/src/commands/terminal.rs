@@ -208,6 +208,9 @@ pub async fn terminal_create(
     for (key, value) in env.unwrap_or_default() {
         cmd.env(key, value);
     }
+    if let Some(path) = super::agent_signals::prepare(&id) {
+        cmd.env(super::agent_signals::ENV_VAR, path);
+    }
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
@@ -495,6 +498,7 @@ pub async fn terminal_close(app: tauri::AppHandle, id: String) -> Result<(), Str
     if let Some(mut sess) = removed {
         kill_session(&mut sess);
     }
+    super::agent_signals::clear(&id);
     Ok(())
 }
 

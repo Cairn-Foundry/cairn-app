@@ -91,6 +91,8 @@ export interface CairnSettings {
 	showPinnedCommandsSidebar: boolean;
 	transparencyEffects: boolean;
 	iconAnimations: boolean;
+	/** OS notification when a conversation needs the user while the window is in the background. */
+	agentNotifications: boolean;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

@@ -1,5 +1,29 @@
 [
 	{
+		"version": "1.1.1",
+		"date": "",
+		"summary": {
+			"en": "Cairn tells you which conversations are waiting on you, across every project.",
+			"fr": "Cairn signale les conversations qui vous attendent, tous projets confondus."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "A system notification tells you when a conversation finishes its turn or asks for approval while Cairn is in the background, and clicking it opens that conversation. It can be turned off in Settings > General.",
+					"fr": "Une notification système vous prévient quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan, et un clic dessus ouvre cette conversation. Désactivable dans Réglages > Général."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn now knows which conversations are waiting for you. Claude Code reports its turn - working, asking for approval, finished - and the Activity page of the home screen lists every running conversation across projects and instances, what needs you first; a click lands on that project, that instance and that conversation. Project cards and the conversation list carry the same marks, which clear once the conversation is on screen. Cairn passes its hooks to Claude Code at launch and never writes into your Claude settings; other CLIs only show whether they are running.",
+					"fr": "Cairn sait désormais quelles conversations vous attendent. Claude Code signale son tour - au travail, en attente d'un accord, terminé - et la page Activité de l'accueil liste toutes les conversations lancées, sur tous les projets et toutes les instances, ce qui vous attend en premier ; un clic mène à ce projet, cette instance et cette conversation. Les cartes de projet et la liste des conversations portent les mêmes marques, qui s'effacent dès que la conversation est à l'écran. Cairn transmet ses hooks à Claude Code au lancement et n'écrit jamais dans vos réglages Claude ; les autres CLI indiquent seulement s'ils sont lancés."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.1.0",
 		"date": "2026-10-01",
 		"summary": {

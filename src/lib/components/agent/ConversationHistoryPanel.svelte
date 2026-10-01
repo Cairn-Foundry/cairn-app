@@ -10,9 +10,9 @@
    * a row only moves it between scopes.
    *
    * A conversation is a CLI running in a PTY, so a row shows which CLI owns it
-   * rather than an excerpt of what was said, and its dot means "the CLI is
-   * running" - there is no "finished, unread": Cairn does not read the output
-   * and cannot tell an answer from a prompt.
+   * rather than an excerpt of what was said. A running one carries a dot: its
+   * status when the CLI reports one (`stores/agent-status.ts`), merely
+   * "running" otherwise - Cairn does not read the output.
    */
   import Icon from '$lib/components/Icon.svelte';
   import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
@@ -20,6 +20,8 @@
   import { t } from '$lib/i18n';
   import type { ConversationMeta, ConversationScope } from '$lib/services/conversation-service';
   import { conversationMatches, sortConversations } from '$lib/utils/agent/conversation-list';
+  import type { AgentStatus } from '$lib/utils/agent/agent-status';
+  import AgentStatusDot from './AgentStatusDot.svelte';
   import DeleteConversationModal from './DeleteConversationModal.svelte';
   import { focusOnMount } from '$lib/utils/agent/focus-on-mount';
 
@@ -29,6 +31,9 @@
     activeId: string | null;
     /** Label to show for a CLI id, from the registry. */
     cliLabel: (cli: string) => string;
+    /** The terminal of each running conversation, keyed by conversation id. */
+    live?: Record<string, string>;
+    statuses?: Record<string, AgentStatus>;
     onSelect: (id: string, scope: ConversationScope) => void;
     onNewSession: () => void;
     /** True while the view is on a session that has not been written down yet. */
@@ -41,7 +46,7 @@
   }
 
   const {
-    instanceConversations, projectConversations, activeId, cliLabel,
+    instanceConversations, projectConversations, activeId, cliLabel, live = {}, statuses = {},
     onSelect, onNewSession, newSessionActive, onRename, onDelete,
     onTogglePin, onToggleArchive, onMoveScope,
   }: Props = $props();
@@ -186,6 +191,7 @@
 
     <div class="row-main">
       <span class="row-title">
+        {#if live[row.meta.id]}<AgentStatusDot status={statuses[row.meta.id]}/>{/if}
         {#if row.meta.pinned}<Icon name="pin" size={10}/>{/if}
         {#if renamingId === row.meta.id}
           <!-- svelte-ignore a11y_autofocus -->

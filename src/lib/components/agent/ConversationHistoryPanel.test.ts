@@ -681,3 +681,26 @@ describe("ConversationHistoryPanel dragging between scopes", () => {
 		expect(spies.onMoveScope).not.toHaveBeenCalled();
 	});
 });
+
+describe("status of a running conversation", () => {
+	it("follows the status as it changes", async () => {
+		const meta = conversation("c1", { title: "Busy" });
+		const { rerender } = mount({
+			instanceConversations: [meta],
+			live: { c1: "conversation:c1" },
+			statuses: { c1: "working" },
+		});
+		expect(screen.getByRole("img", { name: "Working" })).toBeTruthy();
+
+		await rerender({ statuses: { c1: "waiting" } });
+		await tick();
+		expect(
+			screen.getByRole("img", { name: "Needs your approval" }),
+		).toBeTruthy();
+	});
+
+	it("shows no dot on a conversation that is not running", () => {
+		mount({ instanceConversations: [conversation("c1")] });
+		expect(screen.queryByRole("img", { name: "Running" })).toBeNull();
+	});
+});
