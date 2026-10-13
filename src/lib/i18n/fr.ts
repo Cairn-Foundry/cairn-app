@@ -566,6 +566,10 @@ export const fr = {
 		},
 	},
 
+	windowControls: {
+		minimize: "Réduire",
+		maximize: "Agrandir",
+	},
 	workflowTabs: {
 		files: "Fichiers",
 		agent: "Agent",
@@ -3046,6 +3050,19 @@ export const fr = {
 			iconAnimations: "Animations des icônes",
 			iconAnimationsDesc:
 				"Anime les icônes au survol du bouton ou de la ligne qui les contient.",
+			windowGroup: "Fenêtre",
+			titleBar: "Barre de titre",
+			titleBarDesc:
+				"Celle du système, une barre dessinée par Cairn dont vous choisissez la couleur, ou aucune, avec seulement les boutons de fenêtre.",
+			titleBarModes: {
+				native: "Système",
+				custom: "Cairn",
+				hidden: "Masquée",
+			},
+			titleBarColor: "Couleur de la barre de titre",
+			titleBarColorDesc:
+				"Fond de la barre de titre ; son texte s'adapte pour rester lisible.",
+			titleBarColorResetTitle: "Suivre le thème",
 			accentColors: {
 				blue: "Bleu",
 				purple: "Violet",

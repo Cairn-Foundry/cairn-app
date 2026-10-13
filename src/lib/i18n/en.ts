@@ -549,6 +549,10 @@ export const en = {
 		},
 	},
 
+	windowControls: {
+		minimize: "Minimize",
+		maximize: "Maximize",
+	},
 	workflowTabs: {
 		files: "Files",
 		agent: "Agent",
@@ -2993,6 +2997,19 @@ export const en = {
 			iconAnimations: "Icon animations",
 			iconAnimationsDesc:
 				"Animates icons when the button or row under the pointer is hovered.",
+			windowGroup: "Window",
+			titleBar: "Title bar",
+			titleBarDesc:
+				"The system's own bar, a bar drawn by Cairn whose colour you choose, or none at all with only the window buttons left.",
+			titleBarModes: {
+				native: "System",
+				custom: "Cairn",
+				hidden: "Hidden",
+			},
+			titleBarColor: "Title bar color",
+			titleBarColorDesc:
+				"Fill of the title bar; its text adapts to stay readable.",
+			titleBarColorResetTitle: "Follow the theme",
 			accentColors: {
 				blue: "Blue",
 				purple: "Purple",

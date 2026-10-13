@@ -38,8 +38,8 @@ fn focus_main_window(app: &tauri::AppHandle) {
 }
 
 /// A window with the app's chrome: the channel in its title, the transparency
-/// setting, and the overlay title bar on macOS. Shared by the main window and
-/// the detached editor windows.
+/// setting, the overlay title bar on macOS and the title bar setting elsewhere.
+/// Shared by the main window and the detached editor windows.
 ///
 /// Transparency is decided when the window is created and cannot be changed
 /// afterwards, so windows are built here rather than declared in
@@ -51,9 +51,8 @@ pub(crate) fn window_builder<'a>(
     label: &str,
     url: tauri::WebviewUrl,
 ) -> tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle> {
-    let transparent = commands::settings::read_settings()
-        .map(|s| s.transparency_effects)
-        .unwrap_or(true);
+    let settings = commands::settings::read_settings().ok();
+    let transparent = settings.as_ref().map(|s| s.transparency_effects).unwrap_or(true);
     // A beta or dev build says so in its title: it is otherwise
     // indistinguishable from the installed app, and the two are meant to
     // run side by side.
@@ -70,6 +69,12 @@ pub(crate) fn window_builder<'a>(
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true);
+    // Built undecorated rather than switched once the frontend has loaded, so
+    // the system title bar never flashes on a window that draws its own.
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(settings.is_none_or(|s| s.title_bar == "native"));
+    #[cfg(target_os = "macos")]
+    let _ = settings;
     builder
 }
 

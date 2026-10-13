@@ -4,13 +4,28 @@
 -->
 <script lang="ts">
   /**
-   * Appearance settings: theme, accent colour, interface font and UI scale.
+   * Appearance settings: theme, accent colour, interface font, UI scale and title bar.
    */
   import Icon from '$lib/components/Icon.svelte';
+  import Select from '$lib/components/Select.svelte';
   import { t } from '$lib/i18n';
   import { settings } from '$lib/stores/settings';
   import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '$lib/utils/home/appearance';
   import { availableThemes } from '$lib/utils/editor/themes';
+  import { toHexColor } from '$lib/utils/editor/color';
+  import { IS_MAC } from '$lib/utils/platform';
+  import type { TitleBarMode } from '$lib/services/settings-service';
+
+  const TITLE_BAR_MODES: TitleBarMode[] = ['native', 'custom', 'hidden'];
+
+  /** What the colour input shows while the bar still follows the theme. */
+  function themeTitleBarColor(): string {
+    try {
+      return toHexColor(getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim());
+    } catch {
+      return '#000000';
+    }
+  }
 
   const themeOptions = availableThemes();
 
@@ -148,6 +163,51 @@
     </label>
   </div>
 </div>
+{#if !IS_MAC}
+<div class="settings-group">
+  <div class="settings-group-title">{t('settings.appearance.windowGroup')}</div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.appearance.titleBar')}</span>
+      <span class="settings-row-desc">{t('settings.appearance.titleBarDesc')}</span>
+    </div>
+    <div class="settings-row-control title-bar-select">
+      <Select
+        value={$settings.titleBar}
+        options={TITLE_BAR_MODES.map((mode) => ({ value: mode, label: t(`settings.appearance.titleBarModes.${mode}`) as string }))}
+        ariaLabel={t('settings.appearance.titleBar') as string}
+        on:change={(e) => settings.save({ titleBar: e.detail as TitleBarMode })}
+      />
+    </div>
+  </div>
+  {#if $settings.titleBar === 'custom'}
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">{t('settings.appearance.titleBarColor')}</span>
+        <span class="settings-row-desc">{t('settings.appearance.titleBarColorDesc')}</span>
+      </div>
+      <div class="settings-row-control">
+        <input
+          class="title-bar-color"
+          type="color"
+          aria-label={t('settings.appearance.titleBarColor') as string}
+          value={$settings.titleBarColor || themeTitleBarColor()}
+          on:input={(e) => settings.save({ titleBarColor: (e.target as HTMLInputElement).value })}
+        />
+        <button
+          class="settings-reset-btn"
+          title={t('settings.appearance.titleBarColorResetTitle') as string}
+          aria-label={t('settings.appearance.titleBarColorResetTitle') as string}
+          disabled={!$settings.titleBarColor}
+          on:click={() => settings.save({ titleBarColor: '' })}
+        >
+          <Icon name="undo" size={12}/>
+        </button>
+      </div>
+    </div>
+  {/if}
+</div>
+{/if}
 <div class="settings-section-reset">
   <button
     class="btn ghost"
@@ -159,6 +219,17 @@
 </div>
 
 <style>
+  .title-bar-select :global(.select) { min-width: 150px; }
+  .title-bar-color {
+    width: 36px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--stroke-1);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+  }
+
   .theme-cards {
     display: flex;
     flex-wrap: wrap;

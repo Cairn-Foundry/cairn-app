@@ -66,6 +66,12 @@ export interface AiFeatureAssignment {
 }
 
 /**
+ * `native` is the bar the system draws, `custom` the app's own in its place,
+ * `hidden` no bar at all, only the window buttons.
+ */
+export type TitleBarMode = "native" | "custom" | "hidden";
+
+/**
  * Every global setting. The store merges what it reads with its own DEFAULTS,
  * so a field missing from an older settings.json is not an error.
  */
@@ -91,6 +97,10 @@ export interface CairnSettings {
 	showPinnedCommandsSidebar: boolean;
 	transparencyEffects: boolean;
 	iconAnimations: boolean;
+	/** Which title bar a window gets off macOS, where the overlay bar is fixed. */
+	titleBar: TitleBarMode;
+	/** Fill of the custom title bar; empty follows the theme. */
+	titleBarColor: string;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

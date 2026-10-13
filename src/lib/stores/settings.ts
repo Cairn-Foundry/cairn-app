@@ -37,6 +37,8 @@ const DEFAULTS: CairnSettings = {
 	showPinnedCommandsSidebar: true,
 	transparencyEffects: true,
 	iconAnimations: true,
+	titleBar: "native",
+	titleBarColor: "",
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],

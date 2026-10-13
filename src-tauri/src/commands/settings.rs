@@ -129,6 +129,13 @@ pub struct CairnSettings {
     pub transparency_effects: bool,
     #[serde(rename = "iconAnimations", default = "default_true")]
     pub icon_animations: bool,
+    /// "native" keeps the title bar the system draws, "custom" replaces it with
+    /// the app's own, "hidden" leaves only the window buttons. Ignored on macOS.
+    #[serde(rename = "titleBar", default = "default_title_bar")]
+    pub title_bar: String,
+    /// Fill of the custom title bar; empty follows the theme.
+    #[serde(rename = "titleBarColor", default)]
+    pub title_bar_color: String,
     #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
@@ -239,6 +246,7 @@ fn default_split_left_width() -> u32 { 0 }
 fn default_git_split_ratio() -> f64 { 0.5 }
 fn default_git_max_diff_lines() -> u32 { 2000 }
 fn default_theme() -> String { "default".to_string() }
+fn default_title_bar() -> String { "native".to_string() }
 fn default_accent_color() -> String { "#6c8eff".to_string() }
 pub(crate) fn default_integrations_poll_seconds() -> u64 { 10 }
 fn default_branch_template() -> String { "{{kind}}/{{key}}/{{slug}}".to_string() }
@@ -266,6 +274,8 @@ impl Default for CairnSettings {
             show_pinned_commands_sidebar: true,
             transparency_effects: true,
             icon_animations: true,
+            title_bar: default_title_bar(),
+            title_bar_color: String::new(),
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),
@@ -471,6 +481,7 @@ mod tests {
             from_empty_file.editor_font_size
         );
         assert_eq!(from_default_impl.ui_scale, from_empty_file.ui_scale);
+        assert_eq!(from_default_impl.title_bar, from_empty_file.title_bar);
         assert_eq!(
             from_default_impl.editor_font_family,
             from_empty_file.editor_font_family
