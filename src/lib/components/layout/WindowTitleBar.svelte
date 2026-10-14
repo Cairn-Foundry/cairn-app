@@ -9,10 +9,19 @@
    */
   import WindowControls from '$lib/components/layout/WindowControls.svelte';
   import { channel } from '$lib/stores/channel';
+  import { foregroundOn } from '$lib/utils/home/contrast';
   import { draggableRegion } from '$lib/utils/window-drag';
+
+  export let fill: string | null = null;
 </script>
 
-<div class="title-bar app-title-bar" data-tauri-drag-region use:draggableRegion>
+<div
+  class="title-bar app-title-bar"
+  style:background={fill}
+  style:color={fill ? foregroundOn(fill) : null}
+  data-tauri-drag-region
+  use:draggableRegion
+>
   <span class="side"></span>
   <span class="title-center">Cairn Foundry{$channel.label ? ` (${$channel.label})` : ''}</span>
   <span class="side"><WindowControls/></span>
@@ -26,8 +35,8 @@
     right: 0;
     height: var(--titlebar-h);
     padding: 0 6px;
-    background: var(--titlebar-bg, var(--bg-1));
-    color: var(--titlebar-fg, var(--fg-1));
+    background: var(--bg-1);
+    color: var(--fg-1);
   }
   .app-title-bar .title-center {
     color: inherit;

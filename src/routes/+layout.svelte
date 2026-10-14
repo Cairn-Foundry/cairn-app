@@ -58,11 +58,6 @@
   $: customTitleBar = !IS_MAC && $settings.titleBar === 'custom';
   $: titleBarFill = titleBarFillColor($settings, $activeScreen === 'workspace' ? ($activeProject?.color ?? null) : null);
 
-  function setRootVar(name: string, value: string | null) {
-    if (value === null) document.documentElement.style.removeProperty(name);
-    else document.documentElement.style.setProperty(name, value);
-  }
-
   // The webview zoom scales the whole chrome, which a root font size cannot do
   // here: the interface is laid out in absolute pixels throughout.
   async function applyZoom(scale: number) {
@@ -86,16 +81,12 @@
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
     void applyDecorations(!customTitleBar);
-    setRootVar('--titlebar-h', customTitleBar ? '34px' : null);
-  }
-
-  $: if (typeof document !== 'undefined') {
-    setRootVar('--titlebar-bg', titleBarFill);
-    setRootVar('--titlebar-fg', titleBarFill ? foregroundOn(titleBarFill) : null);
+    if (customTitleBar) document.documentElement.style.setProperty('--titlebar-h', '34px');
+    else document.documentElement.style.removeProperty('--titlebar-h');
   }
 </script>
 
 {#if customTitleBar}
-  <WindowTitleBar/>
+  <WindowTitleBar fill={titleBarFill}/>
 {/if}
 <slot />
