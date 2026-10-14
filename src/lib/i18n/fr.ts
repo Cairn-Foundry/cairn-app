@@ -570,6 +570,7 @@ export const fr = {
 		minimize: "Réduire",
 		maximize: "Agrandir",
 	},
+
 	workflowTabs: {
 		files: "Fichiers",
 		agent: "Agent",
@@ -3053,16 +3054,20 @@ export const fr = {
 			windowGroup: "Fenêtre",
 			titleBar: "Barre de titre",
 			titleBarDesc:
-				"Celle du système, une barre dessinée par Cairn dont vous choisissez la couleur, ou aucune, avec seulement les boutons de fenêtre.",
+				"Celle du système, ou une barre dessinée par Cairn dont vous choisissez la couleur.",
 			titleBarModes: {
 				native: "Système",
 				custom: "Cairn",
-				hidden: "Masquée",
 			},
 			titleBarColor: "Couleur de la barre de titre",
 			titleBarColorDesc:
-				"Fond de la barre de titre ; son texte s'adapte pour rester lisible.",
-			titleBarColorResetTitle: "Suivre le thème",
+				"Celle du thème, de l'accent, du projet ouvert (celle du thème hors d'un projet), ou celle de votre choix ; son texte s'adapte pour rester lisible.",
+			titleBarFills: {
+				theme: "Thème",
+				accent: "Couleur d'accent",
+				project: "Couleur du projet",
+				custom: "Personnalisée",
+			},
 			accentColors: {
 				blue: "Bleu",
 				purple: "Violet",

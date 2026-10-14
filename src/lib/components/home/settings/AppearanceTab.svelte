@@ -14,17 +14,10 @@
   import { availableThemes } from '$lib/utils/editor/themes';
   import { toHexColor } from '$lib/utils/editor/color';
   import { IS_MAC } from '$lib/utils/platform';
-  import type { TitleBarMode } from '$lib/services/settings-service';
+  import type { TitleBarFill, TitleBarMode } from '$lib/services/settings-service';
 
-  const TITLE_BAR_MODES: TitleBarMode[] = ['native', 'custom', 'hidden'];
-
-  /** What the colour input shows while the bar still follows the theme. */
   function themeTitleBarColor(): string {
-    try {
-      return toHexColor(getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim());
-    } catch {
-      return '#000000';
-    }
+    return toHexColor(getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim());
   }
 
   const themeOptions = availableThemes();
@@ -174,7 +167,7 @@
     <div class="settings-row-control title-bar-select">
       <Select
         value={$settings.titleBar}
-        options={TITLE_BAR_MODES.map((mode) => ({ value: mode, label: t(`settings.appearance.titleBarModes.${mode}`) as string }))}
+        options={(['native', 'custom'] as const).map((mode) => ({ value: mode, label: t(`settings.appearance.titleBarModes.${mode}`) as string }))}
         ariaLabel={t('settings.appearance.titleBar') as string}
         on:change={(e) => settings.save({ titleBar: e.detail as TitleBarMode })}
       />
@@ -186,23 +179,22 @@
         <span class="settings-row-label">{t('settings.appearance.titleBarColor')}</span>
         <span class="settings-row-desc">{t('settings.appearance.titleBarColorDesc')}</span>
       </div>
-      <div class="settings-row-control">
-        <input
-          class="title-bar-color"
-          type="color"
-          aria-label={t('settings.appearance.titleBarColor') as string}
-          value={$settings.titleBarColor || themeTitleBarColor()}
-          on:input={(e) => settings.save({ titleBarColor: (e.target as HTMLInputElement).value })}
+      <div class="settings-row-control title-bar-select">
+        {#if $settings.titleBarFill === 'custom'}
+          <input
+            class="title-bar-color"
+            type="color"
+            aria-label={t('settings.appearance.titleBarFills.custom') as string}
+            value={$settings.titleBarColor || themeTitleBarColor()}
+            on:input={(e) => settings.save({ titleBarColor: (e.target as HTMLInputElement).value })}
+          />
+        {/if}
+        <Select
+          value={$settings.titleBarFill}
+          options={(['theme', 'accent', 'project', 'custom'] as const).map((fill) => ({ value: fill, label: t(`settings.appearance.titleBarFills.${fill}`) as string }))}
+          ariaLabel={t('settings.appearance.titleBarColor') as string}
+          on:change={(e) => settings.save({ titleBarFill: e.detail as TitleBarFill })}
         />
-        <button
-          class="settings-reset-btn"
-          title={t('settings.appearance.titleBarColorResetTitle') as string}
-          aria-label={t('settings.appearance.titleBarColorResetTitle') as string}
-          disabled={!$settings.titleBarColor}
-          on:click={() => settings.save({ titleBarColor: '' })}
-        >
-          <Icon name="undo" size={12}/>
-        </button>
       </div>
     </div>
   {/if}

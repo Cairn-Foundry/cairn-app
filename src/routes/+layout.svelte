@@ -10,11 +10,13 @@
    */
   import '../app.css';
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
   import WindowTitleBar from '$lib/components/layout/WindowTitleBar.svelte';
   import { settings } from '$lib/stores/settings';
+  import { activeProject } from '$lib/stores/project';
+  import { activeScreen } from '$lib/stores/ui';
   import { IS_MAC } from '$lib/utils/platform';
   import { foregroundOn } from '$lib/utils/home/contrast';
+  import { titleBarFillColor } from '$lib/utils/home/title-bar';
   import { setWindowVibrancy } from '$lib/services/settings-service';
   import { interceptExternalLinks } from '$lib/utils/external-links';
 
@@ -34,9 +36,9 @@
   let nativeDecorations: boolean | null = null;
 
   /**
-   * The window is built with the decorations its setting asks for, so the first
-   * value seen here is only recorded: the store still holds its defaults at that
-   * point, and applying them would flash the system title bar on and off.
+   * The first value is only recorded: the window is built with its decorations and
+   * the store still holds its defaults. Mutter only reads decorations when a window
+   * is mapped, hence the hide and show around the switch.
    */
   async function applyDecorations(native: boolean) {
     const previous = nativeDecorations;
@@ -44,17 +46,17 @@
     if (IS_MAC || previous === null || previous === native) return;
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().setDecorations(native);
+      const win = getCurrentWindow();
+      const maximized = await win.isMaximized();
+      await win.hide();
+      await win.setDecorations(native);
+      await win.show();
+      if (maximized) await win.maximize();
     } catch {}
   }
 
-  // A detached editor has no chrome of its own for the buttons to sit on, so
-  // "hidden" draws the bar there all the same.
-  $: titleBar = IS_MAC
-    ? 'native'
-    : $settings.titleBar === 'hidden' && $page.route.id === '/editor'
-      ? 'custom'
-      : $settings.titleBar;
+  $: customTitleBar = !IS_MAC && $settings.titleBar === 'custom';
+  $: titleBarFill = titleBarFillColor($settings, $activeScreen === 'workspace' ? ($activeProject?.color ?? null) : null);
 
   function setRootVar(name: string, value: string | null) {
     if (value === null) document.documentElement.style.removeProperty(name);
@@ -83,15 +85,17 @@
     document.documentElement.toggleAttribute('data-no-icon-animations', !$settings.iconAnimations);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
-    void applyDecorations(IS_MAC || $settings.titleBar === 'native');
-    setRootVar('--titlebar-h', titleBar === 'custom' ? '34px' : null);
-    setRootVar('--window-controls-w', titleBar === 'hidden' ? '96px' : null);
-    setRootVar('--titlebar-bg', $settings.titleBarColor || null);
-    setRootVar('--titlebar-fg', $settings.titleBarColor ? foregroundOn($settings.titleBarColor) : null);
+    void applyDecorations(!customTitleBar);
+    setRootVar('--titlebar-h', customTitleBar ? '34px' : null);
+  }
+
+  $: if (typeof document !== 'undefined') {
+    setRootVar('--titlebar-bg', titleBarFill);
+    setRootVar('--titlebar-fg', titleBarFill ? foregroundOn(titleBarFill) : null);
   }
 </script>
 
-{#if titleBar !== 'native'}
-  <WindowTitleBar floating={titleBar === 'hidden'}/>
+{#if customTitleBar}
+  <WindowTitleBar/>
 {/if}
 <slot />

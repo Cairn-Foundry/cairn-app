@@ -553,6 +553,7 @@ export const en = {
 		minimize: "Minimize",
 		maximize: "Maximize",
 	},
+
 	workflowTabs: {
 		files: "Files",
 		agent: "Agent",
@@ -3000,16 +3001,20 @@ export const en = {
 			windowGroup: "Window",
 			titleBar: "Title bar",
 			titleBarDesc:
-				"The system's own bar, a bar drawn by Cairn whose colour you choose, or none at all with only the window buttons left.",
+				"The system's own bar, or a bar drawn by Cairn whose colour you choose.",
 			titleBarModes: {
 				native: "System",
 				custom: "Cairn",
-				hidden: "Hidden",
 			},
 			titleBarColor: "Title bar color",
 			titleBarColorDesc:
-				"Fill of the title bar; its text adapts to stay readable.",
-			titleBarColorResetTitle: "Follow the theme",
+				"The theme's, the accent, the open project's (the theme's outside a project), or one you pick; its text adapts to stay readable.",
+			titleBarFills: {
+				theme: "Theme",
+				accent: "Accent color",
+				project: "Project color",
+				custom: "Custom",
+			},
 			accentColors: {
 				blue: "Blue",
 				purple: "Purple",

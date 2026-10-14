@@ -38,6 +38,7 @@ const DEFAULTS: CairnSettings = {
 	transparencyEffects: true,
 	iconAnimations: true,
 	titleBar: "native",
+	titleBarFill: "theme",
 	titleBarColor: "",
 	showWhitespace: false,
 	saveOn: "blur",

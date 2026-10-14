@@ -170,7 +170,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   align-items: stretch;
   background: var(--bg-0);
   border-bottom: 1px solid var(--stroke-0);
-  padding: 0 calc(8px + var(--window-controls-w, 0px)) 0 8px;
+  padding: 0 8px;
   flex-shrink: 0;
   height: 40px;
   gap: 2px;

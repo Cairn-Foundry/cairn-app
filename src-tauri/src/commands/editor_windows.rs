@@ -138,7 +138,7 @@ pub async fn editor_window_open(
     if let (Some(x), Some(y)) = (x, y) {
         builder = builder.position(x, y);
     }
-    if let Err(e) = builder.build() {
+    if let Err(e) = builder.build().and_then(|w| w.show()) {
         state.pending.lock().map_err(|e| e.to_string())?.remove(&label);
         return Err(e.to_string());
     }

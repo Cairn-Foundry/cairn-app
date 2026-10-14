@@ -65,11 +65,11 @@ export interface AiFeatureAssignment {
 	promptTemplate: string;
 }
 
-/**
- * `native` is the bar the system draws, `custom` the app's own in its place,
- * `hidden` no bar at all, only the window buttons.
- */
-export type TitleBarMode = "native" | "custom" | "hidden";
+/** Ignored on macOS, where the overlay title bar is fixed. */
+export type TitleBarMode = "native" | "custom";
+
+/** `project` falls back to the theme outside a project; `custom` uses `titleBarColor`. */
+export type TitleBarFill = "theme" | "accent" | "project" | "custom";
 
 /**
  * Every global setting. The store merges what it reads with its own DEFAULTS,
@@ -97,9 +97,8 @@ export interface CairnSettings {
 	showPinnedCommandsSidebar: boolean;
 	transparencyEffects: boolean;
 	iconAnimations: boolean;
-	/** Which title bar a window gets off macOS, where the overlay bar is fixed. */
 	titleBar: TitleBarMode;
-	/** Fill of the custom title bar; empty follows the theme. */
+	titleBarFill: TitleBarFill;
 	titleBarColor: string;
 	showWhitespace: boolean;
 	saveOn:
