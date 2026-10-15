@@ -29,6 +29,7 @@ describe("runOneshot", () => {
 				model: null,
 				binaryPath: null,
 				env: {},
+				context: "repository",
 			},
 		});
 	});
@@ -54,8 +55,30 @@ describe("runOneshot", () => {
 				model: "gpt",
 				binaryPath: "/bin/codex",
 				env: { KEY: "v" },
+				context: "repository",
 			},
 		});
+	});
+
+	/** The tier a call site asks for has to survive the trip to the command. */
+	it("carries the tier the caller asked for", async () => {
+		await runOneshot(
+			"/w",
+			"prompt",
+			{},
+			"run-3",
+			undefined,
+			undefined,
+			undefined,
+			{},
+			"prompt",
+		);
+		expect(mockInvoke).toHaveBeenCalledWith(
+			"run_oneshot",
+			expect.objectContaining({
+				request: expect.objectContaining({ context: "prompt" }),
+			}),
+		);
 	});
 });
 

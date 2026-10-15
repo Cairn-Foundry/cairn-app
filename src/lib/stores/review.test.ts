@@ -200,6 +200,29 @@ describe("generateGuide", () => {
 	});
 
 	/**
+	 * A guide template rewritten on the Features page can ask the model to read
+	 * the files around the diff; this call site never goes through
+	 * `resolveAiFeature`, so it has to answer for itself.
+	 */
+	it("runs the full session when the guide template was rewritten", async () => {
+		runOneshot.mockClear();
+		await generateGuide(scope, {
+			base: "main",
+			head: "feature",
+			baseSha: "base1",
+			headSha: "head1",
+			assignments: {
+				reviewGuide: {
+					providerId: "",
+					model: "",
+					promptTemplate: "Read the files around the diff.",
+				},
+			},
+		});
+		expect(runOneshot.mock.calls[0][8]).toBe("repository");
+	});
+
+	/**
 	 * The overview explains the branch before its code means anything, and an
 	 * empty `currentChapterId` is what the view reads as "not started".
 	 */
@@ -268,6 +291,20 @@ describe("draftCommentFor", () => {
 		side: "new" as const,
 		status: "open" as const,
 	};
+
+	it("runs the full session when the comment template was rewritten", async () => {
+		runOneshot.mockResolvedValue({ comment: "Please guard this." });
+		await draftCommentFor(scope, remark, "const a = b.c;", {
+			assignments: {
+				reviewComment: {
+					providerId: "",
+					model: "",
+					promptTemplate: "Open the file and read around it.",
+				},
+			},
+		});
+		expect(runOneshot.mock.calls[0][8]).toBe("repository");
+	});
 
 	/** Path, line, excerpt and remark are all in the prompt already. */
 	it("asks for a run with nothing of the project", async () => {
@@ -590,7 +627,7 @@ describe("draftCommentFor", () => {
 			required: ["comment"],
 			properties: { comment: { type: "string" } },
 		});
-		expect(call.slice(4)).toEqual(["codex", "m", "/bin/codex"]);
+		expect(call.slice(4)).toEqual(["codex", "m", "/bin/codex", {}, "prompt"]);
 		expect(String(call[1])).toContain("Unvalidated input");
 	});
 

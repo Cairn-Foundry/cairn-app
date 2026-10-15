@@ -223,7 +223,7 @@ export async function generateGuide(
 			options.model,
 			options.binaryPath,
 			{},
-			assistContext("reviewGuide"),
+			assistContext("reviewGuide", options.assignments),
 		);
 		const guide = resolveGuide(
 			raw,
@@ -459,7 +459,7 @@ export async function draftCommentFor(
 			options.model,
 			options.binaryPath,
 			{},
-			assistContext("reviewComment"),
+			assistContext("reviewComment", options.assignments),
 		);
 		return typeof answer.comment === "string" ? answer.comment : "";
 	} finally {

@@ -209,6 +209,45 @@ describe("how much of the project each assist needs", () => {
 		}
 	});
 
+	/**
+	 * The registry answers for the template Cairn ships. A prompt rewritten on
+	 * the Features page can ask the model to go and read the repository, and a
+	 * lean run would deny it the tools without saying anything.
+	 */
+	it("runs the full session for a prompt the user rewrote", () => {
+		const edited = {
+			branchName: {
+				providerId: "",
+				model: "",
+				promptTemplate: "Read the files around it, then name it.",
+			},
+		};
+		expect(assistContext("branchName")).toBe("prompt");
+		expect(assistContext("branchName", edited)).toBe("repository");
+		expect(
+			resolveAiFeature("branchName", edited, installed(ASSIST_CLI)).context,
+		).toBe("repository");
+	});
+
+	it("ignores an assignment that only pins a provider or a model", () => {
+		const pinned = {
+			branchName: {
+				providerId: ASSIST_CLI,
+				model: "haiku",
+				promptTemplate: "",
+			},
+		};
+		expect(assistContext("branchName", pinned)).toBe("prompt");
+	});
+
+	it("ignores a template of whitespace", () => {
+		expect(
+			assistContext("branchName", {
+				branchName: { providerId: "", model: "", promptTemplate: "  " },
+			}),
+		).toBe("prompt");
+	});
+
 	it("carries the answer onto the resolved feature", () => {
 		expect(
 			resolveAiFeature("branchName", undefined, installed(ASSIST_CLI)).context,

@@ -248,8 +248,17 @@ export function featureDef(id: AiFeatureId): AiFeatureDef | undefined {
  * `context` off the registry, so a call site with no resolved feature at hand
  * still answers it the same way. An id nobody declared runs the full session:
  * the expensive answer is the safe one.
+ *
+ * A prompt the user rewrote runs the full session too. The registry answers for
+ * the template Cairn ships; a template edited on the Features page can ask the
+ * model to go and read the repository, and a lean run would deny it the tools
+ * to do so without saying anything.
  */
-export function assistContext(id: AiFeatureId): AssistContext {
+export function assistContext(
+	id: AiFeatureId,
+	assignments?: Record<string, AiFeatureAssignment>,
+): AssistContext {
+	if (assignments?.[id]?.promptTemplate?.trim()) return "repository";
 	return featureDef(id)?.context ?? "repository";
 }
 
@@ -326,6 +335,6 @@ export function resolveAiFeature(
 		model: assigned?.model ?? "",
 		promptTemplate: template,
 		unavailable: !isInstalled(providerId),
-		context: assistContext(id),
+		context: assistContext(id, assignments),
 	};
 }

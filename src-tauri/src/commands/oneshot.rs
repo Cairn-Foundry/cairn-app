@@ -296,48 +296,55 @@ pub async fn run_oneshot(app: tauri::AppHandle, request: OneshotRequest) -> Resu
 
     let env = env.unwrap_or_default();
     let context = context.unwrap_or_default();
-    let mut result = run_blocking(
-        cli,
-        &binary,
-        &working_dir,
-        &prompt,
-        &schema,
-        &run_id,
-        model.clone(),
-        env.clone(),
-        context,
-        &handle,
-    );
-
-    // The lean flags are younger than the schema flag the assists already
-    // needed, so a CLI that has not been updated in a while refuses them and
-    // takes down four assists that worked for that user before. Rather than
-    // keeping a table of which flag landed in which release - one that goes
-    // stale on its own - the run pays one fast failure and starts again with
-    // the arguments every version has understood.
-    if context != RunContext::Repository
-        && !handle.cancelled.load(Ordering::SeqCst)
-        && matches!(&result, Err(e) if refuses_an_argument(e))
-    {
-        result = run_blocking(
+    let result = with_argument_fallback(cli, context, || handle.cancelled.load(Ordering::SeqCst), |ctx| {
+        run_blocking(
             cli,
             &binary,
             &working_dir,
             &prompt,
             &schema,
             &run_id,
-            model,
-            env,
-            RunContext::Repository,
+            model.clone(),
+            env.clone(),
+            ctx,
             &handle,
-        );
-    }
+        )
+    });
 
     if let Ok(mut running) = app.state::<OneshotState>().running.lock() {
         running.remove(&run_id);
     }
     if handle.cancelled.load(Ordering::SeqCst) {
         return Err("cancelled".to_string());
+    }
+    result
+}
+
+/// Runs once, and once more as `Repository` when the CLI turned the first
+/// attempt down over an argument rather than over the question.
+///
+/// The lean flags are younger than the schema flag the assists already needed,
+/// so a CLI that has not been updated in a while refuses them and takes down
+/// four assists that worked for that user before. Rather than keeping a table
+/// of which flag landed in which release - one that goes stale on its own - the
+/// run pays one fast failure and starts again with the arguments every version
+/// has understood.
+///
+/// A CLI with nothing to drop never retries: the second argv would be the first
+/// one, so it could only fail again, twice as slowly.
+fn with_argument_fallback(
+    cli: &HeadlessCli,
+    context: RunContext,
+    cancelled: impl Fn() -> bool,
+    mut run: impl FnMut(RunContext) -> Result<Value, String>,
+) -> Result<Value, String> {
+    let result = run(context);
+    if context != RunContext::Repository
+        && !cli.lean_args.is_empty()
+        && !cancelled()
+        && matches!(&result, Err(e) if refuses_an_argument(e))
+    {
+        return run(RunContext::Repository);
     }
     result
 }
@@ -660,6 +667,71 @@ mod tests {
         let codex = headless_cli("codex").expect("codex should be in the table");
         let args = build_args(codex, "/tmp/s.json", Some("/tmp/a.json"), Some("gpt"), Some("ask"), RunContext::Prompt);
         assert_eq!(args.last().map(String::as_str), Some("ask"));
+    }
+
+    /// The retry is what the changelog promises; without these the whole block
+    /// can be deleted and the suite still passes.
+    #[test]
+    fn an_argument_refusal_is_tried_again_without_the_lean_arguments() {
+        let mut seen: Vec<RunContext> = Vec::new();
+        let result = with_argument_fallback(claude(), RunContext::Prompt, || false, |ctx| {
+            seen.push(ctx);
+            if seen.len() == 1 {
+                Err("error: unknown option '--safe-mode'".to_string())
+            } else {
+                Ok(json!({ "slug": "ok" }))
+            }
+        });
+        assert_eq!(seen, [RunContext::Prompt, RunContext::Repository]);
+        assert_eq!(result, Ok(json!({ "slug": "ok" })));
+    }
+
+    /// A question the model could not answer is not an argument problem, and
+    /// asking it a second time only doubles the wait.
+    #[test]
+    fn a_real_failure_is_not_tried_again() {
+        let mut calls = 0;
+        let result = with_argument_fallback(claude(), RunContext::Prompt, || false, |_| {
+            calls += 1;
+            Err("Invalid API key".to_string())
+        });
+        assert_eq!(calls, 1);
+        assert!(result.is_err());
+    }
+
+    /// The user said no; a second spawn would start a run they just stopped.
+    #[test]
+    fn a_cancelled_run_is_not_tried_again() {
+        let mut calls = 0;
+        let _ = with_argument_fallback(claude(), RunContext::Prompt, || true, |_| {
+            calls += 1;
+            Err("error: unknown option '--safe-mode'".to_string())
+        });
+        assert_eq!(calls, 1);
+    }
+
+    /// A full session dropped nothing, so there is nothing to put back.
+    #[test]
+    fn a_full_session_is_not_tried_again() {
+        let mut calls = 0;
+        let _ = with_argument_fallback(claude(), RunContext::Repository, || false, |_| {
+            calls += 1;
+            Err("error: unknown option '--json-schema'".to_string())
+        });
+        assert_eq!(calls, 1);
+    }
+
+    /// Codex carries no lean arguments, so the second argv would be the first:
+    /// it could only fail again, twice as slowly.
+    #[test]
+    fn a_cli_with_nothing_to_drop_is_not_tried_again() {
+        let codex = headless_cli("codex").expect("codex should be in the table");
+        let mut calls = 0;
+        let _ = with_argument_fallback(codex, RunContext::Prompt, || false, |_| {
+            calls += 1;
+            Err("error: unexpected argument '--skip-git-repo-check' found".to_string())
+        });
+        assert_eq!(calls, 1);
     }
 
     /// A CLI too old for the lean flags turns the run down over the argument,

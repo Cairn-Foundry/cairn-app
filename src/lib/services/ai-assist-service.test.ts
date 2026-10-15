@@ -73,6 +73,7 @@ describe("runOneShotShaped", () => {
 				provider: "claude-code",
 				model: "opus",
 				binaryPath: null,
+				context: "repository",
 				env: {},
 			},
 		});
@@ -290,6 +291,7 @@ describe("runOneShot", () => {
 				provider: "claude-code",
 				model: "sonnet",
 				binaryPath: null,
+				context: "repository",
 				env: {},
 			},
 		});
