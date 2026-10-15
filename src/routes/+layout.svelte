@@ -11,7 +11,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import WindowTitleBar from '$lib/components/layout/WindowTitleBar.svelte';
-  import { settings } from '$lib/stores/settings';
+  import { settings, settingsLoaded } from '$lib/stores/settings';
   import { activeProject } from '$lib/stores/project';
   import { activeScreen } from '$lib/stores/ui';
   import { IS_MAC } from '$lib/utils/platform';
@@ -36,17 +36,17 @@
   let nativeDecorations: boolean | null = null;
 
   /**
-   * The first value is only recorded: the window is built with its decorations and
-   * the store still holds its defaults. Mutter only reads decorations when a window
-   * is mapped, hence the hide and show around the switch.
+   * Compared with the window itself, which Rust already built with the saved
+   * setting: switching it again would hide and show it for nothing. Mutter only
+   * reads decorations when a window is mapped, hence the hide and show.
    */
   async function applyDecorations(native: boolean) {
-    const previous = nativeDecorations;
+    if (IS_MAC || nativeDecorations === native) return;
     nativeDecorations = native;
-    if (IS_MAC || previous === null || previous === native) return;
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       const win = getCurrentWindow();
+      if ((await win.isDecorated()) === native) return;
       const maximized = await win.isMaximized();
       await win.hide();
       await win.setDecorations(native);
@@ -55,7 +55,32 @@
     } catch {}
   }
 
+  let fullscreen = false;
+
+  // Tauri has no fullscreen event: entering or leaving it arrives as a resize.
+  onMount(() => {
+    if (IS_MAC) return;
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        const check = async () => { fullscreen = await win.isFullscreen(); };
+        await check();
+        const off = await win.onResized(() => void check());
+        if (disposed) off();
+        else unlisten = off;
+      } catch {}
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
   $: customTitleBar = !IS_MAC && $settings.titleBar === 'custom';
+  $: showTitleBar = customTitleBar && !fullscreen;
   $: titleBarFill = titleBarFillColor($settings, $activeScreen === 'workspace' ? ($activeProject?.color ?? null) : null);
 
   // The webview zoom scales the whole chrome, which a root font size cannot do
@@ -80,13 +105,13 @@
     document.documentElement.toggleAttribute('data-no-icon-animations', !$settings.iconAnimations);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
-    void applyDecorations(!customTitleBar);
-    if (customTitleBar) document.documentElement.style.setProperty('--titlebar-h', '34px');
+    if ($settingsLoaded) void applyDecorations(!customTitleBar);
+    if (showTitleBar) document.documentElement.style.setProperty('--titlebar-h', '34px');
     else document.documentElement.style.removeProperty('--titlebar-h');
   }
 </script>
 
-{#if customTitleBar}
+{#if showTitleBar}
   <WindowTitleBar fill={titleBarFill}/>
 {/if}
 <slot />

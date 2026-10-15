@@ -59,6 +59,7 @@ const DEFAULTS: CairnSettings = {
 };
 
 const { subscribe, set, update } = writable<CairnSettings>(DEFAULTS);
+const loaded = writable(false);
 
 function mergeWithDefaults(
 	base: CairnSettings,
@@ -83,7 +84,10 @@ function mergeWithDefaults(
 async function load() {
 	try {
 		set(mergeWithDefaults(DEFAULTS, await getSettings()));
-	} catch {}
+	} catch {
+	} finally {
+		loaded.set(true);
+	}
 }
 
 /**
@@ -107,6 +111,9 @@ async function save(patch: Partial<CairnSettings>): Promise<void> {
 
 /** Global app settings, merged with DEFAULTS on load so an older saved config stays valid. */
 export const settings = { subscribe, load, save };
+
+/** False while the store still holds DEFAULTS rather than what settings.json says. */
+export const settingsLoaded = { subscribe: loaded.subscribe };
 
 /**
  * The lookups that decide which server covers a file are plain functions, so

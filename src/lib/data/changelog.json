@@ -8,20 +8,6 @@
 		},
 		"changes": [
 			{
-				"kind": "added",
-				"text": {
-					"en": "On Linux and Windows, the Appearance settings choose the title bar: the system's, or one drawn by Cairn whose colour follows the theme, the accent, the open project or one of your own.",
-					"fr": "Sous Linux et Windows, les réglages d'apparence choisissent la barre de titre : celle du système, ou une barre dessinée par Cairn dont la couleur suit le thème, l'accent, le projet ouvert ou votre choix."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "On a short window or a high interface scale, the bottom of the home screen and of the settings is no longer cut off out of reach: the sidebar scrolls on its own.",
-					"fr": "Sur une fenêtre peu haute ou avec une échelle d'interface élevée, le bas de l'accueil et des réglages n'est plus coupé hors d'atteinte : la barre latérale défile d'elle-même."
-				}
-			},
-			{
 				"kind": "fixed",
 				"text": {
 					"en": "The file tree keeps its scroll position when it refreshes after a file changes, instead of jumping to the open file.",
