@@ -129,6 +129,8 @@ pub struct CairnSettings {
     pub transparency_effects: bool,
     #[serde(rename = "iconAnimations", default = "default_true")]
     pub icon_animations: bool,
+    #[serde(rename = "agentNotifications", default = "default_true")]
+    pub agent_notifications: bool,
     #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
@@ -266,6 +268,7 @@ impl Default for CairnSettings {
             show_pinned_commands_sidebar: true,
             transparency_effects: true,
             icon_animations: true,
+            agent_notifications: true,
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),

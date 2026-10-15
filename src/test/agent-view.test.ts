@@ -233,6 +233,8 @@ describe("starting a conversation", () => {
 			"claude",
 			"--session-id",
 			expect.stringMatching(/^[0-9a-f-]{36}$/),
+			"--settings",
+			expect.stringContaining("CAIRN_AGENT_SIGNAL"),
 		]);
 	});
 

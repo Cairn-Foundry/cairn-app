@@ -39,6 +39,9 @@ import { removeInstanceTerminals } from "./terminal";
  */
 const instancesByProject = writable<Record<string, Instance[]>>({});
 
+/** Read-only view of every loaded project's instances, keyed by project id. */
+export const loadedInstances = { subscribe: instancesByProject.subscribe };
+
 /** Applies a change to one project's instance list, leaving the other projects alone. */
 function patchProject(
 	projectId: string,
