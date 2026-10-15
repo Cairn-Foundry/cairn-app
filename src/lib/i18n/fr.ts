@@ -3061,7 +3061,7 @@ export const fr = {
 			},
 			titleBarColor: "Couleur de la barre de titre",
 			titleBarColorDesc:
-				"Celle du thème, de l'accent, du projet ouvert (celle du thème hors d'un projet), ou celle de votre choix ; son texte s'adapte pour rester lisible.",
+				"Choisissez la couleur de la barre. Couleur du projet suit le projet ouvert.",
 			titleBarFills: {
 				theme: "Thème",
 				accent: "Couleur d'accent",

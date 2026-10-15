@@ -13,7 +13,9 @@
   import WindowTitleBar from '$lib/components/layout/WindowTitleBar.svelte';
   import { settings, settingsLoaded } from '$lib/stores/settings';
   import { activeProject } from '$lib/stores/project';
-  import { activeScreen } from '$lib/stores/ui';
+  import { activeScreen, windowFullscreen } from '$lib/stores/ui';
+  import { activeShortcuts, matchesShortcut } from '$lib/stores/shortcuts';
+  import { toggleFullscreen } from '$lib/utils/window-fullscreen';
   import { IS_MAC } from '$lib/utils/platform';
   import { foregroundOn } from '$lib/utils/home/contrast';
   import { titleBarFillColor } from '$lib/utils/home/title-bar';
@@ -55,8 +57,6 @@
     } catch {}
   }
 
-  let fullscreen = false;
-
   // Tauri has no fullscreen event: entering or leaving it arrives as a resize.
   onMount(() => {
     if (IS_MAC) return;
@@ -66,7 +66,7 @@
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
-        const check = async () => { fullscreen = await win.isFullscreen(); };
+        const check = async () => windowFullscreen.set(await win.isFullscreen());
         await check();
         const off = await win.onResized(() => void check());
         if (disposed) off();
@@ -80,7 +80,7 @@
   });
 
   $: customTitleBar = !IS_MAC && $settings.titleBar === 'custom';
-  $: showTitleBar = customTitleBar && !fullscreen;
+  $: showTitleBar = customTitleBar && !$windowFullscreen;
   $: titleBarFill = titleBarFillColor($settings, $activeScreen === 'workspace' ? ($activeProject?.color ?? null) : null);
 
   // The webview zoom scales the whole chrome, which a root font size cannot do
@@ -110,6 +110,14 @@
     else document.documentElement.style.removeProperty('--titlebar-h');
   }
 </script>
+
+<svelte:window
+  on:keydown={(e) => {
+    if (!matchesShortcut(e, $activeShortcuts.toggleFullscreen)) return;
+    e.preventDefault();
+    void toggleFullscreen();
+  }}
+/>
 
 {#if showTitleBar}
   <WindowTitleBar fill={titleBarFill}/>

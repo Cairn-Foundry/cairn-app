@@ -3008,7 +3008,7 @@ export const en = {
 			},
 			titleBarColor: "Title bar color",
 			titleBarColorDesc:
-				"The theme's, the accent, the open project's (the theme's outside a project), or one you pick; its text adapts to stay readable.",
+				"Choose the bar's color. Project color follows the open project when one is open.",
 			titleBarFills: {
 				theme: "Theme",
 				accent: "Accent color",

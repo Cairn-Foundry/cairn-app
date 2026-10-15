@@ -9,7 +9,7 @@
    * app-level shortcuts and hands every other one down to FilesView.
    */
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool } from '$lib/stores/ui.js';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool, windowFullscreen } from '$lib/stores/ui.js';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/i18n';
   import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
@@ -28,6 +28,7 @@
   import QuickOpen from '$lib/components/files/QuickOpen.svelte';
   import CommandPalette from '$lib/components/files/CommandPalette.svelte';
   import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+  import { toggleFullscreen } from '$lib/utils/window-fullscreen';
   import type { ShortcutId } from '$lib/types/shortcuts';
   import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
   import { clickOutside } from '$lib/utils/click-outside';
@@ -134,15 +135,6 @@
     });
   }
 
-  async function toggleFullscreen() {
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      await win.setFullscreen(!(await win.isFullscreen()));
-      await checkFullscreen();
-    } catch {}
-  }
-
   /**
    * Actions the workspace owns rather than the editor. Everything else is an
    * editor action and goes down to FilesView.
@@ -185,11 +177,11 @@
     }
   }
 
-  /** Claims a key only for the workspace's own actions; fullscreen also works outside the workspace. */
+  /** Claims a key only for the workspace's own actions; the root layout answers fullscreen on every screen. */
   function handleAppKey(e: KeyboardEvent) {
     for (const id of APP_ACTIONS) {
       if (!matchesShortcut(e, $activeShortcuts[id])) continue;
-      if (id !== 'toggleFullscreen' && $activeScreen !== 'workspace') return;
+      if (id === 'toggleFullscreen' || $activeScreen !== 'workspace') return;
       e.preventDefault();
       void runAction(id);
       return;
@@ -437,12 +429,11 @@
 
   // Detect macOS and fullscreen state to adjust traffic-light clearance
   let isMac = false;
-  let isFullscreen = false;
 
   async function checkFullscreen() {
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      isFullscreen = await getCurrentWindow().isFullscreen();
+      windowFullscreen.set(await getCurrentWindow().isFullscreen());
     } catch {}
   }
 
@@ -489,7 +480,7 @@
     if (isStickyTabDrag) cancelStickyTabDrag();
   });
 
-  $: tabsPadding = isMac && !isFullscreen ? '76px' : '8px';
+  $: tabsPadding = isMac && !$windowFullscreen ? '76px' : '8px';
 
   $: baseInst = $activeProject ? baseInstance($activeProject) : null;
 

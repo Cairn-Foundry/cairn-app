@@ -15,6 +15,12 @@ export const activeStep = writable<WorkflowStep>("files");
 export const activeScreen = writable<"home" | "workspace">("home");
 
 /**
+ * Whether the window is fullscreen. Also set right after a toggle: a maximized
+ * window can already have the fullscreen size, and then no resize reports it.
+ */
+export const windowFullscreen = writable(false);
+
+/**
  * Open tool taking over the main area. Set these through showTool(), never directly.
  *
  * A plain writable notifies on every set, even an identical one, and switching
