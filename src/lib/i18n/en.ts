@@ -264,6 +264,14 @@ export const en = {
 			"The folder below no longer exists. If it was moved or renamed, point the project at its new location; otherwise remove the project.",
 		missingRelocate: "Locate folder...",
 		missingRemove: "Remove project",
+		brokenMissingHeadline: "Instance worktree not found",
+		brokenMissingSub:
+			"The worktree directory below no longer exists. Delete the instance, or go back to the base folder.",
+		brokenDetachedHeadline: "Git no longer knows this worktree",
+		brokenDetachedSub:
+			"The folder below is still there, but its registration in the repository was removed (by git worktree remove or prune, for instance), so git cannot work in it. Delete the instance, or go back to the base folder.",
+		brokenDelete: "Delete instance",
+		brokenBackToBase: "Back to base folder",
 		noInstanceHasOthersHeadline: "No active instance",
 		noInstanceHasOthersSub:
 			"Your other instances are still available. Switch to one or create a new one.",

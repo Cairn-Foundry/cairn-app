@@ -10,6 +10,20 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "Deleting an instance whose worktree holds files you cannot remove (created by a Docker container running as root, for instance) no longer half-empties it in silence: nothing is touched, and the dialog says which folder is in the way.",
+					"fr": "Supprimer une instance dont le worktree contient des fichiers impossibles à effacer (créés par un conteneur Docker lancé en root, par exemple) ne le vide plus à moitié en silence : rien n'est touché, et la fenêtre indique quel dossier bloque."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "An instance whose worktree is gone, or that git no longer recognises, now says so with a way to delete it or go back to the base folder.",
+					"fr": "Une instance dont le worktree a disparu, ou que git ne reconnaît plus, le signale désormais et propose de la supprimer ou de revenir au dossier de base."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "The file tree keeps its scroll position when it refreshes after a file changes, instead of jumping to the open file.",
 					"fr": "L'arbre de fichiers conserve sa position de défilement quand il se rafraîchit après la modification d'un fichier, au lieu de sauter au fichier ouvert."
 				}

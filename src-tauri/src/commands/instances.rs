@@ -200,6 +200,62 @@ fn is_locked(wt: &git2::Worktree) -> bool {
     matches!(wt.is_locked(), Ok(git2::WorktreeLockStatus::Locked(_)))
 }
 
+/// The first directory under `root` whose entries this user cannot unlink -
+/// typically one a Docker container created as root. `remove_dir_all` would
+/// stop there with half the tree already gone.
+#[cfg(unix)]
+fn undeletable_dir(root: &Path) -> Option<PathBuf> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let Ok(c_dir) = CString::new(dir.as_os_str().as_bytes()) else { return Some(dir) };
+        if unsafe { libc::access(c_dir.as_ptr(), libc::W_OK | libc::X_OK) } != 0 {
+            return Some(dir);
+        }
+        let Ok(entries) = fs::read_dir(&dir) else { return Some(dir) };
+        pending.extend(
+            entries
+                .flatten()
+                .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+                .map(|e| e.path()),
+        );
+    }
+    None
+}
+
+#[cfg(not(unix))]
+fn undeletable_dir(_root: &Path) -> Option<PathBuf> {
+    None
+}
+
+/// Whether an instance's worktree can still be worked in.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum WorktreeHealth {
+    Ok,
+    /// The directory is gone.
+    Missing,
+    /// The directory is there but git no longer knows it, usually because its
+    /// registration under `.git/worktrees` was removed.
+    Detached,
+}
+
+fn worktree_health(path: &Path) -> WorktreeHealth {
+    if !path.is_dir() {
+        WorktreeHealth::Missing
+    } else if Repository::open(path).is_err() {
+        WorktreeHealth::Detached
+    } else {
+        WorktreeHealth::Ok
+    }
+}
+
+#[tauri::command]
+pub async fn instance_worktree_health(path: String) -> WorktreeHealth {
+    worktree_health(Path::new(&shellexpand::tilde(&path).into_owned()))
+}
+
 /// Whether deleting an instance takes its worktree with it.
 ///
 /// Cairn created the worktree of an ordinary instance, so clearing it away is
@@ -673,7 +729,8 @@ pub fn update_instance_base_branch(id: String, project_id: String, base_branch: 
 /// Drops the instance and its editor state and, when `remove_worktree` asks
 /// for it (by default for a worktree Cairn made, not for an adopted one),
 /// removes the worktree directory, prunes its git entry and deletes the
-/// branch. A locked worktree is refused before anything is touched; the rest of
+/// branch. A locked worktree, or one holding a directory this user cannot
+/// empty, is refused before anything is touched; the rest of
 /// the git cleanup is best effort, since a missing worktree or branch must not
 /// block the deletion.
 /// Async: removing the worktree directory blocks long enough to freeze the UI thread.
@@ -712,6 +769,12 @@ pub async fn delete_instance(
                 return Err(format!(
                     "The worktree at {} is locked. Unlock it with `git worktree unlock` or keep it on disk.",
                     wt_path.display()
+                ));
+            }
+            if let Some(dir) = wt_path.exists().then(|| undeletable_dir(&wt_path)).flatten() {
+                return Err(format!(
+                    "{} cannot be deleted: permission denied. It was probably created by a Docker container running as root; remove it with `sudo rm -rf` or keep the worktree on disk.",
+                    dir.display()
                 ));
             }
             if wt_path.exists() {
@@ -1032,6 +1095,36 @@ mod tests {
         fs::remove_dir_all(&path).unwrap();
         let repo = Repository::open(scratch.repo()).unwrap();
         assert!(worktree_conflict(&repo, "feat/gone", "feat-gone").is_none());
+    }
+
+    #[test]
+    fn a_worktree_git_no_longer_knows_is_detached() {
+        let scratch = Scratch::new("health");
+        let path = scratch.worktree("wt", "feat/health");
+        assert_eq!(worktree_health(&path), WorktreeHealth::Ok);
+
+        fs::remove_dir_all(scratch.repo().join(".git/worktrees/wt")).unwrap();
+        assert_eq!(worktree_health(&path), WorktreeHealth::Detached);
+
+        fs::remove_dir_all(&path).unwrap();
+        assert_eq!(worktree_health(&path), WorktreeHealth::Missing);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_directory_that_cannot_be_emptied_is_found_before_anything_is_deleted() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = Scratch::new("undeletable");
+        let path = scratch.worktree("wt", "feat/undeletable");
+        assert_eq!(undeletable_dir(&path), None);
+
+        let sealed = path.join("vendor/pkg");
+        fs::create_dir_all(&sealed).unwrap();
+        fs::write(sealed.join("f"), b"x").unwrap();
+        fs::set_permissions(&sealed, fs::Permissions::from_mode(0o555)).unwrap();
+        let found = undeletable_dir(&path);
+        fs::set_permissions(&sealed, fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(found, Some(sealed));
     }
 
     #[test]

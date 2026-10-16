@@ -8,14 +8,18 @@
    * its worktree: cleaned up, or left on disk with only the link forgotten.
    * The default follows who made it - Cairn's own worktree goes, an adopted one
    * stays - but either can be overridden here, wherever the directory lives.
-   * Dispatches `confirm` with { removeWorktree } or `close`.
+   * Dispatches `confirm` with { removeWorktree } or `close`; the caller keeps
+   * it open while `busy` and hands back the failure in `error`.
    */
   import { createEventDispatcher } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import { t } from '$lib/i18n';
   import type { Instance } from '$lib/types/instance';
 
   export let instance: Instance;
+  export let busy = false;
+  export let error: string | null = null;
 
   const dispatch = createEventDispatcher<{ close: void; confirm: { removeWorktree: boolean } }>();
 
@@ -68,12 +72,24 @@
           <span class="toggle-thumb"></span>
         </button>
       </label>
+
+      {#if error}
+        <div class="del-error" role="alert">
+          <Icon name="alert" size={14}/>
+          <span class="selectable">{error}</span>
+        </div>
+      {/if}
     </div>
     <div class="modal-foot">
       <div class="spacer"></div>
-      <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.cancel')}</button>
-      <button class="btn danger" on:click={() => dispatch('confirm', { removeWorktree })}>
-        <Icon name="trash" size={14}/> {t('deleteInstance.deleteInstance')}
+      <button class="btn ghost" disabled={busy} on:click={() => dispatch('close')}>{t('common.cancel')}</button>
+      <button class="btn danger" disabled={busy} aria-busy={busy} on:click={() => dispatch('confirm', { removeWorktree })}>
+        {#if busy}
+          <Spinner size={13}/>
+        {:else}
+          <Icon name="trash" size={14}/>
+        {/if}
+        {t('deleteInstance.deleteInstance')}
       </button>
     </div>
   </div>
@@ -152,4 +168,19 @@
     transition: transform 0.15s;
   }
   .toggle-btn.on .toggle-thumb { transform: translateX(16px); }
+
+  .del-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: var(--danger-weak);
+    color: var(--danger);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .del-error :global(svg) { flex-shrink: 0; margin-top: 2px; }
 </style>

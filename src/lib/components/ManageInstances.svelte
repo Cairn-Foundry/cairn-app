@@ -32,6 +32,7 @@
   let duplicatingId: string | null = null;
   let pendingDuplicateInst: Instance | null = null;
   let pendingDeleteInst: Instance | null = null;
+  let deleteError: string | null = null;
   let moreOpenId: string | null = null;
   let reopeningId: string | null = null;
   let copiedId: string | null = null;
@@ -172,10 +173,13 @@
   async function confirmDelete(e: CustomEvent<{ removeWorktree: boolean }>) {
     if (!$activeProject || !pendingDeleteInst) return;
     const inst = pendingDeleteInst;
-    pendingDeleteInst = null;
     deletingId = inst.id;
+    deleteError = null;
     try {
       await removeInstance(inst.id, $activeProject.id, e.detail.removeWorktree);
+      pendingDeleteInst = null;
+    } catch (err) {
+      deleteError = String(err);
     } finally {
       deletingId = null;
     }
@@ -398,7 +402,9 @@
 {#if pendingDeleteInst}
   <DeleteInstanceModal
     instance={pendingDeleteInst}
-    on:close={() => pendingDeleteInst = null}
+    busy={deletingId === pendingDeleteInst.id}
+    error={deleteError}
+    on:close={() => { pendingDeleteInst = null; deleteError = null; }}
     on:confirm={confirmDelete}
   />
 {/if}

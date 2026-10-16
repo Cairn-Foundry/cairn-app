@@ -359,6 +359,24 @@ describe("ManageInstances", () => {
 			expect(removeInstance).not.toHaveBeenCalled();
 			expect(document.querySelector(".mi-row")).not.toBeNull();
 		});
+
+		/** A refused deletion used to close the question and say nothing at all. */
+		it("keeps the question open with the reason when the deletion fails", async () => {
+			removeInstance.mockRejectedValueOnce("vendor cannot be deleted");
+			mount();
+			await openMenu(rows()[1]);
+			await userEvent.click(menuItem(/delete|supprimer/i));
+			await settle();
+			const confirm = Array.from(
+				document.querySelectorAll<HTMLButtonElement>(".btn.danger"),
+			).at(-1) as HTMLButtonElement;
+			await userEvent.click(confirm);
+			await settle();
+			expect(removeInstance).toHaveBeenCalledTimes(1);
+			expect(document.querySelector(".del-error")?.textContent).toContain(
+				"vendor cannot be deleted",
+			);
+		});
 	});
 
 	describe("the archived group", () => {

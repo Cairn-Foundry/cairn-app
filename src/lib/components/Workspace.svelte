@@ -38,8 +38,10 @@
   import { matchesSearch } from '$lib/utils/files/files-search';
 
   import type { Instance } from '$lib/types/instance';
-  import { instances, baseInstance, isBaseInstance, isArchivedInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
+  import { instances, baseInstance, isBaseInstance, isArchivedInstance, removeInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
   import { activateInstance, activeProject, relocateProjectInStore, unregisterProject } from '$lib/stores/project';
+  import { instanceWorktreeHealth, type WorktreeHealth } from '$lib/services/instance-service';
+  import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
   import { validateDirectory } from '$lib/services/project-service';
   import DeleteProjectModal from '$lib/components/home/DeleteProjectModal.svelte';
   import type { Project } from '$lib/types/project';
@@ -263,6 +265,36 @@
     isRemovingMissing = false;
     dispatch('closeProject', id);
     await unregisterProject(id);
+  }
+
+  let worktreeHealth: WorktreeHealth = 'ok';
+  let healthCheckToken = 0;
+  let isDeletingBroken = false;
+  let brokenDeleteBusy = false;
+  let brokenDeleteError: string | null = null;
+
+  async function checkInstanceWorktree(instance: Instance | null) {
+    const token = ++healthCheckToken;
+    const health: WorktreeHealth = instance && !isBaseInstance(instance.id)
+      ? await instanceWorktreeHealth(instance.worktreePath).catch(() => 'ok' as const)
+      : 'ok';
+    if (token === healthCheckToken) worktreeHealth = health;
+  }
+
+  $: void checkInstanceWorktree(activeInstance);
+
+  async function deleteBrokenInstance(e: CustomEvent<{ removeWorktree: boolean }>) {
+    if (!activeInstance) return;
+    brokenDeleteBusy = true;
+    brokenDeleteError = null;
+    try {
+      await removeInstance(activeInstance.id, activeInstance.projectId, e.detail.removeWorktree);
+      isDeletingBroken = false;
+    } catch (err) {
+      brokenDeleteError = String(err);
+    } finally {
+      brokenDeleteBusy = false;
+    }
   }
 
   let dragSrcIndex: number | null = null;
@@ -808,6 +840,32 @@
           </div>
         </div>
       {/if}
+      {#if worktreeHealth !== 'ok' && activeInstance && !isProjectMissing}
+        <div class="no-instance project-missing" role="alert">
+          <div class="no-instance-inner">
+            <div class="no-instance-icon">
+              <Icon name="branch" size={48}/>
+            </div>
+            <h2 class="no-instance-headline">
+              {worktreeHealth === 'missing' ? t('workspace.brokenMissingHeadline') : t('workspace.brokenDetachedHeadline')}
+            </h2>
+            <p class="no-instance-sub">
+              {worktreeHealth === 'missing' ? t('workspace.brokenMissingSub') : t('workspace.brokenDetachedSub')}
+            </p>
+            <code class="missing-path selectable">{activeInstance.worktreePath}</code>
+            <div class="no-instance-actions">
+              <button class="btn danger no-instance-cta" on:click={() => isDeletingBroken = true}>
+                <Icon name="trash" size={14}/>
+                {t('workspace.brokenDelete')}
+              </button>
+              <button class="btn primary no-instance-cta" on:click={() => selectInstance(BASE_INSTANCE_ID)}>
+                <Icon name="folder" size={14}/>
+                {t('workspace.brokenBackToBase')}
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
       {#if isProjectMissing && $activeProject}
         <div class="no-instance project-missing" role="alert">
           <div class="no-instance-inner">
@@ -871,6 +929,16 @@
     project={$activeProject}
     initialTab="integrations"
     on:close={() => showProjectIntegrations = false}
+  />
+{/if}
+
+{#if isDeletingBroken && activeInstance}
+  <DeleteInstanceModal
+    instance={activeInstance}
+    busy={brokenDeleteBusy}
+    error={brokenDeleteError}
+    on:close={() => { isDeletingBroken = false; brokenDeleteError = null; }}
+    on:confirm={deleteBrokenInstance}
   />
 {/if}
 

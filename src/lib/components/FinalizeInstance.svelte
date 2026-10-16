@@ -50,6 +50,7 @@
   let handedOff = false;
   let pendingDelete = false;
   let deleting = false;
+  let deleteError: string | null = null;
   let isMrFormOpen = false;
   let hasTransitionFailed = false;
 
@@ -192,11 +193,14 @@
     });
 
   async function confirmDelete(e: CustomEvent<{ removeWorktree: boolean }>) {
-    pendingDelete = false;
     deleting = true;
+    deleteError = null;
     try {
       await removeInstance(instance.id, instance.projectId, e.detail.removeWorktree);
+      pendingDelete = false;
       dispatch('close');
+    } catch (err) {
+      deleteError = String(err);
     } finally {
       deleting = false;
     }
@@ -451,7 +455,9 @@
 {#if pendingDelete}
   <DeleteInstanceModal
     {instance}
-    on:close={() => pendingDelete = false}
+    busy={deleting}
+    error={deleteError}
+    on:close={() => { pendingDelete = false; deleteError = null; }}
     on:confirm={confirmDelete}
   />
 {/if}

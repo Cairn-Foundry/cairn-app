@@ -268,6 +268,14 @@ export const fr = {
 			"Le dossier ci-dessous n'existe plus. S'il a été déplacé ou renommé, indiquez son nouvel emplacement ; sinon, supprimez le projet.",
 		missingRelocate: "Localiser le dossier...",
 		missingRemove: "Supprimer le projet",
+		brokenMissingHeadline: "Worktree de l'instance introuvable",
+		brokenMissingSub:
+			"Le dossier du worktree ci-dessous n'existe plus. Supprimez l'instance, ou revenez au dossier de base.",
+		brokenDetachedHeadline: "Git ne reconnaît plus ce worktree",
+		brokenDetachedSub:
+			"Le dossier ci-dessous existe toujours, mais son enregistrement dans le dépôt a été supprimé (par git worktree remove ou prune, par exemple) : git ne peut plus y travailler. Supprimez l'instance, ou revenez au dossier de base.",
+		brokenDelete: "Supprimer l'instance",
+		brokenBackToBase: "Revenir au dossier de base",
 		noInstanceHasOthersHeadline: "Aucune instance active",
 		noInstanceHasOthersSub:
 			"Vos autres instances sont toujours disponibles. Basculez vers l'une d'elles ou créez-en une nouvelle.",

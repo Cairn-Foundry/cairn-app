@@ -136,6 +136,15 @@ export async function deleteInstance(
 	return invoke<void>("delete_instance", { id, projectId, removeWorktree });
 }
 
+/** "missing" when the directory is gone, "detached" when git no longer knows it. */
+export type WorktreeHealth = "ok" | "missing" | "detached";
+
+export async function instanceWorktreeHealth(
+	path: string,
+): Promise<WorktreeHealth> {
+	return invoke<WorktreeHealth>("instance_worktree_health", { path });
+}
+
 /** Local branch names of the project checkout, not of a worktree. */
 export async function listBranches(projectPath: string): Promise<string[]> {
 	return invoke<string[]>("list_branches", { projectPath });
