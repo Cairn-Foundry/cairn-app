@@ -385,12 +385,15 @@
       basename: basename(f.filePath),
       dirpath: dirpath(f.filePath),
       hunks: f.hunks,
+      truncated: !!f.truncated,
       hasDiff,
       status: diffStatus(f.hunks),
       added,
       removed,
     };
   });
+
+  $: commitSide = selectedCommit ? { kind: 'rev' as const, rev: selectedCommit.hash } : null;
 
   let commitFilesSearch = '';
   $: filteredCommitDiffCards = commitFilesSearch.trim()
@@ -783,6 +786,8 @@
   let stashDiffFiles: GitFileDiff[] = [];
   let isLoadingStashDiff = false;
 
+  $: stashSide = selectedStash ? { kind: 'rev' as const, rev: `stash@{${selectedStash.index}}` } : null;
+
   $: stashDiffCards = stashDiffFiles.map(f => {
     const { added, removed, hasDiff } = statFromHunks(f.hunks);
     return {
@@ -791,6 +796,7 @@
       basename: basename(f.filePath),
       dirpath: dirpath(f.filePath),
       hunks: f.hunks,
+      truncated: !!f.truncated,
       hasDiff,
       status: diffStatus(f.hunks),
       added,
@@ -1713,7 +1719,7 @@
               {#if h.hasDiff}
                 {#if !collapsedUnstaged.has(h.filePath)}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} filePath={h.filePath} worktreePath={instance?.worktreePath ?? ""} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'worktree' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}
@@ -1920,7 +1926,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} filePath={card.filePath} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -2054,7 +2060,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} filePath={card.filePath} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={commitSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
@@ -2149,7 +2155,7 @@
               {#if h.hasDiff}
                 {#if expandedStaged.has(h.filePath)}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} filePath={h.filePath} worktreePath={instance?.worktreePath ?? ""} isStaged on:openFile={(e) => dispatch('openFile', e.detail)} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'index' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}

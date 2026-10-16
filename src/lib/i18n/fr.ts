@@ -1872,6 +1872,9 @@ export const fr = {
 		commitFilesNoResults: "Aucun fichier ne correspond à votre recherche.",
 		showMoreFiles: (n: number) =>
 			`Afficher ${n} fichier${n !== 1 ? "s" : ""} de plus`,
+		expandUp: "Afficher les lignes au-dessus",
+		expandDown: "Afficher les lignes en dessous",
+		expandAll: "Afficher les lignes masquées",
 		showMoreLines: (n: number) =>
 			`Afficher ${n} ligne${n !== 1 ? "s" : ""} de plus (ouvrez le fichier pour le diff complet)`,
 		notARepoTitle: "Pas un dépôt Git",

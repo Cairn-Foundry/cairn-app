@@ -12,7 +12,7 @@ use std::sync::{LazyLock, Mutex};
 use git2::{Repository, BranchType};
 use crate::child_env;
 use crate::commands::git_error::GitError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -809,6 +809,50 @@ pub async fn git_file_in_index(
     let output = git_cmd(&expanded)
         .args(["show", &format!(":{}", file_path)])
         .output()?;
+    if !output.status.success() {
+        if !is_repo_root(&expanded)? {
+            return Err(GitError::from_process(&output));
+        }
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+}
+
+/// Where the new side of a diff lives, for the lines a diff view reveals around its hunks.
+#[derive(Deserialize, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum DiffSide {
+    Worktree,
+    Index,
+    Rev { rev: String },
+}
+
+/// The `git show` object naming `file_path` on that side, `None` for the worktree.
+fn diff_side_object(side: &DiffSide, file_path: &str) -> Result<Option<String>, GitError> {
+    match side {
+        DiffSide::Worktree => Ok(None),
+        DiffSide::Index => Ok(Some(format!(":{file_path}"))),
+        DiffSide::Rev { rev } => {
+            reject_option_like(rev)?;
+            Ok(Some(format!("{rev}:{file_path}")))
+        }
+    }
+}
+
+#[tauri::command]
+/// File contents on the new side of a diff, `None` when it does not exist there.
+pub async fn git_file_on_side(
+    worktree_path: String,
+    side: DiffSide,
+    file_path: String,
+) -> Result<Option<String>, GitError> {
+    let expanded = expand(&worktree_path);
+    let Some(object) = diff_side_object(&side, &file_path)? else {
+        return Ok(fs::read(Path::new(&expanded).join(&file_path))
+            .ok()
+            .map(|bytes| String::from_utf8_lossy(&bytes).to_string()));
+    };
+    let output = git_cmd(&expanded).args(["show", &object]).output()?;
     if !output.status.success() {
         if !is_repo_root(&expanded)? {
             return Err(GitError::from_process(&output));
@@ -2470,6 +2514,23 @@ mod tests {
         assert!(reject_option_like("release-1.2").is_ok());
         assert!(reject_option_like("-rf").is_err());
         assert!(reject_option_like("--upload-pack=evil").is_err());
+    }
+
+    #[test]
+    fn diff_side_object_names_the_file_on_each_side() {
+        assert_eq!(diff_side_object(&DiffSide::Worktree, "a/b.rs").unwrap(), None);
+        assert_eq!(diff_side_object(&DiffSide::Index, "a/b.rs").unwrap(), Some(":a/b.rs".into()));
+        let rev = DiffSide::Rev { rev: "stash@{1}".into() };
+        assert_eq!(diff_side_object(&rev, "a/b.rs").unwrap(), Some("stash@{1}:a/b.rs".into()));
+        assert!(diff_side_object(&DiffSide::Rev { rev: "--output=x".into() }, "a").is_err());
+    }
+
+    #[test]
+    fn diff_side_deserializes_from_the_frontend_shape() {
+        let side: DiffSide = serde_json::from_str(r#"{"kind":"rev","rev":"abc"}"#).unwrap();
+        assert_eq!(side, DiffSide::Rev { rev: "abc".into() });
+        let side: DiffSide = serde_json::from_str(r#"{"kind":"worktree"}"#).unwrap();
+        assert_eq!(side, DiffSide::Worktree);
     }
 
     #[test]

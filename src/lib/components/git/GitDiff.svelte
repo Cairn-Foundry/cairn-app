@@ -5,9 +5,16 @@
 <script lang="ts">
   /**
    * Renders diff hunks as numbered rows, paginated so a large diff does not build every row at once.
-   * Read-only: no staging, no selection.
+   * Read-only: no staging, no selection. Given a `side`, the unchanged lines between hunks can be
+   * revealed a few at a time, as on GitHub.
    */
-  import { getFileAtHead, getFileInIndex, type GitDiffHunk } from '$lib/services/git-service';
+  import {
+    getFileAtHead,
+    getFileInIndex,
+    getFileOnSide,
+    type DiffSide,
+    type GitDiffHunk,
+  } from '$lib/services/git-service';
   import { t } from '$lib/i18n';
   import { langFromPath, readFile } from '$lib/services/file-service';
   import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
@@ -16,11 +23,23 @@
   import { createEventDispatcher } from 'svelte';
   import { isDiffTooLarge } from '$lib/utils/git/diff-size';
   import Icon from '$lib/components/Icon.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import {
+    EXPAND_STEP,
+    buildDiffRows,
+    diffGaps,
+    expandGap,
+    splitFileLines,
+    type GapExpansion,
+  } from '$lib/utils/git/diff-context';
 
   export let hunks: GitDiffHunk[] = [];
   export let filePath = '';
+  /** Where the new side of the diff lives; null leaves the hunks without expanders. */
+  export let side: DiffSide | null = null;
   export let worktreePath = '';
-  export let isStaged = false;
+  /** The diff was cut short, so the gaps past its end cannot be trusted. */
+  export let truncated = false;
 
   const dispatch = createEventDispatcher<{ openFile: string }>();
 
@@ -60,8 +79,9 @@
     highlightTick++;
   }
 
-  $: if (worktreePath && filePath && NESTED_LANGUAGES.has(lang)) {
-    void loadSides(filePath, worktreePath, isStaged, $activeSyntaxTokens);
+  $: hasWorkingSides = side?.kind === 'worktree' || side?.kind === 'index';
+  $: if (worktreePath && filePath && hasWorkingSides && NESTED_LANGUAGES.has(lang)) {
+    void loadSides(filePath, worktreePath, side?.kind === 'index', $activeSyntaxTokens);
   } else {
     sidesRun++;
     oldSide = null;
@@ -69,10 +89,10 @@
   }
 
   function wholeFileLine(row: { kind: string; oldNo: number | null; newNo: number | null; content: string }, _tick: number): string | undefined {
-    const side = row.kind === 'remove' ? oldSide : newSide;
+    const whole = row.kind === 'remove' ? oldSide : newSide;
     const index = (row.kind === 'remove' ? row.oldNo : row.newNo) ?? 0;
-    if (!side || side.raw[index - 1]?.replace(/\r$/, '') !== row.content) return undefined;
-    return side.html[index - 1];
+    if (!whole || whole.raw[index - 1]?.replace(/\r$/, '') !== row.content) return undefined;
+    return whole.html[index - 1];
   }
 
   let highlightCache = new Map<string, string>();
@@ -104,64 +124,56 @@
   const PAGE = 300;
   let shown = PAGE;
 
+  let expansions: GapExpansion[] = [];
+  let fileLines: string[] | null = null;
+  let fileUnavailable = false;
+  let loadingGap: number | null = null;
+  let loadToken = 0;
+
   // Collapse back to the first page whenever the hunks themselves change, not on every reactive pass.
   let lastSignature = '';
   $: signature =
-    hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
+    `${worktreePath}|${JSON.stringify(side)}|${filePath}|` + hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
   $: if (signature !== lastSignature) {
     lastSignature = signature;
     shown = PAGE;
+    expansions = [];
+    fileLines = null;
+    fileUnavailable = false;
+    loadingGap = null;
+    loadToken++;
   }
 
-  type Row =
-    | { kind: 'sep'; header: string }
-    | { kind: 'add' | 'remove' | 'context'; oldNo: number | null; newNo: number | null; content: string };
+  $: expandable = side !== null && !!worktreePath && !truncated && !fileUnavailable;
+  $: gaps = expandable ? diffGaps(hunks, fileLines?.length ?? null) : null;
 
-  /** Reads the starting old and new line numbers out of an @@ hunk header, falling back to 1 when it does not parse. */
-  function parseHeader(header: string): { oldStart: number; newStart: number } {
-    const m = header.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    return {
-      oldStart: m ? Number(m[1]) : 1,
-      newStart: m ? Number(m[2]) : 1,
-    };
-  }
+  $: built = buildDiffRows(hunks, gaps, expansions, fileLines, shown);
+  $: rows = built.rows;
+  $: hidden = Math.max(0, built.total - shown);
 
-  /** Total rows the hunks would produce, counted without allocating any of them. */
-  $: totalRows = hunks.reduce((n, h, i) => n + h.lines.length + (i > 0 ? 1 : 0), 0);
-
-  /**
-   * Flattens the hunks into display rows, walking each side's counter so added and removed lines
-   * only advance their own. Stops at the page limit: a 20k-line diff shows 300 rows, so building
-   * the other 19.7k only to slice them away costs megabytes per expanded file.
-   */
-  $: rows = ((limit: number): Row[] => {
-    const out: Row[] = [];
-    for (let i = 0; i < hunks.length; i++) {
-      if (out.length >= limit) break;
-      const hunk = hunks[i];
-      const { oldStart, newStart } = parseHeader(hunk.header);
-      if (i > 0) out.push({ kind: 'sep', header: hunk.header });
-      let oldNo = oldStart;
-      let newNo = newStart;
-      for (const line of hunk.lines) {
-        if (out.length >= limit) break;
-        if (line.kind === 'add') {
-          out.push({ kind: 'add', oldNo: null, newNo, content: line.content });
-          newNo++;
-        } else if (line.kind === 'remove') {
-          out.push({ kind: 'remove', oldNo, newNo: null, content: line.content });
-          oldNo++;
-        } else {
-          out.push({ kind: 'context', oldNo, newNo, content: line.content });
-          oldNo++;
-          newNo++;
-        }
+  /** Reveals more of a gap, fetching the file's new side on the first expansion. */
+  async function expand(gap: number, direction: 'up' | 'down' | 'all') {
+    if (loadingGap !== null || !side) return;
+    if (!fileLines) {
+      const token = loadToken;
+      loadingGap = gap;
+      let content: string | null = null;
+      try {
+        content = await getFileOnSide(worktreePath, side, filePath);
+      } catch {
+        content = null;
       }
+      if (token !== loadToken) return;
+      loadingGap = null;
+      if (content === null) {
+        fileUnavailable = true;
+        return;
+      }
+      fileLines = splitFileLines(content);
     }
-    return out;
-  })(shown);
-
-  $: hidden = Math.max(0, totalRows - shown);
+    const loaded = diffGaps(hunks, fileLines.length);
+    if (loaded) expansions = expandGap(expansions, loaded, gap, direction);
+  }
 </script>
 
 {#if isTooLarge}
@@ -177,6 +189,30 @@
   {#each rows as row}
     {#if row.kind === 'sep'}
       <div class="diff-sep">{row.header}</div>
+    {:else if row.kind === 'gap'}
+      <div class="diff-gap">
+        <span class="gap-actions">
+          {#if loadingGap === row.gap}
+            <Spinner size={11}/>
+          {:else if row.up && row.down && row.remaining !== null && row.remaining <= EXPAND_STEP}
+            <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandAll') as string} aria-label={t('git.expandAll') as string} on:click={() => expand(row.gap, 'all')}>
+              <Icon name="expand-all" size={12}/>
+            </button>
+          {:else}
+            {#if row.down}
+              <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandDown') as string} aria-label={t('git.expandDown') as string} on:click={() => expand(row.gap, 'down')}>
+                <Icon name="chev-d" size={12}/>
+              </button>
+            {/if}
+            {#if row.up}
+              <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandUp') as string} aria-label={t('git.expandUp') as string} on:click={() => expand(row.gap, 'up')}>
+                <Icon name="chev-u" size={12}/>
+              </button>
+            {/if}
+          {/if}
+        </span>
+        <span class="gap-header">{row.header}</span>
+      </div>
     {:else}
       <div class="diff-row diff-{row.kind}">
         <span class="gutter">{row.oldNo ?? ''}</span>
@@ -291,6 +327,53 @@
   .diff-more:hover {
     background: var(--bg-3);
     color: var(--fg-1);
+  }
+
+  .diff-gap {
+    display: flex;
+    align-items: stretch;
+    color: var(--fg-4);
+    background: color-mix(in oklch, var(--accent) 6%, var(--bg-2));
+    border-top: 1px solid var(--stroke-0);
+    border-bottom: 1px solid var(--stroke-0);
+  }
+
+  .gap-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 96px;
+  }
+
+  .gap-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    align-self: stretch;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
+    color: var(--fg-3);
+    cursor: pointer;
+  }
+  .gap-btn:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--accent) 18%, transparent);
+    color: var(--fg-1);
+  }
+  .gap-btn:disabled {
+    cursor: default;
+  }
+
+  .gap-header {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 10px 2px 0;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .diff-sep {

@@ -1840,6 +1840,9 @@ export const en = {
 		commitFilesSearchPlaceholder: "Search by filename...",
 		commitFilesNoResults: "No files match your search.",
 		showMoreFiles: (n: number) => `Show ${n} more file${n !== 1 ? "s" : ""}`,
+		expandUp: "Show the lines above",
+		expandDown: "Show the lines below",
+		expandAll: "Show the hidden lines",
 		showMoreLines: (n: number) =>
 			`Show ${n} more line${n !== 1 ? "s" : ""} (open the file for the full diff)`,
 		notARepoTitle: "Not a Git repository",

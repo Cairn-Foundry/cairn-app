@@ -349,6 +349,21 @@ export async function getFileInIndex(
 	return invoke("git_file_in_index", { worktreePath, filePath });
 }
 
+/** Where the new side of a diff lives: the worktree, the index, or a commit-ish. */
+export type DiffSide =
+	| { kind: "worktree" }
+	| { kind: "index" }
+	| { kind: "rev"; rev: string };
+
+/** Content of a file on the new side of a diff, null when it does not exist there. */
+export async function getFileOnSide(
+	worktreePath: string,
+	side: DiffSide,
+	filePath: string,
+): Promise<string | null> {
+	return invoke("git_file_on_side", { worktreePath, side, filePath });
+}
+
 /** Stages one path, a deletion included. */
 export async function stageFile(
 	worktreePath: string,

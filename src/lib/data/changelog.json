@@ -251,6 +251,13 @@
 					"en": "The git graph now refreshes after cherry-picks, stash changes and remote tag pushes or deletions.",
 					"fr": "Le graphe git se rafraîchit désormais après un cherry-pick, une modification de stash et le push ou la suppression d'un tag distant."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The diffs of the Git view (changes, staged files, commits and stashes) show expanders between and around their hunks, as on GitHub: each click reveals 20 more lines above or below, and a short gap opens in one click.",
+					"fr": "Les diffs de la vue Git (modifications, fichiers indexés, commits et stashs) affichent des boutons de dépliage entre et autour de leurs blocs, comme sur GitHub : chaque clic dévoile 20 lignes de plus au-dessus ou en dessous, et un petit écart s'ouvre en un seul clic."
+				}
 			}
 		]
 	},
