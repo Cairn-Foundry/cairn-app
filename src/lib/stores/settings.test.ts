@@ -107,6 +107,28 @@ describe("load", () => {
 	});
 });
 
+describe("settingsLoaded", () => {
+	async function freshStore() {
+		vi.resetModules();
+		return import("./settings");
+	}
+
+	it("is false until the first load, then true", async () => {
+		const store = await freshStore();
+		expect(get(store.settingsLoaded)).toBe(false);
+		getSettings.mockResolvedValue({});
+		await store.settings.load();
+		expect(get(store.settingsLoaded)).toBe(true);
+	});
+
+	it("turns true even when the read fails, so the defaults are applied", async () => {
+		const store = await freshStore();
+		getSettings.mockRejectedValue(new Error("unreadable"));
+		await store.settings.load();
+		expect(get(store.settingsLoaded)).toBe(true);
+	});
+});
+
 describe("workflow tab restoration", () => {
 	it("keeps the tabs the user arranged", async () => {
 		const saved = DEFAULT_WF_TABS.map((t, i) => ({

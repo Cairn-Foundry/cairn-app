@@ -14,8 +14,9 @@
   import { settings, settingsLoaded } from '$lib/stores/settings';
   import { activeProject } from '$lib/stores/project';
   import { activeScreen, windowFullscreen } from '$lib/stores/ui';
-  import { activeShortcuts, matchesShortcut } from '$lib/stores/shortcuts';
-  import { toggleFullscreen } from '$lib/utils/window-fullscreen';
+  import { activeShortcuts } from '$lib/stores/shortcuts';
+  import { onFullscreenKey } from '$lib/utils/window-fullscreen';
+  import { setWindowDecorations } from '$lib/utils/window-decorations';
   import { IS_MAC } from '$lib/utils/platform';
   import { foregroundOn } from '$lib/utils/home/contrast';
   import { titleBarFillColor } from '$lib/utils/home/title-bar';
@@ -37,24 +38,10 @@
 
   let nativeDecorations: boolean | null = null;
 
-  /**
-   * Compared with the window itself, which Rust already built with the saved
-   * setting: switching it again would hide and show it for nothing. Mutter only
-   * reads decorations when a window is mapped, hence the hide and show.
-   */
-  async function applyDecorations(native: boolean) {
+  function applyDecorations(native: boolean) {
     if (IS_MAC || nativeDecorations === native) return;
     nativeDecorations = native;
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      if ((await win.isDecorated()) === native) return;
-      const maximized = await win.isMaximized();
-      await win.hide();
-      await win.setDecorations(native);
-      await win.show();
-      if (maximized) await win.maximize();
-    } catch {}
+    void setWindowDecorations(native);
   }
 
   // Tauri has no fullscreen event: entering or leaving it arrives as a resize.
@@ -105,19 +92,13 @@
     document.documentElement.toggleAttribute('data-no-icon-animations', !$settings.iconAnimations);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
-    if ($settingsLoaded) void applyDecorations(!customTitleBar);
+    if ($settingsLoaded) applyDecorations(!customTitleBar);
     if (showTitleBar) document.documentElement.style.setProperty('--titlebar-h', '34px');
     else document.documentElement.style.removeProperty('--titlebar-h');
   }
 </script>
 
-<svelte:window
-  on:keydown={(e) => {
-    if (!matchesShortcut(e, $activeShortcuts.toggleFullscreen)) return;
-    e.preventDefault();
-    void toggleFullscreen();
-  }}
-/>
+<svelte:window on:keydown={(e) => onFullscreenKey(e, $activeShortcuts.toggleFullscreen)}/>
 
 {#if showTitleBar}
   <WindowTitleBar fill={titleBarFill}/>

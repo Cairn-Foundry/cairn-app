@@ -569,6 +569,7 @@ export const fr = {
 	windowControls: {
 		minimize: "Réduire",
 		maximize: "Agrandir",
+		restore: "Restaurer",
 	},
 
 	workflowTabs: {

@@ -552,6 +552,7 @@ export const en = {
 	windowControls: {
 		minimize: "Minimize",
 		maximize: "Maximize",
+		restore: "Restore",
 	},
 
 	workflowTabs: {
