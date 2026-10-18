@@ -273,9 +273,9 @@
   let brokenDeleteBusy = false;
   let brokenDeleteError: string | null = null;
 
-  async function checkInstanceWorktree(instanceId: string | undefined, worktreePath: string | undefined) {
+  async function checkInstanceWorktree(instanceId: string | undefined, worktreePath: string | undefined, isRefresh = false) {
     const token = ++healthCheckToken;
-    worktreeHealth = 'ok';
+    if (!isRefresh) worktreeHealth = 'ok';
     const health: WorktreeHealth = instanceId && worktreePath && !isBaseInstance(instanceId)
       ? await instanceWorktreeHealth(worktreePath).catch(() => 'ok' as const)
       : 'ok';
@@ -283,6 +283,10 @@
   }
 
   $: void checkInstanceWorktree(activeInstance?.id, activeInstance?.worktreePath);
+
+  function recheckBrokenWorktree() {
+    if (worktreeHealth !== 'ok') void checkInstanceWorktree(activeInstance?.id, activeInstance?.worktreePath, true);
+  }
 
   async function deleteBrokenInstance(e: CustomEvent<{ removeWorktree: boolean }>) {
     if (!activeInstance) return;
@@ -558,7 +562,7 @@
     : instanceGroups;
 </script>
 
-<svelte:window on:keydown={handleAppKey} on:focus={() => checkProjectPath($activeProject)}/>
+<svelte:window on:keydown={handleAppKey} on:focus={() => { checkProjectPath($activeProject); recheckBrokenWorktree(); }}/>
 
 <div class="workspace">
   <!-- Project tabs - padding-left clears native macOS traffic lights -->

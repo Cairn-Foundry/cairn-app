@@ -201,12 +201,20 @@ fn is_locked(wt: &git2::Worktree) -> bool {
 }
 
 /// The first directory under `root` whose entries this user cannot unlink -
-/// typically one a Docker container created as root. `remove_dir_all` would
-/// stop there with half the tree already gone.
+/// typically one a Docker container created as root - or `root`'s parent when
+/// it cannot lose `root`. `remove_dir_all` would stop there with half the tree
+/// already gone.
 #[cfg(unix)]
 fn undeletable_dir(root: &Path) -> Option<PathBuf> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
+    let cannot_write = |dir: &Path| {
+        CString::new(dir.as_os_str().as_bytes())
+            .map_or(true, |c_dir| unsafe { libc::access(c_dir.as_ptr(), libc::W_OK | libc::X_OK) } != 0)
+    };
+    if let Some(parent) = root.parent().filter(|p| p.exists() && cannot_write(p)) {
+        return Some(parent.to_path_buf());
+    }
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let Ok(c_dir) = CString::new(dir.as_os_str().as_bytes()) else { return Some(dir) };
@@ -1195,6 +1203,19 @@ mod tests {
         let found = undeletable_dir(&path);
         fs::set_permissions(&sealed, fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(found, Some(sealed));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_parent_that_cannot_lose_the_worktree_is_found_before_anything_is_deleted() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = Scratch::new("sealed-parent");
+        let path = scratch.worktree("wt", "feat/sealed-parent");
+        let parent = path.parent().unwrap().to_path_buf();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555)).unwrap();
+        let found = undeletable_dir(&path);
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(found, Some(parent));
     }
 
     #[cfg(unix)]
