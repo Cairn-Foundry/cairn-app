@@ -173,7 +173,8 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
             });
         } else if current_hunk.is_none() {
             if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("+++ b/")) {
-                f.file_path = path.to_string();
+                // git ends the name with a tab when it contains a space.
+                f.file_path = path.trim_end_matches('\t').to_string();
             }
         } else if line.starts_with('\\') {
             // "\ No newline at end of file" marker inside a hunk: not a real line.
@@ -783,8 +784,8 @@ pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, 
     Ok(parse_diff(&raw))
 }
 
-/// `git show <object>`, `None` when the object does not exist (a new file, an unstaged one).
-fn git_show_object(expanded: &str, object: &str) -> Result<Option<String>, GitError> {
+/// `git show <object>` bytes, `None` when the object does not exist (a new file, an unstaged one).
+fn git_show_bytes(expanded: &str, object: &str) -> Result<Option<Vec<u8>>, GitError> {
     let output = git_cmd(expanded).args(["show", object]).output()?;
     if !output.status.success() {
         if !is_repo_root(expanded)? {
@@ -792,7 +793,11 @@ fn git_show_object(expanded: &str, object: &str) -> Result<Option<String>, GitEr
         }
         return Ok(None);
     }
-    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+    Ok(Some(output.stdout))
+}
+
+fn git_show_object(expanded: &str, object: &str) -> Result<Option<String>, GitError> {
+    Ok(git_show_bytes(expanded, object)?.map(|bytes| String::from_utf8_lossy(&bytes).to_string()))
 }
 
 #[tauri::command]
@@ -836,21 +841,19 @@ fn diff_side_object(side: &DiffSide, file_path: &str) -> Result<Option<String>, 
 
 /// The file on the new side of a diff. A symlink on the worktree side is not followed: git
 /// diffs the link text, and its target's lines would show up as context.
-fn read_diff_side(
+fn read_diff_side_bytes(
     expanded: &str,
     side: &DiffSide,
     file_path: &str,
-) -> Result<Option<String>, GitError> {
+) -> Result<Option<Vec<u8>>, GitError> {
     let Some(object) = diff_side_object(side, file_path)? else {
         let path = Path::new(expanded).join(file_path);
         if fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
             return Ok(None);
         }
-        return Ok(fs::read(path)
-            .ok()
-            .map(|bytes| String::from_utf8_lossy(&bytes).to_string()));
+        return Ok(fs::read(path).ok());
     };
-    git_show_object(expanded, &object)
+    git_show_bytes(expanded, &object)
 }
 
 #[tauri::command]
@@ -860,14 +863,15 @@ pub async fn git_file_on_side(
     side: DiffSide,
     file_path: String,
 ) -> Result<Option<String>, GitError> {
-    read_diff_side(&expand(&worktree_path), &side, &file_path)
+    Ok(read_diff_side_bytes(&expand(&worktree_path), &side, &file_path)?
+        .map(|bytes| String::from_utf8_lossy(&bytes).to_string()))
 }
 
 /// Lines of `content` the way a diff numbers them: a final newline ends the last line
 /// instead of starting another.
-fn count_lines(content: &str) -> usize {
-    let newlines = content.bytes().filter(|&b| b == b'\n').count();
-    if content.is_empty() || content.ends_with('\n') {
+fn count_lines(content: &[u8]) -> usize {
+    let newlines = content.iter().filter(|&&b| b == b'\n').count();
+    if content.is_empty() || content.ends_with(b"\n") {
         newlines
     } else {
         newlines + 1
@@ -882,7 +886,7 @@ pub async fn git_file_line_count(
     side: DiffSide,
     file_path: String,
 ) -> Result<Option<usize>, GitError> {
-    Ok(read_diff_side(&expand(&worktree_path), &side, &file_path)?
+    Ok(read_diff_side_bytes(&expand(&worktree_path), &side, &file_path)?
         .map(|content| count_lines(&content)))
 }
 
@@ -2551,12 +2555,12 @@ mod tests {
 
     #[test]
     fn count_lines_matches_how_a_diff_numbers_them() {
-        assert_eq!(count_lines(""), 0);
-        assert_eq!(count_lines("a"), 1);
-        assert_eq!(count_lines("a\n"), 1);
-        assert_eq!(count_lines("a\nb"), 2);
-        assert_eq!(count_lines("a\r\nb\r\n"), 2);
-        assert_eq!(count_lines("\n"), 1);
+        assert_eq!(count_lines(b""), 0);
+        assert_eq!(count_lines(b"a"), 1);
+        assert_eq!(count_lines(b"a\n"), 1);
+        assert_eq!(count_lines(b"a\nb"), 2);
+        assert_eq!(count_lines(b"a\r\nb\r\n"), 2);
+        assert_eq!(count_lines(b"\n"), 1);
     }
 
     #[tokio::test]
@@ -2569,6 +2573,17 @@ mod tests {
         assert_eq!(files[0].file_path, "café.txt");
         let side = DiffSide::Worktree;
         let lines = git_file_line_count(repo.wt(), side, "café.txt".into()).await.unwrap();
+        assert_eq!(lines, Some(1));
+    }
+
+    #[tokio::test]
+    async fn a_diff_of_a_path_with_a_space_keeps_its_name() {
+        let repo = TempRepo::new();
+        repo.commit("my file.txt", "one\n", "init");
+        repo.write("my file.txt", "two\n");
+        let files = git_diff_unstaged(repo.wt()).await.unwrap();
+        assert_eq!(files[0].file_path, "my file.txt");
+        let lines = git_file_line_count(repo.wt(), DiffSide::Worktree, "my file.txt".into()).await.unwrap();
         assert_eq!(lines, Some(1));
     }
 

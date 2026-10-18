@@ -790,6 +790,7 @@
   let stashDiffFiles: GitFileDiff[] = [];
   let isLoadingStashDiff = false;
 
+  $: stashScope = selectedStash ? `${selectedStash.date}|${selectedStash.message}` : '';
   $: stashSide = selectedStash ? { kind: 'rev' as const, rev: `stash@{${selectedStash.index}}` } : null;
 
   $: stashDiffCards = stashDiffFiles.map(f => {
@@ -1254,16 +1255,22 @@
   const withoutPath = (keys: Set<string>, path: string) =>
     new Set([...keys].filter(key => key.slice(0, key.lastIndexOf('@')) !== path));
 
+  /** Drops the keys of diffs that no longer exist, which would otherwise pile up in the saved state. */
+  const liveKeys = (keys: Set<string>, cards: FileCard[]) => {
+    const live = new Set(cards.map(foldKey));
+    return new Set([...keys].filter(key => live.has(key)));
+  };
+
   function toggleUnstagedCollapse(card: FileCard) {
     const key = foldKey(card);
     const wasCollapsed = collapsedUnstaged.has(key);
-    collapsedUnstaged = withoutPath(collapsedUnstaged, card.filePath);
+    collapsedUnstaged = withoutPath(liveKeys(collapsedUnstaged, unstagedCards), card.filePath);
     if (!wasCollapsed) collapsedUnstaged.add(key);
   }
   function toggleStagedCollapse(card: FileCard) {
     const key = foldKey(card);
     const wasExpanded = expandedStaged.has(key);
-    expandedStaged = withoutPath(expandedStaged, card.filePath);
+    expandedStaged = withoutPath(liveKeys(expandedStaged, stagedCards), card.filePath);
     if (!wasExpanded) expandedStaged.add(key);
   }
   /** Collapses every unstaged card that actually has a diff to show. */
@@ -1937,7 +1944,7 @@
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} memoryScope={stashScope} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>

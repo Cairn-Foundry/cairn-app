@@ -9,6 +9,7 @@ export type RememberedExpansion = {
 };
 
 const MAX_REMEMBERED = 100;
+const MAX_REMEMBERED_LINES = 200_000;
 
 const remembered = new Map<string, RememberedExpansion>();
 
@@ -23,8 +24,13 @@ export function rememberExpansion(
 ): void {
 	remembered.delete(key);
 	remembered.set(key, value);
-	if (remembered.size > MAX_REMEMBERED) {
-		const oldest = remembered.keys().next().value;
-		if (oldest !== undefined) remembered.delete(oldest);
+	let lines = 0;
+	for (const entry of remembered.values()) lines += entry.fileLines.length;
+	for (const oldest of remembered.keys()) {
+		if (remembered.size <= MAX_REMEMBERED && lines <= MAX_REMEMBERED_LINES)
+			break;
+		if (oldest === key) break;
+		lines -= remembered.get(oldest)?.fileLines.length ?? 0;
+		remembered.delete(oldest);
 	}
 }

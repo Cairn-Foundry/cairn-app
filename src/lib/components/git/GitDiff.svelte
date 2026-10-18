@@ -43,6 +43,8 @@
   export let worktreePath = '';
   /** The diff was cut short, so the gaps past its end cannot be trusted. */
   export let truncated = false;
+  /** Tells apart two diffs that share a side, path and hunk shapes but not their content, such as stash@{0} before and after a new stash. */
+  export let memoryScope = '';
 
   const dispatch = createEventDispatcher<{ openFile: string }>();
 
@@ -139,7 +141,7 @@
   // Collapse back to the first page whenever the hunks themselves change, not on every reactive pass.
   let lastSignature = '';
   $: signature =
-    `${worktreePath}|${JSON.stringify(side)}|${filePath}|` + hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
+    `${worktreePath}|${JSON.stringify(side)}|${memoryScope}|${filePath}|` + hunks.map(h => `${h.header}:${h.lines.length}`).join('|');
   $: if (signature !== lastSignature) {
     lastSignature = signature;
     shown = PAGE;
@@ -152,7 +154,7 @@
     loadToken++;
   }
 
-  $: expandable = side !== null && !!worktreePath && !truncated && !fileUnavailable;
+  $: expandable = side !== null && !!worktreePath && !truncated && !isTooLarge && !fileUnavailable;
   $: gaps = expandable ? diffGaps(hunks, fileLength) : null;
 
   $: if (gaps && fileLength === null && lengthRequestedFor !== signature) {
@@ -241,21 +243,18 @@
     {:else if row.kind === 'gap'}
       {@const targets = gapTargets(row)}
       <div class="diff-gap">
-        <span class="gap-actions">
-          {#if loadingGap === row.gap}
-            <span role="status" aria-busy="true" aria-label={directionLabel(loadingDirection)}>
-              <Spinner size={11}/>
-            </span>
-          {:else}
-            {#each targets as target}
-              <span class="gap-icon"><Icon name={target.icon} size={12}/></span>
-            {/each}
-          {/if}
-        </span>
         <span class="gap-header">{row.header}</span>
         <span class="gap-hits">
           {#each targets as target}
-            <button class="gap-hit" disabled={loadingGap !== null} title={target.label} aria-label={target.label} on:click={() => expand(row.gap, target.direction)}></button>
+            <button class="gap-hit" disabled={loadingGap !== null} title={target.label} aria-label={target.label} on:click={() => expand(row.gap, target.direction)}>
+              {#if loadingGap === row.gap && loadingDirection === target.direction}
+                <span role="status" aria-busy="true" title={target.label} aria-label={target.label}>
+                  <Spinner size={11}/>
+                </span>
+              {:else}
+                <Icon name={target.icon} size={12}/>
+              {/if}
+            </button>
           {/each}
         </span>
       </div>
@@ -385,23 +384,6 @@
     border-bottom: 1px solid var(--stroke-0);
   }
 
-  .gap-actions {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    width: 96px;
-  }
-
-  .gap-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    color: var(--fg-3);
-  }
-
   .gap-hits {
     position: absolute;
     inset: 0;
@@ -410,10 +392,17 @@
 
   .gap-hit {
     flex: 1;
-    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 36px;
     border: none;
     background: transparent;
+    color: var(--fg-3);
     cursor: pointer;
+  }
+  .gap-hit:not(:only-child):last-child {
+    justify-content: flex-end;
   }
   .gap-hit:hover:not(:disabled),
   .gap-hit:focus-visible {
@@ -426,7 +415,7 @@
   .gap-header {
     flex: 1;
     min-width: 0;
-    padding: 2px 10px 2px 0;
+    padding: 2px 84px;
     min-height: calc(1.55em + 4px);
     white-space: pre;
     overflow: hidden;
