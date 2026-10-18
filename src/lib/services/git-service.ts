@@ -364,6 +364,15 @@ export async function getFileOnSide(
 	return invoke("git_file_on_side", { worktreePath, side, filePath });
 }
 
+/** Number of lines of a file on the new side of a diff, null when it does not exist there. */
+export async function getFileLineCount(
+	worktreePath: string,
+	side: DiffSide,
+	filePath: string,
+): Promise<number | null> {
+	return invoke("git_file_line_count", { worktreePath, side, filePath });
+}
+
 /** Stages one path, a deletion included. */
 export async function stageFile(
 	worktreePath: string,

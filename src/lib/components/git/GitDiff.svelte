@@ -11,6 +11,7 @@
   import {
     getFileAtHead,
     getFileInIndex,
+    getFileLineCount,
     getFileOnSide,
     type DiffSide,
     type GitDiffHunk,
@@ -24,12 +25,14 @@
   import { isDiffTooLarge } from '$lib/utils/git/diff-size';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import { recallExpansion, rememberExpansion } from '$lib/utils/git/diff-expansion-memory';
   import {
     EXPAND_STEP,
     buildDiffRows,
     diffGaps,
     expandGap,
     splitFileLines,
+    type DiffRow,
     type GapExpansion,
   } from '$lib/utils/git/diff-context';
 
@@ -126,8 +129,11 @@
 
   let expansions: GapExpansion[] = [];
   let fileLines: string[] | null = null;
+  let fileLength: number | null = null;
+  let lengthRequestedFor = '';
   let fileUnavailable = false;
   let loadingGap: number | null = null;
+  let loadingDirection: GapDirection = 'down';
   let loadToken = 0;
 
   // Collapse back to the first page whenever the hunks themselves change, not on every reactive pass.
@@ -137,15 +143,37 @@
   $: if (signature !== lastSignature) {
     lastSignature = signature;
     shown = PAGE;
-    expansions = [];
-    fileLines = null;
+    const saved = recallExpansion(signature);
+    expansions = saved?.expansions ?? [];
+    fileLines = saved?.fileLines ?? null;
+    fileLength = fileLines?.length ?? null;
     fileUnavailable = false;
     loadingGap = null;
     loadToken++;
   }
 
   $: expandable = side !== null && !!worktreePath && !truncated && !fileUnavailable;
-  $: gaps = expandable ? diffGaps(hunks, fileLines?.length ?? null) : null;
+  $: gaps = expandable ? diffGaps(hunks, fileLength) : null;
+
+  $: if (gaps && fileLength === null && lengthRequestedFor !== signature) {
+    lengthRequestedFor = signature;
+    void loadFileLength(signature);
+  }
+
+  /** Learns how long the file is up front, so the bottom expander only shows when lines are hidden. */
+  async function loadFileLength(forSignature: string) {
+    if (!side) return;
+    const token = loadToken;
+    let length: number | null = null;
+    try {
+      length = await getFileLineCount(worktreePath, side, filePath);
+    } catch {
+      length = null;
+    }
+    if (token !== loadToken || forSignature !== signature) return;
+    if (length === null) fileUnavailable = true;
+    else fileLength = length;
+  }
 
   $: built = buildDiffRows(hunks, gaps, expansions, fileLines, shown);
   $: rows = built.rows;
@@ -157,6 +185,7 @@
     if (!fileLines) {
       const token = loadToken;
       loadingGap = gap;
+      loadingDirection = direction;
       let content: string | null = null;
       try {
         content = await getFileOnSide(worktreePath, side, filePath);
@@ -172,7 +201,27 @@
       fileLines = splitFileLines(content);
     }
     const loaded = diffGaps(hunks, fileLines.length);
-    if (loaded) expansions = expandGap(expansions, loaded, gap, direction);
+    if (!loaded) return;
+    expansions = expandGap(expansions, loaded, gap, direction);
+    rememberExpansion(signature, { expansions, fileLines });
+  }
+
+  type GapRow = Extract<DiffRow, { kind: 'gap' }>;
+  type GapDirection = 'up' | 'down' | 'all';
+  type GapTarget = { direction: GapDirection; icon: 'chev-u' | 'chev-d' | 'expand-all'; label: string };
+
+  function directionLabel(direction: GapDirection): string {
+    return t(direction === 'all' ? 'git.expandAll' : direction === 'down' ? 'git.expandDown' : 'git.expandUp') as string;
+  }
+
+  /** One target spans the whole bar; a gap between two hunks splits it in two, down on the left and up on the right. */
+  function gapTargets(row: GapRow): GapTarget[] {
+    const make = (direction: GapDirection, icon: GapTarget['icon']): GapTarget => ({ direction, icon, label: directionLabel(direction) });
+    if (row.up && row.down) {
+      if (row.remaining !== null && row.remaining <= EXPAND_STEP) return [make('all', 'expand-all')];
+      return [make('down', 'chev-d'), make('up', 'chev-u')];
+    }
+    return row.down ? [make('down', 'chev-d')] : [make('up', 'chev-u')];
   }
 </script>
 
@@ -190,28 +239,25 @@
     {#if row.kind === 'sep'}
       <div class="diff-sep">{row.header}</div>
     {:else if row.kind === 'gap'}
+      {@const targets = gapTargets(row)}
       <div class="diff-gap">
         <span class="gap-actions">
           {#if loadingGap === row.gap}
-            <Spinner size={11}/>
-          {:else if row.up && row.down && row.remaining !== null && row.remaining <= EXPAND_STEP}
-            <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandAll') as string} aria-label={t('git.expandAll') as string} on:click={() => expand(row.gap, 'all')}>
-              <Icon name="expand-all" size={12}/>
-            </button>
+            <span role="status" aria-busy="true" aria-label={directionLabel(loadingDirection)}>
+              <Spinner size={11}/>
+            </span>
           {:else}
-            {#if row.down}
-              <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandDown') as string} aria-label={t('git.expandDown') as string} on:click={() => expand(row.gap, 'down')}>
-                <Icon name="chev-d" size={12}/>
-              </button>
-            {/if}
-            {#if row.up}
-              <button class="gap-btn" disabled={loadingGap !== null} title={t('git.expandUp') as string} aria-label={t('git.expandUp') as string} on:click={() => expand(row.gap, 'up')}>
-                <Icon name="chev-u" size={12}/>
-              </button>
-            {/if}
+            {#each targets as target}
+              <span class="gap-icon"><Icon name={target.icon} size={12}/></span>
+            {/each}
           {/if}
         </span>
         <span class="gap-header">{row.header}</span>
+        <span class="gap-hits">
+          {#each targets as target}
+            <button class="gap-hit" disabled={loadingGap !== null} title={target.label} aria-label={target.label} on:click={() => expand(row.gap, target.direction)}></button>
+          {/each}
+        </span>
       </div>
     {:else}
       <div class="diff-row diff-{row.kind}">
@@ -330,6 +376,7 @@
   }
 
   .diff-gap {
+    position: relative;
     display: flex;
     align-items: stretch;
     color: var(--fg-4);
@@ -347,23 +394,32 @@
     width: 96px;
   }
 
-  .gap-btn {
+  .gap-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 1;
-    align-self: stretch;
-    padding: 2px 0;
+    color: var(--fg-3);
+  }
+
+  .gap-hits {
+    position: absolute;
+    inset: 0;
+    display: flex;
+  }
+
+  .gap-hit {
+    flex: 1;
+    padding: 0;
     border: none;
     background: transparent;
-    color: var(--fg-3);
     cursor: pointer;
   }
-  .gap-btn:hover:not(:disabled) {
-    background: color-mix(in oklch, var(--accent) 18%, transparent);
-    color: var(--fg-1);
+  .gap-hit:hover:not(:disabled),
+  .gap-hit:focus-visible {
+    background: color-mix(in oklch, var(--accent) 14%, transparent);
   }
-  .gap-btn:disabled {
+  .gap-hit:disabled {
     cursor: default;
   }
 
@@ -371,6 +427,7 @@
     flex: 1;
     min-width: 0;
     padding: 2px 10px 2px 0;
+    min-height: calc(1.55em + 4px);
     white-space: pre;
     overflow: hidden;
     text-overflow: ellipsis;

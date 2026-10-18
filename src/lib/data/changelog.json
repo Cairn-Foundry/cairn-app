@@ -255,8 +255,15 @@
 			{
 				"kind": "added",
 				"text": {
-					"en": "The diffs of the Git view (changes, staged files, commits and stashes) show expanders between and around their hunks, as on GitHub: each click reveals 20 more lines above or below, and a short gap opens in one click.",
-					"fr": "Les diffs de la vue Git (modifications, fichiers indexés, commits et stashs) affichent des boutons de dépliage entre et autour de leurs blocs, comme sur GitHub : chaque clic dévoile 20 lignes de plus au-dessus ou en dessous, et un petit écart s'ouvre en un seul clic."
+					"en": "The diffs of the Git view (changes, staged files, commits and stashes) show expanders between and around their hunks, as on GitHub: each click on a bar reveals 20 more lines above or below, a short gap opens in one click, and what you revealed is still there when you come back to the diff.",
+					"fr": "Les diffs de la vue Git (modifications, fichiers indexés, commits et stashs) affichent des boutons de dépliage entre et autour de leurs blocs, comme sur GitHub : chaque clic sur une barre dévoile 20 lignes de plus au-dessus ou en dessous, un petit écart s'ouvre en un seul clic, et ce que vous avez dévoilé est toujours là quand vous revenez sur le diff."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the Git view, a file's folded or unfolded state now follows its diff: when the diff of a file changes, its card goes back to its default, unfolded for changes and folded for staged files, instead of staying folded on content you have not seen.",
+					"fr": "Dans la vue Git, l'état replié ou déplié d'un fichier suit désormais son diff : quand le diff d'un fichier change, sa carte revient à son état par défaut, dépliée pour les modifications et repliée pour les fichiers indexés, au lieu de rester repliée sur un contenu que vous n'avez pas vu."
 				}
 			}
 		]

@@ -254,6 +254,7 @@ pub fn run() {
             git_file_at_head,
             git_file_in_index,
             git_file_on_side,
+            git_file_line_count,
             git_stage_file,
             git_unstage_file,
             git_stage_all,

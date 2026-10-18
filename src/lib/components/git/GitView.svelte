@@ -79,6 +79,7 @@
   import { settings } from '$lib/stores/settings';
   import { activeStep, pendingGitAction, gitLeftTab, type GitLeftTab } from '$lib/stores/ui';
   import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
+  import { hashHunks } from '$lib/utils/git/diff-hash';
   import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
   import { getProjectGitProfile, setProjectGitProfile } from '$lib/services/project-service';
@@ -116,6 +117,8 @@
     removed: number;
     /** The diff stops short of the whole change; the card says so. */
     truncated?: boolean;
+    /** Changes whenever the diff does, so a fold state follows the content rather than the path. */
+    diffHash: string;
   };
 
   const STATUS_CLASS: Record<string, string> = {
@@ -179,6 +182,7 @@
       added,
       removed,
       truncated,
+      diffHash: hashHunks(hunks),
     };
   }
 
@@ -1245,19 +1249,26 @@
   let expandedStaged = new Set<string>();
   let profileDropdownOpen = false;
 
-  function toggleUnstagedCollapse(path: string) {
-    if (collapsedUnstaged.has(path)) collapsedUnstaged.delete(path);
-    else collapsedUnstaged.add(path);
-    collapsedUnstaged = collapsedUnstaged;
+  /** Fold states are keyed by path and diff hash: an edited diff no longer matches, so it returns to its default. */
+  const foldKey = (card: FileCard) => `${card.filePath}@${card.diffHash}`;
+  const withoutPath = (keys: Set<string>, path: string) =>
+    new Set([...keys].filter(key => key.slice(0, key.lastIndexOf('@')) !== path));
+
+  function toggleUnstagedCollapse(card: FileCard) {
+    const key = foldKey(card);
+    const wasCollapsed = collapsedUnstaged.has(key);
+    collapsedUnstaged = withoutPath(collapsedUnstaged, card.filePath);
+    if (!wasCollapsed) collapsedUnstaged.add(key);
   }
-  function toggleStagedCollapse(path: string) {
-    if (expandedStaged.has(path)) expandedStaged.delete(path);
-    else expandedStaged.add(path);
-    expandedStaged = expandedStaged;
+  function toggleStagedCollapse(card: FileCard) {
+    const key = foldKey(card);
+    const wasExpanded = expandedStaged.has(key);
+    expandedStaged = withoutPath(expandedStaged, card.filePath);
+    if (!wasExpanded) expandedStaged.add(key);
   }
   /** Collapses every unstaged card that actually has a diff to show. */
   function collapseAllUnstaged() {
-    collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(c => c.filePath));
+    collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(foldKey));
   }
   function collapseAllStaged() {
     expandedStaged = new Set();
@@ -1677,11 +1688,11 @@
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
           {#each filteredUnstagedCards.slice(0, unstagedVisible) as h (h.filePath)}
-            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedUnstaged.has(h.filePath)}>
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={collapsedUnstaged.has(foldKey(h))}>
               <div class="hunk-card-head" role="group" on:contextmenu={(e) => openForgeMenu(e, { type: 'file', path: h.filePath, ref: state.currentBranch })}>
                 {#if h.hasDiff}
-                  <button class="card-collapse-btn" title={(collapsedUnstaged.has(h.filePath) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleUnstagedCollapse(h.filePath)}>
-                    <Icon name={collapsedUnstaged.has(h.filePath) ? 'chev-r' : 'chev-d'} size={12}/>
+                  <button class="card-collapse-btn" title={(collapsedUnstaged.has(foldKey(h)) ? t('git.expandFile') : t('git.collapseFile')) as string} on:click={() => toggleUnstagedCollapse(h)}>
+                    <Icon name={collapsedUnstaged.has(foldKey(h)) ? 'chev-r' : 'chev-d'} size={12}/>
                   </button>
                 {/if}
                 <input
@@ -1717,7 +1728,7 @@
                 </button>
               </div>
               {#if h.hasDiff}
-                {#if !collapsedUnstaged.has(h.filePath)}
+                {#if !collapsedUnstaged.has(foldKey(h))}
                   <div class="card-diff">
                     <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'worktree' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                     {#if h.truncated}
@@ -2120,11 +2131,11 @@
           <div class="empty-hint">{t('git.changesNoResults')}</div>
         {:else}
           {#each filteredStagedCards.slice(0, stagedVisible) as h (h.filePath)}
-            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={!expandedStaged.has(h.filePath)}>
+            <div class="hunk-card {STATUS_CLASS[h.status] ?? ''}" class:collapsed={!expandedStaged.has(foldKey(h))}>
               <div class="hunk-card-head" role="group" on:contextmenu={(e) => openForgeMenu(e, { type: 'file', path: h.filePath, ref: state.currentBranch })}>
                 {#if h.hasDiff}
-                  <button class="card-collapse-btn" title={(expandedStaged.has(h.filePath) ? t('git.collapseFile') : t('git.expandFile')) as string} on:click={() => toggleStagedCollapse(h.filePath)}>
-                    <Icon name={expandedStaged.has(h.filePath) ? 'chev-d' : 'chev-r'} size={12}/>
+                  <button class="card-collapse-btn" title={(expandedStaged.has(foldKey(h)) ? t('git.collapseFile') : t('git.expandFile')) as string} on:click={() => toggleStagedCollapse(h)}>
+                    <Icon name={expandedStaged.has(foldKey(h)) ? 'chev-d' : 'chev-r'} size={12}/>
                   </button>
                 {/if}
                 <input
@@ -2153,7 +2164,7 @@
                 </button>
               </div>
               {#if h.hasDiff}
-                {#if expandedStaged.has(h.filePath)}
+                {#if expandedStaged.has(foldKey(h))}
                   <div class="card-diff">
                     <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'index' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                     {#if h.truncated}
