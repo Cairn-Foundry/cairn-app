@@ -210,13 +210,16 @@ fn undeletable_dir(root: &Path) -> Option<PathBuf> {
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let Ok(c_dir) = CString::new(dir.as_os_str().as_bytes()) else { return Some(dir) };
-        if unsafe { libc::access(c_dir.as_ptr(), libc::W_OK | libc::X_OK) } != 0 {
+        let Ok(entries) = fs::read_dir(&dir) else { return Some(dir) };
+        let entries: Vec<_> = entries.flatten().collect();
+        if !entries.is_empty()
+            && unsafe { libc::access(c_dir.as_ptr(), libc::W_OK | libc::X_OK) } != 0
+        {
             return Some(dir);
         }
-        let Ok(entries) = fs::read_dir(&dir) else { return Some(dir) };
         pending.extend(
             entries
-                .flatten()
+                .iter()
                 .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
                 .map(|e| e.path()),
         );
@@ -1192,6 +1195,20 @@ mod tests {
         let found = undeletable_dir(&path);
         fs::set_permissions(&sealed, fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(found, Some(sealed));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_empty_read_only_directory_does_not_block_a_deletion() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = Scratch::new("empty-read-only");
+        let path = scratch.worktree("wt", "feat/empty-read-only");
+        let mount_point = path.join("storage/logs");
+        fs::create_dir_all(&mount_point).unwrap();
+        fs::set_permissions(&mount_point, fs::Permissions::from_mode(0o555)).unwrap();
+        let found = undeletable_dir(&path);
+        fs::set_permissions(&mount_point, fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(found, None);
     }
 
     #[test]

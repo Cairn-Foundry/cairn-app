@@ -273,16 +273,16 @@
   let brokenDeleteBusy = false;
   let brokenDeleteError: string | null = null;
 
-  async function checkInstanceWorktree(instance: Instance | null) {
+  async function checkInstanceWorktree(instanceId: string | undefined, worktreePath: string | undefined) {
     const token = ++healthCheckToken;
     worktreeHealth = 'ok';
-    const health: WorktreeHealth = instance && !isBaseInstance(instance.id)
-      ? await instanceWorktreeHealth(instance.worktreePath).catch(() => 'ok' as const)
+    const health: WorktreeHealth = instanceId && worktreePath && !isBaseInstance(instanceId)
+      ? await instanceWorktreeHealth(worktreePath).catch(() => 'ok' as const)
       : 'ok';
     if (token === healthCheckToken) worktreeHealth = health;
   }
 
-  $: void checkInstanceWorktree(activeInstance);
+  $: void checkInstanceWorktree(activeInstance?.id, activeInstance?.worktreePath);
 
   async function deleteBrokenInstance(e: CustomEvent<{ removeWorktree: boolean }>) {
     if (!activeInstance) return;
