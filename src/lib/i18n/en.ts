@@ -557,6 +557,12 @@ export const en = {
 		},
 	},
 
+	windowControls: {
+		minimize: "Minimize",
+		maximize: "Maximize",
+		restore: "Restore",
+	},
+
 	workflowTabs: {
 		files: "Files",
 		agent: "Agent",
@@ -1842,6 +1848,9 @@ export const en = {
 		commitFilesSearchPlaceholder: "Search by filename...",
 		commitFilesNoResults: "No files match your search.",
 		showMoreFiles: (n: number) => `Show ${n} more file${n !== 1 ? "s" : ""}`,
+		expandUp: "Show the lines above",
+		expandDown: "Show the lines below",
+		expandAll: "Show the hidden lines",
 		showMoreLines: (n: number) =>
 			`Show ${n} more line${n !== 1 ? "s" : ""} (open the file for the full diff)`,
 		notARepoTitle: "Not a Git repository",
@@ -3001,6 +3010,23 @@ export const en = {
 			iconAnimations: "Icon animations",
 			iconAnimationsDesc:
 				"Animates icons when the button or row under the pointer is hovered.",
+			windowGroup: "Window",
+			titleBar: "Title bar",
+			titleBarDesc:
+				"The system's own bar, or a bar drawn by Cairn whose colour you choose.",
+			titleBarModes: {
+				native: "System",
+				custom: "Cairn",
+			},
+			titleBarColor: "Title bar color",
+			titleBarColorDesc:
+				"Choose the bar's color. Project color follows the open project when one is open.",
+			titleBarFills: {
+				theme: "Theme",
+				accent: "Accent color",
+				project: "Project color",
+				custom: "Custom",
+			},
 			accentColors: {
 				blue: "Blue",
 				purple: "Purple",

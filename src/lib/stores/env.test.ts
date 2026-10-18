@@ -658,7 +658,8 @@ describe("prepareInstanceEnv", () => {
 describe("debounced persistence", () => {
 	const DEBOUNCE_MS = 250;
 
-	beforeEach(() => {
+	beforeEach(async () => {
+		await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50));
 		vi.useFakeTimers();
 		vi.mocked(saveGlobalEnv).mockClear();
 		vi.mocked(saveProjectEnv).mockClear();

@@ -38,8 +38,9 @@ fn focus_main_window(app: &tauri::AppHandle) {
 }
 
 /// A window with the app's chrome: the channel in its title, the transparency
-/// setting, and the overlay title bar on macOS. Shared by the main window and
-/// the detached editor windows.
+/// setting, the overlay title bar on macOS and the title bar setting elsewhere.
+/// Shared by the main window and the detached editor windows, which must call
+/// `show()` once built.
 ///
 /// Transparency is decided when the window is created and cannot be changed
 /// afterwards, so windows are built here rather than declared in
@@ -51,9 +52,8 @@ pub(crate) fn window_builder<'a>(
     label: &str,
     url: tauri::WebviewUrl,
 ) -> tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle> {
-    let transparent = commands::settings::read_settings()
-        .map(|s| s.transparency_effects)
-        .unwrap_or(true);
+    let settings = commands::settings::read_settings().ok();
+    let transparent = settings.as_ref().map(|s| s.transparency_effects).unwrap_or(true);
     // A beta or dev build says so in its title: it is otherwise
     // indistinguishable from the installed app, and the two are meant to
     // run side by side.
@@ -70,6 +70,15 @@ pub(crate) fn window_builder<'a>(
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true);
+    // Built hidden: tao maps the window before dropping its decorations, which
+    // mutter only reads at map time.
+    #[cfg(not(target_os = "macos"))]
+    let builder = {
+        let native = settings.is_none_or(|s| s.title_bar == "native");
+        builder.decorations(native).visible(native)
+    };
+    #[cfg(target_os = "macos")]
+    let _ = settings;
     builder
 }
 
@@ -123,7 +132,8 @@ pub fn run() {
 
             window_builder(app.handle(), commands::editor_windows::MAIN_WINDOW, tauri::WebviewUrl::default())
                 .inner_size(1440.0, 900.0)
-                .build()?;
+                .build()?
+                .show()?;
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};
@@ -245,6 +255,8 @@ pub fn run() {
             git_blame_file,
             git_file_at_head,
             git_file_in_index,
+            git_file_on_side,
+            git_file_line_count,
             git_stage_file,
             git_unstage_file,
             git_stage_all,

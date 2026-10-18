@@ -17,8 +17,43 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "A file that only gained lines is no longer flagged as added in the Git view: it is added only when it is really new.",
+					"fr": "Un fichier qui a seulement gagné des lignes n'est plus marqué comme ajouté dans la vue Git : il ne l'est que s'il est réellement nouveau."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "An instance whose worktree is gone, or that git no longer recognises, now says so with a way to delete it or go back to the base folder.",
 					"fr": "Une instance dont le worktree a disparu, ou que git ne reconnaît plus, le signale désormais et propose de la supprimer ou de revenir au dossier de base."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "F11 now toggles fullscreen from the home screen right after launch, without having to open a project first, and also works in detached editor windows.",
+					"fr": "F11 bascule maintenant en plein écran depuis l'accueil dès le lancement, sans avoir à ouvrir un projet d'abord, et fonctionne aussi dans les fenêtres d'éditeur détachées."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "On a short window or a high interface scale, the bottom of the home screen and of the settings is no longer cut off out of reach: the sidebar scrolls on its own.",
+					"fr": "Sur une fenêtre peu haute ou avec une échelle d'interface élevée, le bas de l'accueil et des réglages n'est plus coupé hors d'atteinte : la barre latérale défile d'elle-même."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Cairn title bar takes the theme's color, the accent, the color of the project you are working in, or one of your own; its text stays readable on any color, and it steps aside in fullscreen.",
+					"fr": "La barre de titre Cairn prend la couleur du thème, celle de l'accent, celle du projet sur lequel vous travaillez, ou une couleur de votre choix ; son texte reste lisible quelle que soit la couleur, et elle s'efface en plein écran."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "On Linux and Windows, Settings > Appearance > Window chooses the title bar: the system's own, or one drawn by Cairn with the window buttons.",
+					"fr": "Sous Linux et Windows, Réglages > Apparence > Fenêtre choisit la barre de titre : celle du système, ou une barre dessinée par Cairn avec les boutons de fenêtre."
 				}
 			},
 			{
@@ -236,6 +271,20 @@
 				"text": {
 					"en": "The git graph now refreshes after cherry-picks, stash changes and remote tag pushes or deletions.",
 					"fr": "Le graphe git se rafraîchit désormais après un cherry-pick, une modification de stash et le push ou la suppression d'un tag distant."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The diffs of the Git view (changes, staged files, commits and stashes) show expanders between and around their hunks, as on GitHub: each click on a bar reveals 20 more lines above or below, a short gap opens in one click, and what you revealed is still there when you come back to the diff.",
+					"fr": "Les diffs de la vue Git (modifications, fichiers indexés, commits et stashs) affichent des boutons de dépliage entre et autour de leurs blocs, comme sur GitHub : chaque clic sur une barre dévoile 20 lignes de plus au-dessus ou en dessous, un petit écart s'ouvre en un seul clic, et ce que vous avez dévoilé est toujours là quand vous revenez sur le diff."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the Git view, a file's folded or unfolded state now follows its diff: when the diff of a file changes, its card goes back to its default, unfolded for changes and folded for staged files, instead of staying folded on content you have not seen.",
+					"fr": "Dans la vue Git, l'état replié ou déplié d'un fichier suit désormais son diff : quand le diff d'un fichier change, sa carte revient à son état par défaut, dépliée pour les modifications et repliée pour les fichiers indexés, au lieu de rester repliée sur un contenu que vous n'avez pas vu."
 				}
 			}
 		]

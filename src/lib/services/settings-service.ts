@@ -65,6 +65,12 @@ export interface AiFeatureAssignment {
 	promptTemplate: string;
 }
 
+/** Ignored on macOS, where the overlay title bar is fixed. */
+export type TitleBarMode = "native" | "custom";
+
+/** `project` falls back to the theme outside a project; `custom` uses `titleBarColor`. */
+export type TitleBarFill = "theme" | "accent" | "project" | "custom";
+
 /**
  * Every global setting. The store merges what it reads with its own DEFAULTS,
  * so a field missing from an older settings.json is not an error.
@@ -91,6 +97,9 @@ export interface CairnSettings {
 	showPinnedCommandsSidebar: boolean;
 	transparencyEffects: boolean;
 	iconAnimations: boolean;
+	titleBar: TitleBarMode;
+	titleBarFill: TitleBarFill;
+	titleBarColor: string;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

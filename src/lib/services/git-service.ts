@@ -349,6 +349,50 @@ export async function getFileInIndex(
 	return invoke("git_file_in_index", { worktreePath, filePath });
 }
 
+/** Where the new side of a diff lives: the worktree, the index, or a commit-ish. */
+export type DiffSide =
+	| { kind: "worktree" }
+	| { kind: "index" }
+	| { kind: "rev"; rev: string };
+
+/** Content of a file on the new side of a diff, null when it does not exist there. */
+export async function getFileOnSide(
+	worktreePath: string,
+	side: DiffSide,
+	filePath: string,
+): Promise<string | null> {
+	return invoke("git_file_on_side", { worktreePath, side, filePath });
+}
+
+const LINE_COUNT_CONCURRENCY = 4;
+let runningLineCounts = 0;
+const waitingLineCounts: Array<() => void> = [];
+
+/** Every card of a commit asks at once; capped so they do not each hold a worker on a `git show`. */
+async function withLineCountSlot<T>(task: () => Promise<T>): Promise<T> {
+	if (runningLineCounts >= LINE_COUNT_CONCURRENCY) {
+		await new Promise<void>((resolve) => waitingLineCounts.push(resolve));
+	}
+	runningLineCounts++;
+	try {
+		return await task();
+	} finally {
+		runningLineCounts--;
+		waitingLineCounts.shift()?.();
+	}
+}
+
+/** Number of lines of a file on the new side of a diff, null when it does not exist there. */
+export async function getFileLineCount(
+	worktreePath: string,
+	side: DiffSide,
+	filePath: string,
+): Promise<number | null> {
+	return withLineCountSlot(() =>
+		invoke("git_file_line_count", { worktreePath, side, filePath }),
+	);
+}
+
 /** Stages one path, a deletion included. */
 export async function stageFile(
 	worktreePath: string,

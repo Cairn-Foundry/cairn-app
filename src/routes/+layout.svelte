@@ -5,13 +5,21 @@
 <script lang="ts">
   /**
    * Root layout: mirrors the appearance settings onto the document, applies the window
-   * zoom and vibrancy that only the Tauri webview can set, and sends external links to
-   * the system browser.
+   * zoom, vibrancy and decorations that only the Tauri webview can set, draws the title
+   * bar that stands in for the system's, and sends external links to the system browser.
    */
   import '../app.css';
   import { onMount } from 'svelte';
-  import { settings } from '$lib/stores/settings';
+  import WindowTitleBar from '$lib/components/layout/WindowTitleBar.svelte';
+  import { settings, settingsLoaded } from '$lib/stores/settings';
+  import { activeProject } from '$lib/stores/project';
+  import { activeScreen, windowFullscreen } from '$lib/stores/ui';
+  import { activeShortcuts } from '$lib/stores/shortcuts';
+  import { onFullscreenKey } from '$lib/utils/window-fullscreen';
+  import { setWindowDecorations } from '$lib/utils/window-decorations';
+  import { IS_MAC } from '$lib/utils/platform';
   import { foregroundOn } from '$lib/utils/home/contrast';
+  import { titleBarFillColor } from '$lib/utils/home/title-bar';
   import { setWindowVibrancy } from '$lib/services/settings-service';
   import { interceptExternalLinks } from '$lib/utils/external-links';
 
@@ -27,6 +35,40 @@
       await setWindowVibrancy(enabled);
     } catch {}
   }
+
+  let nativeDecorations: boolean | null = null;
+
+  function applyDecorations(native: boolean) {
+    if (IS_MAC || nativeDecorations === native) return;
+    nativeDecorations = native;
+    void setWindowDecorations(native);
+  }
+
+  // Tauri has no fullscreen event: entering or leaving it arrives as a resize.
+  onMount(() => {
+    if (IS_MAC) return;
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        const check = async () => windowFullscreen.set(await win.isFullscreen());
+        await check();
+        const off = await win.onResized(() => void check());
+        if (disposed) off();
+        else unlisten = off;
+      } catch {}
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  $: customTitleBar = !IS_MAC && $settings.titleBar === 'custom';
+  $: showTitleBar = customTitleBar && !$windowFullscreen;
+  $: titleBarFill = titleBarFillColor($settings, $activeScreen === 'workspace' ? ($activeProject?.color ?? null) : null);
 
   // The webview zoom scales the whole chrome, which a root font size cannot do
   // here: the interface is laid out in absolute pixels throughout.
@@ -50,7 +92,15 @@
     document.documentElement.toggleAttribute('data-no-icon-animations', !$settings.iconAnimations);
     void applyZoom($settings.uiScale);
     void applyVibrancy($settings.theme === 'glass');
+    if ($settingsLoaded) applyDecorations(!customTitleBar);
+    if (showTitleBar) document.documentElement.style.setProperty('--titlebar-h', '34px');
+    else document.documentElement.style.removeProperty('--titlebar-h');
   }
 </script>
 
+<svelte:window on:keydown={(e) => onFullscreenKey(e, $activeShortcuts.toggleFullscreen)}/>
+
+{#if showTitleBar}
+  <WindowTitleBar fill={titleBarFill}/>
+{/if}
 <slot />

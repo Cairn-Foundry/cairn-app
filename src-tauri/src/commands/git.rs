@@ -12,7 +12,7 @@ use std::sync::{LazyLock, Mutex};
 use git2::{Repository, BranchType};
 use crate::child_env;
 use crate::commands::git_error::GitError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +89,9 @@ fn expand(path: &str) -> String {
 fn git_cmd(worktree: &str) -> Command {
     let mut cmd = child_env::command("git");
     cmd.current_dir(worktree);
+    // Paths are printed raw: quoted octal escapes ("caf\303\251.txt") would reach
+    // `parse_diff` and the frontend as garbage file names.
+    cmd.args(["-c", "core.quotepath=false"]);
     // Error classification matches git's English messages, so the locale is
     // pinned rather than inherited from the user's environment.
     cmd.env("LC_ALL", "C").env("LANG", "C");
@@ -170,7 +173,8 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
             });
         } else if current_hunk.is_none() {
             if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("+++ b/")) {
-                f.file_path = path.to_string();
+                // git ends the name with a tab when it contains a space.
+                f.file_path = path.trim_end_matches('\t').to_string();
             }
         } else if line.starts_with('\\') {
             // "\ No newline at end of file" marker inside a hunk: not a real line.
@@ -780,23 +784,29 @@ pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, 
     Ok(parse_diff(&raw))
 }
 
+/// `git show <object>` bytes, `None` when the object does not exist (a new file, an unstaged one).
+fn git_show_bytes(expanded: &str, object: &str) -> Result<Option<Vec<u8>>, GitError> {
+    let output = git_cmd(expanded).args(["show", object]).output()?;
+    if !output.status.success() {
+        if !is_repo_root(expanded)? {
+            return Err(GitError::from_process(&output));
+        }
+        return Ok(None);
+    }
+    Ok(Some(output.stdout))
+}
+
+fn git_show_object(expanded: &str, object: &str) -> Result<Option<String>, GitError> {
+    Ok(git_show_bytes(expanded, object)?.map(|bytes| String::from_utf8_lossy(&bytes).to_string()))
+}
+
 #[tauri::command]
 /// File contents at HEAD, `None` when it does not exist there (a new file).
 pub async fn git_file_at_head(
     worktree_path: String,
     file_path: String,
 ) -> Result<Option<String>, GitError> {
-    let expanded = expand(&worktree_path);
-    let output = git_cmd(&expanded)
-        .args(["show", &format!("HEAD:{}", file_path)])
-        .output()?;
-    if !output.status.success() {
-        if !is_repo_root(&expanded)? {
-            return Err(GitError::from_process(&output));
-        }
-        return Ok(None);
-    }
-    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+    git_show_object(&expand(&worktree_path), &format!("HEAD:{}", file_path))
 }
 
 #[tauri::command]
@@ -805,17 +815,79 @@ pub async fn git_file_in_index(
     worktree_path: String,
     file_path: String,
 ) -> Result<Option<String>, GitError> {
-    let expanded = expand(&worktree_path);
-    let output = git_cmd(&expanded)
-        .args(["show", &format!(":{}", file_path)])
-        .output()?;
-    if !output.status.success() {
-        if !is_repo_root(&expanded)? {
-            return Err(GitError::from_process(&output));
+    git_show_object(&expand(&worktree_path), &format!(":{}", file_path))
+}
+
+/// Where the new side of a diff lives, for the lines a diff view reveals around its hunks.
+#[derive(Deserialize, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum DiffSide {
+    Worktree,
+    Index,
+    Rev { rev: String },
+}
+
+/// The `git show` object naming `file_path` on that side, `None` for the worktree.
+fn diff_side_object(side: &DiffSide, file_path: &str) -> Result<Option<String>, GitError> {
+    match side {
+        DiffSide::Worktree => Ok(None),
+        DiffSide::Index => Ok(Some(format!(":{file_path}"))),
+        DiffSide::Rev { rev } => {
+            reject_option_like(rev)?;
+            Ok(Some(format!("{rev}:{file_path}")))
         }
-        return Ok(None);
     }
-    Ok(Some(String::from_utf8_lossy(&output.stdout).to_string()))
+}
+
+/// The file on the new side of a diff. A symlink on the worktree side is not followed: git
+/// diffs the link text, and its target's lines would show up as context.
+fn read_diff_side_bytes(
+    expanded: &str,
+    side: &DiffSide,
+    file_path: &str,
+) -> Result<Option<Vec<u8>>, GitError> {
+    let Some(object) = diff_side_object(side, file_path)? else {
+        let path = Path::new(expanded).join(file_path);
+        if fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Ok(None);
+        }
+        return Ok(fs::read(path).ok());
+    };
+    git_show_bytes(expanded, &object)
+}
+
+#[tauri::command]
+/// File contents on the new side of a diff, `None` when it does not exist there.
+pub async fn git_file_on_side(
+    worktree_path: String,
+    side: DiffSide,
+    file_path: String,
+) -> Result<Option<String>, GitError> {
+    Ok(read_diff_side_bytes(&expand(&worktree_path), &side, &file_path)?
+        .map(|bytes| String::from_utf8_lossy(&bytes).to_string()))
+}
+
+/// Lines of `content` the way a diff numbers them: a final newline ends the last line
+/// instead of starting another.
+fn count_lines(content: &[u8]) -> usize {
+    let newlines = content.iter().filter(|&&b| b == b'\n').count();
+    if content.is_empty() || content.ends_with(b"\n") {
+        newlines
+    } else {
+        newlines + 1
+    }
+}
+
+#[tauri::command]
+/// Number of lines of the file on the new side of a diff, so a diff view knows whether
+/// anything is hidden below its last hunk without fetching the content.
+pub async fn git_file_line_count(
+    worktree_path: String,
+    side: DiffSide,
+    file_path: String,
+) -> Result<Option<usize>, GitError> {
+    Ok(read_diff_side_bytes(&expand(&worktree_path), &side, &file_path)?
+        .map(|content| count_lines(&content)))
 }
 
 /// Files past this are not blamed: the walk costs more than the status bar line is worth.
@@ -2470,6 +2542,67 @@ mod tests {
         assert!(reject_option_like("release-1.2").is_ok());
         assert!(reject_option_like("-rf").is_err());
         assert!(reject_option_like("--upload-pack=evil").is_err());
+    }
+
+    #[test]
+    fn diff_side_object_names_the_file_on_each_side() {
+        assert_eq!(diff_side_object(&DiffSide::Worktree, "a/b.rs").unwrap(), None);
+        assert_eq!(diff_side_object(&DiffSide::Index, "a/b.rs").unwrap(), Some(":a/b.rs".into()));
+        let rev = DiffSide::Rev { rev: "stash@{1}".into() };
+        assert_eq!(diff_side_object(&rev, "a/b.rs").unwrap(), Some("stash@{1}:a/b.rs".into()));
+        assert!(diff_side_object(&DiffSide::Rev { rev: "--output=x".into() }, "a").is_err());
+    }
+
+    #[test]
+    fn count_lines_matches_how_a_diff_numbers_them() {
+        assert_eq!(count_lines(b""), 0);
+        assert_eq!(count_lines(b"a"), 1);
+        assert_eq!(count_lines(b"a\n"), 1);
+        assert_eq!(count_lines(b"a\nb"), 2);
+        assert_eq!(count_lines(b"a\r\nb\r\n"), 2);
+        assert_eq!(count_lines(b"\n"), 1);
+    }
+
+    #[tokio::test]
+    async fn a_diff_of_an_accented_path_keeps_its_name() {
+        let repo = TempRepo::new();
+        repo.commit("café.txt", "one\n", "init");
+        repo.write("café.txt", "two\n");
+        let files = git_diff_unstaged(repo.wt()).await.unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_path, "café.txt");
+        let side = DiffSide::Worktree;
+        let lines = git_file_line_count(repo.wt(), side, "café.txt".into()).await.unwrap();
+        assert_eq!(lines, Some(1));
+    }
+
+    #[tokio::test]
+    async fn a_diff_of_a_path_with_a_space_keeps_its_name() {
+        let repo = TempRepo::new();
+        repo.commit("my file.txt", "one\n", "init");
+        repo.write("my file.txt", "two\n");
+        let files = git_diff_unstaged(repo.wt()).await.unwrap();
+        assert_eq!(files[0].file_path, "my file.txt");
+        let lines = git_file_line_count(repo.wt(), DiffSide::Worktree, "my file.txt".into()).await.unwrap();
+        assert_eq!(lines, Some(1));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_symlink_on_the_worktree_side_reveals_nothing() {
+        let repo = TempRepo::new();
+        repo.write("big.txt", "1\n2\n3\n");
+        std::os::unix::fs::symlink("big.txt", repo.path.join("link")).unwrap();
+        let content = git_file_on_side(repo.wt(), DiffSide::Worktree, "link".into()).await.unwrap();
+        assert_eq!(content, None);
+    }
+
+    #[test]
+    fn diff_side_deserializes_from_the_frontend_shape() {
+        let side: DiffSide = serde_json::from_str(r#"{"kind":"rev","rev":"abc"}"#).unwrap();
+        assert_eq!(side, DiffSide::Rev { rev: "abc".into() });
+        let side: DiffSide = serde_json::from_str(r#"{"kind":"worktree"}"#).unwrap();
+        assert_eq!(side, DiffSide::Worktree);
     }
 
     #[test]

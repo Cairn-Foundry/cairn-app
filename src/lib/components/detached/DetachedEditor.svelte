@@ -1118,7 +1118,8 @@
   }
   .detached-layout {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - var(--titlebar-h, 0px));
+    margin-top: var(--titlebar-h, 0px);
     min-height: 0;
     overflow: hidden;
     background: var(--bg-0);
