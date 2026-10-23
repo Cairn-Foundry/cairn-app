@@ -139,6 +139,10 @@ pub struct CairnSettings {
     pub title_bar_fill: String,
     #[serde(rename = "titleBarColor", default)]
     pub title_bar_color: String,
+    #[serde(rename = "agentNotifications", default = "default_true")]
+    pub agent_notifications: bool,
+    #[serde(rename = "agentToasts", default = "default_true")]
+    pub agent_toasts: bool,
     #[serde(rename = "showWhitespace", default = "default_show_whitespace")]
     pub show_whitespace: bool,
     #[serde(rename = "saveOn", default = "default_save_on")]
@@ -281,6 +285,8 @@ impl Default for CairnSettings {
             title_bar: default_title_bar(),
             title_bar_fill: default_title_bar_fill(),
             title_bar_color: String::new(),
+            agent_notifications: true,
+            agent_toasts: true,
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),

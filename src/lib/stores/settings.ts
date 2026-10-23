@@ -40,6 +40,8 @@ const DEFAULTS: CairnSettings = {
 	titleBar: "native",
 	titleBarFill: "theme",
 	titleBarColor: "",
+	agentNotifications: true,
+	agentToasts: true,
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],

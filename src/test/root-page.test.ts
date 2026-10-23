@@ -23,7 +23,9 @@ vi.mock("$lib/components/layout/LoadingScreen.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
 
-const listen = vi.fn<(...a: unknown[]) => unknown>();
+const listen = vi
+	.fn<(...a: unknown[]) => unknown>()
+	.mockResolvedValue(() => {});
 vi.mock("@tauri-apps/api/event", () => ({
 	listen: (...a: unknown[]) => listen(...a),
 }));

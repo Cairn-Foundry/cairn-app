@@ -12,6 +12,8 @@
   import { withViewTransition } from '$lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '$lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
+  import { selectConversation } from '$lib/stores/conversation';
+  import { openRequest } from '$lib/stores/agent-status';
   import { takePendingCliPaths } from '$lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
   import { collapsedTicketProjects } from '$lib/stores/tickets-overview';
@@ -39,6 +41,7 @@
   import type { Ticket } from '$lib/types/integrations';
   import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
   import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
+  import Toaster from '$lib/components/layout/Toaster.svelte';
   import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
   import type { HomeSection } from '$lib/components/home/HomeSidebar.svelte';
   import { t } from '$lib/i18n';
@@ -346,6 +349,12 @@
 
   $: if (mounted) { activeScreen.set(screen); persistUiState(); }
 
+  $: if ($openRequest) {
+    const request = $openRequest;
+    openRequest.set(null);
+    void handleOpenConversation(request);
+  }
+
   const persistSubscriptions = [
     activeStep,
     terminalActive,
@@ -404,6 +413,15 @@
     createFromBranch = '';
     createFromTicket = detail.ticket;
     showCreate = true;
+  }
+
+  /** Lands on one conversation of the Agent step, from wherever the app was. */
+  async function handleOpenConversation(detail: { projectId: string; instanceId: string; conversationId: string }) {
+    await handleOpenProject(detail.projectId);
+    if ($activeInstance?.id !== detail.instanceId) await activateInstance(detail.projectId, detail.instanceId);
+    showTool(null);
+    activeStep.set('agent');
+    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
   }
 
   function handleCloseProject(id: string) {
@@ -601,6 +619,7 @@
       on:addProjectShown={() => { homeOpenAddProjectMode = null; }}
       on:sectionChange={handleSectionChange}
       on:startTicket={(e) => handleStartTicket(e.detail)}
+      on:openConversation={(e) => handleOpenConversation(e.detail)}
     />
   </div>
   <div class="screen-wrap" class:screen-hidden={screen !== 'workspace'}>
@@ -646,3 +665,5 @@
     />
   {/if}
 </div>
+
+<Toaster onMore={() => { homeOpenSection = 'activity'; goScreen('home'); }}/>

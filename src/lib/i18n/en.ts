@@ -589,6 +589,15 @@ export const en = {
 		freshSessionHint:
 			"Leave the session this conversation cannot resume behind, and start a new one in the same worktree.",
 		noActiveInstance: "No active instance",
+		status: {
+			working: "Working",
+			waiting: "Needs your approval",
+			done: "Your turn",
+			exited: "Exited",
+			running: "Running",
+			notifyWaiting: "needs your approval",
+			notifyDone: "finished, your turn",
+		},
 		picker: {
 			title: "Start a conversation",
 			subtitle: "Pick the CLI to run in this worktree.",
@@ -721,6 +730,11 @@ export const en = {
 		},
 	},
 
+	toasts: {
+		region: "Notifications",
+		dismiss: "Dismiss",
+		more: (n: number) => `${n} more`,
+	},
 	tools: {
 		title: "Tools",
 		subtitle: "Everything you can run beside your workflow",
@@ -2476,9 +2490,11 @@ export const en = {
 			tickets: "Tickets",
 			ticketsDesc: "What is left to do across every project with a tracker.",
 			activity: "Activity",
-			activityDesc: "Recent events across all instances.",
-			activityEmpty:
-				"No activity yet - events will appear here as instances run.",
+			activityDesc:
+				"Every running conversation, across projects and instances. What waits for you comes first.",
+			activityEmpty: "No conversation is running.",
+			activityHooksHint:
+				"Working and waiting are reported by Claude Code. Other CLIs only show whether they are running.",
 		},
 		sidebar: {
 			workspace: "Workspace",
@@ -2691,6 +2707,8 @@ export const en = {
 		},
 		projects: {
 			inboxTitle: "Open tickets assigned to me",
+			attentionTitle: "Conversations waiting for you",
+			attentionOpen: "Open the conversation waiting for you",
 			newProject: "New project",
 			newProjectDesc: "Create a project from any local directory.",
 			openProject: "Open project",
@@ -2923,6 +2941,12 @@ export const en = {
 				enable: "Enable AI features",
 				enableDesc:
 					"The Agent step, the providers, agents, skills and MCP pages, the review guide and every assisted draft. Turned off, none of it is shown or run.",
+				notifications: "Notify when an agent needs you",
+				notificationsDesc:
+					"A system notification when a conversation finishes its turn or asks for approval while Cairn is in the background.",
+				toasts: "Show in Cairn when another conversation needs you",
+				toastsDesc:
+					"A notice in the corner of the window when a conversation you are not looking at finishes its turn or asks for approval while you work in Cairn.",
 			},
 			cli: {
 				groupTitle: "Command line",
