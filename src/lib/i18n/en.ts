@@ -2737,6 +2737,7 @@ export const en = {
 		projects: {
 			inboxTitle: "Open tickets assigned to me",
 			attentionTitle: "Conversations waiting for you",
+			attentionOpen: "Open the conversation waiting for you",
 			newProject: "New project",
 			newProjectDesc: "Create a project from any local directory.",
 			openProject: "Open project",
