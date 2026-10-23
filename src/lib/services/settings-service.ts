@@ -100,6 +100,8 @@ export interface CairnSettings {
 	titleBar: TitleBarMode;
 	titleBarFill: TitleBarFill;
 	titleBarColor: string;
+	/** OS notification when a conversation needs the user while the window is in the background. */
+	agentNotifications: boolean;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"

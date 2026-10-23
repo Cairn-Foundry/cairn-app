@@ -45,6 +45,7 @@
     togglePinned,
   } from '$lib/stores/conversation';
   import { agentDraftRequest, clearAgentDraft } from '$lib/stores/agent-draft';
+  import { agentStatus } from '$lib/stores/agent-status';
   import { focusOnMount } from '$lib/utils/agent/focus-on-mount';
   import { activeInstance } from '$lib/stores/instance';
   import { lastCli } from '$lib/stores/ui';
@@ -334,6 +335,8 @@
     projectConversations={projectList}
     {activeId}
     {cliLabel}
+    live={$conversationTerminals}
+    statuses={$agentStatus}
     newSessionActive={activeId === null}
     onSelect={(id, scope) => void select(id, scope)}
     onNewSession={newConversation}

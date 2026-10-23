@@ -54,6 +54,20 @@
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
   </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.general.ai.notifications')}</span>
+      <span class="settings-row-desc">{t('settings.general.ai.notificationsDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.general.ai.notifications') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.agentNotifications}
+        on:change={(e) => settings.save({ agentNotifications: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
 </div>
 
 <div class="settings-group">

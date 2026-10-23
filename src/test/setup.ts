@@ -44,6 +44,11 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 	writeText: vi.fn(),
 	readText: vi.fn(),
 }));
+vi.mock("@tauri-apps/plugin-notification", () => ({
+	isPermissionGranted: vi.fn().mockResolvedValue(true),
+	requestPermission: vi.fn().mockResolvedValue("granted"),
+	sendNotification: vi.fn(),
+}));
 
 // xterm probes a canvas on construction; jsdom has no 2D context and logs a
 // "Not implemented" line per call. The probe result is unused by these tests.

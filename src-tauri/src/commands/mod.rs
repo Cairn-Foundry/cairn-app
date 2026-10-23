@@ -7,6 +7,7 @@
 //! All Tauri commands, one module per domain, re-exported flat so `lib.rs` can
 //! list them in a single `generate_handler!`.
 
+pub mod agent_signals;
 pub mod coalesce;
 pub mod editor_windows;
 pub mod file_protocol;
