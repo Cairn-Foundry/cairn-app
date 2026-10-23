@@ -173,6 +173,53 @@ describe("parcours: opening a project", () => {
 	});
 });
 
+describe("parcours: closing a project tab", () => {
+	it("closes a project tab on a middle click", async () => {
+		backend = seedWorld({
+			projects: [
+				{
+					id: "p1",
+					name: "Alpha",
+					path: "/repos/alpha",
+					color: "#fff",
+					activeInstanceId: "i1",
+				},
+				{
+					id: "p2",
+					name: "Beta",
+					path: "/repos/beta",
+					color: "#000",
+					activeInstanceId: null,
+				},
+			],
+			uiState: {
+				screen: "workspace",
+				activeProjectId: "p1",
+				openTabOrder: ["p1", "p2"],
+				homeSection: "projects",
+				homeSettingsTab: "general",
+				projectStates: { p1: { activeStep: "files" } },
+			},
+		});
+		await launch();
+		const tabNames = () =>
+			Array.from(document.querySelectorAll(".project-tab")).map((el) =>
+				el.textContent?.trim(),
+			);
+		expect(tabNames()).toEqual(["Alpha", "Beta"]);
+		const beta = document.querySelectorAll(".project-tab")[1];
+		beta.dispatchEvent(
+			new MouseEvent("auxclick", {
+				bubbles: true,
+				cancelable: true,
+				button: 1,
+			}),
+		);
+		await settle();
+		expect(tabNames()).toEqual(["Alpha"]);
+	});
+});
+
 describe("parcours: editing and saving a file", () => {
 	async function openWorkspace() {
 		backend = seedWorld({

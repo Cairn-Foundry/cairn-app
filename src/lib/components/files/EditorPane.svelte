@@ -249,9 +249,11 @@
           role="tab"
           aria-selected={i === activeTabIdx}
           tabindex="0"
-          on:pointerdown={(e) => onTabPointerDown(e, i)}
+          on:pointerdown={(e) => { if (e.button !== 1) onTabPointerDown(e, i); }}
           on:pointermove={onTabPointerMove}
           on:pointerup={onTabPointerUp}
+          on:mousedown={(e) => { if (e.button === 1) e.preventDefault(); }}
+          on:auxclick={(e) => { if (e.button === 1) { e.preventDefault(); onTabClose(i, e); } }}
           on:click={() => { if (!didDrag) onTabClick(i); }}
           on:keydown={(e) => e.key === 'Enter' && onTabClick(i)}
           on:contextmenu={(e) => onTabContextMenu(e, i)}

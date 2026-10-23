@@ -339,6 +339,12 @@
 
   $: if (activeProjectId) void revealActiveTab(activeProjectId);
 
+  function tabAuxClick(e: MouseEvent, id: string) {
+    if (e.button !== 1 || isStickyTabDrag) return;
+    e.preventDefault();
+    dispatch('closeProject', id);
+  }
+
   const DRAG_THRESHOLD = 6;
 
   /**
@@ -585,6 +591,8 @@
         on:pointermove={tabPointerMove}
         on:pointerup={tabPointerUp}
         on:contextmenu={(e) => tabContextMenu(e, i)}
+        on:mousedown={(e) => { if (e.button === 1) e.preventDefault(); }}
+        on:auxclick={(e) => tabAuxClick(e, p.id)}
         on:click={() => { if (!didDrag) dispatch('projectChange', p.id); didDrag = false; }}
         on:keydown={(e) => e.key === 'Enter' && dispatch('projectChange', p.id)}
       >
