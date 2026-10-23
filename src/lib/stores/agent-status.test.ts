@@ -61,10 +61,12 @@ import {
 import { activeInstance, loadedInstances } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
 import { settings } from "#lib/stores/settings";
+import { dismissToast, openToast, toasts } from "#lib/stores/toasts";
 import { activeScreen, activeStep } from "#lib/stores/ui";
 import {
 	agentStatus,
 	attentionByProject,
+	DONE_TOAST_MS,
 	liveConversations,
 	openRequest,
 	QUIET_MS,
@@ -137,8 +139,9 @@ beforeEach(() => {
 			},
 		],
 	});
+	for (const toast of get(toasts)) dismissToast(toast.id);
 	void settings
-		.save({ agentNotifications: true, aiEnabled: true })
+		.save({ agentNotifications: true, agentToasts: true, aiEnabled: true })
 		.catch(() => {});
 });
 
@@ -277,5 +280,87 @@ describe("clicking a notification", () => {
 		openRequest.set(null);
 		hooks.opened?.({ payload: { conversationId: "gone" } });
 		expect(get(openRequest)).toBeNull();
+	});
+});
+
+describe("a notice inside the app", () => {
+	it("shows a blocked agent of another instance until it is handled", () => {
+		run("c1");
+		windowFocused.set(true);
+		signal("c1", "waiting");
+
+		expect(get(toasts)).toMatchObject([
+			{
+				id: "agent:c1",
+				title: "Refactor auth",
+				body: "Cairn · Fix the login",
+				tone: "warning",
+			},
+		]);
+		vi.advanceTimersByTime(60_000);
+		expect(get(toasts)).toHaveLength(1);
+
+		hooks.input?.("conversation:c1", "1");
+		expect(get(toasts)).toEqual([]);
+	});
+
+	it("lets a finished turn go away on its own", () => {
+		run("c1");
+		windowFocused.set(true);
+		signal("c1", "done");
+		expect(get(toasts)).toHaveLength(1);
+
+		vi.advanceTimersByTime(DONE_TOAST_MS);
+		expect(get(toasts)).toEqual([]);
+		expect(get(agentStatus).c1).toBe("done");
+	});
+
+	it("shows a conversation of the instance on screen when another step is", () => {
+		run("c1");
+		windowFocused.set(true);
+		show("c1");
+		activeStep.set("git");
+		signal("c1", "done");
+
+		expect(get(toasts).map((t) => t.id)).toEqual(["agent:c1"]);
+	});
+
+	it("says nothing about the conversation on screen", () => {
+		run("c1");
+		windowFocused.set(true);
+		show("c1");
+		signal("c1", "waiting");
+
+		expect(get(toasts)).toEqual([]);
+	});
+
+	it("leaves the background to the system notification", () => {
+		run("c1");
+		signal("c1", "done");
+		expect(notify).toHaveBeenCalledTimes(1);
+		expect(get(toasts)).toEqual([]);
+	});
+
+	it("opens the conversation it is about", () => {
+		openRequest.set(null);
+		run("c1");
+		windowFocused.set(true);
+		signal("c1", "waiting");
+		openToast(get(toasts)[0]);
+
+		expect(get(openRequest)).toEqual({
+			projectId: "p",
+			instanceId: "i",
+			conversationId: "c1",
+		});
+		expect(get(toasts)).toEqual([]);
+	});
+
+	it("stays out of the way when turned off", async () => {
+		await settings.save({ agentToasts: false }).catch(() => {});
+		run("c1");
+		windowFocused.set(true);
+		signal("c1", "waiting");
+		expect(get(toasts)).toEqual([]);
 	});
 });

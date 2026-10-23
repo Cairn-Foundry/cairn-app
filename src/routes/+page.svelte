@@ -41,6 +41,7 @@
   import type { Ticket } from '#lib/types/integrations';
   import UpdateModal from '#lib/components/layout/UpdateModal.svelte';
   import LoadingScreen from '#lib/components/layout/LoadingScreen.svelte';
+  import Toaster from '#lib/components/layout/Toaster.svelte';
   import { isUpdateModalOpen, startUpdateChecks } from '#lib/stores/update';
   import type { HomeSection } from '#lib/components/home/HomeSidebar.svelte';
   import { t } from '#lib/i18n';
@@ -669,3 +670,5 @@
     />
   {/if}
 </div>
+
+<Toaster onMore={() => { homeOpenSection = 'conversations'; goScreen('home'); }}/>

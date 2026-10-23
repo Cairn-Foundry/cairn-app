@@ -69,6 +69,20 @@
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
   </div>
+  <div class="settings-row">
+    <div class="settings-row-info">
+      <span class="settings-row-label">{t('settings.general.ai.toasts')}</span>
+      <span class="settings-row-desc">{t('settings.general.ai.toastsDesc')}</span>
+    </div>
+    <label class="settings-toggle" aria-label={t('settings.general.ai.toasts') as string}>
+      <input
+        type="checkbox"
+        checked={$settings.agentToasts}
+        on:change={(e) => settings.save({ agentToasts: (e.target as HTMLInputElement).checked })}
+      />
+      <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+    </label>
+  </div>
 </div>
 
 <div class="settings-group">

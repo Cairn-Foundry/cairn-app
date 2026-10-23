@@ -102,6 +102,8 @@ export interface CairnSettings {
 	titleBarColor: string;
 	/** OS notification when a conversation needs the user while the window is in the background. */
 	agentNotifications: boolean;
+	/** In-app toast when a conversation of another project or instance needs the user. */
+	agentToasts: boolean;
 	showWhitespace: boolean;
 	saveOn:
 		| "blur"
