@@ -237,6 +237,13 @@
 					"en": "A system notification tells you when a conversation finishes its turn or asks for approval while Cairn is in the background, and clicking it opens that conversation. It can be turned off in Settings > General.",
 					"fr": "Une notification système vous prévient quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan, et un clic dessus ouvre cette conversation. Désactivable dans Réglages > Général."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn keeps a log of its own in the logs folder of its data directory (cairn.log, rotated at 1 MB with two older files kept): each start and exit, crashes of the app with their trace, and the signal that ended it along with the process that sent it, so a window that vanishes leaves its reason behind.",
+					"fr": "Cairn tient son propre journal dans le dossier logs de son répertoire de données (cairn.log, renouvelé à 1 Mo en gardant les deux précédents) : chaque démarrage et chaque fermeture, les plantages de l'application avec leur trace, et le signal qui l'a arrêtée avec le processus qui l'a envoyé, pour qu'une fenêtre qui disparaît laisse sa raison derrière elle."
+				}
 			}
 		]
 	},
