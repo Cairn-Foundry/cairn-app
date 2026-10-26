@@ -852,7 +852,7 @@ pub async fn start_language_server(
                 let mut attempts = lsp.attempts.lock().map_err(|e| e.to_string())?;
                 *attempts.entry(server_id.clone()).or_insert(0) += 1;
                 drop(attempts);
-                eprintln!("[lsp] {server_id} failed to start: {e}");
+                crate::app_log::warn(&format!("[lsp] {server_id} failed to start: {e}"));
                 emit_status(&app, &server_id, &root, ServerStatus::Failed, Some(e.clone()));
                 Err(e)
             }

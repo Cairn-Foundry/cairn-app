@@ -92,7 +92,7 @@ this is the first thing to check.
 ### Persistent storage on disk
 
 All app data lives in `~/.cairn/`. The layout is defined in `storage.rs`, which holds the only
-path helpers (29 of them, all hanging off `cairn_dir()`):
+path helpers (30 of them, all hanging off `cairn_dir()`):
 
 ```
 ~/.cairn/
@@ -104,6 +104,7 @@ path helpers (29 of them, all hanging off `cairn_dir()`):
   ai-keys.enc                             # provider API keys + integration tokens, encrypted (0600)
   ai-keys.secret                          # the key ai-keys.enc is encrypted with (0600)
   agent-signals/{conversation-id}         # turn state written by a running CLI's hooks, wiped at startup
+  logs/cairn.log (.1, .2)                 # app log: starts, exits, panics, fatal signals (app_log.rs)
   projects/
     projects.json                         # all registered projects
     listing.json                          # project order + folder groupings

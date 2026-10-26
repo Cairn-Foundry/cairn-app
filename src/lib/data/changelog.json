@@ -244,6 +244,13 @@
 					"en": "While you work in Cairn, a notice in the corner of the window tells you when a conversation you are not looking at - in another project, another instance, or behind the Files or Git step - finishes its turn or asks for approval, on Home as in the workspace. A click opens that conversation; a finished turn goes away after a few seconds, a pending approval stays until you answer it. Past three, the rest fold into one line that opens Conversations. It has its own switch in Settings > General.",
 					"fr": "Pendant que vous travaillez dans Cairn, un avis dans le coin de la fenêtre vous prévient quand une conversation que vous n'avez pas sous les yeux - dans un autre projet, une autre instance, ou derrière l'étape Fichiers ou Git - termine son tour ou demande un accord, sur l'accueil comme dans l'espace de travail. Un clic ouvre cette conversation ; un tour terminé disparaît après quelques secondes, une demande d'accord reste jusqu'à ce que vous y répondiez. Au-delà de trois, les autres se regroupent en une ligne qui ouvre Conversations. Il a son propre interrupteur dans Réglages > Général."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn keeps a log of its own in the logs folder of its data directory (cairn.log, rotated at 1 MB with two older files kept): each start and exit, crashes of the app with their trace, and the signal that ended it along with the process that sent it, so a window that vanishes leaves its reason behind.",
+					"fr": "Cairn tient son propre journal dans le dossier logs de son répertoire de données (cairn.log, renouvelé à 1 Mo en gardant les deux précédents) : chaque démarrage et chaque fermeture, les plantages de l'application avec leur trace, et le signal qui l'a arrêtée avec le processus qui l'a envoyé, pour qu'une fenêtre qui disparaît laisse sa raison derrière elle."
+				}
 			}
 		]
 	},
