@@ -385,6 +385,15 @@ function linkProvider(term: Terminal, host: HTMLElement): ILinkProvider {
 	};
 }
 
+/** Answers XTVERSION, which xterm.js leaves unanswered: without it Claude Code opens a clicked link itself, on top of ours. */
+function answerXtversion(id: string, term: Terminal): void {
+	term.parser.registerCsiHandler({ prefix: ">", final: "q" }, (params) => {
+		if ((params[0] ?? 0) !== 0) return false;
+		enqueueWrite(id, "\x1bP>|xterm.js(Cairn)\x1b\\");
+		return true;
+	});
+}
+
 /** Writes PTY output to the live instance, or keeps it for the next attach. */
 function write(id: string, data: string): void {
 	const m = managed.get(id);
@@ -474,6 +483,7 @@ function wake(id: string, m: ManagedTerminal): void {
 
 	term.attachCustomKeyEventHandler((e) => handleClipboardKey(term, e));
 	term.registerLinkProvider(linkProvider(term, m.el));
+	answerXtversion(id, term);
 
 	term.onData((data) => {
 		enqueueWrite(id, data);
