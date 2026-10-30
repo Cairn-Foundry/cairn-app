@@ -7,6 +7,7 @@
 use std::io::Write;
 use std::process::Stdio;
 use crate::child_env;
+use crate::commands::cli_providers::resolve_binary;
 use crate::commands::git_error;
 use crate::storage::{CommandOutput, copy_dir_recursive};
 
@@ -111,15 +112,19 @@ fn terminal_candidates(remembered: Option<&str>, from_env: Option<&str>) -> Vec<
     ordered
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn emulator_name(program: &str) -> String {
+    std::path::Path::new(program)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 /// How each emulator is told which directory to open in; the rest inherit the
 /// working directory of the spawned process.
 #[cfg(any(target_os = "linux", test))]
 fn terminal_args(program: &str, dir: &str) -> Vec<String> {
-    let name = std::path::Path::new(program)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    match name.as_str() {
+    match emulator_name(program).as_str() {
         "gnome-terminal" | "xfce4-terminal" | "tilix" | "alacritty" => {
             vec![format!("--working-directory={dir}")]
         }
@@ -129,20 +134,74 @@ fn terminal_args(program: &str, dir: &str) -> Vec<String> {
     }
 }
 
-/// Opens `dir` in the first emulator that works and remembers it. A remembered
-/// emulator that no longer starts is forgotten and the search starts over.
+/// How each emulator is told to run a command in place of the shell: `-e` is
+/// the xterm convention most of them kept, kitty takes the command bare.
+#[cfg(any(target_os = "linux", test))]
+fn exec_args(program: &str) -> Vec<String> {
+    match emulator_name(program).as_str() {
+        "gnome-terminal" => vec!["--".to_string()],
+        "xfce4-terminal" => vec!["-x".to_string()],
+        "kitty" => Vec::new(),
+        _ => vec!["-e".to_string()],
+    }
+}
+
+/// How each emulator is asked to open a tab in a window it already has, when it
+/// can. gnome-terminal joins the window of the tab named by `GNOME_TERMINAL_SCREEN`
+/// and fails when that tab is gone, so the caller falls back to a new window.
+#[cfg(any(target_os = "linux", test))]
+fn tab_args(program: &str) -> Vec<String> {
+    match emulator_name(program).as_str() {
+        "gnome-terminal" | "xfce4-terminal" => vec!["--tab".to_string()],
+        "konsole" => vec!["--new-tab".to_string()],
+        _ => Vec::new(),
+    }
+}
+
+/// Debian's `x-terminal-emulator` alternative is a `<name>.wrapper` script that
+/// only knows xterm's options and drops the others, so a command is run through
+/// the emulator behind it.
+#[cfg(any(target_os = "linux", test))]
+fn behind_wrapper(path: &std::path::Path) -> Option<String> {
+    path.file_name()?.to_str()?.strip_suffix(".wrapper").map(str::to_string)
+}
+
 #[cfg(target_os = "linux")]
-fn launch_linux_terminal(dir: &str) -> bool {
+fn unwrapped(program: &str) -> String {
+    which::which(program)
+        .ok()
+        .and_then(|p| p.canonicalize().ok())
+        .and_then(|p| behind_wrapper(&p))
+        .unwrap_or_else(|| program.to_string())
+}
+
+#[cfg(target_os = "linux")]
+const NO_TERMINAL: &str = "No supported terminal emulator found. Set the TERMINAL environment variable, or install gnome-terminal, xfce4-terminal, konsole or x-terminal-emulator.";
+
+/// Opens `dir` in the first emulator that works and remembers it, running `run`
+/// in place of the shell when given - as a tab of an existing window first,
+/// then in a new one. A remembered emulator that no longer starts is forgotten
+/// and the search starts over.
+#[cfg(target_os = "linux")]
+fn launch_linux_terminal(dir: &str, run: &[String]) -> bool {
     let remembered = WORKING_TERMINAL.lock().ok().and_then(|g| g.clone());
     let from_env = std::env::var("TERMINAL").ok();
-    for program in terminal_candidates(remembered.as_deref(), from_env.as_deref()) {
-        let mut cmd = child_env::command(&program);
-        cmd.args(terminal_args(&program, dir)).current_dir(dir);
-        let worked = spawn_stays_up(cmd);
+    for candidate in terminal_candidates(remembered.as_deref(), from_env.as_deref()) {
+        let program = if run.is_empty() { candidate.clone() } else { unwrapped(&candidate) };
+        let launch = |tab: Vec<String>| {
+            let mut cmd = child_env::command(&program);
+            cmd.args(terminal_args(&program, dir)).current_dir(dir);
+            if !run.is_empty() {
+                cmd.args(tab).args(exec_args(&program)).args(run);
+            }
+            spawn_stays_up(cmd)
+        };
+        let tab = tab_args(&program);
+        let worked = (!run.is_empty() && !tab.is_empty() && launch(tab)) || launch(Vec::new());
         if let Ok(mut slot) = WORKING_TERMINAL.lock() {
             if worked {
-                *slot = Some(program);
-            } else if slot.as_deref() == Some(program.as_str()) {
+                *slot = Some(candidate);
+            } else if slot.as_deref() == Some(candidate.as_str()) {
                 *slot = None;
             }
         }
@@ -168,12 +227,33 @@ pub async fn open_in_terminal(path: String) -> Result<(), String> {
     child_env::command("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
     {
-        let launched = launch_linux_terminal(&dir);
-        if !launched {
-            return Err("No supported terminal emulator found. Set the TERMINAL environment variable, or install gnome-terminal, xfce4-terminal, konsole or x-terminal-emulator.".to_string());
+        if !launch_linux_terminal(&dir, &[]) {
+            return Err(NO_TERMINAL.to_string());
         }
     }
     Ok(())
+}
+
+/// Opens the system terminal in `cwd` running an agent CLI - resuming a
+/// conversation outside the app - through the login shell, as the embedded PTY
+/// does. Linux only: the other platforms' terminals take no command to run.
+#[tauri::command]
+pub async fn open_cli_in_terminal(cwd: String, argv: Vec<String>) -> Result<(), String> {
+    let (program, rest) = argv.split_first().ok_or("Empty args")?;
+    let binary = resolve_binary(program, None).ok_or_else(|| format!("{program} not found"))?;
+    let run = crate::commands::terminal::agent_argv(&binary, rest);
+    #[cfg(target_os = "linux")]
+    {
+        if launch_linux_terminal(&cwd, &run) {
+            return Ok(());
+        }
+        Err(NO_TERMINAL.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (cwd, run);
+        Err("Continuing a conversation in the system terminal is only supported on Linux.".to_string())
+    }
 }
 
 /// Shows the path in the system file manager, selected when the platform can.
@@ -314,6 +394,31 @@ mod tests {
     fn terminal_search_ignores_an_empty_env_value() {
         let order = terminal_candidates(None, Some("  "));
         assert_eq!(order, LINUX_TERMINALS);
+    }
+
+    #[test]
+    fn terminals_get_their_own_command_flag() {
+        assert_eq!(exec_args("/usr/bin/gnome-terminal"), ["--"]);
+        assert_eq!(exec_args("xfce4-terminal"), ["-x"]);
+        assert_eq!(exec_args("konsole"), ["-e"]);
+        assert!(exec_args("kitty").is_empty());
+    }
+
+    #[test]
+    fn terminals_that_can_join_a_window_get_a_tab_flag() {
+        assert_eq!(tab_args("/usr/bin/gnome-terminal"), ["--tab"]);
+        assert_eq!(tab_args("xfce4-terminal"), ["--tab"]);
+        assert_eq!(tab_args("konsole"), ["--new-tab"]);
+        assert!(tab_args("kitty").is_empty());
+        assert!(tab_args("alacritty").is_empty());
+    }
+
+    #[test]
+    fn a_debian_wrapper_names_the_emulator_behind_it() {
+        let wrapper = std::path::Path::new("/usr/bin/gnome-terminal.wrapper");
+        assert_eq!(behind_wrapper(wrapper).as_deref(), Some("gnome-terminal"));
+        assert_eq!(behind_wrapper(std::path::Path::new("/usr/bin/gnome-terminal")), None);
+        assert_eq!(behind_wrapper(std::path::Path::new("/usr/bin/kitty")), None);
     }
 
     #[test]

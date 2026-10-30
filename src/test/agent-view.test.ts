@@ -31,6 +31,13 @@ vi.mock("#lib/services/terminal-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
+	terminalHasChildren: async () => false,
+}));
+
+const openCliInTerminal = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	openCliInTerminal: (...a: unknown[]) => openCliInTerminal(...a),
 }));
 
 vi.mock("#lib/utils/terminal/terminal-manager", () => ({
@@ -548,5 +555,63 @@ describe("when the CLI exits", () => {
 
 		expect(document.querySelector(".conv-exited")).toBeNull();
 		expect(document.querySelector(".term-slot")).not.toBeNull();
+	});
+});
+
+describe("continuing in the system terminal", () => {
+	const ref = { projectId: "p1", instanceId: "i1", scope: "instance" as const };
+	const terminalButton = () =>
+		screen.queryByRole("button", { name: /system terminal/i });
+
+	/** Opens a conversation, then marks its session as written by the CLI. */
+	async function openConfirmed() {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		instanceConversations.update((m) => ({
+			...m,
+			"p1:i1": m["p1:i1"].map((c) => ({ ...c, sessionConfirmed: true })),
+		}));
+		await tick();
+		return conversationsOf(ref)[0];
+	}
+
+	it("offers nothing until the CLI has written the session", async () => {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		expect(terminalButton()).toBeNull();
+	});
+
+	it("stops the embedded CLI and resumes the session in a terminal", async () => {
+		openCliInTerminal.mockResolvedValue(undefined);
+		const meta = await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(openCliInTerminal).toHaveBeenCalledWith(meta.cwd, [
+			"claude",
+			"--resume",
+			meta.sessionId,
+		]);
+		expect(document.querySelector('[role="alert"]')).toBeNull();
+	});
+
+	it("says why when no terminal could be opened", async () => {
+		openCliInTerminal.mockRejectedValue(
+			"No supported terminal emulator found.",
+		);
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+
+		expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+			"No supported terminal emulator",
+		);
 	});
 });

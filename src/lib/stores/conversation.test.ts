@@ -11,6 +11,7 @@ import {
 	conversationsOf,
 	conversationTerminals,
 	deleteConversation,
+	detachConversation,
 	findConversation,
 	forgetProject,
 	instanceConversations,
@@ -47,6 +48,12 @@ vi.mock("#lib/services/terminal-service", () => ({
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
 	terminalHasChildren: (...a: unknown[]) => terminalHasChildren(...a),
+}));
+
+const openCliInTerminal = vi.fn().mockResolvedValue(undefined);
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	openCliInTerminal: (...a: unknown[]) => openCliInTerminal(...a),
 }));
 
 const discoverCliSession = vi.fn().mockResolvedValue(null);
@@ -225,6 +232,31 @@ describe("reopening a conversation", () => {
 		expect(conversationsOf(ref).find((c) => c.id === meta.id)?.sessionId).toBe(
 			null,
 		);
+	});
+
+	it("asks for the session again when the first input comes after the launch poll gave up", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(60_000);
+		discoverCliSession.mockClear();
+		discoverCliSession.mockResolvedValueOnce(meta.sessionId);
+
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		await vi.advanceTimersByTimeAsync(2_000);
+
+		expect(discoverCliSession).toHaveBeenCalledTimes(1);
+		expect(
+			conversationsOf(ref).find((c) => c.id === meta.id)?.sessionConfirmed,
+		).toBe(true);
+	});
+
+	it("lets the poll restarted by the first input replace the one started at launch", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		noteTerminalInput(`conversation:${meta.id}`, "hello\r");
+		await vi.advanceTimersByTimeAsync(2_000);
+
+		expect(discoverCliSession).toHaveBeenCalledTimes(1);
 	});
 
 	it("leaves a session the user quit alone", async () => {
@@ -1177,5 +1209,35 @@ describe("tracking the last activity", () => {
 		noteTerminalInput(`conversation:${meta.id}`, "a");
 
 		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_000_000);
+	});
+});
+
+describe("continuing in the system terminal", () => {
+	it("stops the embedded CLI and resumes the session outside", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		instanceConversations.update((m) => ({
+			...m,
+			"p:i": m["p:i"].map((c) => ({ ...c, sessionConfirmed: true })),
+		}));
+
+		await detachConversation(ref, meta.id);
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(terminalOf(meta.id)).toBeNull();
+		expect(openCliInTerminal).toHaveBeenCalledWith("/repo/wt", [
+			"claude",
+			"--resume",
+			meta.sessionId,
+		]);
+	});
+
+	it("leaves a conversation whose session is not on disk alone", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		await detachConversation(ref, meta.id);
+
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(openCliInTerminal).not.toHaveBeenCalled();
+		expect(terminalOf(meta.id)).toBe(`conversation:${meta.id}`);
 	});
 });

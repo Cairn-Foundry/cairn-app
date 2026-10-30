@@ -23,6 +23,7 @@ import {
 	getConversationIndex,
 	saveConversationIndex,
 } from "#lib/services/conversation-service";
+import { openCliInTerminal } from "#lib/services/file-service";
 import { closeTerminal, createTerminal } from "#lib/services/terminal-service";
 import { onProjectRemoved } from "#lib/stores/project-teardown";
 import { lastCli } from "#lib/stores/ui";
@@ -103,8 +104,11 @@ const awaitingTitle = new Map<
  */
 const awaitingFirstInput = new Map<
 	string,
-	{ ref: ConversationRef; id: string }
+	{ ref: ConversationRef; id: string; startedAt: number }
 >();
+
+/** One session poll per conversation: a newer one supersedes the running one. */
+const sessionPolls = new Map<string, number>();
 
 /**
  * Unsubscribers of the resume watchers, keyed by terminal id. A conversation the
@@ -144,12 +148,21 @@ function noteActivity(terminalId: string, data: string): void {
 	patch(found.ref, tracker.id, { lastActiveAt: now });
 }
 
-/** Records that the CLI of this terminal now has a session worth resuming. */
+/**
+ * Records that the CLI of this terminal now has a session worth resuming, and
+ * asks for its id again from this moment: the poll started at launch has
+ * usually given up by the time a user who read the banner first says something.
+ */
 function markSessionStarted(terminalId: string): void {
 	const pending = awaitingFirstInput.get(terminalId);
 	if (!pending) return;
 	awaitingFirstInput.delete(terminalId);
-	patch(pending.ref, pending.id, { sessionStarted: true });
+	const { ref, id, startedAt } = pending;
+	patch(ref, id, { sessionStarted: true });
+	const meta = conversationsOf(ref).find((c) => c.id === id);
+	if (meta && !meta.sessionConfirmed) {
+		captureSessionId(ref, id, meta.cli, meta.cwd, startedAt);
+	}
 }
 
 const PERSIST_DELAY_MS = 250;
@@ -432,7 +445,9 @@ export async function openConversation(
 	conversationRuns.update((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
 	const run = runOf(id);
 	if (resuming) watchResumeFailure(ref, id, run, terminalId, startedAt);
-	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
+		if (!meta.sessionStarted) {
+		awaitingFirstInput.set(terminalId, { ref, id, startedAt });
+	}
 	activityTrackers.set(terminalId, {
 		projectId: ref.projectId,
 		instanceId: ref.instanceId,
@@ -466,10 +481,12 @@ function captureSessionId(
 	cwd: string,
 	startedAt: number,
 ): void {
+	const poll = (sessionPolls.get(id) ?? 0) + 1;
+	sessionPolls.set(id, poll);
 	let delay = SESSION_POLL_START_MS;
 	const attempt = async () => {
-		// Closed, deleted, or answered by another attempt: nothing left to do.
-		if (!terminalOf(id)) return;
+		// Closed, deleted, superseded, or answered by another attempt: nothing left to do.
+		if (!terminalOf(id) || sessionPolls.get(id) !== poll) return;
 		const current = conversationsOf(ref).find((c) => c.id === id);
 		if (!current || current.sessionConfirmed) return;
 
@@ -589,6 +606,22 @@ export function closeConversation(id: string): void {
 		delete next[id];
 		return next;
 	});
+}
+
+/**
+ * Continues the conversation in the system terminal. The embedded CLI goes first
+ * - two CLIs on one session would write over each other - and the same session
+ * is resumed outside. Only a session the CLI has written can be picked up, so a
+ * conversation without one is left alone.
+ */
+export async function detachConversation(
+	ref: ConversationRef,
+	id: string,
+): Promise<void> {
+	const meta = conversationsOf(ref).find((c) => c.id === id);
+	if (!meta?.sessionConfirmed) return;
+	closeConversation(id);
+	await openCliInTerminal(meta.cwd, resumeArgv(meta.cli, meta.sessionId));
 }
 
 /**

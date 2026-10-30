@@ -209,6 +209,13 @@
 					"en": "The git profile of a project is written into its repository configuration (user.name and user.email), so every commit of the project carries it, from Cairn, a terminal or a coding CLI, instead of only the commits made from the Git view. Picking the default takes back what the profile wrote and leaves an identity set by hand alone; editing a profile updates the projects using it and deleting one takes its identity back; a folder initialised from Cairn afterwards receives the profile too.",
 					"fr": "Le profil git d'un projet est inscrit dans la configuration de son dépôt (user.name et user.email) : chaque commit du projet le porte, depuis Cairn, un terminal ou un CLI de code, et non plus seulement les commits faits depuis la vue Git. Revenir au défaut retire ce que le profil avait inscrit et laisse intacte une identité posée à la main ; modifier un profil met à jour les projets qui l'utilisent et en supprimer un retire son identité ; un dossier initialisé ensuite depuis Cairn reçoit aussi le profil."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "On Linux, a terminal button in the conversation header continues the open conversation in the system terminal: the embedded CLI is stopped and the same session is resumed outside, in the same worktree, as a new tab of the terminal window already open when the emulator supports it. It appears once the CLI has saved the session; a CLI still running a command asks for confirmation first.",
+					"fr": "Sous Linux, un bouton terminal dans l'en-tête de la conversation la poursuit dans le terminal du système : le CLI intégré est arrêté et la même session reprise à l'extérieur, dans le même worktree, dans un nouvel onglet de la fenêtre de terminal déjà ouverte quand l'émulateur le permet. Il apparaît dès que le CLI a enregistré la session ; un CLI encore en train d'exécuter une commande demande d'abord confirmation."
+				}
 			}
 		]
 	},

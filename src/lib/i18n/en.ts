@@ -585,6 +585,7 @@ export const en = {
 		resume: "Resume",
 		restart: "Restart",
 		stop: "Stop this CLI",
+		continueInTerminal: "Continue in the system terminal",
 		stopHeading: "Agent",
 		stopTitle: (name: string) => `Stop "${name}"?`,
 		stopDescription:
