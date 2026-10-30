@@ -167,6 +167,13 @@
 					"en": "Ctrl+clicking a link in a Claude Code session opened the page twice in the browser.",
 					"fr": "Un Ctrl+clic sur un lien dans une session Claude Code ouvrait la page deux fois dans le navigateur."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A trash button beside the commit options clears the commit message and its description in one click, and puts the cursor back in the message.",
+					"fr": "Un bouton corbeille à côté des options de commit efface le message de commit et sa description en un clic, et remet le curseur dans le message."
+				}
 			}
 		]
 	},
