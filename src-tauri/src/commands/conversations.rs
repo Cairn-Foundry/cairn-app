@@ -50,6 +50,8 @@ pub struct ConversationMeta {
     pub created_at: i64,
     #[serde(rename = "lastOpenedAt", default)]
     pub last_opened_at: i64,
+    #[serde(rename = "lastActiveAt", default)]
+    pub last_active_at: i64,
     #[serde(default)]
     pub pinned: bool,
     #[serde(default)]
@@ -129,6 +131,7 @@ mod tests {
             cwd: "/repo/worktrees/x".into(),
             created_at: 1,
             last_opened_at: 2,
+            last_active_at: 3,
             pinned: true,
             archived: false,
         };

@@ -19,7 +19,7 @@
   import SearchInput from '#lib/components/SearchInput.svelte';
   import { t } from '#lib/i18n';
   import type { ConversationMeta, ConversationScope } from '#lib/services/conversation-service';
-  import { conversationMatches, sortConversations } from '#lib/utils/agent/conversation-list';
+  import { conversationMatches, conversationTooltip, sortConversations } from '#lib/utils/agent/conversation-list';
   import DeleteConversationModal from './DeleteConversationModal.svelte';
   import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
 
@@ -174,6 +174,7 @@
     class:active={row.meta.id === activeId}
     class:archived={row.meta.archived}
     class:dragging={dragActive && dragged?.id === row.meta.id}
+    title={renamingId === row.meta.id ? undefined : conversationTooltip(row.meta, cliLabel(row.meta.cli))}
     onpointerdown={(e) => draggable && dragPointerDown(e, row.meta, row.scope)}
     onpointermove={dragPointerMove}
     onpointerup={dragPointerUp}

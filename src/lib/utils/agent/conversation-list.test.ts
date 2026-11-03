@@ -3,7 +3,12 @@
 
 import { describe, expect, it } from "vitest";
 import type { ConversationMeta } from "#lib/services/conversation-service";
-import { conversationMatches, sortConversations } from "./conversation-list";
+import {
+	conversationMatches,
+	conversationTooltip,
+	lastActivityOf,
+	sortConversations,
+} from "./conversation-list";
 
 function meta(over: Partial<ConversationMeta> = {}): ConversationMeta {
 	return {
@@ -54,5 +59,40 @@ describe("sortConversations", () => {
 			meta({ id: "b", createdAt: 5, lastOpenedAt: 0 }),
 		]);
 		expect(sorted.map((c) => c.id)).toEqual(["b", "a"]);
+	});
+});
+
+describe("lastActivityOf", () => {
+	it("prefers the last typing, then the last launch, then the creation", () => {
+		expect(
+			lastActivityOf(meta({ createdAt: 1, lastOpenedAt: 2, lastActiveAt: 3 })),
+		).toBe(3);
+		expect(lastActivityOf(meta({ createdAt: 1, lastOpenedAt: 2 }))).toBe(2);
+		expect(lastActivityOf(meta({ createdAt: 1 }))).toBe(1);
+	});
+});
+
+describe("conversationTooltip", () => {
+	it("gives the full title, the CLI and both dates", () => {
+		const lines = conversationTooltip(
+			meta({
+				title: "A title far too long to fit in the history panel",
+				createdAt: Date.UTC(2026, 0, 2, 10),
+				lastActiveAt: Date.UTC(2026, 0, 3, 10),
+			}),
+			"Claude Code",
+		).split("\n");
+
+		expect(lines[0]).toBe("A title far too long to fit in the history panel");
+		expect(lines[1]).toBe("Claude Code");
+		expect(lines[2]).toMatch(/2026/);
+		expect(lines[3]).toMatch(/2026/);
+		expect(lines).toHaveLength(4);
+	});
+
+	it("leaves the dates out of an entry that has none", () => {
+		expect(
+			conversationTooltip(meta({ title: "" }), "Codex").split("\n"),
+		).toHaveLength(2);
 	});
 });

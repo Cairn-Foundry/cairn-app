@@ -46,6 +46,8 @@ export interface ConversationMeta {
 	createdAt: number;
 	/** Orders the list under the pinned ones. */
 	lastOpenedAt: number;
+	/** Last time the user typed into it; absent on entries older than the field. */
+	lastActiveAt?: number;
 	pinned: boolean;
 	archived: boolean;
 }
