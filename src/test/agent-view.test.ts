@@ -599,7 +599,7 @@ describe("continuing in the system terminal", () => {
 		]);
 		expect(document.querySelector('[role="alert"]')).toBeNull();
 		expect(document.querySelector(".conv-stopped")?.textContent).toContain(
-			"goes on in the system terminal",
+			"went on in the system terminal",
 		);
 	});
 
