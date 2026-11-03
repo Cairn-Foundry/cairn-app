@@ -172,14 +172,6 @@
             <ProjectColorPicker bind:color idSuffix="edit" />
           </div>
 
-          {#if $settings.gitProfiles.length > 0}
-            <div class="form-section">
-              <div class="ep-label">{t('editProject.gitProfile')}</div>
-              <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('editProject.gitProfile') as string} />
-              <p class="ep-hint">{t('editProject.gitProfileHint')}</p>
-            </div>
-          {/if}
-
           <div class="form-section">
             <div class="ep-label">{t('editProject.location')}</div>
             <div class="ep-location">
@@ -213,6 +205,14 @@
           </div>
         {:else}
           <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
+
+          {#if $settings.gitProfiles.length > 0}
+            <div class="form-section">
+              <div class="ep-label">{t('editProject.gitProfile')}</div>
+              <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('editProject.gitProfile') as string} />
+              <p class="ep-hint">{t('editProject.gitProfileHint')}</p>
+            </div>
+          {/if}
         {/if}
 
         {#if error}
