@@ -13,6 +13,7 @@ const duplicateProject = vi.hoisted(() => vi.fn());
 const relocateProject = vi.hoisted(() => vi.fn());
 const saveProjectOrder = vi.hoisted(() => vi.fn());
 const setActiveInstance = vi.hoisted(() => vi.fn());
+const setProjectGitProfile = vi.hoisted(() => vi.fn());
 const getListing = vi.hoisted(() => vi.fn());
 
 vi.mock("#lib/services/project-service", () => ({
@@ -24,6 +25,7 @@ vi.mock("#lib/services/project-service", () => ({
 	relocateProject,
 	saveProjectOrder,
 	setActiveInstance,
+	setProjectGitProfile,
 	getListing,
 }));
 
@@ -57,6 +59,7 @@ import {
 	relocateProjectInStore,
 	reorderProjects,
 	reorderTabs,
+	setGitProfile,
 	unregisterProject,
 } from "./project";
 
@@ -290,6 +293,24 @@ describe("editProject", () => {
 		updateProject.mockResolvedValue([project("a", { name: "new name" })]);
 		await editProject("a", "new name", "#000");
 		expect(get(projects)[0].name).toBe("new name");
+	});
+});
+
+describe("setGitProfile", () => {
+	it("records the profile on its project once stored", async () => {
+		setProjectGitProfile.mockResolvedValue(undefined);
+		projects.set([project("a"), project("b")]);
+		await setGitProfile("a", "work");
+		expect(setProjectGitProfile).toHaveBeenCalledWith("a", "work");
+		expect(get(projects)[0].gitProfileId).toBe("work");
+		expect(get(projects)[1].gitProfileId).toBeUndefined();
+	});
+
+	it("leaves the store alone when the write fails", async () => {
+		setProjectGitProfile.mockRejectedValue(new Error("disk"));
+		projects.set([project("a")]);
+		await expect(setGitProfile("a", "work")).rejects.toThrow("disk");
+		expect(get(projects)[0].gitProfileId).toBeUndefined();
 	});
 });
 

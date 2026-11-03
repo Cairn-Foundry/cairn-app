@@ -177,6 +177,11 @@ export function clearGitError(): void {
 	_git.update((s) => (s.error ? { ...s, error: null } : s));
 }
 
+/** Shows a git failure raised outside the store's own commands. */
+export function reportGitError(e: unknown): void {
+	_git.update((s) => ({ ...s, error: gitService.toGitError(e) }));
+}
+
 /**
  * Set by every git write, consumed by the next successful status read, which
  * publishes the new status and the new `indexVersion` in one update so a
@@ -192,7 +197,7 @@ async function mutate<T>(op: () => Promise<T>): Promise<T> {
 		clearGitError();
 		return result;
 	} catch (e) {
-		_git.update((s) => ({ ...s, error: gitService.toGitError(e) }));
+		reportGitError(e);
 		throw e;
 	}
 }

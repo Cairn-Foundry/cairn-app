@@ -163,18 +163,17 @@ describe("git profile", () => {
 		await expect(getProjectGitProfile("p1")).resolves.toBeNull();
 	});
 
-	it("writes the profile of a project without waiting", () => {
-		setProjectGitProfile("p1", "work");
+	it("writes the profile of a project", async () => {
+		await setProjectGitProfile("p1", "work");
 		expect(mockInvoke).toHaveBeenCalledWith("set_project_git_profile", {
 			projectId: "p1",
 			profileId: "work",
 		});
 	});
 
-	it("swallows a failed profile write", async () => {
+	it("surfaces a failed profile write", async () => {
 		mockInvoke.mockRejectedValue(new Error("disk"));
-		expect(() => setProjectGitProfile("p1", "work")).not.toThrow();
-		await Promise.resolve();
+		await expect(setProjectGitProfile("p1", "work")).rejects.toThrow("disk");
 	});
 });
 

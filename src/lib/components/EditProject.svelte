@@ -8,9 +8,10 @@
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import Select from '#lib/components/Select.svelte';
   import { t } from '#lib/i18n';
   import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
-  import { editProject, relocateProjectInStore } from '#lib/stores/project';
+  import { editProject, relocateProjectInStore, setGitProfile } from '#lib/stores/project';
   import { settings } from '#lib/stores/settings';
   import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '#lib/utils/integrations/branch-template';
   import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '#lib/stores/integrations';
@@ -31,6 +32,9 @@
   let color = project.color;
   let path = project.path;
   let branchTemplate = project.branchTemplate ?? '';
+  /** A profile deleted since it was picked reads as the default. */
+  const initialProfileId = $settings.gitProfiles.some((p) => p.id === project.gitProfileId) ? project.gitProfileId ?? '' : '';
+  let gitProfileId = initialProfileId;
   let loading = false;
   let error = '';
   let remoteUrl = '';
@@ -48,6 +52,11 @@
   });
 
   $: hasBindingChanges = JSON.stringify(bindings) !== pristineBindings;
+  $: hasProfileChange = gitProfileId !== initialProfileId;
+  $: profileOptions = [
+    { value: '', label: t('git.profileDefault') as string },
+    ...$settings.gitProfiles.map((p) => ({ value: p.id, label: p.label })),
+  ];
   $: globalTemplate = $settings.branchTemplate?.trim() || DEFAULT_BRANCH_TEMPLATE;
   /** Empty means "no override": the project follows the global template again. */
   $: templateOverride = branchTemplate.trim() || null;
@@ -58,7 +67,7 @@
     kind: 'Bug',
   });
   $: canSave = name.trim().length > 0
-    && (name.trim() !== project.name || color !== project.color || path !== project.path || hasTemplateChange || hasBindingChanges);
+    && (name.trim() !== project.name || color !== project.color || path !== project.path || hasTemplateChange || hasProfileChange || hasBindingChanges);
 
   async function pickLocation() {
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -75,6 +84,7 @@
       if (name.trim() !== project.name || color !== project.color || hasTemplateChange) {
         await editProject(project.id, name.trim(), color, templateOverride);
       }
+      if (hasProfileChange) await setGitProfile(project.id, gitProfileId);
       if (hasBindingChanges) await saveProjectIntegrations(project.id, bindings);
       dispatch('close');
     } catch (err) {
@@ -161,6 +171,14 @@
             <div class="ep-label">{t('editProject.color')}</div>
             <ProjectColorPicker bind:color idSuffix="edit" />
           </div>
+
+          {#if $settings.gitProfiles.length > 0}
+            <div class="form-section">
+              <div class="ep-label">{t('editProject.gitProfile')}</div>
+              <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('editProject.gitProfile') as string} />
+              <p class="ep-hint">{t('editProject.gitProfileHint')}</p>
+            </div>
+          {/if}
 
           <div class="form-section">
             <div class="ep-label">{t('editProject.location')}</div>

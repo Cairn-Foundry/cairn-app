@@ -62,6 +62,9 @@ export const fr = {
 		},
 		projectName: "Nom du projet",
 		color: "Couleur",
+		gitProfile: "Profil git",
+		gitProfileHint:
+			"Inscrit dans la configuration du dépôt, pour tous les commits de ce projet.",
 		projectNamePlaceholder: "Mon super projet",
 		repoNamePlaceholder: "nom-du-depot",
 		folderSelectedMain: "Dossier sélectionné",
@@ -185,6 +188,9 @@ export const fr = {
 		tabIntegrations: "Intégrations",
 		projectName: "Nom du projet",
 		color: "Couleur",
+		gitProfile: "Profil git",
+		gitProfileHint:
+			"Inscrit dans la configuration du dépôt, pour tous les commits de ce projet.",
 		location: "Emplacement",
 		changeLocation: "Modifier...",
 		locationHint:

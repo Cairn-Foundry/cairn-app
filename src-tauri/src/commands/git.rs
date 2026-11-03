@@ -1278,6 +1278,42 @@ pub async fn git_get_identity(worktree_path: String) -> Result<GitIdentity, GitE
     Ok(GitIdentity { name, email })
 }
 
+/// Writes the identity into the repository configuration, where every tool
+/// committing there reads it; a folder that is not a repository is left alone.
+pub fn write_identity(repo: &str, name: &str, email: &str) -> Result<(), String> {
+    let expanded = expand(repo);
+    if !is_repo_root(&expanded).map_err(|e| e.raw)? {
+        return Ok(());
+    }
+    for (key, value) in [("user.name", name), ("user.email", email)] {
+        run(git_cmd(&expanded).args(["config", key, value])).map_err(|e| e.raw)?;
+    }
+    Ok(())
+}
+
+/// Removes the identity from the repository configuration, but only that one:
+/// an identity set by hand stays.
+pub fn clear_identity(repo: &str, name: &str, email: &str) -> Result<(), String> {
+    let expanded = expand(repo);
+    if !is_repo_root(&expanded).map_err(|e| e.raw)? {
+        return Ok(());
+    }
+    let local = |key: &str| {
+        git_cmd(&expanded)
+            .args(["config", "--local", key])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default()
+    };
+    if local("user.name") != name || local("user.email") != email {
+        return Ok(());
+    }
+    for key in ["user.name", "user.email"] {
+        run(git_cmd(&expanded).args(["config", "--unset", key])).map_err(|e| e.raw)?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 /// Commits the index, optionally overriding the author.
 pub async fn git_commit(
@@ -3093,6 +3129,10 @@ diff --git a/two.txt b/two.txt
             self.path.to_string_lossy().to_string()
         }
 
+        fn config(&self, key: &str) -> String {
+            String::from_utf8_lossy(&self.git(&["config", "--local", key]).stdout).trim().to_string()
+        }
+
         fn git(&self, args: &[&str]) -> std::process::Output {
             Command::new("git")
                 .current_dir(&self.path)
@@ -3674,5 +3714,41 @@ diff --git a/two.txt b/two.txt
         let repo = TempRepo::new();
         repo.commit("a.txt", "one\n", "init");
         assert!(suggest_base_branches(repo.wt(), "--upload-pack=evil".into()).await.is_err());
+    }
+
+    #[test]
+    fn a_profile_is_written_into_the_repository_config() {
+        let repo = TempRepo::new();
+        write_identity(&repo.wt(), "Ada", "ada@example.com").unwrap();
+        assert_eq!(repo.config("user.name"), "Ada");
+        assert_eq!(repo.config("user.email"), "ada@example.com");
+    }
+
+    #[test]
+    fn the_default_takes_back_what_the_profile_wrote() {
+        let repo = TempRepo::new();
+        write_identity(&repo.wt(), "Ada", "ada@example.com").unwrap();
+        clear_identity(&repo.wt(), "Ada", "ada@example.com").unwrap();
+        assert_eq!(repo.config("user.name"), "");
+        assert_eq!(repo.config("user.email"), "");
+    }
+
+    #[test]
+    fn an_identity_set_by_hand_survives_the_default() {
+        let repo = TempRepo::new();
+        clear_identity(&repo.wt(), "Ada", "ada@example.com").unwrap();
+        assert_eq!(repo.config("user.name"), "Test");
+        assert_eq!(repo.config("user.email"), "test@example.com");
+    }
+
+    #[test]
+    fn a_folder_without_a_repository_is_left_alone() {
+        let dir = std::env::temp_dir().join(format!("cairn-identity-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.to_string_lossy().to_string();
+        assert!(write_identity(&path, "Ada", "ada@example.com").is_ok());
+        assert!(clear_identity(&path, "Ada", "ada@example.com").is_ok());
+        assert!(!dir.join(".git").exists());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

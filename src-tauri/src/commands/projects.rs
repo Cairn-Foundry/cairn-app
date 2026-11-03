@@ -8,6 +8,8 @@ use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use crate::storage::{projects_file, listing_file, worktrees_dir, cairn_dir, write_json_atomic, copy_dir_all};
+use crate::commands::git::{clear_identity, write_identity};
+use crate::commands::settings::{read_settings, GitProfile};
 
 /// A repository registered in the app, identified by a frontend-minted id.
 #[derive(Serialize, Deserialize, Clone)]
@@ -49,7 +51,7 @@ pub fn list_projects() -> Result<Vec<Project>, String> {
 /// project so the same repo cannot be registered twice through a symlink.
 /// Returns the updated list.
 #[tauri::command]
-pub fn add_project(project: Project) -> Result<Vec<Project>, String> {
+pub async fn add_project(project: Project) -> Result<Vec<Project>, String> {
     let mut projects = read_projects()?;
     if projects.iter().any(|p| p.id == project.id) {
         return Err(format!("Project with id '{}' already exists", project.id));
@@ -59,6 +61,7 @@ pub fn add_project(project: Project) -> Result<Vec<Project>, String> {
         return Err(format!("A project for '{}' already exists", canonical));
     }
     fs::create_dir_all(worktrees_dir(&project.id)?).map_err(|e| e.to_string())?;
+    apply_git_profile(&read_settings()?.git_profiles, &project, None)?;
     projects.push(project);
     write_projects(&projects)?;
     Ok(projects)
@@ -231,8 +234,47 @@ pub async fn set_project_git_profile(project_id: String, profile_id: String) -> 
     let project = projects.iter_mut()
         .find(|p| p.id == project_id)
         .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+    let profiles = read_settings()?.git_profiles;
+    let previous = find_profile(&profiles, project.git_profile_id.as_deref());
     project.git_profile_id = Some(profile_id);
+    apply_git_profile(&profiles, project, previous)?;
     write_projects(&projects)
+}
+
+/// `None` for the default and for an id that no longer exists.
+fn find_profile<'a>(profiles: &'a [GitProfile], id: Option<&str>) -> Option<&'a GitProfile> {
+    let id = id.filter(|id| !id.is_empty())?;
+    profiles.iter().find(|p| p.id == id)
+}
+
+/// Fixes the identity in the repository config, where every tool committing
+/// there reads it; the default takes back what `previous` wrote.
+fn apply_git_profile(profiles: &[GitProfile], project: &Project, previous: Option<&GitProfile>) -> Result<(), String> {
+    match find_profile(profiles, project.git_profile_id.as_deref()) {
+        Some(p) => write_identity(&project.path, &p.name, &p.email),
+        None => previous.map_or(Ok(()), |p| clear_identity(&project.path, &p.name, &p.email)),
+    }
+}
+
+/// The profiles whose name or email moved between two saves of the settings.
+fn changed_profiles<'a>(previous: &[GitProfile], next: &'a [GitProfile]) -> Vec<&'a GitProfile> {
+    next.iter()
+        .filter(|n| previous.iter().any(|p| p.id == n.id && (p.name != n.name || p.email != n.email)))
+        .collect()
+}
+
+/// Rewrites the identity of every project using a profile that just changed.
+pub fn rewrite_changed_profiles(previous: &[GitProfile], next: &[GitProfile]) -> Result<(), String> {
+    let changed = changed_profiles(previous, next);
+    if changed.is_empty() {
+        return Ok(());
+    }
+    for project in read_projects()? {
+        if let Some(p) = changed.iter().find(|p| Some(p.id.as_str()) == project.git_profile_id.as_deref()) {
+            write_identity(&project.path, &p.name, &p.email)?;
+        }
+    }
+    Ok(())
 }
 
 // listing.json
@@ -374,6 +416,27 @@ mod tests {
         for key in ["id", "name", "path", "color", "activeInstanceId"] {
             assert!(object.contains_key(key), "{key} is missing from the payload");
         }
+    }
+
+    fn profile(id: &str, email: &str) -> GitProfile {
+        GitProfile { id: id.into(), label: id.into(), name: "Ada".into(), email: email.into() }
+    }
+
+    #[test]
+    fn the_default_and_a_deleted_profile_resolve_to_none() {
+        let profiles = [profile("work", "w@x")];
+        assert!(find_profile(&profiles, None).is_none());
+        assert!(find_profile(&profiles, Some("")).is_none());
+        assert!(find_profile(&profiles, Some("gone")).is_none());
+        assert_eq!(find_profile(&profiles, Some("work")).map(|p| p.email.as_str()), Some("w@x"));
+    }
+
+    #[test]
+    fn only_a_profile_whose_identity_moved_is_rewritten() {
+        let before = [profile("work", "w@x"), profile("home", "h@x")];
+        let after = [profile("work", "w@y"), profile("home", "h@x"), profile("new", "n@x")];
+        let changed: Vec<&str> = changed_profiles(&before, &after).iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(changed, vec!["work"]);
     }
 
     #[test]

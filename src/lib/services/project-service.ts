@@ -105,12 +105,12 @@ export async function getProjectGitProfile(
 	}
 }
 
-/** Fire and forget, like the other sticky commit options. */
+/** Picks the profile the project commits with; the backend writes it into the repository config. */
 export function setProjectGitProfile(
 	projectId: string,
 	profileId: string,
-): void {
-	invoke("set_project_git_profile", { projectId, profileId }).catch(() => {});
+): Promise<void> {
+	return invoke<void>("set_project_git_profile", { projectId, profileId });
 }
 
 /** Expands `~`, then returns the canonical path; throws when it is missing or not a directory. */

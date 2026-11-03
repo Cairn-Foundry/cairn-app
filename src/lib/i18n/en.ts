@@ -62,6 +62,9 @@ export const en = {
 		},
 		projectName: "Project name",
 		color: "Color",
+		gitProfile: "Git profile",
+		gitProfileHint:
+			"Written into the repository configuration, for every commit of this project.",
 		projectNamePlaceholder: "My awesome project",
 		repoNamePlaceholder: "repo-name",
 		folderSelectedMain: "Folder selected",
@@ -181,6 +184,9 @@ export const en = {
 		tabIntegrations: "Integrations",
 		projectName: "Project name",
 		color: "Color",
+		gitProfile: "Git profile",
+		gitProfileHint:
+			"Written into the repository configuration, for every commit of this project.",
 		location: "Location",
 		changeLocation: "Change...",
 		locationHint:
