@@ -278,7 +278,7 @@ export async function openInTerminal(path: string): Promise<void> {
 	return invoke<void>("open_in_terminal", { path });
 }
 
-/** Opens the system terminal on `cwd` running an agent CLI, as the embedded PTY would. Linux only. */
+/** Opens the system terminal on `cwd` running an agent CLI, as the embedded PTY would. */
 export async function openCliInTerminal(
 	cwd: string,
 	argv: string[],

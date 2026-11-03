@@ -603,6 +603,8 @@ export const fr = {
 		restart: "Relancer",
 		stop: "Arrêter ce CLI",
 		continueInTerminal: "Continuer dans le terminal du système",
+		continuedInTerminal:
+			"Cette conversation se poursuit dans le terminal du système. Fermez-la là-bas avant de la reprendre ici.",
 		stopHeading: "Agent",
 		stopTitle: (name: string) => `Arrêter "${name}" ?`,
 		stopDescription:

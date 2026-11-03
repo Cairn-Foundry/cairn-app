@@ -267,6 +267,7 @@
   function stopNow() {
     if (!active) return;
     pendingStop = null;
+    detachedId = null;
     closeConversation(active.meta.id);
   }
 
@@ -276,7 +277,8 @@
    * resumes. The conversation stays listed, stopped, so Resume brings it back.
    */
   let canContinueInTerminal = $derived(active?.meta.sessionConfirmed === true);
-  let detachError = $state('');
+  let detachError = $state<{ id: string; message: string } | null>(null);
+  let detachedId = $state<string | null>(null);
 
   async function continueInTerminal() {
     if (!active) return;
@@ -287,12 +289,13 @@
   async function detachNow() {
     if (!active) return;
     pendingStop = null;
-    detachError = '';
+    detachError = null;
     const { ref, meta } = active;
     try {
       await detachConversation(ref, meta.id);
+      detachedId = meta.id;
     } catch (e) {
-      detachError = errorMessage(e);
+      detachError = { id: meta.id, message: errorMessage(e) };
     }
   }
 
@@ -450,10 +453,10 @@
 
       <div class="term-slot" bind:this={slotEl}></div>
 
-      {#if detachError}
+      {#if detachError?.id === active.meta.id}
         <div class="conv-exited" role="alert">
           <span class="conv-exited-mark"><Icon name="alert" size={14}/></span>
-          <span class="conv-exited-text selectable">{detachError}</span>
+          <span class="conv-exited-text selectable">{detachError.message}</span>
         </div>
       {/if}
 
@@ -486,7 +489,7 @@
 
       {#if !terminalId}
         <div class="conv-stopped">
-          <p>{t('agent.stopped')}</p>
+          <p>{t(detachedId === active.meta.id ? 'agent.continuedInTerminal' : 'agent.stopped')}</p>
           <button class="btn" onclick={() => void select(active.meta.id, active.ref.scope)}>
             {t('agent.resume')}
           </button>

@@ -1231,6 +1231,26 @@ describe("continuing in the system terminal", () => {
 		]);
 	});
 
+	it("resumes the session in the app when no terminal takes it", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		instanceConversations.update((m) => ({
+			...m,
+			"p:i": m["p:i"].map((c) => ({ ...c, sessionConfirmed: true })),
+		}));
+		openCliInTerminal.mockRejectedValueOnce("no terminal");
+		createTerminal.mockClear();
+
+		await expect(detachConversation(ref, meta.id)).rejects.toBe("no terminal");
+
+		expect(terminalOf(meta.id)).toBe(`conversation:${meta.id}`);
+		expect(createTerminal).toHaveBeenCalledTimes(1);
+		expect(createTerminal.mock.calls[0][6]).toEqual([
+			"claude",
+			"--resume",
+			meta.sessionId,
+		]);
+	});
+
 	it("leaves a conversation whose session is not on disk alone", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
 

@@ -612,7 +612,8 @@ export function closeConversation(id: string): void {
  * Continues the conversation in the system terminal. The embedded CLI goes first
  * - two CLIs on one session would write over each other - and the same session
  * is resumed outside. Only a session the CLI has written can be picked up, so a
- * conversation without one is left alone.
+ * conversation without one is left alone. When no terminal takes it, the CLI
+ * stopped for nothing is resumed back in the app.
  */
 export async function detachConversation(
 	ref: ConversationRef,
@@ -620,8 +621,14 @@ export async function detachConversation(
 ): Promise<void> {
 	const meta = conversationsOf(ref).find((c) => c.id === id);
 	if (!meta?.sessionConfirmed) return;
+	const wasRunning = terminalOf(id) !== null;
 	closeConversation(id);
-	await openCliInTerminal(meta.cwd, resumeArgv(meta.cli, meta.sessionId));
+	try {
+		await openCliInTerminal(meta.cwd, resumeArgv(meta.cli, meta.sessionId));
+	} catch (e) {
+		if (wasRunning) await openConversation(ref, id).catch(() => {});
+		throw e;
+	}
 }
 
 /**

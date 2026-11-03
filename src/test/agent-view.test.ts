@@ -598,6 +598,9 @@ describe("continuing in the system terminal", () => {
 			meta.sessionId,
 		]);
 		expect(document.querySelector('[role="alert"]')).toBeNull();
+		expect(document.querySelector(".conv-stopped")?.textContent).toContain(
+			"goes on in the system terminal",
+		);
 	});
 
 	it("says why when no terminal could be opened", async () => {
