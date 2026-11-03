@@ -146,7 +146,7 @@ fn expected_target() -> Option<PathBuf> {
 /// A path as one single-quoted `sh` word. An app bundle is named "Cairn
 /// Foundry", so its path holds a space, and single quotes are the only quoting
 /// that survives one - a quote inside is closed, escaped and reopened.
-fn sh_quote(path: &Path) -> String {
+pub(crate) fn sh_quote(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', r"'\''"))
 }
 

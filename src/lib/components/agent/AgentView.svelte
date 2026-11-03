@@ -50,7 +50,6 @@
   import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
   import { activeInstance } from '#lib/stores/instance';
   import { errorMessage } from '#lib/utils/error-message';
-  import { IS_MAC, IS_WINDOWS } from '#lib/utils/platform';
   import { lastCli } from '#lib/stores/ui';
   import * as manager from '#lib/utils/terminal/terminal-manager';
   import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
@@ -276,7 +275,7 @@
    * on. Offered once the CLI has written the session: it is what the terminal
    * resumes. The conversation stays listed, stopped, so Resume brings it back.
    */
-  let canContinueInTerminal = $derived(!IS_MAC && !IS_WINDOWS && active?.meta.sessionConfirmed === true);
+  let canContinueInTerminal = $derived(active?.meta.sessionConfirmed === true);
   let detachError = $state('');
 
   async function continueInTerminal() {
