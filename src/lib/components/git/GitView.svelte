@@ -26,7 +26,7 @@
   import GitignoreView from '#lib/components/git/GitignoreView.svelte';
   import { readFile, readFilePreview, fileMtimes, isBinaryPath } from '#lib/services/file-service';
   import { getDiffCommit, getCommitBody, toGitError } from '#lib/services/git-service';
-  import type { GitFileDiff, GitDiffHunk, GitError } from '#lib/services/git-service';
+  import type { GitFileDiff, GitDiffHunk, GitError, GitFileStatus } from '#lib/services/git-service';
   import { describeGitError } from '#lib/utils/git/git-error';
   import type { GitErrorAction } from '#lib/utils/git/git-error';
   import { t } from '#lib/i18n';
@@ -35,6 +35,7 @@
     git,
     refreshStatus,
     setDiffsWanted,
+    setVisibleDiffPaths,
     refreshLog,
     loadMoreLog,
     loadAllLog,
@@ -226,6 +227,13 @@
 
   $: void loadVisibleUntracked(filteredUnstagedCards.slice(0, unstagedVisible), state.status, instance?.worktreePath ?? null);
 
+  /* Only the cards rendered are diffed; the store reads the ones it lacks and
+     re-reads them all on each poll. */
+  $: setVisibleDiffPaths(
+    filteredUnstagedCards.slice(0, unstagedVisible).filter(c => c.status !== 'untracked').map(c => c.filePath),
+    filteredStagedCards.slice(0, stagedVisible).map(c => c.filePath),
+  );
+
   async function loadVisibleUntracked(cards: FileCard[], status: typeof state.status, wt: string | null): Promise<void> {
     if (!wt) return;
     if (status !== untrackedCheckedFor) {
@@ -280,29 +288,75 @@
   }
   const untrackedCardByText = new Map<string, FileCard>();
 
-  /* An untracked card is listed from the status alone and fills in once its
-     text is read, so the sorted list never reshuffles as reads land. */
+  /** The card class of a staged file, from the index column of the status. */
+  const STAGED_STATUS: Record<string, string> = {
+    A: 'staged-added',
+    D: 'staged-deleted',
+    R: 'staged-renamed',
+    C: 'staged-copied',
+  };
+
+  /** A conflict has no diff of its own to stage or unstage: the merge view owns it. */
+  const isListed = (status: GitFileStatus, path: string) =>
+    status[path] !== 'untracked' && status[path] !== 'conflicted';
+
+  /* Cards without a diff to show - not read yet, or read with nothing in it -
+     are kept per path, so the list does not rebuild them on every update. */
+  const unstagedPlaceholders = new Map<string, FileCard>();
+  const stagedPlaceholders = new Map<string, FileCard>();
+  function placeholderCard(
+    cache: Map<string, FileCard>,
+    live: Set<string>,
+    path: string,
+    status: string,
+    isPending: boolean,
+    oldPath?: string,
+  ): FileCard {
+    const key = `${isPending ? 'pending' : 'empty'}\0${status}\0${path}\0${oldPath ?? ''}`;
+    live.add(key);
+    let card = cache.get(key);
+    if (!card) {
+      card = makeCard(path, [], status, false, oldPath);
+      if (isPending) card = { ...card, isPending: true, diffHash: PENDING_HASH };
+      cache.set(key, card);
+    }
+    return card;
+  }
+  function pruneCards(cache: Map<string, FileCard>, live: Set<string>) {
+    for (const key of cache.keys()) if (!live.has(key)) cache.delete(key);
+  }
+
+  /* Every card is listed from the status alone and fills in once its diff or
+     its text is read, so the sorted list never reshuffles as reads land. */
   $: unstagedCards = (() => {
     const wt = instance?.worktreePath;
     if (!wt || state.statusWorktree !== wt) return [];
-    const cards = state.unstagedDiffs.map(f => cardFor(f, null));
-    const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
+    const cards: FileCard[] = [];
+    const placeholders = new Set<string>();
+    for (const p of state.changedPaths.unstaged) {
+      if (!isListed(state.status, p)) continue;
+      const diff = state.fileDiffs.unstaged[p];
+      const status = state.status[p] === 'deleted' ? 'deleted' : 'modified';
+      cards.push(diff ? cardFor(diff, status) : placeholderCard(unstagedPlaceholders, placeholders, p, status, diff === undefined));
+    }
     const live = new Set<string>();
     for (const p of untrackedPaths) {
-      if (seen.has(p)) continue;
       const entry = untrackedText.get(`${wt}/${p}`);
-      const key = entry ? `${p}\0${entry.text ?? ''}` : `${p}\0\0pending`;
+      if (!entry?.text) {
+        cards.push(placeholderCard(unstagedPlaceholders, placeholders, p, 'untracked', !entry));
+        continue;
+      }
+      const key = `${p}\0${entry.text}`;
       live.add(key);
       let card = untrackedCardByText.get(key);
       if (!card) {
-        card = entry
-          ? makeCard(p, untrackedHunks(entry.text ?? ''), 'untracked')
-          : { ...makeCard(p, [], 'untracked'), isPending: true, diffHash: PENDING_HASH };
+        card = makeCard(p, untrackedHunks(entry.text), 'untracked');
         untrackedCardByText.set(key, card);
       }
       cards.push(card);
     }
-    for (const key of untrackedCardByText.keys()) if (!live.has(key)) untrackedCardByText.delete(key);
+    pruneCards(untrackedCardByText, live);
+    pruneCards(unstagedPlaceholders, placeholders);
     return cards.sort(compareCards);
   })();
 
@@ -310,9 +364,22 @@
     ? unstagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitChangesSearch.toLowerCase()))
     : unstagedCards;
 
-  $: stagedCards = state.stagedDiffs
-    .map(f => cardFor(f, diffStatus(f)))
-    .sort(compareCards);
+  $: stagedCards = (() => {
+    const wt = instance?.worktreePath;
+    if (!wt || state.statusWorktree !== wt) return [];
+    const codes = state.changedPaths.stagedCodes ?? {};
+    const renames = state.changedPaths.renames ?? {};
+    const placeholders = new Set<string>();
+    const cards: FileCard[] = [];
+    for (const p of state.changedPaths.staged) {
+      if (state.status[p] === 'conflicted') continue;
+      const diff = state.fileDiffs.staged[p];
+      const status = STAGED_STATUS[codes[p]] ?? 'staged-modified';
+      cards.push(diff ? cardFor(diff, status) : placeholderCard(stagedPlaceholders, placeholders, p, status, diff === undefined, renames[p]));
+    }
+    pruneCards(stagedPlaceholders, placeholders);
+    return cards.sort(compareCards);
+  })();
 
   $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()
     ? stagedCards.filter(h => h.filePath.toLowerCase().includes($currentProjectViewState.gitStagedSearch.toLowerCase()))
@@ -398,8 +465,8 @@
 
   $: totalAdded          = commitDiffCards.reduce((s, c) => s + c.added,   0);
   $: totalRemoved        = commitDiffCards.reduce((s, c) => s + c.removed, 0);
-  $: totalStagedAdded   = stagedCards.reduce((s, c) => s + c.added,   0);
-  $: totalStagedRemoved = stagedCards.reduce((s, c) => s + c.removed, 0);
+  $: totalStagedAdded   = state.stagedTotals?.added ?? 0;
+  $: totalStagedRemoved = state.stagedTotals?.removed ?? 0;
 
   /** Loads the diff and the body of a commit in parallel and fills the detail pane. */
   async function fetchCommitDetail(commit: SelectedCommitInfo) {
@@ -732,9 +799,11 @@
     const paths = [...selectedFilePaths];
     try {
       await discardFiles(paths);
-      for (const path of paths) dispatch('fileDiscarded', path);
       discardMultipleActive = false;
     } finally {
+      // Even on a failure: the paths that could be discarded were, and their
+      // open tabs must reload.
+      for (const path of paths) dispatch('fileDiscarded', path);
       isDiscardingMultiple = false;
     }
   }
@@ -2114,7 +2183,9 @@
         <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
         <span>{t('git.stagedForCommit')}</span>
         <span class="count accent">{stagedCards.length} {t('git.files')}</span>
-        {#if totalStagedAdded > 0 || totalStagedRemoved > 0}
+        {#if state.isStagedTotalsPending}
+          <span class="diff-stat-pending" title={t('git.stagedTotalsPending') as string}><Skeleton width="56px" height={10}/></span>
+        {:else if totalStagedAdded > 0 || totalStagedRemoved > 0}
           <span class="diff-stat">
             {#if totalStagedAdded > 0}<span class="stat-add">+{totalStagedAdded}</span>{/if}
             {#if totalStagedRemoved > 0}<span class="stat-remove">-{totalStagedRemoved}</span>{/if}
@@ -2202,7 +2273,7 @@
                     {/if}
                   </div>
                 {/if}
-              {:else}
+              {:else if !h.isPending}
                 <div class="hunk-no-preview">{h.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
               {/if}
             </div>
@@ -3304,6 +3375,12 @@
     background: var(--bg-0);
     border-top: 1px solid var(--stroke-0);
     min-width: 0;
+  }
+
+  .diff-stat-pending {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .hunk-pending {

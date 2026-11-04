@@ -296,6 +296,8 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 		// These two rend a list of per-file diffs, not one diff text.
 		git_diff_unstaged: () => [],
 		git_diff_staged: () => [],
+		git_file_diffs: () => ({ unstaged: [], staged: [] }),
+		git_staged_totals: () => ({ added: 0, removed: 0 }),
 		git_diff_file: () => "",
 		git_file_at_head: (a) => world.files[a.path as string] ?? "",
 		git_blame_file: () => [],

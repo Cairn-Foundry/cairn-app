@@ -87,6 +87,7 @@ vi.mock("#lib/stores/git", async (importOriginal) => ({
 	setCommitBody: (...a: unknown[]) => setCommitBody(...a),
 	refreshStatus: (...a: unknown[]) => refreshStatus(...a),
 	setDiffsWanted: noop(),
+	setVisibleDiffPaths: noop(),
 	refreshLog: noop(),
 	loadMoreLog: noop(),
 	loadAllLog: noop(),
@@ -162,15 +163,43 @@ function diff(filePath: string, added = 1, removed = 0, truncated = false) {
 	return { filePath, hunks: [hunk(added, removed)], truncated };
 }
 
+type TestDiff = { filePath: string; oldPath?: string };
+
+/**
+ * `unstagedDiffs` and `stagedDiffs` describe what git would report: they land
+ * in the status the cards are listed from, and as the diffs already read.
+ */
 function setGit(overrides: Record<string, unknown> = {}) {
-	const { commitMessage, commitBody, ...rest } = overrides;
+	const {
+		commitMessage,
+		commitBody,
+		unstagedDiffs = [],
+		stagedDiffs = [],
+		...rest
+	} = overrides as Record<string, unknown> & {
+		unstagedDiffs?: TestDiff[];
+		stagedDiffs?: TestDiff[];
+	};
+	const byPath = (list: TestDiff[]) =>
+		Object.fromEntries(list.map((d) => [d.filePath, d]));
+	const renames = Object.fromEntries(
+		stagedDiffs.filter((d) => d.oldPath).map((d) => [d.filePath, d.oldPath]),
+	);
 	gitState.set({
 		isGitRepo: true,
 		status: {},
 		statusWorktree: "/wt",
-		changedPaths: { staged: [], unstaged: [] },
-		unstagedDiffs: [],
-		stagedDiffs: [],
+		changedPaths: {
+			staged: stagedDiffs.map((d) => d.filePath),
+			unstaged: unstagedDiffs.map((d) => d.filePath),
+			stagedCodes: Object.fromEntries(
+				stagedDiffs.map((d) => [d.filePath, d.oldPath ? "R" : "M"]),
+			),
+			renames,
+		},
+		fileDiffs: { unstaged: byPath(unstagedDiffs), staged: byPath(stagedDiffs) },
+		stagedTotals: null,
+		isStagedTotalsPending: false,
 		log: [],
 		graph: [],
 		stashes: [],
@@ -335,12 +364,58 @@ describe("GitView", () => {
 			expect(statOf(cardFor("a.ts"))).toEqual({ add: "+3", remove: "-2" });
 		});
 
-		/** A diff of removals only is a deleted file, and offers no open button. */
-		it("treats a diff of removals only as a deletion", async () => {
-			setGit({ unstagedDiffs: [diff("src/a.ts", 0, 4)] });
+		/** The status says a file is gone; a diff of removals only may be a file that was shortened. */
+		it("offers no open button for a file the status reports deleted", async () => {
+			setGit({
+				unstagedDiffs: [diff("src/a.ts", 0, 4)],
+				status: { "src/a.ts": "deleted" },
+			});
 			mount();
 			await settle();
 			expect(cardFor("a.ts").querySelector(".open-file-btn")).toBeNull();
+		});
+
+		it("still opens a file that only lost lines", async () => {
+			setGit({ unstagedDiffs: [diff("src/a.ts", 0, 4)] });
+			mount();
+			await settle();
+			expect(cardFor("a.ts").querySelector(".open-file-btn")).not.toBeNull();
+		});
+
+		it("lists a modified file before its diff is read, with a placeholder", async () => {
+			setGit({
+				changedPaths: { staged: [], unstaged: ["src/a.ts"] },
+				status: { "src/a.ts": "modified" },
+			});
+			mount();
+			await settle();
+			expect(cardNames()).toContain("a.ts");
+			expect(
+				cardFor("a.ts").closest(".hunk-card")?.querySelector(".hunk-pending"),
+			).not.toBeNull();
+		});
+
+		it("shows a placeholder on the staged totals while they are counted again", async () => {
+			setGit({
+				stagedDiffs: [diff("src/a.ts")],
+				stagedTotals: { added: 3, removed: 1 },
+				isStagedTotalsPending: true,
+			});
+			mount();
+			await settle();
+			expect(document.querySelector(".diff-stat-pending")).not.toBeNull();
+		});
+
+		it("shows the staged totals of the whole index", async () => {
+			setGit({
+				stagedDiffs: [diff("src/a.ts")],
+				stagedTotals: { added: 3, removed: 1 },
+			});
+			mount();
+			await settle();
+			expect(document.querySelector(".diff-stat-pending")).toBeNull();
+			const head = document.querySelector(".git-col-head .diff-stat");
+			expect(head?.textContent?.replace(/\s+/g, "")).toBe("+3-1");
 		});
 
 		it("offers to open a modified file", async () => {

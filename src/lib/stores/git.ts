@@ -20,6 +20,7 @@ import type {
 } from "#lib/services/git-service";
 import * as gitService from "#lib/services/git-service";
 import { listBranchesDetailed } from "#lib/services/instance-service";
+import { hashHunks } from "#lib/utils/git/diff-hash";
 import type { GitErrorAction } from "#lib/utils/git/git-error";
 import {
 	GIT_REFRESH_IDLE_INTERVAL_MS,
@@ -45,9 +46,12 @@ type GitState = {
 	snapshotVersion: string;
 	/** The commit HEAD pointed at in the last snapshot; the log follows it when it moves. */
 	head: string;
-	diffVersion: string;
-	unstagedDiffs: GitFileDiff[];
-	stagedDiffs: GitFileDiff[];
+	/** The diffs of the cards the git view shows; the rest of the list is read as it scrolls. */
+	fileDiffs: FileDiffs;
+	/** Lines added and removed across the index; null when unknown or not read. */
+	stagedTotals: gitService.DiffTotals | null;
+	/** The totals are being read again after a change; the view shows a placeholder meanwhile. */
+	isStagedTotalsPending: boolean;
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
 	changedPaths: gitService.GitChangedPaths;
 	currentBranch: string;
@@ -83,6 +87,17 @@ type GitState = {
 
 export type GraphPaging = "idle" | "loading" | "failed";
 
+/**
+ * Diffs by path, on each side of the index. A path present with `null` was read
+ * and has nothing to show; a path absent was not read yet.
+ */
+export type FileDiffs = {
+	unstaged: Record<string, GitFileDiff | null>;
+	staged: Record<string, GitFileDiff | null>;
+};
+
+const NO_FILE_DIFFS: FileDiffs = { unstaged: {}, staged: {} };
+
 /** Page sizes of the log and graph lists; both load more on scroll. */
 const LOG_PAGE = 50;
 /**
@@ -98,9 +113,9 @@ const INITIAL: GitState = {
 	indexVersion: 0,
 	snapshotVersion: "",
 	head: "",
-	diffVersion: "",
-	unstagedDiffs: [],
-	stagedDiffs: [],
+	fileDiffs: NO_FILE_DIFFS,
+	stagedTotals: null,
+	isStagedTotalsPending: false,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],
@@ -215,12 +230,14 @@ export function refreshStatus(silent = false): Promise<void> {
 	return queued;
 }
 
-/**
- * Whether anything on screen needs the full diffs. The background poll only
- * feeds the badges, and reading both diffs is by far the largest recurring
- * payload of the app, so it is skipped while the git view is closed.
- */
+/** Whether the git view is on screen: nothing reads a diff while it is not. */
 let diffsWanted = false;
+
+/** The paths of the cards the git view renders, on each side of the index. */
+let visibleDiffPaths: { unstaged: string[]; staged: string[] } = {
+	unstaged: [],
+	staged: [],
+};
 
 /** Called by the git view as it opens and closes. */
 export async function initRepository(): Promise<void> {
@@ -234,12 +251,180 @@ export function setDiffsWanted(wanted: boolean): void {
 	const was = diffsWanted;
 	diffsWanted = wanted;
 	if (!wanted) {
-		_git.update((s) => ({ ...s, unstagedDiffs: [], stagedDiffs: [] }));
+		_git.update((s) => ({
+			...s,
+			fileDiffs: NO_FILE_DIFFS,
+			stagedTotals: null,
+			isStagedTotalsPending: false,
+		}));
 		return;
 	}
 	if (!was) {
-		_git.update((s) => ({ ...s, diffVersion: "" }));
+		void syncFileDiffs(true);
+		void refreshStagedTotals();
 	}
+}
+
+/** Called by the git view with the cards it renders; the ones not read yet are read now. */
+export function setVisibleDiffPaths(
+	unstaged: string[],
+	staged: string[],
+): void {
+	visibleDiffPaths = { unstaged, staged };
+	if (diffsWanted) void syncFileDiffs(false);
+}
+
+let diffSync: Promise<void> | null = null;
+let diffQueued: { all: boolean; run: Promise<void> } | null = null;
+
+/**
+ * Reads the diffs of the visible cards: all of them on a poll, which is what
+ * notices an edit to a file that was already modified, or only those not read
+ * yet when the list scrolls. One read at a time, so an older one never lands
+ * over a newer one; requests arriving meanwhile collapse into a single follow-up.
+ */
+function syncFileDiffs(all: boolean): Promise<void> {
+	if (!diffSync) {
+		diffSync = runSyncFileDiffs(all).finally(() => {
+			diffSync = null;
+		});
+		return diffSync;
+	}
+	if (diffQueued) {
+		diffQueued.all ||= all;
+		return diffQueued.run;
+	}
+	const queued: { all: boolean; run: Promise<void> } = {
+		all,
+		run: diffSync.then(() => {
+			diffQueued = null;
+			return syncFileDiffs(queued.all);
+		}),
+	};
+	diffQueued = queued;
+	return queued.run;
+}
+
+async function runSyncFileDiffs(all: boolean): Promise<void> {
+	const wt = worktree();
+	if (!wt || !diffsWanted) return;
+	const state = get(_git);
+	if (state.statusWorktree !== wt) return;
+	const { unstaged, staged } = visibleDiffPaths;
+	const askU = all
+		? unstaged
+		: unstaged.filter((p) => !(p in state.fileDiffs.unstaged));
+	const askS = all
+		? staged
+		: staged.filter((p) => !(p in state.fileDiffs.staged));
+	if (askU.length === 0 && askS.length === 0) return;
+	const renames = state.changedPaths.renames ?? {};
+	let page: gitService.GitFileDiffs;
+	try {
+		page = await gitService.getFileDiffs(
+			wt,
+			askU,
+			askS.map((path) =>
+				renames[path] ? { path, oldPath: renames[path] } : { path },
+			),
+		);
+	} catch {
+		return;
+	}
+	// Compared before writing: a store update notifies even when it hands back
+	// the same object, and a poll that changed nothing must not re-render.
+	const current = get(_git);
+	if (current.statusWorktree !== wt || worktree() !== wt) return;
+	const { fileDiffs } = current;
+	const nextU = mergeDiffs(
+		fileDiffs.unstaged,
+		askU,
+		page.unstaged,
+		visibleDiffPaths.unstaged,
+	);
+	const nextS = mergeDiffs(
+		fileDiffs.staged,
+		askS,
+		page.staged,
+		visibleDiffPaths.staged,
+	);
+	if (nextU === fileDiffs.unstaged && nextS === fileDiffs.staged) return;
+	_git.update((s) => ({ ...s, fileDiffs: { unstaged: nextU, staged: nextS } }));
+}
+
+const sameDiff = (a: GitFileDiff | null | undefined, b: GitFileDiff | null) =>
+	a === b ||
+	(!!a &&
+		!!b &&
+		a.truncated === b.truncated &&
+		a.oldPath === b.oldPath &&
+		hashHunks(a.hunks) === hashHunks(b.hunks));
+
+/**
+ * Folds a read into what was held, kept to the visible paths. An unchanged diff
+ * keeps its object, so its card and its fold state survive the poll; when
+ * nothing moved, the previous record itself comes back.
+ */
+function mergeDiffs(
+	prev: Record<string, GitFileDiff | null>,
+	asked: string[],
+	read: GitFileDiff[],
+	visible: string[],
+): Record<string, GitFileDiff | null> {
+	const byPath = new Map(read.map((d) => [d.filePath, d]));
+	const askedSet = new Set(asked);
+	const next: Record<string, GitFileDiff | null> = {};
+	let changed = false;
+	for (const path of visible) {
+		if (askedSet.has(path)) {
+			const fresh = byPath.get(path) ?? null;
+			next[path] = sameDiff(prev[path], fresh) ? (prev[path] ?? null) : fresh;
+		} else if (path in prev) {
+			next[path] = prev[path];
+		} else {
+			continue;
+		}
+		if (!(path in prev) || prev[path] !== next[path]) changed = true;
+	}
+	if (!changed && Object.keys(prev).length === Object.keys(next).length)
+		return prev;
+	return next;
+}
+
+let totalsRun = 0;
+
+/** Reads the index totals again, the view showing a placeholder until they land. */
+async function refreshStagedTotals(): Promise<void> {
+	const wt = worktree();
+	if (!wt || !diffsWanted) return;
+	const run = ++totalsRun;
+	const state = get(_git);
+	if (state.changedPaths.staged.length === 0) {
+		const { stagedTotals: held, isStagedTotalsPending } = state;
+		if (held?.added === 0 && held.removed === 0 && !isStagedTotalsPending)
+			return;
+		_git.update((s) => ({
+			...s,
+			stagedTotals: { added: 0, removed: 0 },
+			isStagedTotalsPending: false,
+		}));
+		return;
+	}
+	if (!state.isStagedTotalsPending) {
+		_git.update((s) => ({ ...s, isStagedTotalsPending: true }));
+	}
+	let totals: gitService.DiffTotals | null;
+	try {
+		totals = await gitService.getStagedTotals(wt);
+	} catch {
+		totals = null;
+	}
+	if (run !== totalsRun || worktree() !== wt) return;
+	_git.update((s) => ({
+		...s,
+		stagedTotals: totals,
+		isStagedTotalsPending: false,
+	}));
 }
 
 /**
@@ -255,13 +440,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		const before = get(_git);
 		const sameWorktree = before.statusWorktree === wt;
 		const known = sameWorktree ? before.snapshotVersion : "";
-		const snapshotPromise = gitService.getSnapshot(wt, known);
-		const diffsPromise = diffsWanted
-			? gitService.getDiffs(wt, sameWorktree ? before.diffVersion : "")
-			: Promise.resolve(null);
-		diffsPromise.catch(() => {});
-
-		const snap = await snapshotPromise;
+		const snap = await gitService.getSnapshot(wt, known);
 		if (snap && !snap.status.isGitRepo) {
 			_git.update((s) => ({
 				...s,
@@ -269,9 +448,9 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				statusWorktree: wt,
 				snapshotVersion: snap.version,
 				head: "",
-				unstagedDiffs: [],
-				stagedDiffs: [],
-				diffVersion: "",
+				fileDiffs: NO_FILE_DIFFS,
+				stagedTotals: null,
+				isStagedTotalsPending: false,
 				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
@@ -287,11 +466,13 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			}));
 			return;
 		}
-		const diffs = await diffsPromise;
 		const bump = indexDirty ? 1 : 0;
 		indexDirty = false;
 		const current = get(_git);
-		if (!snap && !diffs && !bump && !current.isLoading) return;
+		if (!snap && !bump && !current.isLoading) {
+			if (diffsWanted) void syncFileDiffs(true);
+			return;
+		}
 		_git.update((s) => ({
 			...s,
 			...(snap
@@ -308,11 +489,12 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 					}
 				: {}),
 			indexVersion: s.indexVersion + bump,
-			unstagedDiffs: diffs ? diffs.unstaged : s.unstagedDiffs,
-			stagedDiffs: diffs ? diffs.staged : s.stagedDiffs,
-			diffVersion: diffs ? diffs.version : s.diffVersion,
 			isLoading: false,
 		}));
+		if (diffsWanted) {
+			void syncFileDiffs(true);
+			if (snap || bump) void refreshStagedTotals();
+		}
 		if (snap) void syncGraph();
 		// A commit, reset or checkout made outside the app moves HEAD without
 		// any write of ours to refresh the history behind it.
@@ -921,9 +1103,8 @@ const WORKTREE_FIELDS = [
 	"status",
 	"statusWorktree",
 	"snapshotVersion",
-	"diffVersion",
-	"unstagedDiffs",
-	"stagedDiffs",
+	"fileDiffs",
+	"stagedTotals",
 	"changedPaths",
 	"currentBranch",
 	"branches",
@@ -949,9 +1130,8 @@ const EMPTY: WorktreeData = {
 	status: {},
 	statusWorktree: null,
 	snapshotVersion: "",
-	diffVersion: "",
-	unstagedDiffs: [],
-	stagedDiffs: [],
+	fileDiffs: NO_FILE_DIFFS,
+	stagedTotals: null,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],
@@ -977,10 +1157,10 @@ const EMPTY: WorktreeData = {
  * target worktree already had, and the refresh that follows only publishes what
  * actually changed.
  *
- * Holding the versions matters as much as holding the data: `snapshotVersion`
- * and `diffVersion` are what let the backend answer "nothing changed" and hand
- * back nothing. Zeroing them made every return switch re-read, re-serialize and
- * re-parse a repository that had not moved.
+ * Holding the version matters as much as holding the data: `snapshotVersion`
+ * is what lets the backend answer "nothing changed" and hand back nothing.
+ * Zeroing it made every return switch re-read, re-serialize and re-parse a
+ * repository that had not moved.
  */
 const byWorktree = new Map<string, WorktreeData>();
 
@@ -1248,40 +1428,43 @@ export async function pushStash(
 	await Promise.all([refreshStashes(), refreshStatus(), syncGraph()]);
 }
 
-/** Stages a selection, one file at a time so a single failure names the file. */
+/**
+ * A write over a selection: when it fails, the paths that could go through
+ * already did, so the index is read again either way.
+ */
+async function mutatePaths(op: () => Promise<void>): Promise<void> {
+	let hasFailed = false;
+	try {
+		await mutate(op);
+	} catch (e) {
+		hasFailed = true;
+		throw e;
+	} finally {
+		indexDirty = true;
+		// Silent after a failure: a loud refresh clears the error it just published.
+		await refreshStatus(hasFailed);
+	}
+}
+
+/** Stages a selection in one call. */
 export async function stageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
-	if (!wt) return;
-	await mutate(async () => {
-		for (const filePath of filePaths) {
-			await gitService.stageFile(wt, filePath);
-		}
-	});
-	await refreshStatus();
+	if (!wt || filePaths.length === 0) return;
+	await mutatePaths(() => gitService.stageFiles(wt, filePaths));
 }
 
-/** Unstages a selection. */
+/** Unstages a selection in one call. */
 export async function unstageFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
-	if (!wt) return;
-	await mutate(async () => {
-		for (const filePath of filePaths) {
-			await gitService.unstageFile(wt, filePath);
-		}
-	});
-	await refreshStatus();
+	if (!wt || filePaths.length === 0) return;
+	await mutatePaths(() => gitService.unstageFiles(wt, filePaths));
 }
 
-/** Throws away the worktree changes of a selection; not undoable. */
+/** Throws away the worktree changes of a selection in one call; not undoable. */
 export async function discardFiles(filePaths: string[]): Promise<void> {
 	const wt = worktree();
-	if (!wt) return;
-	await mutate(async () => {
-		for (const filePath of filePaths) {
-			await gitService.discardFile(wt, filePath);
-		}
-	});
-	await refreshStatus();
+	if (!wt || filePaths.length === 0) return;
+	await mutatePaths(() => gitService.discardFiles(wt, filePaths));
 }
 
 /** Applies a stash and drops it. */

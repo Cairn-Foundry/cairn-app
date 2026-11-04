@@ -176,6 +176,10 @@ export async function forgetRepoRoots(
 export interface GitChangedPaths {
 	staged: string[];
 	unstaged: string[];
+	/** The index column of each staged path: `A`, `M`, `D`, `R`, `C`... */
+	stagedCodes?: Record<string, string>;
+	/** Staged renames and copies, destination to source. */
+	renames?: Record<string, string>;
 }
 
 /** Which files changed on either side of the index, without reading the diffs. */
@@ -270,20 +274,37 @@ export async function getDiffUnstaged(
 	return invoke("git_diff_unstaged", { worktreePath });
 }
 
-/** Both diffs behind a version; null when the caller already holds that version. */
-export interface GitDiffs {
-	version: string;
+/** A staged path to diff, with the source of a rename so git pairs the two. */
+export interface StagedPath {
+	path: string;
+	oldPath?: string;
+}
+
+/** The diffs of some paths, on both sides of the index. */
+export interface GitFileDiffs {
 	unstaged: GitFileDiff[];
 	staged: GitFileDiff[];
 }
 
-export async function getDiffs(
+/** Diffs of the given paths only: the cards on screen, never the whole worktree. */
+export async function getFileDiffs(
 	worktreePath: string,
-	knownVersion: string,
-): Promise<GitDiffs | null> {
-	return dedupeInflight(`diffs:${worktreePath}:${knownVersion}`, () =>
-		invoke("git_diffs", { worktreePath, knownVersion }),
-	);
+	unstaged: string[],
+	staged: StagedPath[],
+): Promise<GitFileDiffs> {
+	return invoke("git_file_diffs", { worktreePath, unstaged, staged });
+}
+
+/** Lines added and removed across the whole index. */
+export interface DiffTotals {
+	added: number;
+	removed: number;
+}
+
+export async function getStagedTotals(
+	worktreePath: string,
+): Promise<DiffTotals> {
+	return invoke("git_staged_totals", { worktreePath });
 }
 
 /** Index against HEAD: what the next commit would contain. */
@@ -411,6 +432,24 @@ export async function unstageFile(
 	filePath: string,
 ): Promise<void> {
 	return invoke("git_unstage_file", { worktreePath, filePath });
+}
+
+/**
+ * A selection in one call. The paths that can go through do; the error, if
+ * any, names every one that could not.
+ */
+export async function stageFiles(
+	worktreePath: string,
+	filePaths: string[],
+): Promise<void> {
+	return invoke("git_stage_files", { worktreePath, filePaths });
+}
+
+export async function unstageFiles(
+	worktreePath: string,
+	filePaths: string[],
+): Promise<void> {
+	return invoke("git_unstage_files", { worktreePath, filePaths });
 }
 
 /** Stages every change, untracked files included. */
@@ -923,6 +962,14 @@ export async function discardFile(
 	filePath: string,
 ): Promise<void> {
 	return invoke("git_discard_file", { worktreePath, filePath });
+}
+
+/** Throws away the worktree changes of a selection in one call, like `stageFiles`. */
+export async function discardFiles(
+	worktreePath: string,
+	filePaths: string[],
+): Promise<void> {
+	return invoke("git_discard_files", { worktreePath, filePaths });
 }
 
 /**

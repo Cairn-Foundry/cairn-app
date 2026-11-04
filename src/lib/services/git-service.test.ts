@@ -18,6 +18,7 @@ import {
 	deleteBranch,
 	deleteRemoteBranch,
 	discardFile,
+	discardFiles,
 	fetch,
 	forgetRepoRoots,
 	GIT_ERROR_CODES,
@@ -30,9 +31,9 @@ import {
 	getDiffFileBetween,
 	getDiffFilesBetween,
 	getDiffStaged,
-	getDiffs,
 	getDiffUnstaged,
 	getFileAtHead,
+	getFileDiffs,
 	getFileInIndex,
 	getGraph,
 	getGraphStashes,
@@ -43,6 +44,7 @@ import {
 	getRemoteStatus,
 	getRemoteUrl,
 	getSnapshot,
+	getStagedTotals,
 	getStashList,
 	getStashShow,
 	getStatusFull,
@@ -71,6 +73,7 @@ import {
 	setRemoteUrl,
 	stageAll,
 	stageFile,
+	stageFiles,
 	stashApply,
 	stashClear,
 	stashDrop,
@@ -85,6 +88,7 @@ import {
 	toGitError,
 	unstageAll,
 	unstageFile,
+	unstageFiles,
 	writeExclude,
 } from "./git-service";
 
@@ -411,6 +415,40 @@ const FORWARDERS: [
 		"getChangedPaths",
 		() => getChangedPaths(WT),
 		"git_changed_paths",
+		{ worktreePath: WT },
+	],
+	[
+		"stageFiles",
+		() => stageFiles(WT, ["a", "b"]),
+		"git_stage_files",
+		{ worktreePath: WT, filePaths: ["a", "b"] },
+	],
+	[
+		"unstageFiles",
+		() => unstageFiles(WT, ["a", "b"]),
+		"git_unstage_files",
+		{ worktreePath: WT, filePaths: ["a", "b"] },
+	],
+	[
+		"discardFiles",
+		() => discardFiles(WT, ["a", "b"]),
+		"git_discard_files",
+		{ worktreePath: WT, filePaths: ["a", "b"] },
+	],
+	[
+		"getFileDiffs",
+		() => getFileDiffs(WT, ["a"], [{ path: "b", oldPath: "c" }]),
+		"git_file_diffs",
+		{
+			worktreePath: WT,
+			unstaged: ["a"],
+			staged: [{ path: "b", oldPath: "c" }],
+		},
+	],
+	[
+		"getStagedTotals",
+		() => getStagedTotals(WT),
+		"git_staged_totals",
 		{ worktreePath: WT },
 	],
 	[
@@ -880,34 +918,6 @@ describe("shared reads", () => {
 		expect(mockInvoke).toHaveBeenCalledWith("git_status_full", {
 			worktreePath: path,
 		});
-	});
-
-	it("reads the diffs against a known version and shares them", async () => {
-		const path = wt();
-		const diffs = { version: "v2", unstaged: [], staged: [] };
-		mockInvoke.mockResolvedValue(diffs);
-		const [first, second] = await Promise.all([
-			getDiffs(path, "v1"),
-			getDiffs(path, "v1"),
-		]);
-		expect(first).toBe(diffs);
-		expect(second).toBe(diffs);
-		expect(mockInvoke).toHaveBeenCalledTimes(1);
-		expect(mockInvoke).toHaveBeenCalledWith("git_diffs", {
-			worktreePath: path,
-			knownVersion: "v1",
-		});
-	});
-
-	it("does not share diffs read against different versions", async () => {
-		const path = wt();
-		await Promise.all([getDiffs(path, "v1"), getDiffs(path, "v2")]);
-		expect(mockInvoke).toHaveBeenCalledTimes(2);
-	});
-
-	it("answers null for diffs when nothing changed since the known version", async () => {
-		mockInvoke.mockResolvedValue(null);
-		await expect(getDiffs(wt(), "v1")).resolves.toBeNull();
 	});
 
 	it("forwards the known version to the snapshot read", async () => {

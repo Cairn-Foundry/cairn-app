@@ -79,7 +79,7 @@ pub use git::{
     git_delete_remote_branch, git_rename_branch,
     git_push, git_pull, git_fetch, git_remote_status, git_remote_url,
     git_remote_list, git_remote_add, git_remote_rename, git_remote_set_url, git_remote_remove,
-    git_branch_divergence, git_remove_index_lock,
+    git_branch_divergence, git_remove_index_lock, git_stage_files, git_unstage_files, git_discard_files,
     git_operation_state, git_rm, git_merge, git_merge_continue, git_merge_abort,
     git_cherry_pick, git_cherry_pick_continue, git_cherry_pick_skip, git_cherry_pick_abort,
     git_rebase, git_rebase_continue, git_rebase_skip, git_rebase_abort,
@@ -92,7 +92,7 @@ pub use git::{
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_tag_list, git_tag_create, git_tag_delete, git_tag_push, git_tag_delete_remote,
     git_tag_remote_list,
-    git_revert_commit, git_reset, git_discard_file, git_snapshot, git_diffs};
+    git_revert_commit, git_reset, git_discard_file, git_snapshot, git_file_diffs, git_staged_totals};
 pub use instances::{list_instances, create_instance, duplicate_instance, adopt_worktree, list_unclaimed_worktrees, delete_instance, check_instance_deletion, instance_worktree_health, update_instance_status, update_instance_ticket, update_instance_base_branch};
 pub use integrations::{
     IntegrationState, integration_kinds, list_integration_connections, save_integration_connection,

@@ -62,6 +62,34 @@
 					"en": "The Git view no longer takes minutes to open on a worktree with tens of thousands of untracked files: only the files on screen are read, and the others fill in as the list is scrolled.",
 					"fr": "La vue Git ne met plus plusieurs minutes à s'ouvrir sur un worktree contenant des dizaines de milliers de fichiers non suivis : seuls les fichiers affichés sont lus, les autres se remplissent au fil du défilement."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Git view stays responsive on a worktree with tens of thousands of modified files: only the files on screen are diffed, the others as the list is scrolled, and the staged line totals are counted in the background.",
+					"fr": "La vue Git reste réactive sur un worktree contenant des dizaines de milliers de fichiers modifiés : seuls les fichiers affichés sont comparés, les autres au fil du défilement, et le total des lignes indexées est calculé en arrière-plan."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A file that only lost lines is no longer shown as deleted in the Git view, and can be opened from its card.",
+					"fr": "Un fichier qui a seulement perdu des lignes n'est plus présenté comme supprimé dans la vue Git, et s'ouvre depuis sa carte."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Staging, unstaging or discarding a selection of files is done in one go: a file that cannot be processed no longer stops the others, and every file that failed is named in the error.",
+					"fr": "Indexer, retirer de l'index ou annuler une sélection de fichiers se fait en une seule fois : un fichier impossible à traiter n'arrête plus les autres, et chaque fichier en échec est nommé dans l'erreur."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Git operations, in Cairn and in the agents running in its terminals, no longer fail so often on \"index.lock: File exists\": the Git view no longer locks the index while it refreshes, and a write waits briefly for a lock another process is about to release.",
+					"fr": "Les opérations Git, dans Cairn comme dans les agents lancés dans ses terminaux, n'échouent plus aussi souvent sur « index.lock: File exists » : la vue Git ne verrouille plus l'index en se rafraîchissant, et une écriture patiente un instant quand un autre processus s'apprête à libérer le verrou."
+				}
 			}
 		]
 	},

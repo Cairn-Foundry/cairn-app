@@ -1809,6 +1809,7 @@ export const en = {
 		commitBodyLabel: "Commit description",
 		noDiffPreview: "No preview available (binary or empty file).",
 		renamedUnchanged: "Renamed, content unchanged.",
+		stagedTotalsPending: "Counting the staged lines",
 		renamedFrom: (path: string) => `from ${path}`,
 		diffTooLarge: "This file is too large to show its diff here.",
 		openInEditor: "Open in editor",

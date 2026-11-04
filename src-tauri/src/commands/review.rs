@@ -171,6 +171,8 @@ fn git_cmd(worktree: &str) -> Command {
     let mut cmd = child_env::command("git");
     cmd.current_dir(worktree);
     cmd.env("LC_ALL", "C").env("LANG", "C");
+    // Reads only: no index refresh written back, so no lock held against a write.
+    cmd.env("GIT_OPTIONAL_LOCKS", "0");
     cmd
 }
 

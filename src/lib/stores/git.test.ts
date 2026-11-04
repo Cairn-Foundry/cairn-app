@@ -15,6 +15,7 @@ import {
 	refreshStatus,
 	setDiffsWanted,
 	setGitWatched,
+	setVisibleDiffPaths,
 	stageFile as stageFileInStore,
 	startGitPolling,
 } from "./git";
@@ -43,7 +44,8 @@ vi.mock("#lib/services/git-service", () => ({
 	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),
 	getDiffStaged: vi.fn().mockResolvedValue([]),
-	getDiffs: vi.fn().mockResolvedValue(null),
+	getFileDiffs: vi.fn().mockResolvedValue({ unstaged: [], staged: [] }),
+	getStagedTotals: vi.fn().mockResolvedValue({ added: 0, removed: 0 }),
 	getCurrentBranch: vi.fn().mockResolvedValue("main"),
 	getRemoteStatus: vi.fn().mockResolvedValue(null),
 	getOperationState: vi.fn().mockResolvedValue(null),
@@ -146,29 +148,35 @@ describe("refreshStatus", () => {
 	});
 
 	it("reads the diffs again after the git view was left and reopened", async () => {
-		const { getDiffs } = await import("#lib/services/git-service");
-		const diffs = getDiffs as unknown as ReturnType<typeof vi.fn>;
-		diffs.mockResolvedValue({
-			version: "v1",
+		const { getFileDiffs } = await import("#lib/services/git-service");
+		const read = getFileDiffs as unknown as ReturnType<typeof vi.fn>;
+		read.mockResolvedValue({
 			unstaged: [{ filePath: "a.txt", hunks: [] }],
 			staged: [],
 		});
-
-		setDiffsWanted(true);
+		getStatusFull.mockResolvedValue({
+			isGitRepo: true,
+			status: { "a.txt": "modified" },
+			changedPaths: { staged: [], unstaged: ["a.txt"] },
+		});
 		await refreshStatus();
-		expect(get(git).unstagedDiffs).toHaveLength(1);
+		setVisibleDiffPaths(["a.txt"], []);
+		setDiffsWanted(true);
+		await vi.waitFor(() =>
+			expect(get(git).fileDiffs.unstaged["a.txt"]).toBeTruthy(),
+		);
 
 		setDiffsWanted(false);
-		expect(get(git).unstagedDiffs).toHaveLength(0);
+		expect(get(git).fileDiffs.unstaged).toEqual({});
 
-		diffs.mockResolvedValue(null);
+		read.mockClear();
 		setDiffsWanted(true);
-		await refreshStatus();
-
-		expect(diffs).toHaveBeenLastCalledWith("/repos/a", "");
+		await vi.waitFor(() =>
+			expect(read).toHaveBeenCalledWith("/repos/a", ["a.txt"], []),
+		);
 
 		setDiffsWanted(false);
-		diffs.mockResolvedValue(null);
+		setVisibleDiffPaths([], []);
 	});
 });
 

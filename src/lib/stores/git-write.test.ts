@@ -56,7 +56,11 @@ const service = vi.hoisted(() => ({
 	checkoutBranch: vi.fn(),
 	createBranch: vi.fn(),
 	getGraphStashes: vi.fn(),
-	getDiffs: vi.fn(),
+	getFileDiffs: vi.fn(),
+	stageFiles: vi.fn(),
+	unstageFiles: vi.fn(),
+	discardFiles: vi.fn(),
+	getStagedTotals: vi.fn(),
 	getStashList: vi.fn(),
 	readExclude: vi.fn(),
 	writeExclude: vi.fn(),
@@ -165,6 +169,7 @@ import {
 	setCommitBody,
 	setCommitMessage,
 	setDiffsWanted,
+	setVisibleDiffPaths,
 	skipCherryPick,
 	skipRebase,
 	stageAll,
@@ -213,7 +218,8 @@ beforeEach(async () => {
 	service.getSnapshot.mockResolvedValue(null);
 	service.getLog.mockResolvedValue([]);
 	service.getGraphStashes.mockResolvedValue([]);
-	service.getDiffs.mockResolvedValue(null);
+	service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
+	service.getStagedTotals.mockResolvedValue({ added: 0, removed: 0 });
 	service.getGraph.mockResolvedValue([]);
 	service.commit.mockResolvedValue("abc1234");
 	service.amendCommit.mockResolvedValue("abc1234");
@@ -873,26 +879,6 @@ describe("gitFileCounts", () => {
 	});
 });
 
-describe("refreshStatus diffs", () => {
-	it("asks for the diffs from scratch on a worktree it has not read yet", async () => {
-		service.getSnapshot.mockResolvedValue({
-			version: 1,
-			status: {
-				isGitRepo: true,
-				status: {},
-				changedPaths: { staged: [], unstaged: [] },
-			},
-			currentBranch: "main",
-			remoteStatus: null,
-			operationState: null,
-		});
-		setDiffsWanted(true);
-		await refreshStatus();
-		setDiffsWanted(false);
-		expect(service.getDiffs).toHaveBeenCalledWith(WORKTREE, "");
-	});
-});
-
 describe("initRepository", () => {
 	it("initialises the worktree and rereads its status", async () => {
 		await initRepository();
@@ -1374,9 +1360,9 @@ describe("stash and selection writes without an active worktree", () => {
 			() => pushStash("wip", false, false),
 			() => service.stashPush,
 		],
-		["stageFiles", () => stageFiles(["a.ts"]), () => service.stageFile],
-		["unstageFiles", () => unstageFiles(["a.ts"]), () => service.unstageFile],
-		["discardFiles", () => discardFiles(["a.ts"]), () => service.discardFile],
+		["stageFiles", () => stageFiles(["a.ts"]), () => service.stageFiles],
+		["unstageFiles", () => unstageFiles(["a.ts"]), () => service.unstageFiles],
+		["discardFiles", () => discardFiles(["a.ts"]), () => service.discardFiles],
 		["popStash", () => popStash(0), () => service.stashPop],
 		["applyStash", () => applyStash(0), () => service.stashApply],
 		["dropStash", () => dropStash(0), () => service.stashDrop],
@@ -1397,35 +1383,38 @@ describe("stash and selection writes without an active worktree", () => {
 });
 
 describe("writes on a selection", () => {
-	it("stages the files one at a time, in order", async () => {
-		await stageFiles(["a.ts", "b.ts"]);
-		expect(service.stageFile.mock.calls).toEqual([
-			[WORKTREE, "a.ts"],
-			[WORKTREE, "b.ts"],
-		]);
-	});
+	it.each([
+		["stages", () => stageFiles(["a.ts", "b.ts"]), () => service.stageFiles],
+		[
+			"unstages",
+			() => unstageFiles(["a.ts", "b.ts"]),
+			() => service.unstageFiles,
+		],
+		[
+			"discards",
+			() => discardFiles(["a.ts", "b.ts"]),
+			() => service.discardFiles,
+		],
+	] as const)(
+		"%s the whole selection in one call",
+		async (_name, run, call) => {
+			await run();
+			expect(call().mock.calls).toEqual([[WORKTREE, ["a.ts", "b.ts"]]]);
+		},
+	);
 
-	it("unstages the files one at a time, in order", async () => {
-		await unstageFiles(["a.ts", "b.ts"]);
-		expect(service.unstageFile.mock.calls).toEqual([
-			[WORKTREE, "a.ts"],
-			[WORKTREE, "b.ts"],
-		]);
-	});
-
-	it("discards the files one at a time, in order", async () => {
-		await discardFiles(["a.ts", "b.ts"]);
-		expect(service.discardFile.mock.calls).toEqual([
-			[WORKTREE, "a.ts"],
-			[WORKTREE, "b.ts"],
-		]);
-	});
-
-	it("stops at the first file that fails and publishes the error", async () => {
-		service.stageFile.mockRejectedValueOnce(new Error("locked"));
-		await expect(stageFiles(["a.ts", "b.ts"])).rejects.toThrow("locked");
-		expect(service.stageFile).toHaveBeenCalledTimes(1);
+	it("publishes a partial failure and still reads back what went through", async () => {
+		service.stageFiles.mockRejectedValueOnce(new Error("b.ts: did not match"));
+		service.getSnapshot.mockClear();
+		await expect(stageFiles(["a.ts", "b.ts"])).rejects.toThrow("did not match");
+		expect(service.stageFiles).toHaveBeenCalledTimes(1);
 		expect(get(git).error).not.toBeNull();
+		expect(service.getSnapshot).toHaveBeenCalled();
+	});
+
+	it("calls nothing for an empty selection", async () => {
+		await stageFiles([]);
+		expect(service.stageFiles).not.toHaveBeenCalled();
 	});
 });
 
@@ -1668,6 +1657,23 @@ describe("clearGitData", () => {
 	});
 });
 
+const changed = (
+	staged: string[],
+	unstaged: string[],
+	renames: Record<string, string> = {},
+) => ({
+	isGitRepo: true,
+	status: {},
+	changedPaths: { staged, unstaged, renames },
+});
+
+const fileDiff = (filePath: string) => ({
+	filePath,
+	hunks: [
+		{ header: "@@ -1 +1 @@", lines: [{ kind: "add", content: filePath }] },
+	],
+});
+
 const snapshotOf = (
 	status: Record<string, string> = {},
 	overrides: Record<string, unknown> = {},
@@ -1777,7 +1783,10 @@ describe("refreshStatus without a worktree", () => {
 });
 
 describe("refreshStatus in flight", () => {
-	afterEach(() => setDiffsWanted(false));
+	afterEach(() => {
+		setDiffsWanted(false);
+		setVisibleDiffPaths([], []);
+	});
 
 	it("shows the loading state while a visible refresh runs", async () => {
 		service.commit.mockRejectedValueOnce({ code: "hook_rejected", raw: "x" });
@@ -1813,36 +1822,27 @@ describe("refreshStatus in flight", () => {
 		expect(notifications).toBe(0);
 	});
 
-	it("asks for the versions it already holds on the same worktree", async () => {
-		setDiffsWanted(true);
+	it("asks for the snapshot version it already holds on the same worktree", async () => {
 		service.getSnapshot.mockResolvedValue(snapshotOf({}, { version: 5 }));
-		service.getDiffs.mockResolvedValue({
-			version: "d1",
-			unstaged: [],
-			staged: [],
-		});
 		await refreshStatus();
 		await refreshStatus();
 		expect(service.getSnapshot).toHaveBeenLastCalledWith(WORKTREE, 5);
-		expect(service.getDiffs).toHaveBeenLastCalledWith(WORKTREE, "d1");
 	});
 
-	it("does not read the diffs while nothing shows them", async () => {
-		service.getSnapshot.mockResolvedValue(snapshotOf());
+	it("does not read a diff while nothing shows them", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed(["s.ts"], ["u.ts"]) }),
+		);
+		setVisibleDiffPaths(["u.ts"], ["s.ts"]);
 		await refreshStatus();
-		expect(service.getDiffs).not.toHaveBeenCalled();
+		expect(service.getFileDiffs).not.toHaveBeenCalled();
+		expect(service.getStagedTotals).not.toHaveBeenCalled();
 	});
 
 	it("asks from scratch when the last read came from another worktree", async () => {
 		await useInstances(["sa", "sb"], "sa");
-		setDiffsWanted(true);
 		const snapshot = deferred<ReturnType<typeof snapshotOf>>();
 		service.getSnapshot.mockReturnValue(snapshot.promise);
-		service.getDiffs.mockResolvedValue({
-			version: "dA",
-			unstaged: [],
-			staged: [],
-		});
 		const stale = refreshStatus();
 		activateInstance("sb");
 		snapshot.resolve(snapshotOf({}, { version: 7 }));
@@ -1850,36 +1850,190 @@ describe("refreshStatus in flight", () => {
 		service.getSnapshot.mockResolvedValue(null);
 		await refreshStatus();
 		expect(service.getSnapshot).toHaveBeenLastCalledWith(worktreeOf("sb"), "");
-		expect(service.getDiffs).toHaveBeenLastCalledWith(worktreeOf("sb"), "");
 	});
 
-	it("publishes both diff lists and their version, and keeps them on a quiet poll", async () => {
+	it("reads the diffs of the visible cards only, and all of them again on each poll", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed(["s.ts"], ["u.ts", "far.ts"]) }),
+		);
+		service.getFileDiffs.mockResolvedValue({
+			unstaged: [fileDiff("u.ts")],
+			staged: [fileDiff("s.ts")],
+		});
 		setDiffsWanted(true);
-		const unstaged = [{ filePath: "u.ts", hunks: [] }];
-		const staged = [{ filePath: "s.ts", hunks: [] }];
-		service.getSnapshot.mockResolvedValue(snapshotOf());
-		service.getDiffs.mockResolvedValue({ version: "v9", unstaged, staged });
+		setVisibleDiffPaths(["u.ts"], ["s.ts"]);
 		await refreshStatus();
-		expect(get(git).unstagedDiffs).toEqual(unstaged);
-		expect(get(git).stagedDiffs).toEqual(staged);
-		expect(get(git).diffVersion).toBe("v9");
-		service.getDiffs.mockResolvedValue(null);
+		await vi.waitFor(() =>
+			expect(get(git).fileDiffs.unstaged["u.ts"]).toBeTruthy(),
+		);
+		expect(get(git).fileDiffs.staged["s.ts"]?.filePath).toBe("s.ts");
+		expect(service.getFileDiffs).toHaveBeenLastCalledWith(
+			WORKTREE,
+			["u.ts"],
+			[{ path: "s.ts" }],
+		);
+
+		service.getFileDiffs.mockClear();
+		service.getSnapshot.mockResolvedValue(null);
 		await refreshStatus();
-		expect(get(git).stagedDiffs).toEqual(staged);
-		expect(get(git).diffVersion).toBe("v9");
+		await vi.waitFor(() =>
+			expect(service.getFileDiffs).toHaveBeenCalledWith(
+				WORKTREE,
+				["u.ts"],
+				[{ path: "s.ts" }],
+			),
+		);
 	});
 
-	it("keeps the version when the git view is reported open twice", async () => {
-		setDiffsWanted(true);
-		service.getSnapshot.mockResolvedValue(snapshotOf());
-		service.getDiffs.mockResolvedValue({
-			version: "v1",
-			unstaged: [],
+	it("reads only the cards it lacks when the list grows", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed([], ["a.ts", "b.ts"]) }),
+		);
+		service.getFileDiffs.mockResolvedValue({
+			unstaged: [fileDiff("a.ts")],
 			staged: [],
 		});
-		await refreshStatus();
 		setDiffsWanted(true);
-		expect(get(git).diffVersion).toBe("v1");
+		setVisibleDiffPaths(["a.ts"], []);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(get(git).fileDiffs.unstaged["a.ts"]).toBeTruthy(),
+		);
+
+		service.getFileDiffs.mockClear();
+		service.getFileDiffs.mockResolvedValue({
+			unstaged: [fileDiff("b.ts")],
+			staged: [],
+		});
+		setVisibleDiffPaths(["a.ts", "b.ts"], []);
+		await vi.waitFor(() =>
+			expect(get(git).fileDiffs.unstaged["b.ts"]).toBeTruthy(),
+		);
+		expect(service.getFileDiffs).toHaveBeenCalledTimes(1);
+		expect(service.getFileDiffs).toHaveBeenCalledWith(WORKTREE, ["b.ts"], []);
+		expect(get(git).fileDiffs.unstaged["a.ts"]).toBeTruthy();
+	});
+
+	it("marks a visible path read with nothing to show, and forgets the paths scrolled away", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed([], ["a.ts", "b.ts"]) }),
+		);
+		service.getFileDiffs.mockResolvedValue({
+			unstaged: [fileDiff("a.ts")],
+			staged: [],
+		});
+		setDiffsWanted(true);
+		setVisibleDiffPaths(["a.ts", "b.ts"], []);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect("b.ts" in get(git).fileDiffs.unstaged).toBe(true),
+		);
+		expect(get(git).fileDiffs.unstaged["b.ts"]).toBeNull();
+
+		setVisibleDiffPaths(["b.ts"], []);
+		service.getSnapshot.mockResolvedValue(null);
+		service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect("a.ts" in get(git).fileDiffs.unstaged).toBe(false),
+		);
+	});
+
+	it("keeps an unchanged diff, and notifies nobody, on a quiet poll", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed([], ["a.ts"]) }),
+		);
+		service.getFileDiffs.mockImplementation(async () => ({
+			unstaged: [fileDiff("a.ts")],
+			staged: [],
+		}));
+		setDiffsWanted(true);
+		setVisibleDiffPaths(["a.ts"], []);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(get(git).fileDiffs.unstaged["a.ts"]).toBeTruthy(),
+		);
+		const held = get(git).fileDiffs.unstaged["a.ts"];
+
+		service.getSnapshot.mockResolvedValue(null);
+		let notifications = 0;
+		const unsubscribe = git.subscribe(() => {
+			notifications += 1;
+		});
+		notifications = 0;
+		service.getFileDiffs.mockClear();
+		await refreshStatus(true);
+		await vi.waitFor(() => expect(service.getFileDiffs).toHaveBeenCalled());
+		await Promise.resolve();
+		unsubscribe();
+		expect(notifications).toBe(0);
+		expect(get(git).fileDiffs.unstaged["a.ts"]).toBe(held);
+	});
+
+	it("hands a staged rename its source, so git pairs the two", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf(
+				{},
+				{ status: changed(["new.ts"], [], { "new.ts": "old.ts" }) },
+			),
+		);
+		service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
+		setDiffsWanted(true);
+		setVisibleDiffPaths([], ["new.ts"]);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(service.getFileDiffs).toHaveBeenCalledWith(
+				WORKTREE,
+				[],
+				[{ path: "new.ts", oldPath: "old.ts" }],
+			),
+		);
+	});
+
+	it("shows the staged totals as pending while they are read again after a change", async () => {
+		const totals = deferred<{ added: number; removed: number }>();
+		service.getStagedTotals.mockReturnValue(totals.promise);
+		service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed(["s.ts"], []) }),
+		);
+		setDiffsWanted(true);
+		await refreshStatus();
+		await vi.waitFor(() => expect(get(git).isStagedTotalsPending).toBe(true));
+		totals.resolve({ added: 12, removed: 3 });
+		await vi.waitFor(() => expect(get(git).isStagedTotalsPending).toBe(false));
+		expect(get(git).stagedTotals).toEqual({ added: 12, removed: 3 });
+	});
+
+	it("does not ask for totals when nothing is staged", async () => {
+		service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed([], ["u.ts"]) }),
+		);
+		setDiffsWanted(true);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(get(git).stagedTotals).toEqual({ added: 0, removed: 0 }),
+		);
+		expect(service.getStagedTotals).not.toHaveBeenCalled();
+	});
+
+	it("drops the diffs and the totals when the git view closes", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed(["s.ts"], ["a.ts"]) }),
+		);
+		service.getFileDiffs.mockResolvedValue({
+			unstaged: [fileDiff("a.ts")],
+			staged: [],
+		});
+		service.getStagedTotals.mockResolvedValue({ added: 1, removed: 0 });
+		setDiffsWanted(true);
+		setVisibleDiffPaths(["a.ts"], []);
+		await refreshStatus();
+		await vi.waitFor(() => expect(get(git).stagedTotals).not.toBeNull());
+		setDiffsWanted(false);
+		expect(get(git).fileDiffs).toEqual({ unstaged: {}, staged: {} });
+		expect(get(git).stagedTotals).toBeNull();
 	});
 
 	it("publishes a failed read and stops the loading state", async () => {
@@ -1889,15 +2043,17 @@ describe("refreshStatus in flight", () => {
 		expect(get(git).error).toEqual({ code: "unknown", raw: "Error: boom" });
 	});
 
-	it("survives a diff read that fails after the snapshot did", async () => {
+	it("survives a diff read that fails", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf({}, { status: changed([], ["a.ts"]) }),
+		);
+		service.getFileDiffs.mockRejectedValue(new Error("diffs"));
 		setDiffsWanted(true);
-		service.getSnapshot.mockRejectedValue(new Error("snapshot"));
-		service.getDiffs.mockRejectedValue(new Error("diffs"));
+		setVisibleDiffPaths(["a.ts"], []);
 		await refreshStatus();
-		expect(get(git).error).toEqual({
-			code: "unknown",
-			raw: "Error: snapshot",
-		});
+		await vi.waitFor(() => expect(service.getFileDiffs).toHaveBeenCalled());
+		expect(get(git).error).toBeNull();
+		expect(get(git).fileDiffs.unstaged).toEqual({});
 	});
 
 	it("does not reload the graph for a write that left the snapshot unchanged", async () => {

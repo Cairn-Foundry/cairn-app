@@ -99,7 +99,35 @@ fn git_cmd(worktree: &str) -> Command {
     // Error classification matches git's English messages, so the locale is
     // pinned rather than inherited from the user's environment.
     cmd.env("LC_ALL", "C").env("LANG", "C");
+    // Without it, every `status` and `diff` of the poll takes `index.lock` to
+    // write back the stat info it refreshed - and any `git add` or `git commit`
+    // landing meanwhile, ours or an agent's in a terminal, fails on the lock.
+    cmd.env("GIT_OPTIONAL_LOCKS", "0");
     cmd
+}
+
+/// How long a write keeps trying while another process holds `index.lock`.
+const INDEX_LOCK_RETRY_DELAYS_MS: &[u64] = &[50, 100, 200, 400, 800];
+
+fn is_index_lock_busy(out: &std::process::Output) -> bool {
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    stderr.contains("index.lock") && stderr.contains("File exists")
+}
+
+/// Runs a write that takes the index, trying again while `index.lock` is held:
+/// another git process usually lets go within milliseconds. Only for commands
+/// that take the lock before writing anything, so a retry never replays half
+/// an operation. A lock left by a dead process still fails, after the last try.
+fn output_retrying_index_lock(cmd: &mut Command) -> std::io::Result<std::process::Output> {
+    let mut out = cmd.output()?;
+    for delay in INDEX_LOCK_RETRY_DELAYS_MS {
+        if out.status.success() || !is_index_lock_busy(&out) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(*delay));
+        out = cmd.output()?;
+    }
+    Ok(out)
 }
 
 /// Runs the command and returns stdout, turning a non-zero exit into a classified `GitError`.
@@ -546,6 +574,10 @@ pub async fn git_status(worktree_path: String) -> Result<HashMap<String, String>
 pub struct GitChangedPaths {
     pub staged: Vec<String>,
     pub unstaged: Vec<String>,
+    /// The index column of each staged path (`A`, `M`, `D`, `R`, `C`...).
+    pub staged_codes: HashMap<String, String>,
+    /// Staged renames and copies, destination to source.
+    pub renames: HashMap<String, String>,
 }
 
 /// The paths behind the change badges. `parse_status` collapses the index and the
@@ -567,6 +599,12 @@ fn parse_changed_paths(text: &str) -> GitChangedPaths {
             continue;
         }
         if x != ' ' {
+            if let Some((source, _)) = path.split_once(" -> ")
+                && matches!(x, 'R' | 'C')
+            {
+                changed.renames.insert(file_path.clone(), source.to_string());
+            }
+            changed.staged_codes.insert(file_path.clone(), x.to_string());
             changed.staged.push(file_path.clone());
         }
         if y != ' ' {
@@ -772,39 +810,95 @@ pub async fn git_diff_unstaged(worktree_path: String) -> Result<Vec<GitFileDiff>
     Ok(parse_diff(&raw))
 }
 
-/// Both diffs the git view shows, behind a version hashed from the raw diff
-/// text: a poll that holds the version gets `None` back, and nothing is parsed
-/// or serialised for a change that did not happen.
-#[derive(Serialize)]
+/// A staged path to diff, with the path it was renamed from: git only pairs
+/// the two ends of a rename when both are in the pathspec.
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GitDiffs {
-    pub version:  String,
+pub struct StagedPath {
+    pub path:     String,
+    pub old_path: Option<String>,
+}
+
+/// The diffs of the cards on screen, on both sides of the index.
+#[derive(Serialize)]
+pub struct GitFileDiffs {
     pub unstaged: Vec<GitFileDiff>,
     pub staged:   Vec<GitFileDiff>,
 }
 
+/// Paths per git process: a pathspec travels as arguments, which the system caps.
+const PATHSPEC_CHUNK: usize = 500;
+
+fn diff_paths(expanded: &str, cached: bool, groups: &[Vec<&str>]) -> Result<Vec<GitFileDiff>, GitError> {
+    let mut files = Vec::new();
+    for chunk in groups.chunks(PATHSPEC_CHUNK) {
+        let mut cmd = git_cmd(expanded);
+        // A file named `*.ts` or `:x` is a file, not a pattern.
+        cmd.arg("--literal-pathspecs").arg("diff");
+        if cached {
+            cmd.arg("--cached");
+        }
+        cmd.args(["--no-color", "--unified=3", "--"]);
+        cmd.args(chunk.iter().flatten());
+        files.extend(parse_diff(&run(&mut cmd)?));
+    }
+    Ok(files)
+}
+
 #[tauri::command]
-pub async fn git_diffs(worktree_path: String, known_version: String) -> Result<Option<GitDiffs>, GitError> {
+/// The diffs of the given paths only. Diffing the whole worktree on every poll
+/// cost seconds on a large change set, for cards nobody had scrolled to.
+pub async fn git_file_diffs(
+    worktree_path: String,
+    unstaged: Vec<String>,
+    staged: Vec<StagedPath>,
+) -> Result<GitFileDiffs, GitError> {
     let expanded = expand(&worktree_path);
-    // The two diffs are the largest payload the app reads, and neither depends
-    // on the other: running them one after the other spent twice the time of
-    // the slower one. Scoped threads rather than tasks - the command already
-    // runs off the main thread, and `run` blocks on a process either way.
+    let unstaged: Vec<Vec<&str>> = unstaged.iter().map(|p| vec![p.as_str()]).collect();
+    let staged: Vec<Vec<&str>> = staged
+        .iter()
+        .map(|p| std::iter::once(p.path.as_str()).chain(p.old_path.as_deref()).collect())
+        .collect();
     let (unstaged, staged) = std::thread::scope(|scope| {
-        let unstaged = scope.spawn(|| run(git_cmd(&expanded).args(["diff", "--no-color", "--unified=3"])));
-        let staged =
-            scope.spawn(|| run(git_cmd(&expanded).args(["diff", "--cached", "--no-color", "--unified=3"])));
+        let unstaged = scope.spawn(|| if unstaged.is_empty() { Ok(Vec::new()) } else { diff_paths(&expanded, false, &unstaged) });
+        let staged = scope.spawn(|| if staged.is_empty() { Ok(Vec::new()) } else { diff_paths(&expanded, true, &staged) });
         (join_result(unstaged.join()), join_result(staged.join()))
     });
-    let (unstaged, staged) = (unstaged?, staged?);
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    std::hash::Hash::hash(&unstaged, &mut hasher);
-    std::hash::Hash::hash(&staged, &mut hasher);
-    let version = std::hash::Hasher::finish(&hasher).max(1).to_string();
-    if version == known_version {
-        return Ok(None);
+    Ok(GitFileDiffs { unstaged: unstaged?, staged: staged? })
+}
+
+/// Lines added and removed across the whole index.
+#[derive(Serialize, Debug, PartialEq)]
+pub struct DiffTotals {
+    pub added:   usize,
+    pub removed: usize,
+}
+
+/// Sums `diff --numstat -z`. A rename record carries an empty path followed by
+/// its two paths as separate fields, which are skipped rather than read as counts.
+fn parse_numstat_totals(raw: &str) -> DiffTotals {
+    let mut totals = DiffTotals { added: 0, removed: 0 };
+    let mut fields = raw.split('\0');
+    while let Some(field) = fields.next() {
+        let mut parts = field.splitn(3, '\t');
+        let (Some(added), Some(removed), Some(path)) = (parts.next(), parts.next(), parts.next()) else { continue };
+        totals.added += added.parse::<usize>().unwrap_or(0);
+        totals.removed += removed.parse::<usize>().unwrap_or(0);
+        if path.is_empty() {
+            fields.next();
+            fields.next();
+        }
     }
-    Ok(Some(GitDiffs { version, unstaged: parse_diff(&unstaged), staged: parse_diff(&staged) }))
+    totals
+}
+
+#[tauri::command]
+/// The line counts of everything staged. Kept apart from the per-card diffs:
+/// it needs the whole index, which is the one read that grows with it.
+pub async fn git_staged_totals(worktree_path: String) -> Result<DiffTotals, GitError> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args(["diff", "--cached", "--numstat", "-z"]))?;
+    Ok(parse_numstat_totals(&raw))
 }
 
 #[tauri::command]
@@ -1008,7 +1102,7 @@ fn parse_blame_porcelain(raw: &str) -> Vec<BlameLine> {
 /// Stages one path.
 pub async fn git_stage_file(worktree_path: String, file_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["add", "--", &file_path]).output()?;
+    let out = output_retrying_index_lock(git_cmd(&expanded).args(["add", "--", &file_path]))?;
     if !out.status.success() {
         return Err(GitError::from_process(&out));
     }
@@ -1019,10 +1113,10 @@ pub async fn git_stage_file(worktree_path: String, file_path: String) -> Result<
 /// Unstages one path, falling back to `rm --cached` in a repo without commits.
 pub async fn git_unstage_file(worktree_path: String, file_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["restore", "--staged", "--", &file_path]).output()?;
+    let out = output_retrying_index_lock(git_cmd(&expanded).args(["restore", "--staged", "--", &file_path]))?;
     if !out.status.success() {
         // Fallback for repos with no commits yet
-        let out2 = git_cmd(&expanded).args(["rm", "--cached", "--", &file_path]).output()?;
+        let out2 = output_retrying_index_lock(git_cmd(&expanded).args(["rm", "--cached", "--", &file_path]))?;
         if !out2.status.success() {
             return Err(GitError::from_process(&out2));
         }
@@ -1034,7 +1128,7 @@ pub async fn git_unstage_file(worktree_path: String, file_path: String) -> Resul
 /// Stages every change, deletions included.
 pub async fn git_stage_all(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["add", "-A"]).output()?;
+    let out = output_retrying_index_lock(git_cmd(&expanded).args(["add", "-A"]))?;
     if !out.status.success() {
         return Err(GitError::from_process(&out));
     }
@@ -1045,15 +1139,122 @@ pub async fn git_stage_all(worktree_path: String) -> Result<(), GitError> {
 /// Unstages everything, falling back to `rm --cached` in a repo without commits.
 pub async fn git_unstage_all(worktree_path: String) -> Result<(), GitError> {
     let expanded = expand(&worktree_path);
-    let out = git_cmd(&expanded).args(["restore", "--staged", "."]).output()?;
+    let out = output_retrying_index_lock(git_cmd(&expanded).args(["restore", "--staged", "."]))?;
     if !out.status.success() {
         // Fallback for repos with no commits yet
-        let out2 = git_cmd(&expanded).args(["rm", "--cached", "-r", "."]).output()?;
+        let out2 = output_retrying_index_lock(git_cmd(&expanded).args(["rm", "--cached", "-r", "."]))?;
         if !out2.status.success() {
             return Err(GitError::from_process(&out2));
         }
     }
     Ok(())
+}
+
+/// What failed in a write over several paths, each with git's own answer.
+type PathFailures = Vec<(String, GitError)>;
+
+fn run_on_paths_once(expanded: &str, args: &[&str], paths: &[String]) -> Result<(), GitError> {
+    let mut cmd = git_cmd(expanded);
+    cmd.arg("--literal-pathspecs").args(args).arg("--").args(paths);
+    let out = output_retrying_index_lock(&mut cmd)?;
+    if !out.status.success() {
+        return Err(GitError::from_process(&out));
+    }
+    Ok(())
+}
+
+/// Runs `git <args> -- <paths>` once per chunk of paths. A chunk git refuses
+/// is replayed path by path, so one bad path - a file gone since the status
+/// was read - does not hold the others back. A held lock is not replayed: every
+/// path would wait on it in turn.
+fn run_on_paths(expanded: &str, args: &[&str], paths: &[String], failures: &mut PathFailures) {
+    for chunk in paths.chunks(PATHSPEC_CHUNK) {
+        let Err(error) = run_on_paths_once(expanded, args, chunk) else { continue };
+        if error.code == "lock_exists" || chunk.len() == 1 {
+            failures.extend(chunk.iter().map(|p| (p.clone(), error.clone())));
+            continue;
+        }
+        for path in chunk {
+            if let Err(error) = run_on_paths_once(expanded, args, std::slice::from_ref(path)) {
+                failures.push((path.clone(), error));
+            }
+        }
+    }
+}
+
+/// One error for every path that failed, naming each, under the code of the first.
+fn failures_to_result(failures: PathFailures) -> Result<(), GitError> {
+    let Some((_, first)) = failures.first() else { return Ok(()) };
+    if failures.len() == 1 {
+        return Err(first.clone());
+    }
+    let raw = failures.iter().map(|(path, e)| format!("{path}: {}", e.raw)).collect::<Vec<_>>().join("\n");
+    Err(GitError::new(&first.code, raw))
+}
+
+#[tauri::command]
+/// Stages a selection in one call. The paths that can be staged are, even when
+/// some cannot; those come back in the error.
+pub async fn git_stage_files(worktree_path: String, file_paths: Vec<String>) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    let mut failures = PathFailures::new();
+    run_on_paths(&expanded, &["add"], &file_paths, &mut failures);
+    failures_to_result(failures)
+}
+
+fn has_head(expanded: &str) -> bool {
+    git_cmd(expanded)
+        .args(["rev-parse", "--verify", "--quiet", "HEAD"])
+        .output()
+        .is_ok_and(|o| o.status.success())
+}
+
+#[tauri::command]
+/// Unstages a selection in one call, with `rm --cached` in a repo without commits.
+pub async fn git_unstage_files(worktree_path: String, file_paths: Vec<String>) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    let args: &[&str] = if has_head(&expanded) { &["restore", "--staged"] } else { &["rm", "--cached", "--quiet"] };
+    let mut failures = PathFailures::new();
+    run_on_paths(&expanded, args, &file_paths, &mut failures);
+    failures_to_result(failures)
+}
+
+/// The given paths git tracks, read in chunks like any pathspec.
+fn tracked_among(expanded: &str, paths: &[String]) -> Result<HashSet<String>, GitError> {
+    let mut tracked = HashSet::new();
+    for chunk in paths.chunks(PATHSPEC_CHUNK) {
+        let mut cmd = git_cmd(expanded);
+        cmd.args(["--literal-pathspecs", "ls-files", "-z", "--"]).args(chunk);
+        let raw = run(&mut cmd)?;
+        tracked.extend(raw.split('\0').filter(|p| !p.is_empty()).map(str::to_string));
+    }
+    Ok(tracked)
+}
+
+#[tauri::command]
+/// Throws away the worktree changes of a selection in one call: tracked files
+/// go back to the index, untracked ones are deleted. What could not be is
+/// reported together, after the rest went through.
+pub async fn git_discard_files(worktree_path: String, file_paths: Vec<String>) -> Result<(), GitError> {
+    let expanded = expand(&worktree_path);
+    let tracked = tracked_among(&expanded, &file_paths)?;
+    let (known, new): (Vec<String>, Vec<String>) = file_paths.into_iter().partition(|p| tracked.contains(p));
+    let mut failures = PathFailures::new();
+    run_on_paths(&expanded, &["restore", "--worktree"], &known, &mut failures);
+    for path in new {
+        let full = Path::new(&expanded).join(&path);
+        let removed = if full.is_dir() {
+            fs::remove_dir_all(&full)
+        } else if full.exists() {
+            fs::remove_file(&full)
+        } else {
+            Ok(())
+        };
+        if let Err(e) = removed {
+            failures.push((path, e.into()));
+        }
+    }
+    failures_to_result(failures)
 }
 
 // ---------------------------------------------------------------------------
@@ -1097,7 +1298,7 @@ pub async fn git_commit(
     if !author_name.is_empty() && !author_email.is_empty() {
         cmd.arg(format!("--author={} <{}>", author_name, author_email));
     }
-    let out = cmd.output()?;
+    let out = output_retrying_index_lock(&mut cmd)?;
     if !out.status.success() {
         return Err(GitError::from_process(&out));
     }
@@ -1122,7 +1323,7 @@ pub async fn git_amend_commit(
     if !author_name.is_empty() && !author_email.is_empty() {
         cmd.arg(format!("--author={} <{}>", author_name, author_email));
     }
-    let out = cmd.output()?;
+    let out = output_retrying_index_lock(&mut cmd)?;
     if !out.status.success() {
         return Err(GitError::from_process(&out));
     }
@@ -2224,9 +2425,7 @@ pub async fn git_discard_file(worktree_path: String, file_path: String) -> Resul
         .success();
 
     if tracked {
-        let out = git_cmd(&expanded)
-            .args(["restore", "--worktree", "--", &file_path])
-            .output()?;
+        let out = output_retrying_index_lock(git_cmd(&expanded).args(["restore", "--worktree", "--", &file_path]))?;
         if !out.status.success() {
             return Err(GitError::from_process(&out));
         }
@@ -3119,6 +3318,172 @@ diff --git a/two.txt b/two.txt
         let after = git_stash_list(repo.wt()).await.unwrap();
         assert_eq!(after.len(), 1, "rename must not lose or duplicate the stash");
         assert_eq!(after[0].message, "new label");
+    }
+
+    fn staged_names(repo: &TempRepo) -> Vec<String> {
+        let out = repo.git(&["diff", "--cached", "--name-only"]);
+        String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect()
+    }
+
+    #[test]
+    fn reads_never_take_the_index_lock_on_the_side() {
+        let cmd = git_cmd("/tmp");
+        let optional_locks = cmd.get_envs().find(|(k, _)| *k == "GIT_OPTIONAL_LOCKS").and_then(|(_, v)| v);
+        assert_eq!(optional_locks, Some(std::ffi::OsStr::new("0")));
+    }
+
+    #[tokio::test]
+    async fn stage_files_stages_what_it_can_and_names_what_it_could_not() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "a");
+        repo.commit("b.txt", "one\n", "b");
+        repo.write("a.txt", "two\n");
+        repo.write("b.txt", "two\n");
+
+        let error = git_stage_files(repo.wt(), vec!["a.txt".into(), "gone.txt".into(), "b.txt".into()])
+            .await
+            .unwrap_err();
+
+        assert!(error.raw.contains("gone.txt"), "{}", error.raw);
+        assert_eq!(staged_names(&repo), vec!["a.txt", "b.txt"]);
+    }
+
+    #[tokio::test]
+    async fn stage_files_takes_a_glob_character_literally() {
+        let repo = TempRepo::new();
+        repo.commit("*.ts", "one\n", "glob");
+        repo.commit("x.ts", "one\n", "x");
+        repo.write("*.ts", "two\n");
+        repo.write("x.ts", "two\n");
+
+        git_stage_files(repo.wt(), vec!["*.ts".into()]).await.unwrap();
+
+        assert_eq!(staged_names(&repo), vec!["*.ts"]);
+    }
+
+    #[tokio::test]
+    async fn unstage_files_works_before_the_first_commit() {
+        let repo = TempRepo::new();
+        repo.write("a.txt", "one\n");
+        repo.write("b.txt", "one\n");
+        repo.git(&["add", "-A"]);
+
+        git_unstage_files(repo.wt(), vec!["a.txt".into(), "b.txt".into()]).await.unwrap();
+
+        let listed = repo.git(&["ls-files"]);
+        assert!(String::from_utf8_lossy(&listed.stdout).is_empty());
+    }
+
+    #[tokio::test]
+    async fn discard_files_restores_tracked_files_and_deletes_new_ones_in_one_call() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "a");
+        repo.write("a.txt", "two\n");
+        repo.write("new.txt", "fresh\n");
+
+        git_discard_files(repo.wt(), vec!["a.txt".into(), "new.txt".into(), "vanished.txt".into()])
+            .await
+            .unwrap();
+
+        let root = Path::new(&repo.wt()).to_path_buf();
+        assert_eq!(fs::read_to_string(root.join("a.txt")).unwrap(), "one\n");
+        assert!(!root.join("new.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn a_write_waits_for_a_lock_another_process_lets_go_of() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "a");
+        repo.write("a.txt", "two\n");
+        let lock = Path::new(&repo.wt()).join(".git").join("index.lock");
+        fs::write(&lock, "").unwrap();
+        let releaser = {
+            let lock = lock.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(120));
+                fs::remove_file(lock).unwrap();
+            })
+        };
+
+        git_stage_file(repo.wt(), "a.txt".into()).await.unwrap();
+
+        releaser.join().unwrap();
+        assert_eq!(staged_names(&repo), vec!["a.txt"]);
+    }
+
+    #[tokio::test]
+    async fn a_lock_nobody_releases_still_fails_as_a_lock() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "a");
+        repo.write("a.txt", "two\n");
+        fs::write(Path::new(&repo.wt()).join(".git").join("index.lock"), "").unwrap();
+
+        let error = git_stage_files(repo.wt(), vec!["a.txt".into()]).await.unwrap_err();
+
+        assert_eq!(error.code, "lock_exists");
+    }
+
+    #[tokio::test]
+    async fn file_diffs_reads_only_the_paths_asked_for() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "a");
+        repo.commit("b.txt", "one\n", "b");
+        repo.commit("*.ts", "one\n", "glob");
+        repo.commit("x.ts", "one\n", "x");
+        repo.write("a.txt", "two\n");
+        repo.write("b.txt", "two\n");
+        repo.write("*.ts", "two\n");
+        repo.write("x.ts", "two\n");
+
+        let diffs = git_file_diffs(repo.wt(), vec!["a.txt".into(), "*.ts".into()], vec![]).await.unwrap();
+
+        let paths: Vec<&str> = diffs.unstaged.iter().map(|f| f.file_path.as_str()).collect();
+        assert_eq!(paths, vec!["*.ts", "a.txt"]);
+        assert!(diffs.staged.is_empty());
+    }
+
+    #[tokio::test]
+    async fn file_diffs_pairs_a_staged_rename_with_its_source() {
+        let repo = TempRepo::new();
+        repo.commit("old.txt", "one\ntwo\nthree\n", "init");
+        repo.git(&["mv", "old.txt", "new.txt"]);
+
+        let staged = vec![StagedPath { path: "new.txt".into(), old_path: Some("old.txt".into()) }];
+        let diffs = git_file_diffs(repo.wt(), vec![], staged).await.unwrap();
+
+        assert_eq!(diffs.staged.len(), 1);
+        assert_eq!(diffs.staged[0].file_path, "new.txt");
+        assert_eq!(diffs.staged[0].old_path.as_deref(), Some("old.txt"));
+    }
+
+    #[tokio::test]
+    async fn staged_totals_sum_the_whole_index() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\ntwo\n", "init");
+        repo.write("a.txt", "one\nthree\nfour\n");
+        repo.write("b.txt", "new\n");
+        repo.git(&["add", "-A"]);
+
+        let totals = git_staged_totals(repo.wt()).await.unwrap();
+
+        assert_eq!(totals, DiffTotals { added: 3, removed: 1 });
+    }
+
+    #[test]
+    fn numstat_totals_skip_the_paths_of_a_rename_and_count_binaries_as_nothing() {
+        let raw = "2\t1\ta.txt\0-\t-\timage.png\04\t0\t\0old 1\t2\tx\0new.txt\0";
+        assert_eq!(parse_numstat_totals(raw), DiffTotals { added: 6, removed: 1 });
+    }
+
+    #[test]
+    fn changed_paths_keep_the_index_code_and_the_rename_source() {
+        let changed = parse_changed_paths("R  old.txt -> new.txt\nMM both.txt\nA  added.txt\n?? new.ts\n");
+        assert_eq!(changed.staged, vec!["new.txt", "both.txt", "added.txt"]);
+        assert_eq!(changed.unstaged, vec!["both.txt", "new.ts"]);
+        assert_eq!(changed.staged_codes.get("new.txt").map(String::as_str), Some("R"));
+        assert_eq!(changed.staged_codes.get("both.txt").map(String::as_str), Some("M"));
+        assert_eq!(changed.renames.get("new.txt").map(String::as_str), Some("old.txt"));
+        assert_eq!(changed.renames.len(), 1);
     }
 
     #[tokio::test]
