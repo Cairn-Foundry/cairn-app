@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readDirTree } from "$lib/services/file-service";
-import { getSnapshot } from "$lib/services/git-service";
-import { listInstances } from "$lib/services/instance-service";
-import { projects } from "$lib/stores/project";
+import { readDirTree } from "#lib/services/file-service";
+import { getSnapshot } from "#lib/services/git-service";
+import { listInstances } from "#lib/services/instance-service";
+import { projects } from "#lib/stores/project";
 import {
 	cancelPrefetch,
 	schedulePrefetch,
 	scheduleWorktreePrefetch,
 } from "./prefetch";
 
-vi.mock("$lib/services/file-service", () => ({ readDirTree: vi.fn() }));
-vi.mock("$lib/services/git-service", () => ({ getSnapshot: vi.fn() }));
-vi.mock("$lib/services/instance-service", () => ({ listInstances: vi.fn() }));
+vi.mock("#lib/services/file-service", () => ({ readDirTree: vi.fn() }));
+vi.mock("#lib/services/git-service", () => ({ getSnapshot: vi.fn() }));
+vi.mock("#lib/services/instance-service", () => ({ listInstances: vi.fn() }));
 
 const mockTree = vi.mocked(readDirTree);
 const mockSnapshot = vi.mocked(getSnapshot);

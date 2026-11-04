@@ -4,11 +4,11 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { projects } from '$lib/stores/project';
-  import { projectFolders } from '$lib/stores/project-folders';
-  import { matchesSearch } from '$lib/utils/files/files-search';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { projects } from '#lib/stores/project';
+  import { projectFolders } from '#lib/stores/project-folders';
+  import { matchesSearch } from '#lib/utils/files/files-search';
 
   const dispatch = createEventDispatcher<{ close: void; pick: string }>();
 

@@ -15,11 +15,11 @@
    * from under that instance.
    */
   import { createEventDispatcher, onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import { t } from '#lib/i18n';
   import {
     git,
     loadBranches,
@@ -29,12 +29,12 @@
     createBranch,
     refreshRemotes,
     editRemote,
-  } from '$lib/stores/git';
-  import { activeInstance, instances } from '$lib/stores/instance';
-  import { toGitError } from '$lib/services/git-service';
-  import type { GitRemote } from '$lib/services/git-service';
-  import type { Instance } from '$lib/types/instance';
-  import { errorMessage } from '$lib/utils/error-message';
+  } from '#lib/stores/git';
+  import { activeInstance, instances } from '#lib/stores/instance';
+  import { toGitError } from '#lib/services/git-service';
+  import type { GitRemote } from '#lib/services/git-service';
+  import type { Instance } from '#lib/types/instance';
+  import { errorMessage } from '#lib/utils/error-message';
 
   /** An action asked for from elsewhere (a graph chip); opened once, then handed back. */
   export let request: BranchRequest | null = null;

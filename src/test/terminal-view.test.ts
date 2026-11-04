@@ -6,13 +6,13 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TerminalSession } from "$lib/stores/terminal";
+import type { TerminalSession } from "#lib/stores/terminal";
 
 const attach = vi.fn<(...a: unknown[]) => unknown>();
 const detach = vi.fn<(...a: unknown[]) => unknown>();
 const focus = vi.fn<(...a: unknown[]) => unknown>();
 const refit = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/utils/terminal/terminal-manager", () => ({
+vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	attach: (...a: unknown[]) => attach(...a),
 	detach: (...a: unknown[]) => detach(...a),
 	focus: (...a: unknown[]) => focus(...a),
@@ -22,7 +22,7 @@ vi.mock("$lib/utils/terminal/terminal-manager", () => ({
 }));
 
 const prepareInstanceEnv = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/env", async (importOriginal) => ({
+vi.mock("#lib/stores/env", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	prepareInstanceEnv: (...a: unknown[]) => prepareInstanceEnv(...a),
 }));
@@ -43,7 +43,7 @@ const restoreProjectTerminals = vi.fn<(...a: unknown[]) => unknown>();
 const openSplitTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const closeSplitTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const setSplitRatio = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/terminal", async (importOriginal) => ({
+vi.mock("#lib/stores/terminal", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	addTerminal: (...a: unknown[]) => addTerminal(...a),
 	addProjectTerminal: (...a: unknown[]) => addProjectTerminal(...a),
@@ -64,7 +64,7 @@ vi.mock("$lib/stores/terminal", async (importOriginal) => ({
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
@@ -76,12 +76,12 @@ const {
 	splitTerminalId,
 	splitTerminalRatio,
 	terminalScope,
-} = await import("$lib/stores/terminal");
-const { terminalActive } = await import("$lib/stores/ui");
-const { projects, activeProjectId } = await import("$lib/stores/project");
+} = await import("#lib/stores/terminal");
+const { terminalActive } = await import("#lib/stores/ui");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: TerminalView } = await import(
-	"$lib/components/terminal/TerminalView.svelte"
+	"#lib/components/terminal/TerminalView.svelte"
 );
 
 const SCOPE = terminalScope("p1", "i1");

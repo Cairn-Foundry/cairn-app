@@ -9,16 +9,16 @@
    * the tracker and a hand-off to the agent. A manual id with no tracker ticket
    * offers to link it. The open flag lives in memory only.
    */
-  import { openUrl } from '$lib/services/opener-service';
-  import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { requestAgentDraft } from '$lib/stores/agent-draft';
-  import { aiEnabled } from '$lib/stores/settings';
-  import { setInstanceTicket } from '$lib/stores/instance';
-  import { capabilities, hasTracker, projectBindings } from '$lib/stores/integrations';
+  import { openUrl } from '#lib/services/opener-service';
+  import { renderRemoteMarkdown } from '#lib/utils/integrations/markdown';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { requestAgentDraft } from '#lib/stores/agent-draft';
+  import { aiEnabled } from '#lib/stores/settings';
+  import { setInstanceTicket } from '#lib/stores/instance';
+  import { capabilities, hasTracker, projectBindings } from '#lib/stores/integrations';
   import {
     loadTicket,
     loadTransitions,
@@ -26,11 +26,11 @@
     tickets,
     ticketStateFor,
     transitionTicket,
-  } from '$lib/stores/tracker';
-  import { activeStep, showTool } from '$lib/stores/ui';
-  import type { Instance } from '$lib/types/instance';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import { buildTicketStartPrompt } from '$lib/utils/integrations/prompts';
+  } from '#lib/stores/tracker';
+  import { activeStep, showTool } from '#lib/stores/ui';
+  import type { Instance } from '#lib/types/instance';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import { buildTicketStartPrompt } from '#lib/utils/integrations/prompts';
 
   export let instance: Instance;
 

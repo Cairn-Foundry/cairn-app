@@ -6,12 +6,12 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CustomCommand } from "$lib/services/custom-command-service";
+import type { CustomCommand } from "#lib/services/custom-command-service";
 
 const commandRuns = writable<Record<string, unknown>>({});
 const requestCommandLaunch = vi.fn();
 const stopCommand = vi.fn();
-vi.mock("$lib/stores/command-run", async (importOriginal) => ({
+vi.mock("#lib/stores/command-run", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	commandRuns: { subscribe: commandRuns.subscribe },
 	requestCommandLaunch: (...a: unknown[]) => requestCommandLaunch(...a),
@@ -21,7 +21,7 @@ vi.mock("$lib/stores/command-run", async (importOriginal) => ({
 const toggleCommandPinned = vi.fn();
 const reorderCommand = vi.fn();
 const moveCommandToScope = vi.fn();
-vi.mock("$lib/stores/custom-command", async (importOriginal) => ({
+vi.mock("#lib/stores/custom-command", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	toggleCommandPinned: (...a: unknown[]) => toggleCommandPinned(...a),
 	reorderCommand: (...a: unknown[]) => reorderCommand(...a),
@@ -29,29 +29,29 @@ vi.mock("$lib/stores/custom-command", async (importOriginal) => ({
 }));
 
 const activeInstanceStore = writable<unknown>(null);
-vi.mock("$lib/stores/instance", () => ({
+vi.mock("#lib/stores/instance", () => ({
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
 }));
 
 const setActiveTerminal = vi.fn();
-vi.mock("$lib/stores/terminal", async (importOriginal) => ({
+vi.mock("#lib/stores/terminal", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	setActiveTerminal: (...a: unknown[]) => setActiveTerminal(...a),
 }));
 
 const showTool = vi.fn();
-vi.mock("$lib/stores/ui", async (importOriginal) => ({
+vi.mock("#lib/stores/ui", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	showTool: (...a: unknown[]) => showTool(...a),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { globalCommands, projectCommands } = await import(
-	"$lib/stores/custom-command"
+	"#lib/stores/custom-command"
 );
 const { project, instance } = await import("./fixtures");
 const { default: PinnedCommandsSidebar } = await import(
-	"$lib/components/commands/PinnedCommandsSidebar.svelte"
+	"#lib/components/commands/PinnedCommandsSidebar.svelte"
 );
 
 function command(

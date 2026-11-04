@@ -6,7 +6,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 /** Where a skill is stored; `plugin` ones ship with a plugin and are read-only. */
 export type SkillScope = "global" | "project" | "plugin";

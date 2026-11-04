@@ -4,7 +4,7 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { LspLocation } from "$lib/services/lsp-service";
+import type { LspLocation } from "#lib/services/lsp-service";
 import ReferencesPanel, {
 	type ReferencesResult,
 } from "./ReferencesPanel.svelte";

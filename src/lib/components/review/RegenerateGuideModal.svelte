@@ -9,8 +9,8 @@
    * what they are about to lose rather than discovering it afterwards.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   /** How many hunks are marked read today, to name what the reset costs. */
   export let seenHunks = 0;

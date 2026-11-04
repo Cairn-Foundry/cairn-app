@@ -15,17 +15,17 @@
     getFileOnSide,
     type DiffSide,
     type GitDiffHunk,
-  } from '$lib/services/git-service';
-  import { t } from '$lib/i18n';
-  import { langFromPath, readFile } from '$lib/services/file-service';
-  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
-  import { cachedLineHtml, highlightDocumentToLines, highlightLineToHtml } from '$lib/utils/git/diff-syntax-highlight';
-  import { activeSyntaxTokens, settings } from '$lib/stores/settings';
+  } from '#lib/services/git-service';
+  import { t } from '#lib/i18n';
+  import { langFromPath, readFile } from '#lib/services/file-service';
+  import type { EditorLanguage } from '#lib/utils/editor/editor-theme';
+  import { cachedLineHtml, highlightDocumentToLines, highlightLineToHtml } from '#lib/utils/git/diff-syntax-highlight';
+  import { activeSyntaxTokens, settings } from '#lib/stores/settings';
   import { createEventDispatcher } from 'svelte';
-  import { isDiffTooLarge } from '$lib/utils/git/diff-size';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { recallExpansion, rememberExpansion } from '$lib/utils/git/diff-expansion-memory';
+  import { isDiffTooLarge } from '#lib/utils/git/diff-size';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { recallExpansion, rememberExpansion } from '#lib/utils/git/diff-expansion-memory';
   import {
     EXPAND_STEP,
     buildDiffRows,
@@ -34,7 +34,7 @@
     splitFileLines,
     type DiffRow,
     type GapExpansion,
-  } from '$lib/utils/git/diff-context';
+  } from '#lib/utils/git/diff-context';
 
   export let hunks: GitDiffHunk[] = [];
   export let filePath = '';

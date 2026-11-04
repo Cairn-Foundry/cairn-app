@@ -9,57 +9,57 @@
    * app-level shortcuts and hands every other one down to FilesView.
    */
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool, windowFullscreen } from '$lib/stores/ui.js';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
-  import FilesView from '$lib/components/files/FilesView.svelte';
-  import AgentView from '$lib/components/agent/AgentView.svelte';
-  import LazyView from '$lib/components/layout/LazyView.svelte';
-  import PinnedCommandsSidebar from '$lib/components/commands/PinnedCommandsSidebar.svelte';
-  import CommandPromptDialog from '$lib/components/commands/CommandPromptDialog.svelte';
-  import CommandConfirmDialog from '$lib/components/commands/CommandConfirmDialog.svelte';
-  import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '$lib/stores/command-run';
-  import { globalCommands, loadCommands, projectCommands } from '$lib/stores/custom-command';
-  import { cancelPrefetch, schedulePrefetch, scheduleWorktreePrefetch } from '$lib/utils/files/prefetch';
-  import type { CustomCommand } from '$lib/services/custom-command-service';
-  import ToolsPanel from '$lib/components/layout/ToolsPanel.svelte';
-  import { hasPendingUpdate, openUpdateModal } from '$lib/stores/update';
-  import QuickOpen from '$lib/components/files/QuickOpen.svelte';
-  import CommandPalette from '$lib/components/files/CommandPalette.svelte';
-  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
-  import { toggleFullscreen } from '$lib/utils/window-fullscreen';
-  import type { ShortcutId } from '$lib/types/shortcuts';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import { withViewTransition } from '$lib/utils/view-transition';
-  import { setFileLinkTarget } from '$lib/utils/terminal/terminal-manager';
-  import { draggableRegion } from '$lib/utils/window-drag.js';
-  import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
-  import { matchesSearch } from '$lib/utils/files/files-search';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool, windowFullscreen } from '#lib/stores/ui.js';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
+  import FilesView from '#lib/components/files/FilesView.svelte';
+  import AgentView from '#lib/components/agent/AgentView.svelte';
+  import LazyView from '#lib/components/layout/LazyView.svelte';
+  import PinnedCommandsSidebar from '#lib/components/commands/PinnedCommandsSidebar.svelte';
+  import CommandPromptDialog from '#lib/components/commands/CommandPromptDialog.svelte';
+  import CommandConfirmDialog from '#lib/components/commands/CommandConfirmDialog.svelte';
+  import { pendingLaunch, cancelPendingLaunch, confirmPendingLaunch, requestCommandLaunch, commandRuns } from '#lib/stores/command-run';
+  import { globalCommands, loadCommands, projectCommands } from '#lib/stores/custom-command';
+  import { cancelPrefetch, schedulePrefetch, scheduleWorktreePrefetch } from '#lib/utils/files/prefetch';
+  import type { CustomCommand } from '#lib/services/custom-command-service';
+  import ToolsPanel from '#lib/components/layout/ToolsPanel.svelte';
+  import { hasPendingUpdate, openUpdateModal } from '#lib/stores/update';
+  import QuickOpen from '#lib/components/files/QuickOpen.svelte';
+  import CommandPalette from '#lib/components/files/CommandPalette.svelte';
+  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '#lib/stores/shortcuts';
+  import { toggleFullscreen } from '#lib/utils/window-fullscreen';
+  import type { ShortcutId } from '#lib/types/shortcuts';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import { withViewTransition } from '#lib/utils/view-transition';
+  import { setFileLinkTarget } from '#lib/utils/terminal/terminal-manager';
+  import { draggableRegion } from '#lib/utils/window-drag.js';
+  import type { FileNode, QuickSearchHit } from '#lib/services/file-service';
+  import { matchesSearch } from '#lib/utils/files/files-search';
 
-  import type { Instance } from '$lib/types/instance';
-  import { instances, baseInstance, isBaseInstance, isArchivedInstance, removeInstance, BASE_INSTANCE_ID } from '$lib/stores/instance';
-  import { activateInstance, activeProject, relocateProjectInStore, unregisterProject } from '$lib/stores/project';
-  import { instanceWorktreeHealth, type WorktreeHealth } from '$lib/services/instance-service';
-  import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
-  import { validateDirectory } from '$lib/services/project-service';
-  import DeleteProjectModal from '$lib/components/home/DeleteProjectModal.svelte';
-  import type { Project } from '$lib/types/project';
-  import { settings } from '$lib/stores/settings';
-  import { git, gitFileCounts, gitHasConflicts, startGitPolling, getRemoteUrl } from '$lib/stores/git';
-  import { activeCiBusy, activeCiFailing, retryLatestPipeline } from '$lib/stores/pipelines';
-  import { requestMergeRequestForm } from '$lib/stores/merge-request';
-  import { requestReviewAction } from '$lib/stores/review';
-  import { forgeLink } from '$lib/utils/integrations/links';
-  import { openUrl } from '$lib/services/opener-service';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ManageInstances from '$lib/components/ManageInstances.svelte';
-  import EditProject from '$lib/components/EditProject.svelte';
-  import FinalizeInstance from '$lib/components/FinalizeInstance.svelte';
-  import ShortcutReference from '$lib/components/ShortcutReference.svelte';
-  import TicketPanel from '$lib/components/layout/TicketPanel.svelte';
-  import BranchSwitcher from '$lib/components/git/BranchSwitcher.svelte';
+  import type { Instance } from '#lib/types/instance';
+  import { instances, baseInstance, isBaseInstance, isArchivedInstance, removeInstance, BASE_INSTANCE_ID } from '#lib/stores/instance';
+  import { activateInstance, activeProject, relocateProjectInStore, unregisterProject } from '#lib/stores/project';
+  import { instanceWorktreeHealth, type WorktreeHealth } from '#lib/services/instance-service';
+  import DeleteInstanceModal from '#lib/components/home/DeleteInstanceModal.svelte';
+  import { validateDirectory } from '#lib/services/project-service';
+  import DeleteProjectModal from '#lib/components/home/DeleteProjectModal.svelte';
+  import type { Project } from '#lib/types/project';
+  import { settings } from '#lib/stores/settings';
+  import { git, gitFileCounts, gitHasConflicts, startGitPolling, getRemoteUrl } from '#lib/stores/git';
+  import { activeCiBusy, activeCiFailing, retryLatestPipeline } from '#lib/stores/pipelines';
+  import { requestMergeRequestForm } from '#lib/stores/merge-request';
+  import { requestReviewAction } from '#lib/stores/review';
+  import { forgeLink } from '#lib/utils/integrations/links';
+  import { openUrl } from '#lib/services/opener-service';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ManageInstances from '#lib/components/ManageInstances.svelte';
+  import EditProject from '#lib/components/EditProject.svelte';
+  import FinalizeInstance from '#lib/components/FinalizeInstance.svelte';
+  import ShortcutReference from '#lib/components/ShortcutReference.svelte';
+  import TicketPanel from '#lib/components/layout/TicketPanel.svelte';
+  import BranchSwitcher from '#lib/components/git/BranchSwitcher.svelte';
 
   export let openProjects: { id: string; name: string; color: string }[];
   export let activeProjectId: string;
@@ -798,14 +798,14 @@
       {#if $settings.aiEnabled}
         <div class="step-view" class:step-hidden={toolActive || $activeStep !== 'agent'}><AgentView onGoProviders={() => dispatch('goProviders')}/></div>
       {/if}
-      <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('$lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
-      <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('$lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
-      <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('$lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
-      <div class="step-view" class:step-hidden={!cicdActive}><LazyView prewarm={prewarmViews} active={cicdActive} load={() => import('$lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => showProjectIntegrations = true}/></div>
-      <div class="step-view" class:step-hidden={!$terminalActive}><LazyView prewarm={prewarmViews} active={$terminalActive} load={() => import('$lib/components/terminal/TerminalView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$commandsActive}><LazyView prewarm={prewarmViews} active={$commandsActive} load={() => import('$lib/components/commands/CommandsView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$envActive}><LazyView prewarm={prewarmViews} active={$envActive} load={() => import('$lib/components/env/EnvView.svelte')}/></div>
-      <div class="step-view" class:step-hidden={!$formattingActive}><LazyView prewarm={prewarmViews} active={$formattingActive} load={() => import('$lib/components/formatting/FormattingView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!reviewActive}><LazyView prewarm={prewarmViews} active={reviewActive} load={() => import('#lib/components/review/ReviewView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }}/></div>
+      <div class="step-view" class:step-hidden={!testsActive}><LazyView prewarm={prewarmViews} active={testsActive} load={() => import('#lib/components/tests/TestsView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileAtLine(e.detail.path, e.detail.line); }}/></div>
+      <div class="step-view" class:step-hidden={!gitActive}><LazyView prewarm={prewarmViews} active={gitActive} load={() => import('#lib/components/git/GitView.svelte')} on:openFile={async (e) => { openStep('files'); await tick(); filesView?.openFileByPath(e.detail); }} on:fileDiscarded={(e) => filesView?.reloadFileByPath(e.detail)} on:filesChanged={() => filesView?.reloadOpenFiles()} on:goGitSettings={() => dispatch('goGitSettings')} on:createInstanceFromRef={(e) => dispatch('createInstance', { branch: e.detail })}/></div>
+      <div class="step-view" class:step-hidden={!cicdActive}><LazyView prewarm={prewarmViews} active={cicdActive} load={() => import('#lib/components/cicd/CiCdView.svelte')} on:goIntegrations={() => showProjectIntegrations = true}/></div>
+      <div class="step-view" class:step-hidden={!$terminalActive}><LazyView prewarm={prewarmViews} active={$terminalActive} load={() => import('#lib/components/terminal/TerminalView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$commandsActive}><LazyView prewarm={prewarmViews} active={$commandsActive} load={() => import('#lib/components/commands/CommandsView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$envActive}><LazyView prewarm={prewarmViews} active={$envActive} load={() => import('#lib/components/env/EnvView.svelte')}/></div>
+      <div class="step-view" class:step-hidden={!$formattingActive}><LazyView prewarm={prewarmViews} active={$formattingActive} load={() => import('#lib/components/formatting/FormattingView.svelte')}/></div>
       {#if !activeInstance}
         <div class="no-instance">
           <div class="no-instance-inner">

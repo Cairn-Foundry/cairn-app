@@ -8,10 +8,10 @@
    * Dispatches `selectStash`, with null to clear the selection when the stash is gone.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { relativeTime } from '$lib/utils/format';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { relativeTime } from '#lib/utils/format';
   import {
     git,
     pushStash,
@@ -20,8 +20,8 @@
     dropStash,
     clearStashes,
     renameStash,
-  } from '$lib/stores/git';
-  import type { GitStash } from '$lib/services/git-service';
+  } from '#lib/stores/git';
+  import type { GitStash } from '#lib/services/git-service';
 
   export let selectedStashIndex: number | null = null;
 

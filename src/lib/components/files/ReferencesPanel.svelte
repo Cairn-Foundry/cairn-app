@@ -3,7 +3,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script lang="ts" context="module">
-  import type { LspLocation } from '$lib/services/lsp-service';
+  import type { LspLocation } from '#lib/services/lsp-service';
 
   export interface ReferencesResult {
     symbol: string;
@@ -18,10 +18,10 @@
    * LSP results panel for one symbol: definitions, implementations and usages,
    * grouped per file into collapsible sections. Calls `onOpen` with the picked location.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t } from '$lib/i18n';
-  import { basename, parentPathOf, pathWithinWorktree } from '$lib/utils/files/files-tree';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t } from '#lib/i18n';
+  import { basename, parentPathOf, pathWithinWorktree } from '#lib/utils/files/files-tree';
 
   export let hidden = false;
   export let loading = false;

@@ -6,16 +6,16 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { activeStep } from "$lib/stores/ui";
-import type { ReviewHunk, ReviewState } from "$lib/types/review";
-import { emptyReviewState } from "$lib/types/review";
+import { activeStep } from "#lib/stores/ui";
+import type { ReviewHunk, ReviewState } from "#lib/types/review";
+import { emptyReviewState } from "#lib/types/review";
 
-vi.mock("$lib/components/review/DiffEditor.svelte", async () => ({
+vi.mock("#lib/components/review/DiffEditor.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
 
 const getDiffFileBetween = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getDiffFileBetween: (...a: unknown[]) => getDiffFileBetween(...a),
 }));
@@ -27,7 +27,7 @@ const draftCommentFor = vi.fn<(...a: unknown[]) => unknown>();
 const cancelCommentDraft = vi.fn<(...a: unknown[]) => unknown>();
 const guideGenerating = writable<Record<string, string>>({});
 const reviewErrors = writable<Record<string, string>>({});
-vi.mock("$lib/stores/review", async (importOriginal) => ({
+vi.mock("#lib/stores/review", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	guideGenerating: { subscribe: guideGenerating.subscribe },
 	reviewErrors: { subscribe: reviewErrors.subscribe },
@@ -44,7 +44,7 @@ vi.mock("$lib/stores/review", async (importOriginal) => ({
 }));
 
 const { default: ReviewGuide } = await import(
-	"$lib/components/review/ReviewGuide.svelte"
+	"#lib/components/review/ReviewGuide.svelte"
 );
 
 const scope = { projectId: "p1", instanceId: "i1", worktreePath: "/wt" };
@@ -216,7 +216,7 @@ describe("ReviewGuide", () => {
 	 */
 	describe("a revision the worktree does not have", () => {
 		it("generates no guide", async () => {
-			const { generateGuide } = await import("$lib/stores/review");
+			const { generateGuide } = await import("#lib/stores/review");
 			mount({ ...guideState(), guide: null }, { isHeadMissing: true });
 			await settle();
 			const button = Array.from(

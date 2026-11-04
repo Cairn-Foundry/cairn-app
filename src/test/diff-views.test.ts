@@ -4,16 +4,16 @@
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiffMarker } from "$lib/utils/review/diff-markers";
+import type { DiffMarker } from "#lib/utils/review/diff-markers";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { default: DiffEditor } = await import(
-	"$lib/components/review/DiffEditor.svelte"
+	"#lib/components/review/DiffEditor.svelte"
 );
 
 /** Both views build their language mode asynchronously before mounting. */

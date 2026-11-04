@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 /**
  * Sorts a provider list the way the registry declares them, so two rows never

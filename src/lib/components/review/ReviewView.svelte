@@ -10,23 +10,23 @@
    * always comes from the local repository; only the discussions go through the
    * network.
    */
-  import { openUrl } from '$lib/services/opener-service';
-  import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { t, type TranslationKey } from '$lib/i18n';
+  import { openUrl } from '#lib/services/opener-service';
+  import { renderRemoteMarkdown } from '#lib/utils/integrations/markdown';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import { t, type TranslationKey } from '#lib/i18n';
   import {
     commitExists,
     fetch as gitFetch,
     toGitError,
-  } from '$lib/services/git-service';
-  import { activeInstance, setInstanceBaseBranch } from '$lib/stores/instance';
-  import { git, loadBranches } from '$lib/stores/git';
-  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
-  import { activeStep } from '$lib/stores/ui';
-  import { forgeTerms, hasForge } from '$lib/stores/integrations';
+  } from '#lib/services/git-service';
+  import { activeInstance, setInstanceBaseBranch } from '#lib/stores/instance';
+  import { git, loadBranches } from '#lib/stores/git';
+  import BaseBranchSelect from '#lib/components/git/BaseBranchSelect.svelte';
+  import { activeStep } from '#lib/stores/ui';
+  import { forgeTerms, hasForge } from '#lib/stores/integrations';
   import {
     approveMergeRequest,
     loadDiscussions,
@@ -36,7 +36,7 @@
     replyToDiscussion,
     selectDiscussion,
     setDiscussionResolved,
-  } from '$lib/stores/merge-request';
+  } from '#lib/stores/merge-request';
   import {
     addComment,
     deleteComment,
@@ -52,14 +52,14 @@
     reviewHunks,
     reviewStates,
     type ReviewScope,
-  } from '$lib/stores/review';
-  import { emptyReviewState } from '$lib/types/review';
-  import type { Discussion } from '$lib/types/integrations';
-  import { describeGitError } from '$lib/utils/git/git-error';
-  import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
+  } from '#lib/stores/review';
+  import { emptyReviewState } from '#lib/types/review';
+  import type { Discussion } from '#lib/types/integrations';
+  import { describeGitError } from '#lib/utils/git/git-error';
+  import MergeRequestForm from '#lib/components/git/MergeRequestForm.svelte';
   import ReviewDiff from './ReviewDiff.svelte';
   import ReviewGuide from './ReviewGuide.svelte';
-  import { aiEnabled } from '$lib/stores/settings';
+  import { aiEnabled } from '#lib/stores/settings';
 
   const renderMarkdown = renderRemoteMarkdown;
 

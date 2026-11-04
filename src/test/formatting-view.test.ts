@@ -11,8 +11,8 @@ import type {
 	FormattingConfig,
 	ImportReport,
 	StyleOptionInfo,
-} from "$lib/services/formatting-service";
-import { formattingActive } from "$lib/stores/ui";
+} from "#lib/services/formatting-service";
+import { formattingActive } from "#lib/stores/ui";
 
 const openDialog = vi.fn<(...a: unknown[]) => unknown>();
 const saveDialog = vi.fn<(...a: unknown[]) => unknown>();
@@ -29,7 +29,7 @@ const uninstallFormatter = vi.fn<(...a: unknown[]) => unknown>();
 const updateFormatter = vi.fn<(...a: unknown[]) => unknown>();
 const uninstallManagerForFormatter = vi.fn<(...a: unknown[]) => unknown>();
 const updateManagerForFormatter = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/formatting-service", async (importOriginal) => ({
+vi.mock("#lib/services/formatting-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	detectRepoFormatters: (...a: unknown[]) => detectRepoFormatters(...a),
 	exportFormattingConfig: (...a: unknown[]) => exportFormattingConfig(...a),
@@ -50,7 +50,7 @@ const loadStyleOptions = vi.fn<(...a: unknown[]) => unknown>();
 const loadProject = vi.fn<(...a: unknown[]) => unknown>();
 const saveProject = vi.fn<(...a: unknown[]) => unknown>();
 const scan = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/formatting", async (importOriginal) => ({
+vi.mock("#lib/stores/formatting", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	formatting: {
 		projects: { subscribe: projectConfigs.subscribe },
@@ -65,16 +65,16 @@ vi.mock("$lib/stores/formatting", async (importOriginal) => ({
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
-const { DEFAULT_FORMATTING } = await import("$lib/services/formatting-service");
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { DEFAULT_FORMATTING } = await import("#lib/services/formatting-service");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: FormattingView } = await import(
-	"$lib/components/formatting/FormattingView.svelte"
+	"#lib/components/formatting/FormattingView.svelte"
 );
 
 function formatter(overrides: Partial<FormatterStatus> = {}): FormatterStatus {

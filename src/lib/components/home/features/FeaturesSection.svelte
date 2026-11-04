@@ -14,14 +14,14 @@
    * the user chose, and reads none of its output.
    */
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { AI_FEATURES, ASSIST_CLIS, MODEL_SUGGESTIONS, resolveAiFeature, type AiFeatureId } from '$lib/utils/home/ai-features';
-  import { anyAssistCliInstalled, cliProviders, isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
-  import { settings } from '$lib/stores/settings';
-  import type { AiFeatureAssignment } from '$lib/services/settings-service';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import { AI_FEATURES, ASSIST_CLIS, MODEL_SUGGESTIONS, resolveAiFeature, type AiFeatureId } from '#lib/utils/home/ai-features';
+  import { anyAssistCliInstalled, cliProviders, isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
+  import { settings } from '#lib/stores/settings';
+  import type { AiFeatureAssignment } from '#lib/services/settings-service';
 
   let editingTemplate: AiFeatureId | null = null;
   let templateDraft = '';

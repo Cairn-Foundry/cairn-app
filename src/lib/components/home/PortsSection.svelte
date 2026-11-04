@@ -8,15 +8,15 @@
    * confirmed kill. Refreshes on a timer while the section is on screen.
    */
   import { onMount, onDestroy } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import KillProcessModal from '$lib/components/home/KillProcessModal.svelte';
-  import { t } from '$lib/i18n';
-  import { listListeningPorts, killProcess, type ListeningPort } from '$lib/services/ports-service';
-  import { activeScreen } from '$lib/stores/ui';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import KillProcessModal from '#lib/components/home/KillProcessModal.svelte';
+  import { t } from '#lib/i18n';
+  import { listListeningPorts, killProcess, type ListeningPort } from '#lib/services/ports-service';
+  import { activeScreen } from '#lib/stores/ui';
   import { get } from 'svelte/store';
 
   const REFRESH_MS = 5000;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { get, writable } from "svelte/store";
-import type { TabPayload } from "$lib/utils/files/tab-transfer";
+import type { TabPayload } from "#lib/utils/files/tab-transfer";
 
 /**
  * Tabs that came back to the main window from a detached one, waiting for the

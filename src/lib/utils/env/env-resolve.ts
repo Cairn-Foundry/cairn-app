@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { EnvScope, EnvVariable } from "$lib/services/env-service";
+import type { EnvScope, EnvVariable } from "#lib/services/env-service";
 import { isValidEnvKey } from "./env-file";
 
 // Flattening the three variable scopes into the environment a command runs

@@ -17,14 +17,14 @@ import type {
 	PullMode,
 	PushMode,
 	RemoteStatus,
-} from "$lib/services/git-service";
-import * as gitService from "$lib/services/git-service";
-import { listBranchesDetailed } from "$lib/services/instance-service";
-import type { GitErrorAction } from "$lib/utils/git/git-error";
+} from "#lib/services/git-service";
+import * as gitService from "#lib/services/git-service";
+import { listBranchesDetailed } from "#lib/services/instance-service";
+import type { GitErrorAction } from "#lib/utils/git/git-error";
 import {
 	GIT_REFRESH_IDLE_INTERVAL_MS,
 	GIT_REFRESH_INTERVAL_MS,
-} from "$lib/utils/timing";
+} from "#lib/utils/timing";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 import { activeScreen } from "./ui";

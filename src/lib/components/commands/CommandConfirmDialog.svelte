@@ -8,9 +8,9 @@
    * steps it is about to execute.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { CustomCommand } from '$lib/services/custom-command-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { CustomCommand } from '#lib/services/custom-command-service';
 
   export let command: CustomCommand;
 

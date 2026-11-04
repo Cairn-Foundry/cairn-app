@@ -11,14 +11,14 @@
    * says where to create one, without leaving the modal.
    */
   import { onDestroy, onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { connections, kindDescriptors, loadConnections, loadKinds } from '$lib/stores/integrations';
-  import { listTrackerProjects, suggestProjectIntegrations, trackerListStatuses } from '$lib/services/integration-service';
-  import type { Capability, ProjectIntegrations, TrackerProject, TrackerStatus } from '$lib/types/integrations';
-  import { parseRemoteUrl } from '$lib/utils/git/remote-url';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { connections, kindDescriptors, loadConnections, loadKinds } from '#lib/stores/integrations';
+  import { listTrackerProjects, suggestProjectIntegrations, trackerListStatuses } from '#lib/services/integration-service';
+  import type { Capability, ProjectIntegrations, TrackerProject, TrackerStatus } from '#lib/types/integrations';
+  import { parseRemoteUrl } from '#lib/utils/git/remote-url';
 
   export let projectId = '';
   export let remoteUrl = '';

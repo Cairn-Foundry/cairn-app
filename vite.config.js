@@ -47,7 +47,6 @@ export default defineConfig(async () => ({
     sveltekit({
       preprocess: vitePreprocess(),
       adapter: adapter({ fallback: "index.html" }),
-      alias: { $lib: "src/lib" },
     }),
   ],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },

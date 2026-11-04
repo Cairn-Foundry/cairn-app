@@ -6,14 +6,14 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Skill } from "$lib/services/skill-service";
+import type { Skill } from "#lib/services/skill-service";
 
 const saveSkill = vi.fn<(...a: unknown[]) => unknown>();
 const deleteSkill = vi.fn<(...a: unknown[]) => unknown>();
 const duplicateSkill = vi.fn<(...a: unknown[]) => unknown>();
 const addSkillResources = vi.fn<(...a: unknown[]) => unknown>();
 const deleteSkillResource = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/skill-service", async (importOriginal) => ({
+vi.mock("#lib/services/skill-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveSkill: (...a: unknown[]) => saveSkill(...a),
 	deleteSkill: (...a: unknown[]) => deleteSkill(...a),
@@ -23,13 +23,13 @@ vi.mock("$lib/services/skill-service", async (importOriginal) => ({
 }));
 
 const revealInFileManager = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
 }));
 
 const reachedProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	reachedProviders: (...a: unknown[]) => reachedProviders(...a),
 }));
@@ -38,7 +38,7 @@ const skillsStore = writable<Skill[]>([]);
 const skillsError = writable("");
 const skillsLoading = writable(false);
 const loadSkills = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/skills", async (importOriginal) => ({
+vi.mock("#lib/stores/skills", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	skills: { subscribe: skillsStore.subscribe },
 	skillsError: { subscribe: skillsError.subscribe },
@@ -48,14 +48,14 @@ vi.mock("$lib/stores/skills", async (importOriginal) => ({
 
 const cliProviders = writable<{ id: string; label: string }[]>([]);
 const loadCliProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	cliProviders: { subscribe: cliProviders.subscribe },
 	loadCliProviders: (...a: unknown[]) => loadCliProviders(...a),
 }));
 
 const loadProjects = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadProjects: (...a: unknown[]) => loadProjects(...a),
 }));
@@ -65,10 +65,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 	open: (...a: unknown[]) => openDialog(...a),
 }));
 
-const { projects } = await import("$lib/stores/project");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: SkillsSection } = await import(
-	"$lib/components/home/skills/SkillsSection.svelte"
+	"#lib/components/home/skills/SkillsSection.svelte"
 );
 
 function skill(overrides: Partial<Skill> = {}): Skill {

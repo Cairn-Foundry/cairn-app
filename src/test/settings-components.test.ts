@@ -4,20 +4,20 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CustomLanguageServer } from "$lib/services/settings-service";
+import type { CustomLanguageServer } from "#lib/services/settings-service";
 
 const setLocale = vi.fn();
-vi.mock("$lib/i18n", async (importOriginal) => {
+vi.mock("#lib/i18n", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
 	return { ...actual, setLocale: (...a: unknown[]) => setLocale(...a) };
 });
 
-const { LOCALE_META } = await import("$lib/i18n");
+const { LOCALE_META } = await import("#lib/i18n");
 const { default: CustomServerModal } = await import(
-	"$lib/components/home/CustomServerModal.svelte"
+	"#lib/components/home/CustomServerModal.svelte"
 );
 const { default: LanguagesTab } = await import(
-	"$lib/components/home/settings/LanguagesTab.svelte"
+	"#lib/components/home/settings/LanguagesTab.svelte"
 );
 
 describe("CustomServerModal", () => {

@@ -7,8 +7,8 @@ import {
 	EMPTY_PIPELINE_QUERY,
 	type JobLog,
 	type Pipeline,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
 import { instance, project } from "../../test/fixtures";
 import { loadInstances } from "./instance";
 import { activeProjectId, projects } from "./project";
@@ -21,12 +21,12 @@ const ciCancelPipeline = vi.hoisted(() => vi.fn());
 const ciJobLog = vi.hoisted(() => vi.fn());
 const listInstances = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/instance-service", async (importOriginal) => ({
+vi.mock("#lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listInstances,
 }));
 
-vi.mock("$lib/services/integration-service", async (importOriginal) => ({
+vi.mock("#lib/services/integration-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	ciListPipelines,
 	ciGetPipeline,

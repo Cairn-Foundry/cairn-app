@@ -8,10 +8,10 @@
    * Dispatches `save` with the assembled CustomLanguageServer, `close` on cancel.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { CustomLanguageServer } from '$lib/services/settings-service';
-  import { customServerId } from '$lib/stores/language-server';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { CustomLanguageServer } from '#lib/services/settings-service';
+  import { customServerId } from '#lib/stores/language-server';
 
   /** The server being edited, or null when one is being declared. */
   export let server: CustomLanguageServer | null = null;

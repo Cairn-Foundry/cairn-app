@@ -12,7 +12,7 @@ import {
 	openEditorWindow,
 	startNativeDrag,
 	transferTabs,
-} from "$lib/services/editor-window-service";
+} from "#lib/services/editor-window-service";
 import { type TabPayload, tokenFromDroppedPath } from "./tab-transfer";
 
 // A tab dragged out of its window. The editor's own tab drag runs on pointer

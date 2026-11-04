@@ -4,7 +4,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 import { buildConflictResolver, conflictLines } from "./editor-conflict";
 
 const views: EditorView[] = [];

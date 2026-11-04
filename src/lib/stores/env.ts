@@ -3,7 +3,7 @@
 
 /** Environment variables in three scopes - global, project, instance - and the .env file generated from them. */
 import { derived, get, writable } from "svelte/store";
-import { getSystemUser } from "$lib/services/custom-command-service";
+import { getSystemUser } from "#lib/services/custom-command-service";
 import {
 	type EnvFile,
 	type EnvScope,
@@ -17,27 +17,27 @@ import {
 	saveInstanceEnv,
 	saveProjectEnv,
 	writeEnvFile,
-} from "$lib/services/env-service";
-import { getIdentity } from "$lib/services/git-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import type { Instance } from "$lib/types/instance";
-import type { Project } from "$lib/types/project";
+} from "#lib/services/env-service";
+import { getIdentity } from "#lib/services/git-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import type { Instance } from "#lib/types/instance";
+import type { Project } from "#lib/types/project";
 import {
 	buildValues,
 	substituteValues,
-} from "$lib/utils/commands/command-variables";
-import { serializeEnvFile } from "$lib/utils/env/env-file";
+} from "#lib/utils/commands/command-variables";
+import { serializeEnvFile } from "#lib/utils/env/env-file";
 import {
 	type ResolvedEnvEntry,
 	resolveEnv,
 	toEnvRecord,
-} from "$lib/utils/env/env-resolve";
-import { persist } from "$lib/utils/persist-error";
+} from "#lib/utils/env/env-resolve";
+import { persist } from "#lib/utils/persist-error";
 import {
 	belongsToProject,
 	dropProjectKeys,
 	purgeProjectEntries,
-} from "$lib/utils/project-scope";
+} from "#lib/utils/project-scope";
 import { activeInstance } from "./instance";
 import { activeProject } from "./project";
 

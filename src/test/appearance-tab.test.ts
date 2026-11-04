@@ -6,18 +6,18 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } = await import(
-	"$lib/utils/home/appearance"
+	"#lib/utils/home/appearance"
 );
-const { availableThemes } = await import("$lib/utils/editor/themes");
+const { availableThemes } = await import("#lib/utils/editor/themes");
 const { default: AppearanceTab } = await import(
-	"$lib/components/home/settings/AppearanceTab.svelte"
+	"#lib/components/home/settings/AppearanceTab.svelte"
 );
 
 const themeCards = () =>

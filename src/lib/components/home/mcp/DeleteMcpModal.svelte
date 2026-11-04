@@ -7,8 +7,8 @@
    * Confirmation before removing an MCP server, naming the file it is declared in.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   export let name: string;
   export let sourcePath: string;

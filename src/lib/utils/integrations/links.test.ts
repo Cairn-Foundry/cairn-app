@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WebLinkTarget } from "$lib/types/integrations";
+import type { WebLinkTarget } from "#lib/types/integrations";
 import {
 	buildPipelinesUrl,
 	buildTokenHelpUrl,
@@ -14,8 +14,8 @@ import {
 const forgeWebLink = vi.hoisted(() => vi.fn());
 const capabilitiesOf = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/integration-service", () => ({ forgeWebLink }));
-vi.mock("$lib/stores/integrations", () => ({ capabilitiesOf }));
+vi.mock("#lib/services/integration-service", () => ({ forgeWebLink }));
+vi.mock("#lib/stores/integrations", () => ({ capabilitiesOf }));
 
 const remote = "git@gitlab.acme.io:group/repo.git";
 

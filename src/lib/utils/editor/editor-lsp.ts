@@ -35,10 +35,10 @@ import {
 	lspCompletion,
 	lspHover,
 	lspSignatureHelp,
-} from "$lib/services/lsp-service";
-import type { ModifierState } from "$lib/types/shortcuts";
-import { parseLinkTarget } from "$lib/utils/editor/editor-markdown-wysiwyg";
-import { renderRemoteMarkdown } from "$lib/utils/integrations/markdown";
+} from "#lib/services/lsp-service";
+import type { ModifierState } from "#lib/types/shortcuts";
+import { parseLinkTarget } from "#lib/utils/editor/editor-markdown-wysiwyg";
+import { renderRemoteMarkdown } from "#lib/utils/integrations/markdown";
 
 // The bridge between the language server protocol and CodeMirror: offset and
 // position conversion, then completion, hover, signature help and go-to-symbol.
@@ -199,7 +199,7 @@ function openDocLink(href: string, onOpenFile?: LspOpenFile): void {
 
 	const target = parseLinkTarget(clean);
 	if (target.kind === "external") {
-		void import("$lib/services/opener-service")
+		void import("#lib/services/opener-service")
 			.then((m) => m.openUrl(target.href))
 			.catch(() => {});
 	} else if (target.kind === "file" && onOpenFile) {

@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 const writeToTerminal = vi.hoisted(() => vi.fn());
 const resizeTerminal = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/terminal-service", () => ({
+vi.mock("#lib/services/terminal-service", () => ({
 	writeToTerminal,
 	resizeTerminal,
 }));

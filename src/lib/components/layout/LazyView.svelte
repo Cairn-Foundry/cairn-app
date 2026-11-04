@@ -10,8 +10,8 @@
    * which the user pays for at startup even when they only open Files.
    */
   import type { Component } from 'svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Deferred from '$lib/components/Deferred.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Deferred from '#lib/components/Deferred.svelte';
 
   /**
    * A view compiles to a class, or to a function under runes, and the two type

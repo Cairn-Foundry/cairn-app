@@ -8,9 +8,9 @@
    * Dispatches `confirm` or `close`.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { ProjectFolder } from '$lib/types/project';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { ProjectFolder } from '#lib/types/project';
 
   export let folder: ProjectFolder;
 

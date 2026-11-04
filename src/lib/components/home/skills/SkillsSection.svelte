@@ -8,30 +8,30 @@
    * and body, and manage the bundled resource files. The files are only written on save.
    */
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import DeleteSkillModal from './DeleteSkillModal.svelte';
-  import ProviderPicker from '$lib/components/home/ProviderPicker.svelte';
-  import ProviderChips from '$lib/components/home/ProviderChips.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { projects, loadProjects } from '$lib/stores/project';
-  import { skills, skillsError, skillsLoading, loadSkills } from '$lib/stores/skills';
+  import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
+  import ProviderChips from '#lib/components/home/ProviderChips.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { projects, loadProjects } from '#lib/stores/project';
+  import { skills, skillsError, skillsLoading, loadSkills } from '#lib/stores/skills';
   import {
     addSkillResources, deleteSkill, deleteSkillResource, duplicateSkill, saveSkill,
     type Skill, type SkillScope,
-  } from '$lib/services/skill-service';
-  import { revealInFileManager } from '$lib/services/file-service';
-  import { KNOWN_TOOLS } from '$lib/utils/agent/tools';
-  import { slugifySkill, MAX_DESCRIPTION } from '$lib/utils/home/skills';
-  import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
-  import { reachedProviders } from '$lib/services/cli-provider-service';
-  import { sortProviders } from '$lib/utils/home/cli-providers';
-  import type { CliProviderId } from '$lib/services/cli-provider-service';
+  } from '#lib/services/skill-service';
+  import { revealInFileManager } from '#lib/services/file-service';
+  import { KNOWN_TOOLS } from '#lib/utils/agent/tools';
+  import { slugifySkill, MAX_DESCRIPTION } from '#lib/utils/home/skills';
+  import { cliProviders, loadCliProviders } from '#lib/stores/cli-providers';
+  import { reachedProviders } from '#lib/services/cli-provider-service';
+  import { sortProviders } from '#lib/utils/home/cli-providers';
+  import type { CliProviderId } from '#lib/services/cli-provider-service';
 
   /** The editor's own copy: a file is only touched when Save is pressed. */
   interface Draft {

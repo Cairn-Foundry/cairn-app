@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getGreetingPools } from "$lib/i18n";
+import { getGreetingPools } from "#lib/i18n";
 import { pickGreeting } from "./greeting";
 
 const pools = getGreetingPools();

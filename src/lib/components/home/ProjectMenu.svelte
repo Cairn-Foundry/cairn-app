@@ -8,9 +8,9 @@
    * Each entry dispatches its own event; `moveToFolder` carries the target folder id.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { ProjectFolder } from '$lib/types/project';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { ProjectFolder } from '#lib/types/project';
 
   export let folders: ProjectFolder[];
   export let currentFolderId: string | null;

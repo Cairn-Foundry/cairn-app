@@ -5,19 +5,19 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
+import type { SyntaxTheme } from "#lib/utils/editor/syntax-tokens";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { SYNTAX_TOKEN_KEYS, defaultSyntaxTokens } = await import(
-	"$lib/utils/editor/syntax-tokens"
+	"#lib/utils/editor/syntax-tokens"
 );
 const { default: SyntaxThemeEditor } = await import(
-	"$lib/components/home/settings/SyntaxThemeEditor.svelte"
+	"#lib/components/home/settings/SyntaxThemeEditor.svelte"
 );
 
 /**

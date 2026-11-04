@@ -10,16 +10,16 @@ import {
 	trackerListTransitions,
 	trackerResolveUrl,
 	trackerTransition,
-} from "$lib/services/integration-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/integration-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	IntegrationError,
 	Ticket,
 	TicketQuery,
 	TicketTransition,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 
 export interface InstanceTicketState {
 	ticket: Ticket | null;

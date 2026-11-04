@@ -5,7 +5,7 @@
 // Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Project, ProjectFolder } from "$lib/types/project.ts";
+import type { Project, ProjectFolder } from "#lib/types/project.ts";
 
 /** Contents of listing.json: how the home list is grouped and ordered, not the projects themselves. */
 export type ListingConfig = {

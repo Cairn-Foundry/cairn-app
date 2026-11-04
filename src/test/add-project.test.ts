@@ -10,26 +10,26 @@ const validateDirectory = vi.fn<(...a: unknown[]) => Promise<string>>(
 	async (p) => p as string,
 );
 const cloneRepository = vi.fn(async (..._a: unknown[]) => "/cloned/repo");
-vi.mock("$lib/services/project-service", async (importOriginal) => ({
+vi.mock("#lib/services/project-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	validateDirectory: (...a: unknown[]) => validateDirectory(...a),
 	cloneRepository: (...a: unknown[]) => cloneRepository(...a),
 }));
 
 const getRemoteUrl = vi.fn(async (..._a: unknown[]) => "");
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getRemoteUrl: (...a: unknown[]) => getRemoteUrl(...a),
 }));
 
 const registerProject = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	registerProject: (...a: unknown[]) => registerProject(...a),
 }));
 
 const saveProjectIntegrations = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveProjectIntegrations: (...a: unknown[]) => saveProjectIntegrations(...a),
 	loadConnections: vi.fn(async (..._a: unknown[]) => {}),
@@ -41,10 +41,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 	open: (...a: unknown[]) => openDialog(...a),
 }));
 
-const { projects } = await import("$lib/stores/project");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: AddProject } = await import(
-	"$lib/components/AddProject.svelte"
+	"#lib/components/AddProject.svelte"
 );
 
 function mount(props: Record<string, unknown> = {}) {

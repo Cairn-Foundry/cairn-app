@@ -4,19 +4,19 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import DeleteConversationModal from "$lib/components/agent/DeleteConversationModal.svelte";
-import CommandConfirmDialog from "$lib/components/commands/CommandConfirmDialog.svelte";
-import DeleteAgentModal from "$lib/components/home/agents/DeleteAgentModal.svelte";
-import DeleteFolderModal from "$lib/components/home/DeleteFolderModal.svelte";
-import DeleteInstanceModal from "$lib/components/home/DeleteInstanceModal.svelte";
-import DeleteProjectModal from "$lib/components/home/DeleteProjectModal.svelte";
-import DeleteMcpModal from "$lib/components/home/mcp/DeleteMcpModal.svelte";
-import RemoveCustomServerModal from "$lib/components/home/RemoveCustomServerModal.svelte";
-import DeleteSkillModal from "$lib/components/home/skills/DeleteSkillModal.svelte";
-import UninstallServerModal from "$lib/components/home/UninstallServerModal.svelte";
-import type { CustomCommand } from "$lib/services/custom-command-service";
-import type { LanguageServerInfo } from "$lib/services/lsp-service";
-import type { Instance } from "$lib/types/instance";
+import DeleteConversationModal from "#lib/components/agent/DeleteConversationModal.svelte";
+import CommandConfirmDialog from "#lib/components/commands/CommandConfirmDialog.svelte";
+import DeleteAgentModal from "#lib/components/home/agents/DeleteAgentModal.svelte";
+import DeleteFolderModal from "#lib/components/home/DeleteFolderModal.svelte";
+import DeleteInstanceModal from "#lib/components/home/DeleteInstanceModal.svelte";
+import DeleteProjectModal from "#lib/components/home/DeleteProjectModal.svelte";
+import DeleteMcpModal from "#lib/components/home/mcp/DeleteMcpModal.svelte";
+import RemoveCustomServerModal from "#lib/components/home/RemoveCustomServerModal.svelte";
+import DeleteSkillModal from "#lib/components/home/skills/DeleteSkillModal.svelte";
+import UninstallServerModal from "#lib/components/home/UninstallServerModal.svelte";
+import type { CustomCommand } from "#lib/services/custom-command-service";
+import type { LanguageServerInfo } from "#lib/services/lsp-service";
+import type { Instance } from "#lib/types/instance";
 
 function languageServer(
 	name: string,
@@ -46,7 +46,7 @@ function languageServer(
 	} as LanguageServerInfo;
 }
 
-import type { ProjectFolder } from "$lib/types/project";
+import type { ProjectFolder } from "#lib/types/project";
 import { instance, project } from "./fixtures";
 
 /**

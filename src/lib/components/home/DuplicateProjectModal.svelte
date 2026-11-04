@@ -8,13 +8,13 @@
    * registers the copy as a new project. Dispatches `close`.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
-  import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
-  import { duplicateProjectInStore } from '$lib/stores/project';
-  import { t } from '$lib/i18n';
-  import type { Project } from '$lib/types/project';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
+  import { duplicateProjectInStore } from '#lib/stores/project';
+  import { t } from '#lib/i18n';
+  import type { Project } from '#lib/types/project';
 
   export let project: Project;
 

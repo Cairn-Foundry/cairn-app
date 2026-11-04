@@ -12,12 +12,12 @@
    * installed, which version, and where the binary came from.
    */
   import { onMount } from 'svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { t } from '$lib/i18n';
-  import { type CliProviderDef, listCliProviders } from '$lib/services/cli-provider-service';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { t } from '#lib/i18n';
+  import { type CliProviderDef, listCliProviders } from '#lib/services/cli-provider-service';
 
   let providers: CliProviderDef[] = [];
   let ready = false;

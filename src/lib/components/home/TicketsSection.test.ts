@@ -6,30 +6,30 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Ticket } from "$lib/types/integrations";
+import type { Ticket } from "#lib/types/integrations";
 
 const runOneShot = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
+vi.mock("#lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	runOneShot: (...a: unknown[]) => runOneShot(...a),
 }));
 
 const ticketsByProject = writable<Record<string, unknown>>({});
 const loadTicketsOverview = vi.fn();
-vi.mock("$lib/stores/tickets-overview", async (importOriginal) => ({
+vi.mock("#lib/stores/tickets-overview", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	ticketsByProject: { subscribe: ticketsByProject.subscribe },
 	loadTicketsOverview: (...a: unknown[]) => loadTicketsOverview(...a),
 }));
 
 const settingsState = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: { subscribe: settingsState.subscribe },
 }));
 
 const assistInstalled = writable(true);
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	isAssistCliInstalled: {
 		subscribe: (run: (v: (id: string) => boolean) => void) =>
@@ -38,7 +38,7 @@ vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
 	loadCliProviders: vi.fn(),
 }));
 
-const { projects } = await import("$lib/stores/project");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("../../../test/fixtures");
 const { default: TicketsSection } = await import("./TicketsSection.svelte");
 

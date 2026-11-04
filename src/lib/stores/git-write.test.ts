@@ -74,7 +74,7 @@ const service = vi.hoisted(() => ({
 	toGitError: vi.fn((e: unknown) => ({ code: "unknown", raw: String(e) })),
 }));
 
-vi.mock("$lib/services/git-service", () => ({
+vi.mock("#lib/services/git-service", () => ({
 	...service,
 	getStatusFull: vi.fn().mockResolvedValue({}),
 	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
@@ -91,7 +91,7 @@ vi.mock("./terminal", () => ({
 
 const listInstances = vi.hoisted(() => vi.fn());
 const branchLists = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/instance-service", () => ({
+vi.mock("#lib/services/instance-service", () => ({
 	listInstances,
 	listBranchesDetailed: branchLists,
 	createInstance: vi.fn(),

@@ -3,7 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TabPayload } from "$lib/utils/files/tab-transfer";
+import type { TabPayload } from "#lib/utils/files/tab-transfer";
 
 const webviewWindow = vi.hoisted(() => ({
 	label: "editor-3",

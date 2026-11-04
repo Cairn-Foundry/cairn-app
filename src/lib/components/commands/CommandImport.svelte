@@ -8,16 +8,16 @@
    * import, preselected. Dispatches `import` with the chosen ones.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t } from '$lib/i18n';
-  import type { CustomCommand } from '$lib/services/custom-command-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t } from '#lib/i18n';
+  import type { CustomCommand } from '#lib/services/custom-command-service';
   import {
     candidateToCommand,
     scanPackageJson,
     type ImportCandidate,
     type PackageManager,
-  } from '$lib/utils/commands/command-import';
+  } from '#lib/utils/commands/command-import';
 
   export let dir: string;
 

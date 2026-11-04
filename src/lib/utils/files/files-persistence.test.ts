@@ -16,12 +16,12 @@ import {
 	toPersistedState,
 } from "./files-persistence";
 
-vi.mock("$lib/services/file-service", () => ({
+vi.mock("#lib/services/file-service", () => ({
 	isBinaryPath: vi.fn().mockReturnValue(false),
 	readFileVersioned: vi.fn().mockResolvedValue({ text: "", version: null }),
 }));
 
-vi.mock("$lib/services/file-state-service", () => ({
+vi.mock("#lib/services/file-state-service", () => ({
 	getFileState: vi.fn().mockResolvedValue(null),
 	saveFileState: vi.fn(),
 }));

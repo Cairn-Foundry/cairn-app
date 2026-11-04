@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const checkForUpdate = vi.hoisted(() => vi.fn());
 const downloadAndInstall = vi.hoisted(() => vi.fn());
 const restartApp = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/update-service", () => ({
+vi.mock("#lib/services/update-service", () => ({
 	checkForUpdate,
 	downloadAndInstall,
 	restartApp,
@@ -15,7 +15,7 @@ vi.mock("$lib/services/update-service", () => ({
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/settings-service", () => ({
+vi.mock("#lib/services/settings-service", () => ({
 	getSettings,
 	updateSettings,
 }));

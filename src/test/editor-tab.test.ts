@@ -5,16 +5,16 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
+import type { SyntaxTheme } from "#lib/utils/editor/syntax-tokens";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
 const readFile = vi.fn();
 const writeFile = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readFile: (...a: unknown[]) => readFile(...a),
 	writeFile: (...a: unknown[]) => writeFile(...a),
@@ -27,10 +27,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 	open: (...a: unknown[]) => openDialog(...a),
 }));
 
-const { settings } = await import("$lib/stores/settings");
-const { serializeSyntaxTheme } = await import("$lib/utils/home/syntax-theme");
+const { settings } = await import("#lib/stores/settings");
+const { serializeSyntaxTheme } = await import("#lib/utils/home/syntax-theme");
 const { default: EditorTab } = await import(
-	"$lib/components/home/settings/EditorTab.svelte"
+	"#lib/components/home/settings/EditorTab.svelte"
 );
 
 function theme(id: string, name = id): SyntaxTheme {

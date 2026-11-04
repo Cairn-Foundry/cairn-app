@@ -5,15 +5,15 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SearchMatch } from "$lib/services/file-service";
+import type { SearchMatch } from "#lib/services/file-service";
 
 const searchInFiles = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	searchInFiles: (...a: unknown[]) => searchInFiles(...a),
 }));
 
-const { SEARCH_DEBOUNCE_MS } = await import("$lib/utils/timing");
+const { SEARCH_DEBOUNCE_MS } = await import("#lib/utils/timing");
 const { default: SearchPanel } = await import("./SearchPanel.svelte");
 
 function match(

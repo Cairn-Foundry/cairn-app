@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { IS_MAC } from "$lib/utils/platform";
+import { IS_MAC } from "#lib/utils/platform";
 
 // The webview does not copy a plain text selection outside an input on its own,
 // so Cairn intercepts the copy shortcut and writes it to the clipboard itself.

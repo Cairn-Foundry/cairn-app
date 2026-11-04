@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { Text } from "@codemirror/state";
-import { isBinaryPath, readFileVersioned } from "$lib/services/file-service";
+import { isBinaryPath, readFileVersioned } from "#lib/services/file-service";
 import {
 	type FileState,
 	getFileState,
 	type PersistedPane,
 	type PersistedTab,
 	saveFileState,
-} from "$lib/services/file-state-service";
+} from "#lib/services/file-state-service";
 import { docFromString } from "./document-model";
 import { detectLineEndings, normalizeLineEndings } from "./files-indent";
 import { absolutePathOf } from "./files-tree";

@@ -1,9 +1,9 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { matchesShortcut } from "$lib/stores/shortcuts";
-import { windowFullscreen } from "$lib/stores/ui";
-import type { ShortcutBinding } from "$lib/types/shortcuts";
+import { matchesShortcut } from "#lib/stores/shortcuts";
+import { windowFullscreen } from "#lib/stores/ui";
+import type { ShortcutBinding } from "#lib/types/shortcuts";
 
 export async function toggleFullscreen(): Promise<void> {
 	try {

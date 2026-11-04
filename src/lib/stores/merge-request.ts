@@ -13,17 +13,17 @@ import {
 	forgeReply,
 	forgeResolve,
 	toIntegrationError,
-} from "$lib/services/integration-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/integration-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	Actor,
 	Discussion,
 	IntegrationError,
 	MergeRequest,
 	MergeRequestDraft,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 
 export interface InstanceMergeRequestState {
 	mergeRequest: MergeRequest | null;

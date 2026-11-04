@@ -9,16 +9,16 @@
    * be dragged within a scope or into another one; every change is written back
    * to the worktree .env file.
    */
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import EnvEditor from '$lib/components/env/EnvEditor.svelte';
-  import EnvImport from '$lib/components/env/EnvImport.svelte';
-  import { t } from '$lib/i18n';
-  import { writeFile } from '$lib/services/file-service';
-  import type { EnvScope, EnvVariable } from '$lib/services/env-service';
-  import { deleteEnvFile, emptyEnvFile, readEnvFile } from '$lib/services/env-service';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import EnvEditor from '#lib/components/env/EnvEditor.svelte';
+  import EnvImport from '#lib/components/env/EnvImport.svelte';
+  import { t } from '#lib/i18n';
+  import { writeFile } from '#lib/services/file-service';
+  import type { EnvScope, EnvVariable } from '#lib/services/env-service';
+  import { deleteEnvFile, emptyEnvFile, readEnvFile } from '#lib/services/env-service';
   import {
     addVariables,
     envFileConflicts,
@@ -39,12 +39,12 @@
     syncEnvFile,
     toggleVariableEnabled,
     updateVariable,
-  } from '$lib/stores/env';
-  import { activeInstance } from '$lib/stores/instance';
-  import { envActive } from '$lib/stores/ui';
-  import { activeProject } from '$lib/stores/project';
-  import { type ParsedEnvEntry, parseEnvFile, serializeEnvFile } from '$lib/utils/env/env-file';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
+  } from '#lib/stores/env';
+  import { activeInstance } from '#lib/stores/instance';
+  import { envActive } from '#lib/stores/ui';
+  import { activeProject } from '#lib/stores/project';
+  import { type ParsedEnvEntry, parseEnvFile, serializeEnvFile } from '#lib/utils/env/env-file';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
 
   let editing: { scope: EnvScope; variable: EnvVariable; isNew: boolean } | null = null;
   let importing = false;

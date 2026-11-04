@@ -10,7 +10,7 @@ import {
 	defaultSyntaxTokens,
 	type SyntaxTokenKey,
 	type SyntaxTokens,
-} from "$lib/utils/editor/syntax-tokens";
+} from "#lib/utils/editor/syntax-tokens";
 import type { DiffKind } from "./editor-diff-gutter";
 
 // The editor's look: which CodeMirror language extension a file gets, the

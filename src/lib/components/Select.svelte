@@ -9,9 +9,9 @@
    * Binds `value` and also dispatches `change`.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import { t } from '#lib/i18n';
 
   export let value: string;
   export let options: { value: string; label: string }[] = [];

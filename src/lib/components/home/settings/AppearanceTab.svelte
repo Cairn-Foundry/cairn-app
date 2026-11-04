@@ -6,15 +6,15 @@
   /**
    * Appearance settings: theme, accent colour, interface font, UI scale and title bar.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '$lib/utils/home/appearance';
-  import { availableThemes } from '$lib/utils/editor/themes';
-  import { toHexColor } from '$lib/utils/editor/color';
-  import { IS_MAC } from '$lib/utils/platform';
-  import type { TitleBarFill, TitleBarMode } from '$lib/services/settings-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '#lib/utils/home/appearance';
+  import { availableThemes } from '#lib/utils/editor/themes';
+  import { toHexColor } from '#lib/utils/editor/color';
+  import { IS_MAC } from '#lib/utils/platform';
+  import type { TitleBarFill, TitleBarMode } from '#lib/services/settings-service';
 
   function themeTitleBarColor(): string {
     return toHexColor(getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim());

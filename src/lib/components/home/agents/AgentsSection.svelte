@@ -8,35 +8,35 @@
    * and every targeted provider. Edits go to a local draft; the files are only written on save.
    */
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import DeleteAgentModal from './DeleteAgentModal.svelte';
-  import ProviderPicker from '$lib/components/home/ProviderPicker.svelte';
-  import ProviderChips from '$lib/components/home/ProviderChips.svelte';
+  import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
+  import ProviderChips from '#lib/components/home/ProviderChips.svelte';
   import ProviderLogo from './ProviderLogo.svelte';
-  import { projects, loadProjects } from '$lib/stores/project';
+  import { projects, loadProjects } from '#lib/stores/project';
   import {
     loadNativeAgents,
     nativeAgents, nativeAgentsError, nativeAgentsLoading,
-  } from '$lib/stores/native-agents';
+  } from '#lib/stores/native-agents';
   import {
     deleteNativeAgent, duplicateNativeAgent, saveNativeAgent,
     type NativeAgent, type NativeAgentScope,
-  } from '$lib/services/native-agent-service';
-  import { revealInFileManager } from '$lib/services/file-service';
-  import { KNOWN_TOOLS } from '$lib/utils/agent/tools';
-  import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
-  import { effortsOf, permissionModesOf } from '$lib/components/home/agents/cli-options';
-  import { skills as skillList, loadSkills } from '$lib/stores/skills';
-  import { effortLabel, permissionModeLabel } from '$lib/utils/agent/run-options';
-  import { reachedProviders, type CliProviderId } from '$lib/services/cli-provider-service';
-  import { sortProviders } from '$lib/utils/home/cli-providers';
-  import { agentSlug, AGENT_COLORS, MAX_DESCRIPTION } from '$lib/utils/home/native-agents';
+  } from '#lib/services/native-agent-service';
+  import { revealInFileManager } from '#lib/services/file-service';
+  import { KNOWN_TOOLS } from '#lib/utils/agent/tools';
+  import { cliProviders, loadCliProviders } from '#lib/stores/cli-providers';
+  import { effortsOf, permissionModesOf } from '#lib/components/home/agents/cli-options';
+  import { skills as skillList, loadSkills } from '#lib/stores/skills';
+  import { effortLabel, permissionModeLabel } from '#lib/utils/agent/run-options';
+  import { reachedProviders, type CliProviderId } from '#lib/services/cli-provider-service';
+  import { sortProviders } from '#lib/utils/home/cli-providers';
+  import { agentSlug, AGENT_COLORS, MAX_DESCRIPTION } from '#lib/utils/home/native-agents';
 
   /** The editor's own copy: a file is only touched when Save is pressed. */
   interface Draft {

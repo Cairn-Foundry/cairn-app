@@ -6,21 +6,21 @@
   /**
    * Editor settings, plus the syntax theme library: create, duplicate, import and export themes.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import { SAVE_ON_OPTIONS } from '$lib/utils/home/appearance';
-  import type { CairnSettings } from '$lib/services/settings-service';
-  import SyntaxThemeEditor from '$lib/components/home/settings/SyntaxThemeEditor.svelte';
-  import type { SyntaxTheme } from '$lib/utils/editor/syntax-tokens';
-  import { SYNTAX_TOKEN_KEYS, defaultSyntaxTokens } from '$lib/utils/editor/syntax-tokens';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import { SAVE_ON_OPTIONS } from '#lib/utils/home/appearance';
+  import type { CairnSettings } from '#lib/services/settings-service';
+  import SyntaxThemeEditor from '#lib/components/home/settings/SyntaxThemeEditor.svelte';
+  import type { SyntaxTheme } from '#lib/utils/editor/syntax-tokens';
+  import { SYNTAX_TOKEN_KEYS, defaultSyntaxTokens } from '#lib/utils/editor/syntax-tokens';
   import {
     createSyntaxTheme,
     duplicateSyntaxTheme,
     parseSyntaxTheme,
     serializeSyntaxTheme,
-  } from '$lib/utils/home/syntax-theme';
-  import { readFile, writeFile } from '$lib/services/file-service';
+  } from '#lib/utils/home/syntax-theme';
+  import { readFile, writeFile } from '#lib/services/file-service';
 
   let saveOnOpen = false;
 

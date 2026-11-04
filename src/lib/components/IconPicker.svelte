@@ -8,11 +8,11 @@
    * a search field. Dispatches `select` with the icon name.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t, type TranslationKey } from '$lib/i18n';
-  import { ICON_GROUPS } from '$lib/utils/icons';
-  import { matchesSearch } from '$lib/utils/files/files-search';
-  import { clickOutside } from '$lib/utils/click-outside';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import { ICON_GROUPS } from '#lib/utils/icons';
+  import { matchesSearch } from '#lib/utils/files/files-search';
+  import { clickOutside } from '#lib/utils/click-outside';
 
   export let value: string;
 

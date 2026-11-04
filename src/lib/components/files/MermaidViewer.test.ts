@@ -5,7 +5,7 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/utils/editor/mermaid", () => ({
+vi.mock("#lib/utils/editor/mermaid", () => ({
 	renderMermaid: vi.fn(async (host: HTMLElement) => {
 		host.innerHTML = "<svg></svg>";
 	}),

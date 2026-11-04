@@ -5,10 +5,10 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LineHistoryEntry } from "$lib/services/file-service";
+import type { LineHistoryEntry } from "#lib/services/file-service";
 
 const gitLineHistory = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	gitLineHistory: (...a: unknown[]) => gitLineHistory(...a),
 }));

@@ -6,9 +6,9 @@
  * them on the way back, so every project reopens exactly where it was left.
  */
 import { derived, get, writable } from "svelte/store";
-import type { ProjectUiState } from "$lib/services/ui-state-service";
-import { activeProjectId } from "$lib/stores/project";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+import type { ProjectUiState } from "#lib/services/ui-state-service";
+import { activeProjectId } from "#lib/stores/project";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import {
 	activeStep,
 	commandsActive,
@@ -21,9 +21,9 @@ import {
 	referencesQuery,
 	showTool,
 	terminalActive,
-} from "$lib/stores/ui";
-import type { WorkflowStep } from "$lib/types/instance";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/stores/ui";
+import type { WorkflowStep } from "#lib/types/instance";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 
 /** The state a project that has never been opened starts from. */
 const DEFAULT: ProjectUiState = {

@@ -7,10 +7,10 @@
    * The title bar the app draws in place of the system's: the window is moved
    * by it, and its fill is the user's to choose.
    */
-  import WindowControls from '$lib/components/layout/WindowControls.svelte';
-  import { channel } from '$lib/stores/channel';
-  import { foregroundOn } from '$lib/utils/home/contrast';
-  import { draggableRegion } from '$lib/utils/window-drag';
+  import WindowControls from '#lib/components/layout/WindowControls.svelte';
+  import { channel } from '#lib/stores/channel';
+  import { foregroundOn } from '#lib/utils/home/contrast';
+  import { draggableRegion } from '#lib/utils/window-drag';
 
   export let fill: string | null = null;
 </script>

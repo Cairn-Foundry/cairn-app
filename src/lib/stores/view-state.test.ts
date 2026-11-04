@@ -3,8 +3,8 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it } from "vitest";
-import { activeProjectId } from "$lib/stores/project";
-import { activeStep, gitLeftTab, showTool } from "$lib/stores/ui";
+import { activeProjectId } from "#lib/stores/project";
+import { activeStep, gitLeftTab, showTool } from "#lib/stores/ui";
 import {
 	currentProjectViewState,
 	initViewStates,

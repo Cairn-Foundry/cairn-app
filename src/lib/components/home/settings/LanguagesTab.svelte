@@ -6,10 +6,10 @@
   /**
    * Interface language picker, searchable over both the native and the English name.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { getLocale, setLocale, LOCALE_META } from '$lib/i18n';
-  import type { Locale } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { getLocale, setLocale, LOCALE_META } from '#lib/i18n';
+  import type { Locale } from '#lib/i18n';
 
   const currentLocale = getLocale();
 

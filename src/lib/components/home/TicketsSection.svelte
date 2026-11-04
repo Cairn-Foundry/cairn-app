@@ -12,16 +12,16 @@
    * the project and hands the ticket to the instance creation modal.
    */
   import { onDestroy, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
   import { createEventDispatcher } from 'svelte';
-  import { getLocale, t } from '$lib/i18n';
-  import { projects } from '$lib/stores/project';
-  import { aiEnabled, settings } from '$lib/stores/settings';
-  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
+  import { getLocale, t } from '#lib/i18n';
+  import { projects } from '#lib/stores/project';
+  import { aiEnabled, settings } from '#lib/stores/settings';
+  import { isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
   import {
     collapsedTicketProjects,
     loadTicketsOverview,
@@ -30,12 +30,12 @@
     ticketsScope,
     toggleTicketProjectCollapse,
     type TicketScope,
-  } from '$lib/stores/tickets-overview';
-  import { AiAssistError, runOneShot } from '$lib/services/ai-assist-service';
-  import { resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { buildTicketPlanPrompt } from '$lib/utils/integrations/prompts';
-  import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
-  import type { Ticket } from '$lib/types/integrations';
+  } from '#lib/stores/tickets-overview';
+  import { AiAssistError, runOneShot } from '#lib/services/ai-assist-service';
+  import { resolveAiFeature } from '#lib/utils/home/ai-features';
+  import { buildTicketPlanPrompt } from '#lib/utils/integrations/prompts';
+  import { renderRemoteMarkdown } from '#lib/utils/integrations/markdown';
+  import type { Ticket } from '#lib/types/integrations';
 
   const dispatch = createEventDispatcher<{
     startTicket: { projectId: string; ticket: Ticket };

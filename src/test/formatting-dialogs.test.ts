@@ -5,15 +5,15 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
-import ExportModal from "$lib/components/formatting/ExportModal.svelte";
-import ImportModal from "$lib/components/formatting/ImportModal.svelte";
-import StyleField from "$lib/components/formatting/StyleField.svelte";
+import ExportModal from "#lib/components/formatting/ExportModal.svelte";
+import ImportModal from "#lib/components/formatting/ImportModal.svelte";
+import StyleField from "#lib/components/formatting/StyleField.svelte";
 import type {
 	FormatterStatus,
 	ImportReport,
 	StyleOptionInfo,
 	StyleSet,
-} from "$lib/services/formatting-service";
+} from "#lib/services/formatting-service";
 
 const body = () => document.querySelector(".modal") as HTMLElement;
 const footButtons = () =>

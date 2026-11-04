@@ -20,8 +20,8 @@ import { getSearchQuery, gotoLine, searchPanelOpen } from "@codemirror/search";
 import type { EditorState, Extension } from "@codemirror/state";
 import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import { showMinimap } from "@replit/codemirror-minimap";
-import { toCmKey } from "$lib/stores/shortcuts";
-import type { ShortcutBinding, ShortcutId } from "$lib/types/shortcuts";
+import { toCmKey } from "#lib/stores/shortcuts";
+import type { ShortcutBinding, ShortcutId } from "#lib/types/shortcuts";
 import { EDITOR_DEFAULTS } from "./editor-config";
 
 // The CodeMirror extensions that are not a feature of their own: font sizing,

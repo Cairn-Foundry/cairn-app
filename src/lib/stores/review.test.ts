@@ -3,14 +3,14 @@
 
 import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReviewHunk } from "$lib/types/review";
-import { emptyReviewState } from "$lib/types/review";
+import type { ReviewHunk } from "#lib/types/review";
+import { emptyReviewState } from "#lib/types/review";
 
 const getDiffHunks = vi.fn<(...a: unknown[]) => unknown>();
 const getDiffUnified = vi.fn<(...a: unknown[]) => unknown>();
 const loadReviewState = vi.fn<(...a: unknown[]) => unknown>();
 const saveReviewState = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/review-service", () => ({
+vi.mock("#lib/services/review-service", () => ({
 	getDiffHunks: (...a: unknown[]) => getDiffHunks(...a),
 	getDiffUnified: (...a: unknown[]) => getDiffUnified(...a),
 	loadReviewState: (...a: unknown[]) => loadReviewState(...a),
@@ -19,13 +19,13 @@ vi.mock("$lib/services/review-service", () => ({
 
 const runOneshot = vi.fn<(...a: unknown[]) => unknown>();
 const stopOneshot = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/oneshot-service", () => ({
+vi.mock("#lib/services/oneshot-service", () => ({
 	runOneshot: (...a: unknown[]) => runOneshot(...a),
 	stopOneshot: (...a: unknown[]) => stopOneshot(...a),
 }));
 
 const forgeSubmitReview = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/integration-service", () => ({
+vi.mock("#lib/services/integration-service", () => ({
 	forgeSubmitReview: (...a: unknown[]) => forgeSubmitReview(...a),
 }));
 

@@ -5,8 +5,8 @@
 // each one. Adding an assist is an entry in AI_FEATURES plus its i18n pair;
 // nothing else is keyed by id outside the feature's own call site.
 
-import { CLAUDE_CODE } from "$lib/services/cli-provider-service";
-import type { AiFeatureAssignment } from "$lib/services/settings-service";
+import { CLAUDE_CODE } from "#lib/services/cli-provider-service";
+import type { AiFeatureAssignment } from "#lib/services/settings-service";
 
 /**
  * How much of the project an assist needs in front of the model. Anything short

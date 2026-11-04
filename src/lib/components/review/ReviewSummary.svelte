@@ -10,12 +10,12 @@
    */
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { publishReview, reviewMarkdown, type ReviewScope } from '$lib/stores/review';
-  import type { ReviewState, ReviewVerdict } from '$lib/types/review';
-  import { errorMessage } from '$lib/utils/error-message';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { publishReview, reviewMarkdown, type ReviewScope } from '#lib/stores/review';
+  import type { ReviewState, ReviewVerdict } from '#lib/types/review';
+  import { errorMessage } from '#lib/utils/error-message';
 
   export let scope: ReviewScope;
   export let state: ReviewState;

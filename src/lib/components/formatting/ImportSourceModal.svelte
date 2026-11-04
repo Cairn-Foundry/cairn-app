@@ -8,9 +8,9 @@
    * detected at the root of the worktree, or a file picked by hand.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { DetectedConfig, FormatterStatus } from '$lib/services/formatting-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { DetectedConfig, FormatterStatus } from '#lib/services/formatting-service';
 
   /** Config files found at the root of the worktree, if any. */
   export let detected: DetectedConfig[] = [];

@@ -8,12 +8,12 @@ import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /** The history panel has its own suite; here it only needs to mount. */
-vi.mock("$lib/components/agent/ConversationHistoryPanel.svelte", async () => ({
+vi.mock("#lib/components/agent/ConversationHistoryPanel.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
 
 const listCliProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listCliProviders: (...a: unknown[]) => listCliProviders(...a),
 }));
@@ -27,13 +27,13 @@ const fireExit = (id: string, exitCode: number | null) => {
 };
 const createTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const closeTerminal = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/terminal-service", async (importOriginal) => ({
+vi.mock("#lib/services/terminal-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
 }));
 
-vi.mock("$lib/utils/terminal/terminal-manager", () => ({
+vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	create: vi.fn(),
 	dispose: vi.fn(),
 	attach: vi.fn(),
@@ -50,19 +50,19 @@ vi.mock("$lib/utils/terminal/terminal-manager", () => ({
 	},
 }));
 
-vi.mock("$lib/services/conversation-service", () => ({
+vi.mock("#lib/services/conversation-service", () => ({
 	getConversationIndex: vi.fn().mockResolvedValue(null),
 	saveConversationIndex: vi.fn().mockResolvedValue(undefined),
 }));
 
 const listInstances = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/instance-service", async (importOriginal) => ({
+vi.mock("#lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listInstances,
 }));
 
 const { default: AgentView } = await import(
-	"$lib/components/agent/AgentView.svelte"
+	"#lib/components/agent/AgentView.svelte"
 );
 const {
 	activeConversationId,
@@ -70,10 +70,10 @@ const {
 	conversationsOf,
 	instanceConversations,
 	projectConversations,
-} = await import("$lib/stores/conversation");
-const { loadInstances } = await import("$lib/stores/instance");
-const { projects, activeProjectId } = await import("$lib/stores/project");
-const { lastCli } = await import("$lib/stores/ui");
+} = await import("#lib/stores/conversation");
+const { loadInstances } = await import("#lib/stores/instance");
+const { projects, activeProjectId } = await import("#lib/stores/project");
+const { lastCli } = await import("#lib/stores/ui");
 const { instance, project } = await import("./fixtures");
 
 /** One CLI installed, one not, so both card states are on screen. */
@@ -413,7 +413,7 @@ describe("unarchiving a conversation", () => {
 		await mount();
 		await userEvent.click(cardNamed("Claude Code"));
 		await tick();
-		const { toggleArchived } = await import("$lib/stores/conversation");
+		const { toggleArchived } = await import("#lib/stores/conversation");
 		toggleArchived(ref, conversationsOf(ref)[0].id);
 		await tick();
 	}
@@ -432,7 +432,7 @@ describe("unarchiving a conversation", () => {
 		expect(conversationsOf(ref)[0].archived).toBe(false);
 		expect(document.querySelector(".conv-bar")).not.toBeNull();
 		expect(
-			get((await import("$lib/stores/conversation")).activeConversationId)[
+			get((await import("#lib/stores/conversation")).activeConversationId)[
 				`${ref.projectId}:${ref.instanceId}`
 			],
 		).toBe(conversationsOf(ref)[0].id);
@@ -519,7 +519,7 @@ describe("when the CLI exits", () => {
 	// its place.
 	it("ignores an exit arriving once the conversation has no terminal", async () => {
 		const tid = await openOne();
-		const { closeConversation } = await import("$lib/stores/conversation");
+		const { closeConversation } = await import("#lib/stores/conversation");
 		const ref = {
 			projectId: "p1",
 			instanceId: "i1",

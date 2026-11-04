@@ -8,11 +8,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	IntegrationConnection,
 	IntegrationKindDescriptor,
-} from "$lib/types/integrations";
+} from "#lib/types/integrations";
 
 const loadKinds = vi.fn();
 const loadConnections = vi.fn();
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadKinds: (...a: unknown[]) => loadKinds(...a),
 	loadConnections: (...a: unknown[]) => loadConnections(...a),
@@ -21,7 +21,7 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 const saveIntegrationConnection = vi.fn();
 const testIntegrationConnection = vi.fn();
 const deleteIntegrationConnection = vi.fn();
-vi.mock("$lib/services/integration-service", async (importOriginal) => ({
+vi.mock("#lib/services/integration-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveIntegrationConnection: (...a: unknown[]) =>
 		saveIntegrationConnection(...a),
@@ -32,10 +32,10 @@ vi.mock("$lib/services/integration-service", async (importOriginal) => ({
 }));
 
 const { connections, kindDescriptors, connectionsError } = await import(
-	"$lib/stores/integrations"
+	"#lib/stores/integrations"
 );
 const { default: IntegrationsSection } = await import(
-	"$lib/components/home/IntegrationsSection.svelte"
+	"#lib/components/home/IntegrationsSection.svelte"
 );
 
 function connection(

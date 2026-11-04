@@ -14,7 +14,7 @@
 //   - The tree shown is derived from the previous tree plus that accumulation.
 //   - Nothing is deleted while the run is in flight; pruning happens once, at
 //     the end, when silence is finally meaningful.
-import type { TestCase, TestSuite } from "$lib/types/tests";
+import type { TestCase, TestSuite } from "#lib/types/tests";
 import type { RunScope } from "./test-scope";
 import { aggregateStatus } from "./test-tree";
 

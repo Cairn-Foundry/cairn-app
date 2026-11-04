@@ -15,52 +15,52 @@
   import { Text, type EditorState } from '@codemirror/state';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import EditorPane from '$lib/components/files/EditorPane.svelte';
-  import CodeEditor from '$lib/components/files/CodeEditor.svelte';
-  import SaveConflict from '$lib/components/files/SaveConflict.svelte';
-  import ReferencesPanel, { type ReferencesResult } from '$lib/components/files/ReferencesPanel.svelte';
-  import { settings } from '$lib/stores/settings';
-  import { activeShortcuts, matchesShortcut } from '$lib/stores/shortcuts';
-  import { projects } from '$lib/stores/project';
-  import { formatOnSave, formatting as formattingStore } from '$lib/stores/formatting';
-  import { lspDiagnostics } from '$lib/stores/language-server';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import EditorPane from '#lib/components/files/EditorPane.svelte';
+  import CodeEditor from '#lib/components/files/CodeEditor.svelte';
+  import SaveConflict from '#lib/components/files/SaveConflict.svelte';
+  import ReferencesPanel, { type ReferencesResult } from '#lib/components/files/ReferencesPanel.svelte';
+  import { settings } from '#lib/stores/settings';
+  import { activeShortcuts, matchesShortcut } from '#lib/stores/shortcuts';
+  import { projects } from '#lib/stores/project';
+  import { formatOnSave, formatting as formattingStore } from '#lib/stores/formatting';
+  import { lspDiagnostics } from '#lib/stores/language-server';
   import {
     type LspDiagnostic, type LspDocRef, type LspTextEdit,
     lspDefinition, lspDidChange, lspFormat, lspImplementation, lspReferences, lspRename,
-  } from '$lib/services/lsp-service';
-  import { formatDocument, type StyleSet } from '$lib/services/formatting-service';
-  import { stageFile } from '$lib/services/git-service';
+  } from '#lib/services/lsp-service';
+  import { formatDocument, type StyleSet } from '#lib/services/formatting-service';
+  import { stageFile } from '#lib/services/git-service';
   import {
     gitStatus, isBinaryPath, isWriteConflict, langFromPath, readFile, readFileVersioned, writeFile,
     type BlameEntry, type GitStatusMap,
-  } from '$lib/services/file-service';
-  import { onFsChanged, unwatchWorktree, watchDirs } from '$lib/services/fs-watch-service';
+  } from '#lib/services/file-service';
+  import { onFsChanged, unwatchWorktree, watchDirs } from '#lib/services/fs-watch-service';
   import {
     MAIN_WINDOW, focusFileOwner, onRevealFile, onSaveAll, onTabsReceived, openEditorWindow,
     syncWindowFiles, takeWindowTabs, transferTabs, type OpenFile,
-  } from '$lib/services/editor-window-service';
-  import { LSP_FORMATTER_ID } from '$lib/utils/formatting/resolve';
-  import { languageIdForPath } from '$lib/utils/languages/servers';
-  import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
-  import { findHeadingLine } from '$lib/utils/editor/editor-markdown-wysiwyg';
-  import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
-  import { EDITOR_DEFAULTS, FONT_SIZE_MAX, FONT_SIZE_MIN } from '$lib/utils/editor/editor-config';
-  import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '$lib/utils/timing';
-  import { IS_MAC } from '$lib/utils/platform';
-  import { draggableRegion } from '$lib/utils/window-drag';
-  import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
-  import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
-  import { loadPaneBase } from '$lib/utils/files/files-diff';
-  import { convertToSpaces, convertToTabs, detectIndentStyle, detectLineEndings, detectSpaceSize, normalizeLineEndings } from '$lib/utils/files/files-indent';
-  import { absolutePathOf, basename, isExternalPath, isUnder, parentPathOf, pathWithinWorktree } from '$lib/utils/files/files-tree';
-  import { applyTabReorder, computeTabInsertIndex, sortedByPin } from '$lib/utils/files/files-tab-drag';
-  import { resolveTabClose } from '$lib/utils/files/files-tab-close';
-  import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
-  import { diskContentOf, readTabFile, writeTab } from '$lib/utils/files/tab-io';
-  import { payloadToTab, tabToPayload, type ScopedTab, type TabPayload, type TabScope } from '$lib/utils/files/tab-transfer';
-  import { claimDroppedTabs, dragTabNatively, dropTabOutside, isOutsideViewport, usesNativeDrag } from '$lib/utils/files/tab-window-drag';
+  } from '#lib/services/editor-window-service';
+  import { LSP_FORMATTER_ID } from '#lib/utils/formatting/resolve';
+  import { languageIdForPath } from '#lib/utils/languages/servers';
+  import { applyEditsToText } from '#lib/utils/editor/editor-lsp';
+  import { findHeadingLine } from '#lib/utils/editor/editor-markdown-wysiwyg';
+  import type { GutterChunk } from '#lib/utils/editor/editor-diff-gutter';
+  import { EDITOR_DEFAULTS, FONT_SIZE_MAX, FONT_SIZE_MIN } from '#lib/utils/editor/editor-config';
+  import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '#lib/utils/timing';
+  import { IS_MAC } from '#lib/utils/platform';
+  import { draggableRegion } from '#lib/utils/window-drag';
+  import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '#lib/utils/files/document-model';
+  import { LspDocSync } from '#lib/utils/files/lsp-doc-sync';
+  import { loadPaneBase } from '#lib/utils/files/files-diff';
+  import { convertToSpaces, convertToTabs, detectIndentStyle, detectLineEndings, detectSpaceSize, normalizeLineEndings } from '#lib/utils/files/files-indent';
+  import { absolutePathOf, basename, isExternalPath, isUnder, parentPathOf, pathWithinWorktree } from '#lib/utils/files/files-tree';
+  import { applyTabReorder, computeTabInsertIndex, sortedByPin } from '#lib/utils/files/files-tab-drag';
+  import { resolveTabClose } from '#lib/utils/files/files-tab-close';
+  import { hasConflictMarkers } from '#lib/utils/git/conflict-markers';
+  import { diskContentOf, readTabFile, writeTab } from '#lib/utils/files/tab-io';
+  import { payloadToTab, tabToPayload, type ScopedTab, type TabPayload, type TabScope } from '#lib/utils/files/tab-transfer';
+  import { claimDroppedTabs, dragTabNatively, dropTabOutside, isOutsideViewport, usesNativeDrag } from '#lib/utils/files/tab-window-drag';
 
   const NO_DIAGNOSTICS: LspDiagnostic[] = [];
   const NO_LOADING = new Set<string>();

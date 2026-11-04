@@ -5,7 +5,7 @@
 // the editor sends once one is running.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { LspContentChange } from "$lib/utils/files/document-model";
+import type { LspContentChange } from "#lib/utils/files/document-model";
 
 /** Lifecycle of one server on one root. */
 export type LanguageServerStatus = "starting" | "ready" | "failed" | "stopped";

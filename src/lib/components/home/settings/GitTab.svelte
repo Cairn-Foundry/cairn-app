@@ -7,12 +7,12 @@
    * Git settings: the list of identity profiles, with their create, edit and delete modals.
    */
   import { onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import { pendingGitAction } from '$lib/stores/ui';
-  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '$lib/utils/integrations/branch-template';
-  import type { GitProfile } from '$lib/services/settings-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import { pendingGitAction } from '#lib/stores/ui';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '#lib/utils/integrations/branch-template';
+  import type { GitProfile } from '#lib/services/settings-service';
 
   // Modal state
   let modalOpen = false;

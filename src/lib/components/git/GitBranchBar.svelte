@@ -9,23 +9,23 @@
    */
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { openUrl } from '$lib/services/opener-service';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
-  import { t } from '$lib/i18n';
-  import { activeInstance, isBaseInstance, setInstanceBaseBranch } from '$lib/stores/instance';
-  import { capabilities, forgeTerms, hasForge } from '$lib/stores/integrations';
+  import { openUrl } from '#lib/services/opener-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import MergeRequestForm from '#lib/components/git/MergeRequestForm.svelte';
+  import { t } from '#lib/i18n';
+  import { activeInstance, isBaseInstance, setInstanceBaseBranch } from '#lib/stores/instance';
+  import { capabilities, forgeTerms, hasForge } from '#lib/stores/integrations';
   import {
     loadMergeRequest,
     mergeRequestFormRequest,
     mergeRequests,
     mergeRequestStateFor,
-  } from '$lib/stores/merge-request';
-  import { activeStep } from '$lib/stores/ui';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import type { PullMode, PushMode, ResetMode } from '$lib/services/git-service';
-  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
+  } from '#lib/stores/merge-request';
+  import { activeStep } from '#lib/stores/ui';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import type { PullMode, PushMode, ResetMode } from '#lib/services/git-service';
+  import BaseBranchSelect from '#lib/components/git/BaseBranchSelect.svelte';
   import {
     git,
     loadBranches,
@@ -34,8 +34,8 @@
     pushBranch,
     publishBranch,
     resetToCommit,
-  } from '$lib/stores/git';
-  import { activeProject } from '$lib/stores/project';
+  } from '#lib/stores/git';
+  import { activeProject } from '#lib/stores/project';
 
   const dispatch = createEventDispatcher<{ openMergeRebase: void; filesChanged: void }>();
 

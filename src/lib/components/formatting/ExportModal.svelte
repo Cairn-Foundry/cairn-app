@@ -8,11 +8,11 @@
    * about the options the chosen format cannot express.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { t } from '$lib/i18n';
-  import type { FormatterStatus, StyleSet } from '$lib/services/formatting-service';
-  import { languageLabel } from '$lib/utils/formatting/languages';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import { t } from '#lib/i18n';
+  import type { FormatterStatus, StyleSet } from '#lib/services/formatting-service';
+  import { languageLabel } from '#lib/utils/formatting/languages';
 
   /** The style being written out, already resolved for `languageId`. */
   export let style: StyleSet;

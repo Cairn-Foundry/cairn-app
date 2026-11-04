@@ -1,12 +1,12 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { type BlameEntry, gitBlame } from "$lib/services/file-service";
+import { type BlameEntry, gitBlame } from "#lib/services/file-service";
 import {
 	checkIgnore,
 	getFileAtHead,
 	getFileInIndex,
-} from "$lib/services/git-service";
+} from "#lib/services/git-service";
 
 // Loading what an editor pane needs to show git information: the baseline the
 // diff gutter compares against, and the blame of the working copy.

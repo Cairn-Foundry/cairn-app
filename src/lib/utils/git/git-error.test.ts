@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { toGitError } from "$lib/services/git-service";
+import { toGitError } from "#lib/services/git-service";
 import { describeGitError, worktreeInUsePath } from "./git-error";
 
 describe("toGitError", () => {

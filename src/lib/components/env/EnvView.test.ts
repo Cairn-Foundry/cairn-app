@@ -5,10 +5,10 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EnvVariable } from "$lib/services/env-service";
-import { envActive } from "$lib/stores/ui";
+import type { EnvVariable } from "#lib/services/env-service";
+import { envActive } from "#lib/stores/ui";
 
-vi.mock("$lib/services/env-service", async (importOriginal) => ({
+vi.mock("#lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readEnvFile: vi.fn().mockResolvedValue(null),
 	deleteEnvFile: vi.fn().mockResolvedValue(undefined),
@@ -17,17 +17,17 @@ vi.mock("$lib/services/env-service", async (importOriginal) => ({
 
 // The view only leaves its loading state once a project is active, and it
 // syncs the .env on disk on the way; neither is what these tests are about.
-vi.mock("$lib/stores/env", async (importOriginal) => ({
+vi.mock("#lib/stores/env", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadEnv: vi.fn().mockResolvedValue(undefined),
 	syncEnvFile: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { emptyEnvFile } = await import("$lib/services/env-service");
+const { emptyEnvFile } = await import("#lib/services/env-service");
 const { globalEnv, projectEnvs, instanceEnvs } = await import(
-	"$lib/stores/env"
+	"#lib/stores/env"
 );
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("../../../test/fixtures");
 const { default: EnvView } = await import("./EnvView.svelte");
 

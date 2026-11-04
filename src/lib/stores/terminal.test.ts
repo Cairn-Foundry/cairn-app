@@ -18,7 +18,7 @@ const closeAllTerminals = vi.hoisted(() => vi.fn());
 const managerCreate = vi.hoisted(() => vi.fn());
 const managerDispose = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/terminal-service", () => ({
+vi.mock("#lib/services/terminal-service", () => ({
 	saveTerminalState,
 	saveProjectTerminalState,
 	getTerminalState,
@@ -29,7 +29,7 @@ vi.mock("$lib/services/terminal-service", () => ({
 	killOrphanTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("$lib/utils/terminal/terminal-manager", () => ({
+vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	create: managerCreate,
 	dispose: managerDispose,
 	size: () => ({ cols: 80, rows: 24 }),

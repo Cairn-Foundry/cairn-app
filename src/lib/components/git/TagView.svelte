@@ -9,13 +9,13 @@
    * and dropping a tag locally leaves the published one in place.
    */
   import { onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { git, createTag, deleteTag, pushTag, deleteRemoteTag, refreshRemoteTags } from '$lib/stores/git';
-  import type { GitTag } from '$lib/services/git-service';
-  import { relativeTime } from '$lib/utils/format';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { git, createTag, deleteTag, pushTag, deleteRemoteTag, refreshRemoteTags } from '#lib/stores/git';
+  import type { GitTag } from '#lib/services/git-service';
+  import { relativeTime } from '#lib/utils/format';
 
   let searchQuery = '';
   let loadingName: string | null = null;

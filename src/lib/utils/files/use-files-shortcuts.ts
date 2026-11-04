@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { FileNode } from "$lib/services/file-service";
-import { matchesShortcut } from "$lib/stores/shortcuts";
-import type { ShortcutBinding, ShortcutId } from "$lib/types/shortcuts";
-import { IS_MAC } from "$lib/utils/platform";
+import type { FileNode } from "#lib/services/file-service";
+import { matchesShortcut } from "#lib/stores/shortcuts";
+import type { ShortcutBinding, ShortcutId } from "#lib/types/shortcuts";
+import { IS_MAC } from "#lib/utils/platform";
 import {
 	basename,
 	flattenToNodes,

@@ -8,9 +8,9 @@ import {
 	downloadAndInstall,
 	restartApp,
 	type Update,
-} from "$lib/services/update-service";
-import { settings } from "$lib/stores/settings";
-import { errorMessage } from "$lib/utils/error-message";
+} from "#lib/services/update-service";
+import { settings } from "#lib/stores/settings";
+import { errorMessage } from "#lib/utils/error-message";
 
 /** Delay before the first check, so it does not compete with the app opening. */
 export const STARTUP_CHECK_DELAY_MS = 5_000;

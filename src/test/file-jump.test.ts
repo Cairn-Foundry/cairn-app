@@ -6,13 +6,13 @@ import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const activeInstance = (await import("svelte/store")).writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
 const LINES = ["one", "two", "three", "four", "five"];
-vi.mock("$lib/services/file-service", async (importOriginal) => {
+vi.mock("#lib/services/file-service", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
 	return {
 		...actual,
@@ -28,14 +28,14 @@ vi.mock("$lib/services/file-service", async (importOriginal) => {
 	};
 });
 
-vi.mock("$lib/stores/git", async (importOriginal) => ({
+vi.mock("#lib/stores/git", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getRemoteUrl: vi.fn().mockResolvedValue(""),
 	refreshStatus: vi.fn().mockResolvedValue(undefined),
 	setGitWatched: vi.fn(),
 }));
 
-vi.mock("$lib/utils/files/files-persistence", async (importOriginal) => ({
+vi.mock("#lib/utils/files/files-persistence", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadEditorState: vi
 		.fn()
@@ -43,15 +43,15 @@ vi.mock("$lib/utils/files/files-persistence", async (importOriginal) => ({
 	saveEditorState: vi.fn(),
 }));
 
-vi.mock("$lib/services/fs-watch-service", () => ({
+vi.mock("#lib/services/fs-watch-service", () => ({
 	onFsChanged: vi.fn().mockResolvedValue(() => {}),
 	watchWorktree: vi.fn().mockResolvedValue(undefined),
 	unwatchWorktree: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { activeProjectId } = await import("$lib/stores/project");
+const { activeProjectId } = await import("#lib/stores/project");
 const { default: FilesView } = await import(
-	"$lib/components/files/FilesView.svelte"
+	"#lib/components/files/FilesView.svelte"
 );
 
 beforeEach(() => {

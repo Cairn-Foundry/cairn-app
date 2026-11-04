@@ -7,7 +7,7 @@ import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setWindowVibrancy = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	setWindowVibrancy: (...a: unknown[]) => setWindowVibrancy(...a),
 }));
@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/webview", () => ({
 }));
 
 const settingsState = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: { subscribe: settingsState.subscribe },
 }));

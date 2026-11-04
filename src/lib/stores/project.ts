@@ -3,7 +3,7 @@
 
 /** The registered projects, the open project tabs, and which project is active. */
 import { derived, get, writable } from "svelte/store";
-import { forgetRepoRoots } from "$lib/services/git-service";
+import { forgetRepoRoots } from "#lib/services/git-service";
 import {
 	addProject,
 	duplicateProject,
@@ -15,10 +15,10 @@ import {
 	saveProjectOrder,
 	setActiveInstance,
 	updateProject,
-} from "$lib/services/project-service";
-import { projectFolders } from "$lib/stores/project-folders";
-import { runProjectTeardowns } from "$lib/stores/project-teardown";
-import type { Project } from "$lib/types/project";
+} from "#lib/services/project-service";
+import { projectFolders } from "#lib/stores/project-folders";
+import { runProjectTeardowns } from "#lib/stores/project-teardown";
+import type { Project } from "#lib/types/project";
 
 /** Every registered project, in home-list order. */
 export const projects = writable<Project[]>([]);

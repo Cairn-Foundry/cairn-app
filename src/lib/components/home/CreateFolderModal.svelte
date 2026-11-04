@@ -8,8 +8,8 @@
    * Dispatches `confirm` with the trimmed name, `close` otherwise.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   const dispatch = createEventDispatcher<{ close: void; confirm: string }>();
 

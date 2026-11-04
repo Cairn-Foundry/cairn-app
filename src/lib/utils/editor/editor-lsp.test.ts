@@ -4,8 +4,8 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lspSignatureHelp } from "$lib/services/lsp-service";
-import { openUrl } from "$lib/services/opener-service";
+import { lspSignatureHelp } from "#lib/services/lsp-service";
+import { openUrl } from "#lib/services/opener-service";
 import {
 	activeParameterRange,
 	applyEditsToText,
@@ -16,13 +16,13 @@ import {
 	rangeToOffsets,
 } from "./editor-lsp";
 
-vi.mock("$lib/services/lsp-service", () => ({
+vi.mock("#lib/services/lsp-service", () => ({
 	lspCompletion: vi.fn(),
 	lspHover: vi.fn(),
 	lspSignatureHelp: vi.fn(),
 }));
 
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openUrl: vi.fn().mockResolvedValue(undefined),
 }));
 

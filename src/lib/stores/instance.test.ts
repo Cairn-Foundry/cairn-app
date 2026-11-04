@@ -3,7 +3,7 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { activeProjectId, projects } from "$lib/stores/project";
+import { activeProjectId, projects } from "#lib/stores/project";
 import { instance, project } from "../../test/fixtures";
 import {
 	activeInstance,
@@ -35,7 +35,7 @@ const updateInstanceStatus = vi.hoisted(() => vi.fn());
 const updateInstanceTicket = vi.hoisted(() => vi.fn());
 const updateInstanceBaseBranch = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/instance-service", () => ({
+vi.mock("#lib/services/instance-service", () => ({
 	listInstances,
 	createInstance: vi.fn(),
 	deleteInstance,
@@ -58,7 +58,7 @@ vi.mock("./terminal", () => ({
 }));
 
 const unwatchWorktree = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-vi.mock("$lib/services/fs-watch-service", () => ({ unwatchWorktree }));
+vi.mock("#lib/services/fs-watch-service", () => ({ unwatchWorktree }));
 
 describe("activeInstance across a project switch", () => {
 	beforeEach(() => {

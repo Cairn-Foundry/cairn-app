@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const removeProject = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/project-service", () => ({
+vi.mock("#lib/services/project-service", () => ({
 	listProjects: vi.fn(),
 	addProject: vi.fn(),
 	removeProject,
@@ -22,20 +22,20 @@ vi.mock("$lib/services/project-service", () => ({
 	getListing: vi.fn(),
 }));
 
-vi.mock("$lib/stores/project-folders", () => ({
+vi.mock("#lib/stores/project-folders", () => ({
 	projectFolders: { purgeProject: vi.fn(), init: vi.fn() },
 }));
 
 const saveProjectEnv = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-vi.mock("$lib/services/env-service", async (importOriginal) => ({
+vi.mock("#lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	saveProjectEnv,
 	saveGlobalEnv: vi.fn().mockResolvedValue(undefined),
 	saveInstanceEnv: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { unregisterProject, projects } = await import("$lib/stores/project");
-const { addVariables, newVariable } = await import("$lib/stores/env");
+const { unregisterProject, projects } = await import("#lib/stores/project");
+const { addVariables, newVariable } = await import("#lib/stores/env");
 
 const DOOMED = "p1";
 const KEPT = "p2";

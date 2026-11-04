@@ -9,15 +9,15 @@
    * should end up in, which may differ from the one it was opened in.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import IconPicker from '$lib/components/IconPicker.svelte';
-  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
-  import { t } from '$lib/i18n';
-  import type { CommandCwd, CommandScope, CustomCommand } from '$lib/services/custom-command-service';
-  import { findInvalidPortTokens, VARIABLE_KEYS } from '$lib/utils/commands/command-variables';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
-  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
-  import { moveItem } from '$lib/utils/terminal/terminal-order';
+  import Icon from '#lib/components/Icon.svelte';
+  import IconPicker from '#lib/components/IconPicker.svelte';
+  import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import { t } from '#lib/i18n';
+  import type { CommandCwd, CommandScope, CustomCommand } from '#lib/services/custom-command-service';
+  import { findInvalidPortTokens, VARIABLE_KEYS } from '#lib/utils/commands/command-variables';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
+  import { PROJECT_COLORS } from '#lib/utils/home/appearance';
+  import { moveItem } from '#lib/utils/terminal/terminal-order';
 
   export let command: CustomCommand;
   export let scope: CommandScope;

@@ -9,23 +9,23 @@
    * `cancel`; the parent decides where the form lives.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import ActorPicker from '$lib/components/git/ActorPicker.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { activeProject } from '$lib/stores/project';
-  import { git, loadBranches } from '$lib/stores/git';
-  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
-  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
-  import { forgeIdentity, forgeTerms } from '$lib/stores/integrations';
-  import { createMergeRequest, loadForgeLabels } from '$lib/stores/merge-request';
-  import { settings } from '$lib/stores/settings';
-  import type { Actor, IntegrationError, MergeRequest } from '$lib/types/integrations';
-  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { buildMrDescriptionPrompt } from '$lib/utils/integrations/prompts';
-  import { toIntegrationError } from '$lib/services/integration-service';
-  import { errorMessage } from '$lib/utils/error-message';
+  import Icon from '#lib/components/Icon.svelte';
+  import ActorPicker from '#lib/components/git/ActorPicker.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { activeProject } from '#lib/stores/project';
+  import { git, loadBranches } from '#lib/stores/git';
+  import { AiAssistError, runOneShotShaped } from '#lib/services/ai-assist-service';
+  import { isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
+  import { forgeIdentity, forgeTerms } from '#lib/stores/integrations';
+  import { createMergeRequest, loadForgeLabels } from '#lib/stores/merge-request';
+  import { settings } from '#lib/stores/settings';
+  import type { Actor, IntegrationError, MergeRequest } from '#lib/types/integrations';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '#lib/utils/home/ai-features';
+  import { buildMrDescriptionPrompt } from '#lib/utils/integrations/prompts';
+  import { toIntegrationError } from '#lib/services/integration-service';
+  import { errorMessage } from '#lib/utils/error-message';
 
   export let projectId: string;
   export let instanceId: string;

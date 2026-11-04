@@ -9,7 +9,7 @@ import {
 	integrationKinds,
 	listIntegrationConnections,
 	saveProjectIntegrations as saveProjectIntegrationsService,
-} from "$lib/services/integration-service";
+} from "#lib/services/integration-service";
 import type {
 	IntegrationConnection,
 	IntegrationKindDescriptor,
@@ -17,8 +17,8 @@ import type {
 	Pipeline,
 	ProjectIntegrations,
 	ResolvedCapabilities,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
 import { instance, project } from "../../test/fixtures";
 import { activeProjectId, projects } from "./project";
 import { runProjectTeardowns } from "./project-teardown";
@@ -32,7 +32,7 @@ const ciListPipelines = vi.hoisted(() => vi.fn());
 const forgeFindMergeRequest = vi.hoisted(() => vi.fn());
 
 const listInstances = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/instance-service", () => ({
+vi.mock("#lib/services/instance-service", () => ({
 	listInstances,
 	listBranchesDetailed: vi.fn(),
 	createInstance: vi.fn(),
@@ -45,7 +45,7 @@ vi.mock("./terminal", () => ({
 	removeInstanceTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("$lib/services/integration-service", () => ({
+vi.mock("#lib/services/integration-service", () => ({
 	onIntegrationUpdate: (handler: (u: unknown) => void) => {
 		listeners.handler = handler;
 		listeners.registrations += 1;

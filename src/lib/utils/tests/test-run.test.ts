@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { TestCase, TestStatus, TestSuite } from "$lib/types/tests";
+import type { TestCase, TestStatus, TestSuite } from "#lib/types/tests";
 import {
 	buildTree,
 	isObserved,

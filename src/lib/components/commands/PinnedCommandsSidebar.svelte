@@ -9,16 +9,16 @@
    * a right-click opens a context menu to stop a running command or unpin it.
    */
   import { tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { CommandScope, CustomCommand } from '$lib/services/custom-command-service';
-  import { commandRunKey, commandRuns, requestCommandLaunch, stopCommand } from '$lib/stores/command-run';
-  import { globalCommands, moveCommandToScope, projectCommands, reorderCommand, toggleCommandPinned } from '$lib/stores/custom-command';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProject } from '$lib/stores/project';
-  import { setActiveTerminal } from '$lib/stores/terminal';
-  import { showTool } from '$lib/stores/ui';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { CommandScope, CustomCommand } from '#lib/services/custom-command-service';
+  import { commandRunKey, commandRuns, requestCommandLaunch, stopCommand } from '#lib/stores/command-run';
+  import { globalCommands, moveCommandToScope, projectCommands, reorderCommand, toggleCommandPinned } from '#lib/stores/custom-command';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProject } from '#lib/stores/project';
+  import { setActiveTerminal } from '#lib/stores/terminal';
+  import { showTool } from '#lib/stores/ui';
 
   export let globalPinned: CustomCommand[] = [];
   export let projectPinned: CustomCommand[] = [];

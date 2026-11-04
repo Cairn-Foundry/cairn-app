@@ -3,6 +3,10 @@
   "version": "1.2.0",
   "description": "Cairn Foundry - a desktop workspace for developing with an AI coding agent",
   "type": "module",
+  "imports": {
+    "#lib": "./src/lib",
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "preinstall": "bun scripts/check-bun-version.mjs",
     "dev": "vite dev",

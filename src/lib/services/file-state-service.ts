@@ -5,7 +5,7 @@
 // file-state.json. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import { persist } from "$lib/utils/persist-error";
+import { persist } from "#lib/utils/persist-error";
 
 /** One reopened tab; `cursorPos` is a document offset, not a line number. */
 export interface PersistedTab {

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { GitDiffHunk } from "$lib/services/git-service";
+import type { GitDiffHunk } from "#lib/services/git-service";
 
 /** Lines one click on an expander reveals, as on GitHub. */
 export const EXPAND_STEP = 20;

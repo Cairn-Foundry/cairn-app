@@ -9,7 +9,7 @@
    * prompt and the state flush run exactly as they do from the system button.
    */
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
 
   type WindowAction = 'minimize' | 'toggleMaximize' | 'close';
 

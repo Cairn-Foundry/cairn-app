@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { GitDiffHunk } from "$lib/services/git-service";
-import { hashHunks } from "$lib/utils/git/diff-hash";
+import type { GitDiffHunk } from "#lib/services/git-service";
+import { hashHunks } from "#lib/utils/git/diff-hash";
 
 const hunk = (content: string, kind = "add"): GitDiffHunk =>
 	({ header: "@@ -1 +1 @@", lines: [{ kind, content }] }) as GitDiffHunk;

@@ -5,7 +5,7 @@
 // Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import type { TestPersistedState } from "$lib/types/tests";
+import type { TestPersistedState } from "#lib/types/tests";
 
 /** Whether `cargo nextest` is installed, which decides how cargo is invoked. */
 export async function hasCargoNextest(worktreePath: string): Promise<boolean> {

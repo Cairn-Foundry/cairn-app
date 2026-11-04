@@ -6,14 +6,14 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { McpProbe, McpServer } from "$lib/services/mcp-service";
+import type { McpProbe, McpServer } from "#lib/services/mcp-service";
 
 const saveMcpServer = vi.fn<(...a: unknown[]) => unknown>();
 const deleteMcpServer = vi.fn<(...a: unknown[]) => unknown>();
 const testMcpServer = vi.fn<(...a: unknown[]) => unknown>();
 const setMcpApproval = vi.fn<(...a: unknown[]) => unknown>();
 const exportMcpServers = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/mcp-service", async (importOriginal) => ({
+vi.mock("#lib/services/mcp-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveMcpServer: (...a: unknown[]) => saveMcpServer(...a),
 	deleteMcpServer: (...a: unknown[]) => deleteMcpServer(...a),
@@ -24,7 +24,7 @@ vi.mock("$lib/services/mcp-service", async (importOriginal) => ({
 
 const writeFile = vi.fn<(...a: unknown[]) => unknown>();
 const revealInFileManager = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	writeFile: (...a: unknown[]) => writeFile(...a),
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
@@ -37,7 +37,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 const reachedProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	reachedProviders: (...a: unknown[]) => reachedProviders(...a),
 }));
@@ -46,7 +46,7 @@ const mcpServers = writable<McpServer[]>([]);
 const mcpError = writable("");
 const mcpLoading = writable(false);
 const loadMcpServers = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/mcp", async (importOriginal) => ({
+vi.mock("#lib/stores/mcp", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	mcpServers: { subscribe: mcpServers.subscribe },
 	mcpError: { subscribe: mcpError.subscribe },
@@ -58,22 +58,22 @@ const cliProviders = writable<
 	{ id: string; label: string; hasLocalScope: boolean }[]
 >([]);
 const loadCliProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	cliProviders: { subscribe: cliProviders.subscribe },
 	loadCliProviders: (...a: unknown[]) => loadCliProviders(...a),
 }));
 
 const loadProjects = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadProjects: (...a: unknown[]) => loadProjects(...a),
 }));
 
-const { projects } = await import("$lib/stores/project");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: McpSection } = await import(
-	"$lib/components/home/mcp/McpSection.svelte"
+	"#lib/components/home/mcp/McpSection.svelte"
 );
 
 function server(overrides: Partial<McpServer> = {}): McpServer {

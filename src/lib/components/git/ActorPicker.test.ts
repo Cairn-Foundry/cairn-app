@@ -4,10 +4,10 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Actor } from "$lib/types/integrations";
+import type { Actor } from "#lib/types/integrations";
 
 const searchForgeMembers = vi.fn();
-vi.mock("$lib/stores/merge-request", () => ({
+vi.mock("#lib/stores/merge-request", () => ({
 	searchForgeMembers: (...args: unknown[]) => searchForgeMembers(...args),
 }));
 

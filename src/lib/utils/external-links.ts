@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { openUrl } from "$lib/services/opener-service";
+import { openUrl } from "#lib/services/opener-service";
 
 const EXTERNAL_SCHEMES = ["http:", "https:", "mailto:", "tel:"];
 

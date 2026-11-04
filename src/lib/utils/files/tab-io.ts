@@ -6,7 +6,7 @@ import {
 	isWriteConflict,
 	readFileVersioned,
 	writeFile,
-} from "$lib/services/file-service";
+} from "#lib/services/file-service";
 import { docFromString } from "./document-model";
 import {
 	denormalizeLineEndings,

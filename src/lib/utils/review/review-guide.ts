@@ -13,7 +13,7 @@ import type {
 	ReviewGuide,
 	ReviewHunk,
 	ReviewState,
-} from "$lib/types/review";
+} from "#lib/types/review";
 
 const KINDS: RemarkKind[] = ["issue", "question", "refactor", "note"];
 

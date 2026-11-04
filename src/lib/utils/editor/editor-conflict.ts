@@ -14,7 +14,7 @@ import {
 	ViewPlugin,
 	WidgetType,
 } from "@codemirror/view";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 // Resolving git conflicts in the editor itself: the markers are hidden, both
 // sides are tinted, and an action bar is inserted above each region.

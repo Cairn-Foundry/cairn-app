@@ -12,15 +12,15 @@
 
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
-  import UpdateCard from '$lib/components/layout/UpdateCard.svelte';
-  import { draggableRegion } from '$lib/utils/window-drag.js';
-  import { aiEnabled } from '$lib/stores/settings';
-  import { channel } from '$lib/stores/channel';
-  import { openUrl } from '$lib/services/opener-service';
-  import { ISSUES_URL } from '$lib/utils/links';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
+  import UpdateCard from '#lib/components/layout/UpdateCard.svelte';
+  import { draggableRegion } from '#lib/utils/window-drag.js';
+  import { aiEnabled } from '#lib/stores/settings';
+  import { channel } from '#lib/stores/channel';
+  import { openUrl } from '#lib/services/opener-service';
+  import { ISSUES_URL } from '#lib/utils/links';
 
   export let activeSection: HomeSection;
 

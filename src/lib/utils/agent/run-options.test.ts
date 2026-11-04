@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
 	effortsOf,
 	permissionModesOf,
-} from "$lib/components/home/agents/cli-options";
+} from "#lib/components/home/agents/cli-options";
 import {
 	effortLabel,
 	humanizeOption,

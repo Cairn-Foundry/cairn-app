@@ -10,17 +10,17 @@
    * a diagram opened full screen from a markdown file.
    */
   import { onDestroy, onMount } from 'svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { writeFile } from '$lib/services/file-service';
-  import { pinSvgToViewBox, renderMermaid } from '$lib/utils/editor/mermaid';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { writeFile } from '#lib/services/file-service';
+  import { pinSvgToViewBox, renderMermaid } from '#lib/utils/editor/mermaid';
   import {
     attachMermaidZoom,
     MERMAID_ZOOM_LIMITS,
     type MermaidZoom,
     type MermaidZoomView,
-  } from '$lib/utils/editor/mermaid-zoom';
+  } from '#lib/utils/editor/mermaid-zoom';
 
   export let source: string;
   /** Present when the viewer sits over something it can hand back to. */

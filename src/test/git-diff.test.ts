@@ -5,15 +5,15 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitDiffHunk } from "$lib/services/git-service";
+import type { GitDiffHunk } from "#lib/services/git-service";
 
 const highlightLineToHtml = vi.fn();
-vi.mock("$lib/utils/git/diff-syntax-highlight", () => ({
+vi.mock("#lib/utils/git/diff-syntax-highlight", () => ({
 	highlightLineToHtml: (...a: unknown[]) => highlightLineToHtml(...a),
 	cachedLineHtml: () => undefined,
 }));
 
-const { default: GitDiff } = await import("$lib/components/git/GitDiff.svelte");
+const { default: GitDiff } = await import("#lib/components/git/GitDiff.svelte");
 
 const PAGE = 300;
 

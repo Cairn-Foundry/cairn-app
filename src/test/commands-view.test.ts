@@ -5,11 +5,11 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { get, writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CustomCommand } from "$lib/services/custom-command-service";
+import type { CustomCommand } from "#lib/services/custom-command-service";
 
 const saveProjectCommands = vi.fn(async (..._a: unknown[]) => {});
 const saveGlobalCommands = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/services/custom-command-service", async (importOriginal) => ({
+vi.mock("#lib/services/custom-command-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getProjectCommands: vi.fn(async () => ({ commands: [] })),
 	getGlobalCommands: vi.fn(async () => ({ commands: [] })),
@@ -20,7 +20,7 @@ vi.mock("$lib/services/custom-command-service", async (importOriginal) => ({
 const commandRuns = writable<Record<string, unknown>>({});
 const requestCommandLaunch = vi.fn(async (..._a: unknown[]) => {});
 const stopCommand = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/command-run", async (importOriginal) => ({
+vi.mock("#lib/stores/command-run", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	commandRuns: { subscribe: commandRuns.subscribe },
 	requestCommandLaunch: (...a: unknown[]) => requestCommandLaunch(...a),
@@ -28,18 +28,18 @@ vi.mock("$lib/stores/command-run", async (importOriginal) => ({
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
 const { globalCommands, projectCommands } = await import(
-	"$lib/stores/custom-command"
+	"#lib/stores/custom-command"
 );
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: CommandsView } = await import(
-	"$lib/components/commands/CommandsView.svelte"
+	"#lib/components/commands/CommandsView.svelte"
 );
 
 function command(overrides: Partial<CustomCommand> = {}): CustomCommand {

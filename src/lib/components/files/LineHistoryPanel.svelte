@@ -7,12 +7,12 @@
    * Floating panel listing the commits that touched one line of a file
    * (`git log -L`), with the changed lines of each commit.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import { t } from '$lib/i18n';
-  import { gitLineHistory, type LineHistoryEntry } from '$lib/services/file-service';
-  import { clickOutside } from '$lib/utils/click-outside';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import { t } from '#lib/i18n';
+  import { gitLineHistory, type LineHistoryEntry } from '#lib/services/file-service';
+  import { clickOutside } from '#lib/utils/click-outside';
 
   export let worktreePath: string | null;
   export let relPath: string;

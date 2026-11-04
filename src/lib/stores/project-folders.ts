@@ -3,8 +3,8 @@
 
 /** Folders of the home project list: grouping, order and collapsed state. */
 import { writable } from "svelte/store";
-import { saveFolders } from "$lib/services/project-service";
-import type { ProjectFolder } from "$lib/types/project";
+import { saveFolders } from "#lib/services/project-service";
+import type { ProjectFolder } from "#lib/types/project";
 
 /** Builds the store; every mutation writes listing.json back, fire and forget. */
 function createFoldersStore() {

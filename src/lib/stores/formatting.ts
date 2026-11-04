@@ -12,10 +12,10 @@ import {
 	listStyleOptions,
 	type StyleOptionInfo,
 	saveProjectFormatting,
-} from "$lib/services/formatting-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import { reportPersistError } from "$lib/utils/persist-error";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/services/formatting-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import { reportPersistError } from "#lib/utils/persist-error";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 
 /** Per-project formatting config, keyed by project id, only for projects read from disk. */
 const projectConfigs = writable<Record<string, FormattingConfig>>({});

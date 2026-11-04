@@ -4,7 +4,7 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Comment, Discussion } from "$lib/types/integrations";
+import type { Comment, Discussion } from "#lib/types/integrations";
 import ReviewDiscussion from "./ReviewDiscussion.svelte";
 
 function comment(id: string, overrides: Partial<Comment> = {}): Comment {

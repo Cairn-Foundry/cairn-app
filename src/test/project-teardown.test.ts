@@ -11,7 +11,7 @@ import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const removeProject = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/project-service", () => ({
+vi.mock("#lib/services/project-service", () => ({
 	listProjects: vi.fn(),
 	addProject: vi.fn(),
 	removeProject,
@@ -22,7 +22,7 @@ vi.mock("$lib/services/project-service", () => ({
 	getListing: vi.fn(),
 }));
 
-vi.mock("$lib/stores/project-folders", () => ({
+vi.mock("#lib/stores/project-folders", () => ({
 	projectFolders: { purgeProject: vi.fn(), init: vi.fn() },
 }));
 
@@ -31,7 +31,7 @@ const getTerminalState = vi.hoisted(() => vi.fn().mockResolvedValue(null));
 const getProjectTerminalState = vi.hoisted(() =>
 	vi.fn().mockResolvedValue(null),
 );
-vi.mock("$lib/services/terminal-service", async (importOriginal) => ({
+vi.mock("#lib/services/terminal-service", async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	closeTerminal,
 	getTerminalState,
@@ -39,26 +39,26 @@ vi.mock("$lib/services/terminal-service", async (importOriginal) => ({
 	closeAllTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("$lib/services/formatting-service", async (importOriginal) => ({
+vi.mock("#lib/services/formatting-service", async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	getProjectFormatting: vi.fn().mockResolvedValue({}),
 }));
 
 const dispose = vi.hoisted(() => vi.fn());
-vi.mock("$lib/utils/terminal/terminal-manager", async (importOriginal) => ({
+vi.mock("#lib/utils/terminal/terminal-manager", async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	dispose,
 }));
 
-const { unregisterProject } = await import("$lib/stores/project");
-const { projects } = await import("$lib/stores/project");
-const { projectCommands } = await import("$lib/stores/custom-command");
+const { unregisterProject } = await import("#lib/stores/project");
+const { projects } = await import("#lib/stores/project");
+const { projectCommands } = await import("#lib/stores/custom-command");
 const { projectEnvs, instanceEnvs, envFileConflicts } = await import(
-	"$lib/stores/env"
+	"#lib/stores/env"
 );
-const { commandRuns } = await import("$lib/stores/command-run");
+const { commandRuns } = await import("#lib/stores/command-run");
 const { instanceConversations, projectConversations, activeConversationId } =
-	await import("$lib/stores/conversation");
+	await import("#lib/stores/conversation");
 const {
 	terminalSessions,
 	projectTerminals,
@@ -67,12 +67,12 @@ const {
 	splitTerminalRatio,
 	restoreTerminals,
 	restoreProjectTerminals,
-} = await import("$lib/stores/terminal");
-const { projectInbox } = await import("$lib/stores/project-inbox");
-const { viewStates } = await import("$lib/stores/view-state");
-const { applyUpdate, pipelines } = await import("$lib/stores/pipelines");
-const { formatting } = await import("$lib/stores/formatting");
-const { integrationKey } = await import("$lib/utils/integrations/instance-key");
+} = await import("#lib/stores/terminal");
+const { projectInbox } = await import("#lib/stores/project-inbox");
+const { viewStates } = await import("#lib/stores/view-state");
+const { applyUpdate, pipelines } = await import("#lib/stores/pipelines");
+const { formatting } = await import("#lib/stores/formatting");
+const { integrationKey } = await import("#lib/utils/integrations/instance-key");
 
 const DOOMED = "p1";
 const KEPT = "p2";
@@ -206,7 +206,7 @@ describe("unregisterProject tears down every per-project cache", () => {
 	});
 
 	it("forgets the view state of the removed project", async () => {
-		const { initViewStates } = await import("$lib/stores/view-state");
+		const { initViewStates } = await import("#lib/stores/view-state");
 		initViewStates({
 			[DOOMED]: { activeStep: "git" } as never,
 			[KEPT]: { activeStep: "git" } as never,

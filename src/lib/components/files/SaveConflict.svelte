@@ -3,8 +3,8 @@
   // SPDX-License-Identifier: AGPL-3.0-or-later
 
   import { createEventDispatcher } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
 
   /** Path shown to the user, relative to the worktree. */
   export let path: string;

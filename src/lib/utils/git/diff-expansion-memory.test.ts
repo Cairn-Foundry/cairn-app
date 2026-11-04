@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
 	recallExpansion,
 	rememberExpansion,
-} from "$lib/utils/git/diff-expansion-memory";
+} from "#lib/utils/git/diff-expansion-memory";
 
 describe("diff expansion memory", () => {
 	it("gives back what was remembered for a signature", () => {

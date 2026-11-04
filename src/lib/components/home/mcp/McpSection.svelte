@@ -8,31 +8,31 @@
    * and export the visible list. Nothing is written to disk before Save.
    */
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
+  import { t } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import KeyValueEditor from './KeyValueEditor.svelte';
   import DeleteMcpModal from './DeleteMcpModal.svelte';
   import ImportMcpModal from './ImportMcpModal.svelte';
-  import ProviderPicker from '$lib/components/home/ProviderPicker.svelte';
-  import ProviderChips from '$lib/components/home/ProviderChips.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { projects, loadProjects } from '$lib/stores/project';
-  import { mcpServers, mcpError, mcpLoading, loadMcpServers } from '$lib/stores/mcp';
+  import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
+  import ProviderChips from '#lib/components/home/ProviderChips.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { projects, loadProjects } from '#lib/stores/project';
+  import { mcpServers, mcpError, mcpLoading, loadMcpServers } from '#lib/stores/mcp';
   import {
     deleteMcpServer, exportMcpServers, saveMcpServer, setMcpApproval, testMcpServer,
     type McpProbe, type McpScope, type McpServer, type McpTransport,
-  } from '$lib/services/mcp-service';
-  import { revealInFileManager } from '$lib/services/file-service';
-  import { originOf, transportIcon } from '$lib/utils/home/mcp';
-  import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
-  import { reachedProviders } from '$lib/services/cli-provider-service';
-  import { sortProviders } from '$lib/utils/home/cli-providers';
-  import type { CliProviderId } from '$lib/services/cli-provider-service';
+  } from '#lib/services/mcp-service';
+  import { revealInFileManager } from '#lib/services/file-service';
+  import { originOf, transportIcon } from '#lib/utils/home/mcp';
+  import { cliProviders, loadCliProviders } from '#lib/stores/cli-providers';
+  import { reachedProviders } from '#lib/services/cli-provider-service';
+  import { sortProviders } from '#lib/utils/home/cli-providers';
+  import type { CliProviderId } from '#lib/services/cli-provider-service';
 
   type Filter = 'all' | McpScope;
 
@@ -299,7 +299,7 @@
     const { save: saveDialog } = await import('@tauri-apps/plugin-dialog');
     const target = await saveDialog({ defaultPath: 'mcp-servers.json' });
     if (!target) return;
-    const { writeFile } = await import('$lib/services/file-service');
+    const { writeFile } = await import('#lib/services/file-service');
     await writeFile(target, raw);
   }
 

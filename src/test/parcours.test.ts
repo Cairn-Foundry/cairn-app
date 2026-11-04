@@ -30,14 +30,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 // The editor body is CodeMirror; the parcours is about what reaches and leaves
 // it, not about how it draws.
-vi.mock("$lib/components/files/CodeEditor.svelte", async () => ({
+vi.mock("#lib/components/files/CodeEditor.svelte", async () => ({
 	default: (await import("./stubs/CodeEditorStub.svelte")).default,
 }));
 
 const { default: Page } = await import("../routes/+page.svelte");
 
-await import("$lib/components/Workspace.svelte");
-const { openTabOrder, activeProjectId } = await import("$lib/stores/project");
+await import("#lib/components/Workspace.svelte");
+const { openTabOrder, activeProjectId } = await import("#lib/stores/project");
 
 const WORKTREE = "/worktrees/p1/feature";
 
@@ -231,13 +231,13 @@ describe("parcours: preparing and validating a commit", () => {
 	 * what git then sees, stages and commits.
 	 */
 	it("carries an edit through staging to a commit", async () => {
-		const { writeFile } = await import("$lib/services/file-service");
-		const git = await import("$lib/services/git-service");
+		const { writeFile } = await import("#lib/services/file-service");
+		const git = await import("#lib/services/git-service");
 
 		await writeFile(`${WORKTREE}/README.md`, "# Alpha\nedited\n");
 		// Read back through the same frontier the editor reads through, so a
 		// write that loses its content is caught here rather than at the commit.
-		const { readFile } = await import("$lib/services/file-service");
+		const { readFile } = await import("#lib/services/file-service");
 		expect(await readFile(`${WORKTREE}/README.md`)).toBe("# Alpha\nedited\n");
 
 		let status = await git.getStatusFull(WORKTREE);
@@ -261,8 +261,8 @@ describe("parcours: preparing and validating a commit", () => {
 
 	/** An unstaged edit is not in the commit, which is the whole point of the index. */
 	it("leaves an unstaged edit out of the commit", async () => {
-		const { writeFile } = await import("$lib/services/file-service");
-		const git = await import("$lib/services/git-service");
+		const { writeFile } = await import("#lib/services/file-service");
+		const git = await import("#lib/services/git-service");
 
 		await writeFile(`${WORKTREE}/README.md`, "# Alpha\nstaged\n");
 		await writeFile(`${WORKTREE}/src/main.ts`, "export const a = 2;\n");
@@ -279,10 +279,10 @@ describe("parcours: creating an instance", () => {
 	/** Through the instance store, which is what the create form drives. */
 	it("adds an instance with its own worktree and branch", async () => {
 		const { spawnInstance, loadInstances, instances } = await import(
-			"$lib/stores/instance"
+			"#lib/stores/instance"
 		);
 		const { get } = await import("svelte/store");
-		const { activeProjectId } = await import("$lib/stores/project");
+		const { activeProjectId } = await import("#lib/stores/project");
 
 		activeProjectId.set("p1");
 		await loadInstances("p1");
@@ -298,7 +298,7 @@ describe("parcours: creating an instance", () => {
 		});
 
 		expect(get(instances).map((i) => i.id)).toEqual(["i1", created.id]);
-		const { projects } = await import("$lib/stores/project");
+		const { projects } = await import("#lib/stores/project");
 		expect(get(projects).find((p) => p.id === "p1")?.activeInstanceId).toBe(
 			created.id,
 		);
@@ -306,7 +306,7 @@ describe("parcours: creating an instance", () => {
 
 		expect(get(instances).map((i) => i.id)).toEqual(["i1", created.id]);
 		expect(created.worktreePath).not.toBe(WORKTREE);
-		const git = await import("$lib/services/git-service");
+		const git = await import("#lib/services/git-service");
 		expect(await git.getCurrentBranch(created.worktreePath)).toBe("second");
 	});
 });
@@ -335,11 +335,11 @@ describe("parcours: restarting on the previous view", () => {
 		await launch();
 		// The git step is a LazyView: its module keeps loading past the end of
 		// the test and lands after teardown unless it is awaited here.
-		await import("$lib/components/git/GitView.svelte");
+		await import("#lib/components/git/GitView.svelte");
 		await settle();
 
 		const { get } = await import("svelte/store");
-		const { activeStep, activeScreen } = await import("$lib/stores/ui");
+		const { activeStep, activeScreen } = await import("#lib/stores/ui");
 		expect(get(activeScreen)).toBe("workspace");
 		expect(get(activeStep)).toBe("git");
 	});

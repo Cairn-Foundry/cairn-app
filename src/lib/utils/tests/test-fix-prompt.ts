@@ -4,7 +4,7 @@
 // The prompt handed to the Agent step for a failing test. It is a starting
 // point, not an order: the user reads it, adds what only they know, and sends.
 
-import type { TestCase, TestRunnerId } from "$lib/types/tests";
+import type { TestCase, TestRunnerId } from "#lib/types/tests";
 import { type RunScope, scopedCommand } from "./test-scope";
 
 /** How many stack frames are worth quoting; past that it is the runner's own plumbing. */

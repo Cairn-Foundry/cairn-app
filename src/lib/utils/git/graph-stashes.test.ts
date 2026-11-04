@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { GitGraphCommit } from "$lib/services/git-service";
+import type { GitGraphCommit } from "#lib/services/git-service";
 import { spliceStashes, stashIndexOf } from "./graph-stashes";
 
 function commit(

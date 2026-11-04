@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileVersioned, writeFile } from "$lib/services/file-service";
+import { readFileVersioned, writeFile } from "#lib/services/file-service";
 import { docFromString } from "./document-model";
 import type { Tab } from "./files-persistence";
 import { diskContentOf, readTabFile, writeTab } from "./tab-io";
 
-vi.mock("$lib/services/file-service", () => ({
+vi.mock("#lib/services/file-service", () => ({
 	readFileVersioned: vi.fn(),
 	writeFile: vi.fn(),
 	isWriteConflict: (outcome: { kind?: string }) => outcome.kind === "conflict",

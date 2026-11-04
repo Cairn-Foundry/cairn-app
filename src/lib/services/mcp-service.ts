@@ -3,7 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 // MCP servers as declared in the CLI agents' own config files. Cairn reads and
 // rewrites those files in place; it never keeps a registry of its own.

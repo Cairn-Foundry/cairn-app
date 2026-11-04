@@ -9,18 +9,18 @@
    * new project id, or `close`.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
-  import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
-  import ProjectIntegrationsForm from '$lib/components/ProjectIntegrationsForm.svelte';
-  import { validateDirectory, cloneRepository } from '$lib/services/project-service';
-  import { getRemoteUrl } from '$lib/services/git-service';
-  import { projects, registerProject } from '$lib/stores/project';
-  import { EMPTY_BINDINGS, saveProjectIntegrations } from '$lib/stores/integrations';
-  import type { Project } from '$lib/types/project';
-  import type { ProjectIntegrations } from '$lib/types/integrations';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
+  import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
+  import { validateDirectory, cloneRepository } from '#lib/services/project-service';
+  import { getRemoteUrl } from '#lib/services/git-service';
+  import { projects, registerProject } from '#lib/stores/project';
+  import { EMPTY_BINDINGS, saveProjectIntegrations } from '#lib/stores/integrations';
+  import type { Project } from '#lib/types/project';
+  import type { ProjectIntegrations } from '#lib/types/integrations';
+  import { t } from '#lib/i18n';
 
   export let mode: 'new' | 'open' | 'clone';
   export let initialPath = '';

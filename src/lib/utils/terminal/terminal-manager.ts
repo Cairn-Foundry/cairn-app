@@ -9,16 +9,16 @@ import { SerializeAddon } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type ILink, type ILinkProvider, Terminal } from "@xterm/xterm";
-import { t } from "$lib/i18n";
-import { fileMtimes } from "$lib/services/file-service";
-import { osDropPoint } from "$lib/utils/files/files-editor-drop";
-import { pathWithinWorktree } from "$lib/utils/files/files-tree";
-import { IS_MAC } from "$lib/utils/platform";
+import { t } from "#lib/i18n";
+import { fileMtimes } from "#lib/services/file-service";
+import { osDropPoint } from "#lib/utils/files/files-editor-drop";
+import { pathWithinWorktree } from "#lib/utils/files/files-tree";
+import { IS_MAC } from "#lib/utils/platform";
 import "@xterm/xterm/css/xterm.css";
 import {
 	resizeTerminal,
 	writeToTerminal,
-} from "$lib/services/terminal-service";
+} from "#lib/services/terminal-service";
 import {
 	findLinkCandidates,
 	type LinkCandidate,
@@ -333,7 +333,7 @@ async function existingLinks(
 
 function activateLink(candidate: LinkCandidate, absolute: string | null): void {
 	if (candidate.kind === "url") {
-		void import("$lib/services/opener-service")
+		void import("#lib/services/opener-service")
 			.then((m) => m.openUrl(candidate.url))
 			.catch(() => {});
 		return;

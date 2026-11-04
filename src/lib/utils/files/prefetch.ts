@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { get } from "svelte/store";
-import { readDirTree } from "$lib/services/file-service";
-import { getSnapshot } from "$lib/services/git-service";
-import { listInstances } from "$lib/services/instance-service";
-import { projects } from "$lib/stores/project";
+import { readDirTree } from "#lib/services/file-service";
+import { getSnapshot } from "#lib/services/git-service";
+import { listInstances } from "#lib/services/instance-service";
+import { projects } from "#lib/stores/project";
 
 const HOVER_DELAY_MS = 80;
 let timer: ReturnType<typeof setTimeout> | null = null;

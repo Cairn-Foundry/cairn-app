@@ -8,13 +8,13 @@
    * scope. `replace` decides whether keys already present are overwritten.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import type { EnvScope } from '$lib/services/env-service';
-  import { readEnvFile } from '$lib/services/env-service';
-  import { isReservedEnvKey, type ParsedEnvEntry, parseEnvFile } from '$lib/utils/env/env-file';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import type { EnvScope } from '#lib/services/env-service';
+  import { readEnvFile } from '#lib/services/env-service';
+  import { isReservedEnvKey, type ParsedEnvEntry, parseEnvFile } from '#lib/utils/env/env-file';
 
   export let worktreePath: string | null = null;
   export let defaultFileName = '.env';
@@ -63,7 +63,7 @@
       const { open } = await import('@tauri-apps/plugin-dialog');
       const path = await open({ multiple: false, directory: false });
       if (typeof path !== 'string') return;
-      const { readFile } = await import('$lib/services/file-service');
+      const { readFile } = await import('#lib/services/file-service');
       raw = (await readFile(path)) ?? '';
       touched = false;
     } finally {

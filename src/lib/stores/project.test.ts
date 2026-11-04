@@ -15,7 +15,7 @@ const saveProjectOrder = vi.hoisted(() => vi.fn());
 const setActiveInstance = vi.hoisted(() => vi.fn());
 const getListing = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/project-service", () => ({
+vi.mock("#lib/services/project-service", () => ({
 	listProjects,
 	addProject,
 	removeProject,
@@ -28,14 +28,14 @@ vi.mock("$lib/services/project-service", () => ({
 }));
 
 const forgetRepoRoots = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	forgetRepoRoots,
 }));
 
 const purgeProject = vi.hoisted(() => vi.fn());
 const init = vi.hoisted(() => vi.fn());
-vi.mock("$lib/stores/project-folders", () => ({
+vi.mock("#lib/stores/project-folders", () => ({
 	projectFolders: { purgeProject, init },
 }));
 

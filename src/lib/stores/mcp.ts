@@ -3,8 +3,8 @@
 
 /** MCP servers discovered across the registered projects, read-only: discovered by scanning every project path. */
 import { get, writable } from "svelte/store";
-import { listMcpServers, type McpServer } from "$lib/services/mcp-service";
-import { projects } from "$lib/stores/project";
+import { listMcpServers, type McpServer } from "#lib/services/mcp-service";
+import { projects } from "#lib/stores/project";
 
 export const mcpServers = writable<McpServer[]>([]);
 export const mcpLoading = writable(false);

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { FileNode, QuickSearchHit } from "$lib/services/file-service";
+import type { FileNode, QuickSearchHit } from "#lib/services/file-service";
 
 // Scoring and highlighting paths for the quick open palette: exact substrings
 // first, then a subsequence match so acronyms still find their file.

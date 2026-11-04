@@ -10,11 +10,11 @@
    * chapter by chapter rather than file by file.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t, type TranslationKey } from '$lib/i18n';
-  import { fileMtimes, langFromPath } from '$lib/services/file-service';
-  import { getDiffFileBetween, type GitFileBetween } from '$lib/services/git-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import { fileMtimes, langFromPath } from '#lib/services/file-service';
+  import { getDiffFileBetween, type GitFileBetween } from '#lib/services/git-service';
   import {
     addComment,
     cancelGuide,
@@ -29,24 +29,24 @@
     reviewErrors,
     setCurrentPosition,
     type ReviewScope,
-  } from '$lib/stores/review';
-  import { settings } from '$lib/stores/settings';
-  import { activeStep } from '$lib/stores/ui';
-  import { activeShortcuts, bindingToLabels } from '$lib/stores/shortcuts';
+  } from '#lib/stores/review';
+  import { settings } from '#lib/stores/settings';
+  import { activeStep } from '#lib/stores/ui';
+  import { activeShortcuts, bindingToLabels } from '#lib/stores/shortcuts';
   import type {
     GuideChapter,
     GuideRemark,
     ReviewComment,
     ReviewHunk,
     ReviewState,
-  } from '$lib/types/review';
-  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
-  import { basename } from '$lib/utils/files/files-tree';
-  import { excerptAround, guideMarkersFor } from '$lib/utils/review/diff-markers';
-  import { renderRemoteMarkdown } from '$lib/utils/integrations/markdown';
-  import { anchorLabel, guideProgress, isGuideStale } from '$lib/utils/review/review-guide';
-  import { resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { isAssistCliInstalled } from '$lib/stores/cli-providers';
+  } from '#lib/types/review';
+  import type { EditorLanguage } from '#lib/utils/editor/editor-theme';
+  import { basename } from '#lib/utils/files/files-tree';
+  import { excerptAround, guideMarkersFor } from '#lib/utils/review/diff-markers';
+  import { renderRemoteMarkdown } from '#lib/utils/integrations/markdown';
+  import { anchorLabel, guideProgress, isGuideStale } from '#lib/utils/review/review-guide';
+  import { resolveAiFeature } from '#lib/utils/home/ai-features';
+  import { isAssistCliInstalled } from '#lib/stores/cli-providers';
   import DiffEditor from './DiffEditor.svelte';
   import RegenerateGuideModal from './RegenerateGuideModal.svelte';
   import ReviewSummary from './ReviewSummary.svelte';

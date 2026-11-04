@@ -3,7 +3,7 @@
 
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { IS_MAC } from "$lib/utils/platform";
+import { IS_MAC } from "#lib/utils/platform";
 import { installCopySelectionHandler } from "./copy-selection";
 
 const write = vi.mocked(writeText);

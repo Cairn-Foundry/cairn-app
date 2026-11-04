@@ -4,11 +4,11 @@
 import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { GutterChunk } from "$lib/utils/editor/editor-diff-gutter";
+import type { GutterChunk } from "#lib/utils/editor/editor-diff-gutter";
 
 // The embedded diff is a CodeMirror view, which has nothing to say about this
 // panel's behaviour; it is replaced by a marker carrying the two sides.
-vi.mock("$lib/components/review/DiffEditor.svelte", async () => ({
+vi.mock("#lib/components/review/DiffEditor.svelte", async () => ({
 	default: (await import("../../../test/stubs/DiffEditorStub.svelte")).default,
 }));
 

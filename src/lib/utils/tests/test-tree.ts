@@ -8,7 +8,7 @@ import type {
 	TestRunSummary,
 	TestStatus,
 	TestSuite,
-} from "$lib/types/tests";
+} from "#lib/types/tests";
 
 /** A suite is red if anything failed, running while a case still runs, green otherwise. */
 export function aggregateStatus(cases: TestCase[]): TestStatus {

@@ -11,13 +11,13 @@ import { instance, project } from "../../test/fixtures";
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/settings-service", () => ({
+vi.mock("#lib/services/settings-service", () => ({
 	getSettings,
 	updateSettings,
 }));
 
 const listInstances = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/instance-service", () => ({
+vi.mock("#lib/services/instance-service", () => ({
 	listInstances,
 	listBranchesDetailed: vi.fn(),
 	createInstance: vi.fn(),

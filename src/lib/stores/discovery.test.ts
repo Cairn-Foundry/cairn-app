@@ -13,9 +13,9 @@ const listMcpServers = vi.hoisted(() => vi.fn());
 const listSkills = vi.hoisted(() => vi.fn());
 const listNativeAgents = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/mcp-service", () => ({ listMcpServers }));
-vi.mock("$lib/services/skill-service", () => ({ listSkills }));
-vi.mock("$lib/services/native-agent-service", () => ({ listNativeAgents }));
+vi.mock("#lib/services/mcp-service", () => ({ listMcpServers }));
+vi.mock("#lib/services/skill-service", () => ({ listSkills }));
+vi.mock("#lib/services/native-agent-service", () => ({ listNativeAgents }));
 
 import { loadMcpServers, mcpError, mcpLoading, mcpServers } from "./mcp";
 import {

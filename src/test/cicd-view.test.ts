@@ -6,11 +6,11 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { get, writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InstancePipelineState } from "$lib/stores/pipelines";
-import type { Pipeline, PipelineJob } from "$lib/types/integrations";
+import type { InstancePipelineState } from "#lib/stores/pipelines";
+import type { Pipeline, PipelineJob } from "#lib/types/integrations";
 
 const openUrl = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 
@@ -24,7 +24,7 @@ const closeJobLog = vi.fn((..._a: unknown[]) => undefined);
 const retryJob = vi.fn(async (..._a: unknown[]) => {});
 const playJob = vi.fn(async (..._a: unknown[]) => {});
 const cancelPipeline = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/pipelines", async (importOriginal) => ({
+vi.mock("#lib/stores/pipelines", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	pipelines: { subscribe: pipelinesState.subscribe },
 	loadPipelines: (...a: unknown[]) => loadPipelines(...a),
@@ -40,35 +40,35 @@ vi.mock("$lib/stores/pipelines", async (importOriginal) => ({
 
 const capabilities = writable<Record<string, unknown>>({});
 const hasCi = writable(true);
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	capabilities: { subscribe: capabilities.subscribe },
 	hasCi: { subscribe: hasCi.subscribe },
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
 const gitState = writable({ currentBranch: "" });
-vi.mock("$lib/stores/git", async (importOriginal) => ({
+vi.mock("#lib/stores/git", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	git: { subscribe: gitState.subscribe },
 }));
 
 const requestAgentDraft = vi.fn((..._a: unknown[]) => undefined);
-vi.mock("$lib/stores/agent-draft", async (importOriginal) => ({
+vi.mock("#lib/stores/agent-draft", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	requestAgentDraft: (...a: unknown[]) => requestAgentDraft(...a),
 }));
 
-const { EMPTY_PIPELINE_QUERY } = await import("$lib/types/integrations");
-const { activeProjectId } = await import("$lib/stores/project");
-const { activeStep } = await import("$lib/stores/ui");
+const { EMPTY_PIPELINE_QUERY } = await import("#lib/types/integrations");
+const { activeProjectId } = await import("#lib/stores/project");
+const { activeStep } = await import("#lib/stores/ui");
 const { default: CiCdView } = await import(
-	"$lib/components/cicd/CiCdView.svelte"
+	"#lib/components/cicd/CiCdView.svelte"
 );
 
 function job(overrides: Partial<PipelineJob> = {}): PipelineJob {

@@ -5,7 +5,7 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UpdateState } from "$lib/stores/update";
+import type { UpdateState } from "#lib/stores/update";
 
 const IDLE: UpdateState = {
 	phase: "idle",
@@ -23,7 +23,7 @@ const openUpdateModal = vi.fn();
 const closeUpdateModal = vi.fn();
 const installUpdate = vi.fn();
 
-vi.mock("$lib/stores/update", () => ({
+vi.mock("#lib/stores/update", () => ({
 	updateState: { subscribe: updateState.subscribe },
 	hasPendingUpdate: { subscribe: hasPendingUpdate.subscribe },
 	openUpdateModal: (...a: unknown[]) => openUpdateModal(...a),
@@ -31,15 +31,15 @@ vi.mock("$lib/stores/update", () => ({
 	installUpdate: (...a: unknown[]) => installUpdate(...a),
 }));
 
-const { CHANGELOG } = await import("$lib/data/changelog");
+const { CHANGELOG } = await import("#lib/data/changelog");
 const { default: ChangelogSection } = await import(
-	"$lib/components/home/ChangelogSection.svelte"
+	"#lib/components/home/ChangelogSection.svelte"
 );
 const { default: UpdateCard } = await import(
-	"$lib/components/layout/UpdateCard.svelte"
+	"#lib/components/layout/UpdateCard.svelte"
 );
 const { default: UpdateModal } = await import(
-	"$lib/components/layout/UpdateModal.svelte"
+	"#lib/components/layout/UpdateModal.svelte"
 );
 
 function setUpdate(patch: Partial<UpdateState>) {

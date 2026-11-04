@@ -6,8 +6,8 @@ import type {
 	FormattingConfig,
 	StyleOptionInfo,
 	StyleSet,
-} from "$lib/services/formatting-service";
-import { DEFAULT_FORMATTING } from "$lib/services/formatting-service";
+} from "#lib/services/formatting-service";
+import { DEFAULT_FORMATTING } from "#lib/services/formatting-service";
 import {
 	effectiveFormatterId,
 	inheritedValue,

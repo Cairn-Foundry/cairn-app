@@ -5,22 +5,22 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileNode, QuickSearchHit } from "$lib/services/file-service";
+import type { FileNode, QuickSearchHit } from "#lib/services/file-service";
 
 const quickSearch = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	quickSearch: (...args: unknown[]) => quickSearch(...args),
 }));
 
 // The toggle writes through the settings store, which round-trips the whole
 // object through the backend; here the write is acknowledged as it stands.
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { default: QuickOpen } = await import("./QuickOpen.svelte");
 
 function hit(path: string, isDir = false): QuickSearchHit {

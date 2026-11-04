@@ -15,27 +15,27 @@ import {
 	type CliProviderId,
 	cliSessionExists,
 	discoverCliSession,
-} from "$lib/services/cli-provider-service";
+} from "#lib/services/cli-provider-service";
 import {
 	type ConversationIndex,
 	type ConversationMeta,
 	type ConversationScope,
 	getConversationIndex,
 	saveConversationIndex,
-} from "$lib/services/conversation-service";
-import { closeTerminal, createTerminal } from "$lib/services/terminal-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import { lastCli } from "$lib/stores/ui";
+} from "#lib/services/conversation-service";
+import { closeTerminal, createTerminal } from "#lib/services/terminal-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import { lastCli } from "#lib/stores/ui";
 import {
 	freshArgv,
 	mintsSessionId,
 	newConversationArgv,
 	resumeArgv,
-} from "$lib/utils/agent/cli-launch";
-import { captureTitle } from "$lib/utils/agent/conversation-title";
-import { persist } from "$lib/utils/persist-error";
-import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
-import * as manager from "$lib/utils/terminal/terminal-manager";
+} from "#lib/utils/agent/cli-launch";
+import { captureTitle } from "#lib/utils/agent/conversation-title";
+import { persist } from "#lib/utils/persist-error";
+import { dropProjectKeys, purgeProjectEntries } from "#lib/utils/project-scope";
+import * as manager from "#lib/utils/terminal/terminal-manager";
 
 export type { ConversationMeta, ConversationScope };
 

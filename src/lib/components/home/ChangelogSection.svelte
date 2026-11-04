@@ -7,9 +7,9 @@
    * What's new section: a timeline of releases on the left, the selected one on the right.
    * Reads CHANGELOG directly - entries carry their own { en, fr } text rather than i18n keys.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { CHANGELOG, CHANGE_KINDS, localized, type ChangeKind } from '$lib/data/changelog';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { CHANGELOG, CHANGE_KINDS, localized, type ChangeKind } from '#lib/data/changelog';
 
   const KINDS: Record<ChangeKind, { icon: string; label: string }> = {
     added: { icon: 'plus', label: t('home.changelog.kinds.added') as string },

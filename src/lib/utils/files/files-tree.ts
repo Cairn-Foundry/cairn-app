@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { FileNode, GitStatusMap } from "$lib/services/file-service";
+import type { FileNode, GitStatusMap } from "#lib/services/file-service";
 
 // The file tree's own logic: what is visible, how git status rolls up onto a
 // directory, and the relative/absolute path convention tabs are keyed by.

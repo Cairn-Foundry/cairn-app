@@ -5,17 +5,17 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ListeningPort } from "$lib/services/ports-service";
+import type { ListeningPort } from "#lib/services/ports-service";
 
 const listListeningPorts = vi.fn();
 const killProcess = vi.fn();
-vi.mock("$lib/services/ports-service", () => ({
+vi.mock("#lib/services/ports-service", () => ({
 	listListeningPorts: (...a: unknown[]) => listListeningPorts(...a),
 	killProcess: (...a: unknown[]) => killProcess(...a),
 }));
 
 const { default: PortsSection } = await import(
-	"$lib/components/home/PortsSection.svelte"
+	"#lib/components/home/PortsSection.svelte"
 );
 
 const REFRESH_MS = 5000;

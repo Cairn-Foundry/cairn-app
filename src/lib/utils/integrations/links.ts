@@ -4,16 +4,16 @@
 // The one place that knows whether a forge link comes from the bound
 // integration or from the remote URL heuristics of remote-url.ts.
 
-import { forgeWebLink } from "$lib/services/integration-service";
-import { capabilitiesOf } from "$lib/stores/integrations";
-import type { WebLinkTarget } from "$lib/types/integrations";
+import { forgeWebLink } from "#lib/services/integration-service";
+import { capabilitiesOf } from "#lib/stores/integrations";
+import type { WebLinkTarget } from "#lib/types/integrations";
 import {
 	buildBranchUrl,
 	buildCommitUrl,
 	buildCompareUrl,
 	buildFileUrl,
 	parseRemoteUrl,
-} from "$lib/utils/git/remote-url";
+} from "#lib/utils/git/remote-url";
 
 /**
  * What an "Open on ..." entry names: the bound forge's label, else the host of

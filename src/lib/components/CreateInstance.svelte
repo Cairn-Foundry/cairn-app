@@ -14,19 +14,19 @@
    * new instance id. Blocking work is shown as a centered spinner over a dimmed body.
    */
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { activeProject } from '$lib/stores/project';
-  import { adoptWorktree, spawnInstance, instances } from '$lib/stores/instance';
-  import { type BaseSuggestion, type UnclaimedWorktree, listBranchesDetailed, listUnclaimedWorktrees, suggestBaseBranches } from '$lib/services/instance-service';
-  import { fetch as gitFetch } from '$lib/services/git-service';
-  import { forgeFindMergeRequest } from '$lib/services/integration-service';
-  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
-  import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '$lib/stores/integrations';
-  import { settings } from '$lib/stores/settings';
-  import { channel } from '$lib/stores/channel';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { activeProject } from '#lib/stores/project';
+  import { adoptWorktree, spawnInstance, instances } from '#lib/stores/instance';
+  import { type BaseSuggestion, type UnclaimedWorktree, listBranchesDetailed, listUnclaimedWorktrees, suggestBaseBranches } from '#lib/services/instance-service';
+  import { fetch as gitFetch } from '#lib/services/git-service';
+  import { forgeFindMergeRequest } from '#lib/services/integration-service';
+  import BaseBranchSelect from '#lib/components/git/BaseBranchSelect.svelte';
+  import { capabilitiesOf, loadProjectIntegrations, projectBindings } from '#lib/stores/integrations';
+  import { settings } from '#lib/stores/settings';
+  import { channel } from '#lib/stores/channel';
   import {
     DEFAULT_TICKET_QUERY,
     resetTicketSearch,
@@ -35,15 +35,15 @@
     setTicket,
     ticketSearch,
     transitionTicketToStatus,
-  } from '$lib/stores/tracker';
-  import type { Ticket, TicketQuery } from '$lib/types/integrations';
-  import type { Instance, InstanceTicket } from '$lib/types/instance';
-  import { matchesSearch } from '$lib/utils/files/files-search';
-  import { DEFAULT_BRANCH_TEMPLATE, isTicketKey, renderBranchTemplate, slugSegment, ticketFromBranch, titleSlug } from '$lib/utils/integrations/branch-template';
-  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
-  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
-  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { buildBranchNamePrompt } from '$lib/utils/integrations/prompts';
+  } from '#lib/stores/tracker';
+  import type { Ticket, TicketQuery } from '#lib/types/integrations';
+  import type { Instance, InstanceTicket } from '#lib/types/instance';
+  import { matchesSearch } from '#lib/utils/files/files-search';
+  import { DEFAULT_BRANCH_TEMPLATE, isTicketKey, renderBranchTemplate, slugSegment, ticketFromBranch, titleSlug } from '#lib/utils/integrations/branch-template';
+  import { AiAssistError, runOneShotShaped } from '#lib/services/ai-assist-service';
+  import { isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '#lib/utils/home/ai-features';
+  import { buildBranchNamePrompt } from '#lib/utils/integrations/prompts';
 
   export let initialBranch = '';
   /** Preselected ticket when the modal is opened from the tickets overview. */

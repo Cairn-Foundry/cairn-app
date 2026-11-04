@@ -9,26 +9,26 @@
    * and forced back down through `openSection` / `openSettingsTab` on restore.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import { t } from '$lib/i18n';
-  import { withViewTransition } from '$lib/utils/view-transition';
-  import AddProject from '$lib/components/AddProject.svelte';
-  import EditProject from '$lib/components/EditProject.svelte';
-  import HomeSidebar, { type HomeSection } from '$lib/components/home/HomeSidebar.svelte';
-  import ProjectsSection from '$lib/components/home/ProjectsSection.svelte';
-  import SettingsPanel from '$lib/components/home/SettingsPanel.svelte';
-  import type { Project } from '$lib/types/project';
-  import type { Ticket } from '$lib/types/integrations';
-  import AgentsSection from '$lib/components/home/agents/AgentsSection.svelte';
-  import ProvidersTab from '$lib/components/home/agents/ProvidersTab.svelte';
-  import FeaturesSection from '$lib/components/home/features/FeaturesSection.svelte';
-  import ChangelogSection from '$lib/components/home/ChangelogSection.svelte';
-  import PortsSection from '$lib/components/home/PortsSection.svelte';
-  import SkillsSection from '$lib/components/home/skills/SkillsSection.svelte';
-  import McpSection from '$lib/components/home/mcp/McpSection.svelte';
-  import IntegrationsSection from '$lib/components/home/IntegrationsSection.svelte';
-  import TicketsSection from '$lib/components/home/TicketsSection.svelte';
-  import type { SettingsTab } from '$lib/utils/home/settings-registry';
-  import { aiEnabled } from '$lib/stores/settings';
+  import { t } from '#lib/i18n';
+  import { withViewTransition } from '#lib/utils/view-transition';
+  import AddProject from '#lib/components/AddProject.svelte';
+  import EditProject from '#lib/components/EditProject.svelte';
+  import HomeSidebar, { type HomeSection } from '#lib/components/home/HomeSidebar.svelte';
+  import ProjectsSection from '#lib/components/home/ProjectsSection.svelte';
+  import SettingsPanel from '#lib/components/home/SettingsPanel.svelte';
+  import type { Project } from '#lib/types/project';
+  import type { Ticket } from '#lib/types/integrations';
+  import AgentsSection from '#lib/components/home/agents/AgentsSection.svelte';
+  import ProvidersTab from '#lib/components/home/agents/ProvidersTab.svelte';
+  import FeaturesSection from '#lib/components/home/features/FeaturesSection.svelte';
+  import ChangelogSection from '#lib/components/home/ChangelogSection.svelte';
+  import PortsSection from '#lib/components/home/PortsSection.svelte';
+  import SkillsSection from '#lib/components/home/skills/SkillsSection.svelte';
+  import McpSection from '#lib/components/home/mcp/McpSection.svelte';
+  import IntegrationsSection from '#lib/components/home/IntegrationsSection.svelte';
+  import TicketsSection from '#lib/components/home/TicketsSection.svelte';
+  import type { SettingsTab } from '#lib/utils/home/settings-registry';
+  import { aiEnabled } from '#lib/stores/settings';
 
   const dispatch = createEventDispatcher<{
     openProject: string;

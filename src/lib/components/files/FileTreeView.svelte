@@ -10,14 +10,14 @@
    * including the pointer-event drag handlers.
    */
   import { tick } from 'svelte';
-  import { virtualWindow } from '$lib/utils/virtual-window';
-  import { flattenTree, soleDifference, spliceFolder, type FlatTreeNode } from '$lib/utils/files/flat-tree';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import type { FileNode, GitStatusMap } from '$lib/services/file-service';
-  import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '$lib/utils/files/files-tree';
+  import { virtualWindow } from '#lib/utils/virtual-window';
+  import { flattenTree, soleDifference, spliceFolder, type FlatTreeNode } from '#lib/utils/files/flat-tree';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import type { FileNode, GitStatusMap } from '#lib/services/file-service';
+  import { fileIcon as fileIconFor, nodeGitStatus, parentPathOf } from '#lib/utils/files/files-tree';
 
   interface EditState { type: 'rename' | 'new-file' | 'new-dir'; node: FileNode | null; parentPath: string; value: string }
 

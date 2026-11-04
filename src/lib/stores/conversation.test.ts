@@ -34,7 +34,7 @@ import { lastCli } from "./ui";
 const saveConversationIndex = vi.fn().mockResolvedValue(undefined);
 const getConversationIndex = vi.fn().mockResolvedValue(null);
 
-vi.mock("$lib/services/conversation-service", () => ({
+vi.mock("#lib/services/conversation-service", () => ({
 	getConversationIndex: (...a: unknown[]) => getConversationIndex(...a),
 	saveConversationIndex: (...a: unknown[]) => saveConversationIndex(...a),
 }));
@@ -43,7 +43,7 @@ const createTerminal = vi.fn().mockResolvedValue(undefined);
 const closeTerminal = vi.fn().mockResolvedValue(undefined);
 const terminalHasChildren = vi.fn().mockResolvedValue(false);
 
-vi.mock("$lib/services/terminal-service", () => ({
+vi.mock("#lib/services/terminal-service", () => ({
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
 	terminalHasChildren: (...a: unknown[]) => terminalHasChildren(...a),
@@ -51,7 +51,7 @@ vi.mock("$lib/services/terminal-service", () => ({
 
 const discoverCliSession = vi.fn().mockResolvedValue(null);
 const cliSessionExists = vi.fn().mockResolvedValue(false);
-vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	discoverCliSession: (...a: unknown[]) => discoverCliSession(...a),
 	cliSessionExists: (...a: unknown[]) => cliSessionExists(...a),
@@ -68,7 +68,7 @@ const inputObservers = vi.hoisted(
 	() => [] as Array<(terminalId: string, data: string) => void>,
 );
 
-vi.mock("$lib/utils/terminal/terminal-manager", () => ({
+vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	create: vi.fn(),
 	dispose: vi.fn(),
 	size: () => ({ cols: 80, rows: 24 }),
@@ -592,7 +592,7 @@ describe("opening a conversation that does not exist", () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
 		closeConversation(meta.id);
 		createTerminal.mockRejectedValueOnce(new Error("spawn failed"));
-		const manager = await import("$lib/utils/terminal/terminal-manager");
+		const manager = await import("#lib/utils/terminal/terminal-manager");
 		vi.mocked(manager.dispose).mockClear();
 
 		await expect(openConversation(ref, meta.id)).rejects.toThrow(
@@ -796,14 +796,14 @@ describe("the terminal of a conversation", () => {
 	});
 
 	it("is registered with the terminal manager when launched", async () => {
-		const manager = await import("$lib/utils/terminal/terminal-manager");
+		const manager = await import("#lib/utils/terminal/terminal-manager");
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
 
 		expect(manager.create).toHaveBeenCalledWith(`conversation:${meta.id}`);
 	});
 
 	it("is disposed from the terminal manager when closed", async () => {
-		const manager = await import("$lib/utils/terminal/terminal-manager");
+		const manager = await import("#lib/utils/terminal/terminal-manager");
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
 
 		closeConversation(meta.id);

@@ -5,7 +5,7 @@
 // a formatter over a document. Mirrors `commands/formatting.rs`.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { ManagerOption } from "$lib/services/lsp-service";
+import type { ManagerOption } from "#lib/services/lsp-service";
 
 /** A style value. Flat scalars only, so a style stays diffable and inheritable. */
 export type StyleValue = string | number | boolean;

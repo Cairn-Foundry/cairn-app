@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { errorMessage } from "$lib/utils/error-message";
+import { errorMessage } from "#lib/utils/error-message";
 
 describe("errorMessage", () => {
 	it("reads the message of an Error", () => {

@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	CliProviderDef,
 	CliProviderId,
-} from "$lib/services/cli-provider-service";
-import { cliProviders } from "$lib/stores/cli-providers";
+} from "#lib/services/cli-provider-service";
+import { cliProviders } from "#lib/stores/cli-providers";
 import ProviderPicker from "./ProviderPicker.svelte";
 
 function provider(

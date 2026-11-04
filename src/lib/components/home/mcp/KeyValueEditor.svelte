@@ -8,8 +8,8 @@
    * Dispatches `change` with the whole map; `secret` masks the values until revealed.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   export let pairs: Record<string, string> = {};
   export let keyPlaceholder = '';

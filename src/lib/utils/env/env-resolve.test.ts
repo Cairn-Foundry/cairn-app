@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { EnvVariable } from "$lib/services/env-service";
+import type { EnvVariable } from "#lib/services/env-service";
 import { resolveEnv, toEnvRecord } from "./env-resolve";
 
 function variable(patch: Partial<EnvVariable> & { key: string }): EnvVariable {

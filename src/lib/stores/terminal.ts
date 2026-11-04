@@ -11,16 +11,16 @@ import {
 	getTerminalState,
 	saveProjectTerminalState,
 	saveTerminalState,
-} from "$lib/services/terminal-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import { persist as persistToDisk } from "$lib/utils/persist-error";
+} from "#lib/services/terminal-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import { persist as persistToDisk } from "#lib/utils/persist-error";
 import {
 	belongsToProject,
 	dropProjectKeys,
 	purgeProjectEntries,
-} from "$lib/utils/project-scope";
-import * as manager from "$lib/utils/terminal/terminal-manager";
-import { insertAt, moveItem } from "$lib/utils/terminal/terminal-order";
+} from "#lib/utils/project-scope";
+import * as manager from "#lib/utils/terminal/terminal-manager";
+import { insertAt, moveItem } from "#lib/utils/terminal/terminal-order";
 
 /** A terminal tab; the fields past `title` are only set on a terminal opened by a custom command. */
 export interface TerminalSession {

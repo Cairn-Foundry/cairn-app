@@ -7,12 +7,12 @@ import {
 	MOUSE_KEY,
 	type ShortcutBinding,
 	type ShortcutId,
-} from "$lib/types/shortcuts";
-import { IS_MAC } from "$lib/utils/platform";
+} from "#lib/types/shortcuts";
+import { IS_MAC } from "#lib/utils/platform";
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/settings-service", () => ({
+vi.mock("#lib/services/settings-service", () => ({
 	getSettings,
 	updateSettings,
 }));

@@ -6,10 +6,10 @@
   /**
    * Home-screen card announcing a pending app update and opening the update modal.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import UpdateProgress from '$lib/components/layout/UpdateProgress.svelte';
-  import { t } from '$lib/i18n';
-  import { hasPendingUpdate, openUpdateModal, updateState } from '$lib/stores/update';
+  import Icon from '#lib/components/Icon.svelte';
+  import UpdateProgress from '#lib/components/layout/UpdateProgress.svelte';
+  import { t } from '#lib/i18n';
+  import { hasPendingUpdate, openUpdateModal, updateState } from '#lib/stores/update';
 
   $: state = $updateState;
 </script>

@@ -6,26 +6,26 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitDiffHunk } from "$lib/services/git-service";
+import type { GitDiffHunk } from "#lib/services/git-service";
 
 /** The heavy children are covered by their own suites; here they only mount. */
-vi.mock("$lib/components/git/GraphView.svelte", async () => ({
+vi.mock("#lib/components/git/GraphView.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
-vi.mock("$lib/components/git/StashView.svelte", async () => ({
+vi.mock("#lib/components/git/StashView.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
-vi.mock("$lib/components/git/MergeRebaseView.svelte", async () => ({
+vi.mock("#lib/components/git/MergeRebaseView.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
-vi.mock("$lib/components/git/GitignoreView.svelte", async () => ({
+vi.mock("#lib/components/git/GitignoreView.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
-vi.mock("$lib/components/git/GitDiff.svelte", async () => ({
+vi.mock("#lib/components/git/GitDiff.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
 
-vi.mock("$lib/services/git-collapse-state-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-collapse-state-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveGitCollapseState: vi.fn((..._a: unknown[]) => undefined),
 	getGitCollapseState: vi.fn(async (..._a: unknown[]) => ({
@@ -37,7 +37,7 @@ vi.mock("$lib/services/git-collapse-state-service", async (importOriginal) => ({
 const checkIgnore = vi.fn<(...a: unknown[]) => unknown>();
 const getDiffCommit = vi.fn<(...a: unknown[]) => unknown>();
 const getCommitBody = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	checkIgnore: (...a: unknown[]) => checkIgnore(...a),
 	getDiffCommit: (...a: unknown[]) => getDiffCommit(...a),
@@ -46,7 +46,7 @@ vi.mock("$lib/services/git-service", async (importOriginal) => ({
 
 const readFile = vi.fn<(...a: unknown[]) => unknown>();
 const readFilePreview = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readFile: (...a: unknown[]) => readFile(...a),
 	readFilePreview: (...a: unknown[]) => readFilePreview(...a),
@@ -69,7 +69,7 @@ const setCommitMessage = vi.fn<(...a: unknown[]) => unknown>();
 const setCommitBody = vi.fn<(...a: unknown[]) => unknown>();
 const refreshStatus = vi.fn<(...a: unknown[]) => unknown>();
 const noop = () => vi.fn(async (..._a: unknown[]) => undefined);
-vi.mock("$lib/stores/git", async (importOriginal) => ({
+vi.mock("#lib/stores/git", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	git: { subscribe: gitState.subscribe },
 	commitDraft: { subscribe: draftState.subscribe },
@@ -106,7 +106,7 @@ vi.mock("$lib/stores/git", async (importOriginal) => ({
 
 const activeInstance = writable<unknown>(null);
 const instancesStore = writable<unknown[]>([]);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 	instances: { subscribe: instancesStore.subscribe },
@@ -114,7 +114,7 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 
 // The assists refuse to run when their CLI is not installed, so the detection
 // answers as if it were rather than leaving every AI button disabled.
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => {
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => {
 	const { readable } = await import("svelte/store");
 	return {
 		...(await importOriginal<Record<string, unknown>>()),
@@ -125,22 +125,22 @@ vi.mock("$lib/stores/cli-providers", async (importOriginal) => {
 });
 
 const runOneShot = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
+vi.mock("#lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	runOneShotShaped: (...a: unknown[]) => runOneShot(...a),
 }));
 
 const settingsState = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: { subscribe: settingsState.subscribe },
 }));
 
-const { gitLeftTab } = await import("$lib/stores/ui");
-const { activeProjectId, projects } = await import("$lib/stores/project");
-const { updateProjectViewState } = await import("$lib/stores/view-state");
+const { gitLeftTab } = await import("#lib/stores/ui");
+const { activeProjectId, projects } = await import("#lib/stores/project");
+const { updateProjectViewState } = await import("#lib/stores/view-state");
 const { project } = await import("./fixtures");
-const { default: GitView } = await import("$lib/components/git/GitView.svelte");
+const { default: GitView } = await import("#lib/components/git/GitView.svelte");
 
 function hunk(added: number, removed: number): GitDiffHunk {
 	return {

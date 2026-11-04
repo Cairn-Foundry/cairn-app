@@ -4,7 +4,7 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CLIPBOARD_CLEAR_DELAY } from "$lib/utils/timing";
+import { CLIPBOARD_CLEAR_DELAY } from "#lib/utils/timing";
 import CopyButton from "./CopyButton.svelte";
 
 const writeText = vi.fn();

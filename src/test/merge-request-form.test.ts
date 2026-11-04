@@ -12,41 +12,41 @@ const gitState = writable({
 	remoteBranches: [],
 });
 const loadBranches = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	git: { subscribe: gitState.subscribe },
 	loadBranches: (...a: unknown[]) => loadBranches(...a),
 }));
 
 const createMergeRequest = vi.fn<(...a: unknown[]) => unknown>();
 const loadForgeLabels = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/merge-request", async (importOriginal) => ({
+vi.mock("#lib/stores/merge-request", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	createMergeRequest: (...a: unknown[]) => createMergeRequest(...a),
 	loadForgeLabels: (...a: unknown[]) => loadForgeLabels(...a),
 }));
 
 const forgeIdentity = writable<unknown>(null);
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	forgeIdentity: { subscribe: forgeIdentity.subscribe },
 }));
 
 const runOneShot = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
+vi.mock("#lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	runOneShotShaped: (...a: unknown[]) => runOneShot(...a),
 }));
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
-const { cliProviders } = await import("$lib/stores/cli-providers");
+const { projects, activeProjectId } = await import("#lib/stores/project");
+const { cliProviders } = await import("#lib/stores/cli-providers");
 const { project } = await import("./fixtures");
 const { default: MergeRequestForm } = await import(
-	"$lib/components/git/MergeRequestForm.svelte"
+	"#lib/components/git/MergeRequestForm.svelte"
 );
 
 function mount(props: Record<string, unknown> = {}) {

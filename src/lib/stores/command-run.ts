@@ -9,11 +9,11 @@ import {
 	getCommandState,
 	getSystemUser,
 	saveCommandState,
-} from "$lib/services/custom-command-service";
-import { getIdentity } from "$lib/services/git-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import type { Instance } from "$lib/types/instance";
-import type { Project } from "$lib/types/project";
+} from "#lib/services/custom-command-service";
+import { getIdentity } from "#lib/services/git-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import type { Instance } from "#lib/types/instance";
+import type { Project } from "#lib/types/project";
 import {
 	type AllocatedPort,
 	buildEnv,
@@ -22,10 +22,10 @@ import {
 	collectPortBases,
 	collectPrompts,
 	type Resolution,
-} from "$lib/utils/commands/command-variables";
-import { reportPersistError } from "$lib/utils/persist-error";
-import { dropProjectKeys } from "$lib/utils/project-scope";
-import { onTerminalExit } from "$lib/utils/terminal/terminal-manager";
+} from "#lib/utils/commands/command-variables";
+import { reportPersistError } from "#lib/utils/persist-error";
+import { dropProjectKeys } from "#lib/utils/project-scope";
+import { onTerminalExit } from "#lib/utils/terminal/terminal-manager";
 import { prepareInstanceEnv } from "./env";
 import {
 	addCommandTerminal,

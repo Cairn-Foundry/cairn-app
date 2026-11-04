@@ -6,22 +6,22 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusMap } from "$lib/services/file-service";
-import type { Tab } from "$lib/utils/files/files-persistence";
+import type { GitStatusMap } from "#lib/services/file-service";
+import type { Tab } from "#lib/utils/files/files-persistence";
 
 // The editor body is a CodeMirror view with nothing to say about the pane's
 // own behaviour: its tabs, its breadcrumb and its status bar.
-vi.mock("$lib/components/files/CodeEditor.svelte", async () => ({
+vi.mock("#lib/components/files/CodeEditor.svelte", async () => ({
 	default: (await import("./stubs/CodeEditorStub.svelte")).default,
 }));
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
 const { default: EditorPane } = await import(
-	"$lib/components/files/EditorPane.svelte"
+	"#lib/components/files/EditorPane.svelte"
 );
 
 function tab(path: string, overrides: Partial<Tab> = {}): Tab {

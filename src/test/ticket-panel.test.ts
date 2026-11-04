@@ -6,13 +6,13 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Ticket } from "$lib/types/integrations";
+import type { Ticket } from "#lib/types/integrations";
 
 const tickets = writable<Record<string, unknown>>({});
 const loadTicket = vi.fn();
 const transitionTicket = vi.fn();
 const resolveTicketInput = vi.fn();
-vi.mock("$lib/stores/tracker", async (importOriginal) => ({
+vi.mock("#lib/stores/tracker", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	tickets: { subscribe: tickets.subscribe },
 	loadTicket: (...a: unknown[]) => loadTicket(...a),
@@ -21,26 +21,26 @@ vi.mock("$lib/stores/tracker", async (importOriginal) => ({
 }));
 
 const requestAgentDraft = vi.fn();
-vi.mock("$lib/stores/agent-draft", async (importOriginal) => ({
+vi.mock("#lib/stores/agent-draft", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	requestAgentDraft: (...a: unknown[]) => requestAgentDraft(...a),
 }));
 
 const setInstanceTicket = vi.fn();
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	setInstanceTicket: (...a: unknown[]) => setInstanceTicket(...a),
 }));
 
 const hasTracker = writable(true);
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	hasTracker: { subscribe: hasTracker.subscribe },
 }));
 
 const showTool = vi.fn();
 const activeStepSet = vi.fn();
-vi.mock("$lib/stores/ui", async (importOriginal) => {
+vi.mock("#lib/stores/ui", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
 	return {
 		...actual,
@@ -53,13 +53,13 @@ vi.mock("$lib/stores/ui", async (importOriginal) => {
 });
 
 const openUrl = vi.fn();
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 
 const { instance } = await import("./fixtures");
 const { default: TicketPanel } = await import(
-	"$lib/components/layout/TicketPanel.svelte"
+	"#lib/components/layout/TicketPanel.svelte"
 );
 
 function ticket(overrides: Partial<Ticket> = {}): Ticket {

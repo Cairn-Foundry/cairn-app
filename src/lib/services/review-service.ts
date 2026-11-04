@@ -6,7 +6,7 @@
 // invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import type { ReviewHunk, ReviewState } from "$lib/types/review";
+import type { ReviewHunk, ReviewState } from "#lib/types/review";
 
 /** The unified diff handed to the model, and whether it had to be cut. */
 export interface UnifiedDiff {

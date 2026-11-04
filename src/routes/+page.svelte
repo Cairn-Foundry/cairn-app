@@ -9,47 +9,47 @@
    */
   import { onMount, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { withViewTransition } from '$lib/utils/view-transition';
-  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '$lib/stores/ui.js';
-  import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '$lib/stores/project';
-  import { takePendingCliPaths } from '$lib/services/cli-service';
-  import { loadInstances, hasInstances, activeInstance } from '$lib/stores/instance';
-  import { collapsedTicketProjects } from '$lib/stores/tickets-overview';
-  import { syncEnvFile } from '$lib/stores/env';
-  import { git } from '$lib/stores/git';
-  import { initTerminals } from '$lib/stores/terminal';
-  import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '$lib/stores/language-server';
-  import { initTests, disposeTests } from '$lib/stores/tests';
-  import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '$lib/stores/integrations';
-  import { listInstances } from '$lib/services/instance-service';
-  import { unwatchWorktree } from '$lib/services/fs-watch-service';
-  import { settings } from '$lib/stores/settings';
-  import { flushFileStates } from '$lib/services/file-state-service';
-  import { getUiState, saveUiState, saveUiStateNow } from '$lib/services/ui-state-service';
-  import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '$lib/stores/view-state';
-  import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
-  import { installFieldUndoHandler } from '$lib/utils/clipboard/field-undo';
-  import Home from '$lib/components/Home.svelte';
-  import WelcomeTour from '$lib/components/WelcomeTour.svelte';
-  import AddProject from '$lib/components/AddProject.svelte';
-  import AddProjectChooser from '$lib/components/AddProjectChooser.svelte';
-  import ExistingProjectPicker from '$lib/components/ExistingProjectPicker.svelte';
-  import type Workspace from '$lib/components/Workspace.svelte';
-  import CreateInstance from '$lib/components/CreateInstance.svelte';
-  import type { Ticket } from '$lib/types/integrations';
-  import UpdateModal from '$lib/components/layout/UpdateModal.svelte';
-  import LoadingScreen from '$lib/components/layout/LoadingScreen.svelte';
-  import { isUpdateModalOpen, startUpdateChecks } from '$lib/stores/update';
-  import type { HomeSection } from '$lib/components/home/HomeSidebar.svelte';
-  import { t } from '$lib/i18n';
-  import { activateInstance } from '$lib/stores/project';
-  import { isBaseInstance } from '$lib/stores/instance';
-  import { showTool } from '$lib/stores/ui.js';
-  import { queueIncomingTabs } from '$lib/stores/editor-windows';
-  import { closeAllEditorWindows, onTabsReceived, otherWindowsDirty, saveAllOtherWindows } from '$lib/services/editor-window-service';
-  import { claimDroppedTabs } from '$lib/utils/files/tab-window-drag';
-  import { onSettingsChangedElsewhere } from '$lib/services/settings-service';
-  import type { TabPayload } from '$lib/utils/files/tab-transfer';
+  import { withViewTransition } from '#lib/utils/view-transition';
+  import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
+  import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
+  import { takePendingCliPaths } from '#lib/services/cli-service';
+  import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
+  import { collapsedTicketProjects } from '#lib/stores/tickets-overview';
+  import { syncEnvFile } from '#lib/stores/env';
+  import { git } from '#lib/stores/git';
+  import { initTerminals } from '#lib/stores/terminal';
+  import { initLanguageServers, disposeLanguageServers, stopServersForWorktree } from '#lib/stores/language-server';
+  import { initTests, disposeTests } from '#lib/stores/tests';
+  import { init as initIntegrations, dispose as disposeIntegrations, loadProjectIntegrations, bindingsByProject, watchInstance, unwatchInstance } from '#lib/stores/integrations';
+  import { listInstances } from '#lib/services/instance-service';
+  import { unwatchWorktree } from '#lib/services/fs-watch-service';
+  import { settings } from '#lib/stores/settings';
+  import { flushFileStates } from '#lib/services/file-state-service';
+  import { getUiState, saveUiState, saveUiStateNow } from '#lib/services/ui-state-service';
+  import { initViewStates, snapshotCurrentProject, applyProjectState, getAllProjectStates, viewStates } from '#lib/stores/view-state';
+  import { installCopySelectionHandler } from '#lib/utils/clipboard/copy-selection';
+  import { installFieldUndoHandler } from '#lib/utils/clipboard/field-undo';
+  import Home from '#lib/components/Home.svelte';
+  import WelcomeTour from '#lib/components/WelcomeTour.svelte';
+  import AddProject from '#lib/components/AddProject.svelte';
+  import AddProjectChooser from '#lib/components/AddProjectChooser.svelte';
+  import ExistingProjectPicker from '#lib/components/ExistingProjectPicker.svelte';
+  import type Workspace from '#lib/components/Workspace.svelte';
+  import CreateInstance from '#lib/components/CreateInstance.svelte';
+  import type { Ticket } from '#lib/types/integrations';
+  import UpdateModal from '#lib/components/layout/UpdateModal.svelte';
+  import LoadingScreen from '#lib/components/layout/LoadingScreen.svelte';
+  import { isUpdateModalOpen, startUpdateChecks } from '#lib/stores/update';
+  import type { HomeSection } from '#lib/components/home/HomeSidebar.svelte';
+  import { t } from '#lib/i18n';
+  import { activateInstance } from '#lib/stores/project';
+  import { isBaseInstance } from '#lib/stores/instance';
+  import { showTool } from '#lib/stores/ui.js';
+  import { queueIncomingTabs } from '#lib/stores/editor-windows';
+  import { closeAllEditorWindows, onTabsReceived, otherWindowsDirty, saveAllOtherWindows } from '#lib/services/editor-window-service';
+  import { claimDroppedTabs } from '#lib/utils/files/tab-window-drag';
+  import { onSettingsChangedElsewhere } from '#lib/services/settings-service';
+  import type { TabPayload } from '#lib/utils/files/tab-transfer';
 
   type Screen = 'home' | 'workspace';
 
@@ -82,7 +82,7 @@
   let workspaceLoading: Promise<void> | null = null;
 
   function loadWorkspace(): Promise<void> {
-    workspaceLoading ??= import('$lib/components/Workspace.svelte').then((m) => {
+    workspaceLoading ??= import('#lib/components/Workspace.svelte').then((m) => {
       WorkspaceComponent = m.default;
     });
     return workspaceLoading;

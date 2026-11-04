@@ -7,8 +7,8 @@
    * Confirmation modal before a conversation is deleted. What the CLI recorded
    * of it is not Cairn's to remove: only the entry, and the running CLI, go.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   interface Props {
     title: string;

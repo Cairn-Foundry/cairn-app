@@ -7,13 +7,13 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
 const writeFile = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	writeFile: (...a: unknown[]) => writeFile(...a),
 }));
@@ -23,13 +23,13 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 	save: (...a: unknown[]) => saveDialog(...a),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { SETTINGS_REGISTRY, searchSettings } = await import(
-	"$lib/utils/home/settings-registry"
+	"#lib/utils/home/settings-registry"
 );
-type SettingsTab = import("$lib/utils/home/settings-registry").SettingsTab;
+type SettingsTab = import("#lib/utils/home/settings-registry").SettingsTab;
 const { default: SettingsPanel } = await import(
-	"$lib/components/home/SettingsPanel.svelte"
+	"#lib/components/home/SettingsPanel.svelte"
 );
 
 function mount(settingsTab: SettingsTab = "languages") {

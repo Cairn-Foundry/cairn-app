@@ -6,7 +6,7 @@
 // conversation. Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import type { AssistContext } from "$lib/utils/home/ai-features";
+import type { AssistContext } from "#lib/utils/home/ai-features";
 
 /**
  * Asks the model one question in `workingDir` and returns the object it

@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStash } from "$lib/services/git-service";
+import type { GitStash } from "#lib/services/git-service";
 
 const gitState = writable<{ stashes: GitStash[] }>({ stashes: [] });
 const pushStash = vi.fn();
@@ -16,7 +16,7 @@ const dropStash = vi.fn();
 const clearStashes = vi.fn();
 const renameStash = vi.fn();
 
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	git: { subscribe: gitState.subscribe },
 	pushStash: (...a: unknown[]) => pushStash(...a),
 	popStash: (...a: unknown[]) => popStash(...a),

@@ -7,7 +7,7 @@ import type {
 	StyleOptionInfo,
 	StyleSet,
 	StyleValue,
-} from "$lib/services/formatting-service";
+} from "#lib/services/formatting-service";
 
 /** Where a resolved value came from, so the UI can show what it inherited. */
 export type StyleOrigin = "default" | "common" | "language";

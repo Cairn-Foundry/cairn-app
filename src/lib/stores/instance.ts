@@ -3,12 +3,12 @@
 
 /** Instances of every loaded project, plus the base pseudo-instance standing for the repository itself. */
 import { derived, get, writable } from "svelte/store";
-import { t } from "$lib/i18n";
-import { unwatchWorktree } from "$lib/services/fs-watch-service";
+import { t } from "#lib/i18n";
+import { unwatchWorktree } from "#lib/services/fs-watch-service";
 import type {
 	AdoptWorktreeArgs,
 	CreateInstanceArgs,
-} from "$lib/services/instance-service";
+} from "#lib/services/instance-service";
 import {
 	adoptWorktree as adoptWorktreeService,
 	checkInstanceDeletion,
@@ -19,15 +19,15 @@ import {
 	updateInstanceBaseBranch,
 	updateInstanceStatus,
 	updateInstanceTicket,
-} from "$lib/services/instance-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/instance-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	Instance,
 	InstanceStatus,
 	InstanceTicket,
-} from "$lib/types/instance";
-import type { Project } from "$lib/types/project";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/types/instance";
+import type { Project } from "#lib/types/project";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 import { removeInstanceConversations } from "./conversation";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";

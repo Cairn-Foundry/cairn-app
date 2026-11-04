@@ -6,16 +6,16 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitChangedFile } from "$lib/services/git-service";
-import type { InstanceMergeRequestState } from "$lib/stores/merge-request";
-import type { Discussion, MergeRequest } from "$lib/types/integrations";
+import type { GitChangedFile } from "#lib/services/git-service";
+import type { InstanceMergeRequestState } from "#lib/stores/merge-request";
+import type { Discussion, MergeRequest } from "#lib/types/integrations";
 
-vi.mock("$lib/components/review/DiffEditor.svelte", async () => ({
+vi.mock("#lib/components/review/DiffEditor.svelte", async () => ({
 	default: (await import("./stubs/DiffEditorStub.svelte")).default,
 }));
 
 const openUrl = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 
@@ -23,7 +23,7 @@ const commitExists = vi.fn<(...a: unknown[]) => unknown>();
 const gitFetch = vi.fn<(...a: unknown[]) => unknown>();
 const getDiffFileBetween = vi.fn<(...a: unknown[]) => unknown>();
 const getDiffFilesBetween = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	commitExists: (...a: unknown[]) => commitExists(...a),
 	fetch: (...a: unknown[]) => gitFetch(...a),
@@ -38,7 +38,7 @@ const approveMergeRequest = vi.fn<(...a: unknown[]) => unknown>();
 const replyToDiscussion = vi.fn<(...a: unknown[]) => unknown>();
 const selectDiscussion = vi.fn<(...a: unknown[]) => unknown>();
 const setDiscussionResolved = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/merge-request", async (importOriginal) => ({
+vi.mock("#lib/stores/merge-request", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	mergeRequests: { subscribe: mrState.subscribe },
 	loadMergeRequest: (...a: unknown[]) => loadMergeRequest(...a),
@@ -50,7 +50,7 @@ vi.mock("$lib/stores/merge-request", async (importOriginal) => ({
 }));
 
 const hasForge = writable(true);
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	hasForge: { subscribe: hasForge.subscribe },
 }));
@@ -58,7 +58,7 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 const reviewStates = writable<Record<string, unknown>>({});
 const openReview = vi.fn<(...a: unknown[]) => unknown>();
 const loadReview = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/review", async (importOriginal) => ({
+vi.mock("#lib/stores/review", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	reviewStates: { subscribe: reviewStates.subscribe },
 	openReview: (...a: unknown[]) => openReview(...a),
@@ -80,20 +80,20 @@ vi.mock("$lib/stores/review", async (importOriginal) => ({
 const setSelectedPath = vi.fn<(...a: unknown[]) => unknown>();
 const setDiscussionFilter = vi.fn<(...a: unknown[]) => unknown>();
 const fileMtimes = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	fileMtimes: (...a: unknown[]) => fileMtimes(...a),
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
-const { activeStep } = await import("$lib/stores/ui");
+const { activeStep } = await import("#lib/stores/ui");
 const { default: ReviewView } = await import(
-	"$lib/components/review/ReviewView.svelte"
+	"#lib/components/review/ReviewView.svelte"
 );
 
 const actor = { login: "alice", displayName: "Alice", avatarUrl: null };

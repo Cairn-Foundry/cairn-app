@@ -6,8 +6,8 @@ import { get, writable } from "svelte/store";
 import {
 	listNativeAgents,
 	type NativeAgent,
-} from "$lib/services/native-agent-service";
-import { projects } from "$lib/stores/project";
+} from "#lib/services/native-agent-service";
+import { projects } from "#lib/stores/project";
 
 export const nativeAgents = writable<NativeAgent[]>([]);
 export const nativeAgentsLoading = writable(false);

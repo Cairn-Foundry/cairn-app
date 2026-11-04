@@ -9,10 +9,10 @@
    * Dispatches `openFile` with a conflicted path and `filesChanged` after any git write.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t } from '#lib/i18n';
   import {
     git,
     loadBranches,
@@ -28,12 +28,12 @@
     continueCherryPick,
     skipCherryPick,
     abortCherryPick,
-  } from '$lib/stores/git';
-  import type { GitOperationKind, GitOpResult } from '$lib/services/git-service';
-  import { readFile } from '$lib/services/file-service';
-  import { activeProject } from '$lib/stores/project';
-  import { activeInstance, setInstanceBaseBranch } from '$lib/stores/instance';
-  import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
+  } from '#lib/stores/git';
+  import type { GitOperationKind, GitOpResult } from '#lib/services/git-service';
+  import { readFile } from '#lib/services/file-service';
+  import { activeProject } from '#lib/stores/project';
+  import { activeInstance, setInstanceBaseBranch } from '#lib/stores/instance';
+  import { hasConflictMarkers } from '#lib/utils/git/conflict-markers';
 
   /** Each kind resumes and unwinds through its own git command. */
   const continueOf = (kind: GitOperationKind) =>

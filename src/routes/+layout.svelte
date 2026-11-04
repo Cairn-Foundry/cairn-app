@@ -10,18 +10,18 @@
    */
   import '../app.css';
   import { onMount } from 'svelte';
-  import WindowTitleBar from '$lib/components/layout/WindowTitleBar.svelte';
-  import { settings, settingsLoaded } from '$lib/stores/settings';
-  import { activeProject } from '$lib/stores/project';
-  import { activeScreen, windowFullscreen } from '$lib/stores/ui';
-  import { activeShortcuts } from '$lib/stores/shortcuts';
-  import { onFullscreenKey } from '$lib/utils/window-fullscreen';
-  import { setWindowDecorations } from '$lib/utils/window-decorations';
-  import { IS_MAC } from '$lib/utils/platform';
-  import { foregroundOn } from '$lib/utils/home/contrast';
-  import { titleBarFillColor } from '$lib/utils/home/title-bar';
-  import { setWindowVibrancy } from '$lib/services/settings-service';
-  import { interceptExternalLinks } from '$lib/utils/external-links';
+  import WindowTitleBar from '#lib/components/layout/WindowTitleBar.svelte';
+  import { settings, settingsLoaded } from '#lib/stores/settings';
+  import { activeProject } from '#lib/stores/project';
+  import { activeScreen, windowFullscreen } from '#lib/stores/ui';
+  import { activeShortcuts } from '#lib/stores/shortcuts';
+  import { onFullscreenKey } from '#lib/utils/window-fullscreen';
+  import { setWindowDecorations } from '#lib/utils/window-decorations';
+  import { IS_MAC } from '#lib/utils/platform';
+  import { foregroundOn } from '#lib/utils/home/contrast';
+  import { titleBarFillColor } from '#lib/utils/home/title-bar';
+  import { setWindowVibrancy } from '#lib/services/settings-service';
+  import { interceptExternalLinks } from '#lib/utils/external-links';
 
   onMount(() => interceptExternalLinks());
 

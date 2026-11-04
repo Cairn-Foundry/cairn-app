@@ -5,7 +5,7 @@
 //
 // Search runs on the title alone: the transcript belongs to the CLI, and Cairn
 // no longer keeps a preview of it to match against.
-import type { ConversationMeta } from "$lib/services/conversation-service";
+import type { ConversationMeta } from "#lib/services/conversation-service";
 
 /** Whether a conversation matches what was typed in the search box. */
 export function conversationMatches(

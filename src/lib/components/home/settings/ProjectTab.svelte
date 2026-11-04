@@ -6,12 +6,12 @@
   /**
    * Project settings: which workflow tabs are enabled and in what order (pointer-event drag).
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import type { WorkflowTabConfig } from '$lib/services/settings-service';
-  import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
-  import { computeTabInsertIndex } from "$lib/utils/files/files-tab-drag";
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import type { WorkflowTabConfig } from '#lib/services/settings-service';
+  import { DEFAULT_WF_TABS } from "#lib/utils/home/workflow-tabs";
+  import { computeTabInsertIndex } from "#lib/utils/files/files-tab-drag";
 
   $: wfTabs = ($settings.workflowTabs ?? DEFAULT_WF_TABS).slice().sort((a, b) => a.order - b.order);
 

@@ -3,8 +3,8 @@
 
 /** Claude Code skills discovered across the registered projects, read-only: discovered by scanning every project path. */
 import { get, writable } from "svelte/store";
-import { listSkills, type Skill } from "$lib/services/skill-service";
-import { projects } from "$lib/stores/project";
+import { listSkills, type Skill } from "#lib/services/skill-service";
+import { projects } from "#lib/stores/project";
 
 export const skills = writable<Skill[]>([]);
 export const skillsLoading = writable(false);

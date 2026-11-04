@@ -119,7 +119,7 @@ describe("the assist CLI list", () => {
 	 */
 	it("matches the list the provider store answers for", async () => {
 		const { anyAssistCliInstalled, cliProviders } = await import(
-			"$lib/stores/cli-providers"
+			"#lib/stores/cli-providers"
 		);
 		for (const id of ASSIST_CLIS) {
 			cliProviders.set([{ id, installed: true } as never]);

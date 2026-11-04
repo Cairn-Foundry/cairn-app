@@ -9,22 +9,22 @@
    * `addProject`, `editProject` and `closeProject`.
    */
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { pickGreeting } from '$lib/utils/home/greeting';
-  import { projects, unregisterProject, openProjects, activeProjectId, lastOpenedProjectId } from '$lib/stores/project';
-  import { projectFolders } from '$lib/stores/project-folders';
-  import { revealInFileManager } from '$lib/services/project-service';
-  import type { Project, ProjectFolder } from '$lib/types/project';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { pickGreeting } from '#lib/utils/home/greeting';
+  import { projects, unregisterProject, openProjects, activeProjectId, lastOpenedProjectId } from '#lib/stores/project';
+  import { projectFolders } from '#lib/stores/project-folders';
+  import { revealInFileManager } from '#lib/services/project-service';
+  import type { Project, ProjectFolder } from '#lib/types/project';
   import DeleteProjectModal from './DeleteProjectModal.svelte';
   import DuplicateProjectModal from './DuplicateProjectModal.svelte';
   import DeleteFolderModal from './DeleteFolderModal.svelte';
-  import { matchesSearch } from '$lib/utils/files/files-search';
+  import { matchesSearch } from '#lib/utils/files/files-search';
   import ProjectMenu from './ProjectMenu.svelte';
   import CreateFolderModal from './CreateFolderModal.svelte';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
-  import { reorderProjects } from '$lib/stores/project';
-  import { inboxLabel, loadProjectInbox, projectInbox } from '$lib/stores/project-inbox';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
+  import { reorderProjects } from '#lib/stores/project';
+  import { inboxLabel, loadProjectInbox, projectInbox } from '#lib/stores/project-inbox';
 
   const dispatch = createEventDispatcher<{
     openProject: string;

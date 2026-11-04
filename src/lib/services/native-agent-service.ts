@@ -6,8 +6,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-import type { CliProviderId } from "$lib/services/cli-provider-service";
-import type { SkillProject } from "$lib/services/skill-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
+import type { SkillProject } from "#lib/services/skill-service";
 
 /** Written to the user's home, or inside the project checkout. */
 export type NativeAgentScope = "global" | "project";

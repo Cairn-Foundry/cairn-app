@@ -3,14 +3,14 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runProjectTeardowns } from "$lib/stores/project-teardown";
+import { runProjectTeardowns } from "#lib/stores/project-teardown";
 import type {
 	Comment,
 	Discussion,
 	MergeRequest,
 	MergeRequestDraft,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
 
 const forgeFindMergeRequest = vi.hoisted(() => vi.fn());
 const forgeListDiscussions = vi.hoisted(() => vi.fn());
@@ -21,7 +21,7 @@ const forgeCreateMergeRequest = vi.hoisted(() => vi.fn());
 const forgeListMembers = vi.hoisted(() => vi.fn());
 const forgeListLabels = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/integration-service", async (importOriginal) => ({
+vi.mock("#lib/services/integration-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	forgeFindMergeRequest,
 	forgeListDiscussions,

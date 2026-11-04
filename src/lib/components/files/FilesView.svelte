@@ -11,50 +11,50 @@
    */
   import { onMount, onDestroy, tick } from 'svelte';
 import { get } from 'svelte/store';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import SearchPanel from './SearchPanel.svelte';
   import ReferencesPanel, { type ReferencesResult } from './ReferencesPanel.svelte';
   import EditorPane from './EditorPane.svelte';
   import FileTreeView from './FileTreeView.svelte';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProjectId } from '$lib/stores/project';
-  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, referencesPanelOpen, referencesQuery } from '$lib/stores/ui';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProjectId } from '#lib/stores/project';
+  import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, referencesPanelOpen, referencesQuery } from '#lib/stores/ui';
   import {
     type LspDiagnostic, type LspDocRef, type LspTextEdit,
     lspDefinition, lspDidChange,
     lspFormat, lspImplementation, lspReferences, lspRename,
-  } from '$lib/services/lsp-service';
-  import { formatDocument, type StyleSet } from '$lib/services/formatting-service';
-  import { LSP_FORMATTER_ID } from '$lib/utils/formatting/resolve';
-  import { formatOnSave } from '$lib/stores/formatting';
-  import InstallProgress from '$lib/components/InstallProgress.svelte';
-  import { cancelLanguageServerCommand, installLanguageServer, COMMAND_CANCELLED } from '$lib/services/lsp-service';
+  } from '#lib/services/lsp-service';
+  import { formatDocument, type StyleSet } from '#lib/services/formatting-service';
+  import { LSP_FORMATTER_ID } from '#lib/utils/formatting/resolve';
+  import { formatOnSave } from '#lib/stores/formatting';
+  import InstallProgress from '#lib/components/InstallProgress.svelte';
+  import { cancelLanguageServerCommand, installLanguageServer, COMMAND_CANCELLED } from '#lib/services/lsp-service';
   import {
     clearManagerOutput, ensureDocument, managerOutput, languageServerInfos,
     lspDiagnostics, refreshLanguageServers, setServerEnabled, shouldSuggestFor,
     dismissServerSuggestion,
-  } from '$lib/stores/language-server';
-  import { languageIdForPath } from '$lib/utils/languages/servers';
-  import { applyEditsToText } from '$lib/utils/editor/editor-lsp';
+  } from '#lib/stores/language-server';
+  import { languageIdForPath } from '#lib/utils/languages/servers';
+  import { applyEditsToText } from '#lib/utils/editor/editor-lsp';
   import { Text } from '@codemirror/state';
-  import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '$lib/utils/files/document-model';
-  import { LspDocSync } from '$lib/utils/files/lsp-doc-sync';
-  import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry, type SearchMatch } from '$lib/services/file-service';
-  import { onFsChanged, unwatchWorktree, watchDirs } from '$lib/services/fs-watch-service';
+  import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '#lib/utils/files/document-model';
+  import { LspDocSync } from '#lib/utils/files/lsp-doc-sync';
+  import { readDirTree, readDirTreeCached, listDirNames, readFile, readFileVersioned, writeFile, isWriteConflict, deletePath, renamePath, createFileOrDir, copyPath, revealInFileManager, openInTerminal, langFromPath, isBinaryPath, gitStatus, type FileNode, type GitStatusMap, type BlameEntry, type SearchMatch } from '#lib/services/file-service';
+  import { onFsChanged, unwatchWorktree, watchDirs } from '#lib/services/fs-watch-service';
   import SaveConflict from './SaveConflict.svelte';
-  import { mirrorDoc } from '$lib/utils/files/files-doc-mirror';
-  import { absoluteWatchSet } from '$lib/utils/files/files-watch-set';
-  import { scheduleKeyed } from '$lib/utils/scheduler';
-  import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '$lib/stores/git';
-  import { openUrl } from '$lib/services/opener-service';
-  import { capabilities } from '$lib/stores/integrations';
-  import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
-  import { resolveTabClose } from '$lib/utils/files/files-tab-close';
-  import { hasConflictMarkers } from '$lib/utils/git/conflict-markers';
-  import { settings } from '$lib/stores/settings';
-  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '$lib/stores/shortcuts';
+  import { mirrorDoc } from '#lib/utils/files/files-doc-mirror';
+  import { absoluteWatchSet } from '#lib/utils/files/files-watch-set';
+  import { scheduleKeyed } from '#lib/utils/scheduler';
+  import { git, getRemoteUrl, refreshStatus as refreshGitStore, setGitWatched, stageFile as stageGitFile, unstageFile as unstageGitFile, discardFile as discardGitFile } from '#lib/stores/git';
+  import { openUrl } from '#lib/services/opener-service';
+  import { capabilities } from '#lib/stores/integrations';
+  import { forgeLabel, forgeLink } from '#lib/utils/integrations/links';
+  import { resolveTabClose } from '#lib/utils/files/files-tab-close';
+  import { hasConflictMarkers } from '#lib/utils/git/conflict-markers';
+  import { settings } from '#lib/stores/settings';
+  import { shortcuts, activeShortcuts, matchesShortcut, bindingToLabels, SHORTCUT_DEFS } from '#lib/stores/shortcuts';
   import type { EditorState } from '@codemirror/state';
   import {
     type Tab,
@@ -66,7 +66,7 @@ import { get } from 'svelte/store';
     loadEditorState,
     pushRecent,
     rehydrateFromPersisted,
-  } from '$lib/utils/files/files-persistence';
+  } from '#lib/utils/files/files-persistence';
   import {
     detectLineEndings,
     normalizeLineEndings,
@@ -75,7 +75,7 @@ import { get } from 'svelte/store';
     detectSpaceSize,
     convertToSpaces,
     convertToTabs,
-  } from '$lib/utils/files/files-indent';
+  } from '#lib/utils/files/files-indent';
   import {
     flattenVisible,
     flattenToNodes,
@@ -88,37 +88,37 @@ import { get } from 'svelte/store';
     absolutePathOf,
     pathWithinWorktree,
     nodeGitStatus,
-  } from '$lib/utils/files/files-tree';
+  } from '#lib/utils/files/files-tree';
   import {
     osDropPoint,
     resolvePaneDrop,
     toWorktreeRelative,
     type PaneBox,
     type PaneDrop,
-  } from '$lib/utils/files/files-editor-drop';
-  import { loadPaneBase } from '$lib/utils/files/files-diff';
-  import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
-  import { findHeadingLine } from '$lib/utils/editor/editor-markdown-wysiwyg';
+  } from '#lib/utils/files/files-editor-drop';
+  import { loadPaneBase } from '#lib/utils/files/files-diff';
+  import type { GutterChunk } from '#lib/utils/editor/editor-diff-gutter';
+  import { findHeadingLine } from '#lib/utils/editor/editor-markdown-wysiwyg';
   import {
     computeTabInsertIndex,
     sortedByPin,
     applyTabReorder,
-  } from '$lib/utils/files/files-tab-drag';
+  } from '#lib/utils/files/files-tab-drag';
   import {
     createDragGhost,
     moveGhost,
     removeDragGhost,
     findDropTargetDir,
-  } from '$lib/utils/files/files-drag-ghost';
-  import { tabsToEvict } from '$lib/utils/files/files-tab-cap';
-  import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '$lib/utils/timing';
-  import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '$lib/utils/editor/editor-config';
-  import { makeFilesKeyHandler } from '$lib/utils/files/use-files-shortcuts';
-  import { diskContentOf, writeTab } from '$lib/utils/files/tab-io';
-  import { focusFileOwner, onRevealFile, openEditorWindow, syncWindowFiles, type OpenFile } from '$lib/services/editor-window-service';
-  import { incomingTabs, takeIncomingTabs } from '$lib/stores/editor-windows';
-  import { payloadToTab, tabToPayload, tokenFromDroppedPath, type TabPayload, type TabScope } from '$lib/utils/files/tab-transfer';
-  import { dragTabNatively, dropTabOutside, isOutsideViewport, usesNativeDrag } from '$lib/utils/files/tab-window-drag';
+  } from '#lib/utils/files/files-drag-ghost';
+  import { tabsToEvict } from '#lib/utils/files/files-tab-cap';
+  import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '#lib/utils/timing';
+  import { EDITOR_DEFAULTS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '#lib/utils/editor/editor-config';
+  import { makeFilesKeyHandler } from '#lib/utils/files/use-files-shortcuts';
+  import { diskContentOf, writeTab } from '#lib/utils/files/tab-io';
+  import { focusFileOwner, onRevealFile, openEditorWindow, syncWindowFiles, type OpenFile } from '#lib/services/editor-window-service';
+  import { incomingTabs, takeIncomingTabs } from '#lib/stores/editor-windows';
+  import { payloadToTab, tabToPayload, tokenFromDroppedPath, type TabPayload, type TabScope } from '#lib/utils/files/tab-transfer';
+  import { dragTabNatively, dropTabOutside, isOutsideViewport, usesNativeDrag } from '#lib/utils/files/tab-window-drag';
 
   export let onGoSettings: (() => void) | undefined = undefined;
   export let onGoLanguageServers: (() => void) | undefined = undefined;

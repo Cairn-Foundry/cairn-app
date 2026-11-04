@@ -14,14 +14,14 @@
    * running" - there is no "finished, unread": Cairn does not read the output
    * and cannot tell an answer from a prompt.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import { t } from '$lib/i18n';
-  import type { ConversationMeta, ConversationScope } from '$lib/services/conversation-service';
-  import { conversationMatches, sortConversations } from '$lib/utils/agent/conversation-list';
+  import Icon from '#lib/components/Icon.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import { t } from '#lib/i18n';
+  import type { ConversationMeta, ConversationScope } from '#lib/services/conversation-service';
+  import { conversationMatches, sortConversations } from '#lib/utils/agent/conversation-list';
   import DeleteConversationModal from './DeleteConversationModal.svelte';
-  import { focusOnMount } from '$lib/utils/agent/focus-on-mount';
+  import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
 
   interface Props {
     instanceConversations: ConversationMeta[];

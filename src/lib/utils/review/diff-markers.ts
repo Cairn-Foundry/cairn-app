@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { Discussion } from "$lib/types/integrations";
+import type { Discussion } from "#lib/types/integrations";
 
 /**
  * What a gutter marker stands for. Discussions came first and stay the default;

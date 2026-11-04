@@ -7,8 +7,8 @@
    * Search field with its icon and clear button. `value` is bound, so the parent
    * owns the query and the filtering.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   export let value = '';
   export let placeholder = '';

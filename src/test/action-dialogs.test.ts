@@ -5,12 +5,12 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
-import BranchInUseModal from "$lib/components/git/BranchInUseModal.svelte";
-import DirtyWorktreeModal from "$lib/components/git/DirtyWorktreeModal.svelte";
-import CreateFolderModal from "$lib/components/home/CreateFolderModal.svelte";
-import DuplicateInstanceModal from "$lib/components/home/DuplicateInstanceModal.svelte";
-import KillProcessModal from "$lib/components/home/KillProcessModal.svelte";
-import type { ListeningPort } from "$lib/services/ports-service";
+import BranchInUseModal from "#lib/components/git/BranchInUseModal.svelte";
+import DirtyWorktreeModal from "#lib/components/git/DirtyWorktreeModal.svelte";
+import CreateFolderModal from "#lib/components/home/CreateFolderModal.svelte";
+import DuplicateInstanceModal from "#lib/components/home/DuplicateInstanceModal.svelte";
+import KillProcessModal from "#lib/components/home/KillProcessModal.svelte";
+import type { ListeningPort } from "#lib/services/ports-service";
 import { instance } from "./fixtures";
 
 /**

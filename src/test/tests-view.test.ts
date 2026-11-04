@@ -6,8 +6,8 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { get, writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InstanceTestState } from "$lib/stores/tests";
-import type { TestCase, TestSuite } from "$lib/types/tests";
+import type { InstanceTestState } from "#lib/stores/tests";
+import type { TestCase, TestSuite } from "#lib/types/tests";
 
 const testsState = writable<Record<string, InstanceTestState>>({});
 const loadTests = vi.fn(async (..._a: unknown[]) => {});
@@ -17,7 +17,7 @@ const selectCase = vi.fn((..._a: unknown[]) => undefined);
 const selectRunner = vi.fn((..._a: unknown[]) => undefined);
 const setFilter = vi.fn((..._a: unknown[]) => undefined);
 const setSearch = vi.fn((..._a: unknown[]) => undefined);
-vi.mock("$lib/stores/tests", async (importOriginal) => ({
+vi.mock("#lib/stores/tests", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	tests: { subscribe: testsState.subscribe },
 	loadTests: (...a: unknown[]) => loadTests(...a),
@@ -30,21 +30,21 @@ vi.mock("$lib/stores/tests", async (importOriginal) => ({
 }));
 
 const requestAgentDraft = vi.fn((..._a: unknown[]) => undefined);
-vi.mock("$lib/stores/agent-draft", async (importOriginal) => ({
+vi.mock("#lib/stores/agent-draft", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	requestAgentDraft: (...a: unknown[]) => requestAgentDraft(...a),
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
-const { activeProjectId } = await import("$lib/stores/project");
-const { activeStep } = await import("$lib/stores/ui");
+const { activeProjectId } = await import("#lib/stores/project");
+const { activeStep } = await import("#lib/stores/ui");
 const { default: TestsView } = await import(
-	"$lib/components/tests/TestsView.svelte"
+	"#lib/components/tests/TestsView.svelte"
 );
 
 function testCase(overrides: Partial<TestCase> = {}): TestCase {

@@ -3,12 +3,12 @@
 
 import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { activeProjectId, projects } from "$lib/stores/project";
-import { activeScreen } from "$lib/stores/ui";
+import { activeProjectId, projects } from "#lib/stores/project";
+import { activeScreen } from "#lib/stores/ui";
 import {
 	GIT_REFRESH_IDLE_INTERVAL_MS,
 	GIT_REFRESH_INTERVAL_MS,
-} from "$lib/utils/timing";
+} from "#lib/utils/timing";
 import { project } from "../../test/fixtures";
 import {
 	git,
@@ -23,7 +23,7 @@ import { BASE_INSTANCE_ID } from "./instance";
 const getStatusFull = vi.hoisted(() => vi.fn());
 const stageFile = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/git-service", () => ({
+vi.mock("#lib/services/git-service", () => ({
 	getStatusFull,
 	getSnapshot: (() => {
 		let version = 0;
@@ -50,7 +50,7 @@ vi.mock("./terminal", () => ({
 	removeInstanceTerminals: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("$lib/services/instance-service", () => ({
+vi.mock("#lib/services/instance-service", () => ({
 	listInstances: vi.fn().mockResolvedValue([]),
 	listBranchesDetailed: vi.fn(),
 	createInstance: vi.fn(),
@@ -125,7 +125,7 @@ describe("refreshStatus", () => {
 	});
 
 	it("reads the diffs again after the git view was left and reopened", async () => {
-		const { getDiffs } = await import("$lib/services/git-service");
+		const { getDiffs } = await import("#lib/services/git-service");
 		const diffs = getDiffs as unknown as ReturnType<typeof vi.fn>;
 		diffs.mockResolvedValue({
 			version: "v1",

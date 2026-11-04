@@ -16,9 +16,9 @@ import {
 	type Mock,
 	vi,
 } from "vitest";
-import { t } from "$lib/i18n";
-import { openUrl } from "$lib/services/opener-service";
-import { CLIPBOARD_CLEAR_DELAY } from "$lib/utils/timing";
+import { t } from "#lib/i18n";
+import { openUrl } from "#lib/services/opener-service";
+import { CLIPBOARD_CLEAR_DELAY } from "#lib/utils/timing";
 import {
 	buildMarkdownWysiwyg,
 	collectBlockRanges,
@@ -47,7 +47,7 @@ vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
 	convertFileSrc: vi.fn((path: string) => `asset://localhost${path}`),
 }));
 
-vi.mock("$lib/services/opener-service", () => ({ openUrl: vi.fn() }));
+vi.mock("#lib/services/opener-service", () => ({ openUrl: vi.fn() }));
 
 vi.mock("./mermaid", () => ({ renderMermaid: vi.fn() }));
 

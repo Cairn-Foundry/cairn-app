@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { IS_MAC } from "$lib/utils/platform";
+import { IS_MAC } from "#lib/utils/platform";
 
 // The webview's own undo stack is unreliable: there is no Edit menu to route
 // it on Linux and Windows, and a value written back by a Svelte binding wipes it

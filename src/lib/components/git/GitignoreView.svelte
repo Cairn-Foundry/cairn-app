@@ -8,12 +8,12 @@
    * dir). It applies to every worktree of the repo and is never committed.
    */
   import { onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
-  import { readExclude, writeExclude } from '$lib/stores/git';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t } from '#lib/i18n';
+  import { activeInstance } from '#lib/stores/instance';
+  import { readExclude, writeExclude } from '#lib/stores/git';
 
   let content = '';
   let saved = '';

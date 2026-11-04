@@ -14,17 +14,17 @@
    * conversation relaunches its CLI with its resume argument.
    */
   import { onMount, untrack } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { t } from '#lib/i18n';
   import {
     type CliProviderDef,
     type CliProviderId,
     listCliProviders,
-  } from '$lib/services/cli-provider-service';
-  import type { ConversationScope } from '$lib/services/conversation-service';
-  import { terminalHasChildren } from '$lib/services/terminal-service';
+  } from '#lib/services/cli-provider-service';
+  import type { ConversationScope } from '#lib/services/conversation-service';
+  import { terminalHasChildren } from '#lib/services/terminal-service';
   import {
     activeConversationId,
     type ConversationRef,
@@ -43,12 +43,12 @@
     startFreshSession,
     toggleArchived,
     togglePinned,
-  } from '$lib/stores/conversation';
-  import { agentDraftRequest, clearAgentDraft } from '$lib/stores/agent-draft';
-  import { focusOnMount } from '$lib/utils/agent/focus-on-mount';
-  import { activeInstance } from '$lib/stores/instance';
-  import { lastCli } from '$lib/stores/ui';
-  import * as manager from '$lib/utils/terminal/terminal-manager';
+  } from '#lib/stores/conversation';
+  import { agentDraftRequest, clearAgentDraft } from '#lib/stores/agent-draft';
+  import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
+  import { activeInstance } from '#lib/stores/instance';
+  import { lastCli } from '#lib/stores/ui';
+  import * as manager from '#lib/utils/terminal/terminal-manager';
   import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
   import NewConversationPicker from './NewConversationPicker.svelte';
   import StopConversationModal from './StopConversationModal.svelte';

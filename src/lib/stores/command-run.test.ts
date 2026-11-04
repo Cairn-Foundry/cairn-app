@@ -3,22 +3,22 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CustomCommand } from "$lib/services/custom-command-service";
-import { runProjectTeardowns } from "$lib/stores/project-teardown";
+import type { CustomCommand } from "#lib/services/custom-command-service";
+import { runProjectTeardowns } from "#lib/stores/project-teardown";
 import { instance, project } from "../../test/fixtures";
 
 const allocatePort = vi.hoisted(() => vi.fn());
 const getCommandState = vi.hoisted(() => vi.fn());
 const saveCommandState = vi.hoisted(() => vi.fn());
 const getSystemUser = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/custom-command-service", () => ({
+vi.mock("#lib/services/custom-command-service", () => ({
 	allocatePort,
 	getCommandState,
 	saveCommandState,
 	getSystemUser,
 }));
 
-vi.mock("$lib/services/git-service", () => ({
+vi.mock("#lib/services/git-service", () => ({
 	getIdentity: vi.fn().mockResolvedValue({ name: "Ada", email: "a@b.c" }),
 }));
 
@@ -40,7 +40,7 @@ vi.mock("./ui", async (importOriginal) => ({
 }));
 
 const onTerminalExit = vi.hoisted(() => vi.fn());
-vi.mock("$lib/utils/terminal/terminal-manager", () => ({ onTerminalExit }));
+vi.mock("#lib/utils/terminal/terminal-manager", () => ({ onTerminalExit }));
 
 import {
 	cancelPendingLaunch,

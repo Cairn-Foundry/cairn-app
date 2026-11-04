@@ -14,11 +14,11 @@ import {
 	saveInstanceEnv,
 	saveProjectEnv,
 	writeEnvFile,
-} from "$lib/services/env-service";
+} from "#lib/services/env-service";
 
 // Only the IPC calls are replaced; the pure helpers of the service (emptyEnvFile
 // and friends) stay real, since the store builds its initial state from them.
-vi.mock("$lib/services/env-service", async (importOriginal) => ({
+vi.mock("#lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getGlobalEnv: vi.fn().mockResolvedValue(null),
 	getProjectEnv: vi.fn().mockResolvedValue(null),
@@ -33,12 +33,12 @@ vi.mock("$lib/services/env-service", async (importOriginal) => ({
 	getSystemUser: vi.fn().mockResolvedValue("tester"),
 }));
 
-vi.mock("$lib/services/custom-command-service", async (importOriginal) => ({
+vi.mock("#lib/services/custom-command-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getSystemUser: vi.fn().mockResolvedValue("tester"),
 }));
 
-vi.mock("$lib/services/git-service", () => ({
+vi.mock("#lib/services/git-service", () => ({
 	getIdentity: vi.fn().mockResolvedValue({ name: "", email: "" }),
 }));
 
@@ -463,7 +463,7 @@ describe("generating the env file", () => {
 async function freshEnv() {
 	vi.resetModules();
 	const env = await import("./env");
-	const service = await import("$lib/services/env-service");
+	const service = await import("#lib/services/env-service");
 	return { env, service };
 }
 
@@ -829,7 +829,7 @@ describe("interpolation tokens", () => {
 		vi.mocked(service.getProjectEnv).mockResolvedValue(emptyFile());
 		vi.mocked(service.getInstanceEnv).mockResolvedValue(emptyFile());
 		const { getSystemUser } = await import(
-			"$lib/services/custom-command-service"
+			"#lib/services/custom-command-service"
 		);
 		vi.mocked(getSystemUser).mockClear();
 		if (options.isUserLookupFailing) {

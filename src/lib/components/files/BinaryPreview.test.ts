@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readFilePreview = vi.fn();
 const readFileBase64 = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readFilePreview: (...a: unknown[]) => readFilePreview(...a),
 	readFileBase64: (...a: unknown[]) => readFileBase64(...a),
@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 const openPath = vi.fn();
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openPath: (...a: unknown[]) => openPath(...a),
 }));
 

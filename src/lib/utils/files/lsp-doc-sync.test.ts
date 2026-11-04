@@ -7,23 +7,23 @@ import {
 	lspDidClose,
 	lspDidOpen,
 	lspDidSave,
-} from "$lib/services/lsp-service";
+} from "#lib/services/lsp-service";
 import {
 	clearDiagnosticsFor,
 	ensureDocument,
 	forgetDocument,
-} from "$lib/stores/language-server";
-import { LSP_CHANGE_DEBOUNCE_MS } from "$lib/utils/timing";
+} from "#lib/stores/language-server";
+import { LSP_CHANGE_DEBOUNCE_MS } from "#lib/utils/timing";
 import type { LspContentChange } from "./document-model";
 import { LspDocSync } from "./lsp-doc-sync";
 
-vi.mock("$lib/services/lsp-service", () => ({
+vi.mock("#lib/services/lsp-service", () => ({
 	lspDidChange: vi.fn(),
 	lspDidClose: vi.fn(),
 	lspDidOpen: vi.fn(),
 	lspDidSave: vi.fn(),
 }));
-vi.mock("$lib/stores/language-server", () => ({
+vi.mock("#lib/stores/language-server", () => ({
 	clearDiagnosticsFor: vi.fn(),
 	ensureDocument: vi.fn(),
 	forgetDocument: vi.fn(),

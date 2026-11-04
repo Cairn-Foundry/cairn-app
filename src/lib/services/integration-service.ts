@@ -34,7 +34,7 @@ import {
 	type TrackerProject,
 	type TrackerStatus,
 	type WebLinkTarget,
-} from "$lib/types/integrations";
+} from "#lib/types/integrations";
 
 /** Guards a code coming from outside, an older backend included. */
 export function isKnownIntegrationErrorCode(

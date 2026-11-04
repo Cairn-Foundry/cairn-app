@@ -10,28 +10,28 @@
    */
   import { createEventDispatcher } from 'svelte';
   import { fade } from 'svelte/transition';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProjectId } from '$lib/stores/project';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProjectId } from '#lib/stores/project';
   import {
     countCases, loadTests, runTests, selectCase, selectRunner, setFilter, setSearch,
     stopTests, tests, testStateFor,
-  } from '$lib/stores/tests';
-  import { runnerKey, type TestCase } from '$lib/types/tests';
+  } from '#lib/stores/tests';
+  import { runnerKey, type TestCase } from '#lib/types/tests';
   import {
     caseLabel, countVisible, filterSuites, matchesFilter, parseQuery, splitHighlight,
     type TestFilter,
-  } from '$lib/utils/tests/test-search';
-  import { supportsFileScope } from '$lib/utils/tests/test-scope';
-  import { buildTestFixPrompt } from '$lib/utils/tests/test-fix-prompt';
-  import { requestAgentDraft } from '$lib/stores/agent-draft';
-  import { aiEnabled } from '$lib/stores/settings';
-  import { activeStep } from '$lib/stores/ui';
-  import { IS_WINDOWS } from '$lib/utils/platform';
+  } from '#lib/utils/tests/test-search';
+  import { supportsFileScope } from '#lib/utils/tests/test-scope';
+  import { buildTestFixPrompt } from '#lib/utils/tests/test-fix-prompt';
+  import { requestAgentDraft } from '#lib/stores/agent-draft';
+  import { aiEnabled } from '#lib/stores/settings';
+  import { activeStep } from '#lib/stores/ui';
+  import { IS_WINDOWS } from '#lib/utils/platform';
 
   const dispatch = createEventDispatcher<{ openFile: { path: string; line: number } }>();
 

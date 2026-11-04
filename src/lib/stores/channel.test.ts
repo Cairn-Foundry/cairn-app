@@ -5,7 +5,7 @@ import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getChannel = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/settings-service", () => ({ getChannel }));
+vi.mock("#lib/services/settings-service", () => ({ getChannel }));
 
 const RELEASE = { label: null, dir: "", displayDir: "~/.cairn" };
 

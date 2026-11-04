@@ -6,12 +6,12 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { NativeAgent } from "$lib/services/native-agent-service";
+import type { NativeAgent } from "#lib/services/native-agent-service";
 
 const saveNativeAgent = vi.fn<(...a: unknown[]) => unknown>();
 const deleteNativeAgent = vi.fn<(...a: unknown[]) => unknown>();
 const duplicateNativeAgent = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/native-agent-service", async (importOriginal) => ({
+vi.mock("#lib/services/native-agent-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	saveNativeAgent: (...a: unknown[]) => saveNativeAgent(...a),
 	deleteNativeAgent: (...a: unknown[]) => deleteNativeAgent(...a),
@@ -19,13 +19,13 @@ vi.mock("$lib/services/native-agent-service", async (importOriginal) => ({
 }));
 
 const revealInFileManager = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
 }));
 
 const reachedProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/cli-provider-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-provider-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	reachedProviders: (...a: unknown[]) => reachedProviders(...a),
 }));
@@ -34,7 +34,7 @@ const nativeAgents = writable<NativeAgent[]>([]);
 const nativeAgentsError = writable("");
 const nativeAgentsLoading = writable(false);
 const loadNativeAgents = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/native-agents", async (importOriginal) => ({
+vi.mock("#lib/stores/native-agents", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	nativeAgents: { subscribe: nativeAgents.subscribe },
 	nativeAgentsError: { subscribe: nativeAgentsError.subscribe },
@@ -44,7 +44,7 @@ vi.mock("$lib/stores/native-agents", async (importOriginal) => ({
 
 const cliProviders = writable<{ id: string; label: string }[]>([]);
 const loadCliProviders = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	cliProviders: { subscribe: cliProviders.subscribe },
 	loadCliProviders: (...a: unknown[]) => loadCliProviders(...a),
@@ -52,25 +52,25 @@ vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
 
 const skillList = writable<{ name: string }[]>([]);
 const loadSkills = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/skills", async (importOriginal) => ({
+vi.mock("#lib/stores/skills", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	skills: { subscribe: skillList.subscribe },
 	loadSkills: (...a: unknown[]) => loadSkills(...a),
 }));
 
 const loadProjects = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadProjects: (...a: unknown[]) => loadProjects(...a),
 }));
 
-const { projects } = await import("$lib/stores/project");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { effortsOf, permissionModesOf } = await import(
-	"$lib/components/home/agents/cli-options"
+	"#lib/components/home/agents/cli-options"
 );
 const { default: AgentsSection } = await import(
-	"$lib/components/home/agents/AgentsSection.svelte"
+	"#lib/components/home/agents/AgentsSection.svelte"
 );
 
 function agent(overrides: Partial<NativeAgent> = {}): NativeAgent {

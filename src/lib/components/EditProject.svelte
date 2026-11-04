@@ -4,19 +4,19 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import ProjectIntegrationsForm from '$lib/components/ProjectIntegrationsForm.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import ProjectColorPicker from '$lib/components/ProjectColorPicker.svelte';
-  import { t } from '$lib/i18n';
-  import ProjectPreviewPill from '$lib/components/ProjectPreviewPill.svelte';
-  import { editProject, relocateProjectInStore } from '$lib/stores/project';
-  import { settings } from '$lib/stores/settings';
-  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '$lib/utils/integrations/branch-template';
-  import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '$lib/stores/integrations';
-  import { getRemoteUrl } from '$lib/services/git-service';
-  import type { Project } from '$lib/types/project';
-  import type { ProjectIntegrations } from '$lib/types/integrations';
+  import Icon from '#lib/components/Icon.svelte';
+  import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import { t } from '#lib/i18n';
+  import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
+  import { editProject, relocateProjectInStore } from '#lib/stores/project';
+  import { settings } from '#lib/stores/settings';
+  import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '#lib/utils/integrations/branch-template';
+  import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '#lib/stores/integrations';
+  import { getRemoteUrl } from '#lib/services/git-service';
+  import type { Project } from '#lib/types/project';
+  import type { ProjectIntegrations } from '#lib/types/integrations';
 
   type Tab = 'identity' | 'branch' | 'integrations';
 

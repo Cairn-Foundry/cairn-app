@@ -5,8 +5,8 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitGraphCommit } from "$lib/services/git-service";
-import { SEARCH_DEBOUNCE_MS } from "$lib/utils/timing";
+import type { GitGraphCommit } from "#lib/services/git-service";
+import { SEARCH_DEBOUNCE_MS } from "#lib/utils/timing";
 import { instance } from "../../../test/fixtures";
 import GraphView from "./GraphView.svelte";
 

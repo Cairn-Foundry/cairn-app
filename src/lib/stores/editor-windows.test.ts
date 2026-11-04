@@ -3,7 +3,7 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { TabPayload } from "$lib/utils/files/tab-transfer";
+import type { TabPayload } from "#lib/utils/files/tab-transfer";
 import {
 	incomingTabs,
 	queueIncomingTabs,

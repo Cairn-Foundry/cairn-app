@@ -6,14 +6,14 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Instance } from "$lib/types/instance";
+import type { Instance } from "#lib/types/instance";
 
 const instancesStore = writable<Instance[]>([]);
 const instancesWithBaseStore = writable<Instance[]>([]);
 const removeInstance = vi.fn(async (..._a: unknown[]) => {});
 const duplicateInstance = vi.fn(async (..._a: unknown[]) => {});
 const setInstanceStatus = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	instances: { subscribe: instancesStore.subscribe },
 	instancesWithBase: { subscribe: instancesWithBaseStore.subscribe },
@@ -23,22 +23,22 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 }));
 
 const activateInstance = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activateInstance: (...a: unknown[]) => activateInstance(...a),
 }));
 
 const revealInFileManager = vi.fn(async (..._a: unknown[]) => {});
-vi.mock("$lib/services/project-service", async (importOriginal) => ({
+vi.mock("#lib/services/project-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
 }));
 
-const { BASE_INSTANCE_ID } = await import("$lib/stores/instance");
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { BASE_INSTANCE_ID } = await import("#lib/stores/instance");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project, instance } = await import("./fixtures");
 const { default: ManageInstances } = await import(
-	"$lib/components/ManageInstances.svelte"
+	"#lib/components/ManageInstances.svelte"
 );
 
 const base = () =>

@@ -5,16 +5,16 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { type ComponentProps, tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import PipelineSkeleton from "$lib/components/cicd/PipelineSkeleton.svelte";
-import ProviderLogo from "$lib/components/home/agents/ProviderLogo.svelte";
-import InstallProgress from "$lib/components/InstallProgress.svelte";
-import CairnLogo from "$lib/components/layout/CairnLogo.svelte";
-import LazyView from "$lib/components/layout/LazyView.svelte";
-import LoadingScreen from "$lib/components/layout/LoadingScreen.svelte";
-import ProjectColorPicker from "$lib/components/ProjectColorPicker.svelte";
-import ProjectPreviewPill from "$lib/components/ProjectPreviewPill.svelte";
-import Skeleton from "$lib/components/Skeleton.svelte";
-import Spinner from "$lib/components/Spinner.svelte";
+import PipelineSkeleton from "#lib/components/cicd/PipelineSkeleton.svelte";
+import ProviderLogo from "#lib/components/home/agents/ProviderLogo.svelte";
+import InstallProgress from "#lib/components/InstallProgress.svelte";
+import CairnLogo from "#lib/components/layout/CairnLogo.svelte";
+import LazyView from "#lib/components/layout/LazyView.svelte";
+import LoadingScreen from "#lib/components/layout/LoadingScreen.svelte";
+import ProjectColorPicker from "#lib/components/ProjectColorPicker.svelte";
+import ProjectPreviewPill from "#lib/components/ProjectPreviewPill.svelte";
+import Skeleton from "#lib/components/Skeleton.svelte";
+import Spinner from "#lib/components/Spinner.svelte";
 
 /**
  * The presentational primitives. What is worth pinning down here is not their

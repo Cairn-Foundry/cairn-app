@@ -17,11 +17,11 @@
    * wait on a screen crossed often. A CLI installed meanwhile is picked up by
    * the refresh button rather than by making everyone pay for it.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t } from '$lib/i18n';
-  import type { CliProviderDef, CliProviderId } from '$lib/services/cli-provider-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t } from '#lib/i18n';
+  import type { CliProviderDef, CliProviderId } from '#lib/services/cli-provider-service';
 
   interface Props {
     providers: CliProviderDef[];

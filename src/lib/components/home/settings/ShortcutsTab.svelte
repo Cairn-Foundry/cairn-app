@@ -7,14 +7,14 @@
    * Keyboard shortcut settings: rebinding by recording a key or a modified click, per-shortcut
    * reset and disable, and highlighting of the bindings that collide.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
-  import { MOUSE_KEY, type ShortcutId, type ShortcutBinding, type ShortcutConfig } from '$lib/types/shortcuts';
-  import { MODIFIER_KEYS } from '$lib/utils/home/appearance';
-  import { IS_MAC } from '$lib/utils/platform';
-  import { matchesSearch } from '$lib/utils/files/files-search';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '#lib/stores/shortcuts';
+  import { MOUSE_KEY, type ShortcutId, type ShortcutBinding, type ShortcutConfig } from '#lib/types/shortcuts';
+  import { MODIFIER_KEYS } from '#lib/utils/home/appearance';
+  import { IS_MAC } from '#lib/utils/platform';
+  import { matchesSearch } from '#lib/utils/files/files-search';
 
   let shortcutSearch = '';
   let recordingId: ShortcutId | null = null;

@@ -1,14 +1,14 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 import {
 	defaultSyntaxTokens,
 	isSyntaxTheme,
 	normalizeSyntaxTokens,
 	type SyntaxTheme,
 	type SyntaxTokenKey,
-} from "$lib/utils/editor/syntax-tokens";
+} from "#lib/utils/editor/syntax-tokens";
 
 /** One coloured run of the syntax preview. */
 interface PreviewSegment {

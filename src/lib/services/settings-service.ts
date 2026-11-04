@@ -7,10 +7,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { WorkflowStep } from "$lib/types/instance";
-import type { ShortcutConfig } from "$lib/types/shortcuts";
-import type { ThemeName } from "$lib/utils/editor/editor-theme";
-import type { SyntaxTheme } from "$lib/utils/editor/syntax-tokens";
+import type { WorkflowStep } from "#lib/types/instance";
+import type { ShortcutConfig } from "#lib/types/shortcuts";
+import type { ThemeName } from "#lib/utils/editor/editor-theme";
+import type { SyntaxTheme } from "#lib/utils/editor/syntax-tokens";
 
 /** An author identity that can be applied to a worktree, instead of git's own config. */
 export interface GitProfile {

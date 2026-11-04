@@ -6,10 +6,10 @@
   /**
    * Settings screen: the tab strip, the cross-tab search, and import/export of the whole settings file.
    */
-  import Icon from '$lib/components/Icon.svelte';
+  import Icon from '#lib/components/Icon.svelte';
   import { createEventDispatcher } from 'svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
   import GeneralTab from './settings/GeneralTab.svelte';
   import AppearanceTab from './settings/AppearanceTab.svelte';
   import EditorTab from './settings/EditorTab.svelte';
@@ -18,8 +18,8 @@
   import LanguagesTab from './settings/LanguagesTab.svelte';
   import LanguageServersSection from './LanguageServersSection.svelte';
   import GitTab from './settings/GitTab.svelte';
-  import { writeFile } from '$lib/services/file-service';
-  import { searchSettings, type SettingsTab, type SettingEntry } from '$lib/utils/home/settings-registry';
+  import { writeFile } from '#lib/services/file-service';
+  import { searchSettings, type SettingsTab, type SettingEntry } from '#lib/utils/home/settings-registry';
 
   export let settingsTab: SettingsTab = 'general';
 

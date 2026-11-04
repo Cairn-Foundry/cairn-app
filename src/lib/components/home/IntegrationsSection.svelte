@@ -9,24 +9,24 @@
    * returns; the token never comes back from Rust, only whether one is stored.
    */
   import { onMount } from 'svelte';
-  import { openUrl } from '$lib/services/opener-service';
-  import { t, type TranslationKey } from '$lib/i18n';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import SearchInput from '$lib/components/SearchInput.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
+  import { openUrl } from '#lib/services/opener-service';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import {
     connections, connectionsError, kindDescriptors, loadConnections, loadKinds,
-  } from '$lib/stores/integrations';
+  } from '#lib/stores/integrations';
   import {
     deleteIntegrationConnection, saveIntegrationConnection, testIntegrationConnection, toIntegrationError,
-  } from '$lib/services/integration-service';
-  import { buildTokenHelpUrl } from '$lib/utils/integrations/links';
+  } from '#lib/services/integration-service';
+  import { buildTokenHelpUrl } from '#lib/utils/integrations/links';
   import type {
     IntegrationConnection, IntegrationError, IntegrationIdentity, IntegrationKind, IntegrationKindDescriptor,
-  } from '$lib/types/integrations';
+  } from '#lib/types/integrations';
 
   let ready = false;
   let search = '';

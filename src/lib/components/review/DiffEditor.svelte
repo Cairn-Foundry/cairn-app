@@ -8,19 +8,19 @@
    * Both panes scroll together.
    */
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { noActiveLineTheme, unselectableGutters } from '$lib/utils/editor/editor-extensions';
+  import { noActiveLineTheme, unselectableGutters } from '#lib/utils/editor/editor-extensions';
   import { MergeView } from '@codemirror/merge';
   import { EditorState, Compartment, RangeSet, StateEffect, StateField, type Extension } from '@codemirror/state';
   import { Decoration, type DecorationSet, EditorView, GutterMarker, gutter, gutterLineClass, lineNumbers } from '@codemirror/view';
   import { syntaxHighlighting, bracketMatching } from '@codemirror/language';
-  import { settings, activeSyntaxTokens } from '$lib/stores/settings';
-  import type { DiffMarker } from '$lib/utils/review/diff-markers';
+  import { settings, activeSyntaxTokens } from '#lib/stores/settings';
+  import type { DiffMarker } from '#lib/utils/review/diff-markers';
   import {
     buildEditorTheme,
     buildHighlight,
     resolveLanguageExtension,
     type EditorLanguage,
-  } from '$lib/utils/editor/editor-theme';
+  } from '#lib/utils/editor/editor-theme';
 
   export let oldContent: string = '';
   export let newContent: string = '';

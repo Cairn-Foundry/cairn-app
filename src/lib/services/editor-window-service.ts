@@ -7,7 +7,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { TabPayload } from "$lib/utils/files/tab-transfer";
+import type { TabPayload } from "#lib/utils/files/tab-transfer";
 
 export const MAIN_WINDOW = "main";
 

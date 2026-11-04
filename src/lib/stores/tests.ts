@@ -10,18 +10,18 @@ import {
 	runTests as runTestsService,
 	saveTestState,
 	stopTests as stopTestsService,
-} from "$lib/services/test-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/test-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	TestEvent,
 	TestPersistedState,
 	TestRunner,
 	TestRunSummary,
 	TestSuite,
-} from "$lib/types/tests";
-import { runnerKey } from "$lib/types/tests";
-import { dropProjectKeys } from "$lib/utils/project-scope";
-import { detectTestRunners } from "$lib/utils/tests/test-detect";
+} from "#lib/types/tests";
+import { runnerKey } from "#lib/types/tests";
+import { dropProjectKeys } from "#lib/utils/project-scope";
+import { detectTestRunners } from "#lib/utils/tests/test-detect";
 import {
 	buildTree,
 	observeCase,
@@ -29,10 +29,10 @@ import {
 	pendingFiles,
 	type RunProgress,
 	startRun,
-} from "$lib/utils/tests/test-run";
-import { type RunScope, scopedCommand } from "$lib/utils/tests/test-scope";
-import type { TestFilter } from "$lib/utils/tests/test-search";
-import { countCases, resolveRunStatus } from "$lib/utils/tests/test-tree";
+} from "#lib/utils/tests/test-run";
+import { type RunScope, scopedCommand } from "#lib/utils/tests/test-scope";
+import type { TestFilter } from "#lib/utils/tests/test-search";
+import { countCases, resolveRunStatus } from "#lib/utils/tests/test-tree";
 
 export { countCases };
 
@@ -47,7 +47,7 @@ function isWindows(): boolean {
 /** How long the tree may sit unwritten after a run changed it. */
 const PERSIST_DEBOUNCE_MS = 500;
 
-export type { TestFilter } from "$lib/utils/tests/test-search";
+export type { TestFilter } from "#lib/utils/tests/test-search";
 
 /** Everything the Tests step shows for one instance. */
 export interface InstanceTestState {

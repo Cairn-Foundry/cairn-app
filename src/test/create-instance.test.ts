@@ -6,13 +6,13 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Instance } from "$lib/types/instance";
-import type { Ticket } from "$lib/types/integrations";
+import type { Instance } from "#lib/types/instance";
+import type { Ticket } from "#lib/types/integrations";
 
 const spawnInstance = vi.fn<(...a: unknown[]) => unknown>();
 const adoptWorktree = vi.fn<(...a: unknown[]) => unknown>();
 const instancesStore = writable<Instance[]>([]);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	instances: { subscribe: instancesStore.subscribe },
 	spawnInstance: (...a: unknown[]) => spawnInstance(...a),
@@ -22,7 +22,7 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 const listBranchesDetailed = vi.fn<(...a: unknown[]) => unknown>();
 const listUnclaimedWorktrees = vi.fn<(...a: unknown[]) => unknown>();
 const suggestBaseBranches = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/instance-service", async (importOriginal) => ({
+vi.mock("#lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listBranchesDetailed: (...a: unknown[]) => listBranchesDetailed(...a),
 	listUnclaimedWorktrees: (...a: unknown[]) => listUnclaimedWorktrees(...a),
@@ -30,7 +30,7 @@ vi.mock("$lib/services/instance-service", async (importOriginal) => ({
 }));
 
 const gitFetch = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	fetch: (...a: unknown[]) => gitFetch(...a),
 }));
@@ -41,7 +41,7 @@ const projectBindings = writable<Record<string, unknown>>({
 	tracker: null,
 	autoTransition: {},
 });
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	capabilitiesOf: (...a: unknown[]) => capabilitiesOf(...a),
 	loadProjectIntegrations: (...a: unknown[]) => loadProjectIntegrations(...a),
@@ -60,7 +60,7 @@ const resolveTicketInput = vi.fn<(...a: unknown[]) => unknown>();
 const setTicket = vi.fn<(...a: unknown[]) => unknown>();
 const transitionTicketToStatus = vi.fn<(...a: unknown[]) => unknown>();
 const resetTicketSearch = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/tracker", async (importOriginal) => ({
+vi.mock("#lib/stores/tracker", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	ticketSearch: { subscribe: ticketSearch.subscribe },
 	searchTickets: (...a: unknown[]) => searchTickets(...a),
@@ -71,19 +71,19 @@ vi.mock("$lib/stores/tracker", async (importOriginal) => ({
 }));
 
 const settingsState = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: { subscribe: settingsState.subscribe },
 }));
 
 const runOneShotShaped = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/ai-assist-service", async (importOriginal) => ({
+vi.mock("#lib/services/ai-assist-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	runOneShotShaped: (...a: unknown[]) => runOneShotShaped(...a),
 }));
 
 const assistInstalled = writable(true);
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	isAssistCliInstalled: {
 		subscribe: (run: (v: (id: string) => boolean) => void) =>
@@ -92,10 +92,10 @@ vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
 	loadCliProviders: vi.fn(),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project, instance } = await import("./fixtures");
 const { default: CreateInstance } = await import(
-	"$lib/components/CreateInstance.svelte"
+	"#lib/components/CreateInstance.svelte"
 );
 
 function ticket(overrides: Partial<Ticket> = {}): Ticket {

@@ -9,27 +9,27 @@
    * back to FilesView through the `on*` callback props.
    */
   import { onDestroy, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import { t } from '#lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
-  import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
+  import type { LspDiagnostic, LspDocRef } from '#lib/services/lsp-service';
   import { Text } from '@codemirror/state';
-  import type { LspContentChange } from '$lib/utils/files/document-model';
+  import type { LspContentChange } from '#lib/utils/files/document-model';
   import HunkDiffPanel from './HunkDiffPanel.svelte';
-  import { settings } from '$lib/stores/settings';
-  import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '$lib/services/file-service';
-  import type { GutterChunk } from '$lib/utils/editor/editor-diff-gutter';
+  import { settings } from '#lib/stores/settings';
+  import { isBinaryPath, type GitStatusMap, type BlameEntry, type FileNode } from '#lib/services/file-service';
+  import type { GutterChunk } from '#lib/utils/editor/editor-diff-gutter';
   import BinaryPreview from './BinaryPreview.svelte';
   import MermaidViewer from './MermaidViewer.svelte';
-  import { previewKindFromPath } from '$lib/utils/files/files-preview';
-  import { absolutePathOf, breadcrumbSegments, basename, parentPathOf, isExternalPath } from '$lib/utils/files/files-tree';
-  import type { Tab } from '$lib/utils/files/files-persistence';
-  import { isDirty as isTabDirty } from '$lib/utils/files/document-model';
+  import { previewKindFromPath } from '#lib/utils/files/files-preview';
+  import { absolutePathOf, breadcrumbSegments, basename, parentPathOf, isExternalPath } from '#lib/utils/files/files-tree';
+  import type { Tab } from '#lib/utils/files/files-persistence';
+  import { isDirty as isTabDirty } from '#lib/utils/files/document-model';
   import LineHistoryPanel from './LineHistoryPanel.svelte';
-  import { clickOutside } from '$lib/utils/click-outside';
+  import { clickOutside } from '#lib/utils/click-outside';
 
   export let rootEl: HTMLElement | null = null;
   export let paneClass = '';

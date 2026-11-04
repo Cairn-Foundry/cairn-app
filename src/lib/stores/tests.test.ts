@@ -4,15 +4,15 @@
 import { listen } from "@tauri-apps/api/event";
 import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runProjectTeardowns } from "$lib/stores/project-teardown";
-import type { TestEvent } from "$lib/types/tests";
+import { runProjectTeardowns } from "#lib/stores/project-teardown";
+import type { TestEvent } from "#lib/types/tests";
 
 const getTestState = vi.hoisted(() => vi.fn());
 const saveTestState = vi.hoisted(() => vi.fn());
 const hasCargoNextest = vi.hoisted(() => vi.fn());
 const runTestsService = vi.hoisted(() => vi.fn());
 const stopTestsService = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/test-service", () => ({
+vi.mock("#lib/services/test-service", () => ({
 	getTestState,
 	saveTestState,
 	hasCargoNextest,
@@ -21,7 +21,7 @@ vi.mock("$lib/services/test-service", () => ({
 }));
 
 const detectTestRunners = vi.hoisted(() => vi.fn());
-vi.mock("$lib/utils/tests/test-detect", () => ({ detectTestRunners }));
+vi.mock("#lib/utils/tests/test-detect", () => ({ detectTestRunners }));
 
 import {
 	disposeTests,

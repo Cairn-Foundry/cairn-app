@@ -6,13 +6,13 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CliStatus } from "$lib/services/cli-service";
-import type { UpdateState } from "$lib/stores/update";
+import type { CliStatus } from "#lib/services/cli-service";
+import type { UpdateState } from "#lib/stores/update";
 
 const getCliStatus = vi.fn();
 const installCli = vi.fn();
 const uninstallCli = vi.fn();
-vi.mock("$lib/services/cli-service", () => ({
+vi.mock("#lib/services/cli-service", () => ({
 	getCliStatus: (...a: unknown[]) => getCliStatus(...a),
 	installCli: (...a: unknown[]) => installCli(...a),
 	uninstallCli: (...a: unknown[]) => uninstallCli(...a),
@@ -30,20 +30,20 @@ const IDLE: UpdateState = {
 const updateState = writable<UpdateState>(IDLE);
 const checkForUpdates = vi.fn();
 const openUpdateModal = vi.fn();
-vi.mock("$lib/stores/update", () => ({
+vi.mock("#lib/stores/update", () => ({
 	updateState: { subscribe: updateState.subscribe },
 	checkForUpdates: (...a: unknown[]) => checkForUpdates(...a),
 	openUpdateModal: (...a: unknown[]) => openUpdateModal(...a),
 }));
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { default: GeneralTab } = await import(
-	"$lib/components/home/settings/GeneralTab.svelte"
+	"#lib/components/home/settings/GeneralTab.svelte"
 );
 
 function cliStatus(overrides: Partial<CliStatus> = {}): CliStatus {

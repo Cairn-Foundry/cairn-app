@@ -6,13 +6,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	DEFAULT_FORMATTING,
 	type FormattingConfig,
-} from "$lib/services/formatting-service";
+} from "#lib/services/formatting-service";
 import { forgetProject, formatting } from "./formatting";
 
 const getProjectFormatting = vi.hoisted(() => vi.fn());
 const saveProjectFormatting = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/formatting-service", async (original) => ({
+vi.mock("#lib/services/formatting-service", async (original) => ({
 	...(await original<Record<string, unknown>>()),
 	getProjectFormatting,
 	saveProjectFormatting,

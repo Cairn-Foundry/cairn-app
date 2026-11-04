@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { CairnSettings } from "$lib/services/settings-service";
+import type { CairnSettings } from "#lib/services/settings-service";
 
 /** The custom title bar's fill, or null when it follows the theme. */
 export function titleBarFillColor(

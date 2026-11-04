@@ -3,7 +3,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script lang="ts" context="module">
-  import type { CommitAction } from '$lib/services/git-service';
+  import type { CommitAction } from '#lib/services/git-service';
 
   type MenuItem = { action: CommitAction; icon: string; danger?: boolean; disabled?: boolean };
 
@@ -70,9 +70,9 @@
    * both rather than in whichever list happened to be updated.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { clickOutside } from '$lib/utils/click-outside';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { clickOutside } from '#lib/utils/click-outside';
 
   export let x: number;
   export let y: number;

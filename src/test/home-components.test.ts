@@ -5,24 +5,24 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 // UpdateCard, nested inside the sidebar, reads the update store; nothing here
 // is about updates, so it is held in its quiet state.
-vi.mock("$lib/stores/update", () => ({
+vi.mock("#lib/stores/update", () => ({
 	hasPendingUpdate: { subscribe: writable(false).subscribe },
 	updateState: { subscribe: writable({ status: "idle" }).subscribe },
 	openUpdateModal: vi.fn(),
 }));
 
-const { cliProviders } = await import("$lib/stores/cli-providers");
+const { cliProviders } = await import("#lib/stores/cli-providers");
 const { default: HomeSidebar } = await import(
-	"$lib/components/home/HomeSidebar.svelte"
+	"#lib/components/home/HomeSidebar.svelte"
 );
 type HomeSection =
-	import("$lib/components/home/HomeSidebar.svelte").HomeSection;
+	import("#lib/components/home/HomeSidebar.svelte").HomeSection;
 const { default: ProviderChips } = await import(
-	"$lib/components/home/ProviderChips.svelte"
+	"#lib/components/home/ProviderChips.svelte"
 );
 
 describe("HomeSidebar", () => {

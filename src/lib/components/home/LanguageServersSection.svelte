@@ -8,21 +8,21 @@
    * plus the user-declared custom servers. Every command is explicit - nothing installs on its own.
    */
   import { onMount } from 'svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import InstallProgress from '$lib/components/InstallProgress.svelte';
-  import UninstallServerModal from '$lib/components/home/UninstallServerModal.svelte';
-  import CustomServerModal from '$lib/components/home/CustomServerModal.svelte';
-  import RemoveCustomServerModal from '$lib/components/home/RemoveCustomServerModal.svelte';
-  import { cancelLanguageServerCommand, installLanguageServer, uninstallLanguageServer, uninstallManagerFor, updateLanguageServer, updateManagerFor, COMMAND_CANCELLED, type LanguageServerInfo, type LanguageServerStatus } from '$lib/services/lsp-service';
-  import type { CustomLanguageServer } from '$lib/services/settings-service';
-  import { activeInstance } from '$lib/stores/instance';
-  import { checkForUpdates, clearManagerOutput, clearUpdateCheck, managerOutput, languageServerInfos, languageServerStatuses, liveStatusFor, refreshLanguageServers, removeCustomServer, saveCustomServer, setServerEnabled, updateChecks } from '$lib/stores/language-server';
-  import { settings } from '$lib/stores/settings';
-  import { matchesServerQuery, shortVersion, summarizeExtensions } from '$lib/utils/languages/servers';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import InstallProgress from '#lib/components/InstallProgress.svelte';
+  import UninstallServerModal from '#lib/components/home/UninstallServerModal.svelte';
+  import CustomServerModal from '#lib/components/home/CustomServerModal.svelte';
+  import RemoveCustomServerModal from '#lib/components/home/RemoveCustomServerModal.svelte';
+  import { cancelLanguageServerCommand, installLanguageServer, uninstallLanguageServer, uninstallManagerFor, updateLanguageServer, updateManagerFor, COMMAND_CANCELLED, type LanguageServerInfo, type LanguageServerStatus } from '#lib/services/lsp-service';
+  import type { CustomLanguageServer } from '#lib/services/settings-service';
+  import { activeInstance } from '#lib/stores/instance';
+  import { checkForUpdates, clearManagerOutput, clearUpdateCheck, managerOutput, languageServerInfos, languageServerStatuses, liveStatusFor, refreshLanguageServers, removeCustomServer, saveCustomServer, setServerEnabled, updateChecks } from '#lib/stores/language-server';
+  import { settings } from '#lib/stores/settings';
+  import { matchesServerQuery, shortVersion, summarizeExtensions } from '#lib/utils/languages/servers';
 
   let loading = true;
   let refreshing = false;

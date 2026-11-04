@@ -6,7 +6,7 @@
  * Most flags here are persisted per project (see the four-layer rule in CLAUDE.md).
  */
 import { writable } from "svelte/store";
-import type { WorkflowStep } from "$lib/types/instance.ts";
+import type { WorkflowStep } from "#lib/types/instance.ts";
 
 /** Workflow tab of the workspace sidebar; persisted per project so a restart reopens on it. */
 export const activeStep = writable<WorkflowStep>("files");

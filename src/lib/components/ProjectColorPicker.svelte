@@ -7,8 +7,8 @@
    * Preset colour swatches plus a free colour input for a project accent.
    * `color` is bound; `idSuffix` keeps input ids unique when several are shown.
    */
-  import { t } from '$lib/i18n';
-  import { PROJECT_COLORS } from '$lib/utils/home/appearance';
+  import { t } from '#lib/i18n';
+  import { PROJECT_COLORS } from '#lib/utils/home/appearance';
 
   export let color: string;
   export let idSuffix: string = 'default';

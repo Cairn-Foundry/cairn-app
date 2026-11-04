@@ -4,12 +4,12 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CustomCommand } from "$lib/services/custom-command-service";
+import type { CustomCommand } from "#lib/services/custom-command-service";
 import type {
 	ShortcutBinding,
 	ShortcutDef,
 	ShortcutId,
-} from "$lib/types/shortcuts";
+} from "#lib/types/shortcuts";
 import CommandPalette from "./CommandPalette.svelte";
 
 function command(

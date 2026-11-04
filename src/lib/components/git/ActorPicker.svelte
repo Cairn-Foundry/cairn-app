@@ -8,11 +8,11 @@
    * and the chosen actors as removable chips. Used for both the reviewers and
    * the assignees of a merge request.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { searchForgeMembers } from '$lib/stores/merge-request';
-  import type { Actor } from '$lib/types/integrations';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { searchForgeMembers } from '#lib/stores/merge-request';
+  import type { Actor } from '#lib/types/integrations';
 
   export let id: string;
   export let label: string;

@@ -5,7 +5,7 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileNode, GitStatusMap } from "$lib/services/file-service";
+import type { FileNode, GitStatusMap } from "#lib/services/file-service";
 import FileTreeView from "./FileTreeView.svelte";
 
 function file(path: string): FileNode {

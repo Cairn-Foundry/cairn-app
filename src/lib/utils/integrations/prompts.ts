@@ -5,10 +5,10 @@
 // a review comment to address, a ticket to start from. Each one renders the
 // feature's template (the user's, or the default) with `{{name}}` placeholders.
 
-import type { AiFeatureAssignment } from "$lib/services/settings-service";
-import type { PipelineJob, Ticket } from "$lib/types/integrations";
-import type { AiFeatureId } from "$lib/utils/home/ai-features";
-import { featureDef } from "$lib/utils/home/ai-features";
+import type { AiFeatureAssignment } from "#lib/services/settings-service";
+import type { PipelineJob, Ticket } from "#lib/types/integrations";
+import type { AiFeatureId } from "#lib/utils/home/ai-features";
+import { featureDef } from "#lib/utils/home/ai-features";
 
 const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
 

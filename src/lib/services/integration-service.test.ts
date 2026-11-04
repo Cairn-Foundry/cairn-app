@@ -13,7 +13,7 @@ import {
 	PIPELINE_PAGE_SIZE,
 	type ProjectIntegrations,
 	type TicketQuery,
-} from "$lib/types/integrations";
+} from "#lib/types/integrations";
 import {
 	ciCancelPipeline,
 	ciGetPipeline,

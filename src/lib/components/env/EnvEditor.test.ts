@@ -5,8 +5,8 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
-import type { EnvVariable } from "$lib/services/env-service";
-import { RESERVED_KEY_PREFIX } from "$lib/utils/env/env-file";
+import type { EnvVariable } from "#lib/services/env-service";
+import { RESERVED_KEY_PREFIX } from "#lib/utils/env/env-file";
 import EnvEditor from "./EnvEditor.svelte";
 
 function variable(overrides: Partial<EnvVariable> = {}): EnvVariable {

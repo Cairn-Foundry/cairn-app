@@ -1,9 +1,9 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { ConversationMeta } from "$lib/services/conversation-service";
-import type { Instance, InstanceStatus } from "$lib/types/instance";
-import type { Project } from "$lib/types/project";
+import type { ConversationMeta } from "#lib/services/conversation-service";
+import type { Instance, InstanceStatus } from "#lib/types/instance";
+import type { Project } from "#lib/types/project";
 
 /**
  * A project whose id doubles as its name and path, so a test reads as

@@ -8,7 +8,7 @@
    * and `.stages` from the CI styles so it occupies the geometry of the rows it
    * stands in for, and the list does not jump when the real pipelines land.
    */
-  import Skeleton from '$lib/components/Skeleton.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
 
   export let cards: number = 3;
 </script>

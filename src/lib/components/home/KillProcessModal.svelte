@@ -8,9 +8,9 @@
    * with the chosen strength, or `close`.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { ListeningPort } from '$lib/services/ports-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { ListeningPort } from '#lib/services/ports-service';
 
   export let port: ListeningPort;
 

@@ -1,12 +1,12 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { type TranslationKey, t } from "$lib/i18n";
+import { type TranslationKey, t } from "#lib/i18n";
 import {
 	type GitError,
 	type GitErrorCode,
 	isKnownGitErrorCode,
-} from "$lib/services/git-service";
+} from "#lib/services/git-service";
 
 /** A one-click recovery the banner can offer for a given error code. */
 export type GitErrorAction = "setUpstream" | "pullThenPush" | "removeLock";

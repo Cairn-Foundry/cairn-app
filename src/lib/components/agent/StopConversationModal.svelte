@@ -7,8 +7,8 @@
    * Confirmation before a CLI still running a command of its own is stopped.
    * Only shown in that case: a quiet CLI is stopped straight away.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   interface Props {
     title: string;

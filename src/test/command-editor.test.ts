@@ -5,8 +5,8 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CommandEditor from "$lib/components/commands/CommandEditor.svelte";
-import type { CustomCommand } from "$lib/services/custom-command-service";
+import CommandEditor from "#lib/components/commands/CommandEditor.svelte";
+import type { CustomCommand } from "#lib/services/custom-command-service";
 
 function command(overrides: Partial<CustomCommand> = {}): CustomCommand {
 	return {

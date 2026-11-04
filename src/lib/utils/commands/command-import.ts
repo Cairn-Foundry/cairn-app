@@ -3,9 +3,9 @@
 
 // Turning a project's `package.json` scripts into importable custom commands,
 // guessing the package manager from the lockfile and an icon from the name.
-import type { CustomCommand } from "$lib/services/custom-command-service";
-import { listDirNames, readFile } from "$lib/services/file-service";
-import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
+import type { CustomCommand } from "#lib/services/custom-command-service";
+import { listDirNames, readFile } from "#lib/services/file-service";
+import { DEFAULT_COMMAND_ICON } from "#lib/utils/icons";
 
 /** The package managers a lockfile can identify; npm is the fallback. */
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";

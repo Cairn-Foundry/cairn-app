@@ -8,19 +8,19 @@
    * another local branch. Surfaced on the base instance, whose branch is the
    * repository's own rather than a worktree the instance owns.
    */
-  import BranchInUseModal from '$lib/components/git/BranchInUseModal.svelte';
-  import DirtyWorktreeModal from '$lib/components/git/DirtyWorktreeModal.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { checkoutBranch, clearGitError, git, loadBranches, pushStash } from '$lib/stores/git';
-  import { instances } from '$lib/stores/instance';
-  import { activateInstance, activeProject } from '$lib/stores/project';
-  import { toGitError } from '$lib/services/git-service';
-  import type { Instance } from '$lib/types/instance';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import { worktreeInUsePath } from '$lib/utils/git/git-error';
+  import BranchInUseModal from '#lib/components/git/BranchInUseModal.svelte';
+  import DirtyWorktreeModal from '#lib/components/git/DirtyWorktreeModal.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { checkoutBranch, clearGitError, git, loadBranches, pushStash } from '#lib/stores/git';
+  import { instances } from '#lib/stores/instance';
+  import { activateInstance, activeProject } from '#lib/stores/project';
+  import { toGitError } from '#lib/services/git-service';
+  import type { Instance } from '#lib/types/instance';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import { worktreeInUsePath } from '#lib/utils/git/git-error';
 
   let isOpen = false;
   let isSwitching = false;

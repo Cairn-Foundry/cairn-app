@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { ReviewHunk, ReviewState } from "$lib/types/review";
-import { emptyReviewState } from "$lib/types/review";
+import type { ReviewHunk, ReviewState } from "#lib/types/review";
+import { emptyReviewState } from "#lib/types/review";
 import {
 	anchorLabel,
 	guideProgress,

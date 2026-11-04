@@ -19,10 +19,10 @@ import {
 } from "@codemirror/view";
 import { minimapOpaqueRanges } from "@replit/codemirror-minimap";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { ICONS } from "$lib/components/icon-paths";
-import { t } from "$lib/i18n";
-import { parentPathOf } from "$lib/utils/files/files-tree";
-import { CLIPBOARD_CLEAR_DELAY } from "$lib/utils/timing";
+import { ICONS } from "#lib/components/icon-paths";
+import { t } from "#lib/i18n";
+import { parentPathOf } from "#lib/utils/files/files-tree";
+import { CLIPBOARD_CLEAR_DELAY } from "#lib/utils/timing";
 import { renderMermaid } from "./mermaid";
 import { attachMermaidZoom, type MermaidZoom } from "./mermaid-zoom";
 
@@ -1047,7 +1047,7 @@ function buildLinkClickHandler(options: MarkdownLinkOptions) {
 			event.preventDefault();
 
 			if (parsed.kind === "external") {
-				void import("$lib/services/opener-service")
+				void import("#lib/services/opener-service")
 					.then((m) => m.openUrl(parsed.href))
 					.catch(() => {});
 				return true;

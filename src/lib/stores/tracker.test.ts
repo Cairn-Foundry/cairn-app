@@ -3,7 +3,7 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Ticket, TicketQuery } from "$lib/types/integrations";
+import type { Ticket, TicketQuery } from "#lib/types/integrations";
 import { runProjectTeardowns } from "./project-teardown";
 import {
 	clearTicket,
@@ -28,7 +28,7 @@ const trackerGetTicket = vi.hoisted(() => vi.fn());
 const trackerListTickets = vi.hoisted(() => vi.fn());
 const trackerResolveUrl = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/integration-service", () => ({
+vi.mock("#lib/services/integration-service", () => ({
 	trackerTransition,
 	trackerListTransitions,
 	trackerGetTicket,

@@ -3,12 +3,12 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CairnSettings } from "$lib/services/settings-service";
+import type { CairnSettings } from "#lib/services/settings-service";
 import {
 	defaultSyntaxTokens,
 	type SyntaxTokens,
-} from "$lib/utils/editor/syntax-tokens";
-import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
+} from "#lib/utils/editor/syntax-tokens";
+import { DEFAULT_WF_TABS } from "#lib/utils/home/workflow-tabs";
 
 /** A complete palette whose keyword colour is the one a test looks for. */
 const paletteWith = (color: string): SyntaxTokens => ({
@@ -19,19 +19,19 @@ const paletteWith = (color: string): SyntaxTokens => ({
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/settings-service", () => ({
+vi.mock("#lib/services/settings-service", () => ({
 	getSettings,
 	updateSettings,
 }));
 
 const setCustomServers = vi.hoisted(() => vi.fn());
-vi.mock("$lib/utils/languages/servers", async (importOriginal) => ({
+vi.mock("#lib/utils/languages/servers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	setCustomServers,
 }));
 
 const reportPersistError = vi.hoisted(() => vi.fn());
-vi.mock("$lib/utils/persist-error", () => ({
+vi.mock("#lib/utils/persist-error", () => ({
 	reportPersistError,
 	persist: vi.fn(),
 }));

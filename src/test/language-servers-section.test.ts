@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LanguageServerInfo } from "$lib/services/lsp-service";
+import type { LanguageServerInfo } from "#lib/services/lsp-service";
 
 const installLanguageServer = vi.fn<(...a: unknown[]) => unknown>();
 const uninstallLanguageServer = vi.fn<(...a: unknown[]) => unknown>();
@@ -14,7 +14,7 @@ const updateLanguageServer = vi.fn<(...a: unknown[]) => unknown>();
 const uninstallManagerFor = vi.fn<(...a: unknown[]) => unknown>();
 const updateManagerFor = vi.fn<(...a: unknown[]) => unknown>();
 const cancelLanguageServerCommand = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/lsp-service", async (importOriginal) => ({
+vi.mock("#lib/services/lsp-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	installLanguageServer: (...a: unknown[]) => installLanguageServer(...a),
 	uninstallLanguageServer: (...a: unknown[]) => uninstallLanguageServer(...a),
@@ -36,7 +36,7 @@ const clearManagerOutput = vi.fn<(...a: unknown[]) => unknown>();
 const setServerEnabled = vi.fn<(...a: unknown[]) => unknown>();
 const saveCustomServer = vi.fn<(...a: unknown[]) => unknown>();
 const removeCustomServer = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/language-server", async (importOriginal) => ({
+vi.mock("#lib/stores/language-server", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	languageServerInfos: { subscribe: infos.subscribe },
 	languageServerStatuses: { subscribe: statuses.subscribe },
@@ -53,7 +53,7 @@ vi.mock("$lib/stores/language-server", async (importOriginal) => ({
 
 const settingsState = writable<Record<string, unknown>>({});
 const saveSettings = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: {
 		subscribe: settingsState.subscribe,
@@ -62,14 +62,14 @@ vi.mock("$lib/stores/settings", async (importOriginal) => ({
 }));
 
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstance.subscribe },
 }));
 
-const { COMMAND_CANCELLED } = await import("$lib/services/lsp-service");
+const { COMMAND_CANCELLED } = await import("#lib/services/lsp-service");
 const { default: LanguageServersSection } = await import(
-	"$lib/components/home/LanguageServersSection.svelte"
+	"#lib/components/home/LanguageServersSection.svelte"
 );
 
 function server(

@@ -3,40 +3,40 @@
 
 /** The review guide, per instance: the reading, the remarks, the pending comments. */
 import { get, writable } from "svelte/store";
-import { getLocale } from "$lib/i18n";
-import { forgeSubmitReview } from "$lib/services/integration-service";
-import { runOneshot, stopOneshot } from "$lib/services/oneshot-service";
+import { getLocale } from "#lib/i18n";
+import { forgeSubmitReview } from "#lib/services/integration-service";
+import { runOneshot, stopOneshot } from "#lib/services/oneshot-service";
 import {
 	getDiffHunks,
 	getDiffUnified,
 	loadReviewState,
 	saveReviewState,
-} from "$lib/services/review-service";
-import type { AiFeatureAssignment } from "$lib/services/settings-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/review-service";
+import type { AiFeatureAssignment } from "#lib/services/settings-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	GuideRemark,
 	ReviewComment,
 	ReviewHunk,
 	ReviewState,
 	ReviewVerdict,
-} from "$lib/types/review";
-import { emptyReviewState } from "$lib/types/review";
-import { errorMessage } from "$lib/utils/error-message";
-import { assistContext } from "$lib/utils/home/ai-features";
+} from "#lib/types/review";
+import { emptyReviewState } from "#lib/types/review";
+import { errorMessage } from "#lib/utils/error-message";
+import { assistContext } from "#lib/utils/home/ai-features";
 import {
 	buildReviewCommentPrompt,
 	buildReviewGuidePrompt,
 	REVIEW_GUIDE_SCHEMA,
-} from "$lib/utils/integrations/prompts";
-import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
+} from "#lib/utils/integrations/prompts";
+import { dropProjectKeys, purgeProjectEntries } from "#lib/utils/project-scope";
 import {
 	guideProgress,
 	type RawGuide,
 	reconcileWithDiff,
 	resolveGuide,
 	reviewAsMarkdown,
-} from "$lib/utils/review/review-guide";
+} from "#lib/utils/review/review-guide";
 
 /** How long a change may sit unwritten before it reaches the disk. */
 const PERSIST_DEBOUNCE_MS = 500;

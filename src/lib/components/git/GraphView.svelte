@@ -9,20 +9,20 @@
    * Instances are matched to commits by branch name to offer switching or branching off a ref.
    */
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
-  import type { CommitAction, GitGraphCommit } from '$lib/services/git-service';
-  import type { GraphPaging } from '$lib/stores/git';
-  import type { BranchRequest } from '$lib/components/git/BranchView.svelte';
-  import type { Instance } from '$lib/types/instance';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { formatDateTimeFull, relativeTime } from '$lib/utils/format';
-  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
-  import { reusablePrefix } from '$lib/utils/git/graph-cache';
-  import { spliceStashes, stashIndexOf } from '$lib/utils/git/graph-stashes';
-  import { virtualWindow } from '$lib/utils/virtual-window';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import CommitMenu, { commitMenuPosition } from '$lib/components/git/CommitMenu.svelte';
+  import type { CommitAction, GitGraphCommit } from '#lib/services/git-service';
+  import type { GraphPaging } from '#lib/stores/git';
+  import type { BranchRequest } from '#lib/components/git/BranchView.svelte';
+  import type { Instance } from '#lib/types/instance';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { formatDateTimeFull, relativeTime } from '#lib/utils/format';
+  import { SEARCH_DEBOUNCE_MS } from '#lib/utils/timing';
+  import { reusablePrefix } from '#lib/utils/git/graph-cache';
+  import { spliceStashes, stashIndexOf } from '#lib/utils/git/graph-stashes';
+  import { virtualWindow } from '#lib/utils/virtual-window';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import CommitMenu, { commitMenuPosition } from '#lib/components/git/CommitMenu.svelte';
 
   export let commits: GitGraphCommit[];
   /** Stashes as graph commits; each is drawn above the commit it was taken on. */

@@ -10,12 +10,12 @@ import {
 	getProjectCommands,
 	saveGlobalCommands,
 	saveProjectCommands,
-} from "$lib/services/custom-command-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
-import { persist as persistToDisk } from "$lib/utils/persist-error";
-import { dropProjectKeys } from "$lib/utils/project-scope";
-import { moveItem } from "$lib/utils/terminal/terminal-order";
+} from "#lib/services/custom-command-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import { DEFAULT_COMMAND_ICON } from "#lib/utils/icons";
+import { persist as persistToDisk } from "#lib/utils/persist-error";
+import { dropProjectKeys } from "#lib/utils/project-scope";
+import { moveItem } from "#lib/utils/terminal/terminal-order";
 
 /** Commands defined by a project, keyed by project id; only loaded projects appear. */
 export const projectCommands = writable<Record<string, CustomCommand[]>>({});

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listDirNames, readFile } from "$lib/services/file-service";
+import { listDirNames, readFile } from "#lib/services/file-service";
 import {
 	buildCandidates,
 	candidateToCommand,
@@ -13,7 +13,7 @@ import {
 	scanPackageJson,
 } from "./command-import";
 
-vi.mock("$lib/services/file-service", () => ({
+vi.mock("#lib/services/file-service", () => ({
 	listDirNames: vi.fn(),
 	readFile: vi.fn(),
 }));

@@ -9,15 +9,15 @@
  * empty: "no tracker" and "nothing left to do" are not the same answer.
  */
 import { get, writable } from "svelte/store";
-import { trackerListTickets } from "$lib/services/integration-service";
+import { trackerListTickets } from "#lib/services/integration-service";
 import {
 	bindingsByProject,
 	loadProjectIntegrations,
-} from "$lib/stores/integrations";
-import { projects } from "$lib/stores/project";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import type { IntegrationError, Ticket } from "$lib/types/integrations";
-import { purgeProjectEntries } from "$lib/utils/project-scope";
+} from "#lib/stores/integrations";
+import { projects } from "#lib/stores/project";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import type { IntegrationError, Ticket } from "#lib/types/integrations";
+import { purgeProjectEntries } from "#lib/utils/project-scope";
 
 export interface ProjectTickets {
 	tickets: Ticket[];

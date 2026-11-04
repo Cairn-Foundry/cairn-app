@@ -5,7 +5,7 @@
 // Only this layer calls invoke().
 
 import { invoke } from "@tauri-apps/api/core";
-import { persist } from "$lib/utils/persist-error";
+import { persist } from "#lib/utils/persist-error";
 
 /**
  * What one project reopens on. Every view that takes over the main area needs

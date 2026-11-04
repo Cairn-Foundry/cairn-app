@@ -3,9 +3,9 @@
 
 /** Per-project counts shown on the home cards: tickets assigned to me, cached for five minutes. Errors leave the project without a count. */
 import { get, writable } from "svelte/store";
-import { trackerListTickets } from "$lib/services/integration-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
-import { dropProjectKeys, purgeProjectEntries } from "$lib/utils/project-scope";
+import { trackerListTickets } from "#lib/services/integration-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
+import { dropProjectKeys, purgeProjectEntries } from "#lib/utils/project-scope";
 import { bindingsByProject, loadProjectIntegrations } from "./integrations";
 
 interface ProjectInboxCount {

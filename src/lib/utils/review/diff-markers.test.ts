@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { Discussion } from "$lib/types/integrations";
+import type { Discussion } from "#lib/types/integrations";
 import {
 	diffMarkersFor,
 	excerptAround,

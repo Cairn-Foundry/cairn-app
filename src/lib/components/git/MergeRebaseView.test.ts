@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitOperationState, GitOpResult } from "$lib/services/git-service";
+import type { GitOperationState, GitOpResult } from "#lib/services/git-service";
 
 interface GitState {
 	currentBranch: string;
@@ -35,7 +35,7 @@ const fns = {
 	abortMerge: vi.fn(),
 };
 
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	git: { subscribe: gitState.subscribe },
 	...Object.fromEntries(
 		Object.entries(fns).map(([name, fn]) => [
@@ -46,7 +46,7 @@ vi.mock("$lib/stores/git", () => ({
 }));
 
 const readFile = vi.fn();
-vi.mock("$lib/services/file-service", async (importOriginal) => ({
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readFile: (...a: unknown[]) => readFile(...a),
 }));
@@ -55,12 +55,12 @@ vi.mock("$lib/services/file-service", async (importOriginal) => ({
 // component reads is supplied directly rather than derived from a seeded list.
 const setInstanceBaseBranch = vi.fn();
 const activeInstanceStore = writable<unknown>(null);
-vi.mock("$lib/stores/instance", () => ({
+vi.mock("#lib/stores/instance", () => ({
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
 	setInstanceBaseBranch: (...a: unknown[]) => setInstanceBaseBranch(...a),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project, instance } = await import("../../../test/fixtures");
 const { default: MergeRebaseView } = await import("./MergeRebaseView.svelte");
 

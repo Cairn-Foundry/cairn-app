@@ -3,12 +3,12 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CustomCommand } from "$lib/services/custom-command-service";
-import { DEFAULT_COMMAND_ICON } from "$lib/utils/icons";
+import type { CustomCommand } from "#lib/services/custom-command-service";
+import { DEFAULT_COMMAND_ICON } from "#lib/utils/icons";
 
 const saveProjectCommands = vi.hoisted(() => vi.fn());
 const saveGlobalCommands = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/custom-command-service", () => ({
+vi.mock("#lib/services/custom-command-service", () => ({
 	saveProjectCommands,
 	saveGlobalCommands,
 	getProjectCommands: vi.fn().mockResolvedValue([]),
@@ -307,7 +307,7 @@ describe("loadCommands", () => {
 	async function freshStore() {
 		vi.resetModules();
 		const store = await import("./custom-command");
-		const service = await import("$lib/services/custom-command-service");
+		const service = await import("#lib/services/custom-command-service");
 		return { store, service };
 	}
 

@@ -5,12 +5,12 @@ import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listCliProviders = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/cli-provider-service", () => ({ listCliProviders }));
+vi.mock("#lib/services/cli-provider-service", () => ({ listCliProviders }));
 
 import type {
 	CliProviderDef,
 	CliProviderId,
-} from "$lib/services/cli-provider-service";
+} from "#lib/services/cli-provider-service";
 import {
 	agentDraftRequest,
 	clearAgentDraft,

@@ -10,7 +10,7 @@
  * about it changes while the app runs.
  */
 import { readable } from "svelte/store";
-import { type ChannelInfo, getChannel } from "$lib/services/settings-service";
+import { type ChannelInfo, getChannel } from "#lib/services/settings-service";
 
 /** What the release build is, and what a failed read falls back to. */
 const RELEASE: ChannelInfo = {

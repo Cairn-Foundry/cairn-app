@@ -4,7 +4,7 @@
 // Narrowing a run to one file or one test. The runner command is composed by
 // the frontend, so restricting a run is a matter of appending the right
 // arguments for the detected runner.
-import type { TestRunnerId } from "$lib/types/tests";
+import type { TestRunnerId } from "#lib/types/tests";
 
 /** What a run covers: the whole worktree, one file, or a single test. */
 export type RunScope =

@@ -9,13 +9,13 @@
    * Calls `onOpen` with the picked hit.
    */
   import { onMount, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { FileNode, QuickSearchHit } from '$lib/services/file-service';
-  import { flattenTreeEntries, scorePathMatch } from '$lib/utils/files/files-search';
-  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
-  import { quickSearch } from '$lib/services/file-service';
-  import { settings } from '$lib/stores/settings';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { FileNode, QuickSearchHit } from '#lib/services/file-service';
+  import { flattenTreeEntries, scorePathMatch } from '#lib/utils/files/files-search';
+  import { basename, parentPathOf } from '#lib/utils/files/files-tree';
+  import { quickSearch } from '#lib/services/file-service';
+  import { settings } from '#lib/stores/settings';
 
   interface Props {
     tree: FileNode[];

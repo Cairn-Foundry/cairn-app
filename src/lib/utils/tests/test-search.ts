@@ -3,7 +3,7 @@
 
 // Filtering the test tree. Kept out of the component so the matching rules are
 // testable on their own, and so search and status filter compose in one place.
-import type { TestCase, TestSuite } from "$lib/types/tests";
+import type { TestCase, TestSuite } from "#lib/types/tests";
 
 export type TestFilter = "all" | "failed" | "passed" | "skipped";
 

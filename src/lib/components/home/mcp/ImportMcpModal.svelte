@@ -8,15 +8,15 @@
    * Dispatches `imported` with the names that were created.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { projects } from '$lib/stores/project';
-  import { importMcpServers, type McpScope } from '$lib/services/mcp-service';
-  import ProviderPicker from '$lib/components/home/ProviderPicker.svelte';
-  import { cliProviders, loadCliProviders } from '$lib/stores/cli-providers';
-  import type { CliProviderId } from '$lib/services/cli-provider-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { projects } from '#lib/stores/project';
+  import { importMcpServers, type McpScope } from '#lib/services/mcp-service';
+  import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
+  import { cliProviders, loadCliProviders } from '#lib/stores/cli-providers';
+  import type { CliProviderId } from '#lib/services/cli-provider-service';
 
   const dispatch = createEventDispatcher<{ close: void; imported: string[] }>();
 

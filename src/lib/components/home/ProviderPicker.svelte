@@ -8,12 +8,12 @@
    * Dispatches `change` with the new selection; a refused pick shows its reason instead.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { t } from '$lib/i18n';
-  import { cliProviders } from '$lib/stores/cli-providers';
-  import { impliedProviders, sortProviders } from '$lib/utils/home/cli-providers';
-  import type { CliProviderId } from '$lib/services/cli-provider-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { t } from '#lib/i18n';
+  import { cliProviders } from '#lib/stores/cli-providers';
+  import { impliedProviders, sortProviders } from '#lib/utils/home/cli-providers';
+  import type { CliProviderId } from '#lib/services/cli-provider-service';
 
   /** The agents the entry is written for. */
   export let selected: CliProviderId[] = [];

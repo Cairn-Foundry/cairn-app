@@ -8,9 +8,9 @@
    * Dispatches `confirm` with { title, copyWorkingChanges }.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { Instance } from '$lib/types/instance';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { Instance } from '#lib/types/instance';
 
   export let instance: Instance;
   export let defaultTitle: string;

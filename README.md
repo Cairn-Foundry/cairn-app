@@ -117,7 +117,7 @@ whether a key exists, never its value.
 
 ## Internationalization
 
-Every user-visible string goes through `t('key')` from `$lib/i18n`, with the
+Every user-visible string goes through `t('key')` from `#lib/i18n`, with the
 pairs declared in `src/lib/i18n/en.ts` and `fr.ts`. English and French are both
 first-class.
 

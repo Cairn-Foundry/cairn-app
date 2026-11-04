@@ -6,10 +6,10 @@
   /**
    * Row of provider logos standing for the agents an entry is written for.
    */
-  import ProviderLogo from '$lib/components/home/agents/ProviderLogo.svelte';
-  import { cliProviders, cliProviderLabel } from '$lib/stores/cli-providers';
-  import { sortProviders } from '$lib/utils/home/cli-providers';
-  import type { CliProviderId } from '$lib/services/cli-provider-service';
+  import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import { cliProviders, cliProviderLabel } from '#lib/stores/cli-providers';
+  import { sortProviders } from '#lib/utils/home/cli-providers';
+  import type { CliProviderId } from '#lib/services/cli-provider-service';
 
   export let providers: CliProviderId[] = [];
   export let size = 12;

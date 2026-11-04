@@ -9,7 +9,7 @@ import type {
 	Instance,
 	InstanceStatus,
 	InstanceTicket,
-} from "$lib/types/instance";
+} from "#lib/types/instance";
 
 /** `linkExisting` reuses a branch that already exists instead of creating one. */
 export interface CreateInstanceArgs {

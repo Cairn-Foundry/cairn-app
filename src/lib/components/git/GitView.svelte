@@ -9,28 +9,28 @@
    * with a ref, and `goGitSettings` to hand navigation back to the settings screen.
    */
   import { onMount, createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { virtualWindow } from '$lib/utils/virtual-window';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Deferred from '$lib/components/Deferred.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import GitDiff from '$lib/components/git/GitDiff.svelte';
-  import GraphView from '$lib/components/git/GraphView.svelte';
-  import CommitMenu, { commitMenuPosition } from '$lib/components/git/CommitMenu.svelte';
-  import StashView from '$lib/components/git/StashView.svelte';
-  import TagView from '$lib/components/git/TagView.svelte';
-  import BranchView, { type BranchRequest } from '$lib/components/git/BranchView.svelte';
-  import GitBranchBar from '$lib/components/git/GitBranchBar.svelte';
-  import MergeRebaseView from '$lib/components/git/MergeRebaseView.svelte';
-  import GitignoreView from '$lib/components/git/GitignoreView.svelte';
-  import { readFile, readFilePreview, fileMtimes, isBinaryPath } from '$lib/services/file-service';
-  import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '$lib/services/git-service';
-  import type { GitFileDiff, GitDiffHunk, GitError } from '$lib/services/git-service';
-  import { describeGitError } from '$lib/utils/git/git-error';
-  import type { GitErrorAction } from '$lib/utils/git/git-error';
-  import { t } from '$lib/i18n';
-  import { relativeTime } from '$lib/utils/format';
+  import Icon from '#lib/components/Icon.svelte';
+  import { virtualWindow } from '#lib/utils/virtual-window';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Deferred from '#lib/components/Deferred.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import GitDiff from '#lib/components/git/GitDiff.svelte';
+  import GraphView from '#lib/components/git/GraphView.svelte';
+  import CommitMenu, { commitMenuPosition } from '#lib/components/git/CommitMenu.svelte';
+  import StashView from '#lib/components/git/StashView.svelte';
+  import TagView from '#lib/components/git/TagView.svelte';
+  import BranchView, { type BranchRequest } from '#lib/components/git/BranchView.svelte';
+  import GitBranchBar from '#lib/components/git/GitBranchBar.svelte';
+  import MergeRebaseView from '#lib/components/git/MergeRebaseView.svelte';
+  import GitignoreView from '#lib/components/git/GitignoreView.svelte';
+  import { readFile, readFilePreview, fileMtimes, isBinaryPath } from '#lib/services/file-service';
+  import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '#lib/services/git-service';
+  import type { GitFileDiff, GitDiffHunk, GitError } from '#lib/services/git-service';
+  import { describeGitError } from '#lib/utils/git/git-error';
+  import type { GitErrorAction } from '#lib/utils/git/git-error';
+  import { t } from '#lib/i18n';
+  import { relativeTime } from '#lib/utils/format';
   import {
     git,
     refreshStatus,
@@ -67,28 +67,28 @@
     clearGitError,
     recoverFromGitError,
     commitDraft,
-  } from '$lib/stores/git';
-  import type { CommitAction, GitGraphCommit, GitStash, ResetMode } from '$lib/services/git-service';
-  import { activeInstance, instances } from '$lib/stores/instance';
-  import { openUrl } from '$lib/services/opener-service';
-  import { capabilities } from '$lib/stores/integrations';
-  import { getRemoteUrl } from '$lib/stores/git';
-  import type { WebLinkTarget } from '$lib/types/integrations';
-  import { forgeLabel, forgeLink } from '$lib/utils/integrations/links';
-  import { activateInstance } from '$lib/stores/project';
-  import { settings } from '$lib/stores/settings';
-  import { activeStep, pendingGitAction, gitLeftTab, type GitLeftTab } from '$lib/stores/ui';
-  import { currentProjectViewState, updateProjectViewState } from '$lib/stores/view-state';
-  import { hashHunks } from '$lib/utils/git/diff-hash';
-  import { getGitCollapseState, saveGitCollapseState } from '$lib/services/git-collapse-state-service';
-  import { getCommitState, saveCommitState } from '$lib/services/commit-state-service';
-  import { getProjectGitProfile, setProjectGitProfile } from '$lib/services/project-service';
-  import { AiAssistError, runOneShotShaped } from '$lib/services/ai-assist-service';
-  import { FEATURE_SCHEMAS, resolveAiFeature } from '$lib/utils/home/ai-features';
-  import { isAssistCliInstalled, loadCliProviders } from '$lib/stores/cli-providers';
-  import { normalizeCommitAnswer, renderCommitPrompt } from '$lib/utils/git/commit-message';
-  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
-  import { errorMessage } from '$lib/utils/error-message';
+  } from '#lib/stores/git';
+  import type { CommitAction, GitGraphCommit, GitStash, ResetMode } from '#lib/services/git-service';
+  import { activeInstance, instances } from '#lib/stores/instance';
+  import { openUrl } from '#lib/services/opener-service';
+  import { capabilities } from '#lib/stores/integrations';
+  import { getRemoteUrl } from '#lib/stores/git';
+  import type { WebLinkTarget } from '#lib/types/integrations';
+  import { forgeLabel, forgeLink } from '#lib/utils/integrations/links';
+  import { activateInstance } from '#lib/stores/project';
+  import { settings } from '#lib/stores/settings';
+  import { activeStep, pendingGitAction, gitLeftTab, type GitLeftTab } from '#lib/stores/ui';
+  import { currentProjectViewState, updateProjectViewState } from '#lib/stores/view-state';
+  import { hashHunks } from '#lib/utils/git/diff-hash';
+  import { getGitCollapseState, saveGitCollapseState } from '#lib/services/git-collapse-state-service';
+  import { getCommitState, saveCommitState } from '#lib/services/commit-state-service';
+  import { getProjectGitProfile, setProjectGitProfile } from '#lib/services/project-service';
+  import { AiAssistError, runOneShotShaped } from '#lib/services/ai-assist-service';
+  import { FEATURE_SCHEMAS, resolveAiFeature } from '#lib/utils/home/ai-features';
+  import { isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
+  import { normalizeCommitAnswer, renderCommitPrompt } from '#lib/utils/git/commit-message';
+  import { SEARCH_DEBOUNCE_MS } from '#lib/utils/timing';
+  import { errorMessage } from '#lib/utils/error-message';
 
   const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
 

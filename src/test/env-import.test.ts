@@ -7,14 +7,14 @@ import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readEnvFile = vi.fn();
-vi.mock("$lib/services/env-service", async (importOriginal) => ({
+vi.mock("#lib/services/env-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	readEnvFile: (...a: unknown[]) => readEnvFile(...a),
 }));
 
-const { RESERVED_KEY_PREFIX } = await import("$lib/utils/env/env-file");
+const { RESERVED_KEY_PREFIX } = await import("#lib/utils/env/env-file");
 const { default: EnvImport } = await import(
-	"$lib/components/env/EnvImport.svelte"
+	"#lib/components/env/EnvImport.svelte"
 );
 
 function mount(props: Record<string, unknown> = {}) {

@@ -8,18 +8,18 @@
    * Dispatches `save` with the edited theme, `close` on cancel.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { settings } from '$lib/stores/settings';
-  import { toHexColor } from '$lib/utils/editor/color';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { settings } from '#lib/stores/settings';
+  import { toHexColor } from '#lib/utils/editor/color';
   import {
     SYNTAX_TOKEN_KEYS,
     defaultSyntaxTokens,
     type SyntaxTheme,
     type SyntaxTokenKey,
     type SyntaxTokens,
-  } from '$lib/utils/editor/syntax-tokens';
-  import { PREVIEW_LINES } from '$lib/utils/home/syntax-theme';
+  } from '#lib/utils/editor/syntax-tokens';
+  import { PREVIEW_LINES } from '#lib/utils/home/syntax-theme';
 
   export let theme: SyntaxTheme;
 

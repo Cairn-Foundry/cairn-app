@@ -7,14 +7,14 @@
    * Custom commands tool: the global and project lists, each row runnable or
    * stoppable, with drag to reorder and to move a command between the two scopes.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import CommandEditor from '$lib/components/commands/CommandEditor.svelte';
-  import CommandImport from '$lib/components/commands/CommandImport.svelte';
-  import { t } from '$lib/i18n';
-  import type { CommandScope, CustomCommand } from '$lib/services/custom-command-service';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProject } from '$lib/stores/project';
-  import { commandRunKey, commandRuns, requestCommandLaunch, stopCommand } from '$lib/stores/command-run';
+  import Icon from '#lib/components/Icon.svelte';
+  import CommandEditor from '#lib/components/commands/CommandEditor.svelte';
+  import CommandImport from '#lib/components/commands/CommandImport.svelte';
+  import { t } from '#lib/i18n';
+  import type { CommandScope, CustomCommand } from '#lib/services/custom-command-service';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProject } from '#lib/stores/project';
+  import { commandRunKey, commandRuns, requestCommandLaunch, stopCommand } from '#lib/stores/command-run';
   import {
     addCommand,
     addCommands,
@@ -28,8 +28,8 @@
     reorderCommand,
     toggleCommandPinned,
     updateCommand,
-  } from '$lib/stores/custom-command';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
+  } from '#lib/stores/custom-command';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
 
   let editing: { scope: CommandScope; command: CustomCommand; isNew: boolean } | null = null;
   let importing = false;

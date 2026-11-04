@@ -1,19 +1,19 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { LspDocRef } from "$lib/services/lsp-service";
+import type { LspDocRef } from "#lib/services/lsp-service";
 import {
 	lspDidChange,
 	lspDidClose,
 	lspDidOpen,
 	lspDidSave,
-} from "$lib/services/lsp-service";
+} from "#lib/services/lsp-service";
 import {
 	clearDiagnosticsFor,
 	ensureDocument,
 	forgetDocument,
-} from "$lib/stores/language-server";
-import { LSP_CHANGE_DEBOUNCE_MS } from "$lib/utils/timing";
+} from "#lib/stores/language-server";
+import { LSP_CHANGE_DEBOUNCE_MS } from "#lib/utils/timing";
 import type { LspContentChange } from "./document-model";
 
 /**

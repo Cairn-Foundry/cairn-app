@@ -18,20 +18,20 @@ import {
 	stopLanguageServersFor,
 	stopLanguageServersWithId,
 	type UpdateCheck,
-} from "$lib/services/lsp-service";
+} from "#lib/services/lsp-service";
 import type {
 	CairnSettings,
 	CustomLanguageServer,
 	LanguageServerSetting,
-} from "$lib/services/settings-service";
-import { settings } from "$lib/stores/settings";
-import { isUnder } from "$lib/utils/files/files-tree";
+} from "#lib/services/settings-service";
+import { settings } from "#lib/stores/settings";
+import { isUnder } from "#lib/utils/files/files-tree";
 import {
 	allServers,
 	type LanguageServerDef,
 	serverForPath,
-} from "$lib/utils/languages/servers";
-import { schedule } from "$lib/utils/scheduler";
+} from "#lib/utils/languages/servers";
+import { schedule } from "#lib/utils/scheduler";
 
 /** Catalogue entries with their install state, as the backend reports them. */
 const _infos = writable<LanguageServerInfo[]>([]);

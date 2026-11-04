@@ -7,7 +7,7 @@ import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const editProject = vi.fn();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	editProject: (...a: unknown[]) => editProject(...a),
 }));
@@ -17,21 +17,21 @@ vi.mock("$lib/stores/project", async (importOriginal) => ({
 // replaced.
 const loadProjectIntegrations = vi.fn();
 const saveProjectIntegrations = vi.fn();
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadProjectIntegrations: (...a: unknown[]) => loadProjectIntegrations(...a),
 	saveProjectIntegrations: (...a: unknown[]) => saveProjectIntegrations(...a),
 }));
 
 const getRemoteUrl = vi.fn();
-vi.mock("$lib/services/git-service", async (importOriginal) => ({
+vi.mock("#lib/services/git-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getRemoteUrl: (...a: unknown[]) => getRemoteUrl(...a),
 }));
 
 const { project } = await import("./fixtures");
 const { default: EditProject } = await import(
-	"$lib/components/EditProject.svelte"
+	"#lib/components/EditProject.svelte"
 );
 
 function mount(overrides: Record<string, unknown> = {}) {

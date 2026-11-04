@@ -6,17 +6,17 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const importMcpServers = vi.fn();
-vi.mock("$lib/services/mcp-service", async (importOriginal) => ({
+vi.mock("#lib/services/mcp-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	importMcpServers: (...args: unknown[]) => importMcpServers(...args),
 }));
-vi.mock("$lib/stores/cli-providers", async (importOriginal) => ({
+vi.mock("#lib/stores/cli-providers", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadCliProviders: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { cliProviders } = await import("$lib/stores/cli-providers");
-const { projects } = await import("$lib/stores/project");
+const { cliProviders } = await import("#lib/stores/cli-providers");
+const { projects } = await import("#lib/stores/project");
 const { project } = await import("../../../../test/fixtures");
 const { default: ImportMcpModal } = await import("./ImportMcpModal.svelte");
 

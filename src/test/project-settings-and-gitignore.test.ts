@@ -6,35 +6,35 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorkflowTabConfig } from "$lib/services/settings-service";
+import type { WorkflowTabConfig } from "#lib/services/settings-service";
 
 // `settings.save` round-trips through the backend; here the write is
 // acknowledged as it stands so the store keeps what the component wrote.
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
 const readExclude = vi.fn();
 const writeExclude = vi.fn();
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	readExclude: (...a: unknown[]) => readExclude(...a),
 	writeExclude: (...a: unknown[]) => writeExclude(...a),
 }));
 
 const activeInstanceStore = writable<unknown>(null);
-vi.mock("$lib/stores/instance", () => ({
+vi.mock("#lib/stores/instance", () => ({
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
 }));
 
-const { settings } = await import("$lib/stores/settings");
-const { DEFAULT_WF_TABS } = await import("$lib/utils/home/workflow-tabs");
+const { settings } = await import("#lib/stores/settings");
+const { DEFAULT_WF_TABS } = await import("#lib/utils/home/workflow-tabs");
 const { instance } = await import("./fixtures");
 const { default: GitignoreView } = await import(
-	"$lib/components/git/GitignoreView.svelte"
+	"#lib/components/git/GitignoreView.svelte"
 );
 const { default: ProjectTab } = await import(
-	"$lib/components/home/settings/ProjectTab.svelte"
+	"#lib/components/home/settings/ProjectTab.svelte"
 );
 
 describe("ProjectTab workflow tabs", () => {
@@ -204,7 +204,7 @@ describe("ProjectTab workflow tabs", () => {
 		 * is what distinguishes a real move from a no-op.
 		 */
 		it("writes nothing when a tab is dropped on itself", async () => {
-			const { updateSettings } = await import("$lib/services/settings-service");
+			const { updateSettings } = await import("#lib/services/settings-service");
 			render(ProjectTab, {});
 			layOutRows();
 			const before = labels();

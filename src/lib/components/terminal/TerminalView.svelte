@@ -10,11 +10,11 @@
    * detach and a move between scopes.
    */
   import { untrack } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProject } from '$lib/stores/project';
-  import { terminalActive } from '$lib/stores/ui';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProject } from '#lib/stores/project';
+  import { terminalActive } from '#lib/stores/ui';
   import {
     terminalSessions,
     projectTerminals,
@@ -39,10 +39,10 @@
     restoreTerminals,
     restoreProjectTerminals,
     terminalScope,
-  } from '$lib/stores/terminal';
-  import type { TerminalSession } from '$lib/stores/terminal';
-  import * as manager from '$lib/utils/terminal/terminal-manager';
-  import { computeTabInsertIndex } from '$lib/utils/files/files-tab-drag';
+  } from '#lib/stores/terminal';
+  import type { TerminalSession } from '#lib/stores/terminal';
+  import * as manager from '#lib/utils/terminal/terminal-manager';
+  import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
 
   type Section = 'project' | 'instance';
 

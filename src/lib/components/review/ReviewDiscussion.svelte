@@ -8,10 +8,10 @@
    * resolve / unresolve, and the hand-off to the agent.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import type { Discussion } from '$lib/types/integrations';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import type { Discussion } from '#lib/types/integrations';
 
   export let discussion: Discussion;
   export let renderMarkdown: (source: string) => string;

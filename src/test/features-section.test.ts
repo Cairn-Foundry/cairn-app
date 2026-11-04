@@ -6,11 +6,11 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CairnSettings } from "$lib/services/settings-service";
+import type { CairnSettings } from "#lib/services/settings-service";
 
 const saved = vi.fn();
 const settingsState = writable<Partial<CairnSettings>>({ aiFeatures: {} });
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: {
 		subscribe: settingsState.subscribe,
@@ -18,9 +18,9 @@ vi.mock("$lib/stores/settings", async (importOriginal) => ({
 	},
 }));
 
-const { cliProviders } = await import("$lib/stores/cli-providers");
+const { cliProviders } = await import("#lib/stores/cli-providers");
 const { default: FeaturesSection } = await import(
-	"$lib/components/home/features/FeaturesSection.svelte"
+	"#lib/components/home/features/FeaturesSection.svelte"
 );
 
 const provider = (id: string, label: string, installed = true) =>

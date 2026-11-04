@@ -13,13 +13,13 @@
    * reopened on the next launch.
    */
   import { onDestroy, onMount } from 'svelte';
-  import DetachedEditor from '$lib/components/detached/DetachedEditor.svelte';
-  import { settings } from '$lib/stores/settings';
-  import { loadProjects } from '$lib/stores/project';
-  import { disposeLanguageServers, initLanguageServers } from '$lib/stores/language-server';
-  import { onSettingsChangedElsewhere } from '$lib/services/settings-service';
-  import { installCopySelectionHandler } from '$lib/utils/clipboard/copy-selection';
-  import { installFieldUndoHandler } from '$lib/utils/clipboard/field-undo';
+  import DetachedEditor from '#lib/components/detached/DetachedEditor.svelte';
+  import { settings } from '#lib/stores/settings';
+  import { loadProjects } from '#lib/stores/project';
+  import { disposeLanguageServers, initLanguageServers } from '#lib/stores/language-server';
+  import { onSettingsChangedElsewhere } from '#lib/services/settings-service';
+  import { installCopySelectionHandler } from '#lib/utils/clipboard/copy-selection';
+  import { installFieldUndoHandler } from '#lib/utils/clipboard/field-undo';
 
   let isReady = false;
   const cleanups: Array<() => void> = [];

@@ -4,14 +4,14 @@
 // Finding how a worktree runs its tests. Extends the package.json scan of
 // command-import.ts to Cargo, pytest and go, since a repository can hold more
 // than one ecosystem and each one gets its own runner.
-import { listDirNamesDeep, readFile } from "$lib/services/file-service";
-import type { TestRunner, TestRunnerId } from "$lib/types/tests";
+import { listDirNamesDeep, readFile } from "#lib/services/file-service";
+import type { TestRunner, TestRunnerId } from "#lib/types/tests";
 import {
 	detectPackageManager,
 	type PackageManager,
 	parseScripts,
 	runScriptCommand,
-} from "$lib/utils/commands/command-import";
+} from "#lib/utils/commands/command-import";
 
 /** The scripts whose name reads as "this runs the tests", best first. */
 const TEST_SCRIPTS = ["test", "tests", "test:unit", "unit", "spec"];

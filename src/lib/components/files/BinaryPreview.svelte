@@ -8,10 +8,10 @@
    * its first bytes. `source` is the already loaded text for the `svg` kind.
    */
   import { convertFileSrc } from '@tauri-apps/api/core';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { readFileBase64, readFilePreview } from '$lib/services/file-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { readFileBase64, readFilePreview } from '#lib/services/file-service';
   import {
     formatByteSize,
     formatHexDump,
@@ -19,8 +19,8 @@
     mimeFromPath,
     type PreviewKind,
     svgDataUrl,
-  } from '$lib/utils/files/files-preview';
-  import { basename } from '$lib/utils/files/files-tree';
+  } from '#lib/utils/files/files-preview';
+  import { basename } from '#lib/utils/files/files-tree';
 
   export let path: string;
   export let kind: PreviewKind = 'binary';
@@ -113,7 +113,7 @@
   }
 
   async function openWithSystemApp() {
-    const { openPath } = await import('$lib/services/opener-service');
+    const { openPath } = await import('#lib/services/opener-service');
     await openPath(path).catch(() => {});
   }
 </script>

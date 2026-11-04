@@ -10,15 +10,15 @@
    */
   import { onMount } from 'svelte';
   import { open, save } from '@tauri-apps/plugin-dialog';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Select from '$lib/components/Select.svelte';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Select from '#lib/components/Select.svelte';
   import ExportModal from './ExportModal.svelte';
   import ImportModal from './ImportModal.svelte';
   import ImportSourceModal from './ImportSourceModal.svelte';
   import StyleField from './StyleField.svelte';
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import {
     DEFAULT_FORMATTING,
     detectRepoFormatters,
@@ -32,9 +32,9 @@
     uninstallManagerForFormatter,
     updateFormatter,
     updateManagerForFormatter,
-  } from '$lib/services/formatting-service';
-  import { formatting } from '$lib/stores/formatting';
-  import { formattingActive } from '$lib/stores/ui';
+  } from '#lib/services/formatting-service';
+  import { formatting } from '#lib/stores/formatting';
+  import { formattingActive } from '#lib/stores/ui';
   import {
     effectiveFormatterId,
     inheritedValue,
@@ -44,14 +44,14 @@
     resolveStyle,
     withLanguage,
     withOverride,
-  } from '$lib/utils/formatting/resolve';
+  } from '#lib/utils/formatting/resolve';
   import {
     languageLabel,
     matchesLanguageQuery,
     sortByLabel,
-  } from '$lib/utils/formatting/languages';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProject } from '$lib/stores/project';
+  } from '#lib/utils/formatting/languages';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProject } from '#lib/stores/project';
 
   const options = formatting.options;
   const formatters = formatting.formatters;

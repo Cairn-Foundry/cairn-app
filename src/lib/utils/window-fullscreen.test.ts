@@ -3,8 +3,8 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { windowFullscreen } from "$lib/stores/ui";
-import type { ShortcutBinding } from "$lib/types/shortcuts";
+import { windowFullscreen } from "#lib/stores/ui";
+import type { ShortcutBinding } from "#lib/types/shortcuts";
 import { onFullscreenKey, toggleFullscreen } from "./window-fullscreen";
 
 const win = vi.hoisted(() => ({

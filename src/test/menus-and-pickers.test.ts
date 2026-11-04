@@ -5,11 +5,11 @@ import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
-import ProjectMenu from "$lib/components/home/ProjectMenu.svelte";
+import ProjectMenu from "#lib/components/home/ProjectMenu.svelte";
 
-import IconPicker from "$lib/components/IconPicker.svelte";
-import ShortcutReference from "$lib/components/ShortcutReference.svelte";
-import type { ProjectFolder } from "$lib/types/project";
+import IconPicker from "#lib/components/IconPicker.svelte";
+import ShortcutReference from "#lib/components/ShortcutReference.svelte";
+import type { ProjectFolder } from "#lib/types/project";
 
 describe("IconPicker", () => {
 	function mount(value = "play") {

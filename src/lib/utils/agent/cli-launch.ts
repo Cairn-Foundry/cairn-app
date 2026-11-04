@@ -18,7 +18,7 @@
  * through `discoverCliSession`. Flags verified against the installed binaries'
  * own `--help`, which is ahead of the published docs for several of them.
  */
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 /** The binary each CLI installs. */
 const BINARY: Record<CliProviderId, string> = {

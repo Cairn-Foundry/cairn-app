@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import { MOUSE_KEY, type ShortcutBinding } from "$lib/types/shortcuts";
+import { MOUSE_KEY, type ShortcutBinding } from "#lib/types/shortcuts";
 
-vi.mock("$lib/utils/platform", async (original) => ({
+vi.mock("#lib/utils/platform", async (original) => ({
 	...(await original<Record<string, unknown>>()),
 	IS_MAC: true,
 }));

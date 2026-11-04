@@ -3,16 +3,16 @@
 
 /** Keyboard and mouse bindings: the defaults, and the effective ones after user overrides. */
 import { derived } from "svelte/store";
-import { t } from "$lib/i18n";
-import { settings } from "$lib/stores/settings";
+import { t } from "#lib/i18n";
+import { settings } from "#lib/stores/settings";
 import {
 	MOUSE_KEY,
 	type ModifierState,
 	type ShortcutBinding,
 	type ShortcutDef,
 	type ShortcutId,
-} from "$lib/types/shortcuts";
-import { IS_MAC } from "$lib/utils/platform";
+} from "#lib/types/shortcuts";
+import { IS_MAC } from "#lib/utils/platform";
 
 /** Pulls the label and description of a shortcut from the i18n bundle. */
 const d = (id: ShortcutId) => ({

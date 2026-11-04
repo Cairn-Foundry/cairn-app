@@ -7,8 +7,8 @@ import {
 	type CliProviderDef,
 	type CliProviderId,
 	listCliProviders,
-} from "$lib/services/cli-provider-service";
-import { aiEnabled } from "$lib/stores/settings";
+} from "#lib/services/cli-provider-service";
+import { aiEnabled } from "#lib/stores/settings";
 
 /** The agent CLIs the backend knows how to drive. Static for the lifetime of the app. */
 export const cliProviders = writable<CliProviderDef[]>([]);

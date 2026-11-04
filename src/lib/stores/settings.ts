@@ -7,13 +7,13 @@ import {
 	type CairnSettings,
 	getSettings,
 	updateSettings,
-} from "$lib/services/settings-service";
-import { normalizeSyntaxTokens } from "$lib/utils/editor/syntax-tokens";
-import { DEFAULT_ACCENT } from "$lib/utils/home/appearance";
-import { DEFAULT_WF_TABS } from "$lib/utils/home/workflow-tabs";
-import { DEFAULT_BRANCH_TEMPLATE } from "$lib/utils/integrations/branch-template";
-import { setCustomServers } from "$lib/utils/languages/servers";
-import { reportPersistError } from "$lib/utils/persist-error";
+} from "#lib/services/settings-service";
+import { normalizeSyntaxTokens } from "#lib/utils/editor/syntax-tokens";
+import { DEFAULT_ACCENT } from "#lib/utils/home/appearance";
+import { DEFAULT_WF_TABS } from "#lib/utils/home/workflow-tabs";
+import { DEFAULT_BRANCH_TEMPLATE } from "#lib/utils/integrations/branch-template";
+import { setCustomServers } from "#lib/utils/languages/servers";
+import { reportPersistError } from "#lib/utils/persist-error";
 
 /** Factory settings; must stay in sync with the Rust defaults in commands/settings.rs. */
 const DEFAULTS: CairnSettings = {

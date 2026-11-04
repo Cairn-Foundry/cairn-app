@@ -9,16 +9,16 @@
    * previous one is satisfied by the real git state.
    */
   import { createEventDispatcher, onMount } from 'svelte';
-  import { openUrl } from '$lib/services/opener-service';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
-  import MergeRequestForm from '$lib/components/git/MergeRequestForm.svelte';
-  import { t } from '$lib/i18n';
-  import type { Instance } from '$lib/types/instance';
-  import type { BranchDivergence } from '$lib/services/git-service';
+  import { openUrl } from '#lib/services/opener-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import DeleteInstanceModal from '#lib/components/home/DeleteInstanceModal.svelte';
+  import MergeRequestForm from '#lib/components/git/MergeRequestForm.svelte';
+  import { t } from '#lib/i18n';
+  import type { Instance } from '#lib/types/instance';
+  import type { BranchDivergence } from '#lib/services/git-service';
   import {
     git,
     gitFileCounts,
@@ -29,13 +29,13 @@
     pushBranch,
     getRemoteUrl,
     getBranchDivergence,
-  } from '$lib/stores/git';
-  import { isArchivedInstance, removeInstance, setInstanceStatus } from '$lib/stores/instance';
-  import { hasForge, hasTracker, projectBindings } from '$lib/stores/integrations';
-  import { loadMergeRequest, mergeRequests, mergeRequestStateFor } from '$lib/stores/merge-request';
-  import { loadTicket, ticketStateFor, tickets, transitionTicketToStatus } from '$lib/stores/tracker';
-  import { describeGitError } from '$lib/utils/git/git-error';
-  import { buildMergeRequestUrl } from '$lib/utils/git/remote-url';
+  } from '#lib/stores/git';
+  import { isArchivedInstance, removeInstance, setInstanceStatus } from '#lib/stores/instance';
+  import { hasForge, hasTracker, projectBindings } from '#lib/stores/integrations';
+  import { loadMergeRequest, mergeRequests, mergeRequestStateFor } from '#lib/stores/merge-request';
+  import { loadTicket, ticketStateFor, tickets, transitionTicketToStatus } from '#lib/stores/tracker';
+  import { describeGitError } from '#lib/utils/git/git-error';
+  import { buildMergeRequestUrl } from '#lib/utils/git/remote-url';
 
   export let instance: Instance;
 

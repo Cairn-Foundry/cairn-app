@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitOperationState } from "$lib/services/git-service";
+import type { GitOperationState } from "#lib/services/git-service";
 
 interface RemoteStatus {
 	hasUpstream: boolean;
@@ -37,7 +37,7 @@ const pullBranch = vi.fn();
 const pushBranch = vi.fn();
 const publishBranch = vi.fn();
 
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	// `set` and `update` are exposed too: the component reads the store through
 	// `get(git)`, which needs the whole store contract, not just `subscribe`.
 	git: gitState,
@@ -50,28 +50,28 @@ vi.mock("$lib/stores/git", () => ({
 
 const activeInstanceStore = writable<unknown>(null);
 const setInstanceBaseBranch = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
 	setInstanceBaseBranch: (...a: unknown[]) => setInstanceBaseBranch(...a),
 }));
 
 const hasForge = writable(false);
-vi.mock("$lib/stores/integrations", () => ({
+vi.mock("#lib/stores/integrations", () => ({
 	hasForge: { subscribe: hasForge.subscribe },
 	capabilities: { subscribe: writable({ forge: null }).subscribe },
 	forgeTerms: { subscribe: writable("mergeRequest").subscribe },
 }));
 
-vi.mock("$lib/stores/merge-request", () => ({
+vi.mock("#lib/stores/merge-request", () => ({
 	loadMergeRequest: vi.fn(),
 	mergeRequestFormRequest: { subscribe: writable(0).subscribe },
 	mergeRequests: { subscribe: writable({}).subscribe },
 	mergeRequestStateFor: () => ({ mergeRequest: null }),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
-const { activeStep } = await import("$lib/stores/ui");
+const { projects, activeProjectId } = await import("#lib/stores/project");
+const { activeStep } = await import("#lib/stores/ui");
 const { project, instance } = await import("../../../test/fixtures");
 const { default: GitBranchBar } = await import("./GitBranchBar.svelte");
 

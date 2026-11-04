@@ -13,11 +13,11 @@
    * instance - belongs to the caller.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import { clickOutside } from '$lib/utils/click-outside';
-  import { matchesSearch } from '$lib/utils/files/files-search';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import { clickOutside } from '#lib/utils/click-outside';
+  import { matchesSearch } from '#lib/utils/files/files-search';
 
   /** The selected branch; empty means no base, which is a legitimate state. */
   export let value = '';

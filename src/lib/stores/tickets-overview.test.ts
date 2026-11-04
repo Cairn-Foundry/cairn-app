@@ -8,8 +8,8 @@ const trackerListTickets = vi.hoisted(() => vi.fn());
 const loadProjectIntegrations = vi.hoisted(() => vi.fn());
 const onProjectRemoved = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/integration-service", () => ({ trackerListTickets }));
-vi.mock("$lib/stores/integrations", async () => {
+vi.mock("#lib/services/integration-service", () => ({ trackerListTickets }));
+vi.mock("#lib/stores/integrations", async () => {
 	const { writable } = await import("svelte/store");
 	return {
 		loadProjectIntegrations,
@@ -20,7 +20,7 @@ vi.mock("$lib/stores/integrations", async () => {
 		}),
 	};
 });
-vi.mock("$lib/stores/project", async () => {
+vi.mock("#lib/stores/project", async () => {
 	const { writable } = await import("svelte/store");
 	return {
 		projects: writable([
@@ -30,7 +30,7 @@ vi.mock("$lib/stores/project", async () => {
 		]),
 	};
 });
-vi.mock("$lib/stores/project-teardown", () => ({ onProjectRemoved }));
+vi.mock("#lib/stores/project-teardown", () => ({ onProjectRemoved }));
 
 type Store = typeof import("./tickets-overview");
 

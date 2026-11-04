@@ -9,7 +9,7 @@
 // the answer back, so it goes through `run_oneshot` instead.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { AssistContext } from "$lib/utils/home/ai-features";
+import type { AssistContext } from "#lib/utils/home/ai-features";
 
 /** Which of the actionable failures happened; the view words each one differently. */
 export type AiAssistErrorKind =

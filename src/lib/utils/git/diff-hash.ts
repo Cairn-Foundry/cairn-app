@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { GitDiffHunk } from "$lib/services/git-service";
+import type { GitDiffHunk } from "#lib/services/git-service";
 
 /** FNV-1a over everything a diff shows, so two equal diffs hash alike and any edit moves it. */
 export function hashHunks(hunks: GitDiffHunk[]): string {

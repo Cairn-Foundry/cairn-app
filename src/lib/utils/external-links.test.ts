@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { openUrl } from "$lib/services/opener-service";
+import { openUrl } from "#lib/services/opener-service";
 import { interceptExternalLinks } from "./external-links";
 
 let release: () => void;

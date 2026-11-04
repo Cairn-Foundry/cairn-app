@@ -4,8 +4,8 @@
 import {
 	EFFORT_LEVELS,
 	PERMISSION_MODES,
-} from "$lib/components/home/agents/cli-options";
-import { t } from "$lib/i18n";
+} from "#lib/components/home/agents/cli-options";
+import { t } from "#lib/i18n";
 
 /**
  * `acceptEdits` -> `Accept edits`, `workspace-write` -> `Workspace write`, for a

@@ -15,7 +15,7 @@ const service = vi.hoisted(() => ({
 	claimNativeDrag: vi.fn(),
 	onNativeDragEnd: vi.fn(),
 }));
-vi.mock("$lib/services/editor-window-service", () => service);
+vi.mock("#lib/services/editor-window-service", () => service);
 
 const { claimDroppedTabs, dragTabNatively, dropTabOutside, isOutsideViewport } =
 	await import("./tab-window-drag");

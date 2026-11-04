@@ -11,11 +11,11 @@ import {
 import {
 	type EditorLanguage,
 	resolveLanguageExtension,
-} from "$lib/utils/editor/editor-theme";
+} from "#lib/utils/editor/editor-theme";
 import type {
 	SyntaxTokenKey,
 	SyntaxTokens,
-} from "$lib/utils/editor/syntax-tokens";
+} from "#lib/utils/editor/syntax-tokens";
 
 // Reads a diff line's language back into a Lezer parser, one language chunk at a
 // time, and tokenizes each line on its own: a diff line has no reliable context

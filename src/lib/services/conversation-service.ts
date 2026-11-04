@@ -9,7 +9,7 @@
 // where, and how to resume it.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { CliProviderId } from "$lib/services/cli-provider-service";
+import type { CliProviderId } from "#lib/services/cli-provider-service";
 
 /** Which of the two conversation lists a conversation belongs to. */
 export type ConversationScope = "instance" | "project";

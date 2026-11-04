@@ -9,12 +9,12 @@
    * `onRunCommand` or `onAction`.
    */
   import { onMount, onDestroy, tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { CustomCommand } from '$lib/services/custom-command-service';
-  import type { ShortcutId, ShortcutBinding, ShortcutDef } from '$lib/types/shortcuts';
-  import { matchesSearch } from '$lib/utils/files/files-search';
-  import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { CustomCommand } from '#lib/services/custom-command-service';
+  import type { ShortcutId, ShortcutBinding, ShortcutDef } from '#lib/types/shortcuts';
+  import { matchesSearch } from '#lib/utils/files/files-search';
+  import { bindingToLabels, SHORTCUT_GROUP_LABELS } from '#lib/stores/shortcuts';
 
   export let shortcuts: Record<ShortcutId, ShortcutBinding | null>;
   export let shortcutDefs: ShortcutDef[];

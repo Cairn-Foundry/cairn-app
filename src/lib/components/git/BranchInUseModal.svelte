@@ -9,9 +9,9 @@
    * open it rather than to free the branch.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import type { Instance } from '$lib/types/instance';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import type { Instance } from '#lib/types/instance';
 
   export let branch: string;
   export let worktreePath: string;

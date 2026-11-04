@@ -13,8 +13,8 @@ import {
 	onIntegrationUpdate,
 	saveProjectIntegrations as saveProjectIntegrationsService,
 	toIntegrationError,
-} from "$lib/services/integration-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/integration-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import type {
 	IntegrationConnection,
 	IntegrationError,
@@ -22,9 +22,9 @@ import type {
 	IntegrationUpdateEvent,
 	ProjectIntegrations,
 	ResolvedCapabilities,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 import { applyUpdate as applyMergeRequestUpdate } from "./merge-request";
 import { applyUpdate as applyPipelineUpdate } from "./pipelines";
 import { activeProjectId } from "./project";

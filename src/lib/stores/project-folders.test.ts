@@ -3,10 +3,10 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectFolder } from "$lib/types/project";
+import type { ProjectFolder } from "#lib/types/project";
 
 const saveFolders = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/project-service", () => ({ saveFolders }));
+vi.mock("#lib/services/project-service", () => ({ saveFolders }));
 
 import { projectFolders } from "./project-folders";
 

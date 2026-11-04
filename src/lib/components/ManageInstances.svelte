@@ -9,19 +9,19 @@
    * archived group.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import DeleteInstanceModal from '$lib/components/home/DeleteInstanceModal.svelte';
-  import DuplicateInstanceModal from '$lib/components/home/DuplicateInstanceModal.svelte';
-  import { t } from '$lib/i18n';
-  import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus, setInstanceBaseBranch } from '$lib/stores/instance';
-  import { listBranchesDetailed, suggestBaseBranches } from '$lib/services/instance-service';
-  import BaseBranchSelect from '$lib/components/git/BaseBranchSelect.svelte';
-  import { activeProject, activateInstance } from '$lib/stores/project';
-  import { revealInFileManager } from '$lib/services/project-service';
-  import type { Instance } from '$lib/types/instance';
-  import { matchesSearch } from '$lib/utils/files/files-search';
-  import { CLIPBOARD_CLEAR_DELAY } from '$lib/utils/timing';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import DeleteInstanceModal from '#lib/components/home/DeleteInstanceModal.svelte';
+  import DuplicateInstanceModal from '#lib/components/home/DuplicateInstanceModal.svelte';
+  import { t } from '#lib/i18n';
+  import { instances, instancesWithBase, isBaseInstance, isArchivedInstance, removeInstance, duplicateInstance, getNextDuplicateTitle, setInstanceStatus, setInstanceBaseBranch } from '#lib/stores/instance';
+  import { listBranchesDetailed, suggestBaseBranches } from '#lib/services/instance-service';
+  import BaseBranchSelect from '#lib/components/git/BaseBranchSelect.svelte';
+  import { activeProject, activateInstance } from '#lib/stores/project';
+  import { revealInFileManager } from '#lib/services/project-service';
+  import type { Instance } from '#lib/types/instance';
+  import { matchesSearch } from '#lib/utils/files/files-search';
+  import { CLIPBOARD_CLEAR_DELAY } from '#lib/utils/timing';
 
   export let activeInstanceId: string | null;
 

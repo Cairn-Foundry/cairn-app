@@ -11,8 +11,8 @@ import {
 	ciPlayJob,
 	ciRetryJob,
 	toIntegrationError,
-} from "$lib/services/integration-service";
-import { onProjectRemoved } from "$lib/stores/project-teardown";
+} from "#lib/services/integration-service";
+import { onProjectRemoved } from "#lib/stores/project-teardown";
 import {
 	EMPTY_PIPELINE_QUERY,
 	type IntegrationError,
@@ -21,9 +21,9 @@ import {
 	type Pipeline,
 	type PipelineQuery,
 	type PipelineStatus,
-} from "$lib/types/integrations";
-import { integrationKey } from "$lib/utils/integrations/instance-key";
-import { dropProjectKeys } from "$lib/utils/project-scope";
+} from "#lib/types/integrations";
+import { integrationKey } from "#lib/utils/integrations/instance-key";
+import { dropProjectKeys } from "#lib/utils/project-scope";
 import { activeInstance } from "./instance";
 
 export { PIPELINE_PAGE_SIZE };

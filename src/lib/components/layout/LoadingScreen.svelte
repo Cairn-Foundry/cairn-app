@@ -8,8 +8,8 @@
    * mount, once the Svelte app is ready to paint.
    */
   import { onMount } from 'svelte';
-  import CairnLogo from '$lib/components/layout/CairnLogo.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
+  import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
 
   onMount(() => {
     document.getElementById('boot-splash')?.remove();

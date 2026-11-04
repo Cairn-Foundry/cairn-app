@@ -22,22 +22,22 @@
   const instanceCompartment = new Compartment();
   const lineWrapCompartment = new Compartment();
   import { onMount, onDestroy } from 'svelte';
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { EditorView, keymap } from '@codemirror/view';
   import { EditorState, EditorSelection, Prec, Text, type Extension } from '@codemirror/state';
-  import { lspChangesOf, type LspContentChange } from '$lib/utils/files/document-model';
+  import { lspChangesOf, type LspContentChange } from '#lib/utils/files/document-model';
   import { javascript, scopeCompletionSource } from '@codemirror/lang-javascript';
   import {
     buildEditorTheme, buildHighlight, buildDiffGutterTheme, conflictColor, diffColors, searchMarkColor,
     resolveLanguageExtension, type EditorLanguage,
-  } from '$lib/utils/editor/editor-theme';
+  } from '#lib/utils/editor/editor-theme';
   import { lineNumbers, rectangularSelection, crosshairCursor, drawSelection, highlightWhitespace } from '@codemirror/view';
   import {
     completionKeymap, acceptCompletion,
     closeBrackets, closeBracketsKeymap, completeFromList,
   } from '@codemirror/autocomplete';
-  import { buildCompletion } from '$lib/utils/editor/editor-completion';
+  import { buildCompletion } from '#lib/utils/editor/editor-completion';
   import {
     syntaxHighlighting,
     bracketMatching, foldGutter, foldKeymap, indentOnInput,
@@ -49,24 +49,24 @@
     moveLineUp, moveLineDown, copyLineDown,
     deleteLine, selectAll,
   } from '@codemirror/commands';
-  import { shortcuts, activeShortcuts, bindingToLabels, matchesMouseShortcut } from '$lib/stores/shortcuts';
-  import { settings, activeSyntaxTokens } from '$lib/stores/settings';
+  import { shortcuts, activeShortcuts, bindingToLabels, matchesMouseShortcut } from '#lib/stores/shortcuts';
+  import { settings, activeSyntaxTokens } from '#lib/stores/settings';
   import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { lintKeymap, setDiagnostics } from '@codemirror/lint';
-  import type { LspDiagnostic, LspDocRef } from '$lib/services/lsp-service';
-  import { buildLspExtensions, buildSymbolClickAffordance, rangeToOffsets, toEditorDiagnostics } from '$lib/utils/editor/editor-lsp';
-  import type { ModifierState } from '$lib/types/shortcuts';
-  import { jsSnippets, tsSnippets } from '$lib/utils/editor/editor-snippets';
+  import type { LspDiagnostic, LspDocRef } from '#lib/services/lsp-service';
+  import { buildLspExtensions, buildSymbolClickAffordance, rangeToOffsets, toEditorDiagnostics } from '#lib/utils/editor/editor-lsp';
+  import type { ModifierState } from '#lib/types/shortcuts';
+  import { jsSnippets, tsSnippets } from '#lib/utils/editor/editor-snippets';
   import {
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
     type GutterChunk,
-  } from '$lib/utils/editor/editor-diff-gutter';
-  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, focusKeepingScroll, searchMatchLines, SHORTCUT_COMMANDS, unselectableGutters } from '$lib/utils/editor/editor-extensions';
-  import { buildConflictResolver, conflictLines } from '$lib/utils/editor/editor-conflict';
-  import { buildStickyScroll, stickyScrollTheme } from '$lib/utils/editor/editor-sticky-scroll';
-  import { buildMarkdownWysiwyg, MERMAID_OPEN_EVENT, setMarkdownDocPath } from '$lib/utils/editor/editor-markdown-wysiwyg';
+  } from '#lib/utils/editor/editor-diff-gutter';
+  import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, focusKeepingScroll, searchMatchLines, SHORTCUT_COMMANDS, unselectableGutters } from '#lib/utils/editor/editor-extensions';
+  import { buildConflictResolver, conflictLines } from '#lib/utils/editor/editor-conflict';
+  import { buildStickyScroll, stickyScrollTheme } from '#lib/utils/editor/editor-sticky-scroll';
+  import { buildMarkdownWysiwyg, MERMAID_OPEN_EVENT, setMarkdownDocPath } from '#lib/utils/editor/editor-markdown-wysiwyg';
   import MermaidViewer from './MermaidViewer.svelte';
-  import { EDITOR_DEFAULTS, FOLD_MARKERS } from '$lib/utils/editor/editor-config';
+  import { EDITOR_DEFAULTS, FOLD_MARKERS } from '#lib/utils/editor/editor-config';
 
   export let content: Text = Text.empty;
   /* The pane keeps its editor mounted while it shows something else (no tab,

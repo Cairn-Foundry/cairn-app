@@ -3,8 +3,8 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { SHORTCUT_DEFS } from "$lib/stores/shortcuts";
-import { SHORTCUT_COMMANDS } from "$lib/utils/editor/editor-extensions";
+import { SHORTCUT_DEFS } from "#lib/stores/shortcuts";
+import { SHORTCUT_COMMANDS } from "#lib/utils/editor/editor-extensions";
 
 /**
  * Every declared shortcut must be reachable, and the two entry points - a key

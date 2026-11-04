@@ -8,8 +8,8 @@
    * before it runs. Dispatches `submit` keyed by label.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
 
   export let commandName: string;
   export let labels: string[];

@@ -3,14 +3,14 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CairnSettings } from "$lib/services/settings-service";
+import type { CairnSettings } from "#lib/services/settings-service";
 
 const listLanguageServers = vi.hoisted(() => vi.fn());
 const checkLanguageServerUpdates = vi.hoisted(() => vi.fn());
 const startLanguageServer = vi.hoisted(() => vi.fn());
 const stopLanguageServersFor = vi.hoisted(() => vi.fn());
 const stopLanguageServersWithId = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/lsp-service", async (importOriginal) => ({
+vi.mock("#lib/services/lsp-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listLanguageServers,
 	checkLanguageServerUpdates,
@@ -21,13 +21,13 @@ vi.mock("$lib/services/lsp-service", async (importOriginal) => ({
 
 const getSettings = vi.hoisted(() => vi.fn());
 const updateSettings = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/settings-service", () => ({
+vi.mock("#lib/services/settings-service", () => ({
 	getSettings,
 	updateSettings,
 }));
 
 import { listen } from "@tauri-apps/api/event";
-import { serverForPath } from "$lib/utils/languages/servers";
+import { serverForPath } from "#lib/utils/languages/servers";
 import {
 	clearDiagnosticsFor,
 	clearManagerOutput,

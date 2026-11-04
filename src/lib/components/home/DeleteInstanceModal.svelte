@@ -12,10 +12,10 @@
    * it open while `busy` and hands back the failure in `error`.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { t } from '$lib/i18n';
-  import type { Instance } from '$lib/types/instance';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { t } from '#lib/i18n';
+  import type { Instance } from '#lib/types/instance';
 
   export let instance: Instance;
   export let busy = false;

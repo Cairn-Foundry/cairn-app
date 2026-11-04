@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const listDirNamesDeep = vi.hoisted(() => vi.fn());
 const readFile = vi.hoisted(() => vi.fn());
 
-vi.mock("$lib/services/file-service", () => ({ listDirNamesDeep, readFile }));
+vi.mock("#lib/services/file-service", () => ({ listDirNamesDeep, readFile }));
 
 import { detectTestRunners, forgetTestRunners } from "./test-detect";
 

@@ -9,12 +9,12 @@
    * may differ from the one it was opened in.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { t } from '$lib/i18n';
-  import { channel } from '$lib/stores/channel';
-  import type { EnvScope, EnvVariable } from '$lib/services/env-service';
-  import { isReservedEnvKey, isValidEnvKey, RESERVED_KEY_PREFIX } from '$lib/utils/env/env-file';
+  import Icon from '#lib/components/Icon.svelte';
+  import Select from '#lib/components/Select.svelte';
+  import { t } from '#lib/i18n';
+  import { channel } from '#lib/stores/channel';
+  import type { EnvScope, EnvVariable } from '#lib/services/env-service';
+  import { isReservedEnvKey, isValidEnvKey, RESERVED_KEY_PREFIX } from '#lib/utils/env/env-file';
 
   export let variable: EnvVariable;
   export let scope: EnvScope;

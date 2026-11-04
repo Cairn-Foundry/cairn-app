@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	defaultSyntaxTokens,
 	SYNTAX_TOKEN_KEYS,
-} from "$lib/utils/editor/syntax-tokens";
+} from "#lib/utils/editor/syntax-tokens";
 import {
 	createSyntaxTheme,
 	duplicateSyntaxTheme,

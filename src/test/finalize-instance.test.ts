@@ -6,10 +6,10 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Instance } from "$lib/types/instance";
+import type { Instance } from "#lib/types/instance";
 
 const openUrl = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/opener-service", () => ({
+vi.mock("#lib/services/opener-service", () => ({
 	openUrl: (...a: unknown[]) => openUrl(...a),
 }));
 
@@ -22,7 +22,7 @@ const rebaseOnto = vi.fn<(...a: unknown[]) => unknown>();
 const pushBranch = vi.fn<(...a: unknown[]) => unknown>();
 const getRemoteUrl = vi.fn<(...a: unknown[]) => unknown>();
 const getBranchDivergence = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/git", async (importOriginal) => ({
+vi.mock("#lib/stores/git", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	git: { subscribe: gitState.subscribe },
 	loadBranches: vi.fn(async (..._a: unknown[]) => {}),
@@ -38,7 +38,7 @@ vi.mock("$lib/stores/git", async (importOriginal) => ({
 
 const removeInstance = vi.fn<(...a: unknown[]) => unknown>();
 const setInstanceStatus = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	removeInstance: (...a: unknown[]) => removeInstance(...a),
 	setInstanceStatus: (...a: unknown[]) => setInstanceStatus(...a),
@@ -49,7 +49,7 @@ const hasTracker = writable(false);
 const projectBindings = writable<Record<string, unknown>>({
 	autoTransition: {},
 });
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	hasForge: { subscribe: hasForge.subscribe },
 	hasTracker: { subscribe: hasTracker.subscribe },
@@ -58,7 +58,7 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 
 const mergeRequests = writable<Record<string, unknown>>({});
 const loadMergeRequest = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/merge-request", async (importOriginal) => ({
+vi.mock("#lib/stores/merge-request", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	mergeRequests: { subscribe: mergeRequests.subscribe },
 	loadMergeRequest: (...a: unknown[]) => loadMergeRequest(...a),
@@ -67,7 +67,7 @@ vi.mock("$lib/stores/merge-request", async (importOriginal) => ({
 const ticketsStore = writable<Record<string, unknown>>({});
 const loadTicket = vi.fn<(...a: unknown[]) => unknown>();
 const transitionTicketToStatus = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/tracker", async (importOriginal) => ({
+vi.mock("#lib/stores/tracker", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	tickets: { subscribe: ticketsStore.subscribe },
 	loadTicket: (...a: unknown[]) => loadTicket(...a),
@@ -76,7 +76,7 @@ vi.mock("$lib/stores/tracker", async (importOriginal) => ({
 
 const { instance } = await import("./fixtures");
 const { default: FinalizeInstance } = await import(
-	"$lib/components/FinalizeInstance.svelte"
+	"#lib/components/FinalizeInstance.svelte"
 );
 
 /** The git state the checklist reads: everything done unless said otherwise. */

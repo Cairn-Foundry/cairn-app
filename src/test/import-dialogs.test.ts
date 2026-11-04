@@ -8,20 +8,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	DetectedConfig,
 	FormatterStatus,
-} from "$lib/services/formatting-service";
-import type { ImportCandidate } from "$lib/utils/commands/command-import";
+} from "#lib/services/formatting-service";
+import type { ImportCandidate } from "#lib/utils/commands/command-import";
 
 const scanPackageJson = vi.fn();
-vi.mock("$lib/utils/commands/command-import", async (importOriginal) => ({
+vi.mock("#lib/utils/commands/command-import", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	scanPackageJson: (...a: unknown[]) => scanPackageJson(...a),
 }));
 
 const { default: CommandImport } = await import(
-	"$lib/components/commands/CommandImport.svelte"
+	"#lib/components/commands/CommandImport.svelte"
 );
 const { default: ImportSourceModal } = await import(
-	"$lib/components/formatting/ImportSourceModal.svelte"
+	"#lib/components/formatting/ImportSourceModal.svelte"
 );
 
 describe("CommandImport", () => {

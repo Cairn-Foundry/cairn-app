@@ -6,11 +6,11 @@ import * as fileService from "../../../lib/services/file-service";
 import * as gitService from "../../../lib/services/git-service";
 import { emptyDiffState, loadPaneBase } from "./files-diff";
 
-vi.mock("$lib/services/file-service", () => ({
+vi.mock("#lib/services/file-service", () => ({
 	gitBlame: vi.fn().mockResolvedValue(new Map()),
 }));
 
-vi.mock("$lib/services/git-service", () => ({
+vi.mock("#lib/services/git-service", () => ({
 	getFileAtHead: vi.fn().mockResolvedValue(null),
 	getFileInIndex: vi.fn().mockResolvedValue(null),
 	checkIgnore: vi.fn().mockResolvedValue([]),

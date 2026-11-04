@@ -11,7 +11,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { showMinimap } from "@replit/codemirror-minimap";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ShortcutId } from "$lib/types/shortcuts";
+import type { ShortcutId } from "#lib/types/shortcuts";
 import {
 	buildFontSizeTheme,
 	buildMinimap,

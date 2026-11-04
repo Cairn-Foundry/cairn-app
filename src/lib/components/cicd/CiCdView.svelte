@@ -9,29 +9,29 @@
    * service through `stores/pipelines.ts`; without a `ci` capability the step points to Integrations.
    */
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
-  import { openUrl } from '$lib/services/opener-service';
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import CopyButton from '$lib/components/CopyButton.svelte';
+  import { openUrl } from '#lib/services/opener-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import PipelineSkeleton from './PipelineSkeleton.svelte';
-  import { t } from '$lib/i18n';
-  import { activeInstance } from '$lib/stores/instance';
-  import { activeProjectId } from '$lib/stores/project';
-  import { activeStep } from '$lib/stores/ui.js';
-  import { aiEnabled, settings } from '$lib/stores/settings';
-  import { capabilities, hasCi } from '$lib/stores/integrations';
-  import { git } from '$lib/stores/git';
+  import { t } from '#lib/i18n';
+  import { activeInstance } from '#lib/stores/instance';
+  import { activeProjectId } from '#lib/stores/project';
+  import { activeStep } from '#lib/stores/ui.js';
+  import { aiEnabled, settings } from '#lib/stores/settings';
+  import { capabilities, hasCi } from '#lib/stores/integrations';
+  import { git } from '#lib/stores/git';
   import {
     pipelines, pipelineStateFor, loadPipelines, loadMorePipelines, selectPipeline,
     setPipelineQuery, openJobLog, closeJobLog, retryJob, playJob, cancelPipeline,
-  } from '$lib/stores/pipelines';
-  import { requestAgentDraft } from '$lib/stores/agent-draft';
-  import { buildCiFixPrompt } from '$lib/utils/integrations/prompts';
-  import { ansiToLines, stripAnsi } from '$lib/utils/integrations/ansi';
-  import { buildPipelinesUrl } from '$lib/utils/integrations/links';
-  import { formatDuration } from '$lib/utils/format';
-  import { EMPTY_PIPELINE_QUERY, type Pipeline, type PipelineJob, type PipelineStatus } from '$lib/types/integrations';
+  } from '#lib/stores/pipelines';
+  import { requestAgentDraft } from '#lib/stores/agent-draft';
+  import { buildCiFixPrompt } from '#lib/utils/integrations/prompts';
+  import { ansiToLines, stripAnsi } from '#lib/utils/integrations/ansi';
+  import { buildPipelinesUrl } from '#lib/utils/integrations/links';
+  import { formatDuration } from '#lib/utils/format';
+  import { EMPTY_PIPELINE_QUERY, type Pipeline, type PipelineJob, type PipelineStatus } from '#lib/types/integrations';
 
   const dispatch = createEventDispatcher<{ goIntegrations: void }>();
 

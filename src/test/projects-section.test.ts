@@ -6,12 +6,12 @@ import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { writable } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectFolder } from "$lib/types/project";
+import type { ProjectFolder } from "#lib/types/project";
 
 const unregisterProject = vi.fn<(...a: unknown[]) => unknown>();
 const duplicateProjectInStore = vi.fn<(...a: unknown[]) => unknown>();
 const reorderProjects = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	unregisterProject: (...a: unknown[]) => unregisterProject(...a),
 	duplicateProjectInStore: (...a: unknown[]) => duplicateProjectInStore(...a),
@@ -27,7 +27,7 @@ const toggleCollapse = vi.fn<(...a: unknown[]) => unknown>();
 const renameFolder = vi.fn<(...a: unknown[]) => unknown>();
 const removeFolder = vi.fn<(...a: unknown[]) => unknown>();
 const createFolder = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project-folders", async (importOriginal) => ({
+vi.mock("#lib/stores/project-folders", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	projectFolders: {
 		subscribe: foldersState.subscribe,
@@ -43,23 +43,23 @@ vi.mock("$lib/stores/project-folders", async (importOriginal) => ({
 }));
 
 const revealInFileManager = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/project-service", async (importOriginal) => ({
+vi.mock("#lib/services/project-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	revealInFileManager: (...a: unknown[]) => revealInFileManager(...a),
 }));
 
 const projectInbox = writable<Record<string, unknown>>({});
 const loadProjectInbox = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project-inbox", async (importOriginal) => ({
+vi.mock("#lib/stores/project-inbox", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	projectInbox: { subscribe: projectInbox.subscribe },
 	loadProjectInbox: (...a: unknown[]) => loadProjectInbox(...a),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: ProjectsSection } = await import(
-	"$lib/components/home/ProjectsSection.svelte"
+	"#lib/components/home/ProjectsSection.svelte"
 );
 
 function folder(id: string, projectIds: string[] = []): ProjectFolder {

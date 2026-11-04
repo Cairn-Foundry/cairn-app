@@ -467,7 +467,7 @@ Rust caches warm - its matrix must stay identical to release's.
   (`writable`, `derived`, `createEventDispatcher`). Match the file you are in.
 - Components dispatch events up with `createEventDispatcher`; they never import stores directly when avoidable.
 - All Tauri IPC uses camelCase on the TS side and snake_case on the Rust side - `invoke("some_command", { myParam })` maps to `#[tauri::command] fn some_command(my_param: ...)`.
-- i18n keys live in `src/lib/i18n/en.ts` and `fr.ts`. Use `t('key')` from `$lib/i18n` for any user-visible string. Keys are typed, so a bad key fails `svelte-check`.
+- i18n keys live in `src/lib/i18n/en.ts` and `fr.ts`. Use `t('key')` from `#lib/i18n` for any user-visible string. Keys are typed, so a bad key fails `svelte-check`.
 
 ## UI conventions
 

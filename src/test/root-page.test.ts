@@ -7,19 +7,19 @@ import { tick } from "svelte";
 import { get, writable } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/components/Home.svelte", async () => ({
+vi.mock("#lib/components/Home.svelte", async () => ({
 	default: (await import("./stubs/HomeStub.svelte")).default,
 }));
-vi.mock("$lib/components/Workspace.svelte", async () => ({
+vi.mock("#lib/components/Workspace.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
-vi.mock("$lib/components/CreateInstance.svelte", async () => ({
+vi.mock("#lib/components/CreateInstance.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
-vi.mock("$lib/components/layout/UpdateModal.svelte", async () => ({
+vi.mock("#lib/components/layout/UpdateModal.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
-vi.mock("$lib/components/layout/LoadingScreen.svelte", async () => ({
+vi.mock("#lib/components/layout/LoadingScreen.svelte", async () => ({
 	default: (await import("./stubs/WorkspaceStub.svelte")).default,
 }));
 
@@ -29,28 +29,28 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 const takePendingCliPaths = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/cli-service", async (importOriginal) => ({
+vi.mock("#lib/services/cli-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	takePendingCliPaths: (...a: unknown[]) => takePendingCliPaths(...a),
 }));
 
 const getUiState = vi.fn<(...a: unknown[]) => unknown>();
 const saveUiState = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/ui-state-service", async (importOriginal) => ({
+vi.mock("#lib/services/ui-state-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	getUiState: (...a: unknown[]) => getUiState(...a),
 	saveUiState: (...a: unknown[]) => saveUiState(...a),
 }));
 
 const listInstances = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/services/instance-service", async (importOriginal) => ({
+vi.mock("#lib/services/instance-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	listInstances: (...a: unknown[]) => listInstances(...a),
 }));
 
 const loadInstances = vi.fn<(...a: unknown[]) => unknown>();
 const activeInstance = writable<unknown>(null);
-vi.mock("$lib/stores/instance", async (importOriginal) => ({
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadInstances: (...a: unknown[]) => loadInstances(...a),
 	activeInstance: { subscribe: activeInstance.subscribe },
@@ -59,7 +59,7 @@ vi.mock("$lib/stores/instance", async (importOriginal) => ({
 const watchInstance = vi.fn<(...a: unknown[]) => unknown>();
 const unwatchInstance = vi.fn<(...a: unknown[]) => unknown>();
 const bindingsByProject = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/integrations", async (importOriginal) => ({
+vi.mock("#lib/stores/integrations", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	init: vi.fn((..._a: unknown[]) => undefined),
 	dispose: vi.fn((..._a: unknown[]) => undefined),
@@ -70,25 +70,25 @@ vi.mock("$lib/stores/integrations", async (importOriginal) => ({
 }));
 
 const stopServersForWorktree = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/language-server", async (importOriginal) => ({
+vi.mock("#lib/stores/language-server", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	initLanguageServers: vi.fn((..._a: unknown[]) => undefined),
 	disposeLanguageServers: vi.fn((..._a: unknown[]) => undefined),
 	stopServersForWorktree: (...a: unknown[]) => stopServersForWorktree(...a),
 }));
 
-vi.mock("$lib/stores/tests", async (importOriginal) => ({
+vi.mock("#lib/stores/tests", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	initTests: vi.fn((..._a: unknown[]) => undefined),
 	disposeTests: vi.fn((..._a: unknown[]) => undefined),
 }));
 
-vi.mock("$lib/stores/terminal", async (importOriginal) => ({
+vi.mock("#lib/stores/terminal", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	initTerminals: vi.fn((..._a: unknown[]) => undefined),
 }));
 
-vi.mock("$lib/stores/update", async (importOriginal) => ({
+vi.mock("#lib/stores/update", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	isUpdateModalOpen: { subscribe: writable(false).subscribe },
 	startUpdateChecks: vi.fn(() => () => {}),
@@ -96,7 +96,7 @@ vi.mock("$lib/stores/update", async (importOriginal) => ({
 
 const loadProjects = vi.fn<(...a: unknown[]) => unknown>();
 const loadListing = vi.fn<(...a: unknown[]) => unknown>();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	loadProjects: (...a: unknown[]) => loadProjects(...a),
 	loadListing: (...a: unknown[]) => loadListing(...a),
@@ -104,7 +104,7 @@ vi.mock("$lib/stores/project", async (importOriginal) => ({
 
 const settingsLoad = vi.fn<(...a: unknown[]) => unknown>();
 const settingsState = writable<Record<string, unknown>>({});
-vi.mock("$lib/stores/settings", async (importOriginal) => ({
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	settings: {
 		subscribe: settingsState.subscribe,
@@ -113,9 +113,9 @@ vi.mock("$lib/stores/settings", async (importOriginal) => ({
 }));
 
 const { projects, activeProjectId, openTabOrder } = await import(
-	"$lib/stores/project"
+	"#lib/stores/project"
 );
-const { activeScreen } = await import("$lib/stores/ui");
+const { activeScreen } = await import("#lib/stores/ui");
 const { project } = await import("./fixtures");
 const { default: Page } = await import("../routes/+page.svelte");
 

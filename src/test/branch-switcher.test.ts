@@ -23,7 +23,7 @@ const checkoutBranch = vi.fn();
 const clearGitError = vi.fn();
 const loadBranches = vi.fn();
 const pushStash = vi.fn();
-vi.mock("$lib/stores/git", () => ({
+vi.mock("#lib/stores/git", () => ({
 	git: { subscribe: gitState.subscribe },
 	checkoutBranch: (...a: unknown[]) => checkoutBranch(...a),
 	clearGitError: (...a: unknown[]) => clearGitError(...a),
@@ -32,20 +32,20 @@ vi.mock("$lib/stores/git", () => ({
 }));
 
 const instancesStore = writable<unknown[]>([]);
-vi.mock("$lib/stores/instance", () => ({
+vi.mock("#lib/stores/instance", () => ({
 	instances: { subscribe: instancesStore.subscribe },
 }));
 
 const activateInstance = vi.fn();
-vi.mock("$lib/stores/project", async (importOriginal) => ({
+vi.mock("#lib/stores/project", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	activateInstance: (...a: unknown[]) => activateInstance(...a),
 }));
 
-const { projects, activeProjectId } = await import("$lib/stores/project");
+const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project, instance } = await import("./fixtures");
 const { default: BranchSwitcher } = await import(
-	"$lib/components/git/BranchSwitcher.svelte"
+	"#lib/components/git/BranchSwitcher.svelte"
 );
 
 /** A git failure shaped the way the store raises one. */

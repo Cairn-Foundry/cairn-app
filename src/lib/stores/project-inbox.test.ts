@@ -5,7 +5,7 @@ import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const trackerListTickets = vi.hoisted(() => vi.fn());
-vi.mock("$lib/services/integration-service", () => ({ trackerListTickets }));
+vi.mock("#lib/services/integration-service", () => ({ trackerListTickets }));
 
 const loadProjectIntegrations = vi.hoisted(() => vi.fn());
 // vi.mock is hoisted above the imports, so the stand-in store is built inside

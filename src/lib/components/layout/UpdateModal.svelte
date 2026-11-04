@@ -7,12 +7,12 @@
    * Update modal: release notes, then download and install progress. Closing is
    * blocked while the update is downloading or installing.
    */
-  import Icon from '$lib/components/Icon.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import UpdateProgress from '$lib/components/layout/UpdateProgress.svelte';
-  import { t } from '$lib/i18n';
-  import { closeUpdateModal, installUpdate, updateState } from '$lib/stores/update';
-  import { formatBytes } from '$lib/utils/format';
+  import Icon from '#lib/components/Icon.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import UpdateProgress from '#lib/components/layout/UpdateProgress.svelte';
+  import { t } from '#lib/i18n';
+  import { closeUpdateModal, installUpdate, updateState } from '#lib/stores/update';
+  import { formatBytes } from '#lib/utils/format';
 
   $: state = $updateState;
   $: isBusy = state.phase === 'downloading' || state.phase === 'installing';

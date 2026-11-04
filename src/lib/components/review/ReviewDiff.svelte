@@ -10,32 +10,32 @@
    * step when no guide has been generated.
    */
   import { createEventDispatcher, onDestroy } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import Skeleton from '$lib/components/Skeleton.svelte';
-  import { t, type TranslationKey } from '$lib/i18n';
-  import { langFromPath } from '$lib/services/file-service';
+  import Icon from '#lib/components/Icon.svelte';
+  import Skeleton from '#lib/components/Skeleton.svelte';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import { langFromPath } from '#lib/services/file-service';
   import {
     getDiffFileBetween,
     getDiffFilesBetween,
     toGitError,
     type GitChangedFile,
     type GitFileBetween,
-  } from '$lib/services/git-service';
-  import type { Discussion } from '$lib/types/integrations';
-  import type { GuideRemark, ReviewComment, ReviewHunk } from '$lib/types/review';
-  import type { EditorLanguage } from '$lib/utils/editor/editor-theme';
-  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
-  import { anchorLabel } from '$lib/utils/review/review-guide';
-  import { describeGitError } from '$lib/utils/git/git-error';
-  import { fileMtimes } from '$lib/services/file-service';
-  import { SKELETON_DELAY_MS } from '$lib/utils/timing';
+  } from '#lib/services/git-service';
+  import type { Discussion } from '#lib/types/integrations';
+  import type { GuideRemark, ReviewComment, ReviewHunk } from '#lib/types/review';
+  import type { EditorLanguage } from '#lib/utils/editor/editor-theme';
+  import { basename, parentPathOf } from '#lib/utils/files/files-tree';
+  import { anchorLabel } from '#lib/utils/review/review-guide';
+  import { describeGitError } from '#lib/utils/git/git-error';
+  import { fileMtimes } from '#lib/services/file-service';
+  import { SKELETON_DELAY_MS } from '#lib/utils/timing';
   import {
     diffMarkersFor,
     discussionsForFile,
     normalizeAnchorPath,
     guideMarkersFor,
     openDiscussionCount,
-  } from '$lib/utils/review/diff-markers';
+  } from '#lib/utils/review/diff-markers';
   import DiffEditor from './DiffEditor.svelte';
   import ReviewDiscussion from './ReviewDiscussion.svelte';
 

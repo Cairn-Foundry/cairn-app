@@ -8,9 +8,9 @@
    * store. Dispatches `goSettings` to jump to the place they can be rebound.
    */
   import { createEventDispatcher } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, SHORTCUT_GROUP_LABELS } from '$lib/stores/shortcuts';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { shortcuts, SHORTCUT_DEFS, bindingToLabels, SHORTCUT_GROUP_LABELS } from '#lib/stores/shortcuts';
 
   const dispatch = createEventDispatcher<{ close: void; goSettings: void }>();
 

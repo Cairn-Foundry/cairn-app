@@ -9,12 +9,12 @@
    * `hidden` keeps the panel mounted, so its state survives being closed.
    */
   import { tick } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { t } from '$lib/i18n';
-  import { searchInFiles, type SearchMatch } from '$lib/services/file-service';
-  import { SEARCH_DEBOUNCE_MS } from '$lib/utils/timing';
-  import { virtualWindow } from '$lib/utils/virtual-window';
-  import { basename, parentPathOf } from '$lib/utils/files/files-tree';
+  import Icon from '#lib/components/Icon.svelte';
+  import { t } from '#lib/i18n';
+  import { searchInFiles, type SearchMatch } from '#lib/services/file-service';
+  import { SEARCH_DEBOUNCE_MS } from '#lib/utils/timing';
+  import { virtualWindow } from '#lib/utils/virtual-window';
+  import { basename, parentPathOf } from '#lib/utils/files/files-tree';
 
   export let worktreePath: string | null;
   export let hidden = false;

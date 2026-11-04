@@ -5,16 +5,16 @@ import { render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitProfile } from "$lib/services/settings-service";
+import type { GitProfile } from "#lib/services/settings-service";
 
-vi.mock("$lib/services/settings-service", async (importOriginal) => ({
+vi.mock("#lib/services/settings-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	updateSettings: vi.fn(async (next: unknown) => next),
 }));
 
-const { settings } = await import("$lib/stores/settings");
+const { settings } = await import("#lib/stores/settings");
 const { default: GitTab } = await import(
-	"$lib/components/home/settings/GitTab.svelte"
+	"#lib/components/home/settings/GitTab.svelte"
 );
 
 function profile(id: string, overrides: Partial<GitProfile> = {}): GitProfile {

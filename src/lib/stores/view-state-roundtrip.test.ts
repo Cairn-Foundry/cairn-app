@@ -7,8 +7,8 @@
 
 import { get } from "svelte/store";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ProjectUiState } from "$lib/services/ui-state-service";
-import { activeProjectId } from "$lib/stores/project";
+import type { ProjectUiState } from "#lib/services/ui-state-service";
+import { activeProjectId } from "#lib/stores/project";
 import {
 	activeStep,
 	commandsActive,
@@ -20,7 +20,7 @@ import {
 	referencesQuery,
 	showTool,
 	terminalActive,
-} from "$lib/stores/ui";
+} from "#lib/stores/ui";
 import {
 	applyProjectState,
 	getAllProjectStates,

@@ -8,9 +8,9 @@
    * when nothing is set here, and dispatches `change` with undefined to clear it.
    */
   import { createEventDispatcher } from 'svelte';
-  import Select from '$lib/components/Select.svelte';
-  import { t } from '$lib/i18n';
-  import type { StyleOptionInfo, StyleValue } from '$lib/services/formatting-service';
+  import Select from '#lib/components/Select.svelte';
+  import { t } from '#lib/i18n';
+  import type { StyleOptionInfo, StyleValue } from '#lib/services/formatting-service';
 
   export let option: StyleOptionInfo;
   /** The value set here, or undefined when it comes from the level above. */

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveLanguageExtension } from "$lib/utils/editor/editor-theme";
+import { resolveLanguageExtension } from "#lib/utils/editor/editor-theme";
 import {
 	defaultSyntaxTokens,
 	type SyntaxTokens,
-} from "$lib/utils/editor/syntax-tokens";
+} from "#lib/utils/editor/syntax-tokens";
 import {
 	highlightDocumentInline,
 	highlightLineInline,
 } from "./diff-highlight-core";
 import { cachedLineHtml, highlightLineToHtml } from "./diff-syntax-highlight";
 
-vi.mock("$lib/utils/editor/editor-theme", async (importOriginal) => {
+vi.mock("#lib/utils/editor/editor-theme", async (importOriginal) => {
 	const actual =
-		await importOriginal<typeof import("$lib/utils/editor/editor-theme")>();
+		await importOriginal<typeof import("#lib/utils/editor/editor-theme")>();
 	return {
 		...actual,
 		resolveLanguageExtension: vi.fn(actual.resolveLanguageExtension),

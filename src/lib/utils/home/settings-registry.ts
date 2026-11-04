@@ -1,9 +1,9 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { t } from "$lib/i18n";
-import { SHORTCUT_DEFS, SHORTCUT_GROUP_LABELS } from "$lib/stores/shortcuts";
-import { IS_MAC } from "$lib/utils/platform";
+import { t } from "#lib/i18n";
+import { SHORTCUT_DEFS, SHORTCUT_GROUP_LABELS } from "#lib/stores/shortcuts";
+import { IS_MAC } from "#lib/utils/platform";
 
 // A flat index of every setting, so the settings search can find a row without
 // each tab component having to register itself.
