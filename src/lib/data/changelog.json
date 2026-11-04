@@ -55,6 +55,13 @@
 					"en": "A file moved with git mv is shown as a rename, with its former path, instead of an empty change; unstaging it restores both paths.",
 					"fr": "Un fichier déplacé avec git mv s'affiche comme un renommage, avec son ancien chemin, au lieu d'une modification vide ; le retirer de l'index restaure les deux chemins."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The Git view no longer takes minutes to open on a worktree with tens of thousands of untracked files: only the files on screen are read, and the others fill in as the list is scrolled.",
+					"fr": "La vue Git ne met plus plusieurs minutes à s'ouvrir sur un worktree contenant des dizaines de milliers de fichiers non suivis : seuls les fichiers affichés sont lus, les autres se remplissent au fil du défilement."
+				}
 			}
 		]
 	},

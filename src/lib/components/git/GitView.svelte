@@ -121,6 +121,8 @@
     diffHash: string;
     /** The path before a rename git detected. */
     oldPath?: string;
+    /** An untracked file whose text is not read yet. */
+    isPending?: boolean;
   };
 
   const STATUS_CLASS: Record<string, string> = {
@@ -203,82 +205,63 @@
   /** An untracked file past this is listed but not diffed - its content stays on disk. */
   const UNTRACKED_MAX_BYTES = 512 * 1024;
 
+  /** The fold key hash of an untracked card whose text is not read yet. */
+  const PENDING_HASH = 'pending';
+
+  /** The untracked paths of the status on screen. `status --porcelain -u` already leaves ignored files out. */
+  $: untrackedPaths = state.statusWorktree && state.statusWorktree === instance?.worktreePath
+    ? Object.entries(state.status).filter(([, s]) => s === 'untracked').map(([p]) => p)
+    : [];
+
   /**
-   * Published as one value: assigning the paths and their content separately
-   * makes `unstagedCards` recompute between the two awaits of the scan, and the
-   * search filter downstream then settles on the slice it saw mid-scan - the
-   * changes search stopped filtering anything at all.
+   * Text of the untracked files read so far, keyed by absolute path; `null` when
+   * the file is binary, too large or unreadable. Only the cards on screen are
+   * read: reading every untracked file cost two round trips each, which a
+   * worktree with tens of thousands of them turned into minutes.
    */
-  let untracked: { worktree: string | null; paths: string[]; content: Record<string, string> } = {
-    worktree: null,
-    paths: [],
-    content: {},
-  };
+  let untrackedText = new Map<string, { mtime: number; text: string | null }>();
+  /** Paths read or in flight for the status in `untrackedCheckedFor`; a new status checks them again. */
+  let untrackedChecked = new Set<string>();
+  let untrackedCheckedFor: unknown = null;
 
-  /* The status and the worktree move separately across a project switch, so a
-     scan is only started once the status belongs to the worktree on screen,
-     and only its latest run may publish: an older one landing after a switch
-     used to drop the previous project's files into the new list. */
-  $: void loadUntrackedContent(state.status, state.statusWorktree, instance?.worktreePath ?? null);
+  $: void loadVisibleUntracked(filteredUnstagedCards.slice(0, unstagedVisible), state.status, instance?.worktreePath ?? null);
 
-  let untrackedScan = 0;
-  /** Content and mtime of every untracked file already read, so a poll only re-reads what moved. */
-  let untrackedRead = new Map<string, { mtime: number; text: string }>();
-
-  /** Reads the text of every untracked, non-binary file so it can be diffed. */
-  async function loadUntrackedContent(
-    status: typeof state.status,
-    statusWorktree: string | null,
-    wt: string | null,
-  ): Promise<void> {
-    const scan = ++untrackedScan;
-    if (!wt || statusWorktree !== wt) {
-      untracked = { worktree: null, paths: [], content: {} };
-      return;
+  async function loadVisibleUntracked(cards: FileCard[], status: typeof state.status, wt: string | null): Promise<void> {
+    if (!wt) return;
+    if (status !== untrackedCheckedFor) {
+      untrackedCheckedFor = status;
+      untrackedChecked = new Set();
     }
-    // No ignore check: `status --porcelain -u` already leaves ignored files out.
-    const all = Object.entries(status)
-      .filter(([, s]) => s === 'untracked')
-      .map(([p]) => p);
-    if (all.length === 0) {
-      untrackedRead = new Map();
-      if (untracked.worktree !== wt || untracked.paths.length > 0) {
-        untracked = { worktree: wt, paths: [], content: {} };
-      }
-      return;
-    }
-    const next: Record<string, string> = {};
-    const readable = all.filter(p => !isBinaryPath(p));
-    const mtimes = await fileMtimes(readable.map(p => `${wt}/${p}`)).catch(() => ({}) as Record<string, number>);
-    if (scan !== untrackedScan) return;
+    const wanted = cards
+      .filter(c => c.status === 'untracked' && !untrackedChecked.has(`${wt}/${c.filePath}`))
+      .map(c => `${wt}/${c.filePath}`);
+    if (wanted.length === 0) return;
+    for (const full of wanted) untrackedChecked.add(full);
+    const stale = () => status !== untrackedCheckedFor || instance?.worktreePath !== wt;
+    const mtimes = await fileMtimes(wanted).catch(() => ({}) as Record<string, number>);
+    if (stale()) return;
     // Sized before being read: an untracked build artifact would otherwise be pulled
     // into the webview whole just to render a diff nobody asked for.
     const entries = await Promise.all(
-      readable.map(async p => {
-        const full = `${wt}/${p}`;
+      wanted.map(async full => {
         const mtime = mtimes[full] ?? -1;
-        const known = untrackedRead.get(full);
-        if (known && known.mtime === mtime) return [p, full, known] as const;
+        const known = untrackedText.get(full);
+        if (known && known.mtime === mtime) return [full, known] as const;
+        if (isBinaryPath(full)) return [full, { mtime, text: null }] as const;
         const preview = await readFilePreview(full).catch(() => null);
-        if (!preview || preview.size > UNTRACKED_MAX_BYTES) return null;
-        const text = (await readFile(full).catch(() => '')) ?? '';
-        return [p, full, { mtime, text }] as const;
+        if (!preview || preview.size > UNTRACKED_MAX_BYTES) return [full, { mtime, text: null }] as const;
+        const text = (await readFile(full).catch(() => null)) ?? null;
+        return [full, { mtime, text }] as const;
       }),
     );
-    if (scan !== untrackedScan) return;
-    const read = new Map<string, { mtime: number; text: string }>();
-    for (const entry of entries) {
-      if (!entry) continue;
-      next[entry[0]] = entry[2].text;
-      read.set(entry[1], entry[2]);
-    }
-    untrackedRead = read;
-    const unchanged =
-      untracked.worktree === wt &&
-      untracked.paths.length === all.length &&
-      untracked.paths.every((p, i) => p === all[i] && untracked.content[p] === next[p]);
-    if (unchanged) return;
-    untracked = { worktree: wt, paths: all, content: next };
+    if (stale()) return;
+    const live = new Set(untrackedPaths.map(p => `${wt}/${p}`));
+    const changed = entries.some(([full, entry]) => untrackedText.get(full) !== entry)
+      || [...untrackedText.keys()].some(full => !live.has(full));
+    if (!changed) return;
+    const next = new Map([...untrackedText].filter(([full]) => live.has(full)));
+    for (const [full, entry] of entries) if (live.has(full)) next.set(full, entry);
+    untrackedText = next;
   }
 
   /* A diff the store hands back unchanged keeps its card: the store only
@@ -297,21 +280,24 @@
   }
   const untrackedCardByText = new Map<string, FileCard>();
 
-  /* The diffs and the untracked scan land at different times after a switch;
-     the list waits for both, or the second batch drops into the sorted first. */
+  /* An untracked card is listed from the status alone and fills in once its
+     text is read, so the sorted list never reshuffles as reads land. */
   $: unstagedCards = (() => {
-    if (untracked.worktree !== state.statusWorktree) return [];
+    const wt = instance?.worktreePath;
+    if (!wt || state.statusWorktree !== wt) return [];
     const cards = state.unstagedDiffs.map(f => cardFor(f, null));
     const seen = new Set(state.unstagedDiffs.map(f => f.filePath));
     const live = new Set<string>();
-    for (const p of untracked.paths) {
+    for (const p of untrackedPaths) {
       if (seen.has(p)) continue;
-      const text = untracked.content[p] ?? '';
-      const key = `${p}\0${text}`;
+      const entry = untrackedText.get(`${wt}/${p}`);
+      const key = entry ? `${p}\0${entry.text ?? ''}` : `${p}\0\0pending`;
       live.add(key);
       let card = untrackedCardByText.get(key);
       if (!card) {
-        card = makeCard(p, untrackedHunks(text), 'untracked');
+        card = entry
+          ? makeCard(p, untrackedHunks(entry.text ?? ''), 'untracked')
+          : { ...makeCard(p, [], 'untracked'), isPending: true, diffHash: PENDING_HASH };
         untrackedCardByText.set(key, card);
       }
       cards.push(card);
@@ -1287,7 +1273,24 @@
   }
   /** Collapses every unstaged card that actually has a diff to show. */
   function collapseAllUnstaged() {
-    collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff).map(foldKey));
+    collapsedUnstaged = new Set(unstagedCards.filter(c => c.hasDiff || c.isPending).map(foldKey));
+  }
+
+  /* A card still being read is folded under its pending key; the fold follows it
+     once its text lands, or "collapse all" would leave every card past the first
+     page open as the list scrolls. */
+  $: collapsedUnstaged = carryPendingFolds(collapsedUnstaged, unstagedCards);
+  function carryPendingFolds(keys: Set<string>, cards: FileCard[]): Set<string> {
+    if (keys.size === 0) return keys;
+    let next: Set<string> | null = null;
+    for (const card of cards) {
+      const pendingKey = `${card.filePath}@${PENDING_HASH}`;
+      if (card.isPending || !keys.has(pendingKey)) continue;
+      next ??= new Set(keys);
+      next.delete(pendingKey);
+      if (card.hasDiff) next.add(foldKey(card));
+    }
+    return next ?? keys;
   }
   function collapseAllStaged() {
     expandedStaged = new Set();
@@ -1755,6 +1758,10 @@
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}
                   </div>
+                {/if}
+              {:else if h.isPending}
+                {#if !collapsedUnstaged.has(foldKey(h))}
+                  <div class="hunk-pending"><Skeleton lines={2}/></div>
                 {/if}
               {:else}
                 <div class="hunk-no-preview">{h.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
@@ -3297,6 +3304,12 @@
     background: var(--bg-0);
     border-top: 1px solid var(--stroke-0);
     min-width: 0;
+  }
+
+  .hunk-pending {
+    padding: 10px 12px;
+    background: var(--bg-0);
+    border-top: 1px solid var(--stroke-0);
   }
 
   .hunk-no-preview {

@@ -359,8 +359,67 @@ describe("GitView", () => {
 			readFile.mockResolvedValue("one\ntwo\n");
 			setGit({ status: { "src/new.ts": "untracked" } });
 			mount();
-			await vi.waitFor(() => expect(cardNames()).toContain("new.ts"));
-			expect(statOf(cardFor("new.ts")).add).toBe("+2");
+			await vi.waitFor(() => expect(statOf(cardFor("new.ts")).add).toBe("+2"));
+		});
+
+		it("lists an untracked file at once and shows a placeholder until it is read", async () => {
+			readFile.mockReturnValue(new Promise(() => {}));
+			readFilePreview.mockResolvedValue({ content: "", size: 8 });
+			setGit({ status: { "src/new.ts": "untracked" } });
+			mount();
+			await settle();
+			expect(cardNames()).toContain("new.ts");
+			expect(
+				cardFor("new.ts").closest(".hunk-card")?.querySelector(".hunk-pending"),
+			).not.toBeNull();
+		});
+
+		it("reads only the untracked files on screen, and more as the list grows", async () => {
+			readFilePreview.mockResolvedValue({ content: "", size: 8 });
+			readFile.mockResolvedValue("one\n");
+			const status = Object.fromEntries(
+				Array.from({ length: 60 }, (_, i) => [
+					`src/f${String(i).padStart(2, "0")}.ts`,
+					"untracked",
+				]),
+			);
+			setGit({ status });
+			mount();
+			await vi.waitFor(() => expect(readFile).toHaveBeenCalledTimes(25));
+			await settle();
+			expect(readFile).toHaveBeenCalledTimes(25);
+			expect(readFile).not.toHaveBeenCalledWith("/wt/src/f30.ts");
+
+			await userEvent.click(
+				document.querySelector(".load-more-cards") as HTMLElement,
+			);
+			await vi.waitFor(() => expect(readFile).toHaveBeenCalledTimes(50));
+		});
+
+		it("keeps the fold of collapse all on cards read after it", async () => {
+			readFilePreview.mockResolvedValue({ content: "", size: 8 });
+			readFile.mockResolvedValue("one\n");
+			const status = Object.fromEntries(
+				Array.from({ length: 30 }, (_, i) => [
+					`src/f${String(i).padStart(2, "0")}.ts`,
+					"untracked",
+				]),
+			);
+			setGit({ status });
+			mount();
+			await vi.waitFor(() => expect(readFile).toHaveBeenCalledTimes(25));
+			await userEvent.click(
+				document.querySelector(".collapse-toggle-btn") as HTMLElement,
+			);
+			await userEvent.click(
+				document.querySelector(".load-more-cards") as HTMLElement,
+			);
+			await vi.waitFor(() => expect(statOf(cardFor("f29.ts")).add).toBe("+1"));
+			for (const name of ["f00.ts", "f29.ts"]) {
+				expect(cardFor(name).closest(".hunk-card")?.classList).toContain(
+					"collapsed",
+				);
+			}
 		});
 
 		it("trusts the status to have left ignored files out", async () => {
