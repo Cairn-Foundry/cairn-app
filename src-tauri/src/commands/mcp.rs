@@ -1182,6 +1182,7 @@ fn probe_stdio(server: &McpServer) -> McpProbe {
 }
 
 fn http_client() -> Result<reqwest::Client, String> {
+    crate::commands::integrations::http::install_crypto_provider();
     reqwest::Client::builder()
         .timeout(HANDSHAKE_TIMEOUT)
         .build()

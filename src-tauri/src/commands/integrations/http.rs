@@ -58,7 +58,14 @@ fn user_agent() -> String {
     format!("cairn/{}", env!("CARGO_PKG_VERSION"))
 }
 
+/// reqwest is built without a bundled crypto backend: rustls needs one installed
+/// process-wide before the first client, or building it panics. Idempotent.
+pub fn install_crypto_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 fn build_client() -> Result<reqwest::Client, IntegrationError> {
+    install_crypto_provider();
     reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .redirect(reqwest::redirect::Policy::none())

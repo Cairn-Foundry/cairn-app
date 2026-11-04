@@ -15,6 +15,13 @@
 				}
 			},
 			{
+				"kind": "changed",
+				"text": {
+					"en": "Connections to GitLab, GitHub, Jira and HTTP MCP servers now trust the certificates of the operating system, so a self-hosted instance behind a company certificate authority installed on the machine is accepted.",
+					"fr": "Les connexions à GitLab, GitHub, Jira et aux serveurs MCP HTTP font désormais confiance aux certificats du système d'exploitation : une instance auto-hébergée derrière une autorité de certification d'entreprise installée sur la machine est acceptée."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "Dependency updates close known vulnerabilities, among them TLS certificate checks on connections to integrations and the extraction of update archives.",
