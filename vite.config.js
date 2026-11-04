@@ -1,8 +1,10 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { defineConfig } from "vite";
+import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
@@ -38,7 +40,16 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit()],
+  plugins: [
+    // Tauri has no Node.js server for SSR, so adapter-static falls back to
+    // index.html and serves the app as an SPA.
+    // See: https://svelte.dev/docs/kit/single-page-apps
+    sveltekit({
+      preprocess: vitePreprocess(),
+      adapter: adapter({ fallback: "index.html" }),
+      alias: { $lib: "src/lib" },
+    }),
+  ],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   test: vitestConfig,
 

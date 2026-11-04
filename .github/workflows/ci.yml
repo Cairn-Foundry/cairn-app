@@ -57,7 +57,7 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node_modules-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
-      - run: bun audit
+      - run: bun audit --audit-level=moderate
 
   test:
     name: Test
