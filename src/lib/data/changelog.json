@@ -160,6 +160,13 @@
 					"en": "The list of skills, agents, MCP servers and integrations always fits in the window: it scrolls on its own when it is longer, without first scrolling the open item to its end.",
 					"fr": "La liste des skills, des agents, des serveurs MCP et des intégrations tient toujours dans la fenêtre : elle défile d'elle-même quand elle est plus longue, sans faire d'abord défiler l'élément ouvert jusqu'au bout."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A Settings button at the bottom of the workspace sidebar, under Terminal and Tools, opens the app settings; it stays available when no instance is open.",
+					"fr": "Un bouton Paramètres en bas de la barre latérale du projet, sous Terminal et Outils, ouvre les réglages de l'application ; il reste disponible quand aucune instance n'est ouverte."
+				}
 			}
 		]
 	},

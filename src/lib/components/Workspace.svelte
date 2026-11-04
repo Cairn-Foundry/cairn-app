@@ -770,6 +770,14 @@
         <span class="icon"><Icon name="grid" size={18}/></span>
         <span class="label">{t('workspace.toolsLabel')}</span>
       </button>
+      <button
+        class="step settings-toggle"
+        aria-label={t('workspace.ariaSettings') as string}
+        on:click={() => dispatch('goSettings')}
+      >
+        <span class="icon"><Icon name="settings" size={18}/></span>
+        <span class="label">{t('workspace.ariaSettings')}</span>
+      </button>
       {#if $hasPendingUpdate}
         <button
           class="step update-toggle"
@@ -1194,7 +1202,8 @@
     opacity: 0.3;
     pointer-events: none;
   }
-  .sidebar-empty .step.update-toggle {
+  .sidebar-empty .step.update-toggle,
+  .sidebar-empty .step.settings-toggle {
     opacity: 1;
     pointer-events: auto;
   }
