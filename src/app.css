@@ -115,12 +115,12 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
 input, textarea { font-family: inherit; color: inherit; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); cursor: pointer; }
 
-[data-tauri-drag-region] {
+[data-tauri-drag-region]:not([data-tauri-drag-region='false']) {
   -webkit-app-region: drag;
   app-region: drag;
 }
 
-[data-tauri-drag-region] :is(button, input, textarea, select, a, [role='button'], [data-no-drag]) {
+[data-tauri-drag-region] :is(button, input, textarea, select, a, [role='button'], [data-tauri-drag-region='false']) {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }

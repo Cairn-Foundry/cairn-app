@@ -16,7 +16,6 @@
   import { t } from '#lib/i18n';
   import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
   import UpdateCard from '#lib/components/layout/UpdateCard.svelte';
-  import { draggableRegion } from '#lib/utils/window-drag.js';
   import { aiEnabled } from '#lib/stores/settings';
   import { channel } from '#lib/stores/channel';
   import { openUrl } from '#lib/services/opener-service';
@@ -27,7 +26,7 @@
   const dispatch = createEventDispatcher<{ select: HomeSection }>();
 </script>
 
-<aside class="home-side" style="padding-top: 36px;" data-tauri-drag-region use:draggableRegion>
+<aside class="home-side" style="padding-top: 36px;" data-tauri-drag-region="deep">
   <div class="home-logo">
     <CairnLogo size={26}/>
     <span class="name">Cairn Foundry<sup class="tm">TM</sup></span>

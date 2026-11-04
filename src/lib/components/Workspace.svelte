@@ -34,7 +34,6 @@
   import { clickOutside } from '#lib/utils/click-outside';
   import { withViewTransition } from '#lib/utils/view-transition';
   import { setFileLinkTarget } from '#lib/utils/terminal/terminal-manager';
-  import { draggableRegion } from '#lib/utils/window-drag.js';
   import type { FileNode, QuickSearchHit } from '#lib/services/file-service';
   import { matchesSearch } from '#lib/utils/files/files-search';
 
@@ -561,8 +560,7 @@
     class="tabs-row"
     style="padding-left: {tabsPadding};"
     bind:this={tabsRowEl}
-    data-tauri-drag-region
-    use:draggableRegion
+    data-tauri-drag-region="deep"
   >
     <button class="brand-chip" on:click={() => dispatch('goHome')} title={t('workspace.homeTitle') as string}>
       <CairnLogo size={18}/>
@@ -576,7 +574,7 @@
       {/if}
       <div
         class="project-tab {p.id === activeProjectId ? 'active' : ''} {dragActive && dragSrcIndex === i ? 'dragging' : ''}"
-        data-no-drag
+        data-tauri-drag-region="false"
         role="tab"
         tabindex="0"
         on:pointerdown={(e) => tabPointerDown(e, i)}

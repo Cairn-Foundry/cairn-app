@@ -27,6 +27,13 @@
 					"en": "Dependency updates close known vulnerabilities, among them TLS certificate checks on connections to integrations and the extraction of update archives.",
 					"fr": "Des mises à jour de dépendances corrigent des vulnérabilités connues, notamment dans la vérification des certificats TLS des connexions aux intégrations et dans l'extraction des archives de mise à jour."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A quick click or a double-click on the title bar or the tab bar no longer leaves the mouse pointer stuck across the whole system: frozen on macOS, held as a move cursor on Linux until the next click.",
+					"fr": "Un clic rapide ou un double-clic sur la barre de titre ou la barre d'onglets ne laisse plus le pointeur de la souris bloqué sur tout le système : figé sous macOS, retenu en curseur de déplacement sous Linux jusqu'au clic suivant."
+				}
 			}
 		]
 	},

@@ -49,7 +49,6 @@
   import { EDITOR_DEFAULTS, FONT_SIZE_MAX, FONT_SIZE_MIN } from '#lib/utils/editor/editor-config';
   import { EDITOR_JUMP_READY_TIMEOUT_MS, EDITOR_JUMP_RETRY_MS } from '#lib/utils/timing';
   import { IS_MAC } from '#lib/utils/platform';
-  import { draggableRegion } from '#lib/utils/window-drag';
   import { docFromString, indentStyleOf, isDirty, spaceSizeOf, type LspContentChange } from '#lib/utils/files/document-model';
   import { LspDocSync } from '#lib/utils/files/lsp-doc-sync';
   import { loadPaneBase } from '#lib/utils/files/files-diff';
@@ -937,7 +936,7 @@
 
 {#if IS_MAC}
   <!-- The overlay title bar leaves the window no chrome to be moved by: this strip is it. -->
-  <div class="detached-titlebar" data-tauri-drag-region use:draggableRegion>
+  <div class="detached-titlebar" data-tauri-drag-region="deep">
     <span class="detached-title">{shownTitle}</span>
   </div>
 {/if}

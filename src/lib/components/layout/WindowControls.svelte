@@ -43,7 +43,7 @@
   }
 </script>
 
-<div class="window-controls" data-no-drag>
+<div class="window-controls" data-tauri-drag-region="false">
   <button type="button" aria-label={t('windowControls.minimize') as string} title={t('windowControls.minimize') as string} on:click={() => run('minimize')}>
     <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 6h7"/></svg>
   </button>
