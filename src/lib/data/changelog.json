@@ -1,5 +1,29 @@
 [
 	{
+		"version": "1.2.0",
+		"date": "",
+		"summary": {
+			"en": "Mermaid diagrams render with Mermaid 12, and the app's dependencies are updated to close known security vulnerabilities.",
+			"fr": "Les diagrammes Mermaid sont rendus avec Mermaid 12, et les dépendances de l'application sont mises à jour pour corriger des vulnérabilités connues."
+		},
+		"changes": [
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Mermaid diagrams, in Markdown files and in .mmd files, are rendered with Mermaid 12: its default layout engine changes, so some diagrams are laid out differently than before.",
+					"fr": "Les diagrammes Mermaid, dans les fichiers Markdown comme dans les fichiers .mmd, sont rendus avec Mermaid 12 : son moteur de mise en page par défaut change, certains diagrammes sont donc disposés autrement qu'avant."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Dependency updates close known vulnerabilities, among them TLS certificate checks on connections to integrations and the extraction of update archives.",
+					"fr": "Des mises à jour de dépendances corrigent des vulnérabilités connues, notamment dans la vérification des certificats TLS des connexions aux intégrations et dans l'extraction des archives de mise à jour."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.1.1",
 		"date": "2026-10-18",
 		"summary": {
