@@ -222,11 +222,15 @@ fn gitlab_position(diff_refs: &Value, anchor: &DiscussionAnchor) -> Value {
     position
 }
 
+fn sha1_hex(bytes: &[u8]) -> String {
+    sha1::Sha1::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// A multi-line position: GitLab wants both ends as `line_code`s, `sha1(path)_old_new`.
 // ponytail: the same number fills both slots of the line code; the exact old/new
 // pairing needs the diff. Resolve it from the hunk if GitLab rejects a range.
 fn gitlab_line_range(position: &mut Value, anchor: &DiscussionAnchor, start: u32) {
-    let file_hash = format!("{:x}", sha1::Sha1::digest(anchor.path.as_bytes()));
+    let file_hash = sha1_hex(anchor.path.as_bytes());
     let (kind, key) = match anchor.side {
         DiffSide::New => ("new", "new_line"),
         DiffSide::Old => ("old", "old_line"),
@@ -1048,7 +1052,7 @@ mod tests {
         assert_eq!(range["start"]["new_line"], 10);
         assert_eq!(range["end"]["new_line"], 14);
         assert_eq!(range["start"]["type"], "new");
-        assert_eq!(range["start"]["line_code"], "5a6d2e60b3cd1a8cfc6d0c2e8f2c8c1c7f3a8f7b_10_10".replace("5a6d2e60b3cd1a8cfc6d0c2e8f2c8c1c7f3a8f7b", &format!("{:x}", sha1::Sha1::digest(b"src/a.ts"))));
+        assert_eq!(range["start"]["line_code"], "21ff24dd18cc19d35de15a120639695824655b58_10_10");
     }
 
     #[test]
