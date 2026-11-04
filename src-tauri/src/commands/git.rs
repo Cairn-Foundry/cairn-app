@@ -687,14 +687,27 @@ pub async fn git_check_ignore(worktree_path: String, paths: Vec<String>) -> Resu
         return Ok(Vec::new());
     }
     let expanded = expand(&worktree_path);
-    let mut cmd = git_cmd(&expanded);
-    cmd.arg("check-ignore").arg("--");
-    for p in &paths {
-        cmd.arg(p);
+    let mut child = git_cmd(&expanded)
+        .args(["check-ignore", "--stdin", "-z"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or_else(|| GitError::new("io", "check-ignore has no stdin"))?;
+    let writer = std::thread::spawn(move || {
+        use std::io::Write;
+        for p in &paths {
+            stdin.write_all(p.as_bytes())?;
+            stdin.write_all(b"\0")?;
+        }
+        Ok::<(), std::io::Error>(())
+    });
+    let out = child.wait_with_output()?;
+    writer.join().map_err(|_| GitError::new("io", "check-ignore writer panicked"))??;
+    if out.status.code().is_none_or(|c| c > 1) {
+        return Err(GitError::from_process(&out));
     }
-    let out = cmd.output()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    Ok(text.lines().filter(|l| !l.is_empty()).map(|l| l.trim_end().to_string()).collect())
+    Ok(out.stdout.split(|&b| b == 0).filter(|p| !p.is_empty()).map(|p| String::from_utf8_lossy(p).into_owned()).collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -3106,6 +3119,27 @@ diff --git a/two.txt b/two.txt
         let after = git_stash_list(repo.wt()).await.unwrap();
         assert_eq!(after.len(), 1, "rename must not lose or duplicate the stash");
         assert_eq!(after[0].message, "new label");
+    }
+
+    #[tokio::test]
+    async fn check_ignore_answers_for_more_paths_than_an_argument_list_holds() {
+        let repo = TempRepo::new();
+        repo.commit(".gitignore", "*.log\n", "init");
+        let mut paths: Vec<String> =
+            (0..60_000).map(|i| format!("some/fairly/deep/directory/tree/file-{i:05}.txt")).collect();
+        paths.push("build output.log".into());
+        paths.push("café.log".into());
+
+        let ignored = git_check_ignore(repo.wt(), paths).await.unwrap();
+
+        assert_eq!(ignored, vec!["build output.log".to_string(), "café.log".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn check_ignore_reports_nothing_when_no_path_matches() {
+        let repo = TempRepo::new();
+        repo.commit(".gitignore", "*.log\n", "init");
+        assert!(git_check_ignore(repo.wt(), vec!["a.txt".into()]).await.unwrap().is_empty());
     }
 
     #[tokio::test]

@@ -363,13 +363,11 @@ describe("GitView", () => {
 			expect(statOf(cardFor("new.ts")).add).toBe("+2");
 		});
 
-		/** An untracked file git ignores is not a change to show. */
-		it("leaves an ignored file out", async () => {
-			checkIgnore.mockResolvedValue(["src/new.ts"]);
+		it("trusts the status to have left ignored files out", async () => {
 			setGit({ status: { "src/new.ts": "untracked" } });
 			mount();
-			await settle();
-			expect(cardNames()).not.toContain("new.ts");
+			await vi.waitFor(() => expect(cardNames()).toContain("new.ts"));
+			expect(checkIgnore).not.toHaveBeenCalled();
 		});
 
 		it("says when a diff was cut short", async () => {

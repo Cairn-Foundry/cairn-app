@@ -25,7 +25,7 @@
   import MergeRebaseView from '#lib/components/git/MergeRebaseView.svelte';
   import GitignoreView from '#lib/components/git/GitignoreView.svelte';
   import { readFile, readFilePreview, fileMtimes, isBinaryPath } from '#lib/services/file-service';
-  import { getDiffCommit, getCommitBody, checkIgnore, toGitError } from '#lib/services/git-service';
+  import { getDiffCommit, getCommitBody, toGitError } from '#lib/services/git-service';
   import type { GitFileDiff, GitDiffHunk, GitError } from '#lib/services/git-service';
   import { describeGitError } from '#lib/utils/git/git-error';
   import type { GitErrorAction } from '#lib/utils/git/git-error';
@@ -225,7 +225,7 @@
   /** Content and mtime of every untracked file already read, so a poll only re-reads what moved. */
   let untrackedRead = new Map<string, { mtime: number; text: string }>();
 
-  /** Reads the text of every untracked, non-ignored, non-binary file so it can be diffed. */
+  /** Reads the text of every untracked, non-binary file so it can be diffed. */
   async function loadUntrackedContent(
     status: typeof state.status,
     statusWorktree: string | null,
@@ -236,6 +236,7 @@
       untracked = { worktree: null, paths: [], content: {} };
       return;
     }
+    // No ignore check: `status --porcelain -u` already leaves ignored files out.
     const all = Object.entries(status)
       .filter(([, s]) => s === 'untracked')
       .map(([p]) => p);
@@ -246,11 +247,8 @@
       }
       return;
     }
-    const ignored = new Set(await checkIgnore(wt, all).catch(() => []));
-    if (scan !== untrackedScan) return;
-    const visible = all.filter(p => !ignored.has(p));
     const next: Record<string, string> = {};
-    const readable = visible.filter(p => !isBinaryPath(p));
+    const readable = all.filter(p => !isBinaryPath(p));
     const mtimes = await fileMtimes(readable.map(p => `${wt}/${p}`)).catch(() => ({}) as Record<string, number>);
     if (scan !== untrackedScan) return;
     // Sized before being read: an untracked build artifact would otherwise be pulled
@@ -277,10 +275,10 @@
     untrackedRead = read;
     const unchanged =
       untracked.worktree === wt &&
-      untracked.paths.length === visible.length &&
-      untracked.paths.every((p, i) => p === visible[i] && untracked.content[p] === next[p]);
+      untracked.paths.length === all.length &&
+      untracked.paths.every((p, i) => p === all[i] && untracked.content[p] === next[p]);
     if (unchanged) return;
-    untracked = { worktree: wt, paths: visible, content: next };
+    untracked = { worktree: wt, paths: all, content: next };
   }
 
   /* A diff the store hands back unchanged keeps its card: the store only
