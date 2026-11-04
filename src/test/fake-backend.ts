@@ -246,6 +246,7 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 		git_snapshot: (a) => ({
 			// A fresh version each poll, so the store never treats it as unchanged.
 			version: calls.length,
+			head: "",
 			status: {
 				isGitRepo: true,
 				status: statusFor(a.worktreePath as string),

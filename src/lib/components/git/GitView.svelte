@@ -119,6 +119,8 @@
     truncated?: boolean;
     /** Changes whenever the diff does, so a fold state follows the content rather than the path. */
     diffHash: string;
+    /** The path before a rename git detected. */
+    oldPath?: string;
   };
 
   const STATUS_CLASS: Record<string, string> = {
@@ -168,6 +170,7 @@
     hunks: GitDiffHunk[],
     status: string | null,
     truncated = false,
+    oldPath?: string,
   ): FileCard {
     const { added, removed, hasDiff, status: inferred } = statFromHunks(hunks);
     status ??= inferred;
@@ -183,6 +186,7 @@
       removed,
       truncated,
       diffHash: hashHunks(hunks),
+      oldPath,
     };
   }
 
@@ -288,7 +292,7 @@
   function cardFor(f: GitFileDiff, status: string | null): FileCard {
     let card = cardByHunks.get(f.hunks);
     if (!card) {
-      card = makeCard(f.filePath, f.hunks, status, f.truncated);
+      card = makeCard(f.filePath, f.hunks, status, f.truncated, f.oldPath);
       cardByHunks.set(f.hunks, card);
     }
     return card;
@@ -323,7 +327,7 @@
     : unstagedCards;
 
   $: stagedCards = state.stagedDiffs
-    .map(f => cardFor(f, diffStatus(f.hunks)))
+    .map(f => cardFor(f, diffStatus(f)))
     .sort(compareCards);
 
   $: filteredStagedCards = $currentProjectViewState.gitStagedSearch.trim()
@@ -363,16 +367,20 @@
 
   let commitTitleEl: HTMLInputElement;
   let commitBodyEl: HTMLTextAreaElement;
-  $: if (commitTitleEl && document.activeElement !== commitTitleEl && commitTitleEl.value !== $commitDraft.message) {
+  /* No focus guard: typing writes the store first, so the values already match.
+     A guard kept a focused field - WebKit leaves focus there on a button click -
+     showing the previous worktree's message after a switch, or after a commit. */
+  $: if (commitTitleEl && commitTitleEl.value !== $commitDraft.message) {
     commitTitleEl.value = $commitDraft.message;
   }
-  $: if (commitBodyEl && document.activeElement !== commitBodyEl && commitBodyEl.value !== $commitDraft.body) {
+  $: if (commitBodyEl && commitBodyEl.value !== $commitDraft.body) {
     commitBodyEl.value = $commitDraft.body;
     resizeCommitBody();
   }
 
   /** Classifies a file from its hunk headers: only a diff against nothing is an addition, only one that leaves nothing is a deletion. */
-  function diffStatus(hunks: GitDiffHunk[]): string {
+  function diffStatus({ hunks, oldPath }: GitFileDiff): string {
+    if (oldPath) return 'staged-renamed';
     const ranges = hunks.map(h => /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(h.header));
     if (ranges.length === 0 || ranges.some(r => !r)) return 'staged-modified';
     if (ranges.every(r => r![1] === '0' && r![2] === '0')) return 'staged-added';
@@ -390,7 +398,8 @@
       hunks: f.hunks,
       truncated: !!f.truncated,
       hasDiff,
-      status: diffStatus(f.hunks),
+      status: diffStatus(f),
+      oldPath: f.oldPath,
       added,
       removed,
     };
@@ -780,8 +789,13 @@
     selectedStagedFilePaths = next;
   }
 
+  /** A staged rename is a deletion plus an addition: unstaging only the new path would leave the deletion behind. */
+  function withRenameSource(card: FileCard): string[] {
+    return card.oldPath ? [card.filePath, card.oldPath] : [card.filePath];
+  }
+
   async function unstageSelected() {
-    await unstageFiles([...selectedStagedFilePaths]);
+    await unstageFiles(stagedCards.filter(c => selectedStagedFilePaths.has(c.filePath)).flatMap(withRenameSource));
   }
 
   let selectedStash: GitStash | null = null;
@@ -802,7 +816,8 @@
       hunks: f.hunks,
       truncated: !!f.truncated,
       hasDiff,
-      status: diffStatus(f.hunks),
+      status: diffStatus(f),
+      oldPath: f.oldPath,
       added,
       removed,
     };
@@ -1710,6 +1725,7 @@
                 <span class="file-info">
                   <span class="file-basename">{h.basename}</span>
                   {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
+                  {#if h.oldPath}<span class="file-renamed selectable" title={h.oldPath}>{(t('git.renamedFrom') as (p: string) => string)(h.oldPath)}</span>{/if}
                 </span>
                 {#if h.added > 0 || h.removed > 0}
                   <span class="diff-stat">
@@ -1743,7 +1759,7 @@
                   </div>
                 {/if}
               {:else}
-                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+                <div class="hunk-no-preview">{h.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
               {/if}
             </div>
           {/each}
@@ -1928,6 +1944,7 @@
                 <span class="file-info">
                   <span class="file-basename">{card.basename}</span>
                   {#if card.dirpath}<span class="file-dir">{card.dirpath}</span>{/if}
+                  {#if card.oldPath}<span class="file-renamed selectable" title={card.oldPath}>{(t('git.renamedFrom') as (p: string) => string)(card.oldPath)}</span>{/if}
                 </span>
                 {#if card.added > 0 || card.removed > 0}
                   <span class="diff-stat">
@@ -1946,7 +1963,7 @@
                   <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} memoryScope={stashScope} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                 </div>
               {:else}
-                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+                <div class="hunk-no-preview">{card.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
               {/if}
             </div>
           {/each}
@@ -2062,6 +2079,7 @@
                 <span class="file-info">
                   <span class="file-basename">{card.basename}</span>
                   {#if card.dirpath}<span class="file-dir">{card.dirpath}</span>{/if}
+                  {#if card.oldPath}<span class="file-renamed selectable" title={card.oldPath}>{(t('git.renamedFrom') as (p: string) => string)(card.oldPath)}</span>{/if}
                 </span>
                 {#if card.added > 0 || card.removed > 0}
                   <span class="diff-stat">
@@ -2080,7 +2098,7 @@
                   <GitDiff hunks={card.hunks} filePath={card.filePath} side={commitSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
                 </div>
               {:else}
-                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+                <div class="hunk-no-preview">{card.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
               {/if}
             </div>
           {/each}
@@ -2153,6 +2171,7 @@
                 <span class="file-info">
                   <span class="file-basename">{h.basename}</span>
                   {#if h.dirpath}<span class="file-dir">{h.dirpath}</span>{/if}
+                  {#if h.oldPath}<span class="file-renamed selectable" title={h.oldPath}>{(t('git.renamedFrom') as (p: string) => string)(h.oldPath)}</span>{/if}
                 </span>
                 {#if h.added > 0 || h.removed > 0}
                   <span class="diff-stat">
@@ -2165,7 +2184,7 @@
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
-                <button class="unstage-btn" on:click={() => unstageFile(h.filePath)}>
+                <button class="unstage-btn" on:click={() => unstageFiles(withRenameSource(h))}>
                   {t('git.unstage')}
                 </button>
               </div>
@@ -2179,7 +2198,7 @@
                   </div>
                 {/if}
               {:else}
-                <div class="hunk-no-preview">{t('git.noDiffPreview')}</div>
+                <div class="hunk-no-preview">{h.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
               {/if}
             </div>
           {/each}
@@ -3189,6 +3208,15 @@
   .file-dir {
     font-size: 10px;
     color: var(--fg-4);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-renamed {
+    font-size: 10px;
+    color: var(--fg-3);
     font-family: var(--font-mono);
     white-space: nowrap;
     overflow: hidden;

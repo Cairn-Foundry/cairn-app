@@ -28,6 +28,8 @@ export type GitFileDiff = {
 	 * The view says so rather than passing a partial diff off as the whole one.
 	 */
 	truncated?: boolean;
+	/** The path the file had before, when git detected a rename. */
+	oldPath?: string;
 };
 
 // Wire values emitted by the Rust `git_status` command. Staged entries carry a
@@ -193,6 +195,8 @@ export interface GitStatusFull {
 /** The poll's whole read in one round trip; null when nothing changed since `knownVersion`. */
 export interface GitSnapshot {
 	version: string;
+	/** The commit HEAD points at, empty in a repository without commits. */
+	head: string;
 	status: GitStatusFull;
 	currentBranch: string;
 	remoteStatus: RemoteStatus;

@@ -1808,6 +1808,8 @@ export const en = {
 		commitBodyPlaceholder: "Add an optional longer description...",
 		commitBodyLabel: "Commit description",
 		noDiffPreview: "No preview available (binary or empty file).",
+		renamedUnchanged: "Renamed, content unchanged.",
+		renamedFrom: (path: string) => `from ${path}`,
 		diffTooLarge: "This file is too large to show its diff here.",
 		openInEditor: "Open in editor",
 		diffTruncated:

@@ -446,7 +446,26 @@ describe("GitView", () => {
 			await userEvent.click(
 				document.querySelector(".unstage-btn") as HTMLElement,
 			);
-			expect(unstageFile).toHaveBeenCalledWith("src/a.ts");
+			expect(unstageFiles).toHaveBeenCalledWith(["src/a.ts"]);
+		});
+
+		it("shows a pure rename with its former path and unstages both ends", async () => {
+			setGit({
+				stagedDiffs: [{ filePath: "src/b.ts", oldPath: "src/a.ts", hunks: [] }],
+			});
+			mount();
+			await settle();
+			const card = document
+				.querySelector(".file-renamed")
+				?.closest(".hunk-card") as HTMLElement;
+			expect(card.querySelector(".file-renamed")?.textContent).toBe(
+				"from src/a.ts",
+			);
+			expect(card.querySelector(".hunk-no-preview")?.textContent).toBe(
+				"Renamed, content unchanged.",
+			);
+			await userEvent.click(card.querySelector(".unstage-btn") as HTMLElement);
+			expect(unstageFiles).toHaveBeenCalledWith(["src/b.ts", "src/a.ts"]);
 		});
 	});
 

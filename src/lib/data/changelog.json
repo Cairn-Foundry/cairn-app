@@ -34,6 +34,27 @@
 					"en": "A quick click or a double-click on the title bar or the tab bar no longer leaves the mouse pointer stuck across the whole system: frozen on macOS, held as a move cursor on Linux until the next click.",
 					"fr": "Un clic rapide ou un double-clic sur la barre de titre ou la barre d'onglets ne laisse plus le pointeur de la souris bloqué sur tout le système : figé sous macOS, retenu en curseur de déplacement sous Linux jusqu'au clic suivant."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The commit title and description no longer stay filled in when switching to another project or instance, or after committing, when the field still had the focus.",
+					"fr": "Le titre et la description du commit ne restent plus remplis en passant à un autre projet ou à une autre instance, ni après un commit, quand le champ avait encore le focus."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The history and the graph of the Git view follow a commit, reset or checkout made outside Cairn, without reloading the app.",
+					"fr": "L'historique et le graphe de la vue Git suivent un commit, un reset ou un checkout fait hors de Cairn, sans recharger l'application."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A file moved with git mv is shown as a rename, with its former path, instead of an empty change; unstaging it restores both paths.",
+					"fr": "Un fichier déplacé avec git mv s'affiche comme un renommage, avec son ancien chemin, au lieu d'une modification vide ; le retirer de l'index restaure les deux chemins."
+				}
 			}
 		]
 	},

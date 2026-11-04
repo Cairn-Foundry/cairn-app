@@ -43,6 +43,10 @@ pub struct GitFileDiff {
     /// as if it were the whole change.
     #[serde(rename = "truncated", skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
+    /// Where the file came from when git detected a rename. A pure rename has no
+    /// hunk at all, so without it the view showed an unexplained, empty change.
+    #[serde(rename = "oldPath", skip_serializing_if = "Option::is_none")]
+    pub old_path: Option<String>,
 }
 
 /// A commit as listed in the history view.
@@ -161,7 +165,7 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
                 .unwrap_or("")
                 .to_string();
             current_file =
-                Some(GitFileDiff { file_path: path, hunks: Vec::new(), truncated: false });
+                Some(GitFileDiff { file_path: path, hunks: Vec::new(), truncated: false, old_path: None });
         } else if line.starts_with("@@ ") {
             if let Some(hunk) = current_hunk.take()
                 && let Some(ref mut f) = current_file {
@@ -175,6 +179,10 @@ fn parse_diff(raw: &str) -> Vec<GitFileDiff> {
             if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("+++ b/")) {
                 // git ends the name with a tab when it contains a space.
                 f.file_path = path.trim_end_matches('\t').to_string();
+            } else if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("rename from ")) {
+                f.old_path = Some(path.to_string());
+            } else if let (Some(f), Some(path)) = (current_file.as_mut(), line.strip_prefix("rename to ")) {
+                f.file_path = path.to_string();
             }
         } else if line.starts_with('\\') {
             // "\ No newline at end of file" marker inside a hunk: not a real line.
@@ -615,6 +623,9 @@ pub async fn git_status_full(worktree_path: String) -> Result<GitStatusFull, Git
 #[serde(rename_all = "camelCase")]
 pub struct GitSnapshot {
     pub version:         String,
+    /// The commit HEAD points at. Part of the version, so a commit made outside
+    /// the app is seen even when it leaves the status as it was.
+    pub head:            String,
     pub status:          GitStatusFull,
     pub current_branch:  String,
     pub remote_status:   RemoteStatus,
@@ -626,6 +637,12 @@ fn head_branch_git2(expanded: &str) -> Option<String> {
     let head = repo.find_reference("HEAD").ok()?;
     let target = head.symbolic_target().ok().flatten()?;
     Some(target.strip_prefix("refs/heads/").unwrap_or(target).to_string())
+}
+
+fn head_oid_git2(expanded: &str) -> Option<String> {
+    let repo = git2::Repository::open(expanded).ok()?;
+    let oid = repo.head().ok()?.target()?;
+    Some(oid.to_string())
 }
 
 fn remote_status_git2(expanded: &str) -> RemoteStatus {
@@ -651,6 +668,7 @@ pub async fn git_snapshot(worktree_path: String, known_version: String) -> Resul
     let status = git_status_full(worktree_path.clone()).await?;
     let mut snapshot = GitSnapshot {
         version:         String::new(),
+        head:            if status.is_git_repo { head_oid_git2(&expanded).unwrap_or_default() } else { String::new() },
         current_branch:  if status.is_git_repo { head_branch_git2(&expanded).unwrap_or_default() } else { String::new() },
         remote_status:   if status.is_git_repo { remote_status_git2(&expanded) } else { remote_status_git2("") },
         operation_state: git_operation_state(worktree_path).await?,
@@ -2690,6 +2708,34 @@ index 1111111..2222222 100644
         assert_eq!(lines[1].content, "old line");
         assert_eq!(lines[2].kind, "add");
         assert_eq!(lines[2].content, "new line");
+    }
+
+    #[test]
+    fn parse_diff_keeps_both_ends_of_a_rename() {
+        let raw = "\
+diff --git a/old name.txt b/new name.txt
+similarity index 100%
+rename from old name.txt
+rename to new name.txt
+diff --git a/d/f.txt b/d/g.txt
+similarity index 83%
+rename from d/f.txt
+rename to d/g.txt
+index 442f4e2..6d974a3 100644
+--- a/d/f.txt
++++ b/d/g.txt
+@@ -3,3 +3,4 @@ y
+ v
++u
+";
+        let files = parse_diff(raw);
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].file_path, "new name.txt");
+        assert_eq!(files[0].old_path.as_deref(), Some("old name.txt"));
+        assert!(files[0].hunks.is_empty());
+        assert_eq!(files[1].file_path, "d/g.txt");
+        assert_eq!(files[1].old_path.as_deref(), Some("d/f.txt"));
+        assert_eq!(files[1].hunks.len(), 1);
     }
 
     #[test]

@@ -43,6 +43,8 @@ type GitState = {
 	indexVersion: number;
 	/** Hash of the last snapshot read, handed back so an unchanged poll answers with nothing. */
 	snapshotVersion: string;
+	/** The commit HEAD pointed at in the last snapshot; the log follows it when it moves. */
+	head: string;
 	diffVersion: string;
 	unstagedDiffs: GitFileDiff[];
 	stagedDiffs: GitFileDiff[];
@@ -95,6 +97,7 @@ const INITIAL: GitState = {
 	statusWorktree: null,
 	indexVersion: 0,
 	snapshotVersion: "",
+	head: "",
 	diffVersion: "",
 	unstagedDiffs: [],
 	stagedDiffs: [],
@@ -265,6 +268,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				status: {},
 				statusWorktree: wt,
 				snapshotVersion: snap.version,
+				head: "",
 				unstagedDiffs: [],
 				stagedDiffs: [],
 				diffVersion: "",
@@ -295,6 +299,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 						status: snap.status.status,
 						statusWorktree: wt,
 						snapshotVersion: snap.version,
+						head: snap.head,
 						changedPaths: snap.status.changedPaths,
 						currentBranch: snap.currentBranch,
 						remoteStatus: snap.remoteStatus,
@@ -309,6 +314,9 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 			isLoading: false,
 		}));
 		if (snap) void syncGraph();
+		// A commit, reset or checkout made outside the app moves HEAD without
+		// any write of ours to refresh the history behind it.
+		if (snap && sameWorktree && snap.head !== before.head) void syncLog();
 	} catch (e) {
 		_git.update((s) => ({
 			...s,
@@ -328,6 +336,20 @@ export async function refreshLog(): Promise<void> {
 	} catch (e) {
 		const error = gitService.toGitError(e);
 		_git.update((s) => (s.log.length > 0 ? s : { ...s, error }));
+	}
+}
+
+/** Rereads the log after HEAD moved, keeping as many rows as were already loaded. */
+async function syncLog(): Promise<void> {
+	const wt = worktree();
+	if (!wt) return;
+	const limit = Math.max(get(_git).log.length, LOG_PAGE);
+	try {
+		const log = await gitService.getLog(wt, limit, 0);
+		if (worktree() !== wt) return;
+		_git.update((s) => ({ ...s, log, logHasMore: log.length === limit }));
+	} catch {
+		// Non-fatal
 	}
 }
 

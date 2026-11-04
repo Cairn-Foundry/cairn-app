@@ -22,6 +22,8 @@ import { BASE_INSTANCE_ID } from "./instance";
 
 const getStatusFull = vi.hoisted(() => vi.fn());
 const stageFile = vi.hoisted(() => vi.fn());
+const getLog = vi.hoisted(() => vi.fn());
+const snapshotHead = vi.hoisted(() => ({ value: "" }));
 
 vi.mock("#lib/services/git-service", () => ({
 	getStatusFull,
@@ -29,6 +31,7 @@ vi.mock("#lib/services/git-service", () => ({
 		let version = 0;
 		return async (worktreePath: string) => ({
 			version: ++version,
+			head: snapshotHead.value,
 			status: await getStatusFull(worktreePath),
 			currentBranch: "main",
 			remoteStatus: null,
@@ -36,6 +39,7 @@ vi.mock("#lib/services/git-service", () => ({
 		});
 	})(),
 	stageFile,
+	getLog,
 	getChangedPaths: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
 	getDiffUnstaged: vi.fn().mockResolvedValue([]),
 	getDiffStaged: vi.fn().mockResolvedValue([]),
@@ -116,6 +120,23 @@ describe("refreshStatus", () => {
 		expect(get(git).isGitRepo).toBe(false);
 		expect(get(git).statusWorktree).toBe("/repos/a");
 		expect(get(git).status).toEqual({});
+	});
+
+	it("rereads the log when HEAD moved outside the app", async () => {
+		getLog.mockResolvedValue([]);
+		snapshotHead.value = "aaa";
+		await refreshStatus();
+		await vi.waitFor(() => expect(get(git).head).toBe("aaa"));
+		getLog.mockClear();
+		await refreshStatus();
+		expect(getLog).not.toHaveBeenCalled();
+
+		snapshotHead.value = "bbb";
+		getLog.mockResolvedValue([{ hash: "bbb" }]);
+		await refreshStatus();
+		await vi.waitFor(() => expect(get(git).log).toEqual([{ hash: "bbb" }]));
+		expect(getLog).toHaveBeenCalledWith("/repos/a", 50, 0);
+		snapshotHead.value = "";
 	});
 
 	it("does nothing without an active worktree", async () => {
