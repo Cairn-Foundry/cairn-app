@@ -33,6 +33,7 @@ const fns = {
 	abortRebase: vi.fn(),
 	continueMerge: vi.fn(),
 	abortMerge: vi.fn(),
+	deleteBranch: vi.fn(),
 };
 
 vi.mock("#lib/stores/git", () => ({
@@ -55,8 +56,10 @@ vi.mock("#lib/services/file-service", async (importOriginal) => ({
 // component reads is supplied directly rather than derived from a seeded list.
 const setInstanceBaseBranch = vi.fn();
 const activeInstanceStore = writable<unknown>(null);
+const instancesStore = writable<unknown[]>([]);
 vi.mock("#lib/stores/instance", () => ({
 	activeInstance: { subscribe: activeInstanceStore.subscribe },
+	instances: { subscribe: instancesStore.subscribe },
 	setInstanceBaseBranch: (...a: unknown[]) => setInstanceBaseBranch(...a),
 }));
 
@@ -136,6 +139,7 @@ beforeEach(() => {
 	projects.set([project("p1")]);
 	activeProjectId.set("p1");
 	activeInstanceStore.set(instance("i1", "p1"));
+	instancesStore.set([]);
 });
 
 describe("MergeRebaseView", () => {
@@ -259,7 +263,9 @@ describe("MergeRebaseView", () => {
 		it("does not offer to move the base for a merge", async () => {
 			mount();
 			await choose("merge", "develop");
-			expect(document.querySelector(".mr-set-base")).toBeNull();
+			expect(
+				document.querySelector(".mr-set-base:not(.mr-delete-merged)"),
+			).toBeNull();
 		});
 
 		/** A rebase that failed did not move anything, so nothing should follow it. */
@@ -294,6 +300,100 @@ describe("MergeRebaseView", () => {
 			await choose("rebase", "main");
 			await userEvent.click(runButton());
 			expect(onFilesChanged).toHaveBeenCalled();
+		});
+	});
+
+	describe("deleting the merged branch", () => {
+		const deleteToggle = () =>
+			document.querySelector(
+				".mr-delete-merged input",
+			) as HTMLInputElement | null;
+
+		it("offers it for a local branch, unticked", async () => {
+			mount();
+			await choose("merge", "develop");
+			expect(deleteToggle()?.checked).toBe(false);
+		});
+
+		it("does not offer it for a rebase", async () => {
+			mount();
+			await choose("rebase", "develop");
+			expect(deleteToggle()).toBeNull();
+		});
+
+		/** The base is what this instance is measured against. */
+		it("does not offer it for the base branch", async () => {
+			mount();
+			await choose("merge", "main");
+			expect(deleteToggle()).toBeNull();
+		});
+
+		it("does not offer it for a remote branch", async () => {
+			mount();
+			await choose("merge", "origin/main");
+			expect(deleteToggle()).toBeNull();
+		});
+
+		it("does not offer it for a branch an instance works on", async () => {
+			instancesStore.set([instance("develop", "p1")]);
+			mount();
+			await choose("merge", "develop");
+			expect(deleteToggle()).toBeNull();
+		});
+
+		it("deletes the branch after a clean merge when ticked", async () => {
+			mount();
+			await choose("merge", "develop");
+			await userEvent.click(deleteToggle() as HTMLElement);
+			await userEvent.click(runButton());
+			expect(fns.deleteBranch).toHaveBeenCalledWith("develop");
+		});
+
+		it("keeps the branch when left unticked", async () => {
+			mount();
+			await choose("merge", "develop");
+			await userEvent.click(runButton());
+			expect(fns.deleteBranch).not.toHaveBeenCalled();
+		});
+
+		it("waits for the conflicts to be resolved before deleting", async () => {
+			fns.mergeBranch.mockResolvedValue({ ok: false, hasConflicts: true });
+			mount();
+			await choose("merge", "develop");
+			await userEvent.click(deleteToggle() as HTMLElement);
+			await userEvent.click(runButton());
+			expect(fns.deleteBranch).not.toHaveBeenCalled();
+			gitState.update((s) => ({
+				...s,
+				operationState: operation({ kind: "merge" }),
+			}));
+			await tick();
+			await userEvent.click(actionButtons()[0]);
+			expect(fns.continueMerge).toHaveBeenCalled();
+			expect(fns.deleteBranch).toHaveBeenCalledWith("develop");
+		});
+
+		it("forgets the deletion when the merge is aborted", async () => {
+			fns.mergeBranch.mockResolvedValue({ ok: false, hasConflicts: true });
+			mount();
+			await choose("merge", "develop");
+			await userEvent.click(deleteToggle() as HTMLElement);
+			await userEvent.click(runButton());
+			gitState.update((s) => ({
+				...s,
+				operationState: operation({ kind: "merge" }),
+			}));
+			await tick();
+			await userEvent.click(actionButtons()[actionButtons().length - 1]);
+			gitState.update((s) => ({ ...s, operationState: null }));
+			await tick();
+			gitState.update((s) => ({
+				...s,
+				operationState: operation({ kind: "merge" }),
+			}));
+			await tick();
+			await userEvent.click(actionButtons()[0]);
+			expect(fns.deleteBranch).not.toHaveBeenCalled();
 		});
 	});
 

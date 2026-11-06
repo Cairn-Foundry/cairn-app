@@ -1771,8 +1771,9 @@ export const fr = {
 		baseIs: (b: string) => `Comparée à ${b}`,
 		setBaseBranch: "Comparer à",
 		branchSwitcher: {
-			searchPlaceholder: "Filtrer les branches",
+			searchPlaceholder: "Filtrer ou créer une branche",
 			empty: "Aucune branche",
+			create: (from: string) => `Créer une branche depuis ${from}`,
 		},
 		dirtyWorktree: {
 			heading: "Modifications non validées",
@@ -1935,6 +1936,7 @@ export const fr = {
 			notMerged:
 				"Cette branche contient des commits fusionnés nulle part. Activez l'option de forçage pour la supprimer malgré tout.",
 			chipMenuLabel: "Actions sur la branche",
+			copyName: "Copier le nom",
 		},
 		remotes: {
 			title: "Distants",
@@ -1957,6 +1959,7 @@ export const fr = {
 		},
 		resizeColumns: "Redimensionner les colonnes",
 		createInstanceFromBranch: "Créer une instance depuis cette branche",
+		createBranchFromTag: "Créer une branche depuis ce tag",
 		commitDiffEmpty: "Ce commit n'apporte aucune modification de fichier.",
 		stashTab: "Stash",
 		stashEmpty: "Aucun stash pour l'instant.",
@@ -2153,6 +2156,11 @@ export const fr = {
 		targetBranch: "Branche cible",
 		pickStrategyAndBranch: "Choisissez une stratégie et une branche cible.",
 		setAsBaseBranch: "Définir comme nouvelle base",
+		deleteMergedBranch: "Supprimer la branche",
+		emptyRemote: {
+			create: (branch: string) => `Créer ${branch} sur origin`,
+			hint: "origin n'a encore aucune branche : publiez la branche par défaut pour que les autres aient de quoi suivre",
+		},
 		summaryRebase: (head: string, target: string) =>
 			`Rebaser ${head} sur ${target}`,
 		summaryMerge: (target: string, head: string) =>

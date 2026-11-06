@@ -28,23 +28,24 @@
     continueCherryPick,
     skipCherryPick,
     abortCherryPick,
+    deleteBranch,
   } from '#lib/stores/git';
   import type { GitOperationKind, GitOpResult } from '#lib/services/git-service';
   import { readFile } from '#lib/services/file-service';
   import { activeProject } from '#lib/stores/project';
-  import { activeInstance, setInstanceBaseBranch } from '#lib/stores/instance';
+  import { activeInstance, instances, setInstanceBaseBranch } from '#lib/stores/instance';
   import { hasConflictMarkers } from '#lib/utils/git/conflict-markers';
 
   /** Each kind resumes and unwinds through its own git command. */
   const continueOf = (kind: GitOperationKind) =>
     kind === 'merge'
-      ? continueMerge
+      ? continueMergeAndDelete
       : kind === 'cherry-pick'
         ? continueCherryPick
         : continueRebase;
   const abortOf = (kind: GitOperationKind) =>
     kind === 'merge'
-      ? abortMerge
+      ? abortMergeAndForget
       : kind === 'cherry-pick'
         ? abortCherryPick
         : abortRebase;
@@ -89,6 +90,9 @@
 
   let strategy: 'rebase' | 'merge' | null = null;
   let setAsBase = true;
+  let deleteMerged = false;
+  /** The branch to delete once a merge stopped on conflicts is concluded. */
+  let pendingDelete: string | null = null;
   let target: string | null = null;
   let branchQuery = '';
   let running = false;
@@ -102,6 +106,13 @@
     : remoteTargets;
   $: hasFiltered = filteredLocal.length + filteredRemote.length > 0;
   $: canRun = !!strategy && !!target && !running;
+  // Only a local branch nobody stands on: not one an instance works on, and not
+  // the base this instance is measured against.
+  $: canDeleteMerged = strategy === 'merge'
+    && !!target
+    && localTargets.includes(target)
+    && target !== $activeInstance?.baseBranch
+    && !$instances.some((i) => i.branch === target);
 
   onMount(() => {
     if (!hasTargets && $activeProject?.path) loadBranches($activeProject.path);
@@ -131,6 +142,10 @@
         strategy === 'rebase'
           ? await rebaseOnto(onto)
           : await mergeBranch(onto);
+      if (strategy === 'merge' && deleteMerged && canDeleteMerged) {
+        if (result?.ok) await deleteMergedBranch(onto);
+        else if (result?.hasConflicts) pendingDelete = onto;
+      }
       if (result?.ok && strategy === 'rebase' && setAsBase && $activeInstance) {
         await setInstanceBaseBranch($activeInstance.id, $activeInstance.projectId, onto)
           .catch(() => {});
@@ -140,6 +155,29 @@
     } finally {
       running = false;
     }
+  }
+
+  async function deleteMergedBranch(branch: string) {
+    await deleteBranch(branch).catch(() => {});
+  }
+
+  /** Concludes a merge, then deletes the merged branch if that was asked for. */
+  async function continueMergeAndDelete() {
+    const branch = pendingDelete;
+    const result = await continueMerge();
+    if (result?.ok && branch) {
+      pendingDelete = null;
+      await deleteMergedBranch(branch);
+    }
+  }
+
+  // A merge concluded or dropped outside this panel (a commit, a terminal)
+  // leaves nothing to delete later.
+  $: if (!inOperation) pendingDelete = null;
+
+  async function abortMergeAndForget() {
+    pendingDelete = null;
+    await abortMerge();
   }
 
   /** Serializes a git action behind the `running` flag and notifies the parent afterwards. */
@@ -386,6 +424,12 @@
         <label class="mr-set-base">
           <input type="checkbox" bind:checked={setAsBase} />
           <span>{t('git.setAsBaseBranch')}</span>
+        </label>
+      {/if}
+      {#if canDeleteMerged}
+        <label class="mr-set-base mr-delete-merged">
+          <input type="checkbox" bind:checked={deleteMerged} />
+          <span>{t('git.deleteMergedBranch')}</span>
         </label>
       {/if}
       <button class="btn primary" disabled={!canRun} on:click={run}>

@@ -18,7 +18,7 @@
   import Icon from '#lib/components/Icon.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
-  import Select from '#lib/components/Select.svelte';
+  import CreateBranchModal from '#lib/components/git/CreateBranchModal.svelte';
   import { t } from '#lib/i18n';
   import {
     git,
@@ -26,7 +26,6 @@
     deleteBranch,
     deleteRemoteBranch,
     renameBranch,
-    createBranch,
     refreshRemotes,
     editRemote,
   } from '#lib/stores/git';
@@ -116,36 +115,7 @@
     }
   }
 
-  // --- Create ---
   let createFrom: string | null = null;
-  let createName = '';
-  let createError = '';
-  let isCreating = false;
-  let createInput: HTMLInputElement;
-
-  async function openCreate() {
-    createFrom = currentBranch;
-    createName = '';
-    createError = '';
-    await tick();
-    createInput?.focus();
-  }
-
-  async function confirmCreate() {
-    const name = createName.trim();
-    if (!createFrom || !name || isCreating) return;
-    isCreating = true;
-    createError = '';
-    try {
-      await createBranch(name, createFrom);
-      if (worktreePath) await loadBranches(worktreePath, { fetch: false });
-      createFrom = null;
-    } catch (e) {
-      createError = errorMessage(e);
-    } finally {
-      isCreating = false;
-    }
-  }
 
   // --- Delete ---
   let deleteName: string | null = null;
@@ -262,15 +232,14 @@
   }
 
   function closeAll() {
-    if (isCreating || isRenaming || isDeleting || isSavingRemote || isRemovingRemote) return;
-    createFrom = null;
+    if (isRenaming || isDeleting || isSavingRemote || isRemovingRemote) return;
     renameFrom = null;
     deleteName = null;
     remoteForm = null;
     removeTarget = null;
   }
 
-  $: anyModal = !!createFrom || !!renameFrom || !!deleteName || !!remoteForm || !!removeTarget;
+  $: anyModal = !!renameFrom || !!deleteName || !!remoteForm || !!removeTarget;
 </script>
 
 <svelte:window on:keydown={anyModal ? (e) => e.key === 'Escape' && closeAll() : undefined}/>
@@ -295,7 +264,7 @@
   <div class="br-section-head">
     <span>{t('git.branchList.local')}</span>
     <span class="br-count">{localBranches.length}</span>
-    <button class="br-action-btn br-head-btn" disabled={!currentBranch} on:click={openCreate}>
+    <button class="br-action-btn br-head-btn" disabled={!currentBranch} on:click={() => (createFrom = currentBranch)}>
       <Icon name="plus" size={10}/>
       {t('git.branchList.create')}
     </button>
@@ -312,6 +281,7 @@
       {#if owner}
         <span class="br-badge">{owner.ticket.id}</span>
       {/if}
+      <CopyButton value={branch}/>
       <div class="br-actions">
         <button
           class="br-action-btn icon-only"
@@ -344,6 +314,7 @@
     <div class="br-item">
       <span class="br-icon"><Icon name="cloud" size={10}/></span>
       <span class="br-name selectable">{ref}</span>
+      <CopyButton value={ref}/>
       <div class="br-actions">
         <button
           class="br-action-btn icon-only danger"
@@ -444,46 +415,7 @@
 {/if}
 
 {#if createFrom}
-  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div class="modal-backdrop" role="dialog" aria-modal="true" tabindex="-1" on:click={closeAll} on:keydown={() => {}}>
-    <div class="modal br-modal" on:click|stopPropagation role="presentation">
-      <div class="modal-head">
-        <div>
-          <div class="step-count">GIT</div>
-          <h3>{t('git.branchList.create')}</h3>
-        </div>
-        <button class="icon-btn close" on:click={closeAll} aria-label={t('common.close') as string}>
-          <Icon name="x" size={16}/>
-        </button>
-      </div>
-      <div class="modal-body">
-        <label class="br-base">
-          <span>{t('git.branchList.createFrom')}</span>
-          <Select
-            bind:value={createFrom}
-            options={[...$git.branches, ...$git.remoteBranches].map((b) => ({ value: b, label: b }))}
-            ariaLabel={t('git.branchList.createFrom') as string}
-          />
-        </label>
-        <input
-          class="br-modal-input"
-          bind:this={createInput}
-          bind:value={createName}
-          aria-label={t('git.branchList.newName') as string}
-          placeholder={t('git.branchNamePlaceholder') as string}
-          on:keydown={(e) => e.key === 'Enter' && confirmCreate()}
-        />
-        {#if createError}<div class="br-error">{createError}</div>{/if}
-      </div>
-      <div class="modal-foot">
-        <div class="spacer"></div>
-        <button class="btn ghost" disabled={isCreating} on:click={closeAll}>{t('common.cancel')}</button>
-        <button class="btn primary" disabled={isCreating || !createName.trim()} on:click={confirmCreate}>
-          {#if isCreating}<Spinner size={11}/>{:else}{t('git.branchList.createAction')}{/if}
-        </button>
-      </div>
-    </div>
-  </div>
+  <CreateBranchModal from={createFrom} on:close={() => (createFrom = null)} on:created={() => (createFrom = null)}/>
 {/if}
 
 {#if deleteName}
@@ -803,15 +735,6 @@
   }
 
   .br-modal { width: min(440px, 92vw); }
-  .br-base {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    color: var(--fg-2);
-  }
-  .br-base :global(.select) { flex: 1; min-width: 0; }
   .br-confirm {
     margin: 0 0 12px;
     font-size: 12.5px;

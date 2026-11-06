@@ -1744,8 +1744,9 @@ export const en = {
 		baseIs: (b: string) => `Compared against ${b}`,
 		setBaseBranch: "Compare against",
 		branchSwitcher: {
-			searchPlaceholder: "Filter branches",
+			searchPlaceholder: "Filter or create a branch",
 			empty: "No branch",
+			create: (from: string) => `Create a branch from ${from}`,
 		},
 		dirtyWorktree: {
 			heading: "Uncommitted changes",
@@ -1902,6 +1903,7 @@ export const en = {
 			notMerged:
 				"This branch has commits that are not merged anywhere. Turn on the force option to delete it anyway.",
 			chipMenuLabel: "Branch actions",
+			copyName: "Copy name",
 		},
 		remotes: {
 			title: "Remotes",
@@ -1924,6 +1926,7 @@ export const en = {
 		},
 		resizeColumns: "Resize the columns",
 		createInstanceFromBranch: "Create an instance from this branch",
+		createBranchFromTag: "Create a branch from this tag",
 		commitDiffEmpty: "This commit has no file changes.",
 		stashTab: "Stash",
 		stashEmpty: "No stashes yet.",
@@ -2113,6 +2116,11 @@ export const en = {
 		targetBranch: "Target branch",
 		pickStrategyAndBranch: "Choose a strategy and a target branch.",
 		setAsBaseBranch: "Set as new base",
+		deleteMergedBranch: "Delete branch",
+		emptyRemote: {
+			create: (branch: string) => `Create ${branch} on origin`,
+			hint: "origin has no branch yet: publish the default branch so the others have something to track",
+		},
 		summaryRebase: (head: string, target: string) =>
 			`Rebase ${head} onto ${target}`,
 		summaryMerge: (target: string, head: string) =>

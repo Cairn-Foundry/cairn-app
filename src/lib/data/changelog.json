@@ -8,6 +8,41 @@
 		},
 		"changes": [
 			{
+				"kind": "added",
+				"text": {
+					"en": "The branch selector of the base instance creates a branch: its Create a branch entry opens the branch creation dialog off the current branch, prefilled with what was typed in the search.",
+					"fr": "Le sélecteur de branche de l'instance de base crée une branche : son entrée Créer une branche ouvre la fenêtre de création depuis la branche courante, préremplie avec le texte de la recherche."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A click on a tag in the graph opens the branch creation dialog, with the tag as the starting point.",
+					"fr": "Un clic sur un tag du graphe ouvre la fenêtre de création de branche, avec le tag comme point de départ."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Branch names can be copied: a copy button next to the current branch in the header and next to each branch of the branch list, and a Copy name entry in the right-click menu of the graph's branches and tags.",
+					"fr": "Les noms de branche se copient : un bouton de copie à côté de la branche courante dans l'en-tête et de chaque branche de la liste des branches, et une entrée Copier le nom dans le menu du clic droit sur les branches et les tags du graphe."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A merge can delete the merged branch once it is done, including after its conflicts are resolved.",
+					"fr": "Une fusion peut supprimer la branche fusionnée une fois terminée, y compris après la résolution de ses conflits."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "When origin has no branch at all, the Git view offers to create the default branch on it.",
+					"fr": "Quand origin n'a aucune branche, la vue Git propose d'y créer la branche par défaut."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Mermaid diagrams, in Markdown files and in .mmd files, are rendered with Mermaid 12: its default layout engine changes, so some diagrams are laid out differently than before.",

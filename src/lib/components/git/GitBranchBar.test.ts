@@ -22,6 +22,8 @@ interface GitState {
 	operationState: GitOperationState | null;
 	branches?: string[];
 	remoteBranches?: string[];
+	remotes?: { name: string }[];
+	isLoadingBranches?: boolean;
 }
 
 const gitState = writable<GitState>({
@@ -36,6 +38,7 @@ const fetchRemote = vi.fn();
 const pullBranch = vi.fn();
 const pushBranch = vi.fn();
 const publishBranch = vi.fn();
+const refreshRemotes = vi.fn();
 
 vi.mock("#lib/stores/git", () => ({
 	// `set` and `update` are exposed too: the component reads the store through
@@ -46,6 +49,7 @@ vi.mock("#lib/stores/git", () => ({
 	pullBranch: (...a: unknown[]) => pullBranch(...a),
 	pushBranch: (...a: unknown[]) => pushBranch(...a),
 	publishBranch: (...a: unknown[]) => publishBranch(...a),
+	refreshRemotes: (...a: unknown[]) => refreshRemotes(...a),
 }));
 
 const activeInstanceStore = writable<unknown>(null);
@@ -127,6 +131,7 @@ beforeEach(() => {
 		pullBranch,
 		pushBranch,
 		publishBranch,
+		refreshRemotes,
 	]) {
 		fn.mockReset();
 		fn.mockResolvedValue(undefined);
@@ -490,6 +495,55 @@ describe("GitBranchBar", () => {
 			await userEvent.click(pushBtn());
 			await tick();
 			expect(fetchBtn().disabled).toBe(false);
+		});
+	});
+
+	describe("a remote with no branch at all", () => {
+		const chip = () =>
+			document.querySelector(".empty-remote-chip") as HTMLButtonElement | null;
+
+		it("offers to create the default branch on origin", async () => {
+			activeInstanceStore.set({ baseBranch: "main" });
+			await setGit({
+				branches: ["feature", "main"],
+				remoteBranches: [],
+				remotes: [{ name: "origin" }],
+			});
+			mount();
+			expect(chip()?.textContent).toContain("main");
+			await userEvent.click(chip() as HTMLButtonElement);
+			expect(publishBranch).toHaveBeenCalledWith("main");
+		});
+
+		it("says nothing once origin holds a branch", async () => {
+			await setGit({
+				branches: ["feature", "main"],
+				remoteBranches: ["origin/main"],
+				remotes: [{ name: "origin" }],
+			});
+			mount();
+			expect(chip()).toBeNull();
+		});
+
+		it("says nothing without an origin remote", async () => {
+			await setGit({
+				branches: ["feature", "main"],
+				remoteBranches: [],
+				remotes: [],
+			});
+			mount();
+			expect(chip()).toBeNull();
+		});
+
+		it("waits for the branch list before judging", async () => {
+			await setGit({
+				branches: ["feature", "main"],
+				remoteBranches: [],
+				remotes: [{ name: "origin" }],
+				isLoadingBranches: true,
+			});
+			mount();
+			expect(chip()).toBeNull();
 		});
 	});
 });

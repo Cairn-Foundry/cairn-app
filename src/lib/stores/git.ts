@@ -999,7 +999,12 @@ export async function createBranch(
 	const wt = worktree();
 	if (!wt) return;
 	await mutate(() => gitService.createBranch(wt, branchName, fromBranch));
-	await Promise.all([refreshStatus(), refreshLog(), syncGraph()]);
+	await Promise.all([
+		loadBranches(wt, { fetch: false }),
+		refreshStatus(),
+		refreshLog(),
+		syncGraph(),
+	]);
 }
 
 /** Rereads the branch lists without fetching: a local write needs no network to show. */

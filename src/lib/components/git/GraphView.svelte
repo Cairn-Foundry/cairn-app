@@ -23,6 +23,7 @@
   import { virtualWindow } from '#lib/utils/virtual-window';
   import { clickOutside } from '#lib/utils/click-outside';
   import CommitMenu, { commitMenuPosition } from '#lib/components/git/CommitMenu.svelte';
+  import CreateBranchModal from '#lib/components/git/CreateBranchModal.svelte';
 
   export let commits: GitGraphCommit[];
   /** Stashes as graph commits; each is drawn above the commit it was taken on. */
@@ -56,8 +57,9 @@
   }
 
   /* Clicking a chip switches instance, so the destructive branch actions sit
-     behind a right-click instead, the same gesture as the commit menu. */
-  let chipMenu: { x: number; y: number; branch: string; canRename: boolean } | null = null;
+     behind a right-click instead, the same gesture as the commit menu. A tag
+     only offers to copy its name. */
+  let chipMenu: { x: number; y: number; branch: string; canRename: boolean; isTag: boolean } | null = null;
 
   function openChipMenu(e: MouseEvent, chip: RefChip) {
     e.preventDefault();
@@ -66,9 +68,10 @@
     menuCommit = null;
     chipMenu = {
       x: Math.min(e.clientX, window.innerWidth - 200),
-      y: Math.min(e.clientY, window.innerHeight - 80),
+      y: Math.min(e.clientY, window.innerHeight - 110),
       branch: chip.label,
       canRename: chip.kind !== 'remote',
+      isTag: chip.kind === 'tag',
     };
   }
 
@@ -76,6 +79,16 @@
     if (!chipMenu) return;
     dispatch('branchAction', { action, branch: chipMenu.branch });
     chipMenu = null;
+  }
+
+  /** A tag clicked in the graph: a new branch is named from it, the instance on it is a separate step. */
+  let branchFromTag: string | null = null;
+
+  async function copyChipName() {
+    if (!chipMenu) return;
+    const name = chipMenu.branch;
+    chipMenu = null;
+    await navigator.clipboard.writeText(name);
   }
 
   function runCommitAction(action: CommitAction) {
@@ -642,24 +655,27 @@
             {/each}
             {#each chips as chip}
               {@const linkedInstance = branchToInstance.get(chip.label)}
-              {@const canCreate = !linkedInstance && isBranchChip(chip)}
+              {@const isTag = chip.kind === 'tag'}
+              {@const canCreate = !linkedInstance && (isBranchChip(chip) || isTag)}
               {@const activate = linkedInstance
                 ? () => dispatch('switchInstance', linkedInstance)
                 : canCreate
-                  ? () => dispatch('createInstanceFromRef', chip.label)
+                  ? isTag
+                    ? () => (branchFromTag = chip.label)
+                    : () => dispatch('createInstanceFromRef', chip.label)
                   : undefined}
               <span
                 class="ref-chip chip-{chip.kind}"
                 class:chip-linked={!!linkedInstance}
                 class:chip-creatable={canCreate}
                 role={activate ? 'button' : undefined}
-                title={canCreate ? t('git.createInstanceFromBranch') as string : undefined}
+                title={canCreate ? t(isTag ? 'git.createBranchFromTag' : 'git.createInstanceFromBranch') as string : undefined}
                 style={chip.kind === 'head-branch' || chip.kind === 'local'
                   ? `--chip-color:${row.color};`
                   : ''}
                 on:click={activate}
                 on:keydown={activate ? (e) => e.key === 'Enter' && activate() : undefined}
-                on:contextmenu={isBranchChip(chip) ? (e) => openChipMenu(e, chip) : undefined}
+                on:contextmenu={isBranchChip(chip) || isTag ? (e) => openChipMenu(e, chip) : undefined}
               >
                 {chip.label}
                 {#if chip.remotes}
@@ -710,6 +726,14 @@
   />
 {/if}
 
+{#if branchFromTag}
+  <CreateBranchModal
+    from={branchFromTag}
+    on:close={() => (branchFromTag = null)}
+    on:created={() => (branchFromTag = null)}
+  />
+{/if}
+
 {#if chipMenu}
   <div
     class="chip-menu"
@@ -718,16 +742,22 @@
     style="left:{chipMenu.x}px; top:{chipMenu.y}px"
     use:clickOutside={() => (chipMenu = null)}
   >
-    {#if chipMenu.canRename}
-      <button role="menuitem" on:click={() => runChipAction('rename')}>
-        <Icon name="edit" size={12}/>
-        {t('git.branchList.rename')}
+    <button role="menuitem" on:click={copyChipName}>
+      <Icon name="copy" size={12}/>
+      {t('git.branchList.copyName')}
+    </button>
+    {#if !chipMenu.isTag}
+      {#if chipMenu.canRename}
+        <button role="menuitem" on:click={() => runChipAction('rename')}>
+          <Icon name="edit" size={12}/>
+          {t('git.branchList.rename')}
+        </button>
+      {/if}
+      <button role="menuitem" class="danger" on:click={() => runChipAction('delete')}>
+        <Icon name="trash" size={12}/>
+        {chipMenu.canRename ? t('git.branchList.delete') : t('git.branchList.deleteOnRemote')}
       </button>
     {/if}
-    <button role="menuitem" class="danger" on:click={() => runChipAction('delete')}>
-      <Icon name="trash" size={12}/>
-      {chipMenu.canRename ? t('git.branchList.delete') : t('git.branchList.deleteOnRemote')}
-    </button>
   </div>
 {/if}
 

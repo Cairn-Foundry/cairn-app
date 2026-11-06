@@ -23,7 +23,9 @@ const checkoutBranch = vi.fn();
 const clearGitError = vi.fn();
 const loadBranches = vi.fn();
 const pushStash = vi.fn();
+const createBranch = vi.fn();
 vi.mock("#lib/stores/git", () => ({
+	createBranch: (...a: unknown[]) => createBranch(...a),
 	git: { subscribe: gitState.subscribe },
 	checkoutBranch: (...a: unknown[]) => checkoutBranch(...a),
 	clearGitError: (...a: unknown[]) => clearGitError(...a),
@@ -62,6 +64,8 @@ const search = () =>
 	document.querySelector(".branch-menu-search input") as HTMLInputElement;
 const inUseModal = () => document.querySelector(".modal");
 const empty = () => document.querySelector(".branch-menu-empty");
+const createEntry = () =>
+	document.querySelector<HTMLButtonElement>(".branch-menu-create");
 
 async function settle() {
 	await tick();
@@ -73,6 +77,7 @@ beforeEach(() => {
 	clearGitError.mockReset();
 	loadBranches.mockReset().mockResolvedValue(undefined);
 	pushStash.mockReset().mockResolvedValue(undefined);
+	createBranch.mockReset().mockResolvedValue(undefined);
 	activateInstance.mockReset();
 	gitState.set({
 		currentBranch: "main",
@@ -137,6 +142,23 @@ describe("BranchSwitcher", () => {
 			await userEvent.click(trigger());
 			await userEvent.type(search(), "release");
 			expect(names()).toEqual(["origin/release"]);
+		});
+
+		/** A narrowed list must not stay scrolled past its new end. */
+		it("brings the list back to the top when the search changes", async () => {
+			render(BranchSwitcher, {});
+			await userEvent.click(trigger());
+			const list = document.querySelector(".branch-menu-list") as HTMLElement;
+			// jsdom keeps no scroll position, so the element holds its own.
+			let position = 500;
+			Object.defineProperty(list, "scrollTop", {
+				get: () => position,
+				set: (v: number) => {
+					position = v;
+				},
+			});
+			await userEvent.type(search(), "z");
+			expect(position).toBe(0);
 		});
 
 		it("says so when nothing matches", async () => {
@@ -353,6 +375,43 @@ describe("BranchSwitcher", () => {
 			await userEvent.click(cancel);
 			await settle();
 			expect(pushStash).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("creating a branch", () => {
+		const nameInput = () =>
+			document.querySelector(".cb-input") as HTMLInputElement | null;
+
+		it("always offers it, off the current branch", async () => {
+			render(BranchSwitcher, {});
+			await userEvent.click(trigger());
+			expect(createEntry()?.textContent).toContain("main");
+			await userEvent.type(search(), "develop");
+			expect(createEntry()).not.toBeNull();
+		});
+
+		/** The entry only opens the dialog: nothing is created before it is confirmed. */
+		it("opens the dialog prefilled with the search, without creating", async () => {
+			render(BranchSwitcher, {});
+			await userEvent.click(trigger());
+			await userEvent.type(search(), "feat/new");
+			await userEvent.click(createEntry() as HTMLButtonElement);
+			await settle();
+			expect(menu()).toBeNull();
+			expect(nameInput()?.value).toBe("feat/new");
+			expect(createBranch).not.toHaveBeenCalled();
+			await userEvent.click(
+				document.querySelector(".modal-foot .btn.primary") as HTMLElement,
+			);
+			expect(createBranch).toHaveBeenCalledWith("feat/new", "main");
+		});
+
+		it("does not create on Enter in the search", async () => {
+			render(BranchSwitcher, {});
+			await userEvent.click(trigger());
+			await userEvent.type(search(), "feat/new{Enter}");
+			expect(createBranch).not.toHaveBeenCalled();
+			expect(nameInput()).toBeNull();
 		});
 	});
 });

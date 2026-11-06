@@ -5,9 +5,12 @@
 <script lang="ts">
   /**
    * Current branch of the active worktree, with a searchable menu to check out
-   * another local branch. Surfaced on the base instance, whose branch is the
+   * another local branch, or to open the branch creation dialog off the current
+   * branch, prefilled with what was typed in the search. Surfaced on the base instance, whose branch is the
    * repository's own rather than a worktree the instance owns.
    */
+  import CopyButton from '#lib/components/CopyButton.svelte';
+  import CreateBranchModal from '#lib/components/git/CreateBranchModal.svelte';
   import BranchInUseModal from '#lib/components/git/BranchInUseModal.svelte';
   import DirtyWorktreeModal from '#lib/components/git/DirtyWorktreeModal.svelte';
   import Icon from '#lib/components/Icon.svelte';
@@ -30,6 +33,10 @@
   let isStashing = false;
   let query = '';
   let searchEl: HTMLInputElement | null = null;
+  let triggerEl: HTMLButtonElement | null = null;
+  let listEl: HTMLDivElement | null = null;
+  let menuPos = { top: 0, left: 0 };
+  let createRequest: { from: string; name: string } | null = null;
 
   $: current = $git.currentBranch;
   $: needle = query.trim().toLowerCase();
@@ -37,6 +44,7 @@
   $: remoteMatches = $git.remoteBranches.filter(
     (b) => b.toLowerCase().includes(needle) && !$git.branches.includes(localNameOf(b)),
   );
+  $: hasMatches = matches.length > 0 || remoteMatches.length > 0;
 
   /** `origin/feat/x` checks out as `feat/x`; git creates the tracking branch on the spot. */
   function localNameOf(remote: string): string {
@@ -47,6 +55,10 @@
     isOpen = !isOpen;
     query = '';
     if (!isOpen) return;
+    // Fixed, like `Select`: the panel is placed against the viewport rather
+    // than painted inside the header.
+    const rect = triggerEl?.getBoundingClientRect();
+    if (rect) menuPos = { top: rect.bottom + 4, left: rect.left };
     void refreshBranches();
     queueMicrotask(() => searchEl?.focus());
   }
@@ -78,6 +90,20 @@
     } finally {
       isSwitching = false;
     }
+  }
+
+  /**
+   * A filter that shrinks the list leaves it scrolled where the long one was,
+   * past the end of what is left: WKWebView does not clamp it, so the panel
+   * reads empty. Every new filter starts from the top.
+   */
+  function resetListScroll() {
+    if (listEl) listEl.scrollTop = 0;
+  }
+
+  function openCreate() {
+    isOpen = false;
+    createRequest = { from: current, name: query.trim() };
   }
 
   /** Stashes what blocks the checkout, then retries it. */
@@ -142,6 +168,15 @@
   />
 {/if}
 
+{#if createRequest}
+  <CreateBranchModal
+    from={createRequest.from}
+    name={createRequest.name}
+    on:close={() => (createRequest = null)}
+    on:created={() => (createRequest = null)}
+  />
+{/if}
+
 {#if dirty}
   <DirtyWorktreeModal
     branch={dirty}
@@ -153,7 +188,7 @@
 
 {#if current}
   <div class="branch-switcher" use:clickOutside={() => { isOpen = false; }}>
-    <button class="branch-trigger" disabled={isSwitching} on:click={open}>
+    <button class="branch-trigger" bind:this={triggerEl} disabled={isSwitching} on:click={open}>
       {#if isSwitching}
         <Spinner size={11} stroke={1.5} trackColor="var(--stroke-1)" color="var(--accent)"/>
       {:else}
@@ -162,46 +197,57 @@
       <span class="branch-name">{current}</span>
       <Icon name="chev-d" size={10}/>
     </button>
+    <CopyButton value={current}/>
 
     {#if isOpen}
-      <div class="branch-menu">
+      <div class="branch-menu" style="top: {menuPos.top}px; left: {menuPos.left}px;">
         <div class="branch-menu-search">
           <Icon name="search" size={11}/>
           <input
             bind:this={searchEl}
             bind:value={query}
             placeholder={t('git.branchSwitcher.searchPlaceholder') as string}
+            aria-label={t('git.branchSwitcher.searchPlaceholder') as string}
             autocomplete="off"
             on:keydown={(e) => e.key === 'Escape' && (isOpen = false)}
+            on:input={resetListScroll}
           />
         </div>
-        {#each matches as branch (branch)}
-          <button class="branch-menu-item {branch === current ? 'active' : ''}" on:click={() => pick(branch)}>
-            <Icon name="branch" size={11}/>
-            <span class="branch-name">{branch}</span>
+        <div class="branch-menu-create-row">
+          <button class="branch-menu-create" on:click={openCreate}>
+            <Icon name="plus" size={11}/>
+            <span class="branch-name">{(t('git.branchSwitcher.create') as (from: string) => string)(current)}</span>
           </button>
-        {/each}
-        {#if remoteMatches.length > 0}
-          <div class="branch-menu-group">{t('git.remoteBranches')}</div>
-          {#each remoteMatches as branch (branch)}
-            <button class="branch-menu-item" on:click={() => pick(branch, true)}>
+        </div>
+        <div class="branch-menu-list" bind:this={listEl}>
+          {#each matches as branch (branch)}
+            <button class="branch-menu-item {branch === current ? 'active' : ''}" on:click={() => pick(branch)}>
               <Icon name="branch" size={11}/>
               <span class="branch-name">{branch}</span>
             </button>
           {/each}
-        {/if}
-        {#if isLoadingBranches && matches.length === 0 && remoteMatches.length === 0}
-          <div class="branch-menu-loading"><Skeleton lines={4} height={13} gap={11}/></div>
-        {:else if matches.length === 0 && remoteMatches.length === 0}
-          <div class="branch-menu-empty">{t('git.branchSwitcher.empty')}</div>
-        {/if}
+          {#if remoteMatches.length > 0}
+            <div class="branch-menu-group">{t('git.remoteBranches')}</div>
+            {#each remoteMatches as branch (branch)}
+              <button class="branch-menu-item" on:click={() => pick(branch, true)}>
+                <Icon name="branch" size={11}/>
+                <span class="branch-name">{branch}</span>
+              </button>
+            {/each}
+          {/if}
+          {#if isLoadingBranches && !hasMatches}
+            <div class="branch-menu-loading"><Skeleton lines={4} height={13} gap={11}/></div>
+          {:else if !hasMatches}
+            <div class="branch-menu-empty">{t('git.branchSwitcher.empty')}</div>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
 {/if}
 
 <style>
-  .branch-switcher { position: relative; }
+  .branch-switcher { position: relative; display: flex; align-items: center; gap: 2px; }
 
   .branch-trigger {
     display: flex;
@@ -223,12 +269,11 @@
   .branch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .branch-menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
+    position: fixed;
+    display: flex;
+    flex-direction: column;
     min-width: 240px;
     max-height: 320px;
-    overflow-y: auto;
     padding: 4px;
     background: var(--bg-2);
     border: 1px solid var(--stroke-1);
@@ -257,7 +302,7 @@
     font-size: 12px;
   }
 
-  .branch-menu-item {
+  .branch-menu-item, .branch-menu-create {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -272,7 +317,15 @@
     text-align: left;
     cursor: pointer;
   }
-  .branch-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
+  .branch-menu-item:hover, .branch-menu-create:hover { background: var(--bg-4); color: var(--fg-0); }
+  .branch-menu-create { color: var(--accent); }
+  .branch-menu-create-row {
+    flex-shrink: 0;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--stroke-0);
+  }
+  .branch-menu-search { flex-shrink: 0; }
   .branch-menu-item.active { color: var(--accent); }
 
   .branch-menu-group {
@@ -281,6 +334,13 @@
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  .branch-menu-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .branch-menu-loading { padding: 5px 7px; }

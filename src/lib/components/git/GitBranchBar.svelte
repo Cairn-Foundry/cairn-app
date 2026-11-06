@@ -33,6 +33,7 @@
     pullBranch,
     pushBranch,
     publishBranch,
+    refreshRemotes,
     resetToCommit,
   } from '#lib/stores/git';
   import { activeProject } from '#lib/stores/project';
@@ -62,7 +63,7 @@
   $: ahead = remote?.ahead ?? 0;
   $: behind = remote?.behind ?? 0;
   $: canPush = !remote?.hasUpstream || ahead > 0;
-  $: busy = fetching || pulling || pushing || resetting;
+  $: busy = fetching || pulling || pushing || resetting || publishingDefault;
 
   let lastBranchPath = '';
   $: if ($activeProject?.path && $activeProject.path !== lastBranchPath) {
@@ -70,6 +71,32 @@
     // No fetch here: this runs on every project switch, and a network round trip
     // per switch is what the Fetch button and the branch switcher are for.
     loadBranches($activeProject.path, { fetch: false });
+    void refreshRemotes();
+  }
+
+  /**
+   * A freshly created remote holds no branch at all, so nothing can track it
+   * and every push has to pick a target first. The repository's default branch
+   * is the one to publish before anything else.
+   */
+  $: isOriginEmpty = (state.remotes ?? []).some((r) => r.name === 'origin')
+    && !state.isLoadingBranches
+    && !(state.remoteBranches ?? []).some((b) => b.startsWith('origin/'));
+  $: defaultBranch = [$activeInstance?.baseBranch, 'main', 'master']
+    .find((b) => !!b && (state.branches ?? []).includes(b)) ?? state.currentBranch;
+
+  let publishingDefault = false;
+
+  async function publishDefaultBranch() {
+    if (busy || !defaultBranch) return;
+    publishingDefault = true;
+    try {
+      await publishBranch(defaultBranch);
+    } catch {
+      // The failure reaches the error banner through the store.
+    } finally {
+      publishingDefault = false;
+    }
   }
 
   let fetching = false;
@@ -350,6 +377,22 @@
           </span>
         {/if}
         <Icon name="chev-r" size={12} />
+      </button>
+    {/if}
+
+    {#if isOriginEmpty && defaultBranch && !inOperation}
+      <button
+        class="empty-remote-chip"
+        title={t('git.emptyRemote.hint') as string}
+        disabled={busy}
+        on:click={publishDefaultBranch}
+      >
+        {#if publishingDefault}
+          <Spinner size={11} trackColor="var(--bg-3)" color="var(--accent)" />
+        {:else}
+          <Icon name="upload" size={12} />
+        {/if}
+        <span>{(t('git.emptyRemote.create') as (b: string) => string)(defaultBranch)}</span>
       </button>
     {/if}
 
@@ -816,6 +859,23 @@
     background: oklch(1 0 0 / 0.22);
     color: var(--accent-fg);
   }
+
+  .empty-remote-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 1px solid color-mix(in oklch, var(--accent) 40%, var(--stroke-0));
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--accent) 12%, var(--bg-1));
+    color: var(--fg-1);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .empty-remote-chip:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--accent) 20%, var(--bg-1));
+  }
+  .empty-remote-chip:disabled { cursor: default; opacity: 0.7; }
 
   .op-chip {
     display: inline-flex;

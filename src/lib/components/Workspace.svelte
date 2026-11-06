@@ -11,6 +11,7 @@
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
   import { activeScreen, activeStep, quickOpenVisible, commandPaletteVisible, terminalActive, commandsActive, envActive, formattingActive, showTool, windowFullscreen } from '#lib/stores/ui.js';
   import Icon from '#lib/components/Icon.svelte';
+  import CopyButton from '#lib/components/CopyButton.svelte';
   import { t } from '#lib/i18n';
   import CairnLogo from '#lib/components/layout/CairnLogo.svelte';
   import FilesView from '#lib/components/files/FilesView.svelte';
@@ -687,6 +688,7 @@
           <div class="branch-info">
             <Icon name="branch" size={11}/>
             <span class="target">{activeInstance.branch}</span>
+            <CopyButton value={activeInstance.branch}/>
           </div>
         {/if}
 

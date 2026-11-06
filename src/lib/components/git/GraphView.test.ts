@@ -346,12 +346,17 @@ describe("GraphView", () => {
 			expect(createInstanceFromRef).toHaveBeenCalledWith("orphan");
 		});
 
-		it("offers nothing on a tag, which is not a branch", async () => {
+		/** A tag is not a branch to work on: it opens the dialog naming a branch cut from it. */
+		it("opens the branch creation dialog from a tag", async () => {
 			const { createInstanceFromRef } = mount({
 				commits: [commit("a", [], { refs: ["tag: v1"] })],
 			});
-			await userEvent.click(chipsOf(0)[0]);
+			const chip = chipsOf(0)[0];
+			expect(chip.classList.contains("chip-creatable")).toBe(true);
+			await userEvent.click(chip);
 			expect(createInstanceFromRef).not.toHaveBeenCalled();
+			const base = document.querySelector(".cb-base .select");
+			expect(base?.textContent).toContain("v1");
 		});
 
 		/** `origin/HEAD` is a symbolic ref, not a branch anyone can work on. */
@@ -686,8 +691,8 @@ describe("the branch chip menu", () => {
 		rightClick(chipsOf(0)[0]);
 		await tick();
 		expect(document.querySelector(".commit-menu")).toBeNull();
-		expect(menuItems()).toHaveLength(2);
-		await userEvent.click(menuItems()[1]);
+		expect(menuItems()).toHaveLength(3);
+		await userEvent.click(menuItems()[2]);
 		expect(branchAction).toHaveBeenCalledWith({
 			action: "delete",
 			branch: "feat/x",
@@ -701,12 +706,40 @@ describe("the branch chip menu", () => {
 		});
 		rightClick(chipsOf(0)[0]);
 		await tick();
-		expect(menuItems()).toHaveLength(1);
-		await userEvent.click(menuItems()[0]);
+		expect(menuItems()).toHaveLength(2);
+		await userEvent.click(menuItems()[1]);
 		expect(branchAction).toHaveBeenCalledWith({
 			action: "delete",
 			branch: "origin/feat/y",
 		});
+	});
+
+	it("copies the name of a branch", async () => {
+		const writeText = vi.fn(async (..._a: unknown[]) => {});
+		Object.assign(navigator, { clipboard: { writeText } });
+		mount({
+			commits: [commit("a", [], { refs: ["feat/x"] })],
+			localBranches: ["feat/x"],
+		});
+		rightClick(chipsOf(0)[0]);
+		await tick();
+		await userEvent.click(menuItems()[0]);
+		expect(writeText).toHaveBeenCalledWith("feat/x");
+	});
+
+	/** A tag has nothing to rename or delete from here, only a name to copy. */
+	it("offers only to copy the name of a tag", async () => {
+		const writeText = vi.fn(async (..._a: unknown[]) => {});
+		Object.assign(navigator, { clipboard: { writeText } });
+		const { branchAction } = mount({
+			commits: [commit("a", [], { refs: ["tag: v1"] })],
+		});
+		rightClick(chipsOf(0)[0]);
+		await tick();
+		expect(menuItems()).toHaveLength(1);
+		await userEvent.click(menuItems()[0]);
+		expect(writeText).toHaveBeenCalledWith("v1");
+		expect(branchAction).not.toHaveBeenCalled();
 	});
 
 	it("leaves the click on a chip as it was", async () => {
