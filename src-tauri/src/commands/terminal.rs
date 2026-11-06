@@ -131,6 +131,28 @@ fn default_shell() -> String {
     }
 }
 
+#[cfg(not(windows))]
+fn shell_name(shell: &str) -> &str {
+    std::path::Path::new(shell).file_name().and_then(|n| n.to_str()).unwrap_or("")
+}
+
+/// Whether `shell` starts as a login shell. A login bash reads its profile and
+/// never `.bashrc`, which is where Linux keeps aliases and functions: Linux
+/// terminals start it non-login, the desktop session already carrying the
+/// profile's environment. Every other shell reads its rc file either way, and
+/// on macOS a login bash is what Terminal starts, its profile sourcing `.bashrc`.
+#[cfg(not(windows))]
+fn is_login_shell(shell_name: &str) -> bool {
+    !(cfg!(target_os = "linux") && shell_name == "bash")
+}
+
+/// `-i` and, when `shell` is a login shell, `-l`, followed by `extra`.
+#[cfg(not(windows))]
+fn startup_flags(shell: &str, extra: &str) -> String {
+    let login = if is_login_shell(shell_name(shell)) { "l" } else { "" };
+    format!("-{login}i{extra}")
+}
+
 /// An argv run inside an interactive login shell, so the child sees the profile's
 /// environment and PATH. The argv travels as the shell's positional parameters and
 /// `exec` replaces the shell: nothing is quoted, nothing stays between the PTY and
@@ -139,19 +161,16 @@ fn agent_command(binary: &std::path::Path, rest: &[String]) -> CommandBuilder {
     #[cfg(not(windows))]
     {
         let shell = default_shell();
-        let name = std::path::Path::new(&shell)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
+        let name = shell_name(&shell).to_string();
         let script = match name.as_str() {
             "fish" => Some("exec $argv"),
             "csh" | "tcsh" | "nu" | "pwsh" | "elvish" | "xonsh" => None,
             _ => Some("exec \"$@\""),
         };
         if let Some(script) = script {
+            let flags = startup_flags(&shell, "c");
             let mut cmd = CommandBuilder::new(shell);
-            cmd.args(["-lic", script]);
+            cmd.args([flags.as_str(), script]);
             if name != "fish" {
                 cmd.arg("cairn-agent");
             }
@@ -184,7 +203,8 @@ pub fn build_command(
         return Ok(agent_command(&binary, rest));
     }
 
-    let mut cmd = CommandBuilder::new(default_shell());
+    let shell = default_shell();
+    let mut cmd = CommandBuilder::new(&shell);
     if let Some(script) = command {
         #[cfg(windows)]
         {
@@ -193,12 +213,12 @@ pub fn build_command(
         }
         #[cfg(not(windows))]
         {
-            cmd.arg("-lic");
+            cmd.arg(startup_flags(&shell, "c"));
             cmd.arg(script);
         }
     } else {
         #[cfg(not(windows))]
-        cmd.arg("-l");
+        cmd.arg(startup_flags(&shell, ""));
     }
     Ok(cmd)
 }
@@ -652,9 +672,9 @@ mod tests {
     fn no_command_leaves_an_interactive_shell() {
         let cmd = build_command(None, None).unwrap();
         let argv = rendered(&cmd);
-        assert!(!argv.contains("-lic"), "{argv}");
+        assert!(!argv.contains("ic\""), "{argv}");
         #[cfg(not(windows))]
-        assert!(argv.contains("\"-l\""), "{argv}");
+        assert!(argv.contains(&format!("{:?}", startup_flags(&default_shell(), ""))), "{argv}");
     }
 
     #[test]
@@ -663,7 +683,16 @@ mod tests {
         let argv = rendered(&cmd);
         assert!(argv.contains("echo hi"), "{argv}");
         #[cfg(not(windows))]
-        assert!(argv.contains("-lic"), "{argv}");
+        assert!(argv.contains(&format!("{:?}", startup_flags(&default_shell(), "c"))), "{argv}");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn bash_on_linux_is_not_a_login_shell_so_it_reads_bashrc() {
+        assert_eq!(startup_flags("/usr/bin/zsh", "c"), "-lic");
+        assert_eq!(startup_flags("/opt/homebrew/bin/fish", ""), "-li");
+        let bash = if cfg!(target_os = "linux") { "-ic" } else { "-lic" };
+        assert_eq!(startup_flags("/bin/bash", "c"), bash);
     }
 
     #[test]
