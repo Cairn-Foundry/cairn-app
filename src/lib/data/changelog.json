@@ -125,6 +125,34 @@
 					"en": "Git operations, in Cairn and in the agents running in its terminals, no longer fail so often on \"index.lock: File exists\": the Git view no longer locks the index while it refreshes, and a write waits briefly for a lock another process is about to release.",
 					"fr": "Les opérations Git, dans Cairn comme dans les agents lancés dans ses terminaux, n'échouent plus aussi souvent sur « index.lock: File exists » : la vue Git ne verrouille plus l'index en se rafraîchissant, et une écriture patiente un instant quand un autre processus s'apprête à libérer le verrou."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A detached editor window shows the project of the active file at the left of its path bar.",
+					"fr": "Une fenêtre d'éditeur détachée affiche le projet du fichier actif à gauche de sa barre de chemin."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The selected project tab sits flush against its neighbours, with no gap left between them.",
+					"fr": "L'onglet du projet sélectionné est collé à ses voisins, sans espace entre eux."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The header of enclosing scopes pinned at the top of the editor no longer runs over the minimap.",
+					"fr": "Le bandeau des portées parentes épinglé en haut de l'éditeur ne déborde plus sur la minimap."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The list of skills, agents, MCP servers and integrations always fits in the window: it scrolls on its own when it is longer, without first scrolling the open item to its end.",
+					"fr": "La liste des skills, des agents, des serveurs MCP et des intégrations tient toujours dans la fenêtre : elle défile d'elle-même quand elle est plus longue, sans faire d'abord défiler l'élément ouvert jusqu'au bout."
+				}
 			}
 		]
 	},

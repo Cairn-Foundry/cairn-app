@@ -45,6 +45,23 @@ export function stickyLinesAt(state: EditorState, pos: number): StickyLine[] {
 	return lines.slice(-MAX_LINES);
 }
 
+/**
+ * The header overlays the whole editor, but the minimap sits inside the
+ * scroller on its right edge (and a vertical scrollbar beside it): the header
+ * stops where either begins instead of covering them.
+ */
+function rightInset(view: EditorView): number {
+	const minimap =
+		view.scrollDOM.querySelector<HTMLElement>(".cm-minimap-gutter");
+	if (minimap) {
+		const inset =
+			view.dom.getBoundingClientRect().right -
+			minimap.getBoundingClientRect().left;
+		if (inset > 0) return inset;
+	}
+	return view.scrollDOM.offsetWidth - view.scrollDOM.clientWidth;
+}
+
 export function buildStickyScroll(enabled: boolean): Extension {
 	if (!enabled) return [];
 	return ViewPlugin.fromClass(
@@ -82,6 +99,7 @@ export function buildStickyScroll(enabled: boolean): Extension {
 
 			private render() {
 				const { view } = this;
+				this.dom.style.right = `${rightInset(view)}px`;
 				const scrollerTop = view.scrollDOM.getBoundingClientRect().top;
 				const block = view.lineBlockAtHeight(
 					scrollerTop + this.dom.offsetHeight - view.documentTop,

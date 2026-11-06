@@ -206,7 +206,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
 .tabs-scroll {
   display: flex;
   align-items: stretch;
-  gap: 2px;
   flex: 0 1 auto;
   min-width: 0;
   overflow-x: auto;
@@ -234,6 +233,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   white-space: nowrap;
 }
 .project-tab > span:not(.dot) { white-space: nowrap; }
+.project-tab + .project-tab { margin-left: -1px; }
 .project-tab:hover { color: var(--fg-1); background: var(--bg-1); border-left-color: var(--stroke-0); border-right-color: var(--stroke-0); }
 .project-tab.active {
   color: var(--fg-0);
@@ -241,6 +241,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   border-top-color: var(--accent);
   border-left-color: var(--stroke-0);
   border-right-color: var(--stroke-0);
+  z-index: 1;
 }
 .project-tab .dot {
   width: 6px; height: 6px; border-radius: 50%;
@@ -2552,7 +2553,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   border-radius: var(--r-lg);
   position: sticky;
   top: 0;
+  overflow-y: auto;
 }
+.ag-master > * { flex-shrink: 0; }
 
 .ag-master-header {
   display: flex;

@@ -93,10 +93,11 @@
   $: currentLineBlame = currentBlame.get(cursorLine) ?? null;
   $: lspDocDiagnostics = activeTab && lspDoc ? ($lspDiagnostics[activeTab.key] ?? NO_DIAGNOSTICS) : NO_DIAGNOSTICS;
 
-  function projectName(tab: ScopedTab): string | undefined {
-    if (!tab.scope) return undefined;
-    return $projects.find(p => p.id === tab.scope?.projectId)?.name;
+  function projectOf(tab: ScopedTab | null) {
+    if (!tab?.scope) return undefined;
+    return $projects.find(p => p.id === tab.scope?.projectId);
   }
+  $: activeProject = projectOf(activeTab) ?? null;
 
   /**
    * A keystroke reassigns the tab it changed, and doing that per key would
@@ -989,7 +990,8 @@
       {binaryReloadToken}
       placeholderText=""
       tabKey={(tab) => (tab as ScopedTab).key}
-      tabHint={(tab) => projectName(tab as ScopedTab)}
+      tabHint={(tab) => projectOf(tab as ScopedTab)?.name}
+      {activeProject}
       activeDocPath={activeTab && !activeTab.diskSnapshot ? activeTab.key : null}
       onMoveTab={activeTab && !activeTab.diskSnapshot ? () => void moveToMain(activeIdx) : undefined}
       moveTabLabel={t('files.moveToMainWindow') as string}

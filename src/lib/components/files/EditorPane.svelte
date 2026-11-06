@@ -83,6 +83,8 @@
   export let tabKey: (tab: Tab) => string = (tab) => tab.path;
   /** Extra line for a tab's tooltip, such as the project it belongs to. */
   export let tabHint: (tab: Tab) => string | undefined = () => undefined;
+  /** Shown at the left of the path bar: the project the active tab belongs to, where tabs mix projects. */
+  export let activeProject: { name: string; color: string } | null = null;
   /** The active document's path on disk, for markdown links and images; defaults to the tab path. */
   export let activeDocPath: string | null = null;
   /** Shown at the right of the path bar: takes the tab out to another window. */
@@ -305,6 +307,12 @@
   {#if activeTab}
     {@const segs = breadcrumbSegments(activeTab.path)}
     <div class="editor-topbar">
+      {#if activeProject}
+        <span class="topbar-project" title={activeProject.name}>
+          <span class="topbar-project-dot" style="background: {activeProject.color}"></span>
+          <span class="topbar-project-name">{activeProject.name}</span>
+        </span>
+      {/if}
       <Icon name="file" size={13}/>
       <nav class="editor-breadcrumb" aria-label={t('files.filePath') as string}>
         {#if isExternalPath(activeTab.path)}
@@ -664,6 +672,23 @@
     font-family: var(--font-ui);
     font-size: 12px;
   }
+
+  .topbar-project {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 180px;
+    padding: 1px 7px;
+    border: 1px solid var(--stroke-0);
+    border-radius: 99px;
+    color: var(--fg-1);
+    font-family: var(--font-ui);
+    font-size: 11px;
+  }
+  .topbar-project-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .topbar-project-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .topbar-action {
     display: inline-flex;

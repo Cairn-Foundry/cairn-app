@@ -8,6 +8,7 @@
    * and body, and manage the bundled resource files. The files are only written on save.
    */
   import { onMount } from 'svelte';
+  import { fitToScrollport } from '#lib/utils/fit-to-scrollport';
   import { t } from '#lib/i18n';
   import Icon from '#lib/components/Icon.svelte';
   import Select from '#lib/components/Select.svelte';
@@ -352,7 +353,7 @@
 </script>
 
 <div class="ag-layout">
-  <aside class="ag-master">
+  <aside class="ag-master" use:fitToScrollport>
     <div class="ag-master-header">
       <span class="ag-master-title">{t('skills.title')}</span>
       <span class="master-actions">
