@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.2.1",
+		"date": "",
+		"summary": {
+			"en": "The manual jobs of a pipeline, such as a deployment, run from buttons after a confirmation.",
+			"fr": "Les jobs manuels d'un pipeline, comme un déploiement, se lancent depuis des boutons après une confirmation."
+		},
+		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "The manual jobs of the open pipeline are listed as buttons above its stages, and running one, from there or from its stage, asks for confirmation first.",
+					"fr": "Les jobs manuels du pipeline ouvert sont listés sous forme de boutons au-dessus de ses étapes, et en lancer un, depuis là ou depuis son étape, demande d'abord une confirmation."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.2.0",
 		"date": "2026-11-23",
 		"summary": {

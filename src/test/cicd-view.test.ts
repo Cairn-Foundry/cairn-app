@@ -487,7 +487,7 @@ describe("CiCdView", () => {
 			expect(retryJob).toHaveBeenCalledWith("p1", "i1", "p-1", "j1");
 		});
 
-		it("plays a manual job", async () => {
+		const withManualJob = () =>
 			setState({
 				pipelines: [
 					pipeline({
@@ -495,15 +495,58 @@ describe("CiCdView", () => {
 							{
 								name: "deploy",
 								status: "pending",
-								jobs: [job({ status: "pending", isManual: true })],
+								jobs: [
+									job({
+										name: "deploy-prod",
+										status: "pending",
+										isManual: true,
+									}),
+								],
 							},
 						],
 					}),
 				],
 			});
+		const confirmButton = () =>
+			document.querySelector<HTMLButtonElement>(
+				".play-modal .btn.primary",
+			) as HTMLButtonElement;
+
+		it("plays a manual job from its stage once confirmed", async () => {
+			withManualJob();
 			mount();
 			await userEvent.click(actionIn(document, /^run$/i));
+			expect(playJob).not.toHaveBeenCalled();
+			await userEvent.click(confirmButton());
 			expect(playJob).toHaveBeenCalledWith("p1", "i1", "p-1", "j1");
+		});
+
+		it("lists the manual jobs of the open pipeline as buttons", async () => {
+			withManualJob();
+			mount();
+			const bar = document.querySelector(".manual-jobs") as HTMLElement;
+			expect(bar.textContent).toContain("deploy-prod");
+			await userEvent.click(bar.querySelector("button") as HTMLButtonElement);
+			expect(document.querySelector(".play-modal")?.textContent).toContain(
+				"deploy-prod",
+			);
+			await userEvent.click(confirmButton());
+			expect(playJob).toHaveBeenCalledWith("p1", "i1", "p-1", "j1");
+		});
+
+		it("runs nothing when the confirmation is cancelled", async () => {
+			withManualJob();
+			mount();
+			await userEvent.click(actionIn(document, /^run$/i));
+			await userEvent.click(buttonBy(/^cancel$|^annuler$/i));
+			expect(document.querySelector(".play-modal")).toBeNull();
+			expect(playJob).not.toHaveBeenCalled();
+		});
+
+		it("shows no manual job bar without a manual job", () => {
+			setState();
+			mount();
+			expect(document.querySelector(".manual-jobs")).toBeNull();
 		});
 
 		it("cancels a running job", async () => {
