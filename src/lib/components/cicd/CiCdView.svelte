@@ -62,6 +62,7 @@
 
   let searchQuery = '';
   let statusFilter: PipelineStatus | '' = '';
+  $: onTags = state.query.tags;
 
   const FILTER_STATUSES: PipelineStatus[] = ['success', 'failed', 'running', 'pending', 'canceled'];
 
@@ -69,19 +70,24 @@
    * Filters are applied by the provider on the whole branch history, so every
    * change reloads from page 1 rather than narrowing the pages already held.
    */
-  function applyFilters() {
+  function applyFilters(tags = onTags) {
     if (!branch) return;
     void setPipelineQuery(projectId, instanceId, branch, {
       ...EMPTY_PIPELINE_QUERY,
       status: statusFilter || null,
       text: searchQuery.trim(),
+      tags,
     });
+  }
+
+  function setOnTags(tags: boolean) {
+    if (onTags !== tags) applyFilters(tags);
   }
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   function onSearchInput() {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(applyFilters, 300);
+    searchTimer = setTimeout(() => applyFilters(), 300);
   }
 
   function setStatusFilter(status: PipelineStatus | '') {
@@ -106,7 +112,7 @@
    * selected: the button sits in the header, next to the branch name, so it
    * mirrors what the step shows rather than one row of it.
    */
-  $: pipelinesUrl = buildPipelinesUrl($capabilities.forge, branch);
+  $: pipelinesUrl = buildPipelinesUrl($capabilities.forge, branch, onTags);
 
   async function openOnForge() {
     const url = pipelinesUrl || $capabilities.forge?.webUrl;
@@ -327,6 +333,14 @@
   }
   .ci-search::placeholder { color: var(--fg-3); }
   .ci-status-filters { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ci-scope { display: flex; gap: 4px; }
+  .ci-scope .filter-chip { display: inline-flex; align-items: center; gap: 4px; }
+  .ref-tag {
+    display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;
+    padding: 1px 6px; border-radius: 999px;
+    background: var(--accent-weak); color: var(--accent);
+    font-family: var(--font-mono); font-size: 11px;
+  }
   .filter-chip {
     padding: 3px 8px; border: 1px solid var(--stroke-0); border-radius: 999px;
     background: var(--bg-2); color: var(--fg-2); font-size: 11px; cursor: pointer;
@@ -350,7 +364,7 @@
   {:else}
     <div class="ci-header">
       <h2>{t('cicd.title')}</h2>
-      <span class="dim mono meta">{(t('cicd.onBranch') as (branch: string) => string)(branch)}</span>
+      <span class="dim mono meta">{onTags ? t('cicd.onTags') : (t('cicd.onBranch') as (branch: string) => string)(branch)}</span>
       <div class="spacer"></div>
       <button class="btn" on:click={refresh} disabled={state.isRefreshing}>
         {#if state.isRefreshing}<Spinner size={13}/>{:else}<Icon name="refresh" size={13}/>{/if} {t('cicd.refresh')}
@@ -368,6 +382,14 @@
     {/if}
 
     <div class="ci-filters">
+      <div class="ci-scope" role="group" aria-label={t('cicd.scope') as string}>
+        <button class="filter-chip" class:active={!onTags} aria-pressed={!onTags} on:click={() => setOnTags(false)}>
+          <Icon name="branch" size={11}/> {t('cicd.scopeBranch')}
+        </button>
+        <button class="filter-chip" class:active={onTags} aria-pressed={onTags} on:click={() => setOnTags(true)}>
+          <Icon name="tag" size={11}/> {t('cicd.scopeTags')}
+        </button>
+      </div>
       <input
         class="ci-search"
         type="text"
@@ -388,7 +410,7 @@
     {:else if state.pipelines.length === 0}
       <div class="empty-state">
         <Icon name="ci" size={24}/>
-        <div class="body">{hasFilters ? t('cicd.noMatch') : t('cicd.noPipelines')}</div>
+        <div class="body">{hasFilters ? t('cicd.noMatch') : onTags ? t('cicd.noTagPipelines') : t('cicd.noPipelines')}</div>
       </div>
     {:else}
       <div class="pipeline-list" on:scroll={handlePipelineScroll}>
@@ -407,6 +429,9 @@
           >
             <span class="pipe-id">{pipeline.number}</span>
             <div class="pipe-title">
+              {#if onTags && pipeline.ref}
+                <span class="ref-tag"><Icon name="tag" size={10}/><span class="selectable">{pipeline.ref}</span></span>
+              {/if}
               {pipeline.title}
               <span class="commit sha">
                 <span class="selectable">{shortSha(pipeline.sha)}</span>

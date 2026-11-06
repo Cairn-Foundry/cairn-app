@@ -732,6 +732,36 @@ describe("job actions", () => {
 	});
 });
 
+describe("tag pipelines", () => {
+	const TAGS = { ...EMPTY_PIPELINE_QUERY, tags: true };
+
+	it("keeps the branch's latest pipeline while the tags are listed", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("1")],
+			hasMore: false,
+		});
+		await loadPipelines("p1", "i1", "feat/x");
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7", "failed")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", TAGS);
+		expect(ids()).toEqual(["7"]);
+		expect(state().latest?.id).toBe("1");
+		expect(get(ciFailing)[KEY]).toBe(false);
+	});
+
+	it("never inserts a pushed branch pipeline into the tag list", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", TAGS);
+		applyUpdate(KEY, pipeline("8"));
+		expect(ids()).toEqual(["7"]);
+	});
+});
+
 describe("retryLatestPipeline", () => {
 	const job = (id: string, status: string, canRetry: boolean) => ({
 		id,

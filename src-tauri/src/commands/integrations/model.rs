@@ -489,11 +489,18 @@ pub struct PipelineQuery {
     pub username: Option<String>,
     #[serde(default)]
     pub source: Option<String>,
+    /// The pipelines of every tag instead of the branch's.
+    #[serde(default)]
+    pub tags: bool,
 }
 
 impl PipelineQuery {
     pub fn is_empty(&self) -> bool {
-        self.status.is_none() && self.text.trim().is_empty() && self.username.is_none() && self.source.is_none()
+        self.status.is_none()
+            && self.text.trim().is_empty()
+            && self.username.is_none()
+            && self.source.is_none()
+            && !self.tags
     }
 }
 

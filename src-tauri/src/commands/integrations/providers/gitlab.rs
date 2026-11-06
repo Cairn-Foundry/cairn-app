@@ -766,7 +766,7 @@ impl CiProvider for GitLabApi {
         page: usize,
     ) -> Result<Page<Pipeline>, IntegrationError> {
         let mut query = vec![
-            ("ref", git_ref.to_string()),
+            if q.tags { ("scope", "tags".to_string()) } else { ("ref", git_ref.to_string()) },
             ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
             ("page", page.max(1).to_string()),
             ("order_by", "id".to_string()),

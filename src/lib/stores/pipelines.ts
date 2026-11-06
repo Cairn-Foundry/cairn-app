@@ -156,7 +156,8 @@ export async function loadPipelines(
 		);
 		if (requestTickets[key] !== ticket) return;
 		const state = get(_pipelines)[key] ?? EMPTY;
-		const isFiltered = active.status !== null || active.text !== "";
+		const isFiltered =
+			active.status !== null || active.text !== "" || active.tags;
 		patch(key, {
 			pipelines: items,
 			latest: isFiltered ? state.latest : (items[0] ?? null),
@@ -269,7 +270,12 @@ export function applyUpdate(key: string, pipeline: Pipeline): void {
 			state.latest === null || state.latest.id === pipeline.id
 				? pipeline
 				: state.latest;
-		if (!known && !state.query.status && !state.query.text) {
+		if (
+			!known &&
+			!state.query.status &&
+			!state.query.text &&
+			!state.query.tags
+		) {
 			const list = [pipeline, ...state.pipelines];
 			return {
 				...current,
@@ -385,7 +391,8 @@ export async function retryLatestPipeline(
 	instanceId: string,
 ): Promise<void> {
 	const key = integrationKey(projectId, instanceId);
-	const latest = (get(_pipelines)[key] ?? EMPTY).pipelines[0];
+	const state = get(_pipelines)[key] ?? EMPTY;
+	const latest = state.latest ?? state.pipelines[0];
 	if (!latest) return;
 	const failed = latest.stages
 		.flatMap((s) => s.jobs)

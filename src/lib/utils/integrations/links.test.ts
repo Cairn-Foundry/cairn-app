@@ -168,6 +168,19 @@ describe("buildPipelinesUrl", () => {
 		).toBe("https://github.com/acme/repo/actions?query=branch%3Afeat%2Fx");
 	});
 
+	it("opens the pipelines of the tags", () => {
+		expect(buildPipelinesUrl(gitlab, "main", true)).toBe(
+			"https://gitlab.acme.io/acme/backend/-/pipelines?scope=tags",
+		);
+		expect(
+			buildPipelinesUrl(
+				{ kind: "github", webUrl: "https://github.com/acme/repo" },
+				"main",
+				true,
+			),
+		).toBe("https://github.com/acme/repo/actions");
+	});
+
 	it("returns nothing without a forge, so the caller can fall back", () => {
 		expect(buildPipelinesUrl(null, "main")).toBe("");
 	});
