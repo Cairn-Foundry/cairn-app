@@ -44,6 +44,8 @@ export interface InstancePipelineState {
 	 */
 	latest: Pipeline | null;
 	query: PipelineQuery;
+	/** The branch `pipelines` and `latest` were loaded for. */
+	ref: string;
 	selectedPipelineId: string;
 	openJobId: string;
 	jobLog: JobLog | null;
@@ -60,6 +62,7 @@ const EMPTY: InstancePipelineState = {
 	pipelines: [],
 	latest: null,
 	query: EMPTY_PIPELINE_QUERY,
+	ref: "",
 	selectedPipelineId: "",
 	openJobId: "",
 	jobLog: null,
@@ -207,7 +210,7 @@ export async function loadPipelines(
 	const key = integrationKey(projectId, instanceId);
 	const active = query ?? (get(_pipelines)[key] ?? EMPTY).query;
 	const ticket = nextTicket(key);
-	patch(key, { isRefreshing: true, query: active });
+	patch(key, { isRefreshing: true, isLoadingMore: false, query: active });
 	try {
 		const filled = await fetchFilledPages(
 			projectId,
@@ -222,9 +225,15 @@ export async function loadPipelines(
 		const state = get(_pipelines)[key] ?? EMPTY;
 		const isFiltered =
 			active.status !== null || active.text !== "" || active.tags;
+		const isOtherBranch = state.ref !== "" && state.ref !== ref;
 		patch(key, {
 			pipelines: items,
-			latest: isFiltered ? state.latest : (items[0] ?? null),
+			ref,
+			latest: isFiltered
+				? isOtherBranch
+					? null
+					: state.latest
+				: (items[0] ?? null),
 			selectedPipelineId: selectId(items, state.selectedPipelineId),
 			isLoaded: true,
 			isRefreshing: false,

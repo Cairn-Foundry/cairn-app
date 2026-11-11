@@ -824,6 +824,55 @@ describe("tag pipelines paging", () => {
 	});
 });
 
+describe("tag pipelines state", () => {
+	const TAGS = { ...EMPTY_PIPELINE_QUERY, tags: true };
+
+	it("forgets the latest pipeline of another branch when switching branch in tag mode", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("1", "failed")],
+			hasMore: false,
+		});
+		await loadPipelines("p1", "i1", "feat/a");
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/a", TAGS);
+		await loadPipelines("p1", "i1", "feat/b");
+		expect(state().latest).toBeNull();
+		applyUpdate(KEY, pipeline("2", "success"));
+		expect(state().latest?.id).toBe("2");
+		expect(get(ciFailing)[KEY]).toBe(false);
+	});
+
+	it("lowers the loading flag when a reload replaces a load more", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("2")],
+			hasMore: true,
+		});
+		await loadPipelines("p1", "i1", "feat/x");
+		let release!: (v: unknown) => void;
+		ciListPipelines.mockImplementationOnce(
+			() =>
+				new Promise((r) => {
+					release = r;
+				}),
+		);
+		const more = loadMorePipelines("p1", "i1", "feat/x");
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7")],
+			hasMore: true,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", TAGS);
+		release({ items: [pipeline("late")], hasMore: false });
+		await more;
+		expect(state().isLoadingMore).toBe(false);
+		ciListPipelines.mockClear();
+		await loadMorePipelines("p1", "i1", "feat/x");
+		expect(ciListPipelines).toHaveBeenCalled();
+	});
+});
+
 describe("retryLatestPipeline", () => {
 	const job = (id: string, status: string, canRetry: boolean) => ({
 		id,
