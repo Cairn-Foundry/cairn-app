@@ -111,6 +111,10 @@ export const ICONS: Record<string, IconDef> = {
 		solid: false,
 		body: '<circle cx="6" cy="5" r="1.8"/><circle cx="6" cy="19" r="1.8"/><circle class="ic-branch-tip" cx="18" cy="10" r="1.8"/><path d="M6 7v10"/><path class="ic-branch-arm" d="M8 5h6a4 4 0 014 4v1"/>',
 	},
+	tag: {
+		solid: false,
+		body: '<path d="M3 12V4a1 1 0 011-1h8l9 9-9 9-9-9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+	},
 	clock: {
 		solid: false,
 		body: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',

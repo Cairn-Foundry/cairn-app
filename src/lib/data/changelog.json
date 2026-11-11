@@ -43,6 +43,13 @@
 				}
 			},
 			{
+				"kind": "added",
+				"text": {
+					"en": "The CI/CD step can show the pipelines of the tags instead of the branch's, so a manual job of a tag pipeline, such as a deployment, can be run from Cairn.",
+					"fr": "L'étape CI/CD peut afficher les pipelines des tags au lieu de ceux de la branche : un job manuel d'un pipeline de tag, comme un déploiement, peut être lancé depuis Cairn."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "Mermaid diagrams, in Markdown files and in .mmd files, are rendered with Mermaid 12: its default layout engine changes, so some diagrams are laid out differently than before.",

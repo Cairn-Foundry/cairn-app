@@ -30,13 +30,20 @@ export function forgeLabel(
  * The pipeline list of a branch on the forge, as the CI step's header button
  * opens it - the list, never a single pipeline. An empty ref gives the index of
  * every pipeline; an unknown forge gives "", so the caller can fall back.
+ * `tags` opens the pipelines of the tags, which GitHub cannot filter on.
  */
 export function buildPipelinesUrl(
 	forge: { kind: string; webUrl: string } | null | undefined,
 	ref: string,
+	tags = false,
 ): string {
 	if (!forge?.webUrl) return "";
 	const base = forge.webUrl.replace(/\/+$/, "");
+	if (tags) {
+		return forge.kind === "github"
+			? `${base}/actions`
+			: `${base}/-/pipelines?scope=tags`;
+	}
 	if (forge.kind === "github") {
 		return ref
 			? `${base}/actions?query=branch%3A${encodeURIComponent(ref)}`

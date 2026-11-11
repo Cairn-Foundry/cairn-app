@@ -255,6 +255,8 @@ export interface PipelineQuery {
 	text: string;
 	username: string | null;
 	source: string | null;
+	/** The pipelines of every tag instead of the branch's. */
+	tags: boolean;
 }
 
 export const EMPTY_PIPELINE_QUERY: PipelineQuery = {
@@ -262,6 +264,7 @@ export const EMPTY_PIPELINE_QUERY: PipelineQuery = {
 	text: "",
 	username: null,
 	source: null,
+	tags: false,
 };
 
 export interface PipelineJob {

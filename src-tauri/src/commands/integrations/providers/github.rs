@@ -388,6 +388,20 @@ pub fn map_job(v: &Value) -> PipelineJob {
     }
 }
 
+const TAG_RUNS_PER_PAGE: usize = 100;
+
+/// GitHub has no filter for the runs of a tag: a tag push names the tag in
+/// `head_branch`, so the runs are matched against the repository's tags.
+fn branch_param(q: &PipelineQuery, git_ref: &str) -> Option<(&'static str, String)> {
+    (!q.tags).then(|| ("branch", git_ref.to_string()))
+}
+
+pub fn tag_runs<'a>(runs: Vec<&'a Value>, tags: &Value) -> Vec<&'a Value> {
+    let names: std::collections::HashSet<&str> =
+        tags.as_array().into_iter().flatten().filter_map(|t| t.get("name").and_then(Value::as_str)).collect();
+    runs.into_iter().filter(|run| run.get("head_branch").and_then(Value::as_str).is_some_and(|b| names.contains(b))).collect()
+}
+
 /// `jobs` is the `jobs` array of `actions/runs/:id/jobs`; the run becomes one
 /// pipeline with a single stage named after the workflow.
 pub fn map_pipeline(run: &Value, jobs: &[Value]) -> Pipeline {
@@ -937,11 +951,9 @@ impl CiProvider for GitHubApi {
         limit: usize,
         page: usize,
     ) -> Result<Page<Pipeline>, IntegrationError> {
-        let mut query = vec![
-            ("branch", git_ref.to_string()),
-            ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
-            ("page", page.max(1).to_string()),
-        ];
+        let per_page = if q.tags { TAG_RUNS_PER_PAGE } else { limit.clamp(1, PIPELINES_PER_PAGE) };
+        let mut query = vec![("per_page", per_page.to_string()), ("page", page.max(1).to_string())];
+        query.extend(branch_param(q, git_ref));
         if let Some(status) = q.status.and_then(github_status_param) {
             query.push(("status", status.to_string()));
         }
@@ -958,7 +970,13 @@ impl CiProvider for GitHubApi {
 
         let list = self.http.get_json(&self.repo("actions/runs"), &query).await?;
         let runs: Vec<&Value> = list.get("workflow_runs").and_then(Value::as_array).into_iter().flatten().collect();
-        let has_more = runs.len() >= limit.clamp(1, PIPELINES_PER_PAGE);
+        let has_more = runs.len() >= per_page;
+        let runs = if q.tags {
+            let tags = self.http.get_json(&self.repo("tags"), &[("per_page", "100".to_string())]).await?;
+            tag_runs(runs, &tags)
+        } else {
+            runs
+        };
         let mut pipelines = Vec::new();
         for run in runs {
             let id = id_of(run, "id");
@@ -1017,6 +1035,21 @@ mod tests {
     const WORKFLOW_RUN: &str = include_str!("../fixtures/github/workflow_run.json");
     const JOBS: &str = include_str!("../fixtures/github/jobs.json");
     const USER: &str = include_str!("../fixtures/github/user.json");
+
+    #[test]
+    fn tag_runs_keeps_the_runs_of_a_tag() {
+        let runs = serde_json::json!([{ "id": 1, "head_branch": "v1.2.0" }, { "id": 2, "head_branch": "main" }, { "id": 3 }]);
+        let tags = serde_json::json!([{ "name": "v1.2.0" }, { "name": "v1.1.0" }]);
+        let kept = tag_runs(runs.as_array().unwrap().iter().collect(), &tags);
+        assert_eq!(kept.iter().map(|r| id_of(r, "id")).collect::<Vec<_>>(), vec!["1"]);
+    }
+
+    #[test]
+    fn branch_param_is_dropped_when_listing_tags() {
+        let tags = PipelineQuery { tags: true, ..Default::default() };
+        assert_eq!(branch_param(&PipelineQuery::default(), "main"), Some(("branch", "main".to_string())));
+        assert_eq!(branch_param(&tags, "main"), None);
+    }
 
     fn parse(s: &str) -> Value {
         serde_json::from_str(s).unwrap()

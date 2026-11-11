@@ -112,6 +112,7 @@ function state(
 		pipelines: [pipeline()],
 		latest: null,
 		query: EMPTY_PIPELINE_QUERY,
+		ref: "feat/x",
 		selectedPipelineId: "p-1",
 		openJobId: "",
 		jobLog: null,

@@ -28,6 +28,11 @@ import { activeInstance } from "./instance";
 
 export { PIPELINE_PAGE_SIZE };
 
+/**
+ * A provider that cannot filter tags (GitHub) returns pages mostly emptied by
+ * the filter: further pages are fetched until one screen is filled, up to this.
+ */
+const TAG_FILL_MAX_PAGES = 10;
 const RUNNING: PipelineStatus[] = ["pending", "running"];
 
 export interface InstancePipelineState {
@@ -39,6 +44,8 @@ export interface InstancePipelineState {
 	 */
 	latest: Pipeline | null;
 	query: PipelineQuery;
+	/** The branch `pipelines` and `latest` were loaded for. */
+	ref: string;
 	selectedPipelineId: string;
 	openJobId: string;
 	jobLog: JobLog | null;
@@ -55,6 +62,7 @@ const EMPTY: InstancePipelineState = {
 	pipelines: [],
 	latest: null,
 	query: EMPTY_PIPELINE_QUERY,
+	ref: "",
 	selectedPipelineId: "",
 	openJobId: "",
 	jobLog: null,
@@ -99,11 +107,20 @@ function patch(key: string, changes: Partial<InstancePipelineState>): void {
 	}));
 }
 
+/**
+ * The latest pipeline of the instance's branch. The tag list is never a
+ * stand-in for it: until the branch's own latest is known there is none.
+ */
+function latestOf(state: InstancePipelineState): Pipeline | undefined {
+	if (state.latest) return state.latest;
+	return state.query.tags ? undefined : state.pipelines[0];
+}
+
 /** True while the latest pipeline of that instance's branch is still running. */
 export const ciBusy = derived(_pipelines, ($pipelines) => {
 	const busy: Record<string, boolean> = {};
 	for (const [key, state] of Object.entries($pipelines)) {
-		const latest = state.latest ?? state.pipelines[0];
+		const latest = latestOf(state);
 		busy[key] = latest !== undefined && RUNNING.includes(latest.status);
 	}
 	return busy;
@@ -113,7 +130,7 @@ export const ciBusy = derived(_pipelines, ($pipelines) => {
 export const ciFailing = derived(_pipelines, ($pipelines) => {
 	const failing: Record<string, boolean> = {};
 	for (const [key, state] of Object.entries($pipelines)) {
-		failing[key] = (state.latest ?? state.pipelines[0])?.status === "failed";
+		failing[key] = latestOf(state)?.status === "failed";
 	}
 	return failing;
 });
@@ -136,6 +153,54 @@ function selectId(list: Pipeline[], current: string): string {
 	return list.some((p) => p.id === current) ? current : (list[0]?.id ?? "");
 }
 
+interface FilledPages {
+	items: Pipeline[];
+	hasMore: boolean;
+	page: number;
+}
+
+/**
+ * Fetches from `firstPage`. Tag mode on a provider that cannot filter tags
+ * (GitHub) answers pages mostly emptied by the filter, so further pages are
+ * read until one screen is filled. Null when `isStale` turned true meanwhile.
+ */
+async function fetchFilledPages(
+	projectId: string,
+	ref: string,
+	query: PipelineQuery,
+	firstPage: number,
+	isStale: () => boolean,
+): Promise<FilledPages | null> {
+	let page = firstPage;
+	let { items, hasMore } = await ciListPipelines(
+		projectId,
+		ref,
+		query,
+		PIPELINE_PAGE_SIZE,
+		page,
+	);
+	while (
+		query.tags &&
+		hasMore &&
+		items.length < PIPELINE_PAGE_SIZE &&
+		page < firstPage + TAG_FILL_MAX_PAGES - 1
+	) {
+		if (isStale()) return null;
+		page += 1;
+		const next = await ciListPipelines(
+			projectId,
+			ref,
+			query,
+			PIPELINE_PAGE_SIZE,
+			page,
+		);
+		const known = new Set(items.map((p) => p.id));
+		items = [...items, ...next.items.filter((p) => !known.has(p.id))];
+		hasMore = next.hasMore;
+	}
+	return isStale() ? null : { items, hasMore, page };
+}
+
 export async function loadPipelines(
 	projectId: string,
 	instanceId: string,
@@ -145,26 +210,35 @@ export async function loadPipelines(
 	const key = integrationKey(projectId, instanceId);
 	const active = query ?? (get(_pipelines)[key] ?? EMPTY).query;
 	const ticket = nextTicket(key);
-	patch(key, { isRefreshing: true, query: active });
+	patch(key, { isRefreshing: true, isLoadingMore: false, query: active });
 	try {
-		const { items, hasMore } = await ciListPipelines(
+		const filled = await fetchFilledPages(
 			projectId,
 			ref,
 			active,
-			PIPELINE_PAGE_SIZE,
 			1,
+			() => requestTickets[key] !== ticket,
 		);
+		if (!filled) return;
+		const { items, hasMore, page } = filled;
 		if (requestTickets[key] !== ticket) return;
 		const state = get(_pipelines)[key] ?? EMPTY;
-		const isFiltered = active.status !== null || active.text !== "";
+		const isFiltered =
+			active.status !== null || active.text !== "" || active.tags;
+		const isOtherBranch = state.ref !== "" && state.ref !== ref;
 		patch(key, {
 			pipelines: items,
-			latest: isFiltered ? state.latest : (items[0] ?? null),
+			ref,
+			latest: isFiltered
+				? isOtherBranch
+					? null
+					: state.latest
+				: (items[0] ?? null),
 			selectedPipelineId: selectId(items, state.selectedPipelineId),
 			isLoaded: true,
 			isRefreshing: false,
 			hasMore,
-			page: 1,
+			page,
 			error: null,
 		});
 	} catch (error) {
@@ -203,14 +277,15 @@ export async function loadMorePipelines(
 	const ticket = requestTickets[key] ?? 0;
 	patch(key, { isLoadingMore: true });
 	try {
-		const { items, hasMore } = await ciListPipelines(
+		const filled = await fetchFilledPages(
 			projectId,
 			ref,
 			state.query,
-			PIPELINE_PAGE_SIZE,
 			nextPage,
+			() => requestTickets[key] !== ticket,
 		);
-		if (requestTickets[key] !== ticket) return;
+		if (!filled) return;
+		const { items, hasMore, page } = filled;
 		const current = get(_pipelines)[key] ?? EMPTY;
 		const known = new Set(current.pipelines.map((p) => p.id));
 		const merged = [
@@ -222,7 +297,7 @@ export async function loadMorePipelines(
 			selectedPipelineId: selectId(merged, current.selectedPipelineId),
 			isLoadingMore: false,
 			hasMore,
-			page: nextPage,
+			page,
 			error: null,
 		});
 	} catch (error) {
@@ -265,11 +340,18 @@ export function applyUpdate(key: string, pipeline: Pipeline): void {
 	_pipelines.update((current) => {
 		const state = current[key] ?? EMPTY;
 		const known = state.pipelines.some((p) => p.id === pipeline.id);
+		const isTagPipeline = state.query.tags && known;
 		const latest =
-			state.latest === null || state.latest.id === pipeline.id
+			state.latest?.id === pipeline.id ||
+			(state.latest === null && !isTagPipeline)
 				? pipeline
 				: state.latest;
-		if (!known && !state.query.status && !state.query.text) {
+		if (
+			!known &&
+			!state.query.status &&
+			!state.query.text &&
+			!state.query.tags
+		) {
 			const list = [pipeline, ...state.pipelines];
 			return {
 				...current,
@@ -385,7 +467,8 @@ export async function retryLatestPipeline(
 	instanceId: string,
 ): Promise<void> {
 	const key = integrationKey(projectId, instanceId);
-	const latest = (get(_pipelines)[key] ?? EMPTY).pipelines[0];
+	const state = get(_pipelines)[key] ?? EMPTY;
+	const latest = latestOf(state);
 	if (!latest) return;
 	const failed = latest.stages
 		.flatMap((s) => s.jobs)

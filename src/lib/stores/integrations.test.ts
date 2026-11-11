@@ -335,6 +335,7 @@ describe("integration-update reduction", () => {
 			text: "",
 			username: null,
 			source: null,
+			tags: false,
 		});
 
 		reduceIntegrationUpdate({
@@ -359,6 +360,7 @@ describe("integration-update reduction", () => {
 			text: "flaky",
 			username: null,
 			source: null,
+			tags: false,
 		});
 
 		expect(ciListPipelines).toHaveBeenLastCalledWith(
@@ -383,6 +385,7 @@ describe("integration-update reduction", () => {
 			text: "",
 			username: null,
 			source: null,
+			tags: false,
 		});
 
 		ciListPipelines.mockResolvedValue({
@@ -415,6 +418,7 @@ describe("integration-update reduction", () => {
 			text: "",
 			username: null,
 			source: null,
+			tags: false,
 		});
 
 		ciListPipelines.mockResolvedValue({
@@ -426,6 +430,7 @@ describe("integration-update reduction", () => {
 			text: "",
 			username: null,
 			source: null,
+			tags: false,
 		});
 
 		releaseStale({ items: [pipeline("1", "success")], hasMore: true });
