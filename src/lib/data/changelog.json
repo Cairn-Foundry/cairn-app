@@ -206,8 +206,8 @@
 			{
 				"kind": "changed",
 				"text": {
-					"en": "The git profile of a project is written into its repository configuration (user.name and user.email), so every commit of the project carries it, from Cairn, a terminal or a coding CLI, instead of only the commits made from the Git view. Picking the default takes back what the profile wrote and leaves an identity set by hand alone; editing a profile updates the projects using it and deleting one takes its identity back; a folder initialised afterwards receives the profile too.",
-					"fr": "Le profil git d'un projet est inscrit dans la configuration de son dépôt (user.name et user.email) : chaque commit du projet le porte, depuis Cairn, un terminal ou un CLI de code, et non plus seulement les commits faits depuis la vue Git. Revenir au défaut retire ce que le profil avait inscrit et laisse intacte une identité posée à la main ; modifier un profil met à jour les projets qui l'utilisent et en supprimer un retire son identité ; un dossier initialisé ensuite reçoit aussi le profil."
+					"en": "The git profile of a project is written into its repository configuration (user.name and user.email), so every commit of the project carries it, from Cairn, a terminal or a coding CLI, instead of only the commits made from the Git view. Picking the default takes back what the profile wrote and leaves an identity set by hand alone; editing a profile updates the projects using it and deleting one takes its identity back; a folder initialised from Cairn afterwards receives the profile too.",
+					"fr": "Le profil git d'un projet est inscrit dans la configuration de son dépôt (user.name et user.email) : chaque commit du projet le porte, depuis Cairn, un terminal ou un CLI de code, et non plus seulement les commits faits depuis la vue Git. Revenir au défaut retire ce que le profil avait inscrit et laisse intacte une identité posée à la main ; modifier un profil met à jour les projets qui l'utilisent et en supprimer un retire son identité ; un dossier initialisé ensuite depuis Cairn reçoit aussi le profil."
 				}
 			}
 		]

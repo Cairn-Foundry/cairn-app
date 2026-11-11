@@ -104,7 +104,8 @@ pub fn update_project(
 /// or renamed. The instance worktrees stay in the data directory, but git
 /// links them to the main checkout by absolute path in both directions, so
 /// `git worktree repair` rewrites those links; a repair failure leaves the
-/// relocation in place since the checkout itself is usable.
+/// relocation in place since the checkout itself is usable. The project's git
+/// profile is written into the new location, which may be another clone.
 #[tauri::command]
 pub async fn relocate_project(id: String, path: String) -> Result<Vec<Project>, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -124,6 +125,9 @@ pub async fn relocate_project(id: String, path: String) -> Result<Vec<Project>, 
         project.path = canonical.clone();
         write_projects(&projects)?;
         repair_worktrees(&id, &canonical);
+        if let Ok(settings) = read_settings() {
+            let _ = apply_profile_in(&projects, &settings.git_profiles, &canonical);
+        }
         Ok(projects)
     })
     .await
@@ -271,7 +275,17 @@ fn identity_failures(projects: &[Project], previous: &[GitProfile], next: &[GitP
     failures
 }
 
+fn profiles_changed(previous: &[GitProfile], next: &[GitProfile]) -> bool {
+    previous.iter().any(|old| match next.iter().find(|p| p.id == old.id) {
+        Some(new) => old.name != new.name || old.email != new.email,
+        None => true,
+    })
+}
+
 pub fn sync_profile_identities(previous: &[GitProfile], next: &[GitProfile]) -> Result<(), String> {
+    if !profiles_changed(previous, next) {
+        return Ok(());
+    }
     let failures = identity_failures(&read_projects()?, previous, next);
     if failures.is_empty() {
         return Ok(());
@@ -518,6 +532,15 @@ mod tests {
         assert_eq!(email_of(&healthy), "w@y");
         let _ = fs::remove_dir_all(&locked);
         let _ = fs::remove_dir_all(&healthy);
+    }
+
+    #[test]
+    fn only_an_edited_or_deleted_profile_counts_as_changed() {
+        let before = [profile("work", "w@x"), profile("home", "h@x")];
+        assert!(!profiles_changed(&before, &before));
+        assert!(!profiles_changed(&before, &[before[0].clone(), before[1].clone(), profile("new", "n@x")]));
+        assert!(profiles_changed(&before, &[profile("work", "w@y"), before[1].clone()]));
+        assert!(profiles_changed(&before, &[before[0].clone()]));
     }
 
     #[test]

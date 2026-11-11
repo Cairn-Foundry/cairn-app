@@ -360,7 +360,9 @@ pub fn get_channel() -> Result<ChannelInfo, String> {
 pub async fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     let previous = read_settings().map(|s| s.git_profiles).unwrap_or_default();
     write_settings(&settings)?;
-    crate::commands::projects::sync_profile_identities(&previous, &settings.git_profiles)?;
+    if let Err(e) = crate::commands::projects::sync_profile_identities(&previous, &settings.git_profiles) {
+        eprintln!("git profile identities not synced: {e}");
+    }
     Ok(settings)
 }
 
