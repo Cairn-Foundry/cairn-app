@@ -311,7 +311,10 @@ pub async fn open_in_terminal(path: String) -> Result<(), String> {
 pub async fn open_cli_in_terminal(cwd: String, argv: Vec<String>) -> Result<(), String> {
     let (program, rest) = argv.split_first().ok_or("Empty args")?;
     let binary = resolve_binary(program, None).ok_or_else(|| format!("{program} not found"))?;
-    let run = crate::commands::terminal::agent_argv(&binary, rest);
+    if !std::path::Path::new(&cwd).is_dir() {
+        return Err(format!("{cwd} no longer exists"));
+    }
+    let run = crate::commands::terminal::agent_argv(&binary, rest, cfg!(target_os = "linux"));
     #[cfg(target_os = "linux")]
     {
         if launch_linux_terminal(&cwd, &run) {
