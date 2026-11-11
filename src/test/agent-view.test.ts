@@ -27,11 +27,12 @@ const fireExit = (id: string, exitCode: number | null) => {
 };
 const createTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const closeTerminal = vi.fn<(...a: unknown[]) => unknown>();
+const terminalHasChildren = vi.fn<(...a: unknown[]) => Promise<boolean>>();
 vi.mock("#lib/services/terminal-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
-	terminalHasChildren: async () => false,
+	terminalHasChildren: (...a: unknown[]) => terminalHasChildren(...a),
 }));
 
 const openCliInTerminal = vi.fn<(...a: unknown[]) => unknown>();
@@ -144,6 +145,7 @@ beforeEach(async () => {
 	exitHandlers.clear();
 	createTerminal.mockResolvedValue(undefined);
 	closeTerminal.mockResolvedValue(undefined);
+	terminalHasChildren.mockResolvedValue(false);
 
 	instanceConversations.set({});
 	projectConversations.set({});
@@ -601,6 +603,56 @@ describe("continuing in the system terminal", () => {
 		expect(document.querySelector(".conv-stopped")?.textContent).toContain(
 			"went on in the system terminal",
 		);
+	});
+
+	it("asks before stopping a CLI that is running a command", async () => {
+		terminalHasChildren.mockResolvedValue(true);
+		openCliInTerminal.mockResolvedValue(undefined);
+		const meta = await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+
+		expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(openCliInTerminal).not.toHaveBeenCalled();
+
+		const confirm = document.querySelector(
+			'[role="dialog"] .btn.danger',
+		) as HTMLElement;
+		await userEvent.click(confirm);
+		await tick();
+		await tick();
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(openCliInTerminal).toHaveBeenCalledTimes(1);
+	});
+
+	it("blocks a second launch and Resume while the terminal opens", async () => {
+		let release: () => void = () => {};
+		openCliInTerminal.mockReturnValue(
+			new Promise<void>((resolve) => {
+				release = resolve;
+			}),
+		);
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+
+		expect((terminalButton() as HTMLButtonElement).disabled).toBe(true);
+		expect(
+			(document.querySelector(".conv-stopped .btn") as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+
+		release();
+		await tick();
+		await tick();
+
+		expect(openCliInTerminal).toHaveBeenCalledTimes(1);
+		expect(terminalButton()).toBeNull();
 	});
 
 	it("says why when no terminal could be opened", async () => {

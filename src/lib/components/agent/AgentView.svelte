@@ -237,8 +237,17 @@
   async function restartConversation() {
     if (!active) return;
     const { ref, meta } = active;
+    detachError = null;
+    detachedId = null;
     closeConversation(meta.id);
     await openConversation(ref, meta.id).catch(() => {});
+  }
+
+  function resumeHere() {
+    if (!active || isDetaching) return;
+    detachError = null;
+    detachedId = null;
+    void select(active.meta.id, active.ref.scope);
   }
 
   /**
@@ -268,6 +277,7 @@
     if (!active) return;
     pendingStop = null;
     detachedId = null;
+    detachError = null;
     closeConversation(active.meta.id);
   }
 
@@ -279,15 +289,23 @@
   let canContinueInTerminal = $derived(active?.meta.sessionConfirmed === true);
   let detachError = $state<{ id: string; message: string } | null>(null);
   let detachedId = $state<string | null>(null);
+  let isDetaching = $state(false);
+  let canShowTerminalButton = $derived(
+    canContinueInTerminal && !(terminalId === null && detachedId === active?.meta.id),
+  );
 
   async function continueInTerminal() {
-    if (!active) return;
-    if (await cliIsBusy()) pendingStop = 'detach';
-    else await detachNow();
+    if (!active || isDetaching) return;
+    isDetaching = true;
+    if (await cliIsBusy()) {
+      isDetaching = false;
+      pendingStop = 'detach';
+    } else await detachNow();
   }
 
   async function detachNow() {
     if (!active) return;
+    isDetaching = true;
     pendingStop = null;
     detachError = null;
     const { ref, meta } = active;
@@ -296,6 +314,8 @@
       detachedId = meta.id;
     } catch (e) {
       detachError = { id: meta.id, message: errorMessage(e) };
+    } finally {
+      isDetaching = false;
     }
   }
 
@@ -419,14 +439,20 @@
 
         <div class="spacer"></div>
 
-        {#if canContinueInTerminal}
+        {#if canShowTerminalButton}
           <button
             class="icon-btn"
+            disabled={isDetaching}
+            aria-busy={isDetaching}
             onclick={() => void continueInTerminal()}
             title={t('agent.continueInTerminal') as string}
             aria-label={t('agent.continueInTerminal') as string}
           >
-            <Icon name="terminal" size={14}/>
+            {#if isDetaching}
+              <Spinner size={13}/>
+            {:else}
+              <Icon name="terminal" size={14}/>
+            {/if}
           </button>
         {/if}
 
@@ -490,7 +516,7 @@
       {#if !terminalId}
         <div class="conv-stopped">
           <p>{t(detachedId === active.meta.id ? 'agent.continuedInTerminal' : 'agent.stopped')}</p>
-          <button class="btn" onclick={() => void select(active.meta.id, active.ref.scope)}>
+          <button class="btn" disabled={isDetaching} onclick={resumeHere}>
             {t('agent.resume')}
           </button>
         </div>

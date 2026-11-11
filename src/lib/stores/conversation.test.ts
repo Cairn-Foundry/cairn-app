@@ -1223,6 +1223,9 @@ describe("continuing in the system terminal", () => {
 		await detachConversation(ref, meta.id);
 
 		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(closeTerminal.mock.invocationCallOrder[0]).toBeLessThan(
+			openCliInTerminal.mock.invocationCallOrder[0],
+		);
 		expect(terminalOf(meta.id)).toBeNull();
 		expect(openCliInTerminal).toHaveBeenCalledWith("/repo/wt", [
 			"claude",

@@ -445,7 +445,7 @@ export async function openConversation(
 	conversationRuns.update((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
 	const run = runOf(id);
 	if (resuming) watchResumeFailure(ref, id, run, terminalId, startedAt);
-		if (!meta.sessionStarted) {
+	if (!meta.sessionStarted) {
 		awaitingFirstInput.set(terminalId, { ref, id, startedAt });
 	}
 	activityTrackers.set(terminalId, {
