@@ -160,6 +160,13 @@
 					"en": "The list of skills, agents, MCP servers and integrations always fits in the window: it scrolls on its own when it is longer, without first scrolling the open item to its end.",
 					"fr": "La liste des skills, des agents, des serveurs MCP et des intégrations tient toujours dans la fenêtre : elle défile d'elle-même quand elle est plus longue, sans faire d'abord défiler l'élément ouvert jusqu'au bout."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Ctrl+clicking a link in a Claude Code session opened the page twice in the browser.",
+					"fr": "Un Ctrl+clic sur un lien dans une session Claude Code ouvrait la page deux fois dans le navigateur."
+				}
 			}
 		]
 	},

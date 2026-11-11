@@ -842,6 +842,20 @@ describe("terminal wiring", () => {
 		expect(callback).toHaveBeenCalledWith(undefined);
 	});
 
+	it("answers XTVERSION as xterm.js, so a TUI leaves link clicks to us", async () => {
+		const id = freshId();
+		create(id);
+		attach(id, slot);
+
+		(fitted.term as Terminal).write("\x1b[>0q");
+		await vi.runAllTimersAsync();
+
+		expect(writeToTerminal).toHaveBeenCalledWith(
+			id,
+			"\x1bP>|xterm.js(Cairn)\x1b\\",
+		);
+	});
+
 	it("sends what the user types to the PTY", async () => {
 		const id = freshId();
 		create(id);
