@@ -312,14 +312,14 @@ clears the user's turn once that conversation is on screen in a focused window, 
 notification (`agentNotifications` setting) when the window is not focused. Window focus comes from
 Tauri's `onFocusChanged`: WebKitGTK fires no DOM `blur` when another application takes the focus.
 
-Notifications go through `notify_agent`, not the notification plugin's `sendNotification`: on Linux
-the plugin's JS relies on replacing `window.Notification`, which WebKitGTK ignores, and its Rust
-side sends over a D-Bus connection it drops at once - GNOME Shell withdraws a notification tied to
-an application (any process with a window) as soon as its sender leaves the bus. `notify_agent`
-holds the connection with notify-rust until the notification is clicked or closed; a click focuses
-the window and emits `agent-notification-opened`, which lands on that conversation. The plugin is
-still used for the permission checks, and for sending on macOS and Windows, where a click is
-reported by the plugin (`on_action`) and routed to the same event.
+Notifications go through `notify_agent`, which sends with the notification plugin's Rust builder and
+carries the conversation id as an extra. The plugin keeps one D-Bus connection open on Linux (GNOME
+Shell withdraws a notification as soon as its sender leaves the bus) and reports a click as `tap`
+through `on_action`; `listen_for_notification_clicks` focuses the window and emits
+`agent-notification-opened`, which lands on that conversation. The plugin's JS is only used for the
+permission checks: its `sendNotification` relies on replacing `window.Notification`, which WebKitGTK
+ignores. Keep `tauri-plugin-notification` at 2.8 or later: before 2.7 the connection was dropped at
+once on Linux.
 The status is in memory only - a restart relaunches no CLI. It feeds the home Conversations section, the
 project card badge and the dots of the conversation list. A CLI without hooks only shows "running"
 and "exited".

@@ -12,20 +12,13 @@
   import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
   import { t } from '#lib/i18n';
   import { type LiveConversation, liveConversations } from '#lib/stores/agent-status';
+  import { needsAttention, statusLabelKey } from '#lib/utils/agent/agent-status';
 
   interface Props {
     onOpen: (conversation: LiveConversation) => void;
   }
 
   const { onOpen }: Props = $props();
-
-  const STATUS_LABELS = {
-    working: 'agent.status.working',
-    waiting: 'agent.status.waiting',
-    done: 'agent.status.done',
-    exited: 'agent.status.exited',
-    running: 'agent.status.running',
-  } as const;
 </script>
 
 {#if $liveConversations.length === 0}
@@ -33,8 +26,8 @@
 {:else}
   <div class="list">
     {#each $liveConversations as c (c.id)}
-      <button class="row" class:attention={c.status === 'waiting' || c.status === 'done'} onclick={() => onOpen(c)}>
-        <AgentStatusDot status={c.status}/>
+      <button class="row" class:attention={needsAttention(c.status)} onclick={() => onOpen(c)}>
+        <AgentStatusDot status={c.status} decorative/>
         <span class="mark">
           <ProviderLogo id={c.cli} size={16} fallback={c.cli.slice(0, 1)}/>
         </span>
@@ -45,7 +38,7 @@
             {c.projectName} · {c.instanceLabel}
           </span>
         </span>
-        <span class="status {c.status ?? 'running'}">{t(STATUS_LABELS[c.status ?? 'running'])}</span>
+        <span class="status {c.status ?? 'running'}">{t(statusLabelKey(c.status))}</span>
       </button>
     {/each}
   </div>

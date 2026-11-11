@@ -38,6 +38,11 @@ describe("moving a conversation's status", () => {
 		expect(nextStatus("exited", "done", false)).toBe("exited");
 		expect(nextStatus("exited", "working", false)).toBe("exited");
 	});
+
+	it("keeps the user's turn when another part of the CLI reports working", () => {
+		expect(nextStatus("waiting", "working", false)).toBe("waiting");
+		expect(nextStatus("done", "working", false)).toBe("done");
+	});
 });
 
 describe("ordering and attention", () => {

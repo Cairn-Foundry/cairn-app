@@ -135,9 +135,14 @@ describe("reporting whose turn it is", () => {
 
 	it("only counts a dialog as waiting, not the idle reminder after a turn", () => {
 		const { hooks } = JSON.parse(statusArgv("claude-code")[1]);
-		expect(hooks.Notification[0].matcher).toBe(
-			"permission_prompt|elicitation_dialog",
-		);
+		expect(hooks.Notification[0].matcher.split("|")).toEqual([
+			"permission_prompt",
+			"elicitation_dialog",
+			"elicitation_url_dialog",
+			"agent_needs_input",
+			"worker_permission_prompt",
+		]);
+		expect(hooks.Notification[0].matcher).not.toContain("idle_prompt");
 	});
 
 	it("adds nothing for a CLI that has no hooks", () => {

@@ -49,7 +49,7 @@ nucleo-matcher = "0.3"
 portable-pty = "0.9.0"
 tauri-plugin-updater = "2.14.1"
 tauri-plugin-process = "2.3.1"
-tauri-plugin-notification = "2"
+tauri-plugin-notification = "2.8"
 tauri-plugin-single-instance = "2"
 lsp-types = "0.97"
 toml = "1"
@@ -69,9 +69,6 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
-
-[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-notify-rust = "4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 window-vibrancy = "0.8"

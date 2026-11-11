@@ -63,6 +63,7 @@
       <input
         type="checkbox"
         checked={$settings.agentNotifications}
+        disabled={!$settings.aiEnabled}
         on:change={(e) => settings.save({ agentNotifications: (e.target as HTMLInputElement).checked })}
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>

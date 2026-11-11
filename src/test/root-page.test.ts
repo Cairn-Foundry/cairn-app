@@ -117,7 +117,9 @@ vi.mock("#lib/stores/settings", async (importOriginal) => ({
 const { projects, activeProjectId, openTabOrder } = await import(
 	"#lib/stores/project"
 );
-const { activeScreen } = await import("#lib/stores/ui");
+const { activeScreen, activeStep } = await import("#lib/stores/ui");
+const { openRequest } = await import("#lib/stores/agent-status");
+const { activeConversationId } = await import("#lib/stores/conversation");
 const { project } = await import("./fixtures");
 const { default: Page } = await import("../routes/+page.svelte");
 
@@ -187,6 +189,28 @@ beforeEach(() => {
 });
 
 describe("application root", () => {
+	describe("opening a conversation from a notification", () => {
+		it("lands on that project, instance and conversation in the Agent step", async () => {
+			render(Page);
+			await settle();
+			activeStep.set("files");
+			openRequest.set({
+				projectId: "p2",
+				instanceId: "i9",
+				conversationId: "c7",
+			});
+			await settle();
+			expect(get(activeProjectId)).toBe("p2");
+			expect(workspaceVisible()).toBe(true);
+			expect(get(activeStep)).toBe("agent");
+			expect(get(activeConversationId)["p2:i9"]).toBe("c7");
+			expect(get(openRequest)).toBeNull();
+			expect(get(projects).find((p) => p.id === "p2")?.activeInstanceId).toBe(
+				"i9",
+			);
+		});
+	});
+
 	describe("restoring the last session", () => {
 		it("reads the persisted state on launch", async () => {
 			render(Page);

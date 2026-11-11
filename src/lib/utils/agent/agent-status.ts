@@ -40,7 +40,7 @@ export function nextStatus(
 ): AgentStatus | undefined {
 	switch (event) {
 		case "working":
-			return prev === "exited" ? prev : "working";
+			return prev === "exited" || needsAttention(prev) ? prev : "working";
 		case "waiting":
 		case "done":
 			if (prev === "exited") return prev;
@@ -53,6 +53,22 @@ export function nextStatus(
 			return "exited";
 		case "seen":
 			return needsAttention(prev) ? undefined : prev;
+	}
+}
+
+/** Label key of a status, `running` standing for a live conversation with none. */
+export function statusLabelKey(status: AgentStatus | undefined) {
+	switch (status) {
+		case "working":
+			return "agent.status.working";
+		case "waiting":
+			return "agent.status.waiting";
+		case "done":
+			return "agent.status.done";
+		case "exited":
+			return "agent.status.exited";
+		default:
+			return "agent.status.running";
 	}
 }
 

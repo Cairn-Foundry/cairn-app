@@ -151,7 +151,13 @@ export function statusArgv(cli: CliProviderId): string[] {
 			PostToolUse: [{ hooks: [signalHook("working")] }],
 			Notification: [
 				{
-					matcher: "permission_prompt|elicitation_dialog",
+					matcher: [
+						"permission_prompt",
+						"elicitation_dialog",
+						"elicitation_url_dialog",
+						"agent_needs_input",
+						"worker_permission_prompt",
+					].join("|"),
 					hooks: [signalHook("waiting")],
 				},
 			],

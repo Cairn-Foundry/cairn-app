@@ -121,12 +121,9 @@ fn open_from_notification(app: &tauri::AppHandle, conversation_id: String) {
     let _ = app.emit("agent-notification-opened", NotificationOpened { conversation_id });
 }
 
-#[cfg(not(all(unix, not(target_os = "macos"))))]
 const CONVERSATION_EXTRA: &str = "conversationId";
 
-/// macOS and Windows go through the plugin, which reports a click on a
-/// notification along with its extras.
-#[cfg(not(all(unix, not(target_os = "macos"))))]
+/// The plugin reports a click on a notification along with its extras.
 pub fn listen_for_notification_clicks(app: &tauri::AppHandle) {
     use tauri_plugin_notification::NotificationExt;
     let handle = app.clone();
@@ -145,43 +142,16 @@ pub fn listen_for_notification_clicks(app: &tauri::AppHandle) {
 }
 
 /// Tells the user a conversation needs them.
-///
-/// Not the notification plugin on Linux: it sends each notification over a
-/// connection it drops at once, and GNOME Shell withdraws a notification tied
-/// to an application as soon as its sender leaves the bus - the window makes
-/// the process an application, so every one vanished unseen. The connection is
-/// held here until the notification is clicked or closed, which is also what
-/// lets a click open the conversation.
 #[tauri::command]
 pub fn notify_agent(app: tauri::AppHandle, conversation_id: String, title: String, body: String) {
-    #[cfg(all(unix, not(target_os = "macos")))]
-    std::thread::spawn(move || {
-        let shown = notify_rust::Notification::new()
-            .summary(&title)
-            .body(&body)
-            .auto_icon()
-            .action("default", "Open")
-            .show();
-        match shown {
-            Ok(handle) => handle.wait_for_action(|action| {
-                if action == "default" {
-                    open_from_notification(&app, conversation_id);
-                }
-            }),
-            Err(e) => eprintln!("agent notification failed: {e}"),
-        }
-    });
-    #[cfg(not(all(unix, not(target_os = "macos"))))]
-    {
-        use tauri_plugin_notification::NotificationExt;
-        let _ = app
-            .notification()
-            .builder()
-            .title(title)
-            .body(body)
-            .extra(CONVERSATION_EXTRA, conversation_id)
-            .show();
-    }
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app
+        .notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .extra(CONVERSATION_EXTRA, conversation_id)
+        .show();
 }
 
 #[cfg(test)]

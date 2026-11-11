@@ -9,9 +9,13 @@
  * describe. See `utils/agent/agent-status.ts` for what each status means and
  * what moves it.
  */
-import { listen } from "@tauri-apps/api/event";
 import { derived, get, writable } from "svelte/store";
 import { t } from "#lib/i18n";
+import {
+	onAgentSignal,
+	onNotificationOpened,
+	watchWindowFocus,
+} from "#lib/services/agent-signal-service";
 import { notifyConversation } from "#lib/services/notification-service";
 import {
 	activeConversationId,
@@ -28,7 +32,7 @@ import {
 	loadedInstances,
 } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
-import { settings } from "#lib/stores/settings";
+import { aiEnabled, settings } from "#lib/stores/settings";
 import {
 	activeScreen,
 	activeStep,
@@ -212,22 +216,26 @@ export const liveConversations = derived(
 );
 
 /** How many conversations are waiting for the user, per project id. */
-export const attentionByProject = derived(liveConversations, (list) => {
-	const counts: Record<string, number> = {};
-	for (const c of list) {
-		if (needsAttention(c.status))
-			counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
-	}
-	return counts;
-});
+export const attentionByProject = derived(
+	[liveConversations, aiEnabled],
+	([list, isAiEnabled]) => {
+		const counts: Record<string, number> = {};
+		if (!isAiEnabled) return counts;
+		for (const c of list) {
+			if (needsAttention(c.status))
+				counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
+		}
+		return counts;
+	},
+);
 
-export const attentionCount = derived(
-	liveConversations,
-	(list) => list.filter((c) => needsAttention(c.status)).length,
+export const attentionCount = derived(attentionByProject, (counts) =>
+	Object.values(counts).reduce((sum, n) => sum + n, 0),
 );
 
 function announce(id: string, status: AgentStatus): void {
-	if (!get(settings).agentNotifications) return;
+	const current = get(settings);
+	if (!current.agentNotifications || !current.aiEnabled) return;
 	const live = get(liveConversations).find((c) => c.id === id);
 	if (!live) return;
 	const title = live.title || (t("agent.history.untitled") as string);
@@ -293,13 +301,9 @@ manager.onTerminalExit(({ id: terminalId }) => {
 	if (id) applyAgentEvent(id, "exit");
 });
 
-void listen<{ conversationId: string; signal: AgentEvent }>(
-	"agent-signal",
-	(e) => applyAgentEvent(e.payload.conversationId, e.payload.signal),
-).catch(() => {});
+void onAgentSignal(applyAgentEvent).catch(() => {});
 
-void listen<{ conversationId: string }>("agent-notification-opened", (e) => {
-	const id = e.payload.conversationId;
+void onNotificationOpened((id) => {
 	const host = get(conversationHosts)[id];
 	if (host) openRequest.set({ ...host, conversationId: id });
 }).catch(() => {});
@@ -307,11 +311,7 @@ void listen<{ conversationId: string }>("agent-notification-opened", (e) => {
 // WebKitGTK fires no DOM `blur` when another application takes the focus, so
 // the window's own focus events are the only reliable source on Linux.
 if (typeof window !== "undefined") {
-	void import("@tauri-apps/api/window")
-		.then(async ({ getCurrentWindow }) => {
-			const win = getCurrentWindow();
-			await win.onFocusChanged(({ payload }) => windowFocused.set(payload));
-			windowFocused.set(await win.isFocused());
-		})
-		.catch(() => {});
+	void watchWindowFocus((isFocused) => windowFocused.set(isFocused)).catch(
+		() => {},
+	);
 }

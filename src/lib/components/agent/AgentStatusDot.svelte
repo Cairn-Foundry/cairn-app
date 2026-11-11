@@ -10,29 +10,26 @@
    * knows about it.
    */
   import { t } from '#lib/i18n';
-  import type { AgentStatus } from '#lib/utils/agent/agent-status';
+  import { type AgentStatus, statusLabelKey } from '#lib/utils/agent/agent-status';
 
   interface Props {
     status: AgentStatus | undefined;
+    decorative?: boolean;
   }
 
-  const { status }: Props = $props();
+  const { status, decorative = false }: Props = $props();
 
-  const LABELS = {
-    working: 'agent.status.working',
-    waiting: 'agent.status.waiting',
-    done: 'agent.status.done',
-    exited: 'agent.status.exited',
-    running: 'agent.status.running',
-  } as const;
-
-  let label = $derived(t(LABELS[status ?? 'running']) as string);
+  let label = $derived(t(statusLabelKey(status)) as string);
 </script>
 
 <!-- Rebuilt on every change: WebKitGTK can leave an animated element on its
      old composited layer when only its class changes, pulsing on as it was. -->
 {#key status}
-  <span class="agent-dot {status ?? 'running'}" title={label} aria-label={label} role="img"></span>
+  {#if decorative}
+    <span class="agent-dot {status ?? 'running'}" aria-hidden="true"></span>
+  {:else}
+    <span class="agent-dot {status ?? 'running'}" title={label} aria-label={label} role="img"></span>
+  {/if}
 {/key}
 
 <style>

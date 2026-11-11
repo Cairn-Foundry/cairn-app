@@ -137,7 +137,9 @@ beforeEach(() => {
 			},
 		],
 	});
-	void settings.save({ agentNotifications: true }).catch(() => {});
+	void settings
+		.save({ agentNotifications: true, aiEnabled: true })
+		.catch(() => {});
 });
 
 afterEach(() => {
@@ -192,6 +194,17 @@ describe("a conversation reporting its turn", () => {
 		signal("c1", "done");
 
 		expect(get(agentStatus).c1).toBe("done");
+		expect(notify).not.toHaveBeenCalled();
+	});
+
+	it("counts nothing and notifies nobody while the AI switch is off", async () => {
+		await settings.save({ aiEnabled: false }).catch(() => {});
+		run("c1");
+		signal("c1", "waiting");
+		windowFocused.set(false);
+		signal("c1", "done");
+
+		expect(get(attentionByProject)).toEqual({});
 		expect(notify).not.toHaveBeenCalled();
 	});
 

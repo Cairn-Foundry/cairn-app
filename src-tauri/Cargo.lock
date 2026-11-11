@@ -417,7 +417,6 @@ dependencies = [
  "libc",
  "lsp-types",
  "notify",
- "notify-rust",
  "nucleo-matcher",
  "open",
  "portable-pty",
