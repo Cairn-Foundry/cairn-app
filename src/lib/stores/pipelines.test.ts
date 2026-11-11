@@ -762,6 +762,29 @@ describe("tag pipelines", () => {
 	});
 });
 
+describe("tag pipelines paging", () => {
+	const TAGS = { ...EMPTY_PIPELINE_QUERY, tags: true };
+
+	it("keeps fetching pages while the provider's filter leaves one short", async () => {
+		ciListPipelines
+			.mockResolvedValueOnce({ items: [], hasMore: true })
+			.mockResolvedValueOnce({ items: [pipeline("7")], hasMore: true })
+			.mockResolvedValueOnce({ items: [pipeline("5")], hasMore: false });
+		await setPipelineQuery("p1", "i1", "feat/x", TAGS);
+		expect(ids()).toEqual(["7", "5"]);
+		expect(ciListPipelines.mock.calls.map((c) => c[4])).toEqual([1, 2, 3]);
+		expect(state().page).toBe(3);
+		expect(state().hasMore).toBe(false);
+	});
+
+	it("stops at the page cap", async () => {
+		ciListPipelines.mockResolvedValue({ items: [], hasMore: true });
+		await setPipelineQuery("p1", "i1", "feat/x", TAGS);
+		expect(ciListPipelines).toHaveBeenCalledTimes(10);
+		expect(state().isRefreshing).toBe(false);
+	});
+});
+
 describe("retryLatestPipeline", () => {
 	const job = (id: string, status: string, canRetry: boolean) => ({
 		id,
@@ -800,6 +823,19 @@ describe("retryLatestPipeline", () => {
 			["p1", "d"],
 		]);
 		expect(ciGetPipeline).toHaveBeenCalledWith("p1", "9");
+	});
+
+	it("never retries a tag pipeline while the branch's latest is unknown", async () => {
+		ciListPipelines.mockResolvedValue({
+			items: [withJobs("7", [job("deploy", "failed", true)])],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			...EMPTY_PIPELINE_QUERY,
+			tags: true,
+		});
+		await retryLatestPipeline("p1", "i1");
+		expect(ciRetryJob).not.toHaveBeenCalled();
 	});
 
 	it("does nothing when the instance has no pipeline", async () => {

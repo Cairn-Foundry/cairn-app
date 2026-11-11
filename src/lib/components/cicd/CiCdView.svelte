@@ -50,8 +50,13 @@
   $: if ($activeStep === 'cicd' && $hasCi && projectId && instanceId && branch) {
     const key = `${projectId}:${instanceId}:${branch}`;
     if (loadedFor !== key) {
+      const isFirstLoad = loadedFor === '';
       loadedFor = key;
-      void loadPipelines(projectId, instanceId, branch);
+      if (!isFirstLoad) {
+        searchQuery = '';
+        statusFilter = '';
+      }
+      void loadPipelines(projectId, instanceId, branch, isFirstLoad ? undefined : EMPTY_PIPELINE_QUERY);
     }
   }
 

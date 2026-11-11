@@ -757,6 +757,10 @@ impl ForgeProvider for GitLabApi {
     }
 }
 
+fn scope_param(q: &PipelineQuery, git_ref: &str) -> (&'static str, String) {
+    if q.tags { ("scope", "tags".to_string()) } else { ("ref", git_ref.to_string()) }
+}
+
 impl CiProvider for GitLabApi {
     async fn list_pipelines(
         &self,
@@ -766,7 +770,7 @@ impl CiProvider for GitLabApi {
         page: usize,
     ) -> Result<Page<Pipeline>, IntegrationError> {
         let mut query = vec![
-            if q.tags { ("scope", "tags".to_string()) } else { ("ref", git_ref.to_string()) },
+            scope_param(q, git_ref),
             ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
             ("page", page.max(1).to_string()),
             ("order_by", "id".to_string()),
@@ -840,6 +844,13 @@ impl CiProvider for GitLabApi {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scope_param_replaces_the_ref_when_listing_tags() {
+        let tags = PipelineQuery { tags: true, ..Default::default() };
+        assert_eq!(scope_param(&PipelineQuery::default(), "main"), ("ref", "main".to_string()));
+        assert_eq!(scope_param(&tags, "main"), ("scope", "tags".to_string()));
+    }
 
     const ISSUE: &str = include_str!("../fixtures/gitlab/issue.json");
     const MERGE_REQUEST: &str = include_str!("../fixtures/gitlab/merge_request.json");

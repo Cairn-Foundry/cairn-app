@@ -388,16 +388,20 @@ pub fn map_job(v: &Value) -> PipelineJob {
     }
 }
 
-/// `jobs` is the `jobs` array of `actions/runs/:id/jobs`; the run becomes one
-/// pipeline with a single stage named after the workflow.
 /// GitHub has no filter for the runs of a tag: a tag push names the tag in
 /// `head_branch`, so the runs are matched against the repository's tags.
+fn branch_param(q: &PipelineQuery, git_ref: &str) -> Option<(&'static str, String)> {
+    (!q.tags).then(|| ("branch", git_ref.to_string()))
+}
+
 pub fn tag_runs<'a>(runs: Vec<&'a Value>, tags: &Value) -> Vec<&'a Value> {
     let names: std::collections::HashSet<&str> =
         tags.as_array().into_iter().flatten().filter_map(|t| t.get("name").and_then(Value::as_str)).collect();
     runs.into_iter().filter(|run| run.get("head_branch").and_then(Value::as_str).is_some_and(|b| names.contains(b))).collect()
 }
 
+/// `jobs` is the `jobs` array of `actions/runs/:id/jobs`; the run becomes one
+/// pipeline with a single stage named after the workflow.
 pub fn map_pipeline(run: &Value, jobs: &[Value]) -> Pipeline {
     let mapped: Vec<PipelineJob> = jobs.iter().map(map_job).collect();
     let status = status_of(run);
@@ -949,9 +953,7 @@ impl CiProvider for GitHubApi {
             ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
             ("page", page.max(1).to_string()),
         ];
-        if !q.tags {
-            query.push(("branch", git_ref.to_string()));
-        }
+        query.extend(branch_param(q, git_ref));
         if let Some(status) = q.status.and_then(github_status_param) {
             query.push(("status", status.to_string()));
         }
@@ -1040,6 +1042,13 @@ mod tests {
         let tags = serde_json::json!([{ "name": "v1.2.0" }, { "name": "v1.1.0" }]);
         let kept = tag_runs(runs.as_array().unwrap().iter().collect(), &tags);
         assert_eq!(kept.iter().map(|r| id_of(r, "id")).collect::<Vec<_>>(), vec!["1"]);
+    }
+
+    #[test]
+    fn branch_param_is_dropped_when_listing_tags() {
+        let tags = PipelineQuery { tags: true, ..Default::default() };
+        assert_eq!(branch_param(&PipelineQuery::default(), "main"), Some(("branch", "main".to_string())));
+        assert_eq!(branch_param(&tags, "main"), None);
     }
 
     fn parse(s: &str) -> Value {
