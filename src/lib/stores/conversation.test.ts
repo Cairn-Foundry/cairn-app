@@ -1272,11 +1272,7 @@ describe("continuing in the system terminal", () => {
 
 		expect(terminalOf(meta.id)).toBe(`conversation:${meta.id}`);
 		expect(createTerminal).toHaveBeenCalledTimes(1);
-		expect(createTerminal.mock.calls[0][6]).toEqual([
-			"claude",
-			"--resume",
-			meta.sessionId,
-		]);
+		expect(lastArgv()).toEqual(["claude", "--resume", meta.sessionId]);
 	});
 
 	it("leaves a conversation whose session is not on disk alone", async () => {
