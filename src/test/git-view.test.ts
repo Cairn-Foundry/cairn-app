@@ -665,6 +665,54 @@ describe("GitView", () => {
 			expect(commitButtons().some((b) => !b.disabled)).toBe(false);
 		});
 
+		it("clears the message and the description in one click", async () => {
+			setGit({
+				stagedDiffs: [diff("src/a.ts")],
+				commitMessage: "feat: x",
+				commitBody: "why",
+			});
+			mount();
+			await settle();
+			await userEvent.click(
+				document.querySelector(".clear-draft-btn") as HTMLElement,
+			);
+			expect(setCommitMessage).toHaveBeenCalledWith("");
+			expect(setCommitBody).toHaveBeenCalledWith("");
+			expect(document.activeElement).toBe(
+				document.querySelector(".commit-title"),
+			);
+		});
+
+		it("cannot clear while a commit or a push is in flight", async () => {
+			let release = () => {};
+			commitChanges.mockImplementation(
+				() => new Promise<void>((r) => (release = r)),
+			);
+			setGit({ stagedDiffs: [diff("src/a.ts")], commitMessage: "feat: x" });
+			mount();
+			await settle();
+			const clear = () =>
+				document.querySelector(".clear-draft-btn") as HTMLButtonElement;
+			await userEvent.click(
+				commitButtons().find((b) => !b.disabled) as HTMLElement,
+			);
+			await settle();
+			expect(clear().disabled).toBe(true);
+			release();
+			await settle();
+			expect(clear().disabled).toBe(false);
+		});
+
+		it("has nothing to clear while both fields are empty", async () => {
+			setGit({ stagedDiffs: [diff("src/a.ts")] });
+			mount();
+			await settle();
+			expect(
+				(document.querySelector(".clear-draft-btn") as HTMLButtonElement)
+					.disabled,
+			).toBe(true);
+		});
+
 		it("commits the message that was written", async () => {
 			setGit({
 				stagedDiffs: [diff("src/a.ts")],

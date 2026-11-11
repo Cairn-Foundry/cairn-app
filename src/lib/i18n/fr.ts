@@ -1838,6 +1838,7 @@ export const fr = {
 		commitBodyPlaceholder:
 			"Ajouter une description plus longue (facultatif)...",
 		commitBodyLabel: "Description du commit",
+		clearCommitMessage: "Effacer le message et la description",
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		renamedUnchanged: "Renommé, contenu inchangé.",
 		stagedTotalsPending: "Décompte des lignes indexées",
