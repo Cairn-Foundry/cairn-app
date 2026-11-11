@@ -19,7 +19,7 @@
   import type { Project } from '#lib/types/project';
   import type { ProjectIntegrations } from '#lib/types/integrations';
 
-  type Tab = 'identity' | 'branch' | 'integrations';
+  type Tab = 'identity' | 'git' | 'integrations';
 
   export let project: Project;
   export let initialTab: Tab = 'identity';
@@ -129,13 +129,13 @@
           {t('editProject.tabIdentity')}
         </button>
         <button
-          class="ep-tab {activeTab === 'branch' ? 'active' : ''}"
+          class="ep-tab {activeTab === 'git' ? 'active' : ''}"
           role="tab"
-          aria-selected={activeTab === 'branch'}
-          on:click={() => activeTab = 'branch'}
+          aria-selected={activeTab === 'git'}
+          on:click={() => activeTab = 'git'}
         >
           <Icon name="branch" size={14}/>
-          {t('editProject.tabBranch')}
+          {t('editProject.tabGit')}
         </button>
         <button
           class="ep-tab {activeTab === 'integrations' ? 'active' : ''}"
@@ -180,7 +180,9 @@
           </div>
 
           <ProjectPreviewPill name={name || project.name} {color} />
-        {:else if activeTab === 'branch'}
+        {:else if activeTab === 'git'}
+          <GitProfileSelect bind:value={gitProfileId} label={t('editProject.gitProfile') as string} hint={t('editProject.gitProfileHint') as string} />
+
           <div class="form-section">
             <label class="ep-label" for="edit-branch-template">
               {t('editProject.branchTemplate')}
@@ -201,8 +203,6 @@
           </div>
         {:else}
           <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
-
-          <GitProfileSelect bind:value={gitProfileId} label={t('editProject.gitProfile') as string} hint={t('editProject.gitProfileHint') as string} />
         {/if}
 
         {#if error}

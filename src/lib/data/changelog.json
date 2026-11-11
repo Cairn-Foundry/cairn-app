@@ -199,8 +199,8 @@
 			{
 				"kind": "added",
 				"text": {
-					"en": "The git profile of a project is chosen when adding it, in the integrations step, and later in its settings (Integrations tab), as well as from the commit form of the Git view.",
-					"fr": "Le profil git d'un projet se choisit à son ajout, à l'étape des intégrations, puis dans ses réglages (onglet Intégrations), en plus du formulaire de commit de la vue Git."
+					"en": "The git profile of a project is chosen when adding it, in the integrations step, and later in its settings (Git tab, which now also holds the branch name template), as well as from the commit form of the Git view.",
+					"fr": "Le profil git d'un projet se choisit à son ajout, à l'étape des intégrations, puis dans ses réglages (onglet Git, qui accueille aussi le modèle de nom de branche), en plus du formulaire de commit de la vue Git."
 				}
 			},
 			{

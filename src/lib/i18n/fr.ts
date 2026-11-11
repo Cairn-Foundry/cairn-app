@@ -184,7 +184,7 @@ export const fr = {
 		heading: "Modifier le projet",
 		subheading: "Renommer & recolorer",
 		tabIdentity: "Identité",
-		tabBranch: "Branche",
+		tabGit: "Git",
 		tabIntegrations: "Intégrations",
 		projectName: "Nom du projet",
 		color: "Couleur",

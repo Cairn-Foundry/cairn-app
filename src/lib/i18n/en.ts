@@ -180,7 +180,7 @@ export const en = {
 		heading: "Edit project",
 		subheading: "Rename & recolor",
 		tabIdentity: "Identity",
-		tabBranch: "Branch",
+		tabGit: "Git",
 		tabIntegrations: "Integrations",
 		projectName: "Project name",
 		color: "Color",
