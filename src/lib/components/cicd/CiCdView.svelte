@@ -24,7 +24,7 @@
   import { git } from '#lib/stores/git';
   import {
     pipelines, pipelineStateFor, loadPipelines, loadMorePipelines, selectPipeline,
-    setPipelineQuery, openJobLog, closeJobLog, retryJob, playJob, cancelPipeline,
+    setPipelineQuery, refreshPipeline, openJobLog, closeJobLog, retryJob, playJob, cancelPipeline,
   } from '#lib/stores/pipelines';
   import { requestAgentDraft } from '#lib/stores/agent-draft';
   import { buildCiFixPrompt } from '#lib/utils/integrations/prompts';
@@ -50,13 +50,11 @@
   $: if ($activeStep === 'cicd' && $hasCi && projectId && instanceId && branch) {
     const key = `${projectId}:${instanceId}:${branch}`;
     if (loadedFor !== key) {
-      const isFirstLoad = loadedFor === '';
       loadedFor = key;
-      if (!isFirstLoad) {
-        searchQuery = '';
-        statusFilter = '';
-      }
-      void loadPipelines(projectId, instanceId, branch, isFirstLoad ? undefined : EMPTY_PIPELINE_QUERY);
+      const kept = pipelineStateFor($pipelines, projectId, instanceId).query;
+      searchQuery = kept.text;
+      statusFilter = kept.status ?? '';
+      void loadPipelines(projectId, instanceId, branch);
     }
   }
 
@@ -100,7 +98,30 @@
     applyFilters();
   }
 
-  onDestroy(() => clearTimeout(searchTimer));
+  function loadOlder() {
+    if (branch) void loadMorePipelines(projectId, instanceId, branch);
+  }
+
+  $: runningTagKey = onTags
+    ? state.pipelines.filter((p) => p.status === 'running' || p.status === 'pending').map((p) => p.id).join(',')
+    : '';
+  let tagPollTimer: ReturnType<typeof setInterval> | undefined;
+  $: {
+    clearInterval(tagPollTimer);
+    const seconds = $settings.integrationsPollSeconds;
+    if (runningTagKey && seconds > 0 && $activeStep === 'cicd') {
+      const ids = runningTagKey.split(',');
+      const owner = { projectId, instanceId };
+      tagPollTimer = setInterval(() => {
+        for (const id of ids) void refreshPipeline(owner.projectId, owner.instanceId, id);
+      }, seconds * 1000);
+    }
+  }
+
+  onDestroy(() => {
+    clearTimeout(searchTimer);
+    clearInterval(tagPollTimer);
+  });
 
   $: hasFilters = searchQuery.trim() !== '' || statusFilter !== '';
   /**
@@ -416,6 +437,11 @@
       <div class="empty-state">
         <Icon name="ci" size={24}/>
         <div class="body">{hasFilters ? t('cicd.noMatch') : onTags ? t('cicd.noTagPipelines') : t('cicd.noPipelines')}</div>
+        {#if state.hasMore}
+          <button class="btn" on:click={loadOlder} disabled={state.isLoadingMore}>
+            {#if state.isLoadingMore}<Spinner size={13}/>{:else}{t('cicd.loadOlder')}{/if}
+          </button>
+        {/if}
       </div>
     {:else}
       <div class="pipeline-list" on:scroll={handlePipelineScroll}>
@@ -554,6 +580,8 @@
 
       {#if state.isLoadingMore}
         <div class="load-more"><Spinner size={13}/></div>
+      {:else if state.hasMore && onTags}
+        <div class="load-more"><button class="btn" on:click={loadOlder}>{t('cicd.loadOlder')}</button></div>
       {/if}
       </div>
     {/if}

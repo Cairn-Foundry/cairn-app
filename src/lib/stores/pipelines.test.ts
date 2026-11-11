@@ -48,6 +48,7 @@ import {
 	loadMorePipelines,
 	loadPipelines,
 	openJobLog,
+	PIPELINE_PAGE_SIZE,
 	pipelineStateFor,
 	pipelines,
 	playJob,
@@ -762,7 +763,45 @@ describe("tag pipelines", () => {
 	});
 });
 
+describe("tag pipelines refresh", () => {
+	it("never adopts a refreshed tag pipeline as the branch's latest", async () => {
+		ciListPipelines.mockResolvedValue({ items: [], hasMore: false });
+		await loadPipelines("p1", "i1", "feat/x");
+		ciListPipelines.mockResolvedValue({
+			items: [pipeline("7", "running")],
+			hasMore: false,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			...EMPTY_PIPELINE_QUERY,
+			tags: true,
+		});
+		applyUpdate(KEY, pipeline("7", "success"));
+		expect(state().latest).toBeNull();
+		expect(state().pipelines[0].status).toBe("success");
+	});
+});
+
 describe("tag pipelines paging", () => {
+	it("fills a page the provider left short when loading more", async () => {
+		ciListPipelines.mockResolvedValueOnce({
+			items: Array.from({ length: PIPELINE_PAGE_SIZE }, (_, i) =>
+				pipeline(`a${i}`),
+			),
+			hasMore: true,
+		});
+		await setPipelineQuery("p1", "i1", "feat/x", {
+			...EMPTY_PIPELINE_QUERY,
+			tags: true,
+		});
+		ciListPipelines
+			.mockResolvedValueOnce({ items: [], hasMore: true })
+			.mockResolvedValueOnce({ items: [pipeline("b")], hasMore: false });
+		await loadMorePipelines("p1", "i1", "feat/x");
+		expect(ids()).toContain("b");
+		expect(state().page).toBe(3);
+		expect(state().hasMore).toBe(false);
+	});
+
 	const TAGS = { ...EMPTY_PIPELINE_QUERY, tags: true };
 
 	it("keeps fetching pages while the provider's filter leaves one short", async () => {

@@ -150,6 +150,54 @@ function selectId(list: Pipeline[], current: string): string {
 	return list.some((p) => p.id === current) ? current : (list[0]?.id ?? "");
 }
 
+interface FilledPages {
+	items: Pipeline[];
+	hasMore: boolean;
+	page: number;
+}
+
+/**
+ * Fetches from `firstPage`. Tag mode on a provider that cannot filter tags
+ * (GitHub) answers pages mostly emptied by the filter, so further pages are
+ * read until one screen is filled. Null when `isStale` turned true meanwhile.
+ */
+async function fetchFilledPages(
+	projectId: string,
+	ref: string,
+	query: PipelineQuery,
+	firstPage: number,
+	isStale: () => boolean,
+): Promise<FilledPages | null> {
+	let page = firstPage;
+	let { items, hasMore } = await ciListPipelines(
+		projectId,
+		ref,
+		query,
+		PIPELINE_PAGE_SIZE,
+		page,
+	);
+	while (
+		query.tags &&
+		hasMore &&
+		items.length < PIPELINE_PAGE_SIZE &&
+		page < firstPage + TAG_FILL_MAX_PAGES - 1
+	) {
+		if (isStale()) return null;
+		page += 1;
+		const next = await ciListPipelines(
+			projectId,
+			ref,
+			query,
+			PIPELINE_PAGE_SIZE,
+			page,
+		);
+		const known = new Set(items.map((p) => p.id));
+		items = [...items, ...next.items.filter((p) => !known.has(p.id))];
+		hasMore = next.hasMore;
+	}
+	return isStale() ? null : { items, hasMore, page };
+}
+
 export async function loadPipelines(
 	projectId: string,
 	instanceId: string,
@@ -161,33 +209,15 @@ export async function loadPipelines(
 	const ticket = nextTicket(key);
 	patch(key, { isRefreshing: true, query: active });
 	try {
-		let page = 1;
-		let { items, hasMore } = await ciListPipelines(
+		const filled = await fetchFilledPages(
 			projectId,
 			ref,
 			active,
-			PIPELINE_PAGE_SIZE,
-			page,
+			1,
+			() => requestTickets[key] !== ticket,
 		);
-		while (
-			active.tags &&
-			hasMore &&
-			items.length < PIPELINE_PAGE_SIZE &&
-			page < TAG_FILL_MAX_PAGES
-		) {
-			if (requestTickets[key] !== ticket) return;
-			page += 1;
-			const next = await ciListPipelines(
-				projectId,
-				ref,
-				active,
-				PIPELINE_PAGE_SIZE,
-				page,
-			);
-			const known = new Set(items.map((p) => p.id));
-			items = [...items, ...next.items.filter((p) => !known.has(p.id))];
-			hasMore = next.hasMore;
-		}
+		if (!filled) return;
+		const { items, hasMore, page } = filled;
 		if (requestTickets[key] !== ticket) return;
 		const state = get(_pipelines)[key] ?? EMPTY;
 		const isFiltered =
@@ -238,14 +268,15 @@ export async function loadMorePipelines(
 	const ticket = requestTickets[key] ?? 0;
 	patch(key, { isLoadingMore: true });
 	try {
-		const { items, hasMore } = await ciListPipelines(
+		const filled = await fetchFilledPages(
 			projectId,
 			ref,
 			state.query,
-			PIPELINE_PAGE_SIZE,
 			nextPage,
+			() => requestTickets[key] !== ticket,
 		);
-		if (requestTickets[key] !== ticket) return;
+		if (!filled) return;
+		const { items, hasMore, page } = filled;
 		const current = get(_pipelines)[key] ?? EMPTY;
 		const known = new Set(current.pipelines.map((p) => p.id));
 		const merged = [
@@ -257,7 +288,7 @@ export async function loadMorePipelines(
 			selectedPipelineId: selectId(merged, current.selectedPipelineId),
 			isLoadingMore: false,
 			hasMore,
-			page: nextPage,
+			page,
 			error: null,
 		});
 	} catch (error) {
@@ -300,8 +331,10 @@ export function applyUpdate(key: string, pipeline: Pipeline): void {
 	_pipelines.update((current) => {
 		const state = current[key] ?? EMPTY;
 		const known = state.pipelines.some((p) => p.id === pipeline.id);
+		const isTagPipeline = state.query.tags && known;
 		const latest =
-			state.latest === null || state.latest.id === pipeline.id
+			state.latest?.id === pipeline.id ||
+			(state.latest === null && !isTagPipeline)
 				? pipeline
 				: state.latest;
 		if (

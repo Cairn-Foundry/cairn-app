@@ -1274,6 +1274,7 @@ export const en = {
 		openJob: "Open job",
 		noPipelines: "No pipeline for this branch yet.",
 		noTagPipelines: "No pipeline for a tag yet.",
+		loadOlder: "Load older pipelines",
 		noMatch: "No pipeline matches the current filters.",
 		search: "Search pipelines...",
 		allStatuses: "All",

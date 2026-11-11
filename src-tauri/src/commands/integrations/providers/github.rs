@@ -388,6 +388,8 @@ pub fn map_job(v: &Value) -> PipelineJob {
     }
 }
 
+const TAG_RUNS_PER_PAGE: usize = 100;
+
 /// GitHub has no filter for the runs of a tag: a tag push names the tag in
 /// `head_branch`, so the runs are matched against the repository's tags.
 fn branch_param(q: &PipelineQuery, git_ref: &str) -> Option<(&'static str, String)> {
@@ -949,10 +951,8 @@ impl CiProvider for GitHubApi {
         limit: usize,
         page: usize,
     ) -> Result<Page<Pipeline>, IntegrationError> {
-        let mut query = vec![
-            ("per_page", limit.clamp(1, PIPELINES_PER_PAGE).to_string()),
-            ("page", page.max(1).to_string()),
-        ];
+        let per_page = if q.tags { TAG_RUNS_PER_PAGE } else { limit.clamp(1, PIPELINES_PER_PAGE) };
+        let mut query = vec![("per_page", per_page.to_string()), ("page", page.max(1).to_string())];
         query.extend(branch_param(q, git_ref));
         if let Some(status) = q.status.and_then(github_status_param) {
             query.push(("status", status.to_string()));
@@ -970,7 +970,7 @@ impl CiProvider for GitHubApi {
 
         let list = self.http.get_json(&self.repo("actions/runs"), &query).await?;
         let runs: Vec<&Value> = list.get("workflow_runs").and_then(Value::as_array).into_iter().flatten().collect();
-        let has_more = runs.len() >= limit.clamp(1, PIPELINES_PER_PAGE);
+        let has_more = runs.len() >= per_page;
         let runs = if q.tags {
             let tags = self.http.get_json(&self.repo("tags"), &[("per_page", "100".to_string())]).await?;
             tag_runs(runs, &tags)

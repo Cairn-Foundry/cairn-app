@@ -1297,6 +1297,7 @@ export const fr = {
 		openJob: "Ouvrir le job",
 		noPipelines: "Aucun pipeline pour cette branche pour l'instant.",
 		noTagPipelines: "Aucun pipeline de tag pour l'instant.",
+		loadOlder: "Charger les pipelines plus anciens",
 		noMatch: "Aucun pipeline ne correspond aux filtres.",
 		search: "Rechercher des pipelines...",
 		allStatuses: "Tous",
