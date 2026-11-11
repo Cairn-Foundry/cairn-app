@@ -45,6 +45,7 @@
     togglePinned,
   } from '#lib/stores/conversation';
   import { agentDraftRequest, clearAgentDraft } from '#lib/stores/agent-draft';
+  import { conversationTooltip, formatConversationDate } from '#lib/utils/agent/conversation-list';
   import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
   import { activeInstance } from '#lib/stores/instance';
   import { lastCli } from '#lib/stores/ui';
@@ -368,9 +369,19 @@
             }}
           />
         {:else}
-          <button class="conv-title" onclick={startRename} title={t('agent.history.rename') as string}>
+          <button
+            class="conv-title"
+            onclick={startRename}
+            title={`${active.meta.title || t('agent.untitled')}\n${t('agent.history.rename')}`}
+          >
             {active.meta.title || t('agent.untitled')}
           </button>
+        {/if}
+
+        {#if active.meta.createdAt}
+          <span class="conv-dates" title={conversationTooltip(active.meta, cliLabel(active.meta.cli))}>
+            {(t('agent.history.createdOn') as (d: string) => string)(formatConversationDate(active.meta.createdAt, false))}
+          </span>
         {/if}
 
         <div class="spacer"></div>
@@ -513,6 +524,16 @@
 
   .conv-title { cursor: text; }
   .conv-title:hover { background: var(--bg-2); }
+
+  .conv-dates {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--fg-3);
+  }
 
   .conv-rename {
     border: 1px solid var(--accent);

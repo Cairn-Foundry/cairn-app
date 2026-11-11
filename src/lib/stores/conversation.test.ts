@@ -1122,3 +1122,60 @@ describe("forgetting a project", () => {
 		]);
 	});
 });
+
+describe("tracking the last activity", () => {
+	it("records typing, at most once a minute", async () => {
+		vi.setSystemTime(1_000_000);
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		const terminalId = `conversation:${meta.id}`;
+
+		vi.setSystemTime(1_010_000);
+		noteTerminalInput(terminalId, "a");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_010_000);
+
+		vi.setSystemTime(1_030_000);
+		noteTerminalInput(terminalId, "b");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_010_000);
+
+		vi.setSystemTime(1_080_000);
+		noteTerminalInput(terminalId, "c");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_080_000);
+	});
+
+	it("ignores what the terminal sends by itself", async () => {
+		vi.setSystemTime(1_000_000);
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		const terminalId = `conversation:${meta.id}`;
+
+		vi.setSystemTime(1_010_000);
+		noteTerminalInput(terminalId, "\u001b[I");
+		noteTerminalInput(terminalId, "\u001b[?1;2c");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_000_000);
+
+		noteTerminalInput(terminalId, "a");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_010_000);
+	});
+
+	it("follows a conversation moved to the other scope", async () => {
+		vi.setSystemTime(1_000_000);
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		moveConversationToScope(ref, meta.id);
+
+		vi.setSystemTime(1_010_000);
+		noteTerminalInput(`conversation:${meta.id}`, "a");
+
+		const moved = conversationsOf({ ...ref, scope: "project" })[0];
+		expect(moved.lastActiveAt).toBe(1_010_000);
+	});
+
+	it("stops once the conversation is closed", async () => {
+		vi.setSystemTime(1_000_000);
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		closeConversation(meta.id);
+
+		vi.setSystemTime(2_000_000);
+		noteTerminalInput(`conversation:${meta.id}`, "a");
+
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_000_000);
+	});
+});

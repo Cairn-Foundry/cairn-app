@@ -188,6 +188,13 @@
 					"en": "A middle click on a project tab closes it.",
 					"fr": "Un clic molette sur un onglet de projet le ferme."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Hovering a conversation in the Agent history shows its full name, its CLI, when it was created and when you last typed in it. An open conversation shows its creation date next to its title.",
+					"fr": "Au survol d'une conversation dans l'historique de l'Agent, son nom complet s'affiche avec son CLI, sa date de création et la date à laquelle vous y avez écrit pour la dernière fois. Une conversation ouverte affiche sa date de création à côté de son titre."
+				}
 			}
 		]
 	},

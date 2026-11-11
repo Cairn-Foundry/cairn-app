@@ -33,6 +33,7 @@ import {
 	resumeArgv,
 } from "#lib/utils/agent/cli-launch";
 import { captureTitle } from "#lib/utils/agent/conversation-title";
+import { isTerminalReply } from "#lib/utils/agent/terminal-reply";
 import { persist } from "#lib/utils/persist-error";
 import { dropProjectKeys, purgeProjectEntries } from "#lib/utils/project-scope";
 import * as manager from "#lib/utils/terminal/terminal-manager";
@@ -112,6 +113,36 @@ const awaitingFirstInput = new Map<
  * resume of the session would leave one more listener registered for good.
  */
 const resumeWatchers = new Map<string, () => void>();
+
+/**
+ * Live conversations by terminal id, with when their activity was last written.
+ * The scope is resolved at write time: a conversation can change scope while
+ * its CLI keeps running.
+ */
+const activityTrackers = new Map<
+	string,
+	{ projectId: string; instanceId: string; id: string; writtenAt: number }
+>();
+
+// Every keystroke would otherwise rewrite the index; a minute is finer than any
+// "last activity" a person reads.
+const ACTIVITY_WRITE_INTERVAL_MS = 60_000;
+
+function noteActivity(terminalId: string, data: string): void {
+	if (isTerminalReply(data)) return;
+	const tracker = activityTrackers.get(terminalId);
+	if (!tracker) return;
+	const now = Date.now();
+	if (now - tracker.writtenAt < ACTIVITY_WRITE_INTERVAL_MS) return;
+	const found = findConversation(
+		tracker.projectId,
+		tracker.instanceId,
+		tracker.id,
+	);
+	if (!found) return;
+	tracker.writtenAt = now;
+	patch(found.ref, tracker.id, { lastActiveAt: now });
+}
 
 /** Records that the CLI of this terminal now has a session worth resuming. */
 function markSessionStarted(terminalId: string): void {
@@ -333,6 +364,7 @@ export async function startConversation(
 		cwd,
 		createdAt: now,
 		lastOpenedAt: now,
+		lastActiveAt: now,
 		pinned: false,
 		archived: false,
 	};
@@ -401,6 +433,12 @@ export async function openConversation(
 	const run = runOf(id);
 	if (resuming) watchResumeFailure(ref, id, run, terminalId, startedAt);
 	if (!meta.sessionStarted) awaitingFirstInput.set(terminalId, { ref, id });
+	activityTrackers.set(terminalId, {
+		projectId: ref.projectId,
+		instanceId: ref.instanceId,
+		id,
+		writtenAt: 0,
+	});
 	if (!meta.title) {
 		awaitingTitle.set(terminalId, { ref, id, pending: "" });
 	}
@@ -543,6 +581,7 @@ export function closeConversation(id: string): void {
 	awaitingFirstInput.delete(terminalId);
 	resumeWatchers.get(terminalId)?.();
 	resumeWatchers.delete(terminalId);
+	activityTrackers.delete(terminalId);
 	void closeTerminal(terminalId).catch(() => {});
 	manager.dispose(terminalId);
 	conversationTerminals.update((m) => {
@@ -558,6 +597,7 @@ export function closeConversation(id: string): void {
  */
 export function noteTerminalInput(terminalId: string, data: string): void {
 	markSessionStarted(terminalId);
+	noteActivity(terminalId, data);
 	const waiting = awaitingTitle.get(terminalId);
 	if (!waiting) return;
 	const { title, pending } = captureTitle(waiting.pending, data);
@@ -651,8 +691,8 @@ export function removeInstanceConversations(
 	});
 }
 
-// Every keystroke reaching any PTY passes here; only a conversation still
-// waiting for its title does anything with it.
+// Every keystroke reaching any PTY passes here; only conversation terminals
+// do anything with it.
 manager.observeInput((terminalId, data) => {
 	noteTerminalInput(terminalId, data);
 });
