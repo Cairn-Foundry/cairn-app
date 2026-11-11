@@ -15,6 +15,7 @@ import {
 	isWriteConflict,
 	listDirNames,
 	listDirNamesDeep,
+	openCliInTerminal,
 	openInTerminal,
 	quickSearch,
 	readDirTree,
@@ -291,6 +292,14 @@ describe("path operations", () => {
 	it("opens a path in a terminal", async () => {
 		await openInTerminal("/w");
 		expect(mockInvoke).toHaveBeenCalledWith("open_in_terminal", { path: "/w" });
+	});
+
+	it("opens a CLI in a terminal", async () => {
+		await openCliInTerminal("/w", ["claude", "--resume", "s1"]);
+		expect(mockInvoke).toHaveBeenCalledWith("open_cli_in_terminal", {
+			cwd: "/w",
+			argv: ["claude", "--resume", "s1"],
+		});
 	});
 });
 

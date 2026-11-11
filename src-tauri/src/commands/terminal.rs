@@ -157,30 +157,39 @@ fn startup_flags(shell: &str, extra: &str) -> String {
 /// environment and PATH. The argv travels as the shell's positional parameters and
 /// `exec` replaces the shell: nothing is quoted, nothing stays between the PTY and
 /// the CLI. Shells with another syntax (and Windows) get the binary directly.
-fn agent_command(binary: &std::path::Path, rest: &[String]) -> CommandBuilder {
+///
+/// `keep_open` is for a window that closes with its command: the CLI is no longer
+/// `exec`ed, and a failed exit waits for Enter so its message can be read.
+pub fn agent_argv(binary: &std::path::Path, rest: &[String], keep_open: bool) -> Vec<String> {
+    let mut argv: Vec<String> = Vec::new();
     #[cfg(not(windows))]
     {
         let shell = default_shell();
         let name = shell_name(&shell).to_string();
-        let script = match name.as_str() {
-            "fish" => Some("exec $argv"),
-            "csh" | "tcsh" | "nu" | "pwsh" | "elvish" | "xonsh" => None,
-            _ => Some("exec \"$@\""),
+        let script = match (name.as_str(), keep_open) {
+            ("fish", false) => Some("exec $argv"),
+            ("fish", true) => Some("$argv; or begin; set s $status; printf '\\n[exit %s] ' $s; read -P ''; end"),
+            ("csh" | "tcsh" | "nu" | "pwsh" | "elvish" | "xonsh", _) => None,
+            (_, false) => Some("exec \"$@\""),
+            (_, true) => Some("\"$@\" || { s=$?; printf '\\n[exit %s] ' \"$s\"; read -r _; }"),
         };
         if let Some(script) = script {
             let flags = startup_flags(&shell, "c");
-            let mut cmd = CommandBuilder::new(shell);
-            cmd.args([flags.as_str(), script]);
+            argv.extend([shell, flags, script.to_string()]);
             if name != "fish" {
-                cmd.arg("cairn-agent");
+                argv.push("cairn-agent".to_string());
             }
-            cmd.arg(binary);
-            cmd.args(rest);
-            return cmd;
         }
     }
-    let mut cmd = CommandBuilder::new(binary);
-    cmd.args(rest);
+    argv.push(binary.to_string_lossy().into_owned());
+    argv.extend(rest.iter().cloned());
+    argv
+}
+
+fn agent_command(binary: &std::path::Path, rest: &[String]) -> CommandBuilder {
+    let argv = agent_argv(binary, rest, false);
+    let mut cmd = CommandBuilder::new(&argv[0]);
+    cmd.args(&argv[1..]);
     cmd
 }
 

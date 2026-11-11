@@ -203,6 +203,7 @@ pub fn run() {
             reveal_in_file_manager,
             copy_path,
             open_in_terminal,
+            open_cli_in_terminal,
             open_external,
             validate_directory,
             clone_repository,

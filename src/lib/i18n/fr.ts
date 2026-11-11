@@ -602,6 +602,13 @@ export const fr = {
 		resume: "Reprendre",
 		restart: "Relancer",
 		stop: "Arrêter ce CLI",
+		continueInTerminal: "Continuer dans le terminal du système",
+		continuedInTerminal:
+			"Cette conversation se poursuit dans le terminal du système. Fermez-la là-bas avant de la reprendre ici.",
+		detachTitle: (name: string) => `Continuer "${name}" dans le terminal ?`,
+		detachDescription:
+			"Le CLI en cours dans Cairn sera arrêté, puis la même session sera rouverte dans le terminal du système, dans le même worktree. Une commande en cours d'exécution est interrompue.",
+		detachConfirm: "Continuer dans le terminal",
 		stopHeading: "Agent",
 		stopTitle: (name: string) => `Arrêter "${name}" ?`,
 		stopDescription:

@@ -32,6 +32,8 @@
     conversationScopeKey,
     conversationTerminals,
     deleteConversation,
+    detachConversation,
+    detachingConversations,
     instanceConversations as instanceConversationsStore,
     moveConversationToScope,
     openConversation,
@@ -48,6 +50,7 @@
   import { conversationTooltip, formatConversationDate } from '#lib/utils/agent/conversation-list';
   import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
   import { activeInstance } from '#lib/stores/instance';
+  import { errorMessage } from '#lib/utils/error-message';
   import { lastCli } from '#lib/stores/ui';
   import * as manager from '#lib/utils/terminal/terminal-manager';
   import ConversationHistoryPanel from './ConversationHistoryPanel.svelte';
@@ -235,35 +238,80 @@
   async function restartConversation() {
     if (!active) return;
     const { ref, meta } = active;
+    detachError = null;
+    detachedId = null;
     closeConversation(meta.id);
     await openConversation(ref, meta.id).catch(() => {});
   }
+
+  function resumeHere() {
+    if (!active || isDetaching) return;
+    detachError = null;
+    detachedId = null;
+    void select(active.meta.id, active.ref.scope);
+  }
+
+  /**
+   * A CLI waiting on a command it spawned prints nothing and reads nothing, so
+   * from the terminal it is indistinguishable from an idle one. The process
+   * table is asked instead, and the user confirms before that work is killed.
+   */
+  async function cliIsBusy(): Promise<boolean> {
+    return terminalId ? terminalHasChildren(terminalId).catch(() => true) : false;
+  }
+
+  /** The kill awaiting confirmation, and what follows it. */
+  let pendingStop = $state<'stop' | 'detach' | null>(null);
 
   /**
    * Stops the CLI of the open conversation on the user's request, and leaves the
    * conversation selected: nothing relaunches it but the Resume button, so a
    * session put down stays down.
-   *
-   * A CLI waiting on a command it spawned prints nothing and reads nothing, so
-   * from the terminal it is indistinguishable from an idle one. The process
-   * table is asked first, and the user confirms before that work is killed.
    */
-  let confirmingStop = $state(false);
-
   async function stopConversation() {
     if (!active || !terminalId) return;
-    const busy = await terminalHasChildren(terminalId).catch(() => true);
-    if (busy) {
-      confirmingStop = true;
-      return;
-    }
-    stopNow();
+    if (await cliIsBusy()) pendingStop = 'stop';
+    else stopNow();
   }
 
   function stopNow() {
     if (!active) return;
-    confirmingStop = false;
+    pendingStop = null;
+    detachedId = null;
+    detachError = null;
     closeConversation(active.meta.id);
+  }
+
+  /**
+   * Hands the conversation to the system terminal, where the same session goes
+   * on. Offered once the CLI has written the session: it is what the terminal
+   * resumes. The conversation stays listed, stopped, so Resume brings it back.
+   */
+  let canContinueInTerminal = $derived(active?.meta.sessionConfirmed === true);
+  let detachError = $state<{ id: string; message: string } | null>(null);
+  let detachedId = $state<string | null>(null);
+  let isDetaching = $derived(active ? $detachingConversations[active.meta.id] === true : false);
+  let canShowTerminalButton = $derived(
+    canContinueInTerminal && !(terminalId === null && detachedId === active?.meta.id),
+  );
+
+  async function continueInTerminal() {
+    if (!active || isDetaching) return;
+    if (terminalId) pendingStop = 'detach';
+    else await detachNow();
+  }
+
+  async function detachNow() {
+    if (!active) return;
+    pendingStop = null;
+    detachError = null;
+    const { ref, meta } = active;
+    try {
+      await detachConversation(ref, meta.id);
+      detachedId = meta.id;
+    } catch (e) {
+      detachError = { id: meta.id, message: errorMessage(e) };
+    }
   }
 
   /**
@@ -386,6 +434,23 @@
 
         <div class="spacer"></div>
 
+        {#if canShowTerminalButton}
+          <button
+            class="icon-btn"
+            disabled={isDetaching}
+            aria-busy={isDetaching}
+            onclick={() => void continueInTerminal()}
+            title={t('agent.continueInTerminal') as string}
+            aria-label={t('agent.continueInTerminal') as string}
+          >
+            {#if isDetaching}
+              <Spinner size={13}/>
+            {:else}
+              <Icon name="terminal" size={14}/>
+            {/if}
+          </button>
+        {/if}
+
         {#if terminalId}
           <button
             class="icon-btn"
@@ -408,6 +473,13 @@
       </div>
 
       <div class="term-slot" bind:this={slotEl}></div>
+
+      {#if detachError?.id === active.meta.id}
+        <div class="conv-exited" role="alert">
+          <span class="conv-exited-mark"><Icon name="alert" size={14}/></span>
+          <span class="conv-exited-text selectable">{detachError.message}</span>
+        </div>
+      {/if}
 
       {#if hasExited && terminalId}
         <div class="conv-exited">
@@ -438,18 +510,19 @@
 
       {#if !terminalId}
         <div class="conv-stopped">
-          <p>{t('agent.stopped')}</p>
-          <button class="btn" onclick={() => void select(active.meta.id, active.ref.scope)}>
+          <p>{t(detachedId === active.meta.id ? 'agent.continuedInTerminal' : 'agent.stopped')}</p>
+          <button class="btn" disabled={isDetaching} onclick={resumeHere}>
             {t('agent.resume')}
           </button>
         </div>
       {/if}
 
-      {#if confirmingStop}
+      {#if pendingStop}
         <StopConversationModal
           title={active.meta.title || (t('agent.untitled') as string)}
-          onClose={() => { confirmingStop = false; }}
-          onConfirm={stopNow}
+          mode={pendingStop}
+          onClose={() => { pendingStop = null; }}
+          onConfirm={pendingStop === 'detach' ? () => void detachNow() : stopNow}
         />
       {/if}
     {:else if starting}

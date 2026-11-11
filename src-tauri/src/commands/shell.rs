@@ -7,6 +7,7 @@
 use std::io::Write;
 use std::process::Stdio;
 use crate::child_env;
+use crate::commands::cli_providers::resolve_binary;
 use crate::commands::git_error;
 use crate::storage::{CommandOutput, copy_dir_recursive};
 
@@ -79,9 +80,10 @@ fn spawn_stays_up(mut cmd: std::process::Command) -> bool {
 }
 
 #[cfg(any(target_os = "linux", test))]
-const LINUX_TERMINALS: [&str; 8] = [
+const LINUX_TERMINALS: [&str; 9] = [
     "x-terminal-emulator",
     "gnome-terminal",
+    "ptyxis",
     "konsole",
     "xfce4-terminal",
     "tilix",
@@ -111,38 +113,163 @@ fn terminal_candidates(remembered: Option<&str>, from_env: Option<&str>) -> Vec<
     ordered
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn emulator_name(program: &str) -> String {
+    std::path::Path::new(program)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 /// How each emulator is told which directory to open in; the rest inherit the
 /// working directory of the spawned process.
 #[cfg(any(target_os = "linux", test))]
 fn terminal_args(program: &str, dir: &str) -> Vec<String> {
-    let name = std::path::Path::new(program)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    match name.as_str() {
-        "gnome-terminal" | "xfce4-terminal" | "tilix" | "alacritty" => {
+    match emulator_name(program).as_str() {
+        "gnome-terminal" | "xfce4-terminal" | "tilix" | "alacritty" | "mate-terminal"
+        | "terminator" | "lxterminal" | "ghostty" => {
             vec![format!("--working-directory={dir}")]
         }
         "konsole" => vec!["--workdir".to_string(), dir.to_string()],
         "kitty" => vec!["--directory".to_string(), dir.to_string()],
+        "ptyxis" => vec!["-d".to_string(), dir.to_string()],
+        "foot" => vec!["-D".to_string(), dir.to_string()],
+        "wezterm" => vec!["start".to_string(), "--cwd".to_string(), dir.to_string()],
         _ => Vec::new(),
     }
 }
 
-/// Opens `dir` in the first emulator that works and remembers it. A remembered
-/// emulator that no longer starts is forgotten and the search starts over.
+/// How each emulator is told to run a command in place of the shell: `-e` is
+/// the xterm convention most of them kept; mate-terminal and terminator read
+/// `-e` as one string and want `-x`, as does tilix; kitty and foot take the
+/// command bare.
+#[cfg(any(target_os = "linux", test))]
+fn exec_args(program: &str) -> Vec<String> {
+    match emulator_name(program).as_str() {
+        "gnome-terminal" | "ptyxis" | "wezterm" => vec!["--".to_string()],
+        "xfce4-terminal" | "mate-terminal" | "terminator" | "tilix" => vec!["-x".to_string()],
+        "kitty" | "foot" => Vec::new(),
+        _ => vec!["-e".to_string()],
+    }
+}
+
+/// How each emulator is asked to open a tab in a window it already has, when it
+/// can. gnome-terminal joins the window of the tab named by `GNOME_TERMINAL_SCREEN`
+/// and fails when that tab is gone, so the caller falls back to a new window.
+#[cfg(any(target_os = "linux", test))]
+fn tab_args(program: &str) -> Vec<String> {
+    match emulator_name(program).as_str() {
+        "gnome-terminal" | "xfce4-terminal" | "ptyxis" | "mate-terminal" => vec!["--tab".to_string()],
+        "konsole" | "terminator" | "wezterm" => vec!["--new-tab".to_string()],
+        "tilix" => vec!["-a".to_string(), "app-new-session".to_string()],
+        _ => Vec::new(),
+    }
+}
+
+/// Debian's `x-terminal-emulator` alternative is a `<name>.wrapper` script that
+/// only knows xterm's options and drops the others, so a command is run through
+/// the emulator behind it.
+#[cfg(any(target_os = "linux", test))]
+fn behind_wrapper(path: &std::path::Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    match name.strip_suffix(".wrapper") {
+        Some(inner) => Some(inner.to_string()),
+        None => KNOWN_EMULATORS.contains(&name).then(|| name.to_string()),
+    }
+}
+
+/// Emulators with their own entry in `terminal_args`, `exec_args` or `tab_args`:
+/// an alternative that resolves straight to one of them is run under its real name.
+#[cfg(any(target_os = "linux", test))]
+const KNOWN_EMULATORS: [&str; 15] = [
+    "gnome-terminal",
+    "xfce4-terminal",
+    "mate-terminal",
+    "ptyxis",
+    "konsole",
+    "terminator",
+    "tilix",
+    "wezterm",
+    "kitty",
+    "alacritty",
+    "foot",
+    "ghostty",
+    "lxterminal",
+    "xterm",
+    "uxterm",
+];
+
+/// gnome-terminal, mate-terminal and xfce4-terminal bind `--working-directory`
+/// to the tab or window announced before it, so the tab flag has to come first.
+#[cfg(any(target_os = "linux", test))]
+fn tab_leads(program: &str) -> bool {
+    matches!(
+        emulator_name(program).as_str(),
+        "gnome-terminal" | "mate-terminal" | "xfce4-terminal"
+    )
+}
+
 #[cfg(target_os = "linux")]
-fn launch_linux_terminal(dir: &str) -> bool {
+fn unwrapped(program: &str) -> String {
+    which::which(program)
+        .ok()
+        .and_then(|p| p.canonicalize().ok())
+        .and_then(|p| behind_wrapper(&p))
+        .unwrap_or_else(|| program.to_string())
+}
+
+#[cfg(target_os = "linux")]
+const NO_TERMINAL: &str = "No supported terminal emulator found. Set the TERMINAL environment variable, or install gnome-terminal, ptyxis, xfce4-terminal, konsole or x-terminal-emulator.";
+
+/// What Terminal's `do script` hands to the user's shell: `run` quoted as
+/// `sh` words, started in `dir`.
+#[cfg(any(target_os = "macos", test))]
+fn shell_line(dir: &str, run: &[String]) -> String {
+    use crate::commands::cli::sh_quote;
+    let words = run.iter().map(|a| sh_quote(std::path::Path::new(a)));
+    std::iter::once(format!("cd {} &&", sh_quote(std::path::Path::new(dir))))
+        .chain(words)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A string literal for AppleScript: only the backslash and the double quote
+/// need escaping.
+#[cfg(any(target_os = "macos", test))]
+fn applescript_string(text: &str) -> String {
+    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Opens `dir` in the first emulator that works and remembers it, running `run`
+/// in place of the shell when given - as a tab of an existing window first,
+/// then in a new one. A remembered emulator that no longer starts is forgotten
+/// and the search starts over.
+#[cfg(target_os = "linux")]
+fn launch_linux_terminal(dir: &str, run: &[String]) -> bool {
     let remembered = WORKING_TERMINAL.lock().ok().and_then(|g| g.clone());
     let from_env = std::env::var("TERMINAL").ok();
-    for program in terminal_candidates(remembered.as_deref(), from_env.as_deref()) {
-        let mut cmd = child_env::command(&program);
-        cmd.args(terminal_args(&program, dir)).current_dir(dir);
-        let worked = spawn_stays_up(cmd);
+    for candidate in terminal_candidates(remembered.as_deref(), from_env.as_deref()) {
+        let program = if run.is_empty() { candidate.clone() } else { unwrapped(&candidate) };
+        let launch = |tab: Vec<String>| {
+            let mut cmd = child_env::command(&program);
+            if tab_leads(&program) {
+                cmd.args(&tab);
+            }
+            cmd.args(terminal_args(&program, dir)).current_dir(dir);
+            if !run.is_empty() {
+                if !tab_leads(&program) {
+                    cmd.args(&tab);
+                }
+                cmd.args(exec_args(&program)).args(run);
+            }
+            spawn_stays_up(cmd)
+        };
+        let tab = tab_args(&program);
+        let worked = (!run.is_empty() && !tab.is_empty() && launch(tab)) || launch(Vec::new());
         if let Ok(mut slot) = WORKING_TERMINAL.lock() {
             if worked {
-                *slot = Some(program);
-            } else if slot.as_deref() == Some(program.as_str()) {
+                *slot = Some(candidate);
+            } else if slot.as_deref() == Some(candidate.as_str()) {
                 *slot = None;
             }
         }
@@ -168,12 +295,64 @@ pub async fn open_in_terminal(path: String) -> Result<(), String> {
     child_env::command("cmd").args(["/c", "start", "cmd", "/k", &format!("cd /d {}", dir)]).spawn().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
     {
-        let launched = launch_linux_terminal(&dir);
-        if !launched {
-            return Err("No supported terminal emulator found. Set the TERMINAL environment variable, or install gnome-terminal, xfce4-terminal, konsole or x-terminal-emulator.".to_string());
+        if !launch_linux_terminal(&dir, &[]) {
+            return Err(NO_TERMINAL.to_string());
         }
     }
     Ok(())
+}
+
+/// Opens the system terminal in `cwd` running an agent CLI - resuming a
+/// conversation outside the app - through the login shell, as the embedded PTY
+/// does. Linux emulators take the command on their command line; macOS Terminal
+/// takes it through AppleScript; Windows Terminal adds a tab to its last used
+/// window, and a plain console stands in when it is not installed.
+#[tauri::command]
+pub async fn open_cli_in_terminal(cwd: String, argv: Vec<String>) -> Result<(), String> {
+    let (program, rest) = argv.split_first().ok_or("Empty args")?;
+    let binary = resolve_binary(program, None).ok_or_else(|| format!("{program} not found"))?;
+    if !std::path::Path::new(&cwd).is_dir() {
+        return Err(format!("{cwd} no longer exists"));
+    }
+    let run = crate::commands::terminal::agent_argv(&binary, rest, cfg!(target_os = "linux"));
+    #[cfg(target_os = "linux")]
+    {
+        if launch_linux_terminal(&cwd, &run) {
+            return Ok(());
+        }
+        Err(NO_TERMINAL.to_string())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!("do script {}", applescript_string(&shell_line(&cwd, &run)));
+        let output = child_env::command("osascript")
+            .args(["-e", "tell application \"Terminal\"", "-e", "activate", "-e", &script, "-e", "end tell"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let reason = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(if reason.is_empty() { "Terminal did not accept the command.".to_string() } else { reason })
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let mut wt = child_env::command("wt");
+        wt.args(["-w", "0", "new-tab", "-d", &cwd]).args(&run);
+        if wt.spawn().is_ok() {
+            return Ok(());
+        }
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        let (program, args) = run.split_first().ok_or("Empty args")?;
+        child_env::command(program)
+            .args(args)
+            .current_dir(&cwd)
+            .creation_flags(CREATE_NEW_CONSOLE)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 /// Shows the path in the system file manager, selected when the platform can.
@@ -317,10 +496,81 @@ mod tests {
     }
 
     #[test]
+    fn terminals_get_their_own_command_flag() {
+        assert_eq!(exec_args("/usr/bin/gnome-terminal"), ["--"]);
+        assert_eq!(exec_args("ptyxis"), ["--"]);
+        assert_eq!(exec_args("wezterm"), ["--"]);
+        assert_eq!(exec_args("xfce4-terminal"), ["-x"]);
+        assert_eq!(exec_args("mate-terminal"), ["-x"]);
+        assert_eq!(exec_args("terminator"), ["-x"]);
+        assert_eq!(exec_args("konsole"), ["-e"]);
+        assert_eq!(exec_args("ghostty"), ["-e"]);
+        assert_eq!(exec_args("tilix"), ["-x"]);
+        assert!(exec_args("kitty").is_empty());
+        assert!(exec_args("foot").is_empty());
+    }
+
+    #[test]
+    fn terminals_that_can_join_a_window_get_a_tab_flag() {
+        assert_eq!(tab_args("/usr/bin/gnome-terminal"), ["--tab"]);
+        assert_eq!(tab_args("ptyxis"), ["--tab"]);
+        assert_eq!(tab_args("xfce4-terminal"), ["--tab"]);
+        assert_eq!(tab_args("mate-terminal"), ["--tab"]);
+        assert_eq!(tab_args("konsole"), ["--new-tab"]);
+        assert_eq!(tab_args("terminator"), ["--new-tab"]);
+        assert_eq!(tab_args("wezterm"), ["--new-tab"]);
+        assert_eq!(tab_args("tilix"), ["-a", "app-new-session"]);
+        assert!(tab_args("kitty").is_empty());
+        assert!(tab_args("foot").is_empty());
+        assert!(tab_args("ghostty").is_empty());
+        assert!(tab_args("alacritty").is_empty());
+    }
+
+    #[test]
+    fn a_debian_wrapper_names_the_emulator_behind_it() {
+        let wrapper = std::path::Path::new("/usr/bin/gnome-terminal.wrapper");
+        assert_eq!(behind_wrapper(wrapper).as_deref(), Some("gnome-terminal"));
+        assert_eq!(
+            behind_wrapper(std::path::Path::new("/usr/bin/konsole")).as_deref(),
+            Some("konsole")
+        );
+        assert_eq!(behind_wrapper(std::path::Path::new("/usr/bin/unknown-term")), None);
+    }
+
+    #[test]
+    fn the_tab_flag_leads_only_where_the_directory_binds_to_it() {
+        assert!(tab_leads("/usr/bin/gnome-terminal"));
+        assert!(tab_leads("mate-terminal"));
+        assert!(tab_leads("xfce4-terminal"));
+        assert!(!tab_leads("konsole"));
+        assert!(!tab_leads("wezterm"));
+    }
+
+    #[test]
     fn terminals_get_their_own_directory_flag() {
         assert_eq!(terminal_args("konsole", "/p"), ["--workdir", "/p"]);
         assert_eq!(terminal_args("/usr/bin/gnome-terminal", "/p"), ["--working-directory=/p"]);
+        assert_eq!(terminal_args("mate-terminal", "/p"), ["--working-directory=/p"]);
+        assert_eq!(terminal_args("ghostty", "/p"), ["--working-directory=/p"]);
+        assert_eq!(terminal_args("ptyxis", "/p"), ["-d", "/p"]);
+        assert_eq!(terminal_args("foot", "/p"), ["-D", "/p"]);
+        assert_eq!(terminal_args("wezterm", "/p"), ["start", "--cwd", "/p"]);
         assert!(terminal_args("xterm", "/p").is_empty());
+    }
+
+    #[test]
+    fn the_mac_terminal_gets_one_quoted_shell_line() {
+        let run = ["/bin/zsh", "-lic", "exec \"$@\"", "cairn-agent", "/Users/a b/claude", "--resume", "it's"]
+            .map(String::from);
+        assert_eq!(
+            shell_line("/Users/a b/wt", &run),
+            r#"cd '/Users/a b/wt' && '/bin/zsh' '-lic' 'exec "$@"' 'cairn-agent' '/Users/a b/claude' '--resume' 'it'\''s'"#
+        );
+    }
+
+    #[test]
+    fn applescript_strings_escape_quotes_and_backslashes() {
+        assert_eq!(applescript_string(r#"say "hi" \ bye"#), r#""say \"hi\" \\ bye""#);
     }
 
     #[test]

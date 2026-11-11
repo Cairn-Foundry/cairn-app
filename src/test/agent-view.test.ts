@@ -27,10 +27,18 @@ const fireExit = (id: string, exitCode: number | null) => {
 };
 const createTerminal = vi.fn<(...a: unknown[]) => unknown>();
 const closeTerminal = vi.fn<(...a: unknown[]) => unknown>();
+const terminalHasChildren = vi.fn<(...a: unknown[]) => Promise<boolean>>();
 vi.mock("#lib/services/terminal-service", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	createTerminal: (...a: unknown[]) => createTerminal(...a),
 	closeTerminal: (...a: unknown[]) => closeTerminal(...a),
+	terminalHasChildren: (...a: unknown[]) => terminalHasChildren(...a),
+}));
+
+const openCliInTerminal = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("#lib/services/file-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	openCliInTerminal: (...a: unknown[]) => openCliInTerminal(...a),
 }));
 
 vi.mock("#lib/utils/terminal/terminal-manager", () => ({
@@ -137,6 +145,7 @@ beforeEach(async () => {
 	exitHandlers.clear();
 	createTerminal.mockResolvedValue(undefined);
 	closeTerminal.mockResolvedValue(undefined);
+	terminalHasChildren.mockResolvedValue(false);
 
 	instanceConversations.set({});
 	projectConversations.set({});
@@ -548,5 +557,141 @@ describe("when the CLI exits", () => {
 
 		expect(document.querySelector(".conv-exited")).toBeNull();
 		expect(document.querySelector(".term-slot")).not.toBeNull();
+	});
+});
+
+describe("continuing in the system terminal", () => {
+	const ref = { projectId: "p1", instanceId: "i1", scope: "instance" as const };
+	const terminalButton = () =>
+		screen.queryByRole("button", { name: /system terminal/i });
+
+	const detachModal = () =>
+		document.querySelector('[role="dialog"]') as HTMLElement | null;
+
+	async function confirmDetach() {
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.primary") as HTMLElement,
+		);
+		await tick();
+		await tick();
+	}
+
+	/** Opens a conversation, then marks its session as written by the CLI. */
+	async function openConfirmed() {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		instanceConversations.update((m) => ({
+			...m,
+			"p1:i1": m["p1:i1"].map((c) => ({ ...c, sessionConfirmed: true })),
+		}));
+		await tick();
+		return conversationsOf(ref)[0];
+	}
+
+	it("offers nothing until the CLI has written the session", async () => {
+		await mount();
+		await userEvent.click(cardNamed("Claude Code"));
+		await tick();
+		expect(terminalButton()).toBeNull();
+	});
+
+	it("stops the embedded CLI and resumes the session in a terminal", async () => {
+		openCliInTerminal.mockResolvedValue(undefined);
+		const meta = await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await confirmDetach();
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(openCliInTerminal).toHaveBeenCalledWith(meta.cwd, [
+			"claude",
+			"--resume",
+			meta.sessionId,
+		]);
+		expect(document.querySelector('[role="alert"]')).toBeNull();
+		expect(document.querySelector(".conv-stopped")?.textContent).toContain(
+			"went on in the system terminal",
+		);
+	});
+
+	it("warns that the CLI will be stopped and reopened in the terminal", async () => {
+		openCliInTerminal.mockResolvedValue(undefined);
+		const meta = await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+
+		expect(detachModal()?.textContent).toContain("will be stopped");
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(openCliInTerminal).not.toHaveBeenCalled();
+
+		await confirmDetach();
+
+		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
+		expect(openCliInTerminal).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves the CLI running when the warning is cancelled", async () => {
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.ghost") as HTMLElement,
+		);
+		await tick();
+
+		expect(detachModal()).toBeNull();
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(openCliInTerminal).not.toHaveBeenCalled();
+	});
+
+	it("blocks a second launch and Resume while the terminal opens", async () => {
+		let release: () => void = () => {};
+		openCliInTerminal.mockReturnValue(
+			new Promise<void>((resolve) => {
+				release = resolve;
+			}),
+		);
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.primary") as HTMLElement,
+		);
+		await tick();
+
+		expect((terminalButton() as HTMLButtonElement).disabled).toBe(true);
+		expect(
+			(document.querySelector(".conv-stopped .btn") as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+
+		release();
+		await tick();
+		await tick();
+
+		expect(openCliInTerminal).toHaveBeenCalledTimes(1);
+		expect(terminalButton()).toBeNull();
+	});
+
+	it("says why when no terminal could be opened", async () => {
+		openCliInTerminal.mockRejectedValue(
+			"No supported terminal emulator found.",
+		);
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await confirmDetach();
+
+		expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+			"No supported terminal emulator",
+		);
 	});
 });
