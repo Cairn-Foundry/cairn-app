@@ -565,6 +565,17 @@ describe("continuing in the system terminal", () => {
 	const terminalButton = () =>
 		screen.queryByRole("button", { name: /system terminal/i });
 
+	const detachModal = () =>
+		document.querySelector('[role="dialog"]') as HTMLElement | null;
+
+	async function confirmDetach() {
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.primary") as HTMLElement,
+		);
+		await tick();
+		await tick();
+	}
+
 	/** Opens a conversation, then marks its session as written by the CLI. */
 	async function openConfirmed() {
 		await mount();
@@ -591,7 +602,7 @@ describe("continuing in the system terminal", () => {
 
 		await userEvent.click(terminalButton() as HTMLElement);
 		await tick();
-		await tick();
+		await confirmDetach();
 
 		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
 		expect(openCliInTerminal).toHaveBeenCalledWith(meta.cwd, [
@@ -605,8 +616,7 @@ describe("continuing in the system terminal", () => {
 		);
 	});
 
-	it("asks before stopping a CLI that is running a command", async () => {
-		terminalHasChildren.mockResolvedValue(true);
+	it("warns that the CLI will be stopped and reopened in the terminal", async () => {
 		openCliInTerminal.mockResolvedValue(undefined);
 		const meta = await openConfirmed();
 
@@ -614,19 +624,30 @@ describe("continuing in the system terminal", () => {
 		await tick();
 		await tick();
 
-		expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+		expect(detachModal()?.textContent).toContain("will be stopped");
 		expect(closeTerminal).not.toHaveBeenCalled();
 		expect(openCliInTerminal).not.toHaveBeenCalled();
 
-		const confirm = document.querySelector(
-			'[role="dialog"] .btn.danger',
-		) as HTMLElement;
-		await userEvent.click(confirm);
-		await tick();
-		await tick();
+		await confirmDetach();
 
 		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
 		expect(openCliInTerminal).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves the CLI running when the warning is cancelled", async () => {
+		await openConfirmed();
+
+		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await tick();
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.ghost") as HTMLElement,
+		);
+		await tick();
+
+		expect(detachModal()).toBeNull();
+		expect(closeTerminal).not.toHaveBeenCalled();
+		expect(openCliInTerminal).not.toHaveBeenCalled();
 	});
 
 	it("blocks a second launch and Resume while the terminal opens", async () => {
@@ -639,6 +660,10 @@ describe("continuing in the system terminal", () => {
 		await openConfirmed();
 
 		await userEvent.click(terminalButton() as HTMLElement);
+		await tick();
+		await userEvent.click(
+			detachModal()?.querySelector(".btn.primary") as HTMLElement,
+		);
 		await tick();
 
 		expect((terminalButton() as HTMLButtonElement).disabled).toBe(true);
@@ -663,7 +688,7 @@ describe("continuing in the system terminal", () => {
 
 		await userEvent.click(terminalButton() as HTMLElement);
 		await tick();
-		await tick();
+		await confirmDetach();
 
 		expect(document.querySelector('[role="alert"]')?.textContent).toContain(
 			"No supported terminal emulator",

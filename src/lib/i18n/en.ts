@@ -588,6 +588,10 @@ export const en = {
 		continueInTerminal: "Continue in the system terminal",
 		continuedInTerminal:
 			"This conversation went on in the system terminal. Close it there before resuming it here.",
+		detachTitle: (name: string) => `Continue "${name}" in the terminal?`,
+		detachDescription:
+			"The CLI running in Cairn will be stopped, then the same session reopens in the system terminal, in the same worktree. A command it is running right now is interrupted.",
+		detachConfirm: "Continue in the terminal",
 		stopHeading: "Agent",
 		stopTitle: (name: string) => `Stop "${name}"?`,
 		stopDescription:

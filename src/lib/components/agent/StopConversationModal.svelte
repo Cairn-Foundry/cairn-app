@@ -4,19 +4,21 @@
 -->
 <script lang="ts">
   /**
-   * Confirmation before a CLI still running a command of its own is stopped.
-   * Only shown in that case: a quiet CLI is stopped straight away.
+   * Confirmation before a CLI is stopped. Stopping is only confirmed when the
+   * CLI is running a command of its own; handing a running CLI over to the
+   * system terminal is always confirmed, since it ends the run inside Cairn.
    */
   import Icon from '#lib/components/Icon.svelte';
   import { t } from '#lib/i18n';
 
   interface Props {
     title: string;
+    mode?: 'stop' | 'detach';
     onClose: () => void;
     onConfirm: () => void;
   }
 
-  const { title, onClose, onConfirm }: Props = $props();
+  const { title, mode = 'stop', onClose, onConfirm }: Props = $props();
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -33,21 +35,27 @@
     <div class="modal-head">
       <div>
         <div class="step-count">{t('agent.stopHeading')}</div>
-        <h3>{(t('agent.stopTitle') as (name: string) => string)(title)}</h3>
+        <h3>{(t(mode === 'detach' ? 'agent.detachTitle' : 'agent.stopTitle') as (name: string) => string)(title)}</h3>
       </div>
       <button class="icon-btn close" onclick={onClose} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
     <div class="modal-body">
-      <p class="stop-desc">{t('agent.stopDescription')}</p>
+      <p class="stop-desc">{t(mode === 'detach' ? 'agent.detachDescription' : 'agent.stopDescription')}</p>
     </div>
     <div class="modal-foot">
       <div class="spacer"></div>
       <button class="btn ghost" onclick={onClose}>{t('common.cancel')}</button>
-      <button class="btn danger" onclick={onConfirm}>
-        <Icon name="stop" size={14}/> {t('agent.stop')}
-      </button>
+      {#if mode === 'detach'}
+        <button class="btn primary" onclick={onConfirm}>
+          <Icon name="terminal" size={14}/> {t('agent.detachConfirm')}
+        </button>
+      {:else}
+        <button class="btn danger" onclick={onConfirm}>
+          <Icon name="stop" size={14}/> {t('agent.stop')}
+        </button>
+      {/if}
     </div>
   </div>
 </div>

@@ -296,11 +296,8 @@
 
   async function continueInTerminal() {
     if (!active || isDetaching) return;
-    isDetaching = true;
-    if (await cliIsBusy()) {
-      isDetaching = false;
-      pendingStop = 'detach';
-    } else await detachNow();
+    if (terminalId) pendingStop = 'detach';
+    else await detachNow();
   }
 
   async function detachNow() {
@@ -525,6 +522,7 @@
       {#if pendingStop}
         <StopConversationModal
           title={active.meta.title || (t('agent.untitled') as string)}
+          mode={pendingStop}
           onClose={() => { pendingStop = null; }}
           onConfirm={pendingStop === 'detach' ? () => void detachNow() : stopNow}
         />
