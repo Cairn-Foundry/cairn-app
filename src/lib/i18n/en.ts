@@ -2518,11 +2518,11 @@ export const en = {
 		sections: {
 			tickets: "Tickets",
 			ticketsDesc: "What is left to do across every project with a tracker.",
-			activity: "Activity",
-			activityDesc:
+			conversations: "Conversations",
+			conversationsDesc:
 				"Every running conversation, across projects and instances. What waits for you comes first.",
-			activityEmpty: "No conversation is running.",
-			activityHooksHint:
+			conversationsEmpty: "No conversation is running.",
+			conversationsHooksHint:
 				"Working and waiting are reported by Claude Code. Other CLIs only show whether they are running.",
 		},
 		sidebar: {
@@ -2530,7 +2530,7 @@ export const en = {
 			projects: "Projects",
 			tickets: "Tickets",
 			integrations: "Integrations",
-			activity: "Activity",
+			conversations: "Conversations",
 			ai: "Artificial Intelligences",
 			providers: "Providers",
 			features: "Features",

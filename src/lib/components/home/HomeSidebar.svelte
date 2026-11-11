@@ -7,7 +7,7 @@
    * Left navigation of the home screen: one entry per HomeSection.
    * Dispatches `select` with the section id.
    */
-  export type HomeSection = 'projects' | 'tickets' | 'integrations' | 'activity' | 'providers' | 'features' | 'agents' | 'skills' | 'mcp' | 'ports' | 'changelog' | 'settings';
+  export type HomeSection = 'projects' | 'tickets' | 'integrations' | 'conversations' | 'providers' | 'features' | 'agents' | 'skills' | 'mcp' | 'ports' | 'changelog' | 'settings';
 </script>
 
 <script lang="ts">
@@ -40,12 +40,12 @@
   <button class="home-nav-item {activeSection === 'tickets'     ? 'active' : ''}" on:click={() => dispatch('select', 'tickets')}>
     <Icon name="ticket" size={15}/> {t('home.sidebar.tickets')}
   </button>
+  <button class="home-nav-item {activeSection === 'conversations' ? 'active' : ''}" on:click={() => dispatch('select', 'conversations')}>
+    <Icon name="message" size={15}/> {t('home.sidebar.conversations')}
+    {#if $attentionCount}<span class="nav-badge" title={t('home.projects.attentionTitle') as string}>{$attentionCount}</span>{/if}
+  </button>
   <button class="home-nav-item {activeSection === 'integrations' ? 'active' : ''}" on:click={() => dispatch('select', 'integrations')}>
     <Icon name="link" size={15}/> {t('home.sidebar.integrations')}
-  </button>
-  <button class="home-nav-item {activeSection === 'activity'    ? 'active' : ''}" on:click={() => dispatch('select', 'activity')}>
-    <Icon name="clock" size={15}/> {t('home.sidebar.activity')}
-    {#if $attentionCount}<span class="nav-badge" title={t('home.projects.attentionTitle') as string}>{$attentionCount}</span>{/if}
   </button>
 
   {#if $aiEnabled}

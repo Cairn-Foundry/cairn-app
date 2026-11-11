@@ -2561,11 +2561,11 @@ export const fr = {
 			tickets: "Tickets",
 			ticketsDesc:
 				"Ce qu'il reste à faire sur tous les projets ayant un tracker.",
-			activity: "Activité",
-			activityDesc:
+			conversations: "Conversations",
+			conversationsDesc:
 				"Toutes les conversations lancées, sur tous les projets et toutes les instances. Ce qui vous attend passe en premier.",
-			activityEmpty: "Aucune conversation n'est lancée.",
-			activityHooksHint:
+			conversationsEmpty: "Aucune conversation n'est lancée.",
+			conversationsHooksHint:
 				"L'activité et l'attente sont signalées par Claude Code. Les autres CLI indiquent seulement s'ils sont lancés.",
 		},
 		sidebar: {
@@ -2573,7 +2573,7 @@ export const fr = {
 			projects: "Projets",
 			tickets: "Tickets",
 			integrations: "Intégrations",
-			activity: "Activité",
+			conversations: "Conversations",
 			ai: "Intelligences artificielles",
 			providers: "Fournisseurs",
 			features: "Fonctionnalités",

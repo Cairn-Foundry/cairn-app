@@ -29,7 +29,7 @@
 </script>
 
 {#if $liveConversations.length === 0}
-  <div class="empty">{t('home.sections.activityEmpty')}</div>
+  <div class="empty">{t('home.sections.conversationsEmpty')}</div>
 {:else}
   <div class="list">
     {#each $liveConversations as c (c.id)}
@@ -50,7 +50,7 @@
     {/each}
   </div>
 {/if}
-<div class="hint">{t('home.sections.activityHooksHint')}</div>
+<div class="hint">{t('home.sections.conversationsHooksHint')}</div>
 
 <style>
   .empty {

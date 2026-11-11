@@ -27,7 +27,7 @@
   import McpSection from '#lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '#lib/components/home/IntegrationsSection.svelte';
   import TicketsSection from '#lib/components/home/TicketsSection.svelte';
-  import ActivitySection from '#lib/components/home/ActivitySection.svelte';
+  import ConversationsSection from '#lib/components/home/ConversationsSection.svelte';
   import type { SettingsTab } from '#lib/utils/home/settings-registry';
   import { aiEnabled } from '#lib/stores/settings';
   import { liveConversations } from '#lib/stores/agent-status';
@@ -129,13 +129,13 @@
         <IntegrationsSection />
       </div>
 
-    {:else if activeSection === 'activity'}
+    {:else if activeSection === 'conversations'}
       <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.sections.activity')}</h1>
-        <div class="sub">{t('home.sections.activityDesc')}</div>
+        <h1 style="font-size: 22px">{t('home.sections.conversations')}</h1>
+        <div class="sub">{t('home.sections.conversationsDesc')}</div>
       </div>
       <div style="margin-top: 24px;">
-        <ActivitySection
+        <ConversationsSection
           onOpen={(c) => dispatch('openConversation', { projectId: c.projectId, instanceId: c.instanceId, conversationId: c.id })}
         />
       </div>

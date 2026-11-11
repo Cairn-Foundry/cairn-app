@@ -329,6 +329,10 @@ export const ICONS: Record<string, IconDef> = {
 		body: '<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4.5 6h0M4.5 12h0M4.5 18h0"/>',
 	},
 	filter: { solid: false, body: '<path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/>' },
+	message: {
+		solid: false,
+		body: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+	},
 	bell: {
 		solid: false,
 		body: '<path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 19a2 2 0 004 0"/>',
