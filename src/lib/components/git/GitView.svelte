@@ -73,17 +73,16 @@
   import { activeInstance, instances } from '#lib/stores/instance';
   import { openUrl } from '#lib/services/opener-service';
   import { capabilities } from '#lib/stores/integrations';
-  import { getRemoteUrl } from '#lib/stores/git';
+  import { getRemoteUrl, reportGitError } from '#lib/stores/git';
   import type { WebLinkTarget } from '#lib/types/integrations';
   import { forgeLabel, forgeLink } from '#lib/utils/integrations/links';
-  import { activateInstance } from '#lib/stores/project';
+  import { activateInstance, projects, setGitProfile } from '#lib/stores/project';
   import { settings } from '#lib/stores/settings';
   import { activeStep, pendingGitAction, gitLeftTab, type GitLeftTab } from '#lib/stores/ui';
   import { currentProjectViewState, updateProjectViewState } from '#lib/stores/view-state';
   import { hashHunks } from '#lib/utils/git/diff-hash';
   import { getGitCollapseState, saveGitCollapseState } from '#lib/services/git-collapse-state-service';
   import { getCommitState, saveCommitState } from '#lib/services/commit-state-service';
-  import { getProjectGitProfile, setProjectGitProfile } from '#lib/services/project-service';
   import { AiAssistError, runOneShotShaped } from '#lib/services/ai-assist-service';
   import { FEATURE_SCHEMAS, resolveAiFeature } from '#lib/utils/home/ai-features';
   import { isAssistCliInstalled, loadCliProviders } from '#lib/stores/cli-providers';
@@ -1378,10 +1377,17 @@
   let appendTicketId = false;
   let selectedProfileId = '';
 
-  function pickProfile(id: string) {
-    selectedProfileId = id;
+  async function pickProfile(id: string) {
     profileDropdownOpen = false;
-    if (instance) setProjectGitProfile(instance.projectId, id);
+    if (instance) {
+      try {
+        await setGitProfile(instance.projectId, id);
+      } catch (e) {
+        reportGitError(e);
+        return;
+      }
+    }
+    selectedProfileId = id;
   }
 
   let forgeRemoteUrl = '';
@@ -1446,7 +1452,7 @@
       prevInstanceId = iid;
       commitStateLoaded = false;
       collapseStateLoaded = false;
-      Promise.all([getCommitState(instance!.projectId, iid), getProjectGitProfile(instance!.projectId)]).then(([s, projectProfileId]) => {
+      getCommitState(instance!.projectId, iid).then((s) => {
         if (s) {
           noVerify = s.noVerify;
           signOff = s.signOff;
@@ -1460,7 +1466,7 @@
           selectedProfileId = '';
           appendTicketId = false;
         }
-        if (projectProfileId !== null) selectedProfileId = projectProfileId;
+        if (projectProfileId != null) selectedProfileId = projectProfileId;
         savedCommitState = `${iid}|${JSON.stringify({ noVerify, signOff, allowEmpty, selectedProfileId, appendTicketId })}`;
         commitStateLoaded = true;
       });
@@ -1472,6 +1478,10 @@
       });
     }
   }
+
+  // The profile is the project's, so a pick made in its settings lands here too.
+  $: projectProfileId = $projects.find((p) => p.id === instance?.projectId)?.gitProfileId;
+  $: if (commitStateLoaded && projectProfileId != null) selectedProfileId = projectProfileId;
 
   // Written only when something moved: the load itself flips the flag, and a
   // switch used to write back both files untouched.

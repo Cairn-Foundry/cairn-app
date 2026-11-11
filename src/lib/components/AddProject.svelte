@@ -14,6 +14,7 @@
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
   import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
+  import GitProfileSelect from '#lib/components/GitProfileSelect.svelte';
   import { validateDirectory, cloneRepository } from '#lib/services/project-service';
   import { getRemoteUrl } from '#lib/services/git-service';
   import { projects, registerProject } from '#lib/stores/project';
@@ -65,6 +66,7 @@
   let name = '';
   let path = initialPath;
   let color = '#6366f1';
+  let gitProfileId = '';
   let cloneUrl = initialCloneUrl;
   let cloneMethod: 'https' | 'ssh' = 'https';
   let bindings: ProjectIntegrations = EMPTY_BINDINGS;
@@ -163,7 +165,7 @@
       }
 
       const id = crypto.randomUUID();
-      const project: Project = { id, name: name.trim(), path: resolvedPath, color, activeInstanceId: null };
+      const project: Project = { id, name: name.trim(), path: resolvedPath, color, activeInstanceId: null, gitProfileId };
       await registerProject(project);
       if (hasBindings) await saveProjectIntegrations(id, bindings).catch(() => undefined);
       dispatch('created', { id });
@@ -234,6 +236,8 @@
       {:else if mode === 'new' && step === 1}
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
       <!-- -- NEW - step 2: location -- -->
       {:else if mode === 'new' && step === 2}
@@ -317,6 +321,8 @@
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
 
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
+
       <!-- -- CLONE - step 0: source -- -->
       {:else if mode === 'clone' && step === 0}
 
@@ -386,6 +392,8 @@
       {:else if mode === 'clone' && step === 2}
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
       <!-- -- CLONE - step 3: destination -- -->
       {:else if mode === 'clone' && step === 3}

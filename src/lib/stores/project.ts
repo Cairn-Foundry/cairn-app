@@ -14,6 +14,7 @@ import {
 	removeProject,
 	saveProjectOrder,
 	setActiveInstance,
+	setProjectGitProfile,
 	updateProject,
 } from "#lib/services/project-service";
 import { projectFolders } from "#lib/stores/project-folders";
@@ -92,6 +93,19 @@ export async function activateInstance(
 	projects.update((list) =>
 		list.map((p) =>
 			p.id === projectId ? { ...p, activeInstanceId: instanceId } : p,
+		),
+	);
+}
+
+/** Picks the profile the project commits with, mirroring it in the list once stored. */
+export async function setGitProfile(
+	projectId: string,
+	profileId: string,
+): Promise<void> {
+	await setProjectGitProfile(projectId, profileId);
+	projects.update((list) =>
+		list.map((p) =>
+			p.id === projectId ? { ...p, gitProfileId: profileId } : p,
 		),
 	);
 }

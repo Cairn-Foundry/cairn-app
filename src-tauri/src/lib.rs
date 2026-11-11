@@ -219,7 +219,6 @@ pub fn run() {
             update_instance_ticket,
             update_instance_base_branch,
             set_active_instance,
-            get_project_git_profile,
             set_project_git_profile,
             get_listing,
             save_folders,

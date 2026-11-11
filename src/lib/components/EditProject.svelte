@@ -8,9 +8,10 @@
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
+  import GitProfileSelect from '#lib/components/GitProfileSelect.svelte';
   import { t } from '#lib/i18n';
   import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
-  import { editProject, relocateProjectInStore } from '#lib/stores/project';
+  import { editProject, relocateProjectInStore, setGitProfile } from '#lib/stores/project';
   import { settings } from '#lib/stores/settings';
   import { DEFAULT_BRANCH_TEMPLATE, renderBranchTemplate } from '#lib/utils/integrations/branch-template';
   import { bindingsByProject, EMPTY_BINDINGS, loadProjectIntegrations, saveProjectIntegrations } from '#lib/stores/integrations';
@@ -18,7 +19,7 @@
   import type { Project } from '#lib/types/project';
   import type { ProjectIntegrations } from '#lib/types/integrations';
 
-  type Tab = 'identity' | 'branch' | 'integrations';
+  type Tab = 'identity' | 'git' | 'integrations';
 
   export let project: Project;
   export let initialTab: Tab = 'identity';
@@ -31,6 +32,9 @@
   let color = project.color;
   let path = project.path;
   let branchTemplate = project.branchTemplate ?? '';
+  /** A profile deleted since it was picked reads as the default. */
+  const initialProfileId = $settings.gitProfiles.some((p) => p.id === project.gitProfileId) ? project.gitProfileId ?? '' : '';
+  let gitProfileId = initialProfileId;
   let loading = false;
   let error = '';
   let remoteUrl = '';
@@ -48,6 +52,7 @@
   });
 
   $: hasBindingChanges = JSON.stringify(bindings) !== pristineBindings;
+  $: hasProfileChange = gitProfileId !== initialProfileId;
   $: globalTemplate = $settings.branchTemplate?.trim() || DEFAULT_BRANCH_TEMPLATE;
   /** Empty means "no override": the project follows the global template again. */
   $: templateOverride = branchTemplate.trim() || null;
@@ -58,7 +63,7 @@
     kind: 'Bug',
   });
   $: canSave = name.trim().length > 0
-    && (name.trim() !== project.name || color !== project.color || path !== project.path || hasTemplateChange || hasBindingChanges);
+    && (name.trim() !== project.name || color !== project.color || path !== project.path || hasTemplateChange || hasProfileChange || hasBindingChanges);
 
   async function pickLocation() {
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -75,6 +80,7 @@
       if (name.trim() !== project.name || color !== project.color || hasTemplateChange) {
         await editProject(project.id, name.trim(), color, templateOverride);
       }
+      if (hasProfileChange) await setGitProfile(project.id, gitProfileId);
       if (hasBindingChanges) await saveProjectIntegrations(project.id, bindings);
       dispatch('close');
     } catch (err) {
@@ -123,13 +129,13 @@
           {t('editProject.tabIdentity')}
         </button>
         <button
-          class="ep-tab {activeTab === 'branch' ? 'active' : ''}"
+          class="ep-tab {activeTab === 'git' ? 'active' : ''}"
           role="tab"
-          aria-selected={activeTab === 'branch'}
-          on:click={() => activeTab = 'branch'}
+          aria-selected={activeTab === 'git'}
+          on:click={() => activeTab = 'git'}
         >
           <Icon name="branch" size={14}/>
-          {t('editProject.tabBranch')}
+          {t('editProject.tabGit')}
         </button>
         <button
           class="ep-tab {activeTab === 'integrations' ? 'active' : ''}"
@@ -174,7 +180,9 @@
           </div>
 
           <ProjectPreviewPill name={name || project.name} {color} />
-        {:else if activeTab === 'branch'}
+        {:else if activeTab === 'git'}
+          <GitProfileSelect bind:value={gitProfileId} label={t('editProject.gitProfile') as string} hint={t('editProject.gitProfileHint') as string} />
+
           <div class="form-section">
             <label class="ep-label" for="edit-branch-template">
               {t('editProject.branchTemplate')}
