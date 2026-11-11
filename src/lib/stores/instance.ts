@@ -28,7 +28,10 @@ import type {
 } from "#lib/types/instance";
 import type { Project } from "#lib/types/project";
 import { dropProjectKeys } from "#lib/utils/project-scope";
-import { removeInstanceConversations } from "./conversation";
+import {
+	rehostConversations,
+	removeInstanceConversations,
+} from "./conversation";
 import { activateInstance, activeProject } from "./project";
 import { removeInstanceTerminals } from "./terminal";
 
@@ -39,6 +42,9 @@ import { removeInstanceTerminals } from "./terminal";
  * flight - a fallback every view would follow with a full reload.
  */
 const instancesByProject = writable<Record<string, Instance[]>>({});
+
+/** Read-only view of every loaded project's instances, keyed by project id. */
+export const loadedInstances = { subscribe: instancesByProject.subscribe };
 
 /** Applies a change to one project's instance list, leaving the other projects alone. */
 function patchProject(
@@ -273,6 +279,7 @@ export async function removeInstance(
 	await checkInstanceDeletion(id, projectId, removeWorktree);
 	await removeInstanceTerminals(projectId, id);
 	removeInstanceConversations(projectId, id);
+	rehostConversations(projectId, id, BASE_INSTANCE_ID);
 	// Awaited, not fired and forgotten: `watch_dirs` re-creates a watcher whenever
 	// it does not find one, so a sync landing between an un-awaited release and the
 	// delete would reinstall a watcher on the directory being removed.

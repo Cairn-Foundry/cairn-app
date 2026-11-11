@@ -92,7 +92,7 @@ this is the first thing to check.
 ### Persistent storage on disk
 
 All app data lives in `~/.cairn/`. The layout is defined in `storage.rs`, which holds the only
-path helpers (28 of them, all hanging off `cairn_dir()`):
+path helpers (29 of them, all hanging off `cairn_dir()`):
 
 ```
 ~/.cairn/
@@ -103,6 +103,7 @@ path helpers (28 of them, all hanging off `cairn_dir()`):
   integrations.json                       # integration connections
   ai-keys.enc                             # provider API keys + integration tokens, encrypted (0600)
   ai-keys.secret                          # the key ai-keys.enc is encrypted with (0600)
+  agent-signals/{conversation-id}         # turn state written by a running CLI's hooks, wiped at startup
   projects/
     projects.json                         # all registered projects
     listing.json                          # project order + folder groupings
@@ -298,6 +299,30 @@ Liveness is derived, not stored: a conversation is live while a PTY terminal is 
 that exited on its own is caught by the terminal manager's exit event and shown as an "exited
 with code N" banner with Restart / Archive. There is no persisted busy/done state - the old
 `agent-activity.json` is gone.
+
+What a live conversation is *doing* comes from the CLI itself, never from its output. Claude Code
+is launched with an extra `--settings` layer of hooks (`statusArgv` in `cli-launch.ts`, merged with
+the user's settings, never written to them). A hook runs in its own session without the PTY as
+controlling terminal, so it cannot print into the conversation: it writes `working` / `waiting` /
+`done` into the file named by `CAIRN_AGENT_SIGNAL`, which `terminal_create` sets for every
+`conversation:*` terminal. `commands/agent_signals.rs` keeps one non-recursive watch on that
+directory and emits `agent-signal`. `stores/agent-status.ts` turns signals, keystrokes, output
+silence and exits into a status per conversation (transitions in `utils/agent/agent-status.ts`),
+clears the user's turn once that conversation is on screen in a focused window, and sends an OS
+notification (`agentNotifications` setting) when the window is not focused. Window focus comes from
+Tauri's `onFocusChanged`: WebKitGTK fires no DOM `blur` when another application takes the focus.
+
+Notifications go through `notify_agent`, which sends with the notification plugin's Rust builder and
+carries the conversation id as an extra. The plugin keeps one D-Bus connection open on Linux (GNOME
+Shell withdraws a notification as soon as its sender leaves the bus) and reports a click as `tap`
+through `on_action`; `listen_for_notification_clicks` focuses the window and emits
+`agent-notification-opened`, which lands on that conversation. The plugin's JS is only used for the
+permission checks: its `sendNotification` relies on replacing `window.Notification`, which WebKitGTK
+ignores. Keep `tauri-plugin-notification` at 2.8 or later: before 2.7 the connection was dropped at
+once on Linux.
+The status is in memory only - a restart relaunches no CLI. It feeds the home Conversations section, the
+project card badge and the dots of the conversation list. A CLI without hooks only shows "running"
+and "exited".
 
 ### Terminal system
 

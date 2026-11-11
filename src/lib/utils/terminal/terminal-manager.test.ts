@@ -84,6 +84,8 @@ const freshId = () => `t${++counter}`;
 const emitOutput = (id: string, data: string) =>
 	listeners["terminal-output"]({ payload: { id, data } });
 
+const observers: (() => void)[] = [];
+
 beforeEach(() => {
 	window.matchMedia = vi.fn().mockReturnValue({
 		matches: false,
@@ -105,8 +107,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	observeInput(null);
-	observeOutput(null);
+	for (const stop of observers.splice(0)) stop();
 	slot.remove();
 	vi.runOnlyPendingTimers();
 	vi.useRealTimers();
@@ -292,7 +293,7 @@ describe("output", () => {
 		const id = freshId();
 		create(id);
 		const seen = vi.fn();
-		observeOutput(seen);
+		observers.push(observeOutput(seen));
 
 		emitOutput(id, "secret");
 
@@ -304,8 +305,8 @@ describe("output", () => {
 		const id = freshId();
 		create(id);
 		const seen = vi.fn();
-		observeOutput(seen);
-		observeOutput(null);
+		const stop = observeOutput(seen);
+		stop();
 
 		emitOutput(id, "x");
 
@@ -348,7 +349,9 @@ describe("paste", () => {
 	it("reaches the input observer before the PTY", async () => {
 		const id = freshId();
 		const order: string[] = [];
-		observeInput((seenId, data) => order.push(`observed ${seenId} ${data}`));
+		observers.push(
+			observeInput((seenId, data) => order.push(`observed ${seenId} ${data}`)),
+		);
 		writeToTerminal.mockImplementation(async (_id, data) => {
 			order.push(`written ${data}`);
 		});

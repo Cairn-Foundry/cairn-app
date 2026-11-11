@@ -127,6 +127,11 @@ pub fn instance_conversations_dir(project_id: &str, instance_id: &str) -> Result
         .join("conversations"))
 }
 
+/// One file per running conversation, written by its CLI's hooks.
+pub fn agent_signals_dir() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("agent-signals"))
+}
+
 /// Formatter configuration for the project.
 pub fn project_formatting_file(project_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join(project_id).join("formatting.json"))

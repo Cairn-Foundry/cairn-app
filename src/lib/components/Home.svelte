@@ -27,8 +27,11 @@
   import McpSection from '#lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '#lib/components/home/IntegrationsSection.svelte';
   import TicketsSection from '#lib/components/home/TicketsSection.svelte';
+  import ConversationsSection from '#lib/components/home/ConversationsSection.svelte';
   import type { SettingsTab } from '#lib/utils/home/settings-registry';
   import { aiEnabled } from '#lib/stores/settings';
+  import { liveConversations } from '#lib/stores/agent-status';
+  import { needsAttention } from '#lib/utils/agent/agent-status';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
@@ -38,7 +41,15 @@
     addProjectShown: void;
     sectionChange: { section: string; settingsTab: string };
     startTicket: { projectId: string; ticket: Ticket };
+    openConversation: { projectId: string; instanceId: string; conversationId: string };
   }>();
+
+  /** The conversation of that project that needs the user most, in the Agent step. */
+  function openWaiting(projectId: string) {
+    const c = $liveConversations.find((l) => l.projectId === projectId && needsAttention(l.status));
+    if (c) dispatch('openConversation', { projectId, instanceId: c.instanceId, conversationId: c.id });
+    else dispatch('openProject', projectId);
+  }
 
   export let openSection: HomeSection | null = null;
   export let openSettingsTab: string | null = null;
@@ -56,7 +67,7 @@
     withViewTransition(() => { activeSection = section; });
   }
 
-  const AI_SECTIONS: HomeSection[] = ['providers', 'features', 'agents', 'skills', 'mcp'];
+  const AI_SECTIONS: HomeSection[] = ['conversations', 'providers', 'features', 'agents', 'skills', 'mcp'];
   $: if (!$aiEnabled && AI_SECTIONS.includes(activeSection)) activeSection = 'projects';
 
   $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });
@@ -91,6 +102,7 @@
     {#if activeSection === 'projects'}
       <ProjectsSection
         on:openProject={(e) => dispatch('openProject', e.detail)}
+        on:openWaiting={(e) => openWaiting(e.detail)}
         on:closeProject={(e) => dispatch('closeProject', e.detail)}
         on:addProject={(e) => { addProjectMode = e.detail; addProjectPath = ''; addProjectCloneUrl = ''; }}
         on:editProject={(e) => editingProject = e.detail}
@@ -117,13 +129,15 @@
         <IntegrationsSection />
       </div>
 
-    {:else if activeSection === 'activity'}
+    {:else if activeSection === 'conversations'}
       <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.sections.activity')}</h1>
-        <div class="sub">{t('home.sections.activityDesc')}</div>
+        <h1 style="font-size: 22px">{t('home.sections.conversations')}</h1>
+        <div class="sub">{t('home.sections.conversationsDesc')}</div>
       </div>
-      <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-        {t('home.sections.activityEmpty')}
+      <div style="margin-top: 24px;">
+        <ConversationsSection
+          onOpen={(c) => dispatch('openConversation', { projectId: c.projectId, instanceId: c.instanceId, conversationId: c.id })}
+        />
       </div>
 
     {:else if activeSection === 'providers'}

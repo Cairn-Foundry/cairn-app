@@ -19,6 +19,7 @@
  * own `--help`, which is ahead of the published docs for several of them.
  */
 import type { CliProviderId } from "#lib/services/cli-provider-service";
+import { IS_WINDOWS } from "#lib/utils/platform";
 
 /** The binary each CLI installs. */
 const BINARY: Record<CliProviderId, string> = {
@@ -120,4 +121,51 @@ export function resumeArgv(
 		default:
 			return [bin];
 	}
+}
+
+/**
+ * A hook runs detached from the PTY, so it cannot print into the conversation:
+ * it writes the state of the turn into the file the backend names in
+ * `CAIRN_AGENT_SIGNAL` and watches (`agent_signals.rs`). Always exits 0 - a
+ * failing hook is reported inside the CLI.
+ */
+function signalHook(signal: "working" | "waiting" | "done") {
+	return {
+		type: "command",
+		command: `[ -z "$CAIRN_AGENT_SIGNAL" ] || printf ${signal} > "$CAIRN_AGENT_SIGNAL" 2>/dev/null; exit 0`,
+	};
+}
+
+/**
+ * The flags that make a CLI report whose turn it is, empty for the CLIs that
+ * have no way to.
+ *
+ * Claude Code takes them as an extra settings layer, merged with the user's own
+ * and never written to their files. Only permission and question dialogs count
+ * as waiting: the idle notification repeats a turn already reported as done.
+ * Not on Windows: the binary is a `.cmd` shim there and `cmd.exe` cannot carry
+ * this JSON as an argument.
+ */
+export function statusArgv(cli: CliProviderId): string[] {
+	if (cli !== "claude-code" || IS_WINDOWS) return [];
+	const settings = {
+		hooks: {
+			UserPromptSubmit: [{ hooks: [signalHook("working")] }],
+			PostToolUse: [{ hooks: [signalHook("working")] }],
+			Notification: [
+				{
+					matcher: [
+						"permission_prompt",
+						"elicitation_dialog",
+						"elicitation_url_dialog",
+						"agent_needs_input",
+						"worker_permission_prompt",
+					].join("|"),
+					hooks: [signalHook("waiting")],
+				},
+			],
+			Stop: [{ hooks: [signalHook("done")] }],
+		},
+	};
+	return ["--settings", JSON.stringify(settings)];
 }

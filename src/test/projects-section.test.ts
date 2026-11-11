@@ -56,6 +56,12 @@ vi.mock("#lib/stores/project-inbox", async (importOriginal) => ({
 	loadProjectInbox: (...a: unknown[]) => loadProjectInbox(...a),
 }));
 
+const attentionByProject = writable<Record<string, number>>({});
+vi.mock("#lib/stores/agent-status", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	attentionByProject: { subscribe: attentionByProject.subscribe },
+}));
+
 const { projects, activeProjectId } = await import("#lib/stores/project");
 const { project } = await import("./fixtures");
 const { default: ProjectsSection } = await import(
@@ -154,6 +160,7 @@ beforeEach(() => {
 	unregisterProject.mockReset().mockResolvedValue(undefined);
 	duplicateProjectInStore.mockReset().mockResolvedValue(undefined);
 	reorderProjects.mockReset();
+	attentionByProject.set({});
 	addProjectToFolder.mockReset();
 	removeProjectFromFolder.mockReset();
 	reorderFolders.mockReset();
@@ -186,6 +193,31 @@ describe("ProjectsSection", () => {
 			await settle();
 			await userEvent.click(cards()[0]);
 			expect(onOpenProject).toHaveBeenCalledWith("p1");
+		});
+
+		it("shows no badge on a project nothing waits on", async () => {
+			mount();
+			await settle();
+			expect(document.querySelector(".attention-pill")).toBeNull();
+		});
+
+		it("asks for the waiting conversation, not the project, from the badge", async () => {
+			attentionByProject.set({ p2: 2 });
+			const onOpenWaiting = vi.fn();
+			const onOpenProject = vi.fn();
+			render(ProjectsSection, {
+				props: {},
+				events: {
+					openProject: (e: CustomEvent) => onOpenProject(e.detail),
+					openWaiting: (e: CustomEvent) => onOpenWaiting(e.detail),
+				},
+			});
+			await settle();
+			const pill = document.querySelector(".attention-pill") as HTMLElement;
+			expect(pill.textContent?.trim()).toBe("2");
+			await userEvent.click(pill);
+			expect(onOpenWaiting).toHaveBeenCalledWith("p2");
+			expect(onOpenProject).not.toHaveBeenCalled();
 		});
 
 		it("reads the unread count of every project", async () => {

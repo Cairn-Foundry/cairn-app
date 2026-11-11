@@ -7,6 +7,7 @@
 //! All Tauri commands, one module per domain, re-exported flat so `lib.rs` can
 //! list them in a single `generate_handler!`.
 
+pub mod agent_signals;
 pub mod coalesce;
 pub mod editor_windows;
 pub mod file_protocol;
@@ -41,6 +42,7 @@ pub mod tests;
 pub mod toolchain;
 pub mod ui_state;
 
+pub use agent_signals::notify_agent;
 pub use commit_state::{get_commit_state, save_commit_state};
 pub use editor_windows::{
     editor_window_at_cursor, editor_drag_start, editor_window_open, editor_window_take_tabs,
