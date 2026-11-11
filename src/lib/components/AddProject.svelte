@@ -14,11 +14,10 @@
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
   import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
-  import Select from '#lib/components/Select.svelte';
+  import GitProfileSelect from '#lib/components/GitProfileSelect.svelte';
   import { validateDirectory, cloneRepository } from '#lib/services/project-service';
   import { getRemoteUrl } from '#lib/services/git-service';
   import { projects, registerProject } from '#lib/stores/project';
-  import { settings } from '#lib/stores/settings';
   import { EMPTY_BINDINGS, saveProjectIntegrations } from '#lib/stores/integrations';
   import type { Project } from '#lib/types/project';
   import type { ProjectIntegrations } from '#lib/types/integrations';
@@ -79,10 +78,6 @@
     (mode === 'open' && step === 1) ||
     (mode === 'clone' && step === 1);
   $: remoteUrl = mode === 'clone' ? cloneUrl.trim() : openedRemoteUrl;
-  $: profileOptions = [
-    { value: '', label: t('git.profileDefault') as string },
-    ...$settings.gitProfiles.map((p) => ({ value: p.id, label: p.label })),
-  ];
   $: hasBindings = bindings.tracker !== null || bindings.forge !== null || bindings.ci !== null;
   $: if (mode === 'open' && isIdentityStep && path && path !== openedRemotePath) void resolveOpenedRemote(path);
 
@@ -242,13 +237,7 @@
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
 
-        {#if $settings.gitProfiles.length > 0}
-          <div class="form-section">
-            <div class="ap-label">{t('addProject.gitProfile')}</div>
-            <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('addProject.gitProfile') as string} />
-            <p class="ap-hint">{t('addProject.gitProfileHint')}</p>
-          </div>
-        {/if}
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
       <!-- -- NEW - step 2: location -- -->
       {:else if mode === 'new' && step === 2}
@@ -332,13 +321,7 @@
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
 
-        {#if $settings.gitProfiles.length > 0}
-          <div class="form-section">
-            <div class="ap-label">{t('addProject.gitProfile')}</div>
-            <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('addProject.gitProfile') as string} />
-            <p class="ap-hint">{t('addProject.gitProfileHint')}</p>
-          </div>
-        {/if}
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
       <!-- -- CLONE - step 0: source -- -->
       {:else if mode === 'clone' && step === 0}
@@ -410,13 +393,7 @@
 
         <ProjectIntegrationsForm {remoteUrl} bind:bindings />
 
-        {#if $settings.gitProfiles.length > 0}
-          <div class="form-section">
-            <div class="ap-label">{t('addProject.gitProfile')}</div>
-            <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('addProject.gitProfile') as string} />
-            <p class="ap-hint">{t('addProject.gitProfileHint')}</p>
-          </div>
-        {/if}
+        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
       <!-- -- CLONE - step 3: destination -- -->
       {:else if mode === 'clone' && step === 3}

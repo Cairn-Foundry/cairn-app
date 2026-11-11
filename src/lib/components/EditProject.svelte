@@ -8,7 +8,7 @@
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
-  import Select from '#lib/components/Select.svelte';
+  import GitProfileSelect from '#lib/components/GitProfileSelect.svelte';
   import { t } from '#lib/i18n';
   import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
   import { editProject, relocateProjectInStore, setGitProfile } from '#lib/stores/project';
@@ -53,10 +53,6 @@
 
   $: hasBindingChanges = JSON.stringify(bindings) !== pristineBindings;
   $: hasProfileChange = gitProfileId !== initialProfileId;
-  $: profileOptions = [
-    { value: '', label: t('git.profileDefault') as string },
-    ...$settings.gitProfiles.map((p) => ({ value: p.id, label: p.label })),
-  ];
   $: globalTemplate = $settings.branchTemplate?.trim() || DEFAULT_BRANCH_TEMPLATE;
   /** Empty means "no override": the project follows the global template again. */
   $: templateOverride = branchTemplate.trim() || null;
@@ -206,13 +202,7 @@
         {:else}
           <ProjectIntegrationsForm projectId={project.id} {remoteUrl} bind:bindings />
 
-          {#if $settings.gitProfiles.length > 0}
-            <div class="form-section">
-              <div class="ep-label">{t('editProject.gitProfile')}</div>
-              <Select bind:value={gitProfileId} options={profileOptions} ariaLabel={t('editProject.gitProfile') as string} />
-              <p class="ep-hint">{t('editProject.gitProfileHint')}</p>
-            </div>
-          {/if}
+          <GitProfileSelect bind:value={gitProfileId} label={t('editProject.gitProfile') as string} hint={t('editProject.gitProfileHint') as string} />
         {/if}
 
         {#if error}

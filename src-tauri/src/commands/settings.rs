@@ -360,7 +360,7 @@ pub fn get_channel() -> Result<ChannelInfo, String> {
 pub async fn update_settings(settings: CairnSettings) -> Result<CairnSettings, String> {
     let previous = read_settings().map(|s| s.git_profiles).unwrap_or_default();
     write_settings(&settings)?;
-    crate::commands::projects::rewrite_changed_profiles(&previous, &settings.git_profiles)?;
+    crate::commands::projects::sync_profile_identities(&previous, &settings.git_profiles)?;
     Ok(settings)
 }
 

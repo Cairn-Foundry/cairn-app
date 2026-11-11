@@ -9,7 +9,6 @@ import {
 	cloneRepository,
 	duplicateProject,
 	getListing,
-	getProjectGitProfile,
 	listProjects,
 	relocateProject,
 	removeProject,
@@ -150,19 +149,6 @@ describe("project actions", () => {
 });
 
 describe("git profile", () => {
-	it("reads the profile of a project", async () => {
-		mockInvoke.mockResolvedValue("work");
-		await expect(getProjectGitProfile("p1")).resolves.toBe("work");
-		expect(mockInvoke).toHaveBeenCalledWith("get_project_git_profile", {
-			projectId: "p1",
-		});
-	});
-
-	it("answers null when the read fails", async () => {
-		mockInvoke.mockRejectedValue(new Error("disk"));
-		await expect(getProjectGitProfile("p1")).resolves.toBeNull();
-	});
-
 	it("writes the profile of a project", async () => {
 		await setProjectGitProfile("p1", "work");
 		expect(mockInvoke).toHaveBeenCalledWith("set_project_git_profile", {

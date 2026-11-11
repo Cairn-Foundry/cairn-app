@@ -221,12 +221,6 @@ pub async fn set_active_instance(project_id: String, instance_id: Option<String>
     write_projects(&projects)
 }
 
-/// The git profile the commit form of this project authors with; `None` when never picked.
-#[tauri::command]
-pub fn get_project_git_profile(project_id: String) -> Result<Option<String>, String> {
-    Ok(read_projects()?.into_iter().find(|p| p.id == project_id).and_then(|p| p.git_profile_id))
-}
-
 /// An empty id stores the explicit "no profile" choice, distinct from never having picked.
 #[tauri::command]
 pub async fn set_project_git_profile(project_id: String, profile_id: String) -> Result<(), String> {
@@ -256,25 +250,48 @@ fn apply_git_profile(profiles: &[GitProfile], project: &Project, previous: Optio
     }
 }
 
-/// The profiles whose name or email moved between two saves of the settings.
-fn changed_profiles<'a>(previous: &[GitProfile], next: &'a [GitProfile]) -> Vec<&'a GitProfile> {
-    next.iter()
-        .filter(|n| previous.iter().any(|p| p.id == n.id && (p.name != n.name || p.email != n.email)))
-        .collect()
-}
-
-/// Rewrites the identity of every project using a profile that just changed.
-pub fn rewrite_changed_profiles(previous: &[GitProfile], next: &[GitProfile]) -> Result<(), String> {
-    let changed = changed_profiles(previous, next);
-    if changed.is_empty() {
-        return Ok(());
-    }
-    for project in read_projects()? {
-        if let Some(p) = changed.iter().find(|p| Some(p.id.as_str()) == project.git_profile_id.as_deref()) {
-            write_identity(&project.path, &p.name, &p.email)?;
+/// Brings the repository config of every project in line with a settings save:
+/// an edited profile is rewritten, a deleted one is taken back. Every project is
+/// tried, so one failing repository does not leave the others stale.
+fn identity_failures(projects: &[Project], previous: &[GitProfile], next: &[GitProfile]) -> Vec<String> {
+    let mut failures = Vec::new();
+    for project in projects {
+        let Some(id) = project.git_profile_id.as_deref().filter(|id| !id.is_empty()) else { continue };
+        let outcome = match (previous.iter().find(|p| p.id == id), next.iter().find(|p| p.id == id)) {
+            (Some(old), Some(new)) if old.name != new.name || old.email != new.email => {
+                write_identity(&project.path, &new.name, &new.email)
+            }
+            (Some(old), None) => clear_identity(&project.path, &old.name, &old.email),
+            _ => Ok(()),
+        };
+        if let Err(e) = outcome {
+            failures.push(format!("{}: {}", project.name, e));
         }
     }
-    Ok(())
+    failures
+}
+
+pub fn sync_profile_identities(previous: &[GitProfile], next: &[GitProfile]) -> Result<(), String> {
+    let failures = identity_failures(&read_projects()?, previous, next);
+    if failures.is_empty() {
+        return Ok(());
+    }
+    Err(failures.join("; "))
+}
+
+fn apply_profile_in(projects: &[Project], profiles: &[GitProfile], path: &str) -> Result<(), String> {
+    let target = canonical_path(path);
+    match projects.iter().find(|p| canonical_path(&p.path) == target) {
+        Some(project) => apply_git_profile(profiles, project, None),
+        None => Ok(()),
+    }
+}
+
+/// Writes the profile of the project registered at `path`: a folder that just
+/// became a repository had nowhere to hold it until now.
+pub fn apply_profile_at(path: &str) -> Result<(), String> {
+    let expanded = shellexpand::tilde(path);
+    apply_profile_in(&read_projects()?, &read_settings()?.git_profiles, &expanded)
 }
 
 // listing.json
@@ -431,12 +448,90 @@ mod tests {
         assert_eq!(find_profile(&profiles, Some("work")).map(|p| p.email.as_str()), Some("w@x"));
     }
 
+    fn temp_repo(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("cairn-profile-{}-{}", tag, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        git_in(&dir, &["init", "-q"]);
+        dir
+    }
+
+    fn git_in(dir: &PathBuf, args: &[&str]) -> String {
+        let out = std::process::Command::new("git").current_dir(dir).args(args).output().unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    fn project_at(dir: &PathBuf, profile: Option<&str>) -> Project {
+        Project {
+            id: dir.to_string_lossy().to_string(),
+            name: dir.file_name().unwrap().to_string_lossy().to_string(),
+            path: dir.to_string_lossy().to_string(),
+            color: String::new(),
+            active_instance_id: None,
+            git_profile_id: profile.map(String::from),
+            branch_template: None,
+        }
+    }
+
+    fn email_of(dir: &PathBuf) -> String {
+        git_in(dir, &["config", "--local", "user.email"])
+    }
+
     #[test]
-    fn only_a_profile_whose_identity_moved_is_rewritten() {
+    fn picking_a_profile_writes_it_and_the_default_takes_it_back() {
+        let repo = temp_repo("pick");
+        let profiles = [profile("work", "w@x")];
+        apply_git_profile(&profiles, &project_at(&repo, Some("work")), None).unwrap();
+        assert_eq!(email_of(&repo), "w@x");
+        apply_git_profile(&profiles, &project_at(&repo, Some("")), find_profile(&profiles, Some("work"))).unwrap();
+        assert_eq!(email_of(&repo), "");
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn an_edited_profile_is_rewritten_and_a_deleted_one_taken_back() {
+        let edited = temp_repo("edited");
+        let deleted = temp_repo("deleted");
         let before = [profile("work", "w@x"), profile("home", "h@x")];
-        let after = [profile("work", "w@y"), profile("home", "h@x"), profile("new", "n@x")];
-        let changed: Vec<&str> = changed_profiles(&before, &after).iter().map(|p| p.id.as_str()).collect();
-        assert_eq!(changed, vec!["work"]);
+        let projects = [project_at(&edited, Some("work")), project_at(&deleted, Some("home"))];
+        write_identity(&edited.to_string_lossy(), "Ada", "w@x").unwrap();
+        write_identity(&deleted.to_string_lossy(), "Ada", "h@x").unwrap();
+        let after = [profile("work", "w@y")];
+        assert!(identity_failures(&projects, &before, &after).is_empty());
+        assert_eq!(email_of(&edited), "w@y");
+        assert_eq!(email_of(&deleted), "");
+        let _ = fs::remove_dir_all(&edited);
+        let _ = fs::remove_dir_all(&deleted);
+    }
+
+    #[test]
+    fn a_failing_repository_does_not_stop_the_others() {
+        let locked = temp_repo("locked");
+        let healthy = temp_repo("healthy");
+        fs::write(locked.join(".git").join("config.lock"), "").unwrap();
+        let before = [profile("work", "w@x")];
+        let after = [profile("work", "w@y")];
+        let projects = [project_at(&locked, Some("work")), project_at(&healthy, Some("work"))];
+        let failures = identity_failures(&projects, &before, &after);
+        assert_eq!(failures.len(), 1);
+        assert!(failures[0].starts_with(&project_at(&locked, None).name));
+        assert_eq!(email_of(&healthy), "w@y");
+        let _ = fs::remove_dir_all(&locked);
+        let _ = fs::remove_dir_all(&healthy);
+    }
+
+    #[test]
+    fn a_folder_initialised_later_receives_the_profile_of_its_project() {
+        let repo = temp_repo("init");
+        let profiles = [profile("work", "w@x")];
+        let projects = [project_at(&repo, Some("work"))];
+        apply_profile_in(&projects, &profiles, &repo.to_string_lossy()).unwrap();
+        assert_eq!(email_of(&repo), "w@x");
+        let other = temp_repo("other");
+        apply_profile_in(&projects, &profiles, &other.to_string_lossy()).unwrap();
+        assert_eq!(email_of(&other), "");
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&other);
     }
 
     #[test]

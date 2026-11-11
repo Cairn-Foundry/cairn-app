@@ -1377,10 +1377,17 @@
   let appendTicketId = false;
   let selectedProfileId = '';
 
-  function pickProfile(id: string) {
-    selectedProfileId = id;
+  async function pickProfile(id: string) {
     profileDropdownOpen = false;
-    if (instance) setGitProfile(instance.projectId, id).catch(reportGitError);
+    if (instance) {
+      try {
+        await setGitProfile(instance.projectId, id);
+      } catch (e) {
+        reportGitError(e);
+        return;
+      }
+    }
+    selectedProfileId = id;
   }
 
   let forgeRemoteUrl = '';

@@ -780,6 +780,7 @@ pub async fn git_read_exclude(worktree_path: String) -> Result<String, GitError>
 /// Turns a plain folder into a repository.
 pub async fn git_init(worktree_path: String) -> Result<(), GitError> {
     run(git_cmd(&expand(&worktree_path)).args(["init", "-q"]))?;
+    crate::commands::projects::apply_profile_at(&worktree_path)?;
     Ok(())
 }
 

@@ -92,19 +92,6 @@ export async function setActiveInstance(
 	return invoke<void>("set_active_instance", { projectId, instanceId });
 }
 
-/** The git profile the project commits with; null when never picked, "" when none was chosen. */
-export async function getProjectGitProfile(
-	projectId: string,
-): Promise<string | null> {
-	try {
-		return await invoke<string | null>("get_project_git_profile", {
-			projectId,
-		});
-	} catch {
-		return null;
-	}
-}
-
 /** Picks the profile the project commits with; the backend writes it into the repository config. */
 export function setProjectGitProfile(
 	projectId: string,
