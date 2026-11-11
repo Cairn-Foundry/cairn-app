@@ -260,6 +260,42 @@ describe("EditorPane", () => {
 			expect(onTabPointerDown.mock.calls[0][1]).toBe(1);
 		});
 
+		it("closes the tab a middle click landed on", () => {
+			const { onTabClose, onTabClick } = mount({
+				tabs: [tab("a.ts"), tab("b.ts")],
+				activeTabIdx: 0,
+			});
+			tabEls()[1].dispatchEvent(
+				new MouseEvent("auxclick", { bubbles: true, button: 1 }),
+			);
+			expect(onTabClose.mock.calls[0][0]).toBe(1);
+			expect(onTabClick).not.toHaveBeenCalled();
+		});
+
+		/** The middle button never arms a drag, or the release would not reach the tab. */
+		it("starts no drag on a middle press", () => {
+			const { onTabPointerDown } = mount({
+				tabs: [tab("a.ts")],
+				activeTabIdx: 0,
+			});
+			tabEls()[0].dispatchEvent(
+				new PointerEvent("pointerdown", {
+					bubbles: true,
+					pointerId: 1,
+					button: 1,
+				}),
+			);
+			expect(onTabPointerDown).not.toHaveBeenCalled();
+		});
+
+		it("leaves other auxiliary clicks alone", () => {
+			const { onTabClose } = mount({ tabs: [tab("a.ts")], activeTabIdx: 0 });
+			tabEls()[0].dispatchEvent(
+				new MouseEvent("auxclick", { bubbles: true, button: 2 }),
+			);
+			expect(onTabClose).not.toHaveBeenCalled();
+		});
+
 		it("names the close action for a screen reader", () => {
 			mount({ tabs: [tab("a.ts")], activeTabIdx: 0 });
 			expect(

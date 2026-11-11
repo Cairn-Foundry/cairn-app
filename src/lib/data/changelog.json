@@ -174,6 +174,20 @@
 					"en": "A trash button beside the commit options clears the commit message and its description in one click, and puts the cursor back in the message.",
 					"fr": "Un bouton corbeille à côté des options de commit efface le message de commit et sa description en un clic, et remet le curseur dans le message."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A middle click on an editor tab closes it, in the main window and in detached windows. Pinned tabs stay open.",
+					"fr": "Un clic molette sur un onglet de l'éditeur le ferme, dans la fenêtre principale comme dans les fenêtres détachées. Les onglets épinglés restent ouverts."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A middle click on a project tab closes it.",
+					"fr": "Un clic molette sur un onglet de projet le ferme."
+				}
 			}
 		]
 	},
