@@ -92,7 +92,7 @@ this is the first thing to check.
 ### Persistent storage on disk
 
 All app data lives in `~/.cairn/`. The layout is defined in `storage.rs`, which holds the only
-path helpers (28 of them, all hanging off `cairn_dir()`):
+path helpers (29 of them, all hanging off `cairn_dir()`):
 
 ```
 ~/.cairn/
@@ -318,8 +318,9 @@ side sends over a D-Bus connection it drops at once - GNOME Shell withdraws a no
 an application (any process with a window) as soon as its sender leaves the bus. `notify_agent`
 holds the connection with notify-rust until the notification is clicked or closed; a click focuses
 the window and emits `agent-notification-opened`, which lands on that conversation. The plugin is
-still used for the permission checks, and for sending on macOS and Windows.
-The status is in memory only - a restart relaunches no CLI. It feeds the home Activity section, the
+still used for the permission checks, and for sending on macOS and Windows, where a click is
+reported by the plugin (`on_action`) and routed to the same event.
+The status is in memory only - a restart relaunches no CLI. It feeds the home Conversations section, the
 project card badge and the dots of the conversation list. A CLI without hooks only shows "running"
 and "exited".
 

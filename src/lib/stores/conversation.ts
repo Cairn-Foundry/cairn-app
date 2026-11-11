@@ -706,6 +706,17 @@ export function moveConversationToScope(
 	};
 	updateList(from, (list) => list.filter((c) => c.id !== id));
 	updateList(to, (list) => [meta, ...list]);
+	if (get(conversationHosts)[id]) {
+		conversationHosts.update((m) => ({
+			...m,
+			[id]: { projectId: to.projectId, instanceId: to.instanceId },
+		}));
+	}
+	for (const tracker of activityTrackers.values()) {
+		if (tracker.id !== id) continue;
+		tracker.projectId = to.projectId;
+		tracker.instanceId = to.instanceId;
+	}
 }
 
 /**

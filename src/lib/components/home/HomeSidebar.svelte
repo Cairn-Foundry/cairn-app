@@ -40,10 +40,12 @@
   <button class="home-nav-item {activeSection === 'tickets'     ? 'active' : ''}" on:click={() => dispatch('select', 'tickets')}>
     <Icon name="ticket" size={15}/> {t('home.sidebar.tickets')}
   </button>
+  {#if $aiEnabled}
   <button class="home-nav-item {activeSection === 'conversations' ? 'active' : ''}" on:click={() => dispatch('select', 'conversations')}>
     <Icon name="message" size={15}/> {t('home.sidebar.conversations')}
     {#if $attentionCount}<span class="nav-badge" title={t('home.projects.attentionTitle') as string}>{$attentionCount}</span>{/if}
   </button>
+  {/if}
   <button class="home-nav-item {activeSection === 'integrations' ? 'active' : ''}" on:click={() => dispatch('select', 'integrations')}>
     <Icon name="link" size={15}/> {t('home.sidebar.integrations')}
   </button>

@@ -293,7 +293,12 @@
     screen = saved.screen;
     // Usage & Stats is gone with the parsed runs it fed on; a state saved on it
     // reopens on the default section rather than on nothing.
-    homeSection = saved.homeSection === 'usage' ? 'projects' : saved.homeSection;
+    homeSection =
+      saved.homeSection === 'usage'
+        ? 'projects'
+        : saved.homeSection === 'activity'
+          ? 'conversations'
+          : saved.homeSection;
     homeSettingsTab = saved.homeSettingsTab;
     collapsedTicketProjects.set(saved.collapsedTicketProjects ?? []);
     initViewStates(saved.projectStates ?? {});

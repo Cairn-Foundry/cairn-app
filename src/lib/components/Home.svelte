@@ -67,7 +67,7 @@
     withViewTransition(() => { activeSection = section; });
   }
 
-  const AI_SECTIONS: HomeSection[] = ['providers', 'features', 'agents', 'skills', 'mcp'];
+  const AI_SECTIONS: HomeSection[] = ['conversations', 'providers', 'features', 'agents', 'skills', 'mcp'];
   $: if (!$aiEnabled && AI_SECTIONS.includes(activeSection)) activeSection = 'projects';
 
   $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });

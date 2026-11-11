@@ -44,6 +44,7 @@ import {
 	nextStatus,
 	statusRank,
 } from "#lib/utils/agent/agent-status";
+import { isTerminalReply } from "#lib/utils/agent/terminal-reply";
 import * as manager from "#lib/utils/terminal/terminal-manager";
 
 export type { AgentStatus };
@@ -276,7 +277,8 @@ seenConversation.subscribe((id) => {
 	if (id) applyAgentEvent(id, "seen");
 });
 
-manager.observeInput((terminalId) => {
+manager.observeInput((terminalId, data) => {
+	if (isTerminalReply(data)) return;
 	const id = conversationOfTerminal(terminalId);
 	if (id) applyAgentEvent(id, "input");
 });

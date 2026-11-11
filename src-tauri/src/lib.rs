@@ -134,6 +134,8 @@ pub fn run() {
             if let Err(e) = commands::agent_signals::start(app.handle()) {
                 eprintln!("agent signals unavailable: {e}");
             }
+            #[cfg(not(all(unix, not(target_os = "macos"))))]
+            commands::agent_signals::listen_for_notification_clicks(app.handle());
 
             window_builder(app.handle(), commands::editor_windows::MAIN_WINDOW, tauri::WebviewUrl::default())
                 .inner_size(1440.0, 900.0)

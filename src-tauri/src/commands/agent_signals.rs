@@ -68,12 +68,25 @@ fn relevant(kind: &EventKind) -> bool {
     )
 }
 
+/// Read on every event: the hook truncates then writes, so an event can land
+/// on the empty file, and the next one carries the content.
+fn read_signal(path: &std::path::Path) -> Option<(String, String)> {
+    let id = path.file_name()?.to_str()?;
+    let content = std::fs::read_to_string(path).ok()?;
+    let signal = content.trim();
+    SIGNALS.contains(&signal).then(|| (id.to_string(), signal.to_string()))
+}
+
 /// Starts the watch. Files left by a previous session are dropped first: no CLI
 /// they belonged to is still running.
 pub fn start(app: &tauri::AppHandle) -> Result<(), String> {
     let dir = storage::agent_signals_dir()?;
-    let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 
     let emitter = app.clone();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -82,18 +95,8 @@ pub fn start(app: &tauri::AppHandle) -> Result<(), String> {
             return;
         }
         for path in event.paths {
-            let Some(id) = path.file_name().and_then(|n| n.to_str()) else { continue };
-            // Read on every event: the hook truncates then writes, so an event
-            // can land on the empty file, and the next one carries the content.
-            let Ok(content) = std::fs::read_to_string(&path) else { continue };
-            let signal = content.trim();
-            if !SIGNALS.contains(&signal) {
-                continue;
-            }
-            let _ = emitter.emit(
-                "agent-signal",
-                AgentSignal { conversation_id: id.to_string(), signal: signal.to_string() },
-            );
+            let Some((conversation_id, signal)) = read_signal(&path) else { continue };
+            let _ = emitter.emit("agent-signal", AgentSignal { conversation_id, signal });
         }
     })
     .map_err(|e| e.to_string())?;
@@ -116,6 +119,29 @@ fn open_from_notification(app: &tauri::AppHandle, conversation_id: String) {
         let _ = window.set_focus();
     }
     let _ = app.emit("agent-notification-opened", NotificationOpened { conversation_id });
+}
+
+#[cfg(not(all(unix, not(target_os = "macos"))))]
+const CONVERSATION_EXTRA: &str = "conversationId";
+
+/// macOS and Windows go through the plugin, which reports a click on a
+/// notification along with its extras.
+#[cfg(not(all(unix, not(target_os = "macos"))))]
+pub fn listen_for_notification_clicks(app: &tauri::AppHandle) {
+    use tauri_plugin_notification::NotificationExt;
+    let handle = app.clone();
+    let _ = app.notification().on_action(move |performed| {
+        if performed.action_id() != "tap" {
+            return;
+        }
+        let id = performed
+            .notification()
+            .and_then(|n| n.extra().get(CONVERSATION_EXTRA))
+            .and_then(|v| v.as_str());
+        if let Some(id) = id {
+            open_from_notification(&handle, id.to_string());
+        }
+    });
 }
 
 /// Tells the user a conversation needs them.
@@ -148,14 +174,37 @@ pub fn notify_agent(app: tauri::AppHandle, conversation_id: String, title: Strin
     #[cfg(not(all(unix, not(target_os = "macos"))))]
     {
         use tauri_plugin_notification::NotificationExt;
-        let _ = conversation_id;
-        let _ = app.notification().builder().title(title).body(body).show();
+        let _ = app
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .extra(CONVERSATION_EXTRA, conversation_id)
+            .show();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn signal_in(content: &str) -> Option<(String, String)> {
+        let dir = std::env::temp_dir().join(format!("cairn-signal-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("3f2a-9c");
+        std::fs::write(&path, content).unwrap();
+        let read = read_signal(&path);
+        let _ = std::fs::remove_dir_all(&dir);
+        read
+    }
+
+    #[test]
+    fn a_signal_file_is_read_trimmed_and_validated() {
+        assert_eq!(signal_in("done\n"), Some(("3f2a-9c".into(), "done".into())));
+        assert_eq!(signal_in("waiting"), Some(("3f2a-9c".into(), "waiting".into())));
+        assert_eq!(signal_in(""), None);
+        assert_eq!(signal_in("sleeping"), None);
+    }
 
     #[test]
     fn only_conversation_terminals_get_a_file() {
