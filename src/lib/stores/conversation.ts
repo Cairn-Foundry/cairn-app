@@ -33,6 +33,7 @@ import {
 	resumeArgv,
 } from "#lib/utils/agent/cli-launch";
 import { captureTitle } from "#lib/utils/agent/conversation-title";
+import { isTerminalReply } from "#lib/utils/agent/terminal-reply";
 import { persist } from "#lib/utils/persist-error";
 import { dropProjectKeys, purgeProjectEntries } from "#lib/utils/project-scope";
 import * as manager from "#lib/utils/terminal/terminal-manager";
@@ -127,7 +128,8 @@ const activityTrackers = new Map<
 // "last activity" a person reads.
 const ACTIVITY_WRITE_INTERVAL_MS = 60_000;
 
-function noteActivity(terminalId: string): void {
+function noteActivity(terminalId: string, data: string): void {
+	if (isTerminalReply(data)) return;
 	const tracker = activityTrackers.get(terminalId);
 	if (!tracker) return;
 	const now = Date.now();
@@ -595,7 +597,7 @@ export function closeConversation(id: string): void {
  */
 export function noteTerminalInput(terminalId: string, data: string): void {
 	markSessionStarted(terminalId);
-	noteActivity(terminalId);
+	noteActivity(terminalId, data);
 	const waiting = awaitingTitle.get(terminalId);
 	if (!waiting) return;
 	const { title, pending } = captureTitle(waiting.pending, data);

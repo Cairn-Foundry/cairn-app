@@ -1142,6 +1142,20 @@ describe("tracking the last activity", () => {
 		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_080_000);
 	});
 
+	it("ignores what the terminal sends by itself", async () => {
+		vi.setSystemTime(1_000_000);
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		const terminalId = `conversation:${meta.id}`;
+
+		vi.setSystemTime(1_010_000);
+		noteTerminalInput(terminalId, "\u001b[I");
+		noteTerminalInput(terminalId, "\u001b[?1;2c");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_000_000);
+
+		noteTerminalInput(terminalId, "a");
+		expect(conversationsOf(ref)[0].lastActiveAt).toBe(1_010_000);
+	});
+
 	it("follows a conversation moved to the other scope", async () => {
 		vi.setSystemTime(1_000_000);
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
