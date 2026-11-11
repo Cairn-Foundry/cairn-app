@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CliProviderId } from "#lib/services/cli-provider-service";
 import {
 	canResume,
@@ -143,6 +143,14 @@ describe("reporting whose turn it is", () => {
 			"worker_permission_prompt",
 		]);
 		expect(hooks.Notification[0].matcher).not.toContain("idle_prompt");
+	});
+
+	it("adds nothing on Windows, where cmd.exe cannot carry the JSON", async () => {
+		vi.resetModules();
+		vi.doMock("#lib/utils/platform", () => ({ IS_WINDOWS: true }));
+		const { statusArgv: windowsArgv } = await import("./cli-launch");
+		expect(windowsArgv("claude-code")).toEqual([]);
+		vi.doUnmock("#lib/utils/platform");
 	});
 
 	it("adds nothing for a CLI that has no hooks", () => {

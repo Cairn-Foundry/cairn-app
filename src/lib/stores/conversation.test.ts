@@ -21,6 +21,7 @@ import {
 	noteTerminalInput,
 	openConversation,
 	projectConversations,
+	rehostConversations,
 	removeInstanceConversations,
 	renameConversation,
 	restoreConversations,
@@ -148,6 +149,18 @@ describe("starting a conversation", () => {
 
 		closeConversation(meta.id);
 		expect(get(conversationHosts)[meta.id]).toBeUndefined();
+	});
+
+	it("re-hosts the conversations of a removed instance onto another one", async () => {
+		const meta = await startConversation(ref, "codex", "/repo/wt");
+		rehostConversations("p", "other", "__base__");
+		expect(get(conversationHosts)[meta.id]?.instanceId).toBe("i");
+
+		rehostConversations("p", "i", "__base__");
+		expect(get(conversationHosts)[meta.id]).toEqual({
+			projectId: "p",
+			instanceId: "__base__",
+		});
 	});
 
 	it("leaves no session id for a CLI that mints its own, and launches it bare", async () => {

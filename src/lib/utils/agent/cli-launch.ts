@@ -19,6 +19,7 @@
  * own `--help`, which is ahead of the published docs for several of them.
  */
 import type { CliProviderId } from "#lib/services/cli-provider-service";
+import { IS_WINDOWS } from "#lib/utils/platform";
 
 /** The binary each CLI installs. */
 const BINARY: Record<CliProviderId, string> = {
@@ -142,9 +143,11 @@ function signalHook(signal: "working" | "waiting" | "done") {
  * Claude Code takes them as an extra settings layer, merged with the user's own
  * and never written to their files. Only permission and question dialogs count
  * as waiting: the idle notification repeats a turn already reported as done.
+ * Not on Windows: the binary is a `.cmd` shim there and `cmd.exe` cannot carry
+ * this JSON as an argument.
  */
 export function statusArgv(cli: CliProviderId): string[] {
-	if (cli !== "claude-code") return [];
+	if (cli !== "claude-code" || IS_WINDOWS) return [];
 	const settings = {
 		hooks: {
 			UserPromptSubmit: [{ hooks: [signalHook("working")] }],

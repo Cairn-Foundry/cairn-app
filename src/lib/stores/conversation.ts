@@ -743,6 +743,22 @@ export function forgetProject(projectId: string): void {
 	activeConversationId.update(drop);
 }
 
+/** Points the running conversations hosted by a removed instance at another one. */
+export function rehostConversations(
+	projectId: string,
+	fromInstanceId: string,
+	toInstanceId: string,
+): void {
+	conversationHosts.update((hosts) => {
+		const next = { ...hosts };
+		for (const [id, host] of Object.entries(hosts)) {
+			if (host.projectId === projectId && host.instanceId === fromInstanceId)
+				next[id] = { projectId, instanceId: toInstanceId };
+		}
+		return next;
+	});
+}
+
 /** Forgets an instance's conversations in memory; the project scope is untouched. */
 export function removeInstanceConversations(
 	projectId: string,
