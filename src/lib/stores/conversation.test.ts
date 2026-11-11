@@ -12,6 +12,7 @@ import {
 	conversationTerminals,
 	deleteConversation,
 	detachConversation,
+	detachingConversations,
 	findConversation,
 	forgetProject,
 	instanceConversations,
@@ -1262,5 +1263,33 @@ describe("continuing in the system terminal", () => {
 		expect(closeTerminal).not.toHaveBeenCalled();
 		expect(openCliInTerminal).not.toHaveBeenCalled();
 		expect(terminalOf(meta.id)).toBe(`conversation:${meta.id}`);
+	});
+
+	it("refuses to relaunch the conversation while the terminal opens", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		instanceConversations.update((m) => ({
+			...m,
+			"p:i": m["p:i"].map((c) => ({ ...c, sessionConfirmed: true })),
+		}));
+		let openTerminal: () => void = () => {};
+		openCliInTerminal.mockReturnValueOnce(
+			new Promise<void>((resolve) => {
+				openTerminal = resolve;
+			}),
+		);
+		createTerminal.mockClear();
+
+		const detaching = detachConversation(ref, meta.id);
+		await openConversation(ref, meta.id);
+
+		expect(createTerminal).not.toHaveBeenCalled();
+		expect(get(detachingConversations)[meta.id]).toBe(true);
+
+		openTerminal();
+		await detaching;
+
+		expect(get(detachingConversations)[meta.id]).toBeUndefined();
+		await openConversation(ref, meta.id);
+		expect(createTerminal).toHaveBeenCalledTimes(1);
 	});
 });

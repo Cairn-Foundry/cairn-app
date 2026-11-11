@@ -33,6 +33,7 @@
     conversationTerminals,
     deleteConversation,
     detachConversation,
+    detachingConversations,
     instanceConversations as instanceConversationsStore,
     moveConversationToScope,
     openConversation,
@@ -289,7 +290,7 @@
   let canContinueInTerminal = $derived(active?.meta.sessionConfirmed === true);
   let detachError = $state<{ id: string; message: string } | null>(null);
   let detachedId = $state<string | null>(null);
-  let isDetaching = $state(false);
+  let isDetaching = $derived(active ? $detachingConversations[active.meta.id] === true : false);
   let canShowTerminalButton = $derived(
     canContinueInTerminal && !(terminalId === null && detachedId === active?.meta.id),
   );
@@ -302,7 +303,6 @@
 
   async function detachNow() {
     if (!active) return;
-    isDetaching = true;
     pendingStop = null;
     detachError = null;
     const { ref, meta } = active;
@@ -311,8 +311,6 @@
       detachedId = meta.id;
     } catch (e) {
       detachError = { id: meta.id, message: errorMessage(e) };
-    } finally {
-      isDetaching = false;
     }
   }
 

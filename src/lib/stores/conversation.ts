@@ -82,6 +82,18 @@ export const conversationTerminals = writable<Record<string, string>>({});
  */
 export const conversationRuns = writable<Record<string, number>>({});
 
+/** Conversations being handed to the system terminal: nothing may relaunch them meanwhile. */
+export const detachingConversations = writable<Record<string, true>>({});
+
+function setDetaching(id: string, isDetaching: boolean): void {
+	detachingConversations.update((m) => {
+		const next = { ...m };
+		if (isDetaching) next[id] = true;
+		else delete next[id];
+		return next;
+	});
+}
+
 /** The run a conversation is on, 0 when its CLI has never been launched. */
 export function runOf(conversationId: string): number {
 	return get(conversationRuns)[conversationId] ?? 0;
@@ -400,7 +412,7 @@ export async function openConversation(
 	{ fresh = false }: { fresh?: boolean } = {},
 ): Promise<void> {
 	const meta = conversationsOf(ref).find((c) => c.id === id);
-	if (!meta) return;
+	if (!meta || get(detachingConversations)[id]) return;
 
 	selectConversation(ref.projectId, ref.instanceId, id);
 
@@ -622,12 +634,16 @@ export async function detachConversation(
 	const meta = conversationsOf(ref).find((c) => c.id === id);
 	if (!meta?.sessionConfirmed) return;
 	const wasRunning = terminalOf(id) !== null;
+	setDetaching(id, true);
 	closeConversation(id);
 	try {
 		await openCliInTerminal(meta.cwd, resumeArgv(meta.cli, meta.sessionId));
 	} catch (e) {
+		setDetaching(id, false);
 		if (wasRunning) await openConversation(ref, id).catch(() => {});
 		throw e;
+	} finally {
+		setDetaching(id, false);
 	}
 }
 
