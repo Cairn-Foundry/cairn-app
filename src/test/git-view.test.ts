@@ -200,6 +200,8 @@ function setGit(overrides: Record<string, unknown> = {}) {
 		fileDiffs: { unstaged: byPath(unstagedDiffs), staged: byPath(stagedDiffs) },
 		stagedTotals: null,
 		isStagedTotalsPending: false,
+		unstagedTotals: null,
+		isUnstagedTotalsPending: false,
 		log: [],
 		graph: [],
 		stashes: [],
@@ -395,7 +397,17 @@ describe("GitView", () => {
 			).not.toBeNull();
 		});
 
-		it("shows a placeholder on the staged totals while they are counted again", async () => {
+		it("shows a placeholder on the staged totals only before the first count", async () => {
+			setGit({
+				stagedDiffs: [diff("src/a.ts")],
+				isStagedTotalsPending: true,
+			});
+			mount();
+			await settle();
+			expect(document.querySelector(".diff-stat-pending")).not.toBeNull();
+		});
+
+		it("keeps the last staged totals up while they are counted again", async () => {
 			setGit({
 				stagedDiffs: [diff("src/a.ts")],
 				stagedTotals: { added: 3, removed: 1 },
@@ -403,7 +415,9 @@ describe("GitView", () => {
 			});
 			mount();
 			await settle();
-			expect(document.querySelector(".diff-stat-pending")).not.toBeNull();
+			expect(document.querySelector(".diff-stat-pending")).toBeNull();
+			const head = document.querySelector(".git-col-head .diff-stat");
+			expect(head?.textContent?.replace(/\s+/g, "")).toBe("+3-1");
 		});
 
 		it("shows the staged totals of the whole index", async () => {
@@ -416,6 +430,50 @@ describe("GitView", () => {
 			expect(document.querySelector(".diff-stat-pending")).toBeNull();
 			const head = document.querySelector(".git-col-head .diff-stat");
 			expect(head?.textContent?.replace(/\s+/g, "")).toBe("+3-1");
+		});
+
+		it("shows the totals of the working tree beside the changes search", async () => {
+			setGit({
+				unstagedDiffs: [diff("src/a.ts")],
+				unstagedTotals: { added: 5, removed: 2 },
+			});
+			mount();
+			await settle();
+			const bar = document.querySelector(".log-filter-bar .diff-stat");
+			expect(bar?.textContent?.replace(/\s+/g, "")).toBe("+5-2");
+			expect(
+				document.querySelector(".log-filter-bar .count.accent")?.textContent,
+			).toContain("1 ");
+			expect(
+				document.querySelector(".log-filter-bar .count")?.textContent,
+			).toBe("1 files");
+		});
+
+		it("shows a placeholder on the working tree totals only before the first count", async () => {
+			setGit({
+				unstagedDiffs: [diff("src/a.ts")],
+				isUnstagedTotalsPending: true,
+			});
+			mount();
+			await settle();
+			expect(
+				document.querySelector(".log-filter-bar .diff-stat-pending"),
+			).not.toBeNull();
+		});
+
+		it("keeps the last working tree totals up while they are counted again", async () => {
+			setGit({
+				unstagedDiffs: [diff("src/a.ts")],
+				unstagedTotals: { added: 5, removed: 2 },
+				isUnstagedTotalsPending: true,
+			});
+			mount();
+			await settle();
+			expect(
+				document.querySelector(".log-filter-bar .diff-stat-pending"),
+			).toBeNull();
+			const bar = document.querySelector(".log-filter-bar .diff-stat");
+			expect(bar?.textContent?.replace(/\s+/g, "")).toBe("+5-2");
 		});
 
 		it("offers to open a modified file", async () => {
