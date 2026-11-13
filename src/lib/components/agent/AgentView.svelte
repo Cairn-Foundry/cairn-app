@@ -48,7 +48,7 @@
   } from '#lib/stores/conversation';
   import { agentDraftRequest, clearAgentDraft } from '#lib/stores/agent-draft';
   import { conversationTooltip, formatConversationDate } from '#lib/utils/agent/conversation-list';
-  import { agentStatus } from '#lib/stores/agent-status';
+  import { agentStatus, shownConversation } from '#lib/stores/agent-status';
   import { focusOnMount } from '#lib/utils/agent/focus-on-mount';
   import { activeInstance } from '#lib/stores/instance';
   import { errorMessage } from '#lib/utils/error-message';
@@ -119,14 +119,30 @@
   });
 
   // Restoring the index restores which conversation was open, and stops there:
-  // its CLI is not relaunched. Coming back to a project, or reopening the app,
-  // must not spawn processes the user did not ask for - the conversation shows
-  // its Resume button and the launch is one click away.
+  // coming back to a project, or reopening the app, must not spawn processes
+  // the user did not ask for. The one exception is below.
   $effect(() => {
     const inst = instance;
     if (!inst) return;
     void untrack(async () => {
       await restoreConversations(inst.projectId, inst.id);
+    });
+  });
+
+  const resuming = new Set<string>();
+
+  // A conversation the app closed under is resumed once it is on screen, never
+  // before: only the ones the user comes back to are relaunched.
+  $effect(() => {
+    const target = active;
+    if (!target || terminalId || !target.meta.runningIn) return;
+    if ($shownConversation !== target.meta.id || resuming.has(target.meta.id)) return;
+    const { ref, meta } = target;
+    resuming.add(meta.id);
+    untrack(() => {
+      void openConversation(ref, meta.id)
+        .catch(() => {})
+        .finally(() => resuming.delete(meta.id));
     });
   });
 

@@ -51,7 +51,9 @@ pub use editor_windows::{
     editor_drag_finish,
 };
 pub use review::{get_diff_unified, get_diff_hunks, load_review_state, save_review_state};
-pub use conversations::{get_conversation_index, save_conversation_index};
+pub use conversations::{
+    get_conversation_index, list_interrupted_conversations, save_conversation_index,
+};
 pub use custom_commands::{
     get_project_commands, save_project_commands, get_global_commands, save_global_commands,
     get_command_state, save_command_state, allocate_port,
