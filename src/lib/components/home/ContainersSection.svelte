@@ -12,6 +12,7 @@
   import CopyButton from '#lib/components/CopyButton.svelte';
   import Select from '#lib/components/Select.svelte';
   import ContainerConfirmModal from '#lib/components/home/ContainerConfirmModal.svelte';
+  import ContainerTerminals from '#lib/components/home/ContainerTerminals.svelte';
   import { t, type TranslationKey } from '#lib/i18n';
   import {
     composeDown,
@@ -36,6 +37,7 @@
   let sort: ContainerSort = DEFAULT_SORT;
   let timer: ReturnType<typeof setInterval> | null = null;
   let busy = new Set<string>();
+  let terminals: ContainerTerminals;
   let actionError = '';
   let pending: { kind: 'remove' | 'down'; name: string; containers: string[]; run: () => Promise<void> } | null = null;
 
@@ -338,6 +340,14 @@
                     </td>
                     <td class="actions">
                       <span class="row-actions">
+                        <button class="icon-btn" on:click={() => terminals.open(c, 'logs')} title={actionLabel('logs')} aria-label={actionLabel('logs')}>
+                          <Icon name="list" size={12} />
+                        </button>
+                        {#if c.state === 'running'}
+                          <button class="icon-btn" on:click={() => terminals.open(c, 'shell')} title={actionLabel('shell')} aria-label={actionLabel('shell')}>
+                            <Icon name="terminal" size={12} />
+                          </button>
+                        {/if}
                         {#if busy.has(c.id) || busy.has(`project:${c.composeProject}`)}
                           <Spinner size={12} />
                         {:else if isStopped(c)}
@@ -368,6 +378,7 @@
       {/each}
     {/if}
   {/if}
+  <ContainerTerminals bind:this={terminals} />
 </div>
 
 {#if pending}
@@ -523,7 +534,7 @@
   .scroller { overflow-x: auto; }
   table {
     width: 100%;
-    min-width: 720px;
+    min-width: 780px;
     border-collapse: collapse;
     table-layout: fixed;
   }
@@ -557,7 +568,7 @@
   th.state, td.state { width: 150px; }
   th.ports, td.ports { width: 150px; }
   th.since, td.since { width: 80px; text-align: right; }
-  th.actions, td.actions { width: 80px; text-align: right; }
+  th.actions, td.actions { width: 140px; text-align: right; }
   .row-actions {
     display: inline-flex;
     justify-content: flex-end;

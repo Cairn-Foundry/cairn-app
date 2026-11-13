@@ -118,3 +118,21 @@ export function portUrl(port: PublishedPort): string {
 export function displayName(c: Container): string {
 	return c.composeService || c.name;
 }
+
+/** Follows a container's output, starting from its last lines. */
+export function logsArgv(c: Container): string[] {
+	return ["docker", "logs", "--follow", "--tail", "500", c.id];
+}
+
+/** An interactive shell in a running container: bash when the image has it, sh otherwise. */
+export function shellArgv(c: Container): string[] {
+	return [
+		"docker",
+		"exec",
+		"-it",
+		c.id,
+		"sh",
+		"-c",
+		"if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi",
+	];
+}

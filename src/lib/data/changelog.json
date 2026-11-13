@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A container's logs, followed live, and a shell inside a running container open in a drawer along the bottom of the Containers section, one tab each, resized by dragging its top edge. The shell is bash when the image has it, sh otherwise. Leaving the section closes them.",
+					"fr": "Les logs d'un container, suivis en direct, et un shell dans un container en cours s'ouvrent dans un tiroir en bas de la section Containers, un onglet chacun, redimensionnable en tirant son bord supérieur. Le shell est bash quand l'image l'a, sh sinon. Quitter la section les ferme."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "Containers can be started, stopped, restarted and removed from the Containers section, and a whole Compose project started, stopped, restarted or taken down, even when its compose file is gone. Removing and taking down ask first, and a refusal from Docker is shown as Docker wrote it.",
 					"fr": "Les containers se démarrent, s'arrêtent, se redémarrent et se suppriment depuis la section Containers, et un projet Compose entier se démarre, s'arrête, se redémarre ou se démonte (down), même quand son fichier compose a disparu. La suppression et le down demandent confirmation, et un refus de Docker s'affiche tel que Docker l'a écrit."
 				}

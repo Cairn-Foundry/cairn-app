@@ -3,7 +3,13 @@
 
 import { describe, expect, it } from "vitest";
 import type { Container } from "#lib/services/containers-service";
-import { displayName, groupContainers, portUrl } from "./containers";
+import {
+	displayName,
+	groupContainers,
+	logsArgv,
+	portUrl,
+	shellArgv,
+} from "./containers";
 
 function container(
 	name: string,
@@ -212,5 +218,24 @@ describe("displayName", () => {
 			"db",
 		);
 		expect(displayName(container("lonely"))).toBe("lonely");
+	});
+});
+
+describe("terminal argv", () => {
+	it("follows the logs from their last lines", () => {
+		expect(logsArgv(container("abc"))).toEqual([
+			"docker",
+			"logs",
+			"--follow",
+			"--tail",
+			"500",
+			"abc",
+		]);
+	});
+
+	it("execs bash when the image has it, sh otherwise", () => {
+		const argv = shellArgv(container("abc"));
+		expect(argv.slice(0, 5)).toEqual(["docker", "exec", "-it", "abc", "sh"]);
+		expect(argv.at(-1)).toMatch(/command -v bash.*exec bash.*exec sh/);
 	});
 });

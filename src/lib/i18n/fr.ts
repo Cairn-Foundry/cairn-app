@@ -2651,6 +2651,8 @@ export const fr = {
 				starting: "Démarrage",
 			},
 			action: {
+				logs: "Logs",
+				shell: "Ouvrir un shell",
 				start: "Démarrer",
 				stop: "Arrêter",
 				restart: "Redémarrer",
@@ -2663,6 +2665,14 @@ export const fr = {
 					"Down : arrêter et supprimer les containers et réseaux de ce projet",
 				failed: "Docker a refusé l'action",
 				dismiss: "Fermer",
+			},
+			terminals: {
+				resize: "Redimensionner le tiroir",
+				label: "Logs et shells des containers",
+				logs: "logs",
+				shell: "shell",
+				close: "Fermer",
+				closeAll: "Tout fermer",
 			},
 			confirm: {
 				removeHeading: "Supprimer un container",

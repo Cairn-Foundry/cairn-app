@@ -2608,6 +2608,8 @@ export const en = {
 				starting: "Starting",
 			},
 			action: {
+				logs: "Logs",
+				shell: "Open a shell",
 				start: "Start",
 				stop: "Stop",
 				restart: "Restart",
@@ -2620,6 +2622,14 @@ export const en = {
 					"Down: stop and remove the containers and networks of this project",
 				failed: "Docker refused the action",
 				dismiss: "Dismiss",
+			},
+			terminals: {
+				resize: "Resize the drawer",
+				label: "Container logs and shells",
+				logs: "logs",
+				shell: "shell",
+				close: "Close",
+				closeAll: "Close all",
 			},
 			confirm: {
 				removeHeading: "Remove a container",
