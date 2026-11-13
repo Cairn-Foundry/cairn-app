@@ -5,13 +5,18 @@
 <script lang="ts">
   /**
    * Every running conversation of every project and instance, what waits for
-   * the user first. A row opens that project, that instance and that
-   * conversation.
+   * the user first, then those the last close of the app interrupted. A row
+   * opens that project, that instance and that conversation, which resumes an
+   * interrupted one.
    */
   import AgentStatusDot from '#lib/components/agent/AgentStatusDot.svelte';
   import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
   import { t } from '#lib/i18n';
-  import { type LiveConversation, liveConversations } from '#lib/stores/agent-status';
+  import {
+    interruptedConversations,
+    type LiveConversation,
+    liveConversations,
+  } from '#lib/stores/agent-status';
   import { needsAttention, statusLabelKey } from '#lib/utils/agent/agent-status';
 
   interface Props {
@@ -21,9 +26,7 @@
   const { onOpen }: Props = $props();
 </script>
 
-{#if $liveConversations.length === 0}
-  <div class="empty">{t('home.sections.conversationsEmpty')}</div>
-{:else}
+{#if $liveConversations.length > 0}
   <div class="list">
     {#each $liveConversations as c (c.id)}
       <button class="row" class:attention={needsAttention(c.status)} onclick={() => onOpen(c)}>
@@ -39,6 +42,30 @@
           </span>
         </span>
         <span class="status {c.status ?? 'running'}">{t(statusLabelKey(c.status))}</span>
+      </button>
+    {/each}
+  </div>
+{:else if $interruptedConversations.length === 0}
+  <div class="empty">{t('home.sections.conversationsEmpty')}</div>
+{/if}
+{#if $interruptedConversations.length > 0}
+  <h2 class="group">{t('home.sections.conversationsInterrupted')}</h2>
+  <div class="group-hint">{t('home.sections.conversationsInterruptedHint')}</div>
+  <div class="list">
+    {#each $interruptedConversations as c (c.id)}
+      <button class="row" onclick={() => onOpen(c)}>
+        <span class="agent-dot-stopped" aria-hidden="true"></span>
+        <span class="mark">
+          <ProviderLogo id={c.cli} size={16} fallback={c.cli.slice(0, 1)}/>
+        </span>
+        <span class="info">
+          <span class="title">{c.title || t('agent.history.untitled')}</span>
+          <span class="where">
+            <span class="swatch" style="background: {c.projectColor}"></span>
+            {c.projectName} · {c.instanceLabel}
+          </span>
+        </span>
+        <span class="status">{t('home.sections.conversationsResume')}</span>
       </button>
     {/each}
   </div>
@@ -112,6 +139,24 @@
   .status.waiting { color: var(--warning); }
   .status.done { color: var(--success); }
   .status.working { color: var(--accent); }
+  .group {
+    margin: 24px 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+  .group-hint {
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    color: var(--fg-3);
+  }
+  .agent-dot-stopped {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px var(--fg-3);
+  }
   .hint {
     margin-top: 20px;
     font-size: 11.5px;

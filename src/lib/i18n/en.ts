@@ -2522,6 +2522,9 @@ export const en = {
 			conversationsDesc:
 				"Every running conversation, across projects and instances. What waits for you comes first.",
 			conversationsEmpty: "No conversation is running.",
+			conversationsInterrupted: "Interrupted when Cairn closed",
+			conversationsInterruptedHint: "Open one to resume it where it stopped.",
+			conversationsResume: "Resume",
 			conversationsHooksHint:
 				"Working and waiting are reported by Claude Code. Other CLIs only show whether they are running.",
 		},

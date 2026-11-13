@@ -2565,6 +2565,10 @@ export const fr = {
 			conversationsDesc:
 				"Toutes les conversations lancées, sur tous les projets et toutes les instances. Ce qui vous attend passe en premier.",
 			conversationsEmpty: "Aucune conversation n'est lancée.",
+			conversationsInterrupted: "Interrompues à la fermeture de Cairn",
+			conversationsInterruptedHint:
+				"Ouvrez-en une pour la reprendre là où elle s'est arrêtée.",
+			conversationsResume: "Reprendre",
 			conversationsHooksHint:
 				"L'activité et l'attente sont signalées par Claude Code. Les autres CLI indiquent seulement s'ils sont lancés.",
 		},

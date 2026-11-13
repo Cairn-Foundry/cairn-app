@@ -249,7 +249,8 @@ it. There is no message sending, no model selection, no transcript storage.
   `terminal-output` / `terminal-exit` events like any terminal. Stopping means killing the
   terminal; because a CLI spawns children, the UI first asks `terminal_has_children` and confirms.
 - **Conversations are metadata only** (`commands/conversations.rs`): an `index.json` per scope
-  (instance or project) with id, title, cli, sessionId, sessionConfirmed, cwd, pinned, archived.
+  (instance or project) with id, title, cli, sessionId, sessionConfirmed, cwd, pinned, archived,
+  runningIn.
   The transcript lives wherever the CLI itself keeps it; Cairn never reads it.
 - **Resume** relaunches the CLI with its resume argv (`utils/agent/cli-launch.ts`). Some CLIs
   accept a session id imposed at launch; the rest mint their own, and `discover_cli_session`
@@ -257,7 +258,12 @@ it. There is no message sending, no model selection, no transcript storage.
   `~/.claude/projects/<slug>/*.jsonl` matching the cwd, newer than the PTY spawn).
   `sessionConfirmed` in the index means the session was seen on disk.
 - `lastCli` (per project, persisted) is the CLI the Agent step last started, so the picker
-  offers it first. Restoring the app never auto-spawns a CLI.
+  offers it first. Restoring the app never spawns a CLI by itself.
+- **Interrupted conversations**: `runningIn` (the hosting instance) is set at launch and
+  cleared when the CLI is stopped or exits on its own; the app's own shutdown leaves it. On
+  the next start `list_interrupted_conversations` finds the ones still marked, the home
+  Conversations section lists them, and the Agent view resumes one only once it is on screen
+  (lazy resume) - never all of them at startup.
 - **AI assists** (commit message, test fix, MR description, CI fix, review guide, review
   comment, ticket plan) are the exception: headless one-shot model calls with a JSON schema
   (`commands/oneshot.rs`, `run_oneshot`), only for CLIs that can force a schema (claude-code,

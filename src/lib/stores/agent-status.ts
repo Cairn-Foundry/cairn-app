@@ -24,12 +24,16 @@ import {
 	conversationScopeKey,
 	conversationTerminals,
 	instanceConversations,
+	loadInterruptedConversations,
 	projectConversations,
+	savedInterruptedConversations,
 } from "#lib/stores/conversation";
 import {
 	activeInstance,
 	BASE_INSTANCE_ID,
+	hasInstances,
 	loadedInstances,
+	loadInstances,
 } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
 import { aiEnabled, settings } from "#lib/stores/settings";
@@ -41,6 +45,7 @@ import {
 	formattingActive,
 	terminalActive,
 } from "#lib/stores/ui";
+import type { Instance } from "#lib/types/instance";
 import {
 	type AgentEvent,
 	type AgentStatus,
@@ -157,6 +162,17 @@ export interface LiveConversation {
 	instanceLabel: string;
 }
 
+function instanceLabel(
+	instances: Record<string, Instance[]>,
+	projectId: string,
+	instanceId: string,
+): string {
+	const instance = instances[projectId]?.find((i) => i.id === instanceId);
+	return instanceId === BASE_INSTANCE_ID || !instance
+		? (t("workspace.baseFolder.title") as string)
+		: instance.ticket.title || instance.branch;
+}
+
 /** Every running conversation, what needs the user first. */
 export const liveConversations = derived(
 	[
@@ -187,9 +203,6 @@ export const liveConversations = derived(
 					]?.find((c) => c.id === id) ??
 					byProject[host.projectId]?.find((c) => c.id === id);
 				const project = projectList.find((p) => p.id === host.projectId);
-				const instance = instances[host.projectId]?.find(
-					(i) => i.id === host.instanceId,
-				);
 				return [
 					{
 						id,
@@ -200,10 +213,11 @@ export const liveConversations = derived(
 						status: statuses[id],
 						projectName: project?.name ?? "",
 						projectColor: project?.color ?? "",
-						instanceLabel:
-							host.instanceId === BASE_INSTANCE_ID || !instance
-								? (t("workspace.baseFolder.title") as string)
-								: instance.ticket.title || instance.branch,
+						instanceLabel: instanceLabel(
+							instances,
+							host.projectId,
+							host.instanceId,
+						),
 					},
 				];
 			})
@@ -214,6 +228,73 @@ export const liveConversations = derived(
 					a.title.localeCompare(b.title),
 			),
 );
+
+/**
+ * The conversations the last close of the app stopped mid-run and nothing has
+ * relaunched or stopped since. Opening one resumes it.
+ */
+export const interruptedConversations = derived(
+	[
+		savedInterruptedConversations,
+		conversationTerminals,
+		instanceConversations,
+		projectConversations,
+		projects,
+		loadedInstances,
+	],
+	([saved, terminals, byInstance, byProject, projectList, instances]) =>
+		saved
+			.flatMap((entry): LiveConversation[] => {
+				const id = entry.conversation.id;
+				const project = projectList.find((p) => p.id === entry.projectId);
+				if (!project || terminals[id]) return [];
+				const loaded = entry.instanceId
+					? byInstance[conversationScopeKey(entry.projectId, entry.instanceId)]
+					: byProject[entry.projectId];
+				const meta = loaded
+					? loaded.find((c) => c.id === id)
+					: entry.conversation;
+				if (!meta?.runningIn) return [];
+				const hosts = instances[entry.projectId];
+				const instanceId =
+					!hosts || hosts.some((i) => i.id === meta.runningIn)
+						? meta.runningIn
+						: BASE_INSTANCE_ID;
+				return [
+					{
+						id,
+						projectId: entry.projectId,
+						instanceId,
+						title: meta.title,
+						cli: meta.cli,
+						status: undefined,
+						projectName: project.name,
+						projectColor: project.color ?? "",
+						instanceLabel: instanceLabel(
+							instances,
+							entry.projectId,
+							instanceId,
+						),
+					},
+				];
+			})
+			.sort(
+				(a, b) =>
+					a.projectName.localeCompare(b.projectName) ||
+					a.title.localeCompare(b.title),
+			),
+);
+
+/** Reads what the last close interrupted, with the instances needed to name where. */
+export async function restoreInterruptedConversations(): Promise<void> {
+	const found = await loadInterruptedConversations();
+	const projectIds = new Set(found.map((f) => f.projectId));
+	await Promise.all(
+		[...projectIds]
+			.filter((id) => !hasInstances(id))
+			.map((id) => loadInstances(id).catch(() => {})),
+	);
+}
 
 /** How many conversations are waiting for the user, per project id. */
 export const attentionByProject = derived(

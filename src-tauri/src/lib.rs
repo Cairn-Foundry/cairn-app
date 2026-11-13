@@ -368,6 +368,7 @@ pub fn run() {
             save_commit_state,
             get_conversation_index,
             save_conversation_index,
+            list_interrupted_conversations,
             get_file_state,
             save_file_state,
             get_git_collapse_state,
