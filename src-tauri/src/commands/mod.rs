@@ -31,6 +31,7 @@ pub mod integrations;
 pub mod lsp;
 pub mod mcp;
 pub mod native_agents;
+pub mod containers;
 pub mod ports;
 pub mod projects;
 pub mod review;
@@ -134,6 +135,7 @@ pub use skills::{
     list_skills, save_skill, delete_skill, duplicate_skill,
     add_skill_resources, delete_skill_resource,
 };
+pub use containers::{compose_down, container_action, list_containers};
 pub use ports::{list_listening_ports, kill_process};
 pub use projects::{list_projects, add_project, remove_project, update_project, relocate_project, duplicate_project, set_active_instance, set_project_git_profile, get_listing, save_folders, save_project_order};
 pub use settings::{get_channel, get_settings, set_window_vibrancy, update_settings};

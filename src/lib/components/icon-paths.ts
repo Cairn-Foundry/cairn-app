@@ -264,6 +264,10 @@ export const ICONS: Record<string, IconDef> = {
 		solid: false,
 		body: '<path d="M4 6h16"/><path d="M4 10h10"/><path d="M4 14h13"/><path d="M4 18h7"/>',
 	},
+	sort: {
+		solid: false,
+		body: '<path d="M7 4v16M3 16l4 4 4-4"/><path d="M13 6h8M13 11h6M13 16h3"/>',
+	},
 	server: {
 		solid: false,
 		body: '<rect class="ic-server-top" x="3" y="4" width="18" height="7" rx="2"/><rect class="ic-server-bot" x="3" y="13" width="18" height="7" rx="2"/><path class="ic-server-led-a" d="M7 7.5h0"/><path class="ic-server-led-b" d="M7 16.5h0"/>',

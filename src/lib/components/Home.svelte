@@ -23,6 +23,7 @@
   import FeaturesSection from '#lib/components/home/features/FeaturesSection.svelte';
   import ChangelogSection from '#lib/components/home/ChangelogSection.svelte';
   import PortsSection from '#lib/components/home/PortsSection.svelte';
+  import ContainersSection from '#lib/components/home/ContainersSection.svelte';
   import SkillsSection from '#lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '#lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '#lib/components/home/IntegrationsSection.svelte';
@@ -192,6 +193,15 @@
       </div>
       <div style="margin-top: 24px;">
         <PortsSection />
+      </div>
+
+    {:else if activeSection === 'containers'}
+      <div class="home-hero" style="padding-bottom: 0">
+        <h1 style="font-size: 22px">{t('home.containers.title')}</h1>
+        <div class="sub">{t('home.containers.desc')}</div>
+      </div>
+      <div style="margin-top: 24px;">
+        <ContainersSection />
       </div>
 
     {:else if activeSection === 'changelog'}
