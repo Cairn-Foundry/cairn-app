@@ -359,6 +359,8 @@ pub fn run() {
             get_test_state,
             save_test_state,
             list_containers,
+            container_action,
+            compose_down,
             list_listening_ports,
             kill_process,
             get_commit_state,

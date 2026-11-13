@@ -233,6 +233,75 @@ pub async fn list_containers() -> ContainersReport {
     list()
 }
 
+#[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ContainerAction {
+    Start,
+    Stop,
+    Restart,
+    Remove,
+}
+
+/// A container id or name as `docker ps` prints them. Anything else - above
+/// all a leading dash - would reach the CLI as an option.
+fn is_valid_ref(r: &str) -> bool {
+    !r.is_empty()
+        && !r.starts_with('-')
+        && r.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+}
+
+fn action_args(action: ContainerAction, ids: &[String]) -> Result<Vec<String>, String> {
+    if ids.is_empty() {
+        return Err("no container given".into());
+    }
+    if let Some(bad) = ids.iter().find(|id| !is_valid_ref(id)) {
+        return Err(format!("invalid container reference: {bad}"));
+    }
+    let verb = match action {
+        ContainerAction::Start => "start",
+        ContainerAction::Stop => "stop",
+        ContainerAction::Restart => "restart",
+        ContainerAction::Remove => "rm",
+    };
+    Ok(std::iter::once(verb.to_string()).chain(ids.iter().cloned()).collect())
+}
+
+fn run_docker(args: &[String], neutral_dir: bool) -> Result<(), String> {
+    let mut cmd = child_env::command("docker");
+    cmd.args(args);
+    // Compose loads a compose file found in the working directory before it
+    // falls back to the project's labels; a neutral directory keeps it on the labels.
+    if neutral_dir {
+        cmd.current_dir(std::env::temp_dir());
+    }
+    let out = cmd.output().map_err(|e| match e.kind() {
+        ErrorKind::NotFound => "docker is not installed".to_string(),
+        _ => e.to_string(),
+    })?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Runs one action on several containers at once: a Compose project's start,
+/// stop and restart are those of its containers.
+#[tauri::command]
+pub async fn container_action(ids: Vec<String>, action: ContainerAction) -> Result<(), String> {
+    run_docker(&action_args(action, &ids)?, false)
+}
+
+/// `docker compose down` on a project known by name only: its compose file may
+/// be gone, and the labels are enough for compose to find what it created.
+#[tauri::command]
+pub async fn compose_down(project: String) -> Result<(), String> {
+    if !is_valid_ref(&project) {
+        return Err(format!("invalid project name: {project}"));
+    }
+    run_docker(&["compose".into(), "--project-name".into(), project, "down".into()], true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,5 +369,20 @@ mod tests {
         );
         assert_eq!(classify_error("error during connect: Get \"http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/v1.47/containers/json\""), DockerStatus::DaemonDown);
         assert_eq!(classify_error("something else"), DockerStatus::Error);
+    }
+
+    #[test]
+    fn builds_action_arguments() {
+        let ids = vec!["abc".to_string(), "web-app-1".to_string()];
+        assert_eq!(action_args(ContainerAction::Stop, &ids).unwrap(), ["stop", "abc", "web-app-1"]);
+        assert_eq!(action_args(ContainerAction::Remove, &ids[..1]).unwrap(), ["rm", "abc"]);
+    }
+
+    #[test]
+    fn refuses_a_reference_that_would_read_as_an_option() {
+        assert!(action_args(ContainerAction::Remove, &["--force".to_string()]).is_err());
+        assert!(action_args(ContainerAction::Stop, &["a b".to_string()]).is_err());
+        assert!(action_args(ContainerAction::Start, &[]).is_err());
+        assert!(is_valid_ref("cristal-meth_back.v2"));
     }
 }

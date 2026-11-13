@@ -44,3 +44,16 @@ export interface ContainersReport {
 export async function listContainers(): Promise<ContainersReport> {
 	return await invoke<ContainersReport>("list_containers");
 }
+
+export type ContainerAction = "start" | "stop" | "restart" | "remove";
+
+export async function containerAction(
+	ids: string[],
+	action: ContainerAction,
+): Promise<void> {
+	await invoke("container_action", { ids, action });
+}
+
+export async function composeDown(project: string): Promise<void> {
+	await invoke("compose_down", { project });
+}

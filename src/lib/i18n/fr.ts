@@ -2650,6 +2650,30 @@ export const fr = {
 				unhealthy: "En mauvaise santé",
 				starting: "Démarrage",
 			},
+			action: {
+				start: "Démarrer",
+				stop: "Arrêter",
+				restart: "Redémarrer",
+				remove: "Supprimer",
+				down: "Down",
+				startAll: "Démarrer les containers arrêtés",
+				stopAll: "Arrêter les containers en cours",
+				restartAll: "Redémarrer les containers en cours",
+				downProject:
+					"Down : arrêter et supprimer les containers et réseaux de ce projet",
+				failed: "Docker a refusé l'action",
+				dismiss: "Fermer",
+			},
+			confirm: {
+				removeHeading: "Supprimer un container",
+				removeTitle: (name: string) => `Supprimer ${name} ?`,
+				removeDescription:
+					"Le container est supprimé, avec ce qu'il a écrit en dehors de ses volumes. Son image et ses volumes nommés restent.",
+				downHeading: "Arrêter un projet Compose",
+				downTitle: (name: string) => `Faire un down de ${name} ?`,
+				downDescription:
+					"Ses containers sont arrêtés et supprimés, ainsi que les réseaux que Compose a créés pour eux. Les volumes nommés et les images restent : un up le relance.",
+			},
 			unavailable: {
 				notInstalled: "Docker n'est pas installé",
 				notInstalledHint:
@@ -2668,6 +2692,7 @@ export const fr = {
 				state: "État",
 				ports: "Ports",
 				since: "Depuis",
+				actions: "Actions",
 			},
 		},
 		changelog: {

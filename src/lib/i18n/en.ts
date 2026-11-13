@@ -2607,6 +2607,30 @@ export const en = {
 				unhealthy: "Unhealthy",
 				starting: "Starting",
 			},
+			action: {
+				start: "Start",
+				stop: "Stop",
+				restart: "Restart",
+				remove: "Remove",
+				down: "Down",
+				startAll: "Start the stopped containers",
+				stopAll: "Stop the running containers",
+				restartAll: "Restart the running containers",
+				downProject:
+					"Down: stop and remove the containers and networks of this project",
+				failed: "Docker refused the action",
+				dismiss: "Dismiss",
+			},
+			confirm: {
+				removeHeading: "Remove a container",
+				removeTitle: (name: string) => `Remove ${name}?`,
+				removeDescription:
+					"The container is deleted, with whatever it wrote outside its volumes. Its image and named volumes stay.",
+				downHeading: "Take a Compose project down",
+				downTitle: (name: string) => `Take ${name} down?`,
+				downDescription:
+					"Its containers are stopped and removed, and so are the networks Compose created for them. Named volumes and images stay, so up brings it back.",
+			},
 			unavailable: {
 				notInstalled: "Docker is not installed",
 				notInstalledHint:
@@ -2625,6 +2649,7 @@ export const en = {
 				state: "State",
 				ports: "Ports",
 				since: "Since",
+				actions: "Actions",
 			},
 		},
 		changelog: {

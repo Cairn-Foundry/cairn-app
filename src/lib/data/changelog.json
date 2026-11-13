@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Containers can be started, stopped, restarted and removed from the Containers section, and a whole Compose project started, stopped, restarted or taken down, even when its compose file is gone. Removing and taking down ask first, and a refusal from Docker is shown as Docker wrote it.",
+					"fr": "Les containers se démarrent, s'arrêtent, se redémarrent et se suppriment depuis la section Containers, et un projet Compose entier se démarre, s'arrête, se redémarre ou se démonte (down), même quand son fichier compose a disparu. La suppression et le down demandent confirmation, et un refus de Docker s'affiche tel que Docker l'a écrit."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "A Containers section on the home screen lists the machine's Docker containers, grouped by Compose project with the folder each was started from: state, health, exit code, published ports that open in the browser, and since when. The list filters on names, images and folders, sorts by name or by uptime in either direction, and shows stopped containers on demand. A missing, stopped or forbidden Docker is explained.",
 					"fr": "Une section Containers sur l'écran d'accueil liste les containers Docker de la machine, regroupés par projet Compose avec le dossier d'où chacun a été lancé : état, santé, code de sortie, ports publiés qui s'ouvrent dans le navigateur, et depuis quand. La liste se filtre par nom, image ou dossier, se trie par nom ou par ancienneté dans un sens ou dans l'autre, et montre les containers arrêtés à la demande. Un Docker absent, arrêté ou inaccessible est expliqué."
 				}
