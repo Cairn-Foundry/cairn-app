@@ -94,7 +94,7 @@ pub use git::{
     git_stash_drop, git_stash_show, git_stash_clear, git_stash_rename,
     git_tag_list, git_tag_create, git_tag_delete, git_tag_push, git_tag_delete_remote,
     git_tag_remote_list,
-    git_revert_commit, git_reset, git_discard_file, git_snapshot, git_file_diffs, git_staged_totals};
+    git_revert_commit, git_reset, git_discard_file, git_snapshot, git_file_diffs, git_staged_totals, git_unstaged_totals};
 pub use instances::{list_instances, create_instance, duplicate_instance, adopt_worktree, list_unclaimed_worktrees, delete_instance, check_instance_deletion, instance_worktree_health, update_instance_status, update_instance_ticket, update_instance_base_branch};
 pub use integrations::{
     IntegrationState, integration_kinds, list_integration_connections, save_integration_connection,

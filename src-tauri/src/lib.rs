@@ -321,6 +321,7 @@ pub fn run() {
             git_snapshot,
             git_file_diffs,
             git_staged_totals,
+            git_unstaged_totals,
             read_dir_tree_cached,
             watch_dirs,
             unwatch_worktree,

@@ -903,6 +903,32 @@ pub async fn git_staged_totals(worktree_path: String) -> Result<DiffTotals, GitE
 }
 
 #[tauri::command]
+/// The line counts of everything not staged: the working tree against the
+/// index, plus the untracked files, which `diff` never sees.
+pub async fn git_unstaged_totals(worktree_path: String) -> Result<DiffTotals, GitError> {
+    let expanded = expand(&worktree_path);
+    let raw = run(git_cmd(&expanded).args(["diff", "--numstat", "-z"]))?;
+    let mut totals = parse_numstat_totals(&raw);
+    let untracked = run(git_cmd(&expanded).args(["ls-files", "--others", "--exclude-standard", "-z"]))?;
+    totals.added += untracked
+        .split('\0')
+        .filter(|path| !path.is_empty())
+        .map(|path| text_line_count(&Path::new(&expanded).join(path)))
+        .sum::<usize>();
+    Ok(totals)
+}
+
+/// Lines of a text file as `diff --numstat` counts them; a binary file counts as nothing.
+fn text_line_count(path: &Path) -> usize {
+    let Ok(bytes) = fs::read(path) else { return 0 };
+    if bytes[..bytes.len().min(8000)].contains(&0) {
+        return 0;
+    }
+    let newlines = bytes.iter().filter(|b| **b == b'\n').count();
+    newlines + usize::from(!bytes.is_empty() && bytes.last() != Some(&b'\n'))
+}
+
+#[tauri::command]
 /// Index changes against HEAD.
 pub async fn git_diff_staged(worktree_path: String) -> Result<Vec<GitFileDiff>, GitError> {
     let expanded = expand(&worktree_path);
@@ -3508,6 +3534,28 @@ diff --git a/two.txt b/two.txt
         let totals = git_staged_totals(repo.wt()).await.unwrap();
 
         assert_eq!(totals, DiffTotals { added: 3, removed: 1 });
+    }
+
+    #[tokio::test]
+    async fn unstaged_totals_cover_the_working_tree_and_the_untracked_files() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\ntwo\n", "init");
+        repo.write("a.txt", "one\nthree\nfour\n");
+        repo.write("b.txt", "new\nlast line without newline");
+        repo.write("image.png", "\u{0}binary");
+
+        let totals = git_unstaged_totals(repo.wt()).await.unwrap();
+
+        assert_eq!(totals, DiffTotals { added: 4, removed: 1 });
+    }
+
+    #[test]
+    fn a_text_file_counts_its_lines_and_a_binary_file_nothing() {
+        let repo = TempRepo::new();
+        for (content, lines) in [("a\nb\n", 2), ("a\nb", 2), ("", 0), ("\u{0}x", 0)] {
+            repo.write("t.txt", content);
+            assert_eq!(text_line_count(&repo.path.join("t.txt")), lines, "{content:?}");
+        }
     }
 
     #[test]
