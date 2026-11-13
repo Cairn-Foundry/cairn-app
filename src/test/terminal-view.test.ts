@@ -19,6 +19,7 @@ vi.mock("#lib/utils/terminal/terminal-manager", () => ({
 	refit: (...a: unknown[]) => refit(...a),
 	observeInput: vi.fn(),
 	observeOutput: vi.fn(),
+	onTerminalExit: vi.fn(() => () => {}),
 }));
 
 const prepareInstanceEnv = vi.fn<(...a: unknown[]) => unknown>();

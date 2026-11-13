@@ -15,6 +15,13 @@
 				}
 			},
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "Claude Code started in Cairn saves its conversations again when Cairn itself was launched from a Claude Code terminal, so they can be resumed.",
+					"fr": "Claude Code lancé dans Cairn enregistre de nouveau ses conversations quand Cairn a lui-même été lancé depuis un terminal Claude Code, et elles peuvent donc être reprises."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "The branch selector of the base instance creates a branch: its Create a branch entry opens the branch creation dialog off the current branch, prefilled with what was typed in the search.",
