@@ -466,6 +466,8 @@
   $: totalRemoved        = commitDiffCards.reduce((s, c) => s + c.removed, 0);
   $: totalStagedAdded   = state.stagedTotals?.added ?? 0;
   $: totalStagedRemoved = state.stagedTotals?.removed ?? 0;
+  $: totalUnstagedAdded   = state.unstagedTotals?.added ?? 0;
+  $: totalUnstagedRemoved = state.unstagedTotals?.removed ?? 0;
 
   /** Loads the diff and the body of a commit in parallel and fills the detail pane. */
   async function fetchCommitDetail(commit: SelectedCommitInfo) {
@@ -1779,6 +1781,19 @@
             <button class="log-search-clear" on:click={() => updateProjectViewState({ gitChangesSearch: '' })}>×</button>
           {/if}
         </div>
+        <div class="changes-totals">
+          {#if unstagedCards.length > 0}
+            <span class="count accent">{unstagedCards.length} {t('git.files')}</span>
+          {/if}
+          {#if state.isUnstagedTotalsPending && state.unstagedTotals === null}
+            <span class="diff-stat-pending" title={t('git.unstagedTotalsPending') as string}><Skeleton width="56px" height={10}/></span>
+          {:else if totalUnstagedAdded > 0 || totalUnstagedRemoved > 0}
+            <span class="diff-stat">
+              {#if totalUnstagedAdded > 0}<span class="stat-add">+{totalUnstagedAdded}</span>{/if}
+              {#if totalUnstagedRemoved > 0}<span class="stat-remove">-{totalUnstagedRemoved}</span>{/if}
+            </span>
+          {/if}
+        </div>
       </div>
       <div class="hunks-list" on:scroll={(e) => handleChangesScroll(e, 'unstaged')}>
         {#if unstagedCards.length === 0}
@@ -2199,7 +2214,7 @@
         <Icon name="circle-dot" size={12} style="color: var(--accent)"/>
         <span>{t('git.stagedForCommit')}</span>
         <span class="count accent">{stagedCards.length} {t('git.files')}</span>
-        {#if state.isStagedTotalsPending}
+        {#if state.isStagedTotalsPending && state.stagedTotals === null}
           <span class="diff-stat-pending" title={t('git.stagedTotalsPending') as string}><Skeleton width="56px" height={10}/></span>
         {:else if totalStagedAdded > 0 || totalStagedRemoved > 0}
           <span class="diff-stat">
@@ -3407,6 +3422,15 @@
     align-items: center;
     flex-shrink: 0;
   }
+
+  /* Same gap between the count and the totals as in the staged header */
+  .changes-totals {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .changes-totals .count { margin-left: 0; }
 
   .hunk-pending {
     padding: 10px 12px;

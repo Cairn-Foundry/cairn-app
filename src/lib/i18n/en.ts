@@ -1843,6 +1843,7 @@ export const en = {
 		noDiffPreview: "No preview available (binary or empty file).",
 		renamedUnchanged: "Renamed, content unchanged.",
 		stagedTotalsPending: "Counting the staged lines",
+		unstagedTotalsPending: "Counting the changed lines",
 		renamedFrom: (path: string) => `from ${path}`,
 		diffTooLarge: "This file is too large to show its diff here.",
 		openInEditor: "Open in editor",

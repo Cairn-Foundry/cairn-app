@@ -52,6 +52,9 @@ type GitState = {
 	stagedTotals: gitService.DiffTotals | null;
 	/** The totals are being read again after a change; the view shows a placeholder meanwhile. */
 	isStagedTotalsPending: boolean;
+	/** The same for the working tree, untracked files included. */
+	unstagedTotals: gitService.DiffTotals | null;
+	isUnstagedTotalsPending: boolean;
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
 	changedPaths: gitService.GitChangedPaths;
 	currentBranch: string;
@@ -116,6 +119,8 @@ const INITIAL: GitState = {
 	fileDiffs: NO_FILE_DIFFS,
 	stagedTotals: null,
 	isStagedTotalsPending: false,
+	unstagedTotals: null,
+	isUnstagedTotalsPending: false,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],
@@ -261,12 +266,14 @@ export function setDiffsWanted(wanted: boolean): void {
 			fileDiffs: NO_FILE_DIFFS,
 			stagedTotals: null,
 			isStagedTotalsPending: false,
+			unstagedTotals: null,
+			isUnstagedTotalsPending: false,
 		}));
 		return;
 	}
 	if (!was) {
 		void syncFileDiffs(true);
-		void refreshStagedTotals();
+		refreshTotals();
 	}
 }
 
@@ -396,40 +403,55 @@ function mergeDiffs(
 	return next;
 }
 
-let totalsRun = 0;
+const TOTALS_SIDES = {
+	staged: {
+		totals: "stagedTotals",
+		pending: "isStagedTotalsPending",
+		read: (wt: string) => gitService.getStagedTotals(wt),
+	},
+	unstaged: {
+		totals: "unstagedTotals",
+		pending: "isUnstagedTotalsPending",
+		read: (wt: string) => gitService.getUnstagedTotals(wt),
+	},
+} as const;
+const totalsRuns = { staged: 0, unstaged: 0 };
 
-/** Reads the index totals again, the view showing a placeholder until they land. */
-async function refreshStagedTotals(): Promise<void> {
+/** Reads both totals again, the view showing placeholders until they land. */
+function refreshTotals(): void {
+	void refreshSideTotals("staged");
+	void refreshSideTotals("unstaged");
+}
+
+async function refreshSideTotals(
+	side: keyof typeof TOTALS_SIDES,
+): Promise<void> {
 	const wt = worktree();
 	if (!wt || !diffsWanted) return;
-	const run = ++totalsRun;
+	const { totals: totalsKey, pending: pendingKey, read } = TOTALS_SIDES[side];
+	const run = ++totalsRuns[side];
 	const state = get(_git);
-	if (state.changedPaths.staged.length === 0) {
-		const { stagedTotals: held, isStagedTotalsPending } = state;
-		if (held?.added === 0 && held.removed === 0 && !isStagedTotalsPending)
-			return;
+	if (state.changedPaths[side].length === 0) {
+		const held = state[totalsKey];
+		if (held?.added === 0 && held.removed === 0 && !state[pendingKey]) return;
 		_git.update((s) => ({
 			...s,
-			stagedTotals: { added: 0, removed: 0 },
-			isStagedTotalsPending: false,
+			[totalsKey]: { added: 0, removed: 0 },
+			[pendingKey]: false,
 		}));
 		return;
 	}
-	if (!state.isStagedTotalsPending) {
-		_git.update((s) => ({ ...s, isStagedTotalsPending: true }));
+	if (!state[pendingKey]) {
+		_git.update((s) => ({ ...s, [pendingKey]: true }));
 	}
 	let totals: gitService.DiffTotals | null;
 	try {
-		totals = await gitService.getStagedTotals(wt);
+		totals = await read(wt);
 	} catch {
 		totals = null;
 	}
-	if (run !== totalsRun || worktree() !== wt) return;
-	_git.update((s) => ({
-		...s,
-		stagedTotals: totals,
-		isStagedTotalsPending: false,
-	}));
+	if (run !== totalsRuns[side] || worktree() !== wt) return;
+	_git.update((s) => ({ ...s, [totalsKey]: totals, [pendingKey]: false }));
 }
 
 /**
@@ -456,6 +478,8 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				fileDiffs: NO_FILE_DIFFS,
 				stagedTotals: null,
 				isStagedTotalsPending: false,
+				unstagedTotals: null,
+				isUnstagedTotalsPending: false,
 				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
@@ -498,7 +522,7 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		}));
 		if (diffsWanted) {
 			void syncFileDiffs(true);
-			if (snap || bump) void refreshStagedTotals();
+			if (snap || bump) refreshTotals();
 		}
 		if (snap) void syncGraph();
 		// A commit, reset or checkout made outside the app moves HEAD without
@@ -1115,6 +1139,7 @@ const WORKTREE_FIELDS = [
 	"snapshotVersion",
 	"fileDiffs",
 	"stagedTotals",
+	"unstagedTotals",
 	"changedPaths",
 	"currentBranch",
 	"branches",
@@ -1142,6 +1167,7 @@ const EMPTY: WorktreeData = {
 	snapshotVersion: "",
 	fileDiffs: NO_FILE_DIFFS,
 	stagedTotals: null,
+	unstagedTotals: null,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],

@@ -298,6 +298,7 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 		git_diff_staged: () => [],
 		git_file_diffs: () => ({ unstaged: [], staged: [] }),
 		git_staged_totals: () => ({ added: 0, removed: 0 }),
+		git_unstaged_totals: () => ({ added: 0, removed: 0 }),
 		git_diff_file: () => "",
 		git_file_at_head: (a) => world.files[a.path as string] ?? "",
 		git_blame_file: () => [],

@@ -46,6 +46,7 @@ vi.mock("#lib/services/git-service", () => ({
 	getDiffStaged: vi.fn().mockResolvedValue([]),
 	getFileDiffs: vi.fn().mockResolvedValue({ unstaged: [], staged: [] }),
 	getStagedTotals: vi.fn().mockResolvedValue({ added: 0, removed: 0 }),
+	getUnstagedTotals: vi.fn().mockResolvedValue({ added: 0, removed: 0 }),
 	getCurrentBranch: vi.fn().mockResolvedValue("main"),
 	getRemoteStatus: vi.fn().mockResolvedValue(null),
 	getOperationState: vi.fn().mockResolvedValue(null),

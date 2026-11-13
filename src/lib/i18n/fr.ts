@@ -1873,6 +1873,7 @@ export const fr = {
 		noDiffPreview: "Pas d'aperçu disponible (fichier binaire ou vide).",
 		renamedUnchanged: "Renommé, contenu inchangé.",
 		stagedTotalsPending: "Décompte des lignes indexées",
+		unstagedTotalsPending: "Décompte des lignes modifiées",
 		renamedFrom: (path: string) => `depuis ${path}`,
 		diffTooLarge: "Ce fichier est trop volumineux pour afficher son diff ici.",
 		openInEditor: "Ouvrir dans l'éditeur",
