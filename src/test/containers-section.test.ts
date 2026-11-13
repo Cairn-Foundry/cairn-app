@@ -11,8 +11,12 @@ import type {
 } from "#lib/services/containers-service";
 
 const listContainers = vi.fn();
+const containerAction = vi.fn();
+const composeDown = vi.fn();
 vi.mock("#lib/services/containers-service", () => ({
 	listContainers: (...a: unknown[]) => listContainers(...a),
+	containerAction: (...a: unknown[]) => containerAction(...a),
+	composeDown: (...a: unknown[]) => composeDown(...a),
 }));
 const openUrl = vi.fn();
 vi.mock("#lib/services/opener-service", () => ({
@@ -95,7 +99,20 @@ beforeEach(() => {
 		]),
 	);
 	openUrl.mockReset().mockResolvedValue(undefined);
+	containerAction.mockReset().mockResolvedValue(undefined);
+	composeDown.mockReset().mockResolvedValue(undefined);
 });
+
+const rowOf = (name: string) =>
+	Array.from(document.querySelectorAll<HTMLElement>("tbody tr")).find(
+		(r) => r.querySelector(".name")?.textContent === name,
+	) as HTMLElement;
+const button = (root: ParentNode, label: string) =>
+	root.querySelector(`[aria-label="${label}"]`) as HTMLElement;
+const groupHeader = (title: string) =>
+	Array.from(document.querySelectorAll<HTMLElement>(".group header")).find(
+		(h) => h.querySelector(".project")?.textContent === title,
+	) as HTMLElement;
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -215,5 +232,80 @@ describe("ContainersSection", () => {
 		await settle();
 		expect(unavailable()).toBeNull();
 		expect(names()).toEqual(["app", "redis"]);
+	});
+
+	describe("acting on containers", () => {
+		it("stops a running container and reads the list again", async () => {
+			render(ContainersSection, {});
+			await settle();
+			const calls = listContainers.mock.calls.length;
+			await user.click(button(rowOf("app"), "Stop"));
+			await settle();
+			expect(containerAction).toHaveBeenCalledWith(["web-app-1"], "stop");
+			expect(listContainers.mock.calls.length).toBeGreaterThan(calls);
+		});
+
+		it("asks before removing a stopped container", async () => {
+			render(ContainersSection, {});
+			await settle();
+			await user.click(stoppedToggle());
+			await user.click(button(rowOf("worker"), "Remove"));
+			expect(containerAction).not.toHaveBeenCalled();
+			await user.click(
+				document.querySelector(".modal .btn.danger") as HTMLElement,
+			);
+			await settle();
+			expect(containerAction).toHaveBeenCalledWith(["web-worker-1"], "remove");
+		});
+
+		/** The stopped toggle only hides rows: starting a project covers them too. */
+		it("starts the stopped containers of a project, hidden ones included", async () => {
+			render(ContainersSection, {});
+			await settle();
+			await user.click(
+				button(groupHeader("web"), "Start the stopped containers"),
+			);
+			await settle();
+			expect(containerAction).toHaveBeenCalledWith(["web-worker-1"], "start");
+		});
+
+		it("takes a project down only once confirmed, listing what goes", async () => {
+			render(ContainersSection, {});
+			await settle();
+			await user.click(
+				button(
+					groupHeader("web"),
+					"Down: stop and remove the containers and networks of this project",
+				),
+			);
+			expect(document.querySelector(".modal")?.textContent).toContain(
+				"web-worker-1",
+			);
+			expect(composeDown).not.toHaveBeenCalled();
+			await user.click(
+				document.querySelector(".modal .btn.danger") as HTMLElement,
+			);
+			await settle();
+			expect(composeDown).toHaveBeenCalledWith("web");
+		});
+
+		it("shows what Docker answered when it refuses", async () => {
+			containerAction.mockRejectedValue("Error response from daemon: conflict");
+			render(ContainersSection, {});
+			await settle();
+			await user.click(button(rowOf("redis"), "Restart"));
+			await settle();
+			expect(document.querySelector("[role=alert]")?.textContent).toContain(
+				"conflict",
+			);
+		});
+
+		it("offers no project action to standalone containers", async () => {
+			render(ContainersSection, {});
+			await settle();
+			expect(
+				groupHeader("Standalone containers").querySelector(".group-actions"),
+			).toBeNull();
+		});
 	});
 });
