@@ -237,6 +237,20 @@
 					"en": "A system notification tells you when a conversation finishes its turn or asks for approval while Cairn is in the background, and clicking it opens that conversation. It can be turned off in Settings > General.",
 					"fr": "Une notification système vous prévient quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan, et un clic dessus ouvre cette conversation. Désactivable dans Réglages > Général."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the Git view, the open-in-editor button of a changed or staged file opens it at the first change of its diff, instead of wherever the file was last left.",
+					"fr": "Dans la vue Git, le bouton d'ouverture dans l'éditeur d'un fichier modifié ou indexé l'ouvre à la première modification de son diff, et non plus là où le fichier avait été laissé."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A bar at the bottom right of the editor counts the changes of the open file and walks through them, one arrow up and one down, wrapping at either end. It shows up only while the file differs from its git baseline.",
+					"fr": "Une barre en bas à droite de l'éditeur compte les modifications du fichier ouvert et les parcourt, une flèche vers le haut et une vers le bas, en bouclant aux extrémités. Elle n'apparaît que lorsque le fichier diffère de sa version git de référence."
+				}
 			}
 		]
 	},

@@ -145,6 +145,39 @@ export function diffLineKinds(state: EditorState): Map<number, DiffKind> {
 	return state.field(diffField, false)?.lineKinds ?? new Map();
 }
 
+/** The first line of every change, in document order. */
+export function changedLines(state: EditorState): number[] {
+	const field = state.field(diffField, false);
+	if (!field) return [];
+	return field.chunks
+		.map((chunk) => chunkLineRange(state.doc, chunk).start)
+		.sort((a, b) => a - b);
+}
+
+/**
+ * The change that follows `line`, wrapping back to the first one once past the
+ * last. Null when the file holds no change.
+ */
+export function nextChangedLine(
+	state: EditorState,
+	line: number,
+): number | null {
+	const lines = changedLines(state);
+	return lines.find((l) => l > line) ?? lines[0] ?? null;
+}
+
+/** The change that precedes `line`, wrapping to the last one. */
+export function previousChangedLine(
+	state: EditorState,
+	line: number,
+): number | null {
+	const lines = changedLines(state);
+	for (let i = lines.length - 1; i >= 0; i--) {
+		if (lines[i] < line) return lines[i];
+	}
+	return lines.at(-1) ?? null;
+}
+
 class DiffMarker extends GutterMarker {
 	constructor(readonly kind: DiffKind) {
 		super();
