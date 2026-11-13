@@ -7,9 +7,12 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildDiffGutter,
+	changedLines,
 	clearDiffBase,
 	diffLineKinds,
 	type GutterChunk,
+	nextChangedLine,
+	previousChangedLine,
 	revertChunkAtLine,
 	setDiffBase,
 } from "./editor-diff-gutter";
@@ -282,5 +285,66 @@ describe("revertChunkAtLine", () => {
 		}) as EditorView["dispatch"];
 		revertChunkAtLine(view, 2);
 		expect(seen).toEqual(["revert"]);
+	});
+});
+
+describe("nextChangedLine", () => {
+	/** Lines 2 and 5 differ from the baseline, so the changes start there. */
+	function changed(): EditorView {
+		const view = mount("a\nCHANGED\nc\nd\nALSO\nf");
+		view.dispatch({ effects: setDiffBase.of("a\nb\nc\nd\ne\nf") });
+		return view;
+	}
+
+	it("is null when the gutter extension is not installed", () => {
+		expect(nextChangedLine(EditorState.create({ doc: "a" }), 1)).toBeNull();
+	});
+
+	it("is null while the file has no change", () => {
+		const view = mount("a\nb");
+		view.dispatch({ effects: setDiffBase.of("a\nb") });
+		expect(nextChangedLine(view.state, 1)).toBeNull();
+	});
+
+	it("reaches the first change from the top of the file", () => {
+		expect(nextChangedLine(changed().state, 0)).toBe(2);
+	});
+
+	it("walks to the change that follows the cursor", () => {
+		expect(nextChangedLine(changed().state, 2)).toBe(5);
+	});
+
+	it("wraps back to the first change once past the last", () => {
+		expect(nextChangedLine(changed().state, 5)).toBe(2);
+	});
+});
+
+describe("previousChangedLine and changedLines", () => {
+	function changed(): EditorView {
+		const view = mount("a\nCHANGED\nc\nd\nALSO\nf");
+		view.dispatch({ effects: setDiffBase.of("a\nb\nc\nd\ne\nf") });
+		return view;
+	}
+
+	it("counts every change in document order", () => {
+		expect(changedLines(changed().state)).toEqual([2, 5]);
+	});
+
+	it("is empty when the gutter extension is not installed", () => {
+		expect(changedLines(EditorState.create({ doc: "a" }))).toEqual([]);
+	});
+
+	it("walks back to the change above the cursor", () => {
+		expect(previousChangedLine(changed().state, 5)).toBe(2);
+	});
+
+	it("wraps to the last change from the top of the file", () => {
+		expect(previousChangedLine(changed().state, 1)).toBe(5);
+	});
+
+	it("is null while the file has no change", () => {
+		const view = mount("a\nb");
+		view.dispatch({ effects: setDiffBase.of("a\nb") });
+		expect(previousChangedLine(view.state, 1)).toBeNull();
 	});
 });
