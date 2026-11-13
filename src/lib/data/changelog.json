@@ -10,6 +10,20 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "Conversations that were running when Cairn closed come back: the home Conversations section lists them, and opening one, or coming back to the one that was on screen, resumes its CLI where it stopped.",
+					"fr": "Les conversations en cours à la fermeture de Cairn reviennent : la section Conversations de l'accueil les liste, et en ouvrir une, ou revenir sur celle qui était à l'écran, reprend son CLI là où il s'était arrêté."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Claude Code started in Cairn saves its conversations again when Cairn itself was launched from a Claude Code terminal, so they can be resumed.",
+					"fr": "Claude Code lancé dans Cairn enregistre de nouveau ses conversations quand Cairn a lui-même été lancé depuis un terminal Claude Code, et elles peuvent donc être reprises."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "The branch selector of the base instance creates a branch: its Create a branch entry opens the branch creation dialog off the current branch, prefilled with what was typed in the search.",
 					"fr": "Le sélecteur de branche de l'instance de base crée une branche : son entrée Créer une branche ouvre la fenêtre de création depuis la branche courante, préremplie avec le texte de la recherche."
 				}

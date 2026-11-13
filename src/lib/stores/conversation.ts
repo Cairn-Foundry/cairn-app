@@ -21,6 +21,8 @@ import {
 	type ConversationMeta,
 	type ConversationScope,
 	getConversationIndex,
+	type InterruptedConversation,
+	listInterruptedConversations,
 	saveConversationIndex,
 } from "#lib/services/conversation-service";
 import { openCliInTerminal } from "#lib/services/file-service";
@@ -460,8 +462,10 @@ export async function openConversation(
 		await createTerminal(terminalId, meta.cwd, cols, rows, null, null, argv);
 	} catch (e) {
 		manager.dispose(terminalId);
+		if (meta.runningIn) patch(ref, id, { runningIn: null });
 		throw e;
 	}
+	patch(ref, id, { runningIn: ref.instanceId });
 	conversationHosts.update((m) => ({
 		...m,
 		[id]: { projectId: ref.projectId, instanceId: ref.instanceId },
@@ -619,6 +623,7 @@ export async function startFreshSession(
 export function closeConversation(id: string): void {
 	const terminalId = terminalOf(id);
 	if (!terminalId) return;
+	clearRunningMark(id);
 	awaitingTitle.delete(terminalId);
 	awaitingFirstInput.delete(terminalId);
 	resumeWatchers.get(terminalId)?.();
@@ -633,6 +638,13 @@ export function closeConversation(id: string): void {
 	};
 	conversationTerminals.update(drop);
 	conversationHosts.update(drop);
+}
+
+/** The conversation no longer runs, so the next start must not take it for interrupted. */
+function clearRunningMark(id: string): void {
+	const host = get(conversationHosts)[id];
+	const found = host && findConversation(host.projectId, host.instanceId, id);
+	if (found?.meta.runningIn) patch(found.ref, id, { runningIn: null });
 }
 
 /**
@@ -794,5 +806,30 @@ export function removeInstanceConversations(
 manager.observeInput((terminalId, data) => {
 	noteTerminalInput(terminalId, data);
 });
+
+// A CLI that quit on its own keeps its terminal on screen for the exit banner,
+// but it is no longer running: a restart has nothing of it to resume.
+manager.onTerminalExit(({ id: terminalId }) => {
+	for (const [id, tid] of Object.entries(get(conversationTerminals))) {
+		if (tid === terminalId) clearRunningMark(id);
+	}
+});
+
+/** Conversations whose CLI the last close of the app stopped, read once at startup. */
+export const savedInterruptedConversations = writable<
+	InterruptedConversation[]
+>([]);
+
+let interruptedLoaded = false;
+
+export async function loadInterruptedConversations(): Promise<
+	InterruptedConversation[]
+> {
+	if (interruptedLoaded) return get(savedInterruptedConversations);
+	interruptedLoaded = true;
+	const found = (await listInterruptedConversations().catch(() => null)) ?? [];
+	savedInterruptedConversations.set(found);
+	return found;
+}
 
 onProjectRemoved(forgetProject);

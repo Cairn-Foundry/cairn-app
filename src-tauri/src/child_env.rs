@@ -24,6 +24,12 @@
 //! `$APPDIR/usr`, so a child spawned without a `current_dir` of its own would
 //! run inside the mount, keep it busy, and be left in a deleted directory once
 //! the app exits. It starts from where the AppImage was launched instead.
+//!
+//! The app can also be started from inside a Claude Code session (`cairn .` in
+//! its terminal), which leaves markers of that session in the environment. A
+//! Claude Code launched in Cairn that inherits them takes itself for a child of
+//! that session and saves no transcript, so there is nothing to resume later.
+//! They are unset for every child, AppImage or not.
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -39,6 +45,20 @@ const MARKERS: [&str; 4] = ["APPDIR", "APPIMAGE", "ARGV0", "OWD"];
 /// left in place they pin every GTK child to XWayland and the stock Adwaita
 /// theme; unset, GTK goes back to its own detection.
 const GTK_HOOK: [&str; 2] = ["GDK_BACKEND", "GTK_THEME"];
+
+/// Set by a running Claude Code for the processes it spawns. Configuration the
+/// user exports (`CLAUDE_CODE_USE_BEDROCK`...) is not on the list and stays.
+const PARENT_SESSION: [&str; 9] = [
+    "CLAUDECODE",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_SESSION_ATTENDED",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_CODE_EXECPATH",
+    "CLAUDE_CODE_MESSAGING_SOCKET",
+    "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_PID",
+];
 
 /// A `Command` whose child will not inherit the AppImage mount.
 pub fn command<S: AsRef<OsStr>>(program: S) -> Command {
@@ -100,18 +120,27 @@ fn working_dir(cwd: &Path, appdir: &str, owd: Option<&Path>, home: Option<&Path>
         .map(Path::to_path_buf)
 }
 
-/// The changes to apply to what this process inherited; empty when the app was
-/// not started from an AppImage.
+/// The changes to apply to what this process inherited.
 fn from_current_env() -> Vec<(String, Option<String>)> {
-    let appdir = std::env::var("APPDIR").ok().filter(|d| !d.is_empty());
-    match appdir {
-        Some(dir) => overrides(
-            std::env::vars_os()
-                .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?))),
-            &dir,
-        ),
-        None => Vec::new(),
+    let vars: Vec<(String, String)> = std::env::vars_os()
+        .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
+        .collect();
+    let mut out = parent_session(vars.iter().map(|(k, _)| k.as_str()));
+    if let Some(dir) = std::env::var("APPDIR").ok().filter(|d| !d.is_empty()) {
+        out.extend(overrides(vars, &dir));
     }
+    out
+}
+
+/// Unsets the markers of a Claude Code session the app was started from.
+fn parent_session<'a, I>(keys: I) -> Vec<(String, Option<String>)>
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    keys.into_iter()
+        .filter(|key| PARENT_SESSION.contains(key))
+        .map(|key| (key.to_string(), None))
+        .collect()
 }
 
 /// What to change in an inherited environment, `None` meaning "unset it".
@@ -278,6 +307,25 @@ mod tests {
             ("PYTHONHOME".to_string(), "/usr".to_string()),
         ];
         assert!(overrides(vars, "/tmp/.mount_Nothing").is_empty());
+    }
+
+    #[test]
+    fn unsets_the_markers_of_a_claude_code_session_the_app_was_started_from() {
+        let changes = parent_session([
+            "CLAUDECODE",
+            "CLAUDE_CODE_CHILD_SESSION",
+            "CLAUDE_CODE_SESSION_ID",
+            "CLAUDE_CODE_USE_BEDROCK",
+            "PATH",
+        ]);
+        assert_eq!(
+            changes,
+            vec![
+                ("CLAUDECODE".to_string(), None),
+                ("CLAUDE_CODE_CHILD_SESSION".to_string(), None),
+                ("CLAUDE_CODE_SESSION_ID".to_string(), None),
+            ]
+        );
     }
 
     /// The one that matters: what a spawned process actually reads. The

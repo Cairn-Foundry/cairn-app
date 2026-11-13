@@ -57,6 +57,8 @@ import {
 	conversationHosts,
 	conversationTerminals,
 	instanceConversations,
+	projectConversations,
+	savedInterruptedConversations,
 } from "#lib/stores/conversation";
 import { activeInstance, loadedInstances } from "#lib/stores/instance";
 import { projects } from "#lib/stores/project";
@@ -65,6 +67,7 @@ import { activeScreen, activeStep } from "#lib/stores/ui";
 import {
 	agentStatus,
 	attentionByProject,
+	interruptedConversations,
 	liveConversations,
 	openRequest,
 	QUIET_MS,
@@ -259,6 +262,74 @@ describe("the global view", () => {
 			instanceLabel: "Fix the login",
 		});
 		expect(get(attentionByProject)).toEqual({ p: 1 });
+	});
+});
+
+describe("conversations the last close interrupted", () => {
+	const saved = (
+		id: string,
+		runningIn: string,
+		instanceId: string | null = "i",
+	) => ({
+		projectId: "p",
+		instanceId,
+		conversation: {
+			id,
+			title: id,
+			cli: "claude-code" as const,
+			sessionId: null,
+			cwd: "/p",
+			createdAt: 0,
+			lastOpenedAt: 0,
+			pinned: false,
+			archived: false,
+			runningIn,
+		},
+	});
+
+	beforeEach(() => {
+		instanceConversations.set({});
+		projectConversations.set({});
+	});
+
+	it("lists them with where they ran, until they are relaunched", () => {
+		savedInterruptedConversations.set([saved("c9", "i")]);
+
+		expect(get(interruptedConversations)).toEqual([
+			expect.objectContaining({
+				id: "c9",
+				projectId: "p",
+				instanceId: "i",
+				instanceLabel: "Fix the login",
+			}),
+		]);
+
+		run("c9");
+		expect(get(interruptedConversations)).toEqual([]);
+	});
+
+	it("drops one stopped since its scope was read back", () => {
+		const entry = saved("c9", "i");
+		savedInterruptedConversations.set([entry]);
+		instanceConversations.set({
+			"p:i": [{ ...entry.conversation, runningIn: null }],
+		});
+
+		expect(get(interruptedConversations)).toEqual([]);
+	});
+
+	it("opens a project conversation whose instance is gone in the base folder", () => {
+		savedInterruptedConversations.set([saved("c9", "removed", null)]);
+
+		expect(get(interruptedConversations)[0]?.instanceId).toBe("__base__");
+	});
+
+	it("ignores the conversations of a project no longer registered", () => {
+		savedInterruptedConversations.set([
+			{ ...saved("c9", "i"), projectId: "gone" },
+		]);
+
+		expect(get(interruptedConversations)).toEqual([]);
 	});
 });
 
