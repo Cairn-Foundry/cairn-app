@@ -15,11 +15,15 @@ const OPTIONS = [
 
 function mount(props: Record<string, unknown> = {}) {
 	const onChange = vi.fn();
+	const onRepick = vi.fn();
 	const result = render(Select, {
 		props: { value: "a", options: OPTIONS, ...props },
-		events: { change: (e: CustomEvent<string>) => onChange(e.detail) },
+		events: {
+			change: (e: CustomEvent<string>) => onChange(e.detail),
+			repick: (e: CustomEvent<string>) => onRepick(e.detail),
+		},
 	});
-	return { ...result, onChange };
+	return { ...result, onChange, onRepick };
 }
 
 const anyTrigger = () =>
@@ -80,12 +84,13 @@ describe("Select", () => {
 			expect(anyTrigger().textContent).toContain("Charlie");
 		});
 
-		/** Re-picking what is already chosen changes nothing, so nobody is told. */
-		it("stays silent when the same option is picked again", async () => {
-			const { onChange } = mount({ value: "b" });
+		/** Re-picking what is already chosen changes nothing; only a caller toggling on it hears. */
+		it("reports no change when the same option is picked again", async () => {
+			const { onChange, onRepick } = mount({ value: "b" });
 			await userEvent.click(anyTrigger());
 			await userEvent.click(optionNamed("Bravo"));
 			expect(onChange).not.toHaveBeenCalled();
+			expect(onRepick).toHaveBeenCalledWith("b");
 			expect(list()).toBeNull();
 		});
 	});

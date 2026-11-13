@@ -26,7 +26,8 @@
   export let searchable: boolean | null = null;
   export let searchPlaceholder = '';
 
-  const dispatch = createEventDispatcher<{ change: string }>();
+  /** `repick`: the option already selected was picked again, for a caller that toggles on it. */
+  const dispatch = createEventDispatcher<{ change: string; repick: string }>();
 
   const PANEL_MARGIN = 8;
 
@@ -74,7 +75,10 @@
 
   function pick(next: string) {
     open = false;
-    if (next === value) return;
+    if (next === value) {
+      dispatch('repick', next);
+      return;
+    }
     value = next;
     dispatch('change', next);
   }

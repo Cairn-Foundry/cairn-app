@@ -10,6 +10,13 @@
 			{
 				"kind": "added",
 				"text": {
+					"en": "A Containers section on the home screen lists the machine's Docker containers, grouped by Compose project with the folder each was started from: state, health, exit code, published ports that open in the browser, and since when. The list filters on names, images and folders, sorts by name or by uptime in either direction, and shows stopped containers on demand. A missing, stopped or forbidden Docker is explained.",
+					"fr": "Une section Containers sur l'écran d'accueil liste les containers Docker de la machine, regroupés par projet Compose avec le dossier d'où chacun a été lancé : état, santé, code de sortie, ports publiés qui s'ouvrent dans le navigateur, et depuis quand. La liste se filtre par nom, image ou dossier, se trie par nom ou par ancienneté dans un sens ou dans l'autre, et montre les containers arrêtés à la demande. Un Docker absent, arrêté ou inaccessible est expliqué."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
 					"en": "The branch selector of the base instance creates a branch: its Create a branch entry opens the branch creation dialog off the current branch, prefilled with what was typed in the search.",
 					"fr": "Le sélecteur de branche de l'instance de base crée une branche : son entrée Créer une branche ouvre la fenêtre de création depuis la branche courante, préremplie avec le texte de la recherche."
 				}
