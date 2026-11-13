@@ -192,6 +192,11 @@ pub fn ui_state_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ui-state.json"))
 }
 
+/// The app's own rotated log (`app_log`).
+pub fn logs_dir() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("logs"))
+}
+
 /// Editor tabs, cursor, scroll and recent files of one instance.
 pub fn instance_file_state_file(project_id: &str, instance_id: &str) -> Result<PathBuf, String> {
     Ok(cairn_dir()?

@@ -7,6 +7,7 @@
 //! Application entry point: builds the Tauri app, registers the managed state
 //! and wires every `#[tauri::command]` exposed to the frontend.
 
+pub mod app_log;
 pub mod child_env;
 pub mod storage;
 pub mod commands;
@@ -86,6 +87,7 @@ pub(crate) fn window_builder<'a>(
 /// command handlers, and the LSP shutdown on exit.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    app_log::init();
     let builder = tauri::Builder::default();
 
     // The single-instance lock exists to keep two processes from writing one
@@ -489,6 +491,7 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                app_log::info("exit");
                 commands::terminal::shutdown(app);
                 commands::lsp::shutdown(app);
                 commands::integrations::shutdown(app);

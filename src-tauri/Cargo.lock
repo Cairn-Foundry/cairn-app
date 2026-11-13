@@ -406,6 +406,7 @@ version = "1.2.0"
 dependencies = [
  "base64 0.23.1",
  "chacha20poly1305",
+ "chrono",
  "dirs 7.0.0",
  "getrandom 0.4.3",
  "git2",
