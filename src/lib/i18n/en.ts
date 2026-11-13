@@ -746,6 +746,11 @@ export const en = {
 		},
 	},
 
+	toasts: {
+		region: "Notifications",
+		dismiss: "Dismiss",
+		more: (n: number) => `${n} more`,
+	},
 	tools: {
 		title: "Tools",
 		subtitle: "Everything you can run beside your workflow",
@@ -2973,6 +2978,9 @@ export const en = {
 				notifications: "Notify when an agent needs you",
 				notificationsDesc:
 					"A system notification when a conversation finishes its turn or asks for approval while Cairn is in the background.",
+				toasts: "Show in Cairn when another conversation needs you",
+				toastsDesc:
+					"A notice in the corner of the window when a conversation you are not looking at finishes its turn or asks for approval while you work in Cairn.",
 			},
 			cli: {
 				groupTitle: "Command line",
