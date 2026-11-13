@@ -5,7 +5,8 @@
 <script lang="ts">
   /**
    * Main git workspace: staged and unstaged changes, commit box, history, graph and stashes.
-   * Dispatches `openFile` with a path, `fileDiscarded`, `filesChanged`, `createInstanceFromRef`
+   * Dispatches `openFile` with a path and, for a working tree or index diff, the line
+   * of its first change, plus `fileDiscarded`, `filesChanged`, `createInstanceFromRef`
    * with a ref, and `goGitSettings` to hand navigation back to the settings screen.
    */
   import { onMount, createEventDispatcher, tick } from 'svelte';
@@ -89,8 +90,14 @@
   import { normalizeCommitAnswer, renderCommitPrompt } from '#lib/utils/git/commit-message';
   import { SEARCH_DEBOUNCE_MS } from '#lib/utils/timing';
   import { errorMessage } from '#lib/utils/error-message';
+  import { firstChangedLine } from '#lib/utils/git/diff-open-line';
 
-  const dispatch = createEventDispatcher<{ openFile: string; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
+  const dispatch = createEventDispatcher<{ openFile: { path: string; line?: number | null }; goGitSettings: void; fileDiscarded: string; filesChanged: void; createInstanceFromRef: string }>();
+
+  /** The file of a working tree or index diff opens where its first change is. */
+  function openAtFirstChange(file: { filePath: string; hunks: GitDiffHunk[] }) {
+    dispatch('openFile', { path: file.filePath, line: firstChangedLine(file.hunks) });
+  }
 
   function goToGitSettings() {
     pendingGitAction.set('createProfile');
@@ -1820,7 +1827,7 @@
                   </span>
                 {/if}
                 {#if h.status !== 'deleted'}
-                  <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
+                  <button class="open-file-btn" title={h.filePath} on:click={() => openAtFirstChange(h)}>
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
@@ -1838,7 +1845,7 @@
               {#if h.hasDiff}
                 {#if !collapsedUnstaged.has(foldKey(h))}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'worktree' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'worktree' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={() => openAtFirstChange(h)} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}
@@ -1964,7 +1971,7 @@
       <BranchView request={branchRequest} on:requestHandled={() => (branchRequest = null)} />
     {:else if $gitLeftTab === 'mergerebase'}
       <MergeRebaseView
-        on:openFile={(e) => dispatch('openFile', e.detail)}
+        on:openFile={(e) => dispatch('openFile', { path: e.detail })}
         on:filesChanged={() => dispatch('filesChanged')}
       />
     {:else if $gitLeftTab === 'gitignore'}
@@ -2043,14 +2050,14 @@
                   </span>
                 {/if}
                 {#if card.status !== 'staged-deleted'}
-                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', card.filePath)}>
+                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', { path: card.filePath })}>
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} memoryScope={stashScope} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={stashSide} memoryScope={stashScope} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', { path: e.detail })} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{card.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
@@ -2178,14 +2185,14 @@
                   </span>
                 {/if}
                 {#if card.status !== 'staged-deleted'}
-                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', card.filePath)}>
+                  <button class="open-file-btn" title={card.filePath} on:click={() => dispatch('openFile', { path: card.filePath })}>
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
               </div>
               {#if card.hasDiff}
                 <div class="card-diff">
-                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={commitSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                  <GitDiff hunks={card.hunks} filePath={card.filePath} side={commitSide} worktreePath={instance?.worktreePath ?? ''} truncated={card.truncated} on:openFile={(e) => dispatch('openFile', { path: e.detail })} />
                 </div>
               {:else}
                 <div class="hunk-no-preview">{card.oldPath ? t('git.renamedUnchanged') : t('git.noDiffPreview')}</div>
@@ -2272,7 +2279,7 @@
                   </span>
                 {/if}
                 {#if h.status !== 'staged-deleted'}
-                  <button class="open-file-btn" title={h.filePath} on:click={() => dispatch('openFile', h.filePath)}>
+                  <button class="open-file-btn" title={h.filePath} on:click={() => openAtFirstChange(h)}>
                     <Icon name="external" size={12}/>
                   </button>
                 {/if}
@@ -2283,7 +2290,7 @@
               {#if h.hasDiff}
                 {#if expandedStaged.has(foldKey(h))}
                   <div class="card-diff">
-                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'index' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={(e) => dispatch('openFile', e.detail)} />
+                    <GitDiff hunks={h.hunks} filePath={h.filePath} side={{ kind: 'index' }} worktreePath={instance?.worktreePath ?? ''} truncated={h.truncated} on:openFile={() => openAtFirstChange(h)} />
                     {#if h.truncated}
                       <div class="hunk-truncated">{t('git.diffTruncated')}</div>
                     {/if}

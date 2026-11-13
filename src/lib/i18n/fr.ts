@@ -3280,6 +3280,9 @@ export const fr = {
 	},
 
 	editor: {
+		changeCount: (n: number) => `${n} modification${n > 1 ? "s" : ""}`,
+		previousChange: "Aller à la modification précédente",
+		nextChange: "Aller à la modification suivante",
 		contextMenu: {
 			copy: "Copier",
 			cut: "Couper",

@@ -59,6 +59,7 @@
   import { jsSnippets, tsSnippets } from '#lib/utils/editor/editor-snippets';
   import {
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
+    changedLines, nextChangedLine, previousChangedLine,
     type GutterChunk,
   } from '#lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, focusKeepingScroll, searchMatchLines, SHORTCUT_COMMANDS, unselectableGutters } from '#lib/utils/editor/editor-extensions';
@@ -66,6 +67,7 @@
   import { buildStickyScroll, stickyScrollTheme } from '#lib/utils/editor/editor-sticky-scroll';
   import { buildMarkdownWysiwyg, MERMAID_OPEN_EVENT, setMarkdownDocPath } from '#lib/utils/editor/editor-markdown-wysiwyg';
   import MermaidViewer from './MermaidViewer.svelte';
+  import Icon from '#lib/components/Icon.svelte';
   import { EDITOR_DEFAULTS, FOLD_MARKERS } from '#lib/utils/editor/editor-config';
 
   export let content: Text = Text.empty;
@@ -445,6 +447,7 @@
         }
         if (update.docChanged || update.transactions.some(tr => tr.effects.length > 0)) {
           scheduleMinimapSync();
+          refreshChangeState();
         }
         if (update.docChanged || update.selectionSet) {
           const head = update.state.selection.main.head;
@@ -590,6 +593,32 @@
     });
   }
 
+  /** How many changes the file holds, and how far the minimap pushes the overlay left. */
+  let changeCount = 0;
+  let minimapOffset = 0;
+
+  function refreshChangeState() {
+    if (!view) return;
+    changeCount = changedLines(view.state).length;
+    minimapOffset = view.scrollDOM.querySelector<HTMLElement>('.cm-minimap-gutter')?.offsetWidth ?? 0;
+  }
+
+  /** Moves the cursor to the change above or below it, wrapping at either end. */
+  function goToChange(step: 1 | -1) {
+    if (!view) return;
+    const from = view.state.doc.lineAt(view.state.selection.main.head).number;
+    const target = step === 1
+      ? nextChangedLine(view.state, from)
+      : previousChangedLine(view.state, from);
+    if (target === null) return;
+    const line = view.state.doc.line(Math.min(target, view.state.doc.lines));
+    view.dispatch({
+      selection: { anchor: line.from },
+      effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
+    });
+    view.focus();
+  }
+
   /** Mirrors the git gutter, conflicts and the current search into the minimap, so they stay locatable in long files. */
   function syncMinimap(themeName: string, enabled: boolean, force = false) {
     if (!view) return;
@@ -619,6 +648,9 @@
     minimapMarkers = next;
     view.dispatch({ effects: minimapCompartment.reconfigure(buildMinimap(enabled, minimapMarkers)) });
   }
+
+  /** The minimap only reports its width once it has been laid out again. */
+  $: if (view) { minimapEnabled; requestAnimationFrame(refreshChangeState); }
 
   $: if (view) view.dispatch({ effects: fontSizeCompartment.reconfigure(buildFontSizeTheme(fontSize)) });
 
@@ -687,6 +719,28 @@
 />
 
 <div bind:this={container} class="editor-mount" class:editor-mount-hidden={hidden}></div>
+
+{#if changeCount > 0 && !hidden}
+  <div class="change-nav" style="right: {minimapOffset + 14}px">
+    <button
+      class="change-step"
+      title={t('editor.nextChange') as string}
+      aria-label={t('editor.nextChange') as string}
+      on:click={() => goToChange(1)}
+    >
+      <Icon name="chev-d" size={13}/>
+    </button>
+    <button
+      class="change-step"
+      title={t('editor.previousChange') as string}
+      aria-label={t('editor.previousChange') as string}
+      on:click={() => goToChange(-1)}
+    >
+      <Icon name="chev-u" size={13}/>
+    </button>
+    <span class="change-count">{(t('editor.changeCount') as (n: number) => string)(changeCount)}</span>
+  </div>
+{/if}
 
 {#if mermaidSource !== null}
   <div class="mermaid-overlay">
@@ -782,6 +836,40 @@
     scrollbar-width: thin;
     scrollbar-color: var(--stroke-1) transparent;
   }
+
+  /* Clear of the horizontal scrollbar, so reaching the arrows never grabs it. */
+  .change-nav {
+    position: absolute;
+    bottom: 24px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 26px;
+    padding: 0 9px 0 3px;
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.28);
+  }
+  .change-count {
+    font-size: 11px;
+    color: var(--fg-2);
+    white-space: nowrap;
+    margin-left: 4px;
+  }
+  /* The browser's own button padding would push the icon off its hover square. */
+  .change-step {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 3px;
+    color: var(--fg-2);
+    transition: background .1s, color .1s;
+  }
+  .change-step:hover { background: var(--bg-3); color: var(--fg-0); }
 
   .ctx-menu {
     position: fixed;

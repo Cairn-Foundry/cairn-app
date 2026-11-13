@@ -98,3 +98,74 @@ describe("CodeEditor minimap search markers", () => {
 		expect(Object.keys(minimapMarkers())).toHaveLength(0);
 	});
 });
+
+describe("CodeEditor change navigation", () => {
+	/** Lines 2 and 5 differ from the baseline, so the bar has two changes to walk. */
+	const changed = {
+		content: docOf(["a", "CHANGED", "c", "d", "ALSO", "f"]),
+		baseContent: "a\nb\nc\nd\ne\nf",
+		docPath: "a.ts",
+		readonly: true,
+	};
+
+	const step = (label: string) =>
+		document.querySelector<HTMLElement>(
+			`.change-step[aria-label="${label}"]`,
+		) as HTMLElement;
+
+	it("stays away while the file matches its baseline", async () => {
+		render(CodeEditor, {
+			...changed,
+			content: docOf(["a", "b"]),
+			baseContent: "a\nb",
+		});
+		await tick();
+		expect(document.querySelector(".change-nav")).toBeNull();
+	});
+
+	it("counts the changes of the file", async () => {
+		render(CodeEditor, changed);
+		await tick();
+		expect(document.querySelector(".change-count")?.textContent).toBe(
+			"2 changes",
+		);
+	});
+
+	it("walks down the changes and wraps back to the first", async () => {
+		const { component } = render(CodeEditor, changed);
+		await tick();
+		const next = step("Go to the next change");
+		const lineOfCursor = () =>
+			changed.content.lineAt((component as unknown as Ref).getState().cursorPos)
+				.number;
+
+		next.click();
+		await tick();
+		expect(lineOfCursor()).toBe(2);
+
+		next.click();
+		await tick();
+		expect(lineOfCursor()).toBe(5);
+
+		next.click();
+		await tick();
+		expect(lineOfCursor()).toBe(2);
+	});
+
+	it("walks up the changes", async () => {
+		const { component } = render(CodeEditor, changed);
+		await tick();
+		const previous = step("Go to the previous change");
+		const lineOfCursor = () =>
+			changed.content.lineAt((component as unknown as Ref).getState().cursorPos)
+				.number;
+
+		previous.click();
+		await tick();
+		expect(lineOfCursor()).toBe(5);
+
+		previous.click();
+		await tick();
+		expect(lineOfCursor()).toBe(2);
+	});
+});

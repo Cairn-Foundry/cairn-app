@@ -425,7 +425,32 @@ describe("GitView", () => {
 			await userEvent.click(
 				cardFor("a.ts").querySelector(".open-file-btn") as HTMLElement,
 			);
-			expect(onOpenFile).toHaveBeenCalledWith("src/a.ts");
+			expect(onOpenFile).toHaveBeenCalledWith({ path: "src/a.ts", line: 1 });
+		});
+
+		it("opens a modified file at the first change of its diff", async () => {
+			setGit({
+				unstagedDiffs: [
+					{
+						filePath: "src/a.ts",
+						hunks: [
+							{
+								header: "@@ -40,3 +41,4 @@",
+								lines: [
+									{ kind: "context", content: "a" },
+									{ kind: "add", content: "b" },
+								],
+							},
+						],
+					},
+				],
+			});
+			const { onOpenFile } = mount();
+			await settle();
+			await userEvent.click(
+				cardFor("a.ts").querySelector(".open-file-btn") as HTMLElement,
+			);
+			expect(onOpenFile).toHaveBeenCalledWith({ path: "src/a.ts", line: 42 });
 		});
 
 		/** An untracked file is rendered as a whole-file addition. */
