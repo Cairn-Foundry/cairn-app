@@ -346,6 +346,10 @@ fn strip_ref_prefix(name: &str) -> &str {
         .unwrap_or(name)
 }
 
+fn is_object_id(name: &str) -> bool {
+    matches!(name.len(), 40 | 64) && name.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
 fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
     let log = run(git_cmd(path).args([
         "reflog", "show", "--format=%H %gs", &format!("refs/heads/{branch}"), "--",
@@ -353,6 +357,12 @@ fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
     .ok()?;
     let (commit, subject) = log.lines().last()?.trim().split_once(' ')?;
     let from = strip_ref_prefix(subject.strip_prefix("branch: Created from ")?.trim());
+    // libgit2 (and so Cairn adopting a remote branch) records the commit id
+    // instead of the ref: the creation commit may be the branch's own remote
+    // copy, which says nothing about commits of its own.
+    if is_object_id(from) {
+        return None;
+    }
     let from = match from {
         "" => None,
         "HEAD" => created_from_head(path, branch, commit),
@@ -4184,6 +4194,38 @@ diff --git a/two.txt b/two.txt
         let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
         assert!(!names.contains(&"bbb"), "bbb offered in {names:?}");
         assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
+    }
+
+    /// Adopting a remote branch creates its local copy through libgit2, whose
+    /// reflog names the commit rather than the remote ref.
+    #[tokio::test]
+    async fn a_remote_branch_adopted_by_cairn_still_drops_descendants() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["checkout", "-q", "-b", "topic"]);
+        origin.commit("t.txt", "topic\n", "topic work");
+        origin.git(&["checkout", "-q", "develop"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "develop"]);
+        clone.git(&["checkout", "-q", "-b", "bbb", "origin/develop"]);
+        clone.git(&["merge", "-q", "--no-ff", "-m", "integrate", "origin/topic"]);
+
+        let assert_base = |out: Vec<BaseSuggestion>| {
+            let names: Vec<String> = out.into_iter().map(|s| s.branch).collect();
+            assert!(!names.iter().any(|n| n == "bbb"), "bbb offered in {names:?}");
+            assert_eq!(names.first().map(String::as_str), Some("origin/develop"), "got {names:?}");
+        };
+        assert_base(suggest_base_branches(clone.wt(), "origin/topic".into()).await.unwrap());
+
+        let repo = Repository::open(&clone.path).unwrap();
+        let tip = repo.revparse_single("refs/remotes/origin/topic").unwrap().peel_to_commit().unwrap();
+        repo.branch("topic", &tip, false).unwrap();
+        assert_base(suggest_base_branches(clone.wt(), "topic".into()).await.unwrap());
     }
 
     #[tokio::test]
