@@ -1234,6 +1234,28 @@ describe("restoring conversations and the active one", () => {
 		expect(get(projectConversations).rq.map((c) => c.id)).toEqual(["shared"]);
 		expect(get(activeConversationId)["rq:i2"]).toBeNull();
 	});
+
+	it("hands a second caller the read under way, so a later selection stands", async () => {
+		let release: (v: unknown) => void = () => {};
+		getConversationIndex
+			.mockReturnValueOnce(new Promise((r) => (release = r)))
+			.mockResolvedValueOnce(null);
+		const first = restoreConversations("rs", "i1");
+
+		const second = restoreConversations("rs", "i1");
+		release({ conversations: [saved("a"), saved("b")], activeId: "b" });
+		await second;
+		selectConversation("rs", "i1", "a");
+		await first;
+		await vi.advanceTimersByTimeAsync(250);
+
+		expect(get(activeConversationId)["rs:i1"]).toBe("a");
+		const write = saveConversationIndex.mock.calls.find((c) => c[0] === "rs");
+		expect(write?.[2].conversations.map((c: { id: string }) => c.id)).toEqual([
+			"a",
+			"b",
+		]);
+	});
 });
 
 describe("forgetting a project", () => {

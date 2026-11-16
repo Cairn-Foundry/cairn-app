@@ -12,7 +12,7 @@
   import { withViewTransition } from '#lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
-  import { selectConversation } from '#lib/stores/conversation';
+  import { restoreConversations, selectConversation } from '#lib/stores/conversation';
   import { openRequest, restoreInterruptedConversations } from '#lib/stores/agent-status';
   import { takePendingCliPaths } from '#lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
@@ -427,6 +427,7 @@
     if ($activeInstance?.id !== detail.instanceId) await activateInstance(detail.projectId, detail.instanceId);
     showTool(null);
     activeStep.set('agent');
+    await restoreConversations(detail.projectId, detail.instanceId);
     selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
   }
 

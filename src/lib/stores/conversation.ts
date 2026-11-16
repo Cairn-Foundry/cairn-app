@@ -107,8 +107,9 @@ export function runOf(conversationId: string): number {
 	return get(conversationRuns)[conversationId] ?? 0;
 }
 
-// Scope keys already read from disk, so opening an instance twice does not reload it.
-const restored = new Set<string>();
+// Reads of each scope key, settled or in flight, so opening an instance twice
+// does not reload it and a caller can wait for a read another one started.
+const restored = new Map<string, Promise<void>>();
 const indexTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** Conversations still waiting for their first typed line, keyed by terminal id. */
@@ -276,39 +277,46 @@ function usable(index: ConversationIndex | null): ConversationMeta[] {
 	return (index?.conversations ?? []).filter((c) => !!c.cli);
 }
 
-/** Reads both scopes for an instance, once each; the project index is shared by its instances. */
-export async function restoreConversations(
+/**
+ * Reads both scopes for an instance, once each; the project index is shared by
+ * its instances. A second call gets the read already under way, so anything
+ * selected after awaiting it is not overwritten by the saved selection.
+ */
+export function restoreConversations(
 	projectId: string,
 	instanceId: string,
 ): Promise<void> {
 	const scopeKey = conversationScopeKey(projectId, instanceId);
-	if (restored.has(scopeKey)) return;
-	restored.add(scopeKey);
+	const pending = restored.get(scopeKey);
+	if (pending) return pending;
 
 	const loadProject = !restored.has(projectId);
-	restored.add(projectId);
+	const loading = (async () => {
+		const [instanceSaved, projectSaved] = await Promise.all([
+			getConversationIndex(projectId, instanceId).catch(() => null),
+			loadProject
+				? getConversationIndex(projectId, null).catch(() => null)
+				: null,
+		]);
 
-	const [instanceSaved, projectSaved] = await Promise.all([
-		getConversationIndex(projectId, instanceId).catch(() => null),
-		loadProject
-			? getConversationIndex(projectId, null).catch(() => null)
-			: null,
-	]);
-
-	instanceConversations.update((m) => ({
-		...m,
-		[scopeKey]: usable(instanceSaved),
-	}));
-	if (loadProject) {
-		projectConversations.update((m) => ({
+		instanceConversations.update((m) => ({
 			...m,
-			[projectId]: usable(projectSaved),
+			[scopeKey]: usable(instanceSaved),
 		}));
-	}
-	activeConversationId.update((m) => ({
-		...m,
-		[scopeKey]: instanceSaved?.activeId ?? null,
-	}));
+		if (loadProject) {
+			projectConversations.update((m) => ({
+				...m,
+				[projectId]: usable(projectSaved),
+			}));
+		}
+		activeConversationId.update((m) => ({
+			...m,
+			[scopeKey]: instanceSaved?.activeId ?? null,
+		}));
+	})();
+	restored.set(scopeKey, loading);
+	if (loadProject) restored.set(projectId, loading);
+	return loading;
 }
 
 /** Opens a conversation in an instance, or closes it with null. */
