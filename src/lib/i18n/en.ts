@@ -135,6 +135,7 @@ export const en = {
 		baseOptional: "(optional)",
 		basePlaceholder: "Branch this one was cut from",
 		baseFromForge: "Taken from the merge request's target branch.",
+		baseFromCreated: "Taken from where the branch was created.",
 		baseFromMerge: "Guessed from a merge commit on this branch. Check it.",
 		baseFromFork: "Guessed from where the branch forked. Check it.",
 		baseEmptyHint:

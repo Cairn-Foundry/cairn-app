@@ -387,7 +387,7 @@
    */
   let existingBase = '';
   let baseSuggestions: BaseSuggestion[] = [];
-  let baseSource: 'forge' | 'merge' | 'fork' | '' = '';
+  let baseSource: 'forge' | 'created' | 'merge' | 'fork' | '' = '';
   let resolvingBase = false;
   let resolvedFor = '';
 
@@ -667,6 +667,8 @@
             />
             {#if baseSource === 'forge'}
               <div class="field-hint"><Icon name="check" size={11}/> {t('createInstance.baseFromForge')}</div>
+            {:else if baseSource === 'created'}
+              <div class="field-hint"><Icon name="check" size={11}/> {t('createInstance.baseFromCreated')}</div>
             {:else if baseSource === 'merge'}
               <div class="field-hint"><Icon name="info" size={11}/> {t('createInstance.baseFromMerge')}</div>
             {:else if baseSource === 'fork'}

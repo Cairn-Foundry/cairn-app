@@ -137,6 +137,7 @@ export const fr = {
 		baseOptional: "(facultatif)",
 		basePlaceholder: "Branche d'où celle-ci est partie",
 		baseFromForge: "Reprise de la branche cible de la merge request.",
+		baseFromCreated: "Reprise du point de création de la branche.",
 		baseFromMerge:
 			"Déduite d'un commit de merge sur cette branche. À vérifier.",
 		baseFromFork: "Déduite du point de divergence de la branche. À vérifier.",
