@@ -87,6 +87,16 @@ pub fn api_keys_secret_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("ai-keys.secret"))
 }
 
+/// One directory per registered project.
+pub fn projects_dir() -> Result<PathBuf, String> {
+    Ok(cairn_dir()?.join("projects"))
+}
+
+/// One directory per instance of the project.
+pub fn instances_dir(project_id: &str) -> Result<PathBuf, String> {
+    Ok(projects_dir()?.join(project_id).join("instances"))
+}
+
 /// All registered projects.
 pub fn projects_file() -> Result<PathBuf, String> {
     Ok(cairn_dir()?.join("projects").join("projects.json"))

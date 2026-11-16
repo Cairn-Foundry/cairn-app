@@ -14,7 +14,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::storage::{
-    cairn_dir, instance_conversations_dir, project_conversations_dir, write_json_atomic,
+    instance_conversations_dir, instances_dir, project_conversations_dir, projects_dir,
+    write_json_atomic,
 };
 
 /// One conversation: which CLI owns it, where it runs, and how to resume it.
@@ -81,13 +82,17 @@ fn scope_dir(project_id: &str, instance_id: Option<&str>) -> Result<PathBuf, Str
     }
 }
 
+fn index_file(project_id: &str, instance_id: Option<&str>) -> Result<PathBuf, String> {
+    Ok(scope_dir(project_id, instance_id)?.join("index.json"))
+}
+
 /// One small read that backs the whole history panel.
 #[tauri::command]
 pub fn get_conversation_index(
     project_id: String,
     instance_id: Option<String>,
 ) -> Result<Option<ConversationIndex>, String> {
-    let path = scope_dir(&project_id, instance_id.as_deref())?.join("index.json");
+    let path = index_file(&project_id, instance_id.as_deref())?;
     if !path.exists() {
         return Ok(None);
     }
@@ -106,7 +111,7 @@ pub async fn save_conversation_index(
     index: ConversationIndex,
 ) -> Result<(), String> {
     write_json_atomic(
-        &scope_dir(&project_id, instance_id.as_deref())?.join("index.json"),
+        &index_file(&project_id, instance_id.as_deref())?,
         &index,
     )
 }
@@ -126,37 +131,45 @@ fn read_index(path: &Path) -> Option<ConversationIndex> {
     serde_json::from_str(&fs::read_to_string(path).ok()?).ok()
 }
 
-fn subdirs(dir: &Path) -> Vec<(String, PathBuf)> {
+fn subdir_names(dir: &Path) -> Vec<String> {
     let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
     entries
         .flatten()
         .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .filter_map(|e| Some((e.file_name().into_string().ok()?, e.path())))
+        .filter_map(|e| e.file_name().into_string().ok())
         .collect()
 }
 
-fn interrupted_under(projects_dir: &Path) -> Vec<InterruptedConversation> {
+/// Every scope that may hold an index: each project, then each of its instances.
+fn scopes() -> Result<Vec<(String, Option<String>)>, String> {
+    let mut out = Vec::new();
+    for project_id in subdir_names(&projects_dir()?) {
+        let instances = subdir_names(&instances_dir(&project_id)?);
+        out.push((project_id.clone(), None));
+        out.extend(instances.into_iter().map(|id| (project_id.clone(), Some(id))));
+    }
+    Ok(out)
+}
+
+fn interrupted_in<F>(
+    scopes: Vec<(String, Option<String>)>,
+    index_path: F,
+) -> Vec<InterruptedConversation>
+where
+    F: Fn(&str, Option<&str>) -> Result<PathBuf, String>,
+{
     let mut found = Vec::new();
-    let mut collect = |project_id: &str, instance_id: Option<String>, index_path: PathBuf| {
-        let Some(index) = read_index(&index_path) else { return };
+    for (project_id, instance_id) in scopes {
+        let Ok(path) = index_path(&project_id, instance_id.as_deref()) else { continue };
+        let Some(index) = read_index(&path) else { continue };
         for conversation in index.conversations {
             if conversation.running_in.is_some() && !conversation.cli.is_empty() {
                 found.push(InterruptedConversation {
-                    project_id: project_id.to_string(),
+                    project_id: project_id.clone(),
                     instance_id: instance_id.clone(),
                     conversation,
                 });
             }
-        }
-    };
-    for (project_id, project_dir) in subdirs(projects_dir) {
-        collect(&project_id, None, project_dir.join("conversations").join("index.json"));
-        for (instance_id, instance_dir) in subdirs(&project_dir.join("instances")) {
-            collect(
-                &project_id,
-                Some(instance_id),
-                instance_dir.join("conversations").join("index.json"),
-            );
         }
     }
     found
@@ -165,7 +178,7 @@ fn interrupted_under(projects_dir: &Path) -> Vec<InterruptedConversation> {
 /// Every conversation across projects that was running when the app closed.
 #[tauri::command]
 pub async fn list_interrupted_conversations() -> Result<Vec<InterruptedConversation>, String> {
-    Ok(interrupted_under(&cairn_dir()?.join("projects")))
+    Ok(interrupted_in(scopes()?, index_file))
 }
 
 #[cfg(test)]
@@ -228,24 +241,43 @@ mod tests {
         let root = std::env::temp_dir()
             .join(format!("cairn-interrupted-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
+        let path = |project: &str, instance: Option<&str>| -> Result<PathBuf, String> {
+            Ok(match instance {
+                Some(id) => root.join(project).join(id).join("index.json"),
+                None => root.join(project).join("index.json"),
+            })
+        };
         write_index(
-            &root.join("p1/conversations/index.json"),
+            &path("p1", None).unwrap(),
             vec![conversation("shared", Some("i1")), conversation("idle", None)],
         );
-        write_index(
-            &root.join("p1/instances/i1/conversations/index.json"),
-            vec![conversation("local", Some("i1"))],
-        );
-        fs::write(root.join("projects.json"), "[]").unwrap();
-        fs::create_dir_all(root.join("p2")).unwrap();
+        write_index(&path("p1", Some("i1")).unwrap(), vec![conversation("local", Some("i1"))]);
 
-        let mut found = interrupted_under(&root);
+        let scopes = vec![
+            ("p1".to_string(), None),
+            ("p1".to_string(), Some("i1".to_string())),
+            ("p2".to_string(), None),
+        ];
+        let mut found = interrupted_in(scopes, path);
         found.sort_by(|a, b| a.conversation.id.cmp(&b.conversation.id));
         let ids: Vec<_> = found
             .iter()
             .map(|f| (f.conversation.id.as_str(), f.instance_id.as_deref()))
             .collect();
         assert_eq!(ids, vec![("local", Some("i1")), ("shared", None)]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn only_directories_are_taken_for_scopes() {
+        let root = std::env::temp_dir()
+            .join(format!("cairn-subdirs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("p1")).unwrap();
+        fs::write(root.join("projects.json"), "[]").unwrap();
+
+        assert_eq!(subdir_names(&root), vec!["p1".to_string()]);
+        assert!(subdir_names(&root.join("missing")).is_empty());
         let _ = fs::remove_dir_all(&root);
     }
 
