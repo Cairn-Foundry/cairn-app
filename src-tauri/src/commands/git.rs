@@ -431,8 +431,13 @@ pub async fn suggest_base_branches(
     // A branch with nothing of its own yet may be contained by its base moving
     // on, so only then is a branch containing it kept. The reflog says it
     // outright; without one, a tip published outside its own copies is taken
-    // as having nothing of its own, whichever branch that base is.
-    let has_own_commits = match &creation {
+    // as having nothing of its own, whichever branch that base is. A branch
+    // checked out from its own remote copy was created at that copy's tip, so
+    // its reflog cannot tell what it carries.
+    let has_own_commits = match creation
+        .as_ref()
+        .filter(|c| !c.from.as_deref().is_some_and(|from| is_own_copy(from)))
+    {
         Some(c) => run(git_cmd(&expanded).args([
             "rev-list", "--count", &format!("{}..{branch}", c.commit),
         ]))
@@ -4087,6 +4092,32 @@ diff --git a/two.txt b/two.txt
         for excluded in ["fork/topic", "bbb", "stacked"] {
             assert!(!names.contains(&excluded), "{excluded} offered in {names:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn a_branch_checked_out_from_its_remote_copy_still_drops_descendants() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["checkout", "-q", "-b", "topic"]);
+        origin.commit("t.txt", "topic\n", "topic work");
+        origin.git(&["checkout", "-q", "develop"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "develop"]);
+        clone.git(&["checkout", "-q", "-b", "develop", "origin/develop"]);
+        clone.git(&["checkout", "-q", "topic"]);
+        clone.git(&["checkout", "-q", "-b", "bbb", "develop"]);
+        clone.git(&["merge", "-q", "--no-ff", "-m", "integrate", "topic"]);
+        clone.git(&["checkout", "-q", "topic"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        assert!(!names.contains(&"bbb"), "bbb offered in {names:?}");
+        assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
     }
 
     #[tokio::test]
