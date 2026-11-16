@@ -145,13 +145,29 @@ export function diffLineKinds(state: EditorState): Map<number, DiffKind> {
 	return state.field(diffField, false)?.lineKinds ?? new Map();
 }
 
-/** The first line of every change, in document order. */
-export function changedLines(state: EditorState): number[] {
+/** The line span of every change, in document order. */
+function changeRanges(state: EditorState): { start: number; end: number }[] {
 	const field = state.field(diffField, false);
 	if (!field) return [];
 	return field.chunks
-		.map((chunk) => chunkLineRange(state.doc, chunk).start)
-		.sort((a, b) => a - b);
+		.map((chunk) => chunkLineRange(state.doc, chunk))
+		.sort((a, b) => a.start - b.start);
+}
+
+/** The first line of every change, in document order. */
+export function changedLines(state: EditorState): number[] {
+	return changeRanges(state).map((range) => range.start);
+}
+
+/** The rank, from 0, of the change `line` sits in. Null outside every change. */
+export function changeIndexAtLine(
+	state: EditorState,
+	line: number,
+): number | null {
+	const index = changeRanges(state).findIndex(
+		(range) => line >= range.start && line <= range.end,
+	);
+	return index === -1 ? null : index;
 }
 
 /**

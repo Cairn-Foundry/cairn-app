@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildDiffGutter,
 	changedLines,
+	changeIndexAtLine,
 	clearDiffBase,
 	diffLineKinds,
 	type GutterChunk,
@@ -346,5 +347,29 @@ describe("previousChangedLine and changedLines", () => {
 		const view = mount("a\nb");
 		view.dispatch({ effects: setDiffBase.of("a\nb") });
 		expect(previousChangedLine(view.state, 1)).toBeNull();
+	});
+});
+
+describe("changeIndexAtLine", () => {
+	/** Lines 2 to 3 and line 6 differ from the baseline. */
+	function changed(): EditorView {
+		const view = mount("a\nB\nC\nd\ne\nF");
+		view.dispatch({ effects: setDiffBase.of("a\nb\nc\nd\ne\nf") });
+		return view;
+	}
+
+	it("ranks the change a line sits in, its last line included", () => {
+		const { state } = changed();
+		expect(changeIndexAtLine(state, 2)).toBe(0);
+		expect(changeIndexAtLine(state, 3)).toBe(0);
+		expect(changeIndexAtLine(state, 6)).toBe(1);
+	});
+
+	it("is null between two changes", () => {
+		expect(changeIndexAtLine(changed().state, 4)).toBeNull();
+	});
+
+	it("is null when the gutter extension is not installed", () => {
+		expect(changeIndexAtLine(EditorState.create({ doc: "a" }), 1)).toBeNull();
 	});
 });

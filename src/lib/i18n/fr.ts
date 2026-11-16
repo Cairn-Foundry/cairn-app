@@ -3296,6 +3296,7 @@ export const fr = {
 		changeCount: (n: number) => `${n} modification${n > 1 ? "s" : ""}`,
 		previousChange: "Aller à la modification précédente",
 		nextChange: "Aller à la modification suivante",
+		changeIndex: "Modification courante : saisir un numéro pour s'y rendre",
 		contextMenu: {
 			copy: "Copier",
 			cut: "Couper",

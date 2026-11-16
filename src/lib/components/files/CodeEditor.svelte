@@ -59,7 +59,7 @@
   import { jsSnippets, tsSnippets } from '#lib/utils/editor/editor-snippets';
   import {
     buildDiffGutter, setDiffBase, clearDiffBase, revertChunkAtLine, diffLineKinds,
-    changedLines, nextChangedLine, previousChangedLine,
+    changedLines, changeIndexAtLine, nextChangedLine, previousChangedLine,
     type GutterChunk,
   } from '#lib/utils/editor/editor-diff-gutter';
   import { buildFontSizeTheme, buildMinimap, buildShortcutKeymap, focusKeepingScroll, searchMatchLines, SHORTCUT_COMMANDS, unselectableGutters } from '#lib/utils/editor/editor-extensions';
@@ -451,6 +451,7 @@
         } else if (update.geometryChanged) {
           refreshChangeState();
         }
+        if (update.selectionSet) refreshChangeIndex();
         if (update.docChanged || update.selectionSet) {
           const head = update.state.selection.main.head;
           const line = update.state.doc.lineAt(head);
@@ -598,11 +599,44 @@
   /** How many changes the file holds, and how far the minimap pushes the overlay left. */
   let changeCount = 0;
   let minimapOffset = 0;
+  /** The rank, from 0, of the change under the cursor; null when the cursor sits outside every change. */
+  let changeIndex: number | null = null;
 
   function refreshChangeState() {
     if (!view) return;
     changeCount = changedLines(view.state).length;
+    refreshChangeIndex();
     minimapOffset = view.scrollDOM.querySelector<HTMLElement>('.cm-minimap-gutter')?.offsetWidth ?? 0;
+  }
+
+  function refreshChangeIndex() {
+    if (!view) return;
+    const line = view.state.doc.lineAt(view.state.selection.main.head).number;
+    changeIndex = changeIndexAtLine(view.state, line);
+  }
+
+  $: changeIndexLabel = changeIndex === null ? '' : String(changeIndex + 1);
+
+  /** Jumps to the change of a typed number, clamped to the ones the file holds. */
+  function goToChangeNumber(input: HTMLInputElement) {
+    const lines = view ? changedLines(view.state) : [];
+    const typed = Number.parseInt(input.value, 10);
+    if (!lines.length || Number.isNaN(typed)) {
+      input.value = changeIndexLabel;
+      return;
+    }
+    jumpTo(lines[Math.min(Math.max(typed, 1), lines.length) - 1], 1);
+  }
+
+  function onChangeIndexKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      goToChangeNumber(e.currentTarget);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.currentTarget.value = changeIndexLabel;
+      view?.focus();
+    }
   }
 
   /** Moves the cursor to the change above or below it, wrapping at either end. */
@@ -734,7 +768,20 @@
     >
       <Icon name="chev-u" size={13}/>
     </button>
-    <span class="change-count">{(t('editor.changeCount') as (n: number) => string)(changeCount)}</span>
+    <input
+      class="change-index"
+      type="text"
+      inputmode="numeric"
+      placeholder="-"
+      style="width: {String(changeCount).length + 1}ch"
+      title={t('editor.changeIndex') as string}
+      aria-label={t('editor.changeIndex') as string}
+      value={changeIndexLabel}
+      on:focus={(e) => e.currentTarget.select()}
+      on:keydown={onChangeIndexKeydown}
+      on:blur={(e) => (e.currentTarget.value = changeIndexLabel)}
+    />
+    <span class="change-count">/ {(t('editor.changeCount') as (n: number) => string)(changeCount)}</span>
   </div>
 {/if}
 
@@ -854,6 +901,22 @@
     white-space: nowrap;
     margin-left: 4px;
   }
+  .change-index {
+    box-sizing: content-box;
+    height: 16px;
+    margin-left: 4px;
+    padding: 0 3px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--fg-0);
+  }
+  .change-index:hover { border-color: var(--stroke-0); }
+  .change-index:focus { outline: none; border-color: var(--accent); background: var(--bg-1); }
+  .change-index + .change-count { margin-left: 3px; }
   /* The browser's own button padding would push the icon off its hover square. */
   .change-step {
     display: grid;

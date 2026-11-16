@@ -127,7 +127,7 @@ describe("CodeEditor change navigation", () => {
 		render(CodeEditor, changed);
 		await tick();
 		expect(document.querySelector(".change-count")?.textContent).toBe(
-			"2 changes",
+			"/ 2 changes",
 		);
 	});
 
@@ -167,5 +167,60 @@ describe("CodeEditor change navigation", () => {
 		previous.click();
 		await tick();
 		expect(lineOfCursor()).toBe(2);
+	});
+
+	const indexInput = () =>
+		document.querySelector<HTMLInputElement>(
+			".change-index",
+		) as HTMLInputElement;
+
+	it("shows which change the cursor is on, and none between two", async () => {
+		const { component } = render(CodeEditor, changed);
+		await tick();
+		const ref = component as unknown as Ref;
+		expect(indexInput().value).toBe("");
+
+		ref.jumpTo(5, 1);
+		await tick();
+		expect(indexInput().value).toBe("2");
+
+		ref.jumpTo(3, 1);
+		await tick();
+		expect(indexInput().value).toBe("");
+	});
+
+	it("jumps to the change of a typed number, clamped to the last one", async () => {
+		const { component } = render(CodeEditor, changed);
+		await tick();
+		const lineOfCursor = () =>
+			changed.content.lineAt((component as unknown as Ref).getState().cursorPos)
+				.number;
+		const input = indexInput();
+
+		input.value = "2";
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await tick();
+		expect(lineOfCursor()).toBe(5);
+
+		input.value = "9";
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await tick();
+		expect(lineOfCursor()).toBe(5);
+
+		input.value = "1";
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await tick();
+		expect(lineOfCursor()).toBe(2);
+		expect(indexInput().value).toBe("1");
+	});
+
+	it("puts the current number back when the typed text is not one", async () => {
+		render(CodeEditor, changed);
+		await tick();
+		const input = indexInput();
+		input.value = "abc";
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await tick();
+		expect(input.value).toBe("");
 	});
 });
