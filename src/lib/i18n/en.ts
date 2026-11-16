@@ -3233,6 +3233,10 @@ export const en = {
 	},
 
 	editor: {
+		changeCount: (n: number) => `${n} change${n > 1 ? "s" : ""}`,
+		previousChange: "Go to the previous change",
+		nextChange: "Go to the next change",
+		changeIndex: "Current change: type a number to jump to it",
 		contextMenu: {
 			copy: "Copy",
 			cut: "Cut",

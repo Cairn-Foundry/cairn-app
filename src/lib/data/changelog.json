@@ -279,6 +279,20 @@
 					"en": "The line counts of the Git view no longer blink: the counts on screen stay up while the next ones are read, instead of giving way to a placeholder whenever the list of changed files moved.",
 					"fr": "Les décomptes de lignes de la vue Git ne clignotent plus : les chiffres affichés restent en place pendant la lecture des suivants, au lieu de céder la place à un indicateur d'attente dès que la liste des fichiers modifiés changeait."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "In the Git view, the open-in-editor button of a changed or staged file opens it at the first change of its diff, instead of wherever the file was last left.",
+					"fr": "Dans la vue Git, le bouton d'ouverture dans l'éditeur d'un fichier modifié ou indexé l'ouvre à la première modification de son diff, et non plus là où le fichier avait été laissé."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A bar at the bottom right of the editor counts the changes of the open file, shows which one the cursor is on, and walks through them, one arrow up and one down, wrapping at either end. Typing a number in it jumps to that change. It shows up only while the file differs from its git baseline.",
+					"fr": "Une barre en bas à droite de l'éditeur compte les modifications du fichier ouvert, indique celle où se trouve le curseur et les parcourt, une flèche vers le haut et une vers le bas, en bouclant aux extrémités. Saisir un numéro dans la barre mène à cette modification. Elle n'apparaît que lorsque le fichier diffère de sa version git de référence."
+				}
 			}
 		]
 	},
