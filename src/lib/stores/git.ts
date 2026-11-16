@@ -52,6 +52,9 @@ type GitState = {
 	stagedTotals: gitService.DiffTotals | null;
 	/** The totals are being read again after a change; the view shows a placeholder meanwhile. */
 	isStagedTotalsPending: boolean;
+	/** The same for the working tree, untracked files included. */
+	unstagedTotals: gitService.DiffTotals | null;
+	isUnstagedTotalsPending: boolean;
 	/** Badge counts, kept fresh by the background poll even when the diffs are not read. */
 	changedPaths: gitService.GitChangedPaths;
 	currentBranch: string;
@@ -116,6 +119,8 @@ const INITIAL: GitState = {
 	fileDiffs: NO_FILE_DIFFS,
 	stagedTotals: null,
 	isStagedTotalsPending: false,
+	unstagedTotals: null,
+	isUnstagedTotalsPending: false,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],
@@ -261,12 +266,14 @@ export function setDiffsWanted(wanted: boolean): void {
 			fileDiffs: NO_FILE_DIFFS,
 			stagedTotals: null,
 			isStagedTotalsPending: false,
+			unstagedTotals: null,
+			isUnstagedTotalsPending: false,
 		}));
 		return;
 	}
 	if (!was) {
 		void syncFileDiffs(true);
-		void refreshStagedTotals();
+		refreshTotals();
 	}
 }
 
@@ -396,40 +403,77 @@ function mergeDiffs(
 	return next;
 }
 
-let totalsRun = 0;
+const TOTALS_SIDES = {
+	staged: {
+		totals: "stagedTotals",
+		pending: "isStagedTotalsPending",
+		read: (wt: string) => gitService.getStagedTotals(wt),
+	},
+	unstaged: {
+		totals: "unstagedTotals",
+		pending: "isUnstagedTotalsPending",
+		read: (wt: string, { changedPaths, status }: GitState) => {
+			const isUntracked = (p: string) => status[p] === "untracked";
+			return gitService.getUnstagedTotals(
+				wt,
+				changedPaths.unstaged.filter((p) => !isUntracked(p)),
+				changedPaths.unstaged.filter(isUntracked),
+			);
+		},
+	},
+} as const;
+type TotalsSide = keyof typeof TOTALS_SIDES;
+const totalsRuns = { staged: 0, unstaged: 0 };
 
-/** Reads the index totals again, the view showing a placeholder until they land. */
-async function refreshStagedTotals(): Promise<void> {
+/** Reads both totals again, the view showing placeholders until the first ones land. */
+function refreshTotals(): void {
+	void refreshSideTotals("staged");
+	void refreshSideTotals("unstaged");
+}
+
+/**
+ * The working tree side is read on every poll: an edit to a file already
+ * modified leaves the status, hence the snapshot, as it was. A read that
+ * finds the same counts leaves the store alone, so nothing re-renders.
+ */
+async function refreshSideTotals(side: TotalsSide): Promise<void> {
 	const wt = worktree();
 	if (!wt || !diffsWanted) return;
-	const run = ++totalsRun;
+	const { totals: totalsKey, pending: pendingKey, read } = TOTALS_SIDES[side];
+	const run = ++totalsRuns[side];
 	const state = get(_git);
-	if (state.changedPaths.staged.length === 0) {
-		const { stagedTotals: held, isStagedTotalsPending } = state;
-		if (held?.added === 0 && held.removed === 0 && !isStagedTotalsPending)
-			return;
-		_git.update((s) => ({
-			...s,
-			stagedTotals: { added: 0, removed: 0 },
-			isStagedTotalsPending: false,
-		}));
+	if (state.statusWorktree !== wt) return;
+	if (state.changedPaths[side].length === 0) {
+		publishTotals(side, { added: 0, removed: 0 });
 		return;
 	}
-	if (!state.isStagedTotalsPending) {
-		_git.update((s) => ({ ...s, isStagedTotalsPending: true }));
+	if (state[totalsKey] === null && !state[pendingKey]) {
+		_git.update((s) => ({ ...s, [pendingKey]: true }));
 	}
 	let totals: gitService.DiffTotals | null;
 	try {
-		totals = await gitService.getStagedTotals(wt);
+		totals = await read(wt, state);
 	} catch {
 		totals = null;
 	}
-	if (run !== totalsRun || worktree() !== wt) return;
-	_git.update((s) => ({
-		...s,
-		stagedTotals: totals,
-		isStagedTotalsPending: false,
-	}));
+	if (run !== totalsRuns[side] || worktree() !== wt) return;
+	publishTotals(side, totals);
+}
+
+function publishTotals(
+	side: TotalsSide,
+	totals: gitService.DiffTotals | null,
+): void {
+	const { totals: totalsKey, pending: pendingKey } = TOTALS_SIDES[side];
+	const held = get(_git)[totalsKey];
+	const isSame =
+		held === totals ||
+		(!!held &&
+			!!totals &&
+			held.added === totals.added &&
+			held.removed === totals.removed);
+	if (isSame && !get(_git)[pendingKey]) return;
+	_git.update((s) => ({ ...s, [totalsKey]: totals, [pendingKey]: false }));
 }
 
 /**
@@ -456,6 +500,8 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 				fileDiffs: NO_FILE_DIFFS,
 				stagedTotals: null,
 				isStagedTotalsPending: false,
+				unstagedTotals: null,
+				isUnstagedTotalsPending: false,
 				changedPaths: { staged: [], unstaged: [] },
 				currentBranch: "",
 				remoteStatus: null,
@@ -475,7 +521,10 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		indexDirty = false;
 		const current = get(_git);
 		if (!snap && !bump && !current.isLoading) {
-			if (diffsWanted) void syncFileDiffs(true);
+			if (diffsWanted) {
+				void syncFileDiffs(true);
+				void refreshSideTotals("unstaged");
+			}
 			return;
 		}
 		_git.update((s) => ({
@@ -498,7 +547,8 @@ async function runRefreshStatus(silent: boolean): Promise<void> {
 		}));
 		if (diffsWanted) {
 			void syncFileDiffs(true);
-			if (snap || bump) void refreshStagedTotals();
+			if (snap || bump) void refreshSideTotals("staged");
+			void refreshSideTotals("unstaged");
 		}
 		if (snap) void syncGraph();
 		// A commit, reset or checkout made outside the app moves HEAD without
@@ -1115,6 +1165,7 @@ const WORKTREE_FIELDS = [
 	"snapshotVersion",
 	"fileDiffs",
 	"stagedTotals",
+	"unstagedTotals",
 	"changedPaths",
 	"currentBranch",
 	"branches",
@@ -1142,6 +1193,7 @@ const EMPTY: WorktreeData = {
 	snapshotVersion: "",
 	fileDiffs: NO_FILE_DIFFS,
 	stagedTotals: null,
+	unstagedTotals: null,
 	changedPaths: { staged: [], unstaged: [] },
 	currentBranch: "",
 	branches: [],

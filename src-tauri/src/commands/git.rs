@@ -875,22 +875,33 @@ pub struct DiffTotals {
     pub removed: usize,
 }
 
-/// Sums `diff --numstat -z`. A rename record carries an empty path followed by
-/// its two paths as separate fields, which are skipped rather than read as counts.
-fn parse_numstat_totals(raw: &str) -> DiffTotals {
-    let mut totals = DiffTotals { added: 0, removed: 0 };
+/// One `diff --numstat -z` record per file: its path and its counts, a binary
+/// counting as nothing. A rename record carries an empty path followed by its two
+/// paths as separate fields; the destination is the one kept.
+fn parse_numstat(raw: &str) -> Vec<(String, usize, usize)> {
+    let mut records = Vec::new();
     let mut fields = raw.split('\0');
     while let Some(field) = fields.next() {
         let mut parts = field.splitn(3, '\t');
         let (Some(added), Some(removed), Some(path)) = (parts.next(), parts.next(), parts.next()) else { continue };
-        totals.added += added.parse::<usize>().unwrap_or(0);
-        totals.removed += removed.parse::<usize>().unwrap_or(0);
-        if path.is_empty() {
+        let path = if path.is_empty() {
             fields.next();
-            fields.next();
-        }
+            fields.next().unwrap_or_default()
+        } else {
+            path
+        };
+        records.push((path.to_string(), added.parse().unwrap_or(0), removed.parse().unwrap_or(0)));
     }
-    totals
+    records
+}
+
+fn parse_numstat_totals(raw: &str) -> DiffTotals {
+    parse_numstat(raw)
+        .into_iter()
+        .fold(DiffTotals { added: 0, removed: 0 }, |t, (_, added, removed)| DiffTotals {
+            added: t.added + added,
+            removed: t.removed + removed,
+        })
 }
 
 #[tauri::command]
@@ -900,6 +911,130 @@ pub async fn git_staged_totals(worktree_path: String) -> Result<DiffTotals, GitE
     let expanded = expand(&worktree_path);
     let raw = run(git_cmd(&expanded).args(["diff", "--cached", "--numstat", "-z"]))?;
     Ok(parse_numstat_totals(&raw))
+}
+
+/// What a file looked like when it was counted: not following a symlink, and
+/// `None` once the file is gone.
+#[derive(Clone, Copy, PartialEq)]
+struct FileStamp(Option<(std::time::SystemTime, u64)>);
+
+impl FileStamp {
+    fn of(path: &Path) -> Self {
+        FileStamp(fs::symlink_metadata(path).ok().and_then(|m| Some((m.modified().ok()?, m.len()))))
+    }
+}
+
+struct CountedFile {
+    stamp:   FileStamp,
+    added:   usize,
+    removed: usize,
+}
+
+/// The unstaged counts of a worktree per file, valid while the index is unchanged.
+struct WorktreeCounts {
+    index: FileStamp,
+    files: HashMap<String, CountedFile>,
+}
+
+static UNSTAGED_COUNTS: LazyLock<Mutex<HashMap<String, WorktreeCounts>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn index_stamp(expanded: &str) -> FileStamp {
+    Repository::open(expanded)
+        .map(|repo| FileStamp::of(&repo.path().join("index")))
+        .unwrap_or(FileStamp(None))
+}
+
+#[tauri::command]
+/// The line counts of everything not staged: the modified paths against the
+/// index, plus the untracked ones, which `diff` never sees. Both lists come from
+/// the status the caller already holds. Read on every poll, so a file is only
+/// counted again once its stat or the index moved: an unchanged change set costs
+/// one stat per file and no git process.
+pub async fn git_unstaged_totals(
+    worktree_path: String,
+    modified: Vec<String>,
+    untracked: Vec<String>,
+) -> Result<DiffTotals, GitError> {
+    let expanded = expand(&worktree_path);
+    let root = Path::new(&expanded);
+    let index = index_stamp(&expanded);
+    let held = UNSTAGED_COUNTS.lock().unwrap_or_else(|e| e.into_inner()).remove(&expanded);
+    let mut known = match held {
+        Some(counts) if counts.index == index => counts.files,
+        _ => HashMap::new(),
+    };
+    let mut files = HashMap::with_capacity(modified.len() + untracked.len());
+
+    let mut stale = Vec::new();
+    for path in modified {
+        let stamp = FileStamp::of(&root.join(&path));
+        match known.remove(&path) {
+            Some(counted) if counted.stamp == stamp => {
+                files.insert(path, counted);
+            }
+            _ => stale.push((path, stamp)),
+        }
+    }
+    for chunk in stale.chunks(PATHSPEC_CHUNK) {
+        let mut cmd = git_cmd(&expanded);
+        cmd.arg("--literal-pathspecs").args(["diff", "--numstat", "-z", "--"]);
+        cmd.args(chunk.iter().map(|(path, _)| path));
+        let counts: HashMap<String, (usize, usize)> = parse_numstat(&run(&mut cmd)?)
+            .into_iter()
+            .map(|(path, added, removed)| (path, (added, removed)))
+            .collect();
+        for (path, stamp) in chunk {
+            let (added, removed) = counts.get(path).copied().unwrap_or((0, 0));
+            files.insert(path.clone(), CountedFile { stamp: *stamp, added, removed });
+        }
+    }
+
+    for path in untracked {
+        let full = root.join(&path);
+        let stamp = FileStamp::of(&full);
+        let counted = match known.remove(&path) {
+            Some(counted) if counted.stamp == stamp => counted,
+            _ => CountedFile { stamp, added: text_line_count(&full), removed: 0 },
+        };
+        files.insert(path, counted);
+    }
+
+    let totals = files.values().fold(DiffTotals { added: 0, removed: 0 }, |t, c| DiffTotals {
+        added: t.added + c.added,
+        removed: t.removed + c.removed,
+    });
+    UNSTAGED_COUNTS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(expanded, WorktreeCounts { index, files });
+    Ok(totals)
+}
+
+/// Lines of a text file as `diff --numstat` counts them; a binary file counts as
+/// nothing. Streamed, so a large untracked file is never held in memory, and only
+/// a regular file is read: a symlink is not followed.
+fn text_line_count(path: &Path) -> usize {
+    use std::io::{BufRead, BufReader};
+    const BINARY_SNIFF_BYTES: usize = 8000;
+    let is_file = fs::symlink_metadata(path).is_ok_and(|m| m.is_file());
+    let Some(file) = is_file.then(|| fs::File::open(path).ok()).flatten() else { return 0 };
+    let mut reader = BufReader::with_capacity(64 * 1024, file);
+    let (mut read, mut newlines, mut last) = (0, 0, None);
+    while let Ok(buf) = reader.fill_buf() {
+        if buf.is_empty() {
+            break;
+        }
+        if read < BINARY_SNIFF_BYTES && buf[..buf.len().min(BINARY_SNIFF_BYTES - read)].contains(&0) {
+            return 0;
+        }
+        newlines += buf.iter().filter(|b| **b == b'\n').count();
+        last = buf.last().copied();
+        let len = buf.len();
+        read += len;
+        reader.consume(len);
+    }
+    newlines + usize::from(last.is_some_and(|b| b != b'\n'))
 }
 
 #[tauri::command]
@@ -3508,6 +3643,79 @@ diff --git a/two.txt b/two.txt
         let totals = git_staged_totals(repo.wt()).await.unwrap();
 
         assert_eq!(totals, DiffTotals { added: 3, removed: 1 });
+    }
+
+    fn owned(paths: &[&str]) -> Vec<String> {
+        paths.iter().map(|p| p.to_string()).collect()
+    }
+
+    #[tokio::test]
+    async fn unstaged_totals_cover_the_working_tree_and_the_untracked_files() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\ntwo\n", "init");
+        repo.write("a.txt", "one\nthree\nfour\n");
+        repo.write("b.txt", "new\nlast line without newline");
+        repo.write("image.png", "\u{0}binary");
+
+        let totals = git_unstaged_totals(repo.wt(), owned(&["a.txt"]), owned(&["b.txt", "image.png"]))
+            .await
+            .unwrap();
+
+        assert_eq!(totals, DiffTotals { added: 4, removed: 1 });
+    }
+
+    #[tokio::test]
+    async fn unstaged_totals_follow_an_edit_that_leaves_the_status_as_it_was() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.write("a.txt", "one\ntwo\n");
+        repo.write("b.txt", "x\n");
+        let count = || git_unstaged_totals(repo.wt(), owned(&["a.txt"]), owned(&["b.txt"]));
+        assert_eq!(count().await.unwrap(), DiffTotals { added: 2, removed: 0 });
+
+        repo.write("a.txt", "one\ntwo\nthree\nfour\n");
+        repo.write("b.txt", "x\ny\nz\n");
+
+        assert_eq!(count().await.unwrap(), DiffTotals { added: 6, removed: 0 });
+    }
+
+    #[tokio::test]
+    async fn unstaged_totals_count_again_once_the_index_moved() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.write("a.txt", "one\ntwo\n");
+        let count = || git_unstaged_totals(repo.wt(), owned(&["a.txt"]), Vec::new());
+        assert_eq!(count().await.unwrap(), DiffTotals { added: 1, removed: 0 });
+
+        repo.git(&["add", "a.txt"]);
+
+        assert_eq!(count().await.unwrap(), DiffTotals { added: 0, removed: 0 });
+    }
+
+    #[test]
+    fn a_text_file_counts_its_lines_and_a_binary_file_nothing() {
+        let repo = TempRepo::new();
+        let long = "x\n".repeat(100_000);
+        for (content, lines) in [("a\nb\n", 2), ("a\nb", 2), ("", 0), ("\u{0}x", 0), (long.as_str(), 100_000)] {
+            repo.write("t.txt", content);
+            assert_eq!(text_line_count(&repo.path.join("t.txt")), lines, "{} bytes", content.len());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_is_not_followed_to_count_its_target() {
+        let repo = TempRepo::new();
+        repo.write("target.txt", "a\nb\n");
+        std::os::unix::fs::symlink(repo.path.join("target.txt"), repo.path.join("link")).unwrap();
+        assert_eq!(text_line_count(&repo.path.join("link")), 0);
+    }
+
+    #[test]
+    fn numstat_keeps_the_destination_of_a_rename() {
+        let raw = "4\t0\t\0old 1\t2\tx\0new.txt\0-\t-\timage.png\0";
+        let paths: Vec<String> = parse_numstat(raw).into_iter().map(|(p, _, _)| p).collect();
+        assert_eq!(paths, ["new.txt", "image.png"]);
     }
 
     #[test]

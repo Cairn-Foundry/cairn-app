@@ -49,6 +49,7 @@ import {
 	getStashShow,
 	getStatusFull,
 	getTagList,
+	getUnstagedTotals,
 	initRepository,
 	isGitRepo,
 	isKnownGitErrorCode,
@@ -450,6 +451,12 @@ const FORWARDERS: [
 		() => getStagedTotals(WT),
 		"git_staged_totals",
 		{ worktreePath: WT },
+	],
+	[
+		"getUnstagedTotals",
+		() => getUnstagedTotals(WT, ["a"], ["b"]),
+		"git_unstaged_totals",
+		{ worktreePath: WT, modified: ["a"], untracked: ["b"] },
 	],
 	[
 		"checkIgnore",

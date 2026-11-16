@@ -251,6 +251,20 @@
 					"en": "Cairn keeps a log of its own in the logs folder of its data directory (cairn.log, rotated at 1 MB with two older files kept): each start and exit, crashes of the app with their trace, and the signal that ended it along with the process that sent it, so a window that vanishes leaves its reason behind.",
 					"fr": "Cairn tient son propre journal dans le dossier logs de son répertoire de données (cairn.log, renouvelé à 1 Mo en gardant les deux précédents) : chaque démarrage et chaque fermeture, les plantages de l'application avec leur trace, et le signal qui l'a arrêtée avec le processus qui l'a envoyé, pour qu'une fenêtre qui disparaît laisse sa raison derrière elle."
 				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Changes tab of the Git view shows the lines added and removed across the whole working tree, untracked files included, with the number of files, beside the search field, as the staged column already did. The counts follow every edit, even to a file that was already modified.",
+					"fr": "L'onglet Changements de la vue Git affiche les lignes ajoutées et supprimées sur tout l'arbre de travail, fichiers non suivis compris, avec le nombre de fichiers, à côté du champ de recherche, comme la colonne indexée le faisait déjà. Les décomptes suivent chaque modification, même sur un fichier déjà modifié."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The line counts of the Git view no longer blink: the counts on screen stay up while the next ones are read, instead of giving way to a placeholder whenever the list of changed files moved.",
+					"fr": "Les décomptes de lignes de la vue Git ne clignotent plus : les chiffres affichés restent en place pendant la lecture des suivants, au lieu de céder la place à un indicateur d'attente dès que la liste des fichiers modifiés changeait."
+				}
 			}
 		]
 	},
