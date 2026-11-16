@@ -127,6 +127,9 @@ const awaitingFirstInput = new Map<
 	{ ref: ConversationRef; id: string; startedAt: number }
 >();
 
+/** Conversations whose CLI is being launched and has no terminal registered yet. */
+const launching = new Set<string>();
+
 /** One session poll per conversation: a newer one supersedes the running one. */
 const sessionPolls = new Map<string, number>();
 
@@ -425,8 +428,23 @@ export async function openConversation(
 	selectConversation(ref.projectId, ref.instanceId, id);
 
 	// Already running: showing it is all there is to do. Relaunching would throw
-	// away the session the user is in the middle of.
-	if (terminalOf(id)) return;
+	// away the session the user is in the middle of. A launch still awaiting its
+	// PTY counts too: two would spawn the CLI twice on one terminal id.
+	if (terminalOf(id) || launching.has(id)) return;
+	launching.add(id);
+	try {
+		await launch(ref, meta, fresh);
+	} finally {
+		launching.delete(id);
+	}
+}
+
+async function launch(
+	ref: ConversationRef,
+	meta: ConversationMeta,
+	fresh: boolean,
+): Promise<void> {
+	const { id } = meta;
 
 	// Only a launch moves the conversation in the list. Merely showing one -
 	// which is also what restoring the view does on every entry into the Agent

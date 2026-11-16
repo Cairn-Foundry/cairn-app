@@ -77,11 +77,12 @@ const {
 	conversationTerminals,
 	conversationsOf,
 	instanceConversations,
+	openConversation,
 	projectConversations,
 } = await import("#lib/stores/conversation");
 const { loadInstances } = await import("#lib/stores/instance");
 const { projects, activeProjectId } = await import("#lib/stores/project");
-const { lastCli } = await import("#lib/stores/ui");
+const { activeScreen, activeStep, lastCli } = await import("#lib/stores/ui");
 const { instance, project } = await import("./fixtures");
 
 /** One CLI installed, one not, so both card states are on screen. */
@@ -695,5 +696,62 @@ describe("continuing in the system terminal", () => {
 		expect(document.querySelector('[role="alert"]')?.textContent).toContain(
 			"No supported terminal emulator",
 		);
+	});
+});
+
+describe("a conversation the last close interrupted", () => {
+	const ref = { projectId: "p1", instanceId: "i1", scope: "instance" as const };
+
+	function interrupted() {
+		return {
+			id: "y",
+			title: "Interrupted",
+			cli: "claude-code" as const,
+			sessionId: "s-y",
+			sessionStarted: true,
+			sessionConfirmed: true,
+			cwd: "/worktrees/p1/i1",
+			createdAt: 1,
+			lastOpenedAt: 1,
+			lastActiveAt: 1,
+			pinned: false,
+			archived: false,
+			runningIn: "i1",
+		};
+	}
+
+	beforeEach(() => {
+		activeScreen.set("workspace");
+		activeStep.set("agent");
+	});
+
+	afterEach(() => {
+		activeScreen.set("home");
+		activeStep.set("files");
+	});
+
+	it("is resumed once it is on screen", async () => {
+		await mount();
+		instanceConversations.set({ "p1:i1": [interrupted()] });
+		activeConversationId.set({ "p1:i1": "y" });
+		await tick();
+		await tick();
+
+		expect(createTerminal).toHaveBeenCalledTimes(1);
+		expect((createTerminal.mock.lastCall as unknown[])[6]).toEqual(
+			expect.arrayContaining(["--resume", "s-y"]),
+		);
+	});
+
+	it("is launched once when picked from the history", async () => {
+		await mount();
+		instanceConversations.set({ "p1:i1": [interrupted()] });
+		await tick();
+
+		await openConversation(ref, "y");
+		await tick();
+		await tick();
+
+		expect(createTerminal).toHaveBeenCalledTimes(1);
 	});
 });

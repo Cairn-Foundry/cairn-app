@@ -129,20 +129,15 @@
     });
   });
 
-  const resuming = new Set<string>();
-
   // A conversation the app closed under is resumed once it is on screen, never
   // before: only the ones the user comes back to are relaunched.
   $effect(() => {
     const target = active;
     if (!target || terminalId || !target.meta.runningIn) return;
-    if ($shownConversation !== target.meta.id || resuming.has(target.meta.id)) return;
+    if ($shownConversation !== target.meta.id) return;
     const { ref, meta } = target;
-    resuming.add(meta.id);
     untrack(() => {
-      void openConversation(ref, meta.id)
-        .catch(() => {})
-        .finally(() => resuming.delete(meta.id));
+      void openConversation(ref, meta.id).catch(() => {});
     });
   });
 
