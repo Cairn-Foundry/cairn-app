@@ -448,6 +448,8 @@
         if (update.docChanged || update.transactions.some(tr => tr.effects.length > 0)) {
           scheduleMinimapSync();
           refreshChangeState();
+        } else if (update.geometryChanged) {
+          refreshChangeState();
         }
         if (update.docChanged || update.selectionSet) {
           const head = update.state.selection.main.head;
@@ -610,13 +612,7 @@
     const target = step === 1
       ? nextChangedLine(view.state, from)
       : previousChangedLine(view.state, from);
-    if (target === null) return;
-    const line = view.state.doc.line(Math.min(target, view.state.doc.lines));
-    view.dispatch({
-      selection: { anchor: line.from },
-      effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
-    });
-    view.focus();
+    if (target !== null) jumpTo(target, 1);
   }
 
   /** Mirrors the git gutter, conflicts and the current search into the minimap, so they stay locatable in long files. */
