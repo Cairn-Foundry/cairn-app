@@ -15,6 +15,7 @@ import {
 	detachConversation,
 	detachingConversations,
 	findConversation,
+	flushConversationIndexes,
 	forgetProject,
 	instanceConversations,
 	loadInterruptedConversations,
@@ -391,6 +392,24 @@ describe("remembering which conversations run across a restart", () => {
 		expect(saved.conversations.find((c) => c.id === meta.id)?.runningIn).toBe(
 			"i",
 		);
+	});
+
+	it("writes a stop at once when the window closes before the debounce", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(300);
+		closeConversation(meta.id);
+		saveConversationIndex.mockClear();
+
+		await flushConversationIndexes();
+
+		const saved = saveConversationIndex.mock.lastCall?.[2] as {
+			conversations: { id: string; runningIn?: string | null }[];
+		};
+		expect(
+			saved.conversations.find((c) => c.id === meta.id)?.runningIn,
+		).toBeNull();
+		await vi.advanceTimersByTimeAsync(300);
+		expect(saveConversationIndex).toHaveBeenCalledTimes(1);
 	});
 
 	it("drops the mark of an interrupted conversation whose relaunch fails", async () => {

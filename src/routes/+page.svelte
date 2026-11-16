@@ -12,7 +12,11 @@
   import { withViewTransition } from '#lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
-  import { restoreConversations, selectConversation } from '#lib/stores/conversation';
+  import {
+    flushConversationIndexes,
+    restoreConversations,
+    selectConversation,
+  } from '#lib/stores/conversation';
   import { openRequest, restoreInterruptedConversations } from '#lib/stores/agent-status';
   import { takePendingCliPaths } from '#lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
@@ -232,6 +236,7 @@
     if (saveTimer) clearTimeout(saveTimer);
     writeUiState();
     flushFileStates();
+    flushConversationIndexes();
   }
 
   /**
@@ -246,7 +251,11 @@
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    await Promise.allSettled([writeUiStateNow(), flushFileStates()]);
+    await Promise.allSettled([
+      writeUiStateNow(),
+      flushFileStates(),
+      flushConversationIndexes(),
+    ]);
   }
 
   let longtaskObs: PerformanceObserver | null = null;

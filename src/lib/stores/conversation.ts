@@ -110,7 +110,10 @@ export function runOf(conversationId: string): number {
 // Reads of each scope key, settled or in flight, so opening an instance twice
 // does not reload it and a caller can wait for a read another one started.
 const restored = new Map<string, Promise<void>>();
-const indexTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const indexTimers = new Map<
+	string,
+	{ timer: ReturnType<typeof setTimeout>; ref: ConversationRef }
+>();
 
 /** Conversations still waiting for their first typed line, keyed by terminal id. */
 const awaitingTitle = new Map<
@@ -248,24 +251,40 @@ function updateList(
 function persistIndex(ref: ConversationRef): void {
 	const key = listKey(ref);
 	const existing = indexTimers.get(key);
-	if (existing) clearTimeout(existing);
-	indexTimers.set(
-		key,
-		setTimeout(() => {
+	if (existing) clearTimeout(existing.timer);
+	indexTimers.set(key, {
+		timer: setTimeout(() => {
 			indexTimers.delete(key);
-			const activeId =
-				ref.scope === "instance"
-					? (get(activeConversationId)[key] ?? null)
-					: null;
-			persist(
-				"the conversation index",
-				saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
-					conversations: conversationsOf(ref),
-					activeId,
-				}),
-			);
+			writeIndex(ref);
 		}, PERSIST_DELAY_MS),
-	);
+		ref,
+	});
+}
+
+function writeIndex(ref: ConversationRef): Promise<void> {
+	const key = listKey(ref);
+	const activeId =
+		ref.scope === "instance" ? (get(activeConversationId)[key] ?? null) : null;
+	const write = saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
+		conversations: conversationsOf(ref),
+		activeId,
+	});
+	persist("the conversation index", write);
+	return write;
+}
+
+/**
+ * Writes the queued indexes now. On a window close the debounced write would be
+ * lost, and with it a cleared `runningIn`: the next start would resume a CLI
+ * the user had stopped.
+ */
+export function flushConversationIndexes(): Promise<unknown> {
+	const writes = [...indexTimers.values()].map(({ timer, ref }) => {
+		clearTimeout(timer);
+		return writeIndex(ref).catch(() => {});
+	});
+	indexTimers.clear();
+	return Promise.allSettled(writes);
 }
 
 /**
@@ -772,7 +791,7 @@ export function forgetProject(projectId: string): void {
 		}
 	}
 	purgeProjectEntries(indexTimers, projectId, (v) =>
-		clearTimeout(v as ReturnType<typeof setTimeout>),
+		clearTimeout((v as { timer: ReturnType<typeof setTimeout> }).timer),
 	);
 	purgeProjectEntries(restored, projectId);
 	const drop = <T>(m: Record<string, T>) => dropProjectKeys(m, projectId);
@@ -811,7 +830,7 @@ export function removeInstanceConversations(
 
 	const indexTimer = indexTimers.get(scopeKey);
 	if (indexTimer) {
-		clearTimeout(indexTimer);
+		clearTimeout(indexTimer.timer);
 		indexTimers.delete(scopeKey);
 	}
 
