@@ -430,10 +430,11 @@ pub async fn suggest_base_branches(
 
     // A branch with nothing of its own yet may be contained by its base moving
     // on, so only then is a branch containing it kept. The reflog says it
-    // outright; without one, a tip published outside its own copies is taken
-    // as having nothing of its own, whichever branch that base is. A branch
-    // checked out from its own remote copy was created at that copy's tip, so
-    // its reflog cannot tell what it carries.
+    // outright. A branch checked out from its own remote copy was created at
+    // that copy's tip, so its reflog cannot tell what it carries; without one,
+    // a tip on a remote's default branch has nothing of its own. Any other
+    // remote branch containing it may be stacked on it, so it only counts when
+    // no remote names a default branch.
     let has_own_commits = match creation
         .as_ref()
         .filter(|c| !c.from.as_deref().is_some_and(|from| is_own_copy(from)))
@@ -446,9 +447,12 @@ pub async fn suggest_base_branches(
             "for-each-ref", "--format=%(refname:short)", "--contains", &branch, "refs/remotes",
         ]))
         .map(|out| {
-            out.lines()
-                .map(str::trim)
-                .all(|r| r.is_empty() || r.ends_with("/HEAD") || is_own_copy(r))
+            out.lines().map(str::trim).all(|r| {
+                r.is_empty()
+                    || r.ends_with("/HEAD")
+                    || is_own_copy(r)
+                    || !defaults.is_empty() && !defaults.iter().any(|d| d == r)
+            })
         })
         .unwrap_or(false),
     };
@@ -4117,6 +4121,30 @@ diff --git a/two.txt b/two.txt
         let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
         let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
         assert!(!names.contains(&"bbb"), "bbb offered in {names:?}");
+        assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
+    }
+
+    #[tokio::test]
+    async fn a_branch_checked_out_from_its_remote_copy_drops_a_pushed_stacked_branch() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["checkout", "-q", "-b", "topic"]);
+        origin.commit("t.txt", "topic\n", "topic work");
+        origin.git(&["checkout", "-q", "-b", "stacked"]);
+        origin.commit("s.txt", "stacked\n", "stacked work");
+        origin.git(&["checkout", "-q", "develop"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "develop"]);
+        clone.git(&["checkout", "-q", "topic"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        assert!(!names.contains(&"origin/stacked"), "origin/stacked offered in {names:?}");
         assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
     }
 
