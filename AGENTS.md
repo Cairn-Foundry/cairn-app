@@ -320,6 +320,10 @@ through `on_action`; `listen_for_notification_clicks` focuses the window and emi
 permission checks: its `sendNotification` relies on replacing `window.Notification`, which WebKitGTK
 ignores. Keep `tauri-plugin-notification` at 2.8 or later: before 2.7 the connection was dropped at
 once on Linux.
+While the window is focused, a conversation that is not the one on screen gets a toast instead
+(`agentToasts` setting): `stores/toasts.ts` holds the generic toasts, keyed by id, and
+`layout/Toaster.svelte`, mounted once in `+page.svelte`, shows three and folds the rest into a
+line that opens Conversations. A waiting toast stays; a done one goes after `DONE_TOAST_MS`.
 The status is in memory only - a restart relaunches no CLI. It feeds the home Conversations section, the
 project card badge and the dots of the conversation list. A CLI without hooks only shows "running"
 and "exited".
