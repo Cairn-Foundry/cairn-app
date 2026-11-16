@@ -293,6 +293,13 @@
 					"en": "A bar at the bottom right of the editor counts the changes of the open file, shows which one the cursor is on, and walks through them, one arrow up and one down, wrapping at either end. Typing a number in it jumps to that change. It shows up only while the file differs from its git baseline.",
 					"fr": "Une barre en bas à droite de l'éditeur compte les modifications du fichier ouvert, indique celle où se trouve le curseur et les parcourt, une flèche vers le haut et une vers le bas, en bouclant aux extrémités. Saisir un numéro dans la barre mène à cette modification. Elle n'apparaît que lorsque le fichier diffère de sa version git de référence."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "Adopting a worktree prefills the base branch it was created from, as its reflog records it, and no longer suggests a branch that already merged it, a branch stacked on it, or its own copy on another remote.",
+					"fr": "Adopter un worktree préremplit la branche de base dont il a été créé, telle que son reflog l'enregistre, et ne propose plus une branche qui l'a déjà fusionné, une branche empilée dessus, ni sa propre copie sur un autre remote."
+				}
 			}
 		]
 	},

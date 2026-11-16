@@ -178,12 +178,13 @@ export async function listBranchesDetailed(
 
 /**
  * A branch this one may have been cut from. Git records no such link, so this
- * is inference: `merge` means a merge commit named it, `fork` means only the
+ * is mostly inference: `created` means the branch's reflog records it was created
+ * from it, `merge` means a merge commit named it, `fork` means only the
  * topology suggests it. Always offered as a prefill, never stored on its own.
  */
 export interface BaseSuggestion {
 	branch: string;
-	reason: "merge" | "fork";
+	reason: "created" | "merge" | "fork";
 	distance: number;
 }
 

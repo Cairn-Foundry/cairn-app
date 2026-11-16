@@ -298,6 +298,7 @@ pub async fn list_branches_detailed(project_path: String) -> Result<BranchList, 
 pub struct BaseSuggestion {
     /// The branch name, as it would be stored on the instance.
     pub branch: String,
+    /// `created` when the branch's reflog records it was created from it,
     /// `merge` when a merge commit names it, `fork` when only the fork point
     /// points at it. The caller shows the stronger one first.
     pub reason: String,
@@ -306,12 +307,36 @@ pub struct BaseSuggestion {
     pub distance: usize,
 }
 
+struct RankedBase {
+    suggestion: BaseSuggestion,
+    rank: u8,
+    ahead: usize,
+    is_default: bool,
+}
+
+/// The branch `branch` was created from, as its oldest reflog entry records it
+/// (`branch: Created from origin/develop`). `HEAD` names nothing, and a reflog
+/// that expired or started with a clone has no such entry.
+fn reflog_created_from(path: &str, branch: &str) -> Option<String> {
+    let log = run(git_cmd(path).args([
+        "reflog", "show", "--format=%gs", &format!("refs/heads/{branch}"), "--",
+    ]))
+    .ok()?;
+    let from = log.lines().last()?.trim().strip_prefix("branch: Created from ")?.trim();
+    let from = ["refs/heads/", "refs/remotes/", "heads/", "remotes/"]
+        .iter()
+        .find_map(|p| from.strip_prefix(p))
+        .unwrap_or(from);
+    (!from.is_empty() && from != "HEAD").then(|| from.to_string())
+}
+
 /// Candidate bases for `branch`, best first.
 ///
-/// Git does not record where a branch was cut from, so this is inference, never
-/// a fact: the caller offers the result as a prefill the user can overrule, and
-/// must not store it silently. Two signals are used - a `Merge branch 'x'`
-/// commit on the branch, which is explicit, and the fork point, which is not.
+/// Git does not record where a branch was cut from, so this is mostly
+/// inference: the caller offers the result as a prefill the user can overrule,
+/// and must not store it silently. Three signals are used, strongest first -
+/// the branch's own reflog creation entry, a `Merge branch 'x'` commit on the
+/// branch, and the fork point.
 #[tauri::command]
 pub async fn suggest_base_branches(
     project_path: String,
@@ -320,8 +345,6 @@ pub async fn suggest_base_branches(
     reject_option_like(&branch)?;
     let expanded = expand(&project_path);
 
-    // Branches that merged into this one are named outright in the subject, so
-    // they beat anything the topology merely suggests.
     let merged: Vec<String> = run(git_cmd(&expanded).args([
         "log", "--merges", "--pretty=%s", "-n", "50", &branch,
     ]))
@@ -341,62 +364,101 @@ pub async fn suggest_base_branches(
         .filter(|r| !r.is_empty())
         .collect();
 
+    let local_name = remotes
+        .iter()
+        .find_map(|r| branch.strip_prefix(&format!("{r}/")))
+        .unwrap_or(&branch)
+        .to_string();
+    let is_own_copy = |candidate: &str| {
+        candidate == branch
+            || candidate == local_name
+            || remotes.iter().any(|r| candidate == format!("{r}/{local_name}"))
+    };
+
+    let created_from = reflog_created_from(&expanded, &branch);
+
+    let defaults: Vec<String> = run(git_cmd(&expanded).args([
+        "for-each-ref", "--format=%(symref:short)", "refs/remotes",
+    ]))
+    .unwrap_or_default()
+    .lines()
+    .map(|l| l.trim().to_string())
+    .filter(|l| !l.is_empty())
+    .collect();
+
+    // A branch already on the default branch has nothing of its own, so a
+    // branch containing it may simply be its base moving on.
+    let has_own_commits = !defaults.is_empty()
+        && defaults.iter().all(|d| {
+            run(git_cmd(&expanded).args(["merge-base", "--is-ancestor", &branch, d])).is_err()
+        });
+
     let candidates = run(git_cmd(&expanded).args([
         "for-each-ref", "--format=%(refname:short)",
         "refs/heads", "refs/remotes",
     ]))
     .unwrap_or_default();
 
-    let mut out: Vec<BaseSuggestion> = Vec::new();
+    let mut out: Vec<RankedBase> = Vec::new();
     for candidate in candidates.lines() {
         let candidate = candidate.trim();
-        // A branch is never its own base, and `origin/HEAD` is a pointer.
-        // A bare remote name (`origin`) is the remote's own HEAD alias, not a
-        // branch anyone bases work on.
+        // A bare remote name (`origin`) is the remote's own HEAD alias.
         if candidate.is_empty()
             || candidate.ends_with("/HEAD")
             || !candidate.contains('/') && remotes.iter().any(|r| r == candidate)
-            || candidate == branch
-            || candidate.trim_start_matches("origin/") == branch
+            || is_own_copy(candidate)
         {
             continue;
         }
-        let Ok(merge_base) = run(git_cmd(&expanded).args(["merge-base", candidate, &branch]))
-        else {
-            continue;
-        };
-        let merge_base = merge_base.trim();
-        if merge_base.is_empty() {
+        // An unrelated line shares no history worth calling a base.
+        if run(git_cmd(&expanded).args(["merge-base", candidate, &branch]))
+            .map(|mb| mb.trim().is_empty())
+            .unwrap_or(true)
+        {
             continue;
         }
-        // An unrelated line shares no history worth calling a base.
-        let Ok(count) = run(git_cmd(&expanded).args([
-            "rev-list", "--count", &format!("{merge_base}..{branch}"),
+        let Ok(counts) = run(git_cmd(&expanded).args([
+            "rev-list", "--left-right", "--count", &format!("{candidate}...{branch}"),
         ])) else {
             continue;
         };
-        let Ok(distance) = count.trim().parse::<usize>() else { continue };
-        let short = candidate.trim_start_matches("origin/");
-        let reason = if merged.iter().any(|m| m == short || m == candidate) {
-            "merge"
-        } else {
-            "fork"
+        let mut counts = counts.split_whitespace().map(|n| n.parse::<usize>());
+        let (Some(Ok(ahead)), Some(Ok(distance))) = (counts.next(), counts.next()) else {
+            continue;
         };
-        out.push(BaseSuggestion {
-            branch: candidate.to_string(),
-            reason: reason.to_string(),
-            distance,
+        let is_created = created_from.as_deref() == Some(candidate);
+        // A branch that merged this one, or is stacked on it, is a descendant.
+        if has_own_commits && distance == 0 && ahead > 0 && !is_created {
+            continue;
+        }
+        let short = candidate.trim_start_matches("origin/");
+        let (reason, rank) = if is_created {
+            ("created", 0)
+        } else if merged.iter().any(|m| m == short || m == candidate) {
+            ("merge", 1)
+        } else {
+            ("fork", 2)
+        };
+        out.push(RankedBase {
+            suggestion: BaseSuggestion {
+                branch: candidate.to_string(),
+                reason: reason.to_string(),
+                distance,
+            },
+            rank,
+            ahead,
+            is_default: defaults.iter().any(|d| d == candidate),
         });
     }
 
-    // An explicit merge wins; within a reason, the nearest fork point wins.
-    out.sort_by(|a, b| match (a.reason.as_str(), b.reason.as_str()) {
-        ("merge", "fork") => std::cmp::Ordering::Less,
-        ("fork", "merge") => std::cmp::Ordering::Greater,
-        _ => a.distance.cmp(&b.distance),
+    out.sort_by(|a, b| {
+        a.rank
+            .cmp(&b.rank)
+            .then(a.suggestion.distance.cmp(&b.suggestion.distance))
+            .then(a.ahead.cmp(&b.ahead))
+            .then(b.is_default.cmp(&a.is_default))
     });
-    out.truncate(5);
-    Ok(out)
+    Ok(out.into_iter().take(5).map(|r| r.suggestion).collect())
 }
 
 /// Paths already proven to be worktree roots. The status poll revalidates on every
@@ -3916,6 +3978,80 @@ diff --git a/two.txt b/two.txt
             git_commit_exists(clone.wt(), "feat/target".into()).await.unwrap(),
             "a remote-only branch is present, so the fetch banner must not show",
         );
+    }
+
+    /// The issue #55 layout: a topic cut from `origin/develop`, merged into a
+    /// local integration branch, pushed to a second remote, with a branch
+    /// stacked on top of it.
+    fn topic_with_integration_and_fork() -> (TempRepo, TempRepo, TempRepo) {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["symbolic-ref", "HEAD", "refs/heads/develop"]);
+
+        let fork = TempRepo::new();
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["remote", "add", "fork", &fork.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "develop"]);
+        clone.git(&["checkout", "-q", "-b", "develop", "origin/develop"]);
+        clone.git(&["branch", "topic", "origin/develop"]);
+        clone.git(&["checkout", "-q", "topic"]);
+        clone.commit("t.txt", "topic\n", "topic work");
+        clone.git(&["push", "-q", "fork", "topic"]);
+        clone.git(&["fetch", "-q", "fork"]);
+        clone.git(&["checkout", "-q", "-b", "bbb", "develop"]);
+        clone.git(&["merge", "-q", "--no-ff", "-m", "integrate", "topic"]);
+        clone.git(&["checkout", "-q", "-b", "stacked", "topic"]);
+        clone.commit("s.txt", "stacked\n", "stacked work");
+        clone.git(&["checkout", "-q", "topic"]);
+        (origin, fork, clone)
+    }
+
+    #[tokio::test]
+    async fn the_reflog_creation_entry_is_offered_first() {
+        let (_origin, _fork, clone) = topic_with_integration_and_fork();
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!(first.branch, "origin/develop");
+        assert_eq!(first.reason, "created");
+    }
+
+    #[tokio::test]
+    async fn a_copy_or_a_descendant_of_the_branch_is_never_offered() {
+        let (_origin, _fork, clone) = topic_with_integration_and_fork();
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        for excluded in ["fork/topic", "bbb", "stacked"] {
+            assert!(!names.contains(&excluded), "{excluded} offered in {names:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn without_a_reflog_the_default_branch_wins_a_tie() {
+        let (_origin, _fork, clone) = topic_with_integration_and_fork();
+        clone.git(&["reflog", "expire", "--expire=now", "--all"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!(first.reason, "fork");
+        assert_eq!(first.branch, "origin/develop");
+    }
+
+    #[tokio::test]
+    async fn a_branch_created_from_head_falls_back_to_the_topology() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["checkout", "-q", "-b", "feature"]);
+        repo.commit("b.txt", "two\n", "work");
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        assert!(out.iter().all(|s| s.reason != "created"));
+        assert_eq!(out.first().map(|s| s.branch.as_str()), Some("master"));
     }
 
     #[tokio::test]
