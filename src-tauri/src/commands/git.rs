@@ -350,12 +350,22 @@ fn is_object_id(name: &str) -> bool {
     matches!(name.len(), 40 | 64) && name.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+/// A reflog line read with `--format=%H %gd %gs --date=unix`: the commit, the
+/// time of the entry and its subject.
+fn parse_reflog_line(line: &str) -> Option<(&str, i64, &str)> {
+    let (commit, rest) = line.trim().split_once(' ')?;
+    let (selector, subject) = rest.split_once(' ')?;
+    let time = selector.rsplit_once("@{")?.1.strip_suffix('}')?.parse().ok()?;
+    Some((commit, time, subject))
+}
+
 fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
     let log = run(git_cmd(path).args([
-        "reflog", "show", "--format=%H %gs", &format!("refs/heads/{branch}"), "--",
+        "reflog", "show", "--date=unix", "--format=%H %gd %gs",
+        &format!("refs/heads/{branch}"), "--",
     ]))
     .ok()?;
-    let (commit, subject) = log.lines().last()?.trim().split_once(' ')?;
+    let (commit, time, subject) = parse_reflog_line(log.lines().last()?)?;
     let from = strip_ref_prefix(subject.strip_prefix("branch: Created from ")?.trim());
     // libgit2 (and so Cairn adopting a remote branch) records the commit id
     // instead of the ref: the creation commit may be the branch's own remote
@@ -365,7 +375,7 @@ fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
     }
     let from = match from {
         "" => None,
-        "HEAD" => created_from_head(path, branch, commit),
+        "HEAD" => created_from_head(path, branch, commit, time),
         named => Some(named.to_string()),
     };
     Some(BranchCreation { commit: commit.to_string(), from })
@@ -373,9 +383,10 @@ fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
 
 /// `git checkout -b` and `git switch -c` record `Created from HEAD`; the branch
 /// HEAD was on is in the HEAD reflog of the worktree it happened in, as the
-/// oldest `checkout: moving from <base> to <branch>` landing on the creation
-/// commit.
-fn created_from_head(path: &str, branch: &str, commit: &str) -> Option<String> {
+/// `checkout: moving from <base> to <branch>` written with the creation entry.
+/// A later checkout of the branch before its first commit has the same shape,
+/// so the entry must also share the creation time.
+fn created_from_head(path: &str, branch: &str, commit: &str, created_at: i64) -> Option<String> {
     let worktrees = run(git_cmd(path).args(["worktree", "list", "--porcelain"])).ok()?;
     let suffix = format!(" to {branch}");
     worktrees
@@ -383,14 +394,15 @@ fn created_from_head(path: &str, branch: &str, commit: &str) -> Option<String> {
         .filter_map(|l| l.strip_prefix("worktree "))
         .find_map(|worktree| {
             let log = run(git_cmd(worktree).args([
-                "reflog", "show", "--format=%H %gs", "HEAD", "--",
+                "reflog", "show", "--date=unix", "--format=%H %gd %gs", "HEAD", "--",
             ]))
             .ok()?;
             log.lines()
                 .rev()
-                .filter_map(|l| l.trim().split_once(' '))
-                .filter(|(sha, _)| *sha == commit)
-                .find_map(|(_, s)| s.strip_prefix("checkout: moving from ")?.strip_suffix(&suffix))
+                .filter_map(parse_reflog_line)
+                // Both entries are written by one command, a second apart at most.
+                .filter(|(sha, time, _)| *sha == commit && (0..=1).contains(&(time - created_at)))
+                .find_map(|(_, _, s)| s.strip_prefix("checkout: moving from ")?.strip_suffix(&suffix))
                 .map(|from| strip_ref_prefix(from.trim()).to_string())
         })
         .filter(|from| !from.is_empty() && from != branch)
@@ -4315,6 +4327,31 @@ diff --git a/two.txt b/two.txt
 
         let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
         assert_eq!(out.first().map(|s| (s.branch.as_str(), s.reason.as_str())), Some(("develop", "created")));
+    }
+
+    #[tokio::test]
+    async fn a_later_checkout_of_a_branch_created_from_head_is_not_its_creation() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["branch", "develop"]);
+        let other = TempRepo::new();
+        let wt = format!("{}/wt", other.wt());
+        let git_at = |dir: &str, time: &str, args: &[&str]| {
+            let out = Command::new("git")
+                .current_dir(dir)
+                .env("GIT_COMMITTER_DATE", format!("{time} +0000"))
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+        };
+        git_at(&repo.wt(), "1700000000", &["worktree", "add", "-q", &wt, "develop"]);
+        git_at(&wt, "1700000000", &["checkout", "-q", "-b", "feature"]);
+        git_at(&repo.wt(), "1700000100", &["worktree", "remove", &wt]);
+        git_at(&repo.wt(), "1700000100", &["checkout", "-q", "feature"]);
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        assert!(out.iter().all(|s| s.reason != "created"), "got {:?}", out.iter().map(|s| (&s.branch, &s.reason)).collect::<Vec<_>>());
     }
 
     #[tokio::test]
