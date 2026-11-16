@@ -314,20 +314,61 @@ struct RankedBase {
     is_default: bool,
 }
 
-/// The branch `branch` was created from, as its oldest reflog entry records it
-/// (`branch: Created from origin/develop`). `HEAD` names nothing, and a reflog
-/// that expired or started with a clone has no such entry.
-fn reflog_created_from(path: &str, branch: &str) -> Option<String> {
+/// Where a branch was created, as its oldest reflog entry records it
+/// (`branch: Created from origin/develop`). A reflog that expired or started
+/// with a clone has no such entry.
+struct BranchCreation {
+    /// The commit the branch pointed at when it was created.
+    commit: String,
+    /// The branch it was created from, when the reflog names one.
+    from: Option<String>,
+}
+
+fn strip_ref_prefix(name: &str) -> &str {
+    ["refs/heads/", "refs/remotes/", "heads/", "remotes/"]
+        .iter()
+        .find_map(|p| name.strip_prefix(p))
+        .unwrap_or(name)
+}
+
+fn branch_creation(path: &str, branch: &str) -> Option<BranchCreation> {
     let log = run(git_cmd(path).args([
-        "reflog", "show", "--format=%gs", &format!("refs/heads/{branch}"), "--",
+        "reflog", "show", "--format=%H %gs", &format!("refs/heads/{branch}"), "--",
     ]))
     .ok()?;
-    let from = log.lines().last()?.trim().strip_prefix("branch: Created from ")?.trim();
-    let from = ["refs/heads/", "refs/remotes/", "heads/", "remotes/"]
-        .iter()
-        .find_map(|p| from.strip_prefix(p))
-        .unwrap_or(from);
-    (!from.is_empty() && from != "HEAD").then(|| from.to_string())
+    let (commit, subject) = log.lines().last()?.trim().split_once(' ')?;
+    let from = strip_ref_prefix(subject.strip_prefix("branch: Created from ")?.trim());
+    let from = match from {
+        "" => None,
+        "HEAD" => created_from_head(path, branch, commit),
+        named => Some(named.to_string()),
+    };
+    Some(BranchCreation { commit: commit.to_string(), from })
+}
+
+/// `git checkout -b` and `git switch -c` record `Created from HEAD`; the branch
+/// HEAD was on is in the HEAD reflog of the worktree it happened in, as the
+/// oldest `checkout: moving from <base> to <branch>` landing on the creation
+/// commit.
+fn created_from_head(path: &str, branch: &str, commit: &str) -> Option<String> {
+    let worktrees = run(git_cmd(path).args(["worktree", "list", "--porcelain"])).ok()?;
+    let suffix = format!(" to {branch}");
+    worktrees
+        .lines()
+        .filter_map(|l| l.strip_prefix("worktree "))
+        .find_map(|worktree| {
+            let log = run(git_cmd(worktree).args([
+                "reflog", "show", "--format=%H %gs", "HEAD", "--",
+            ]))
+            .ok()?;
+            log.lines()
+                .rev()
+                .filter_map(|l| l.trim().split_once(' '))
+                .filter(|(sha, _)| *sha == commit)
+                .find_map(|(_, s)| s.strip_prefix("checkout: moving from ")?.strip_suffix(&suffix))
+                .map(|from| strip_ref_prefix(from.trim()).to_string())
+        })
+        .filter(|from| !from.is_empty() && from != branch)
 }
 
 /// Candidate bases for `branch`, best first.
@@ -375,7 +416,8 @@ pub async fn suggest_base_branches(
             || remotes.iter().any(|r| candidate == format!("{r}/{local_name}"))
     };
 
-    let created_from = reflog_created_from(&expanded, &branch);
+    let creation = branch_creation(&expanded, &branch);
+    let created_from = creation.as_ref().and_then(|c| c.from.clone());
 
     let defaults: Vec<String> = run(git_cmd(&expanded).args([
         "for-each-ref", "--format=%(symref:short)", "refs/remotes",
@@ -386,18 +428,25 @@ pub async fn suggest_base_branches(
     .filter(|l| !l.is_empty())
     .collect();
 
-    // A branch whose tip is already published, outside its own copies, has
-    // nothing of its own yet: a branch containing it may simply be its base
-    // moving on, whichever branch that base is.
-    let has_own_commits = run(git_cmd(&expanded).args([
-        "for-each-ref", "--format=%(refname:short)", "--contains", &branch, "refs/remotes",
-    ]))
-    .map(|out| {
-        out.lines()
-            .map(str::trim)
-            .all(|r| r.is_empty() || r.ends_with("/HEAD") || is_own_copy(r))
-    })
-    .unwrap_or(false);
+    // A branch with nothing of its own yet may be contained by its base moving
+    // on, so only then is a branch containing it kept. The reflog says it
+    // outright; without one, a tip published outside its own copies is taken
+    // as having nothing of its own, whichever branch that base is.
+    let has_own_commits = match &creation {
+        Some(c) => run(git_cmd(&expanded).args([
+            "rev-list", "--count", &format!("{}..{branch}", c.commit),
+        ]))
+        .is_ok_and(|n| n.trim() != "0"),
+        None => run(git_cmd(&expanded).args([
+            "for-each-ref", "--format=%(refname:short)", "--contains", &branch, "refs/remotes",
+        ]))
+        .map(|out| {
+            out.lines()
+                .map(str::trim)
+                .all(|r| r.is_empty() || r.ends_with("/HEAD") || is_own_copy(r))
+        })
+        .unwrap_or(false),
+    };
 
     let candidates = run(git_cmd(&expanded).args([
         "for-each-ref", "--format=%(refname:short)",
@@ -3904,6 +3953,7 @@ diff --git a/two.txt b/two.txt
         repo.git(&["checkout", "-q", "feature"]);
         repo.commit("f.txt", "feat\n", "the work");
         repo.git(&["merge", "-q", "--no-ff", "-m", "Merge branch 'release' into feature", "release"]);
+        repo.git(&["reflog", "expire", "--expire=now", "--all"]);
 
         let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
         let first = out.first().expect("a candidate should be found");
@@ -4051,15 +4101,80 @@ diff --git a/two.txt b/two.txt
     }
 
     #[tokio::test]
-    async fn a_branch_created_from_head_falls_back_to_the_topology() {
+    async fn a_branch_created_from_head_takes_the_branch_head_was_on() {
         let repo = TempRepo::new();
         repo.commit("a.txt", "one\n", "init");
+        repo.git(&["checkout", "-q", "-b", "develop"]);
+        repo.git(&["checkout", "-q", "-b", "feature"]);
+        repo.commit("b.txt", "two\n", "work");
+        repo.git(&["checkout", "-q", "master"]);
+        repo.git(&["checkout", "-q", "feature"]);
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!(first.branch, "develop");
+        assert_eq!(first.reason, "created");
+    }
+
+    #[tokio::test]
+    async fn a_branch_created_from_head_in_another_worktree_takes_its_branch() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["branch", "develop"]);
+        let other = TempRepo::new();
+        let wt = format!("{}/wt", other.wt());
+        repo.git(&["worktree", "add", "-q", &wt, "develop"]);
+        run(git_cmd(&wt).args(["checkout", "-q", "-b", "feature"])).unwrap();
+
+        let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
+        assert_eq!(out.first().map(|s| (s.branch.as_str(), s.reason.as_str())), Some(("develop", "created")));
+    }
+
+    #[tokio::test]
+    async fn a_branch_created_from_a_detached_head_falls_back_to_the_topology() {
+        let repo = TempRepo::new();
+        repo.commit("a.txt", "one\n", "init");
+        repo.git(&["checkout", "-q", "--detach"]);
         repo.git(&["checkout", "-q", "-b", "feature"]);
         repo.commit("b.txt", "two\n", "work");
 
         let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
         assert!(out.iter().all(|s| s.reason != "created"));
         assert_eq!(out.first().map(|s| s.branch.as_str()), Some("master"));
+    }
+
+    #[tokio::test]
+    async fn a_pushed_branch_stacked_on_one_with_commits_is_never_offered() {
+        let (_origin, clone) = develop_based_clone();
+        clone.git(&["checkout", "-q", "-b", "topic"]);
+        clone.commit("t.txt", "t\n", "topic work");
+        clone.git(&["checkout", "-q", "-b", "stacked"]);
+        clone.commit("s.txt", "s\n", "stacked work");
+        clone.git(&["push", "-q", "origin", "stacked"]);
+        clone.git(&["fetch", "-q", "origin"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        assert_eq!(names.first(), Some(&"develop"), "got {names:?}");
+        for excluded in ["stacked", "origin/stacked"] {
+            assert!(!names.contains(&excluded), "{excluded} offered in {names:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_sibling_busier_than_the_base_does_not_outrank_it() {
+        let (_origin, clone) = develop_based_clone();
+        clone.git(&["checkout", "-q", "-b", "feat-b"]);
+        for i in 0..3 {
+            clone.commit(&format!("b{i}.txt"), "b\n", "sibling work");
+        }
+        clone.git(&["checkout", "-q", "develop"]);
+        clone.git(&["checkout", "-q", "-b", "feat-a"]);
+        clone.commit("a.txt", "a\n", "work");
+
+        let out = suggest_base_branches(clone.wt(), "feat-a".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!((first.branch.as_str(), first.reason.as_str()), ("develop", "created"));
     }
 
     /// Work based on `develop` while the remote's default branch is `master`,
@@ -4113,6 +4228,7 @@ diff --git a/two.txt b/two.txt
         clone.commit("a1.txt", "a1\n", "work");
         clone.commit("a2.txt", "a2\n", "more work");
         advance_develop(&clone, 3);
+        clone.git(&["reflog", "expire", "--expire=now", "--all"]);
 
         let out = suggest_base_branches(clone.wt(), "feat-a".into()).await.unwrap();
         let first = out.first().expect("a candidate should be found");
