@@ -423,12 +423,14 @@
 
   /** Lands on one conversation of the Agent step, from wherever the app was. */
   async function handleOpenConversation(detail: { projectId: string; instanceId: string; conversationId: string }) {
+    // Selected before any Agent view can show the scope: the conversation saved as
+    // active there would otherwise be on screen for a moment, and be resumed.
+    await restoreConversations(detail.projectId, detail.instanceId);
+    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
     await handleOpenProject(detail.projectId);
     if ($activeInstance?.id !== detail.instanceId) await activateInstance(detail.projectId, detail.instanceId);
     showTool(null);
     activeStep.set('agent');
-    await restoreConversations(detail.projectId, detail.instanceId);
-    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
   }
 
   function handleCloseProject(id: string) {
