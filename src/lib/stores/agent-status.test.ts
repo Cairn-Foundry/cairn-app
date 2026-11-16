@@ -337,6 +337,12 @@ describe("conversations the last close interrupted", () => {
 		expect(get(interruptedConversations)[0]?.instanceId).toBe("__base__");
 	});
 
+	it("opens an instance conversation in the instance whose index holds it", () => {
+		savedInterruptedConversations.set([saved("c9", "elsewhere", "i")]);
+
+		expect(get(interruptedConversations)[0]?.instanceId).toBe("i");
+	});
+
 	it("ignores the conversations of a project no longer registered", () => {
 		savedInterruptedConversations.set([
 			{ ...saved("c9", "i"), projectId: "gone" },

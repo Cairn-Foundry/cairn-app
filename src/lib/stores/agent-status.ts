@@ -258,11 +258,14 @@ export const interruptedConversations = derived(
 					? loaded.find((c) => c.id === id)
 					: entry.conversation;
 				if (!meta?.runningIn || meta.archived) return [];
+				// An instance index is only read in its own instance, wherever the
+				// CLI ran: a conversation dragged there keeps its old `runningIn`.
 				const hosts = instances[entry.projectId];
 				const instanceId =
-					!hosts || hosts.some((i) => i.id === meta.runningIn)
+					entry.instanceId ??
+					(!hosts || hosts.some((i) => i.id === meta.runningIn)
 						? meta.runningIn
-						: BASE_INSTANCE_ID;
+						: BASE_INSTANCE_ID);
 				return [
 					{
 						id,
