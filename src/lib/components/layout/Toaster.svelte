@@ -22,32 +22,30 @@
   let hidden = $derived($toasts.length - shown.length);
 </script>
 
-{#if $toasts.length}
-  <div class="toaster" role="region" aria-label={t('toasts.region') as string} aria-live="polite">
-    {#each shown as toast (toast.id)}
-      <div class="toast {toast.tone ?? 'accent'}">
-        <button class="toast-main" onclick={() => openToast(toast)} disabled={!toast.onOpen}>
-          <span class="kicker"><span class="dot"></span>{toast.kicker}</span>
-          <span class="title">{toast.title}</span>
-          {#if toast.body}<span class="body">{toast.body}</span>{/if}
-        </button>
-        <button
-          class="toast-close"
-          title={t('toasts.dismiss') as string}
-          aria-label={t('toasts.dismiss') as string}
-          onclick={() => dismissToast(toast.id)}
-        >
-          <Icon name="x" size={12}/>
-        </button>
-      </div>
-    {/each}
-    {#if hidden > 0}
-      <button class="more" onclick={() => onMore?.()}>
-        {(t('toasts.more') as (n: number) => string)(hidden)}
+<div class="toaster" role="region" aria-label={t('toasts.region') as string} aria-live="polite">
+  {#each shown as toast (toast.id)}
+    <div class="toast {toast.tone ?? 'accent'}">
+      <button class="toast-main" onclick={() => openToast(toast)} disabled={!toast.onOpen}>
+        <span class="kicker"><span class="dot"></span>{toast.kicker}</span>
+        <span class="title">{toast.title}</span>
+        {#if toast.body}<span class="body">{toast.body}</span>{/if}
       </button>
-    {/if}
-  </div>
-{/if}
+      <button
+        class="toast-close"
+        title={t('toasts.dismiss') as string}
+        aria-label={t('toasts.dismiss') as string}
+        onclick={() => dismissToast(toast.id)}
+      >
+        <Icon name="x" size={12}/>
+      </button>
+    </div>
+  {/each}
+  {#if hidden > 0}
+    <button class="more" onclick={() => onMore?.()}>
+      {(t('toasts.more') as (n: number) => string)(hidden)}
+    </button>
+  {/if}
+</div>
 
 <style>
   .toaster {

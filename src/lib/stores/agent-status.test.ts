@@ -356,6 +356,14 @@ describe("a notice inside the app", () => {
 		expect(get(toasts)).toEqual([]);
 	});
 
+	it("stays out of the way when AI is turned off", async () => {
+		await settings.save({ aiEnabled: false }).catch(() => {});
+		run("c1");
+		windowFocused.set(true);
+		signal("c1", "waiting");
+		expect(get(toasts)).toEqual([]);
+	});
+
 	it("stays out of the way when turned off", async () => {
 		await settings.save({ agentToasts: false }).catch(() => {});
 		run("c1");

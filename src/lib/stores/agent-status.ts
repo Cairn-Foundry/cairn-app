@@ -273,7 +273,8 @@ function toastId(conversationId: string): string {
 }
 
 function noticeInApp(id: string, status: "waiting" | "done"): void {
-	if (!get(settings).agentToasts) return;
+	const current = get(settings);
+	if (!current.agentToasts || !current.aiEnabled) return;
 	const live = get(liveConversations).find((c) => c.id === id);
 	if (!live) return;
 	const request = {
