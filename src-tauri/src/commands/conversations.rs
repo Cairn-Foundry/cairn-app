@@ -163,7 +163,10 @@ where
         let Ok(path) = index_path(&project_id, instance_id.as_deref()) else { continue };
         let Some(index) = read_index(&path) else { continue };
         for conversation in index.conversations {
-            if conversation.running_in.is_some() && !conversation.cli.is_empty() {
+            if conversation.running_in.is_some()
+                && !conversation.archived
+                && !conversation.cli.is_empty()
+            {
                 found.push(InterruptedConversation {
                     project_id: project_id.clone(),
                     instance_id: instance_id.clone(),
@@ -175,7 +178,8 @@ where
     found
 }
 
-/// Every conversation across projects that was running when the app closed.
+/// Every conversation across projects that was running when the app closed,
+/// archived ones aside: the user has put those away.
 #[tauri::command]
 pub async fn list_interrupted_conversations() -> Result<Vec<InterruptedConversation>, String> {
     Ok(interrupted_in(scopes()?, index_file))
@@ -249,7 +253,11 @@ mod tests {
         };
         write_index(
             &path("p1", None).unwrap(),
-            vec![conversation("shared", Some("i1")), conversation("idle", None)],
+            vec![
+                conversation("shared", Some("i1")),
+                conversation("idle", None),
+                ConversationMeta { archived: true, ..conversation("put-away", Some("i1")) },
+            ],
         );
         write_index(&path("p1", Some("i1")).unwrap(), vec![conversation("local", Some("i1"))]);
 

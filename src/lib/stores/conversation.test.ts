@@ -673,13 +673,13 @@ describe("pinning and archiving", () => {
 		expect(conversationsOf(ref)[0].archived).toBe(false);
 	});
 
-	it("no longer counts an archived conversation as interrupted", async () => {
+	it("keeps the running mark of a conversation archived and put back while it runs", async () => {
 		const meta = await startConversation(ref, "claude-code", "/repo/wt");
-		expect(conversationsOf(ref)[0].runningIn).toBe(ref.instanceId);
 
 		toggleArchived(ref, meta.id);
+		toggleArchived(ref, meta.id);
 
-		expect(conversationsOf(ref)[0].runningIn).toBeNull();
+		expect(conversationsOf(ref)[0].runningIn).toBe(ref.instanceId);
 	});
 
 	it("leaves the list alone when archiving an unknown id", async () => {

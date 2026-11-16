@@ -321,6 +321,16 @@ describe("conversations the last close interrupted", () => {
 		expect(get(interruptedConversations)).toEqual([]);
 	});
 
+	it("drops one archived since its scope was read back", () => {
+		const entry = saved("c9", "i");
+		savedInterruptedConversations.set([entry]);
+		instanceConversations.set({
+			"p:i": [{ ...entry.conversation, archived: true }],
+		});
+
+		expect(get(interruptedConversations)).toEqual([]);
+	});
+
 	it("opens a project conversation whose instance is gone in the base folder", () => {
 		savedInterruptedConversations.set([saved("c9", "removed", null)]);
 

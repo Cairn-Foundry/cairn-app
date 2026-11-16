@@ -234,7 +234,7 @@ export const liveConversations = derived(
 
 /**
  * The conversations the last close of the app stopped mid-run and nothing has
- * relaunched or stopped since. Opening one resumes it.
+ * relaunched, stopped or archived since. Opening one resumes it.
  */
 export const interruptedConversations = derived(
 	[
@@ -257,7 +257,7 @@ export const interruptedConversations = derived(
 				const meta = loaded
 					? loaded.find((c) => c.id === id)
 					: entry.conversation;
-				if (!meta?.runningIn) return [];
+				if (!meta?.runningIn || meta.archived) return [];
 				const hosts = instances[entry.projectId];
 				const instanceId =
 					!hosts || hosts.some((i) => i.id === meta.runningIn)

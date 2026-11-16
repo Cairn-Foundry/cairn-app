@@ -259,10 +259,11 @@ it. There is no message sending, no model selection, no transcript storage.
   `~/.claude/projects/<slug>/*.jsonl` matching the cwd, newer than the PTY spawn).
   `sessionConfirmed` in the index means the session was seen on disk.
 - `lastCli` (per project, persisted) is the CLI the Agent step last started, so the picker
-  offers it first. Restoring the app never spawns a CLI by itself.
+  offers it first. Restoring the app never spawns a CLI that is not on screen.
 - **Interrupted conversations**: `runningIn` (the hosting instance) is set at launch and
   cleared when the CLI is stopped or exits on its own; the app's own shutdown leaves it. On
-  the next start `list_interrupted_conversations` finds the ones still marked, the home
+  the next start `list_interrupted_conversations` finds the ones still marked and not
+  archived, the home
   Conversations section lists them, and the Agent view resumes one only once it is on screen
   (lazy resume) - never all of them at startup.
 - **AI assists** (commit message, test fix, MR description, CI fix, review guide, review

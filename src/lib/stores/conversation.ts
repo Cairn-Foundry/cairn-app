@@ -374,19 +374,11 @@ export function togglePinned(ref: ConversationRef, id: string): void {
 	patch(ref, id, { pinned: !target.pinned });
 }
 
-/**
- * Archiving filters a conversation out of the Active list; it is not a third
- * group. An archived conversation is put away, so it is no longer one the last
- * close interrupted either.
- */
+/** Archiving filters a conversation out of the Active list; it is not a third group. */
 export function toggleArchived(ref: ConversationRef, id: string): void {
 	const target = conversationsOf(ref).find((c) => c.id === id);
 	if (!target) return;
-	patch(
-		ref,
-		id,
-		target.archived ? { archived: false } : { archived: true, runningIn: null },
-	);
+	patch(ref, id, { archived: !target.archived });
 }
 
 /** The terminal a conversation runs in, or null when its CLI is not running. */
