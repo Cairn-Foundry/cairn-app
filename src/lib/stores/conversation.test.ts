@@ -15,8 +15,10 @@ import {
 	detachConversation,
 	detachingConversations,
 	findConversation,
+	flushConversationIndexes,
 	forgetProject,
 	instanceConversations,
+	loadInterruptedConversations,
 	moveConversationToScope,
 	noteTerminalInput,
 	openConversation,
@@ -26,6 +28,7 @@ import {
 	renameConversation,
 	restoreConversations,
 	runOf,
+	savedInterruptedConversations,
 	selectConversation,
 	startConversation,
 	startFreshSession,
@@ -37,10 +40,13 @@ import { lastCli } from "./ui";
 
 const saveConversationIndex = vi.fn().mockResolvedValue(undefined);
 const getConversationIndex = vi.fn().mockResolvedValue(null);
+const listInterruptedConversations = vi.fn().mockResolvedValue([]);
 
 vi.mock("#lib/services/conversation-service", () => ({
 	getConversationIndex: (...a: unknown[]) => getConversationIndex(...a),
 	saveConversationIndex: (...a: unknown[]) => saveConversationIndex(...a),
+	listInterruptedConversations: (...a: unknown[]) =>
+		listInterruptedConversations(...a),
 }));
 
 const createTerminal = vi.fn().mockResolvedValue(undefined);
@@ -105,10 +111,17 @@ function lastArgv(): string[] {
 	return at === -1 ? argv : argv.filter((_, i) => i !== at && i !== at + 1);
 }
 
+// Registered when the store module loads; every other handler belongs to a test.
+const storeExitHandlers = new Set(exitHandlers);
+const watchers = () =>
+	[...exitHandlers].filter((h) => !storeExitHandlers.has(h)).length;
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	vi.useFakeTimers();
-	exitHandlers.clear();
+	for (const h of exitHandlers) {
+		if (!storeExitHandlers.has(h)) exitHandlers.delete(h);
+	}
 	discoverCliSession.mockResolvedValue(null);
 	terminalHasChildren.mockResolvedValue(false);
 	instanceConversations.set({});
@@ -339,6 +352,89 @@ describe("reopening a conversation", () => {
 
 		expect(closeTerminal).toHaveBeenCalledWith(`conversation:${meta.id}`);
 		expect(conversationsOf(ref).map((c) => c.id)).toEqual([meta.id]);
+	});
+});
+
+describe("remembering which conversations run across a restart", () => {
+	const runningIn = (id: string) =>
+		conversationsOf(ref).find((c) => c.id === id)?.runningIn ?? null;
+
+	it("marks a launched conversation with the instance it runs in", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		expect(runningIn(meta.id)).toBe("i");
+	});
+
+	it("clears the mark when the user stops it", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		closeConversation(meta.id);
+
+		expect(runningIn(meta.id)).toBeNull();
+	});
+
+	it("clears the mark when the CLI exits on its own", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		emitExit(`conversation:${meta.id}`, 0);
+
+		expect(runningIn(meta.id)).toBeNull();
+		expect(terminalOf(meta.id)).toBe(`conversation:${meta.id}`);
+	});
+
+	it("persists the mark, so the next start finds it", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(300);
+
+		const saved = saveConversationIndex.mock.lastCall?.[2] as {
+			conversations: { id: string; runningIn?: string | null }[];
+		};
+		expect(saved.conversations.find((c) => c.id === meta.id)?.runningIn).toBe(
+			"i",
+		);
+	});
+
+	it("writes a stop at once when the window closes before the debounce", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		await vi.advanceTimersByTimeAsync(300);
+		closeConversation(meta.id);
+		saveConversationIndex.mockClear();
+
+		await flushConversationIndexes();
+
+		const saved = saveConversationIndex.mock.lastCall?.[2] as {
+			conversations: { id: string; runningIn?: string | null }[];
+		};
+		expect(
+			saved.conversations.find((c) => c.id === meta.id)?.runningIn,
+		).toBeNull();
+		await vi.advanceTimersByTimeAsync(300);
+		expect(saveConversationIndex).toHaveBeenCalledTimes(1);
+	});
+
+	it("drops the mark of an interrupted conversation whose relaunch fails", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+		conversationTerminals.set({});
+		createTerminal.mockRejectedValueOnce(new Error("spawn failed"));
+
+		await expect(openConversation(ref, meta.id)).rejects.toThrow();
+
+		expect(runningIn(meta.id)).toBeNull();
+	});
+
+	it("reads the interrupted conversations once", async () => {
+		const entry = {
+			projectId: "p",
+			instanceId: "i",
+			conversation: { id: "c", runningIn: "i" },
+		};
+		listInterruptedConversations.mockResolvedValueOnce([entry]);
+
+		await loadInterruptedConversations();
+		await loadInterruptedConversations();
+
+		expect(listInterruptedConversations).toHaveBeenCalledTimes(1);
+		expect(get(savedInterruptedConversations)).toEqual([entry]);
 	});
 });
 
@@ -596,6 +692,15 @@ describe("pinning and archiving", () => {
 		expect(conversationsOf(ref)[0].archived).toBe(false);
 	});
 
+	it("keeps the running mark of a conversation archived and put back while it runs", async () => {
+		const meta = await startConversation(ref, "claude-code", "/repo/wt");
+
+		toggleArchived(ref, meta.id);
+		toggleArchived(ref, meta.id);
+
+		expect(conversationsOf(ref)[0].runningIn).toBe(ref.instanceId);
+	});
+
 	it("leaves the list alone when archiving an unknown id", async () => {
 		await startConversation(ref, "claude-code", "/repo/wt");
 		const before = conversationsOf(ref);
@@ -722,11 +827,11 @@ describe("a refused resume", () => {
 
 	it("stops watching once its terminal has exited", async () => {
 		const meta = await resumed();
-		expect(exitHandlers.size).toBe(1);
+		expect(watchers()).toBe(1);
 
 		emitExit(`conversation:${meta.id}`, 0);
 
-		expect(exitHandlers.size).toBe(0);
+		expect(watchers()).toBe(0);
 	});
 
 	it("stops watching when the conversation is closed", async () => {
@@ -734,7 +839,7 @@ describe("a refused resume", () => {
 
 		closeConversation(meta.id);
 
-		expect(exitHandlers.size).toBe(0);
+		expect(watchers()).toBe(0);
 	});
 
 	it("does not relaunch after a clean exit right after the resume", async () => {
@@ -1147,6 +1252,28 @@ describe("restoring conversations and the active one", () => {
 
 		expect(get(projectConversations).rq.map((c) => c.id)).toEqual(["shared"]);
 		expect(get(activeConversationId)["rq:i2"]).toBeNull();
+	});
+
+	it("hands a second caller the read under way, so a later selection stands", async () => {
+		let release: (v: unknown) => void = () => {};
+		getConversationIndex
+			.mockReturnValueOnce(new Promise((r) => (release = r)))
+			.mockResolvedValueOnce(null);
+		const first = restoreConversations("rs", "i1");
+
+		const second = restoreConversations("rs", "i1");
+		release({ conversations: [saved("a"), saved("b")], activeId: "b" });
+		await second;
+		selectConversation("rs", "i1", "a");
+		await first;
+		await vi.advanceTimersByTimeAsync(250);
+
+		expect(get(activeConversationId)["rs:i1"]).toBe("a");
+		const write = saveConversationIndex.mock.calls.find((c) => c[0] === "rs");
+		expect(write?.[2].conversations.map((c: { id: string }) => c.id)).toEqual([
+			"a",
+			"b",
+		]);
 	});
 });
 

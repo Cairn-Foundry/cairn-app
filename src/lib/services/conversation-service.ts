@@ -50,6 +50,11 @@ export interface ConversationMeta {
 	lastActiveAt?: number;
 	pinned: boolean;
 	archived: boolean;
+	/**
+	 * The instance whose Agent step runs the CLI, set at launch and cleared when
+	 * it stops. Still set on the next start means the app closed under it.
+	 */
+	runningIn?: string | null;
 }
 
 /** Contents of one scope's `index.json`. */
@@ -73,4 +78,19 @@ export async function saveConversationIndex(
 	index: ConversationIndex,
 ): Promise<void> {
 	await invoke("save_conversation_index", { projectId, instanceId, index });
+}
+
+/** A conversation whose CLI was still running when the app last closed. */
+export interface InterruptedConversation {
+	projectId: string;
+	/** The instance of the index holding it; null for the project scope. */
+	instanceId: string | null;
+	conversation: ConversationMeta;
+}
+
+/** Every conversation, across projects, that the last close stopped mid-run. */
+export async function listInterruptedConversations(): Promise<
+	InterruptedConversation[]
+> {
+	return await invoke("list_interrupted_conversations");
 }

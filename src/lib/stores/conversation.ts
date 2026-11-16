@@ -21,6 +21,8 @@ import {
 	type ConversationMeta,
 	type ConversationScope,
 	getConversationIndex,
+	type InterruptedConversation,
+	listInterruptedConversations,
 	saveConversationIndex,
 } from "#lib/services/conversation-service";
 import { openCliInTerminal } from "#lib/services/file-service";
@@ -105,9 +107,13 @@ export function runOf(conversationId: string): number {
 	return get(conversationRuns)[conversationId] ?? 0;
 }
 
-// Scope keys already read from disk, so opening an instance twice does not reload it.
-const restored = new Set<string>();
-const indexTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Reads of each scope key, settled or in flight, so opening an instance twice
+// does not reload it and a caller can wait for a read another one started.
+const restored = new Map<string, Promise<void>>();
+const indexTimers = new Map<
+	string,
+	{ timer: ReturnType<typeof setTimeout>; ref: ConversationRef }
+>();
 
 /** Conversations still waiting for their first typed line, keyed by terminal id. */
 const awaitingTitle = new Map<
@@ -124,6 +130,9 @@ const awaitingFirstInput = new Map<
 	string,
 	{ ref: ConversationRef; id: string; startedAt: number }
 >();
+
+/** Conversations whose CLI is being launched and has no terminal registered yet. */
+const launching = new Set<string>();
 
 /** One session poll per conversation: a newer one supersedes the running one. */
 const sessionPolls = new Map<string, number>();
@@ -242,24 +251,40 @@ function updateList(
 function persistIndex(ref: ConversationRef): void {
 	const key = listKey(ref);
 	const existing = indexTimers.get(key);
-	if (existing) clearTimeout(existing);
-	indexTimers.set(
-		key,
-		setTimeout(() => {
+	if (existing) clearTimeout(existing.timer);
+	indexTimers.set(key, {
+		timer: setTimeout(() => {
 			indexTimers.delete(key);
-			const activeId =
-				ref.scope === "instance"
-					? (get(activeConversationId)[key] ?? null)
-					: null;
-			persist(
-				"the conversation index",
-				saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
-					conversations: conversationsOf(ref),
-					activeId,
-				}),
-			);
+			writeIndex(ref);
 		}, PERSIST_DELAY_MS),
-	);
+		ref,
+	});
+}
+
+function writeIndex(ref: ConversationRef): Promise<void> {
+	const key = listKey(ref);
+	const activeId =
+		ref.scope === "instance" ? (get(activeConversationId)[key] ?? null) : null;
+	const write = saveConversationIndex(ref.projectId, scopedInstanceId(ref), {
+		conversations: conversationsOf(ref),
+		activeId,
+	});
+	persist("the conversation index", write);
+	return write;
+}
+
+/**
+ * Writes the queued indexes now. On a window close the debounced write would be
+ * lost, and with it a cleared `runningIn`: the next start would resume a CLI
+ * the user had stopped.
+ */
+export function flushConversationIndexes(): Promise<unknown> {
+	const writes = [...indexTimers.values()].map(({ timer, ref }) => {
+		clearTimeout(timer);
+		return writeIndex(ref).catch(() => {});
+	});
+	indexTimers.clear();
+	return Promise.allSettled(writes);
 }
 
 /**
@@ -271,39 +296,46 @@ function usable(index: ConversationIndex | null): ConversationMeta[] {
 	return (index?.conversations ?? []).filter((c) => !!c.cli);
 }
 
-/** Reads both scopes for an instance, once each; the project index is shared by its instances. */
-export async function restoreConversations(
+/**
+ * Reads both scopes for an instance, once each; the project index is shared by
+ * its instances. A second call gets the read already under way, so anything
+ * selected after awaiting it is not overwritten by the saved selection.
+ */
+export function restoreConversations(
 	projectId: string,
 	instanceId: string,
 ): Promise<void> {
 	const scopeKey = conversationScopeKey(projectId, instanceId);
-	if (restored.has(scopeKey)) return;
-	restored.add(scopeKey);
+	const pending = restored.get(scopeKey);
+	if (pending) return pending;
 
 	const loadProject = !restored.has(projectId);
-	restored.add(projectId);
+	const loading = (async () => {
+		const [instanceSaved, projectSaved] = await Promise.all([
+			getConversationIndex(projectId, instanceId).catch(() => null),
+			loadProject
+				? getConversationIndex(projectId, null).catch(() => null)
+				: null,
+		]);
 
-	const [instanceSaved, projectSaved] = await Promise.all([
-		getConversationIndex(projectId, instanceId).catch(() => null),
-		loadProject
-			? getConversationIndex(projectId, null).catch(() => null)
-			: null,
-	]);
-
-	instanceConversations.update((m) => ({
-		...m,
-		[scopeKey]: usable(instanceSaved),
-	}));
-	if (loadProject) {
-		projectConversations.update((m) => ({
+		instanceConversations.update((m) => ({
 			...m,
-			[projectId]: usable(projectSaved),
+			[scopeKey]: usable(instanceSaved),
 		}));
-	}
-	activeConversationId.update((m) => ({
-		...m,
-		[scopeKey]: instanceSaved?.activeId ?? null,
-	}));
+		if (loadProject) {
+			projectConversations.update((m) => ({
+				...m,
+				[projectId]: usable(projectSaved),
+			}));
+		}
+		activeConversationId.update((m) => ({
+			...m,
+			[scopeKey]: instanceSaved?.activeId ?? null,
+		}));
+	})();
+	restored.set(scopeKey, loading);
+	if (loadProject) restored.set(projectId, loading);
+	return loading;
 }
 
 /** Opens a conversation in an instance, or closes it with null. */
@@ -423,8 +455,23 @@ export async function openConversation(
 	selectConversation(ref.projectId, ref.instanceId, id);
 
 	// Already running: showing it is all there is to do. Relaunching would throw
-	// away the session the user is in the middle of.
-	if (terminalOf(id)) return;
+	// away the session the user is in the middle of. A launch still awaiting its
+	// PTY counts too: two would spawn the CLI twice on one terminal id.
+	if (terminalOf(id) || launching.has(id)) return;
+	launching.add(id);
+	try {
+		await launch(ref, meta, fresh);
+	} finally {
+		launching.delete(id);
+	}
+}
+
+async function launch(
+	ref: ConversationRef,
+	meta: ConversationMeta,
+	fresh: boolean,
+): Promise<void> {
+	const { id } = meta;
 
 	// Only a launch moves the conversation in the list. Merely showing one -
 	// which is also what restoring the view does on every entry into the Agent
@@ -460,8 +507,10 @@ export async function openConversation(
 		await createTerminal(terminalId, meta.cwd, cols, rows, null, null, argv);
 	} catch (e) {
 		manager.dispose(terminalId);
+		if (meta.runningIn) patch(ref, id, { runningIn: null });
 		throw e;
 	}
+	patch(ref, id, { runningIn: ref.instanceId });
 	conversationHosts.update((m) => ({
 		...m,
 		[id]: { projectId: ref.projectId, instanceId: ref.instanceId },
@@ -619,6 +668,7 @@ export async function startFreshSession(
 export function closeConversation(id: string): void {
 	const terminalId = terminalOf(id);
 	if (!terminalId) return;
+	clearRunningMark(id);
 	awaitingTitle.delete(terminalId);
 	awaitingFirstInput.delete(terminalId);
 	resumeWatchers.get(terminalId)?.();
@@ -633,6 +683,13 @@ export function closeConversation(id: string): void {
 	};
 	conversationTerminals.update(drop);
 	conversationHosts.update(drop);
+}
+
+/** The conversation no longer runs, so the next start must not take it for interrupted. */
+function clearRunningMark(id: string): void {
+	const host = get(conversationHosts)[id];
+	const found = host && findConversation(host.projectId, host.instanceId, id);
+	if (found?.meta.runningIn) patch(found.ref, id, { runningIn: null });
 }
 
 /**
@@ -734,7 +791,7 @@ export function forgetProject(projectId: string): void {
 		}
 	}
 	purgeProjectEntries(indexTimers, projectId, (v) =>
-		clearTimeout(v as ReturnType<typeof setTimeout>),
+		clearTimeout((v as { timer: ReturnType<typeof setTimeout> }).timer),
 	);
 	purgeProjectEntries(restored, projectId);
 	const drop = <T>(m: Record<string, T>) => dropProjectKeys(m, projectId);
@@ -773,7 +830,7 @@ export function removeInstanceConversations(
 
 	const indexTimer = indexTimers.get(scopeKey);
 	if (indexTimer) {
-		clearTimeout(indexTimer);
+		clearTimeout(indexTimer.timer);
 		indexTimers.delete(scopeKey);
 	}
 
@@ -794,5 +851,30 @@ export function removeInstanceConversations(
 manager.observeInput((terminalId, data) => {
 	noteTerminalInput(terminalId, data);
 });
+
+// A CLI that quit on its own keeps its terminal on screen for the exit banner,
+// but it is no longer running: a restart has nothing of it to resume.
+manager.onTerminalExit(({ id: terminalId }) => {
+	for (const [id, tid] of Object.entries(get(conversationTerminals))) {
+		if (tid === terminalId) clearRunningMark(id);
+	}
+});
+
+/** Conversations whose CLI the last close of the app stopped, read once at startup. */
+export const savedInterruptedConversations = writable<
+	InterruptedConversation[]
+>([]);
+
+let interruptedLoaded = false;
+
+export async function loadInterruptedConversations(): Promise<
+	InterruptedConversation[]
+> {
+	if (interruptedLoaded) return get(savedInterruptedConversations);
+	interruptedLoaded = true;
+	const found = (await listInterruptedConversations().catch(() => null)) ?? [];
+	savedInterruptedConversations.set(found);
+	return found;
+}
 
 onProjectRemoved(forgetProject);

@@ -50,6 +50,12 @@ vi.mock("#lib/services/instance-service", async (importOriginal) => ({
 	listInstances: (...a: unknown[]) => listInstances(...a),
 }));
 
+const getConversationIndex = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("#lib/services/conversation-service", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	getConversationIndex: (...a: unknown[]) => getConversationIndex(...a),
+}));
+
 const loadInstances = vi.fn<(...a: unknown[]) => unknown>();
 const activeInstance = writable<unknown>(null);
 vi.mock("#lib/stores/instance", async (importOriginal) => ({
@@ -118,7 +124,9 @@ const { projects, activeProjectId, openTabOrder } = await import(
 	"#lib/stores/project"
 );
 const { activeScreen, activeStep } = await import("#lib/stores/ui");
-const { openRequest } = await import("#lib/stores/agent-status");
+const { openRequest, shownConversation } = await import(
+	"#lib/stores/agent-status"
+);
 const { activeConversationId } = await import("#lib/stores/conversation");
 const { project } = await import("./fixtures");
 const { default: Page } = await import("../routes/+page.svelte");
@@ -169,6 +177,7 @@ beforeEach(() => {
 	getUiState.mockReset().mockResolvedValue(savedState());
 	saveUiState.mockReset().mockResolvedValue(undefined);
 	listInstances.mockReset().mockResolvedValue([]);
+	getConversationIndex.mockReset().mockResolvedValue(null);
 	loadInstances.mockReset().mockResolvedValue(undefined);
 	loadProjects.mockReset().mockResolvedValue(undefined);
 	loadListing.mockReset().mockResolvedValue(undefined);
@@ -208,6 +217,27 @@ describe("application root", () => {
 			expect(get(projects).find((p) => p.id === "p2")?.activeInstanceId).toBe(
 				"i9",
 			);
+		});
+
+		it("never shows the conversation the scope had saved as active", async () => {
+			getConversationIndex.mockImplementation(async (_p, instanceId) =>
+				instanceId ? { conversations: [], activeId: "saved" } : null,
+			);
+			render(Page);
+			await settle();
+			activeInstance.set({ id: "i8", projectId: "p1" });
+			activeStep.set("files");
+			const shown: (string | null)[] = [];
+			const stop = shownConversation.subscribe((id) => shown.push(id));
+			openRequest.set({
+				projectId: "p1",
+				instanceId: "i8",
+				conversationId: "c7",
+			});
+			await settle();
+			stop();
+			expect(shown).not.toContain("saved");
+			expect(shown.at(-1)).toBe("c7");
 		});
 	});
 

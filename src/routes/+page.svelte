@@ -12,8 +12,12 @@
   import { withViewTransition } from '#lib/utils/view-transition';
   import { activeStep, activeScreen, gitLeftTab, terminalActive, commandsActive, envActive, formattingActive, lastCli, referencesPanelOpen, referencesQuery, showWelcomeTour } from '#lib/stores/ui.js';
   import { activeProject, activeProjectId, lastOpenedProjectId, loadProjects, loadListing, projects, openProjects, openProject, closeProjectTab, openTabOrder, reorderTabs } from '#lib/stores/project';
-  import { selectConversation } from '#lib/stores/conversation';
-  import { openRequest } from '#lib/stores/agent-status';
+  import {
+    flushConversationIndexes,
+    restoreConversations,
+    selectConversation,
+  } from '#lib/stores/conversation';
+  import { openRequest, restoreInterruptedConversations } from '#lib/stores/agent-status';
   import { takePendingCliPaths } from '#lib/services/cli-service';
   import { loadInstances, hasInstances, activeInstance } from '#lib/stores/instance';
   import { collapsedTicketProjects } from '#lib/stores/tickets-overview';
@@ -232,6 +236,7 @@
     if (saveTimer) clearTimeout(saveTimer);
     writeUiState();
     flushFileStates();
+    flushConversationIndexes();
   }
 
   /**
@@ -246,13 +251,18 @@
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    await Promise.allSettled([writeUiStateNow(), flushFileStates()]);
+    await Promise.allSettled([
+      writeUiStateNow(),
+      flushFileStates(),
+      flushConversationIndexes(),
+    ]);
   }
 
   let longtaskObs: PerformanceObserver | null = null;
   onDestroy(() => longtaskObs?.disconnect());
 
   onMount(async () => {
+    void restoreInterruptedConversations();
     removeCopyHandler = installCopySelectionHandler();
     removeFieldUndoHandler = installFieldUndoHandler();
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
@@ -422,11 +432,14 @@
 
   /** Lands on one conversation of the Agent step, from wherever the app was. */
   async function handleOpenConversation(detail: { projectId: string; instanceId: string; conversationId: string }) {
+    // Selected before any Agent view can show the scope: the conversation saved as
+    // active there would otherwise be on screen for a moment, and be resumed.
+    await restoreConversations(detail.projectId, detail.instanceId);
+    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
     await handleOpenProject(detail.projectId);
     if ($activeInstance?.id !== detail.instanceId) await activateInstance(detail.projectId, detail.instanceId);
     showTool(null);
     activeStep.set('agent');
-    selectConversation(detail.projectId, detail.instanceId, detail.conversationId);
   }
 
   function handleCloseProject(id: string) {
