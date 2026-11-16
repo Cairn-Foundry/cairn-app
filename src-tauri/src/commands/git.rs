@@ -451,18 +451,6 @@ pub async fn suggest_base_branches(
     reject_option_like(&branch)?;
     let expanded = expand(&project_path);
 
-    let merged: Vec<String> = run(git_cmd(&expanded).args([
-        "log", "--merges", "--pretty=%s", "-n", "50", &branch,
-    ]))
-    .unwrap_or_default()
-    .lines()
-    .filter_map(|line| {
-        let rest = line.strip_prefix("Merge branch '")?;
-        let name = rest.split('\'').next()?;
-        (!name.is_empty() && name != branch).then(|| name.to_string())
-    })
-    .collect();
-
     let remotes: Vec<String> = run(git_cmd(&expanded).args(["remote"]))
         .unwrap_or_default()
         .lines()
@@ -475,6 +463,31 @@ pub async fn suggest_base_branches(
         .find_map(|r| branch.strip_prefix(&format!("{r}/")))
         .unwrap_or(&branch)
         .to_string();
+    // Adopting a remote branch whose local copy exists takes the local one,
+    // whose reflog also knows where it was created.
+    let branch = if local_name != branch
+        && run(git_cmd(&expanded).args([
+            "rev-parse", "--verify", "--quiet", &format!("refs/heads/{local_name}"),
+        ]))
+        .is_ok()
+    {
+        local_name.clone()
+    } else {
+        branch
+    };
+
+    let merged: Vec<String> = run(git_cmd(&expanded).args([
+        "log", "--merges", "--pretty=%s", "-n", "50", &branch,
+    ]))
+    .unwrap_or_default()
+    .lines()
+    .filter_map(|line| {
+        let rest = line.strip_prefix("Merge branch '")?;
+        let name = rest.split('\'').next()?;
+        (!name.is_empty() && name != branch).then(|| name.to_string())
+    })
+    .collect();
+
     let is_own_copy = |candidate: &str| {
         candidate == branch
             || candidate == local_name
@@ -4238,6 +4251,19 @@ diff --git a/two.txt b/two.txt
         let tip = repo.revparse_single("refs/remotes/origin/topic").unwrap().peel_to_commit().unwrap();
         repo.branch("topic", &tip, false).unwrap();
         assert_base(suggest_base_branches(clone.wt(), "topic".into()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_remote_branch_with_a_local_copy_reads_the_local_reflog() {
+        let (_origin, _fork, clone) = topic_with_integration_and_fork();
+
+        let out = suggest_base_branches(clone.wt(), "fork/topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        for excluded in ["topic", "fork/topic", "bbb", "stacked"] {
+            assert!(!names.contains(&excluded), "{excluded} offered in {names:?}");
+        }
+        let first = out.first().expect("a candidate should be found");
+        assert_eq!((first.branch.as_str(), first.reason.as_str()), ("origin/develop", "created"));
     }
 
     #[tokio::test]
