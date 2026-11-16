@@ -7,6 +7,7 @@
 //! Application entry point: builds the Tauri app, registers the managed state
 //! and wires every `#[tauri::command]` exposed to the frontend.
 
+pub mod app_log;
 pub mod child_env;
 pub mod storage;
 pub mod commands;
@@ -130,6 +131,10 @@ pub fn run() {
         .manage(IntegrationState::default())
         .manage(PendingCliPaths::from_args())
         .setup(|app| {
+            // Plugins run before this hook: a launch the single-instance plugin
+            // hands to the running app has already exited here, so it never
+            // writes a start line with no exit after it.
+            app_log::init();
             commands::lsp::spawn_idle_reaper(app.handle().clone());
             if let Err(e) = commands::agent_signals::start(app.handle()) {
                 eprintln!("agent signals unavailable: {e}");
@@ -489,6 +494,7 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                app_log::info("exit");
                 commands::terminal::shutdown(app);
                 commands::lsp::shutdown(app);
                 commands::integrations::shutdown(app);

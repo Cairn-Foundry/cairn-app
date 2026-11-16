@@ -63,6 +63,7 @@ tokio = { version = "1", features = ["time", "sync"] }
 toml_edit = { version = "0.25.13", features = ["parse", "display"] }
 notify = "8"
 sha1 = "0.11"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
