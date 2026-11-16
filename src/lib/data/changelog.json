@@ -298,7 +298,7 @@
 				"kind": "fixed",
 				"text": {
 					"en": "Adopting a worktree prefills the base branch it was created from, as its reflog records it, and no longer suggests a branch that already merged it, a branch stacked on it, or its own copy on another remote.",
-					"fr": "Adopter un worktree préremplit la branche de base dont il a été créé, telle que son reflog l'enregistre, et ne propose plus une branche qui l'a déjà fusionné, une branche empilée dessus, ni sa propre copie sur un autre remote."
+					"fr": "Adopter un worktree préremplit la branche de base à partir de laquelle il a été créé, telle que son reflog l'enregistre, et ne propose plus une branche qui l'a déjà fusionné, une branche empilée dessus, ni sa propre copie sur un autre remote."
 				}
 			}
 		]

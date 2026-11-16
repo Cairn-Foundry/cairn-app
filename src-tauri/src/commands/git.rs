@@ -386,12 +386,18 @@ pub async fn suggest_base_branches(
     .filter(|l| !l.is_empty())
     .collect();
 
-    // A branch already on the default branch has nothing of its own, so a
-    // branch containing it may simply be its base moving on.
-    let has_own_commits = !defaults.is_empty()
-        && defaults.iter().all(|d| {
-            run(git_cmd(&expanded).args(["merge-base", "--is-ancestor", &branch, d])).is_err()
-        });
+    // A branch whose tip is already published, outside its own copies, has
+    // nothing of its own yet: a branch containing it may simply be its base
+    // moving on, whichever branch that base is.
+    let has_own_commits = run(git_cmd(&expanded).args([
+        "for-each-ref", "--format=%(refname:short)", "--contains", &branch, "refs/remotes",
+    ]))
+    .map(|out| {
+        out.lines()
+            .map(str::trim)
+            .all(|r| r.is_empty() || r.ends_with("/HEAD") || is_own_copy(r))
+    })
+    .unwrap_or(false);
 
     let candidates = run(git_cmd(&expanded).args([
         "for-each-ref", "--format=%(refname:short)",
@@ -455,8 +461,10 @@ pub async fn suggest_base_branches(
         a.rank
             .cmp(&b.rank)
             .then(a.suggestion.distance.cmp(&b.suggestion.distance))
-            .then(a.ahead.cmp(&b.ahead))
             .then(b.is_default.cmp(&a.is_default))
+            // At equal distance every candidate shares the fork point; the one
+            // that moved on most is the line others are cut from, not a sibling.
+            .then(b.ahead.cmp(&a.ahead))
     });
     Ok(out.into_iter().take(5).map(|r| r.suggestion).collect())
 }
@@ -4052,6 +4060,67 @@ diff --git a/two.txt b/two.txt
         let out = suggest_base_branches(repo.wt(), "feature".into()).await.unwrap();
         assert!(out.iter().all(|s| s.reason != "created"));
         assert_eq!(out.first().map(|s| s.branch.as_str()), Some("master"));
+    }
+
+    /// Work based on `develop` while the remote's default branch is `master`,
+    /// as in a git-flow repository.
+    fn develop_based_clone() -> (TempRepo, TempRepo) {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["symbolic-ref", "HEAD", "refs/heads/master"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "master"]);
+        clone.git(&["checkout", "-q", "-b", "develop", "origin/develop"]);
+        (origin, clone)
+    }
+
+    fn advance_develop(clone: &TempRepo, commits: usize) {
+        clone.git(&["checkout", "-q", "develop"]);
+        for i in 0..commits {
+            clone.commit(&format!("more{i}.txt"), "more\n", "more develop work");
+        }
+        clone.git(&["push", "-q", "origin", "develop"]);
+        clone.git(&["fetch", "-q", "origin"]);
+    }
+
+    #[tokio::test]
+    async fn a_fresh_branch_keeps_a_base_that_moved_on_even_off_the_default_branch() {
+        let (_origin, clone) = develop_based_clone();
+        clone.git(&["checkout", "-q", "-b", "fresh"]);
+        advance_develop(&clone, 1);
+
+        let out = suggest_base_branches(clone.wt(), "fresh".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert!(
+            first.branch == "develop" || first.branch == "origin/develop",
+            "got {:?}",
+            out.iter().map(|s| s.branch.as_str()).collect::<Vec<_>>(),
+        );
+    }
+
+    #[tokio::test]
+    async fn an_active_base_outranks_a_sibling_cut_from_the_same_point() {
+        let (_origin, clone) = develop_based_clone();
+        clone.git(&["checkout", "-q", "-b", "feat-b"]);
+        clone.commit("b.txt", "b\n", "sibling work");
+        clone.git(&["checkout", "-q", "develop"]);
+        clone.git(&["checkout", "-q", "-b", "feat-a"]);
+        clone.commit("a1.txt", "a1\n", "work");
+        clone.commit("a2.txt", "a2\n", "more work");
+        advance_develop(&clone, 3);
+
+        let out = suggest_base_branches(clone.wt(), "feat-a".into()).await.unwrap();
+        let first = out.first().expect("a candidate should be found");
+        assert!(
+            first.branch == "develop" || first.branch == "origin/develop",
+            "got {:?}",
+            out.iter().map(|s| s.branch.as_str()).collect::<Vec<_>>(),
+        );
     }
 
     #[tokio::test]
