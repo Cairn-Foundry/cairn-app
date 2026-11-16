@@ -307,11 +307,13 @@ export async function getStagedTotals(
 	return invoke("git_staged_totals", { worktreePath });
 }
 
-/** Working tree against the index, untracked files included. */
+/** The modified paths against the index, plus the untracked ones counted whole. */
 export async function getUnstagedTotals(
 	worktreePath: string,
+	modified: string[],
+	untracked: string[],
 ): Promise<DiffTotals> {
-	return invoke("git_unstaged_totals", { worktreePath });
+	return invoke("git_unstaged_totals", { worktreePath, modified, untracked });
 }
 
 /** Index against HEAD: what the next commit would contain. */

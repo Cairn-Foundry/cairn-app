@@ -255,15 +255,15 @@
 			{
 				"kind": "added",
 				"text": {
-					"en": "The Changes tab of the Git view shows the lines added and removed across the whole working tree, untracked files included, with the number of files, beside the search field, as the staged column already did.",
-					"fr": "L'onglet Changements de la vue Git affiche les lignes ajoutées et supprimées sur tout l'arbre de travail, fichiers non suivis compris, avec le nombre de fichiers, à côté du champ de recherche, comme la colonne indexée le faisait déjà."
+					"en": "The Changes tab of the Git view shows the lines added and removed across the whole working tree, untracked files included, with the number of files, beside the search field, as the staged column already did. The counts follow every edit, even to a file that was already modified.",
+					"fr": "L'onglet Changements de la vue Git affiche les lignes ajoutées et supprimées sur tout l'arbre de travail, fichiers non suivis compris, avec le nombre de fichiers, à côté du champ de recherche, comme la colonne indexée le faisait déjà. Les décomptes suivent chaque modification, même sur un fichier déjà modifié."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The line counts of the Git view no longer blink: the counts on screen stay up while the next ones are read, instead of giving way to a placeholder on every save.",
-					"fr": "Les décomptes de lignes de la vue Git ne clignotent plus : les chiffres affichés restent en place pendant la lecture des suivants, au lieu de céder la place à un indicateur d'attente à chaque enregistrement."
+					"en": "The line counts of the Git view no longer blink: the counts on screen stay up while the next ones are read, instead of giving way to a placeholder whenever the list of changed files moved.",
+					"fr": "Les décomptes de lignes de la vue Git ne clignotent plus : les chiffres affichés restent en place pendant la lecture des suivants, au lieu de céder la place à un indicateur d'attente dès que la liste des fichiers modifiés changeait."
 				}
 			}
 		]

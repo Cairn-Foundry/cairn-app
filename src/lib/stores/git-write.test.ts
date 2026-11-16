@@ -61,6 +61,7 @@ const service = vi.hoisted(() => ({
 	unstageFiles: vi.fn(),
 	discardFiles: vi.fn(),
 	getStagedTotals: vi.fn(),
+	getUnstagedTotals: vi.fn(),
 	getStashList: vi.fn(),
 	readExclude: vi.fn(),
 	writeExclude: vi.fn(),
@@ -220,6 +221,7 @@ beforeEach(async () => {
 	service.getGraphStashes.mockResolvedValue([]);
 	service.getFileDiffs.mockResolvedValue({ unstaged: [], staged: [] });
 	service.getStagedTotals.mockResolvedValue({ added: 0, removed: 0 });
+	service.getUnstagedTotals.mockResolvedValue({ added: 0, removed: 0 });
 	service.getGraph.mockResolvedValue([]);
 	service.commit.mockResolvedValue("abc1234");
 	service.amendCommit.mockResolvedValue("abc1234");
@@ -2016,6 +2018,73 @@ describe("refreshStatus in flight", () => {
 			expect(get(git).stagedTotals).toEqual({ added: 0, removed: 0 }),
 		);
 		expect(service.getStagedTotals).not.toHaveBeenCalled();
+	});
+
+	it("counts the working tree again on a poll that leaves the status as it was", async () => {
+		service.getSnapshot
+			.mockResolvedValueOnce(snapshotOf({}, { status: changed([], ["a.ts"]) }))
+			.mockResolvedValue(null);
+		service.getUnstagedTotals
+			.mockResolvedValueOnce({ added: 1, removed: 0 })
+			.mockResolvedValue({ added: 5, removed: 2 });
+		setDiffsWanted(true);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(get(git).unstagedTotals).toEqual({ added: 1, removed: 0 }),
+		);
+		await refreshStatus(true);
+		await vi.waitFor(() =>
+			expect(get(git).unstagedTotals).toEqual({ added: 5, removed: 2 }),
+		);
+		expect(service.getStagedTotals).not.toHaveBeenCalled();
+	});
+
+	it("sends the untracked paths apart from the modified ones", async () => {
+		service.getSnapshot.mockResolvedValue(
+			snapshotOf(
+				{},
+				{
+					status: {
+						isGitRepo: true,
+						status: { "a.ts": "modified", "n.ts": "untracked" },
+						changedPaths: { staged: [], unstaged: ["a.ts", "n.ts"] },
+					},
+				},
+			),
+		);
+		setDiffsWanted(true);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(service.getUnstagedTotals).toHaveBeenLastCalledWith(
+				WORKTREE,
+				["a.ts"],
+				["n.ts"],
+			),
+		);
+	});
+
+	it("does not notify anyone when a poll counts the same working tree totals", async () => {
+		service.getSnapshot
+			.mockResolvedValueOnce(snapshotOf({}, { status: changed([], ["a.ts"]) }))
+			.mockResolvedValue(null);
+		service.getUnstagedTotals.mockResolvedValue({ added: 3, removed: 1 });
+		setDiffsWanted(true);
+		await refreshStatus();
+		await vi.waitFor(() =>
+			expect(get(git).unstagedTotals).toEqual({ added: 3, removed: 1 }),
+		);
+		let notifications = 0;
+		const unsubscribe = git.subscribe(() => {
+			notifications += 1;
+		});
+		notifications = 0;
+		await refreshStatus(true);
+		await vi.waitFor(() =>
+			expect(service.getUnstagedTotals).toHaveBeenCalledTimes(2),
+		);
+		await new Promise((done) => setTimeout(done, 0));
+		unsubscribe();
+		expect(notifications).toBe(0);
 	});
 
 	it("drops the diffs and the totals when the git view closes", async () => {
