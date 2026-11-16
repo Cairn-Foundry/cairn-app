@@ -343,6 +343,12 @@ describe("conversations the last close interrupted", () => {
 		expect(get(interruptedConversations)[0]?.instanceId).toBe("i");
 	});
 
+	it("drops an instance conversation whose instance is gone", () => {
+		savedInterruptedConversations.set([saved("c9", "removed", "removed")]);
+
+		expect(get(interruptedConversations)).toEqual([]);
+	});
+
 	it("ignores the conversations of a project no longer registered", () => {
 		savedInterruptedConversations.set([
 			{ ...saved("c9", "i"), projectId: "gone" },
