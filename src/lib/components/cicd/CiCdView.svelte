@@ -207,7 +207,12 @@
   }
 
   function manualJobsOf(pipeline: Pipeline): PipelineJob[] {
-    return pipeline.stages.flatMap((s) => s.jobs).filter((j) => j.isManual);
+    return pipeline.stages.flatMap((s) => s.jobs).filter((j) => j.isManual || j.declaredManual);
+  }
+
+  function manualJobIcon(job: PipelineJob): 'play' | 'refresh' | null {
+    if (job.isManual) return 'play';
+    return job.canRetry ? 'refresh' : null;
   }
 
   let playRequest: { pipeline: Pipeline; job: PipelineJob } | null = null;
@@ -216,7 +221,8 @@
     if (!playRequest) return;
     const { pipeline, job } = playRequest;
     playRequest = null;
-    void runJobAction(job.id, () => playJob(projectId, instanceId, pipeline.id, job.id));
+    void runJobAction(job.id, () =>
+      job.isManual ? playJob(projectId, instanceId, pipeline.id, job.id) : retryJob(projectId, instanceId, pipeline.id, job.id));
   }
 
   function toggleJobLog(pipeline: Pipeline, job: PipelineJob) {
@@ -382,6 +388,10 @@
   }
   .manual-label { font-size: 11px; color: var(--fg-3); margin-right: 4px; }
   .manual-jobs .mono { font-family: var(--font-mono); }
+  .manual-job .job-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-3); }
+  .manual-job.passed .job-dot { background: var(--success); }
+  .manual-job.failed .job-dot { background: var(--danger); }
+  .manual-job.running .job-dot { background: var(--accent); }
   .ci-scope .filter-chip { display: inline-flex; align-items: center; gap: 4px; }
   .ref-tag {
     display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;
@@ -510,9 +520,16 @@
             <div class="manual-jobs" role="group" aria-label={t('cicd.manualJobs') as string}>
               <span class="manual-label">{t('cicd.manualJobs')}</span>
               {#each manualJobs as job (job.id)}
-                <button class="btn" disabled={pendingJobIds.has(job.id)} on:click={() => (playRequest = { pipeline, job })}>
-                  {#if pendingJobIds.has(job.id)}<Spinner size={12}/>{:else}<Icon name="play" size={12}/>{/if}
+                {@const icon = manualJobIcon(job)}
+                <button
+                  class="btn manual-job {pillClass(job.status)}"
+                  disabled={pendingJobIds.has(job.id) || !icon}
+                  title={icon === 'refresh' ? `${t('cicd.retry')} · ${statusLabel(job.status)}` : statusLabel(job.status)}
+                  on:click={() => (playRequest = { pipeline, job })}
+                >
+                  {#if pendingJobIds.has(job.id) || !icon}<Spinner size={12}/>{:else}<Icon name={icon} size={12}/>{/if}
                   <span class="mono">{job.name}</span>
+                  {#if !job.isManual}<span class="job-dot"></span>{/if}
                 </button>
               {/each}
             </div>
@@ -548,7 +565,9 @@
                           {/if}
                           {#if job.canRetry}
                             <button class="job-action" title={t('cicd.retry') as string} aria-label={t('cicd.retry') as string}
-                              on:click|stopPropagation={() => runJobAction(job.id, () => retryJob(projectId, instanceId, pipeline.id, job.id))}>
+                              on:click|stopPropagation={() => job.declaredManual
+                                ? (playRequest = { pipeline, job })
+                                : runJobAction(job.id, () => retryJob(projectId, instanceId, pipeline.id, job.id))}>
                               <Icon name="refresh" size={10}/>
                             </button>
                           {/if}

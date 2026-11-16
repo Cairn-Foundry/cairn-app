@@ -445,6 +445,9 @@ pub struct PipelineJob {
     pub can_retry: bool,
     pub can_cancel: bool,
     pub is_manual: bool,
+    /// Declared `when: manual`, kept once the job has run, so it can be run again.
+    #[serde(default)]
+    pub declared_manual: bool,
     pub url: String,
 }
 

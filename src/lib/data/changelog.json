@@ -3,15 +3,15 @@
 		"version": "1.2.1",
 		"date": "",
 		"summary": {
-			"en": "The manual jobs of a pipeline, such as a deployment, run from buttons after a confirmation.",
-			"fr": "Les jobs manuels d'un pipeline, comme un déploiement, se lancent depuis des boutons après une confirmation."
+			"en": "The manual jobs of a pipeline, such as a deployment, run from buttons after a confirmation, and on GitLab can be run again once they have run.",
+			"fr": "Les jobs manuels d'un pipeline, comme un déploiement, se lancent depuis des boutons après une confirmation, et sur GitLab se relancent une fois exécutés."
 		},
 		"changes": [
 			{
 				"kind": "added",
 				"text": {
-					"en": "The manual jobs of the open pipeline are listed as buttons above its stages, and running one, from there or from its stage, asks for confirmation first.",
-					"fr": "Les jobs manuels du pipeline ouvert sont listés sous forme de boutons au-dessus de ses étapes, et en lancer un, depuis là ou depuis son étape, demande d'abord une confirmation."
+					"en": "The manual jobs of the open pipeline are listed as buttons above its stages, and running one, from there or from its stage, asks for confirmation first. On GitLab a manual job that has already run stays in that list and can be run again, for instance to redeploy after changing a CI/CD variable.",
+					"fr": "Les jobs manuels du pipeline ouvert sont listés sous forme de boutons au-dessus de ses étapes, et en lancer un, depuis là ou depuis son étape, demande d'abord une confirmation. Sur GitLab, un job manuel déjà exécuté reste dans cette liste et peut être relancé, par exemple pour redéployer après avoir changé une variable CI/CD."
 				}
 			}
 		]

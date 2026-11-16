@@ -276,6 +276,7 @@ export interface PipelineJob {
 	canRetry: boolean;
 	canCancel: boolean;
 	isManual: boolean;
+	declaredManual: boolean;
 	url: string;
 }
 

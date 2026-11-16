@@ -81,6 +81,7 @@ function job(overrides: Partial<PipelineJob> = {}): PipelineJob {
 		canRetry: false,
 		canCancel: false,
 		isManual: false,
+		declaredManual: false,
 		url: "https://forge/job/1",
 		...overrides,
 	};
@@ -541,6 +542,52 @@ describe("CiCdView", () => {
 			await userEvent.click(buttonBy(/^cancel$|^annuler$/i));
 			expect(document.querySelector(".play-modal")).toBeNull();
 			expect(playJob).not.toHaveBeenCalled();
+		});
+
+		const withPlayedManualJob = () =>
+			setState({
+				pipelines: [
+					pipeline({
+						stages: [
+							{
+								name: "deploy",
+								status: "success",
+								jobs: [
+									job({
+										name: "deploy-prod",
+										status: "success",
+										canRetry: true,
+										declaredManual: true,
+									}),
+								],
+							},
+						],
+					}),
+				],
+			});
+
+		it("keeps a played manual job in the bar and runs it again once confirmed", async () => {
+			withPlayedManualJob();
+			mount();
+			const bar = document.querySelector(".manual-jobs") as HTMLElement;
+			expect(bar.textContent).toContain("deploy-prod");
+			await userEvent.click(bar.querySelector("button") as HTMLButtonElement);
+			expect(retryJob).not.toHaveBeenCalled();
+			expect(document.querySelector(".play-modal h3")?.textContent).toMatch(
+				/again|relancer/i,
+			);
+			await userEvent.click(confirmButton());
+			expect(retryJob).toHaveBeenCalledWith("p1", "i1", "p-1", "j1");
+			expect(playJob).not.toHaveBeenCalled();
+		});
+
+		it("asks before retrying a played manual job from its stage", async () => {
+			withPlayedManualJob();
+			mount();
+			await userEvent.click(actionIn(document, /^retry$/i));
+			expect(retryJob).not.toHaveBeenCalled();
+			await userEvent.click(confirmButton());
+			expect(retryJob).toHaveBeenCalledWith("p1", "i1", "p-1", "j1");
 		});
 
 		it("shows no manual job bar without a manual job", () => {

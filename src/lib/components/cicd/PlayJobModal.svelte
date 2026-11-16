@@ -13,6 +13,8 @@
   export let job: PipelineJob;
 
   const dispatch = createEventDispatcher<{ close: void; confirm: void }>();
+
+  $: rerun = !job.isManual;
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -28,14 +30,14 @@
     <div class="modal-head">
       <div>
         <div class="step-count">{t('cicd.playHeading')}</div>
-        <h3>{(t('cicd.playTitle') as (job: string) => string)(job.name)}</h3>
+        <h3>{(t(rerun ? 'cicd.rerunTitle' : 'cicd.playTitle') as (job: string) => string)(job.name)}</h3>
       </div>
       <button class="icon-btn close" on:click={() => dispatch('close')} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
     <div class="modal-body">
-      <p class="play-desc">{t('cicd.playDescription')}</p>
+      <p class="play-desc">{t(rerun ? 'cicd.rerunDescription' : 'cicd.playDescription')}</p>
       <dl class="facts">
         <div>
           <dt>{t('cicd.playPipeline')}</dt>
@@ -45,6 +47,12 @@
           <dt>{t('cicd.playRef')}</dt>
           <dd class="mono selectable">{pipeline.ref}</dd>
         </div>
+        {#if rerun}
+          <div>
+            <dt>{t('cicd.rerunLastRun')}</dt>
+            <dd>{t(`cicd.status.${job.status}`)}</dd>
+          </div>
+        {/if}
         <div class="wide">
           <dt>{t('cicd.playCommit')}</dt>
           <dd class="selectable"><span class="mono">{pipeline.sha.slice(0, 7)}</span> {pipeline.title}</dd>
@@ -55,7 +63,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" on:click={() => dispatch('close')}>{t('common.cancel')}</button>
       <button class="btn primary" on:click={() => dispatch('confirm')}>
-        <Icon name="play" size={14}/> {t('cicd.play')}
+        <Icon name={rerun ? 'refresh' : 'play'} size={14}/> {t(rerun ? 'cicd.retry' : 'cicd.play')}
       </button>
     </div>
   </div>

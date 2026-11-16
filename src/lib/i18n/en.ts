@@ -1291,6 +1291,10 @@ export const en = {
 		playPipeline: "Pipeline",
 		playRef: "Ref",
 		playCommit: "Commit",
+		rerunTitle: (job: string) => `Run ${job} again?`,
+		rerunDescription:
+			"A new run of the job starts on the forge right away, on this pipeline's commit, with the project's CI/CD variables as they are now.",
+		rerunLastRun: "Last run",
 		log: "Log",
 		jumpToFailure: "Jump to failure",
 		ago: (ago: string) => `${ago} ago`,

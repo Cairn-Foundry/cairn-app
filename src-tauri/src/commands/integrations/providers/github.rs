@@ -384,6 +384,7 @@ pub fn map_job(v: &Value) -> PipelineJob {
         can_retry: raw_status == "completed" && status != PipelineStatus::Skipped,
         can_cancel: matches!(status, PipelineStatus::Pending | PipelineStatus::Running),
         is_manual: false,
+        declared_manual: false,
         url: str_of(v, "html_url"),
     }
 }
