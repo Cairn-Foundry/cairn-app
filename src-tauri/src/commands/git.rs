@@ -311,8 +311,11 @@ struct RankedBase {
     suggestion: BaseSuggestion,
     rank: u8,
     ahead: usize,
+    tip: String,
     is_default: bool,
     is_demoted: bool,
+    /// Layers of other candidates at the same distance built on top of it.
+    layers_above: usize,
 }
 
 /// What to do with a candidate that contains the branch's tip and moved past it.
@@ -381,6 +384,34 @@ fn created_from_head(path: &str, branch: &str, commit: &str) -> Option<String> {
                 .map(|from| strip_ref_prefix(from.trim()).to_string())
         })
         .filter(|from| !from.is_empty() && from != branch)
+}
+
+/// How many layers of other candidates of the same rank and distance are
+/// built on each candidate: `merge-base --independent` gives the tips no other
+/// tip reaches, which are peeled off until one tip is left.
+fn mark_layers_above(path: &str, bases: &mut [RankedBase]) {
+    let mut groups: HashMap<(bool, u8, usize), Vec<usize>> = HashMap::new();
+    for (i, b) in bases.iter().enumerate() {
+        groups.entry((b.is_demoted, b.rank, b.suggestion.distance)).or_default().push(i);
+    }
+    for members in groups.values() {
+        let mut layers: HashMap<String, usize> = HashMap::new();
+        let mut remaining: HashSet<String> = members.iter().map(|&i| bases[i].tip.clone()).collect();
+        while remaining.len() > 1 {
+            let Ok(out) = run(git_cmd(path).args(["merge-base", "--independent"]).args(&remaining))
+            else {
+                break;
+            };
+            let independent: HashSet<&str> = out.lines().map(str::trim).collect();
+            remaining.retain(|tip| !independent.contains(tip.as_str()));
+            for tip in &remaining {
+                *layers.entry(tip.clone()).or_default() += 1;
+            }
+        }
+        for &i in members {
+            bases[i].layers_above = layers.get(&bases[i].tip).copied().unwrap_or(0);
+        }
+    }
 }
 
 /// Candidate bases for `branch`, best first.
@@ -480,14 +511,14 @@ pub async fn suggest_base_branches(
     };
 
     let candidates = run(git_cmd(&expanded).args([
-        "for-each-ref", "--format=%(refname:short)",
+        "for-each-ref", "--format=%(objectname) %(refname:short)",
         "refs/heads", "refs/remotes",
     ]))
     .unwrap_or_default();
 
     let mut out: Vec<RankedBase> = Vec::new();
-    for candidate in candidates.lines() {
-        let candidate = candidate.trim();
+    for line in candidates.lines() {
+        let Some((tip, candidate)) = line.trim().split_once(' ') else { continue };
         // A bare remote name (`origin`) is the remote's own HEAD alias.
         if candidate.is_empty()
             || candidate.ends_with("/HEAD")
@@ -534,10 +565,13 @@ pub async fn suggest_base_branches(
             },
             rank,
             ahead,
+            tip: tip.to_string(),
             is_default: defaults.iter().any(|d| d == candidate),
             is_demoted: is_descendant && matches!(descendants, DescendantPolicy::Demote),
+            layers_above: 0,
         });
     }
+    mark_layers_above(&expanded, &mut out);
 
     out.sort_by(|a, b| {
         a.is_demoted
@@ -545,8 +579,11 @@ pub async fn suggest_base_branches(
             .then(a.rank.cmp(&b.rank))
             .then(a.suggestion.distance.cmp(&b.suggestion.distance))
             .then(b.is_default.cmp(&a.is_default))
-            // At equal distance every candidate shares the fork point; the one
-            // that moved on most is the line others are cut from, not a sibling.
+            // At equal distance every candidate shares the fork point. A sibling
+            // cut later, or an integration branch, carries the base's commits
+            // on top of its own, so the line others are built on comes first;
+            // otherwise the one that moved on most, not a sibling cut beside it.
+            .then(b.layers_above.cmp(&a.layers_above))
             .then(b.ahead.cmp(&a.ahead))
     });
     Ok(out.into_iter().take(5).map(|r| r.suggestion).collect())
@@ -4345,6 +4382,36 @@ diff --git a/two.txt b/two.txt
             "got {:?}",
             out.iter().map(|s| s.branch.as_str()).collect::<Vec<_>>(),
         );
+    }
+
+    /// A git-flow repository where the branch was checked out from its remote
+    /// copy, so its reflog names no base, and a sibling and an integration
+    /// branch were cut from `develop` after it.
+    #[tokio::test]
+    async fn a_sibling_cut_later_from_the_base_does_not_outrank_it() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["checkout", "-q", "-b", "topic"]);
+        origin.commit("t.txt", "topic\n", "topic work");
+        origin.git(&["checkout", "-q", "develop"]);
+        origin.commit("e.txt", "more\n", "more develop work");
+        origin.git(&["checkout", "-q", "-b", "other"]);
+        origin.commit("o.txt", "other\n", "other work");
+        origin.git(&["checkout", "-q", "-b", "integration", "develop"]);
+        origin.git(&["merge", "-q", "--no-ff", "-m", "integrate", "other"]);
+        origin.git(&["checkout", "-q", "master"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "master"]);
+        clone.git(&["checkout", "-q", "topic"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
     }
 
     #[tokio::test]
