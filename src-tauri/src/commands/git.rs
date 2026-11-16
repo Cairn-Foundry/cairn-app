@@ -312,6 +312,18 @@ struct RankedBase {
     rank: u8,
     ahead: usize,
     is_default: bool,
+    is_demoted: bool,
+}
+
+/// What to do with a candidate that contains the branch's tip and moved past it.
+enum DescendantPolicy {
+    /// The branch has nothing of its own: its base may simply have moved on.
+    Keep,
+    /// The branch has commits of its own, so a branch containing it merged it
+    /// or is stacked on it.
+    Drop,
+    /// Git cannot tell a base that moved on from a branch stacked on this one.
+    Demote,
 }
 
 /// Where a branch was created, as its oldest reflog entry records it
@@ -428,33 +440,43 @@ pub async fn suggest_base_branches(
     .filter(|l| !l.is_empty())
     .collect();
 
-    // A branch with nothing of its own yet may be contained by its base moving
-    // on, so only then is a branch containing it kept. The reflog says it
-    // outright. A branch checked out from its own remote copy was created at
-    // that copy's tip, so its reflog cannot tell what it carries; without one,
-    // a tip on a remote's default branch has nothing of its own. Any other
-    // remote branch containing it may be stacked on it, so it only counts when
-    // no remote names a default branch.
-    let has_own_commits = match creation
+    // The reflog tells outright whether the branch carries commits of its own.
+    // A branch checked out from its own remote copy was created at that copy's
+    // tip, so its reflog cannot tell; without one, a tip on a remote's default
+    // branch has nothing of its own, and a tip on no remote branch has. Another
+    // remote branch containing it is either its base moving on or a branch
+    // stacked on it, which git cannot tell apart: such candidates are kept but
+    // ranked last. Without any remote default branch they are simply kept.
+    let descendants = match creation
         .as_ref()
         .filter(|c| !c.from.as_deref().is_some_and(|from| is_own_copy(from)))
     {
-        Some(c) => run(git_cmd(&expanded).args([
-            "rev-list", "--count", &format!("{}..{branch}", c.commit),
-        ]))
-        .is_ok_and(|n| n.trim() != "0"),
-        None => run(git_cmd(&expanded).args([
+        Some(c) => {
+            let has_own_commits = run(git_cmd(&expanded).args([
+                "rev-list", "--count", &format!("{}..{branch}", c.commit),
+            ]))
+            .is_ok_and(|n| n.trim() != "0");
+            if has_own_commits { DescendantPolicy::Drop } else { DescendantPolicy::Keep }
+        }
+        None => match run(git_cmd(&expanded).args([
             "for-each-ref", "--format=%(refname:short)", "--contains", &branch, "refs/remotes",
-        ]))
-        .map(|out| {
-            out.lines().map(str::trim).all(|r| {
-                r.is_empty()
-                    || r.ends_with("/HEAD")
-                    || is_own_copy(r)
-                    || !defaults.is_empty() && !defaults.iter().any(|d| d == r)
-            })
-        })
-        .unwrap_or(false),
+        ])) {
+            Ok(out) => {
+                let containing: Vec<&str> = out
+                    .lines()
+                    .map(str::trim)
+                    .filter(|r| !r.is_empty() && !r.ends_with("/HEAD") && !is_own_copy(r))
+                    .collect();
+                if containing.is_empty() {
+                    DescendantPolicy::Drop
+                } else if defaults.is_empty() || containing.iter().any(|r| defaults.iter().any(|d| d == r)) {
+                    DescendantPolicy::Keep
+                } else {
+                    DescendantPolicy::Demote
+                }
+            }
+            Err(_) => DescendantPolicy::Keep,
+        },
     };
 
     let candidates = run(git_cmd(&expanded).args([
@@ -492,7 +514,8 @@ pub async fn suggest_base_branches(
         };
         let is_created = created_from.as_deref() == Some(candidate);
         // A branch that merged this one, or is stacked on it, is a descendant.
-        if has_own_commits && distance == 0 && ahead > 0 && !is_created {
+        let is_descendant = distance == 0 && ahead > 0 && !is_created;
+        if is_descendant && matches!(descendants, DescendantPolicy::Drop) {
             continue;
         }
         let short = candidate.trim_start_matches("origin/");
@@ -512,12 +535,14 @@ pub async fn suggest_base_branches(
             rank,
             ahead,
             is_default: defaults.iter().any(|d| d == candidate),
+            is_demoted: is_descendant && matches!(descendants, DescendantPolicy::Demote),
         });
     }
 
     out.sort_by(|a, b| {
-        a.rank
-            .cmp(&b.rank)
+        a.is_demoted
+            .cmp(&b.is_demoted)
+            .then(a.rank.cmp(&b.rank))
             .then(a.suggestion.distance.cmp(&b.suggestion.distance))
             .then(b.is_default.cmp(&a.is_default))
             // At equal distance every candidate shares the fork point; the one
@@ -4125,7 +4150,7 @@ diff --git a/two.txt b/two.txt
     }
 
     #[tokio::test]
-    async fn a_branch_checked_out_from_its_remote_copy_drops_a_pushed_stacked_branch() {
+    async fn a_branch_checked_out_from_its_remote_copy_ranks_a_pushed_stacked_branch_last() {
         let origin = TempRepo::new();
         origin.commit("a.txt", "one\n", "init");
         origin.git(&["checkout", "-q", "-b", "develop"]);
@@ -4144,8 +4169,32 @@ diff --git a/two.txt b/two.txt
 
         let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
         let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
-        assert!(!names.contains(&"origin/stacked"), "origin/stacked offered in {names:?}");
         assert_eq!(names.first(), Some(&"origin/develop"), "got {names:?}");
+        assert_eq!(names.last(), Some(&"origin/stacked"), "got {names:?}");
+    }
+
+    /// A branch cut from `develop` on the forge, with no commit yet, checked
+    /// out from its remote copy once `develop` moved on, while the remote's
+    /// default branch is `master`.
+    #[tokio::test]
+    async fn a_fresh_branch_checked_out_from_its_remote_copy_keeps_a_base_off_the_default_branch() {
+        let origin = TempRepo::new();
+        origin.commit("a.txt", "one\n", "init");
+        origin.git(&["checkout", "-q", "-b", "develop"]);
+        origin.commit("d.txt", "dev\n", "develop work");
+        origin.git(&["branch", "topic"]);
+        origin.commit("e.txt", "more\n", "more develop work");
+        origin.git(&["checkout", "-q", "master"]);
+
+        let clone = TempRepo::new();
+        clone.git(&["remote", "add", "origin", &origin.wt()]);
+        clone.git(&["fetch", "-q", "origin"]);
+        clone.git(&["remote", "set-head", "origin", "master"]);
+        clone.git(&["checkout", "-q", "topic"]);
+
+        let out = suggest_base_branches(clone.wt(), "topic".into()).await.unwrap();
+        let names: Vec<&str> = out.iter().map(|s| s.branch.as_str()).collect();
+        assert!(names.contains(&"origin/develop"), "origin/develop missing from {names:?}");
     }
 
     #[tokio::test]
