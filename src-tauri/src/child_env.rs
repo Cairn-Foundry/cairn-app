@@ -48,7 +48,8 @@ const GTK_HOOK: [&str; 2] = ["GDK_BACKEND", "GTK_THEME"];
 
 /// Set by a running Claude Code for the processes it spawns. Configuration the
 /// user exports (`CLAUDE_CODE_USE_BEDROCK`...) is not on the list and stays.
-const PARENT_SESSION: [&str; 9] = [
+const PARENT_SESSION: [&str; 11] = [
+    "AI_AGENT",
     "CLAUDECODE",
     "CLAUDE_CODE_CHILD_SESSION",
     "CLAUDE_CODE_SESSION_ID",
@@ -57,6 +58,7 @@ const PARENT_SESSION: [&str; 9] = [
     "CLAUDE_CODE_EXECPATH",
     "CLAUDE_CODE_MESSAGING_SOCKET",
     "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_EFFORT",
     "CLAUDE_PID",
 ];
 
@@ -312,6 +314,7 @@ mod tests {
     #[test]
     fn unsets_the_markers_of_a_claude_code_session_the_app_was_started_from() {
         let changes = parent_session([
+            "AI_AGENT",
             "CLAUDECODE",
             "CLAUDE_CODE_CHILD_SESSION",
             "CLAUDE_CODE_SESSION_ID",
@@ -321,6 +324,7 @@ mod tests {
         assert_eq!(
             changes,
             vec![
+                ("AI_AGENT".to_string(), None),
                 ("CLAUDECODE".to_string(), None),
                 ("CLAUDE_CODE_CHILD_SESSION".to_string(), None),
                 ("CLAUDE_CODE_SESSION_ID".to_string(), None),
