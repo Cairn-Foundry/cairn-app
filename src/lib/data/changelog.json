@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The git markers in the editor gutter land on the same lines as git reports when an added or removed block sits next to identical lines.",
+					"fr": "Les marqueurs git de la gouttière de l'éditeur tombent sur les mêmes lignes que celles indiquées par git quand un bloc ajouté ou supprimé jouxte des lignes identiques."
+				}
+			},
+			{
 				"kind": "added",
 				"text": {
 					"en": "Conversations that were running when Cairn closed come back: the home Conversations section lists them, and opening one, or coming back to the one that was on screen, resumes its CLI where it stopped.",

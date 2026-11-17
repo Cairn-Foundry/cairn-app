@@ -373,3 +373,58 @@ describe("changeIndexAtLine", () => {
 		expect(changeIndexAtLine(EditorState.create({ doc: "a" }), 1)).toBeNull();
 	});
 });
+
+describe("hunk placement", () => {
+	const base = "f {\n  x\n}\n\ng";
+	const doc = "f {\n  x\n}\n\nf {\n  x\n}\n\ng";
+
+	it("slides a duplicated block to start after the blank line, as git does", () => {
+		const view = mount(doc);
+		view.dispatch({ effects: setDiffBase.of(base) });
+		expect(kinds(view)).toEqual([
+			[5, "added"],
+			[6, "added"],
+			[7, "added"],
+			[8, "added"],
+		]);
+	});
+
+	it("keeps revert exact on a slid chunk", () => {
+		const view = mount(doc);
+		view.dispatch({ effects: setDiffBase.of(base) });
+		revertChunkAtLine(view, 5);
+		expect(view.state.doc.toString()).toBe(base);
+	});
+});
+
+describe("hunk placement at the end of the document", () => {
+	it("never slides past the last line of the baseline", () => {
+		const base = "a\nb\n\nexport x\nexport y\n";
+		const doc = `${base}\nexport x\nexport y\n`;
+		const view = mount(doc);
+		expect(() =>
+			view.dispatch({ effects: setDiffBase.of(base) }),
+		).not.toThrow();
+		expect(kinds(view).length).toBeGreaterThan(0);
+	});
+
+	it("handles a trailing newline added at the end", () => {
+		const view = mount("a\nb\nb\n");
+		expect(() =>
+			view.dispatch({ effects: setDiffBase.of("a\nb\n") }),
+		).not.toThrow();
+	});
+});
+
+describe("duplicated trailing block", () => {
+	it("does not throw when a block is duplicated at the end of the file", () => {
+		const block =
+			"export const ROLES_KEY = 'roles';\nexport const Roles = () => 1;\n";
+		const base = `import x;\n\n${block}`;
+		const view = mount(`${base}\n${block}`);
+		expect(() =>
+			view.dispatch({ effects: setDiffBase.of(base) }),
+		).not.toThrow();
+		expect(kinds(view).map(([line]) => line)).toEqual([6, 7, 8]);
+	});
+});

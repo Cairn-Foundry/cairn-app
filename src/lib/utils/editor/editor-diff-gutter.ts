@@ -30,6 +30,7 @@ export interface GutterChunk {
 interface DiffState {
 	base: Text;
 	hasBase: boolean;
+	rawChunks: readonly Chunk[];
 	chunks: readonly Chunk[];
 	lineKinds: Map<number, DiffKind>;
 }
@@ -71,6 +72,114 @@ function chunkCoversLine(doc: Text, chunk: Chunk, line: number): boolean {
 	return line >= start && line <= end;
 }
 
+function indentOf(text: string): number {
+	return text.length - text.trimStart().length;
+}
+
+function isBlank(text: string): boolean {
+	return text.trim().length === 0;
+}
+
+function lineTextOrBlank(doc: Text, line: number): string {
+	return line >= 1 && line <= doc.lines ? doc.line(line).text : "";
+}
+
+/** Git prefers a hunk that starts after a blank line and ends before one. */
+function slideScore(
+	doc: Text,
+	startLine: number,
+	lineCount: number,
+	firstText: string,
+): number {
+	const before = lineTextOrBlank(doc, startLine - 1);
+	const after = lineTextOrBlank(doc, startLine + lineCount);
+	let score = 0;
+	if (isBlank(before)) score += 4;
+	if (isBlank(after)) score += 2;
+	if (!isBlank(after) && indentOf(after) < indentOf(firstText)) score += 1;
+	return score;
+}
+
+/**
+ * A pure addition or deletion among identical lines is valid at several
+ * positions; git settles on one with its indent heuristic, CodeMirror on the
+ * first it meets. Slides the chunk to the position git would report.
+ */
+function slideChunk(base: Text, doc: Text, chunk: Chunk): Chunk {
+	const isAdded = chunk.fromA === chunk.toA;
+	const isDeleted = chunk.fromB === chunk.toB;
+	if (isAdded === isDeleted) return chunk;
+	if (chunk.fromA > base.length || chunk.fromB > doc.length) return chunk;
+	if (base.lineAt(chunk.fromA).from !== chunk.fromA) return chunk;
+	if (doc.lineAt(chunk.fromB).from !== chunk.fromB) return chunk;
+
+	const side = isAdded ? doc : base;
+	const sideFrom = isAdded ? chunk.fromB : chunk.fromA;
+	const sideTo = isAdded ? chunk.toB : chunk.toA;
+	const first = side.lineAt(sideFrom).number;
+	const last = side.lineAt(Math.min(sideTo - 1, side.length)).number;
+	const count = last - first + 1;
+
+	let maxDown = 0;
+	while (
+		last + maxDown + 1 <= side.lines &&
+		side.line(first + maxDown).text === side.line(last + maxDown + 1).text
+	) {
+		maxDown++;
+	}
+	let maxUp = 0;
+	while (
+		first - maxUp - 1 >= 1 &&
+		side.line(last - maxUp).text === side.line(first - maxUp - 1).text
+	) {
+		maxUp++;
+	}
+	const aAnchor = base.lineAt(chunk.fromA).number;
+	const bAnchor = doc.lineAt(chunk.fromB).number;
+	const lowest = Math.max(-maxUp, 1 - (isAdded ? aAnchor : bAnchor));
+	const highest = Math.min(
+		maxDown,
+		(isAdded ? base.lines - aAnchor : doc.lines - bAnchor) + 1,
+	);
+	if (lowest === 0 && highest === 0) return chunk;
+
+	let bestShift = 0;
+	let bestScore = -1;
+	for (let shift = lowest; shift <= highest; shift++) {
+		const score = slideScore(
+			doc,
+			bAnchor + shift,
+			isAdded ? count : 0,
+			side.line(first + shift).text,
+		);
+		if (score >= bestScore) {
+			bestScore = score;
+			bestShift = shift;
+		}
+	}
+	if (bestShift === 0) return chunk;
+
+	const aStart = aAnchor + bestShift;
+	const bStart = bAnchor + bestShift;
+	const fromA = lineStartOrEnd(base, aStart);
+	const fromB = lineStartOrEnd(doc, bStart);
+	const toA = isAdded ? fromA : base.line(aStart + count - 1).to + 1;
+	const toB = isAdded ? doc.line(bStart + count - 1).to + 1 : fromB;
+	return new Chunk(chunk.changes, fromA, toA, fromB, toB, chunk.precise);
+}
+
+function lineStartOrEnd(text: Text, line: number): number {
+	return line > text.lines ? text.length : text.line(line).from;
+}
+
+function slideChunks(
+	base: Text,
+	doc: Text,
+	chunks: readonly Chunk[],
+): readonly Chunk[] {
+	return chunks.map((chunk) => slideChunk(base, doc, chunk));
+}
+
 /** A deletion has no lines of its own, so it marks the single line it sits at. */
 function buildLineKinds(
 	doc: Text,
@@ -94,6 +203,7 @@ const diffField = StateField.define<DiffState>({
 		return {
 			base: state.doc,
 			hasBase: false,
+			rawChunks: [],
 			chunks: [],
 			lineKinds: new Map(),
 		};
@@ -114,26 +224,40 @@ const diffField = StateField.define<DiffState>({
 			}
 		}
 		if (cleared) {
-			return { base, hasBase: false, chunks: [], lineKinds: new Map() };
+			return {
+				base,
+				hasBase: false,
+				rawChunks: [],
+				chunks: [],
+				lineKinds: new Map(),
+			};
 		}
 		if (!baseChanged && !tr.docChanged) return value;
 
 		if (!hasBase) {
-			return { base, hasBase, chunks: [], lineKinds: new Map() };
+			return {
+				base,
+				hasBase,
+				rawChunks: [],
+				chunks: [],
+				lineKinds: new Map(),
+			};
 		}
 
-		const chunks = baseChanged
+		const rawChunks = baseChanged
 			? Chunk.build(base, tr.state.doc, DIFF_CONFIG)
 			: Chunk.updateB(
-					value.chunks,
+					value.rawChunks,
 					base,
 					tr.state.doc,
 					tr.changes,
 					DIFF_CONFIG,
 				);
+		const chunks = slideChunks(base, tr.state.doc, rawChunks);
 		return {
 			base,
 			hasBase,
+			rawChunks,
 			chunks,
 			lineKinds: buildLineKinds(tr.state.doc, chunks),
 		};
