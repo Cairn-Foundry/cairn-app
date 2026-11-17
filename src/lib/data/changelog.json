@@ -300,6 +300,13 @@
 					"en": "Adopting a worktree prefills the base branch it was created from, as its reflog records it, and no longer suggests a branch that already merged it, a branch stacked on it, or its own copy on another remote.",
 					"fr": "Adopter un worktree préremplit la branche de base à partir de laquelle il a été créé, telle que son reflog l'enregistre, et ne propose plus une branche qui l'a déjà fusionné, une branche empilée dessus, ni sa propre copie sur un autre remote."
 				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "The branch suggested for a ticket gets a prefix that says what the work is. A Jira sub-task takes the type of the story or bug it hangs under instead of being prefixed `sub-task/`, issue types named in French are read like their English counterparts, and the assisted naming now chooses the prefix as well as the slug, from the ticket itself rather than from its type.",
+					"fr": "La branche suggérée pour un ticket reçoit un préfixe qui dit la nature du travail. Une sous-tâche Jira prend le type du récit ou du bogue auquel elle est rattachée au lieu d'être préfixée `sous-tache/`, les types d'issue nommés en français sont lus comme leurs équivalents anglais, et le nommage assisté choisit désormais le préfixe en plus du slug, d'après le ticket lui-même plutôt que d'après son type."
+				}
 			}
 		]
 	},

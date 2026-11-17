@@ -32,6 +32,11 @@ export function branchKeySegment(key: string): string {
  * uses. A tracker says "Bug" or "User Story"; a branch says `fix` or `feat`,
  * the same words its commits use. An unknown type is kept as-is rather than
  * forced into one of these - a team with its own taxonomy is not wrong.
+ *
+ * A tracker names its types in the user's own language - Jira answers
+ * "Sous-tâche" to a French account - so the two Cairn itself speaks are both
+ * listed. A type in a third language falls through to the assisted naming,
+ * which reads the ticket rather than a table.
  */
 const KIND_PREFIXES: Record<string, string> = {
 	bug: "fix",
@@ -40,9 +45,15 @@ const KIND_PREFIXES: Record<string, string> = {
 	anomalie: "fix",
 	incident: "fix",
 	hotfix: "fix",
+	probleme: "fix",
+	correctif: "fix",
+	correction: "fix",
 	story: "feat",
 	"user story": "feat",
+	recit: "feat",
+	"recit utilisateur": "feat",
 	feature: "feat",
+	fonctionnalite: "feat",
 	"nouvelle fonctionnalite": "feat",
 	evolution: "feat",
 	improvement: "feat",
@@ -51,13 +62,17 @@ const KIND_PREFIXES: Record<string, string> = {
 	task: "feat",
 	"sub-task": "feat",
 	subtask: "feat",
+	"sous-tache": "feat",
+	"sous tache": "feat",
 	tache: "feat",
 	epic: "feat",
+	epopee: "feat",
 	documentation: "docs",
 	doc: "docs",
 	chore: "chore",
 	spike: "chore",
 	support: "chore",
+	"demande de service": "chore",
 };
 
 /**
