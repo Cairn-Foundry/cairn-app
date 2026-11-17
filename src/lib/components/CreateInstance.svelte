@@ -335,7 +335,7 @@
     namingStatus = t('createInstance.aiNaming') as string;
     namingAbort = new AbortController();
     try {
-      const answer = await runOneShotShaped<{ slug: string }>(
+      const answer = await runOneShotShaped<{ slug: string; kind?: string }>(
         buildBranchNamePrompt(
           {
             key: askedFor,
@@ -358,13 +358,16 @@
         namingError = t('createInstance.aiNameEmpty') as string;
         return;
       }
+      // The model read the ticket; the tracker only read its own taxonomy, and
+      // a sub-task or a bare "Issue" says nothing about the nature of the work.
+      const kind = (answer.kind ?? '').trim() || askedKind;
       // `prevSlug` keeps the derived name on purpose: the suggestion block only
       // overwrites a name still equal to it, so a name asked of a model is left
       // alone afterwards, exactly like one the user typed.
       branchName = renderBranchTemplate(branchTemplate, {
         key: askedFor,
         slug,
-        kind: askedKind,
+        kind,
       });
       namingStatus = t('createInstance.aiNamed') as string;
     } catch (e) {

@@ -531,7 +531,35 @@ describe("CreateInstance", () => {
 			);
 		});
 
-		it("replaces only the slug with the one a model wrote", async () => {
+		/**
+		 * A tracker type is often generic - a Jira sub-task, a GitHub issue -
+		 * and the model read the ticket, so its prefix wins over the table's.
+		 */
+		it("takes the prefix the model chose over the tracker's type", async () => {
+			settingsState.set({
+				branchTemplate: "{{kind}}/{{key}}/{{slug}}",
+				aiEnabled: true,
+			});
+			capabilitiesOf.mockReturnValue({ tracker: { kind: "jira" } });
+			ticketSearch.update((st) => ({ ...st, results: [ticket()] }));
+			runOneShotShaped.mockResolvedValue({
+				slug: "parse-nested-blocks",
+				kind: "refactor",
+			});
+			await mountOnTicket();
+			await userEvent.click(ticketItems()[0]);
+			await settle();
+			await userEvent.click(primary());
+			await settle();
+			await userEvent.click(aiNameButton() as HTMLElement);
+			await settle();
+			expect((field("branch-name") as HTMLInputElement).value).toBe(
+				"refactor/CAIRN-42/parse-nested-blocks",
+			);
+		});
+
+		/** An older custom template asks for the slug alone; the type still answers. */
+		it("keeps the ticket's prefix when the model answers no kind", async () => {
 			settingsState.set({
 				branchTemplate: "{{kind}}/{{key}}/{{slug}}",
 				aiEnabled: true,

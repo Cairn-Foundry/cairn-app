@@ -349,7 +349,7 @@ describe("buildTicketPlanPrompt", () => {
 });
 
 describe("buildBranchNamePrompt", () => {
-	it("gives the model the ticket and asks for the slug alone", () => {
+	it("gives the model the ticket and asks for the slug and the kind", () => {
 		const prompt = buildBranchNamePrompt({
 			key: "APP-214",
 			title: "Suppression des sessions expirées lors de la déconnexion",
@@ -361,6 +361,7 @@ describe("buildBranchNamePrompt", () => {
 		expect(prompt).toContain("Bug");
 		expect(prompt).toContain("La session reste ouverte côté serveur.");
 		expect(prompt).toContain("`slug`");
+		expect(prompt).toContain("`kind`");
 	});
 
 	it("leaves the description block out when the ticket has none", () => {
