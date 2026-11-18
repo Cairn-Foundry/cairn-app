@@ -10,6 +10,13 @@
 			{
 				"kind": "fixed",
 				"text": {
+					"en": "A Ctrl+clicked link in Claude Code opens in the browser again, instead of a confirmation dialog that led nowhere.",
+					"fr": "Un lien cliqué avec Ctrl dans Claude Code s'ouvre de nouveau dans le navigateur, au lieu d'une demande de confirmation qui ne menait nulle part."
+				}
+			},
+			{
+				"kind": "fixed",
+				"text": {
 					"en": "The git markers in the editor gutter land on the same lines as git reports when an added or removed block sits next to identical lines.",
 					"fr": "Les marqueurs git de la gouttière de l'éditeur tombent sur les mêmes lignes que celles indiquées par git quand un bloc ajouté ou supprimé jouxte des lignes identiques."
 				}
