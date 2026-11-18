@@ -29,6 +29,9 @@ const webglState = vi.hoisted(() => ({
 	dispose: undefined as unknown as ReturnType<typeof vi.fn>,
 }));
 const fitSpy = vi.hoisted(() => vi.fn());
+const openUrl = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+vi.mock("#lib/services/opener-service", () => ({ openUrl }));
+
 const fitted = vi.hoisted(() => ({ term: null as Terminal | null }));
 const serializeSpy = vi.hoisted(() => vi.fn());
 vi.mock("@xterm/addon-fit", () => ({
@@ -857,6 +860,26 @@ describe("terminal wiring", () => {
 			id,
 			"\x1bP>|xterm.js(Cairn)\x1b\\",
 		);
+	});
+
+	it("opens an OSC 8 hyperlink through the opener on Ctrl+click, never confirm()", async () => {
+		const id = freshId();
+		create(id);
+		attach(id, slot);
+		const confirmSpy = vi.spyOn(window, "confirm");
+		const handler = (fitted.term as Terminal).options.linkHandler;
+		const url = "https://example.com/browse/ABC-1";
+		const range = { start: { x: 1, y: 1 }, end: { x: 10, y: 1 } };
+
+		handler?.activate(new MouseEvent("click"), url, range);
+		handler?.activate(new MouseEvent("click", { ctrlKey: true }), url, range);
+
+		await vi.runAllTimersAsync();
+
+		expect(confirmSpy).not.toHaveBeenCalled();
+		expect(openUrl).toHaveBeenCalledTimes(1);
+		expect(openUrl).toHaveBeenCalledWith(url);
+		confirmSpy.mockRestore();
 	});
 
 	it("sends what the user types to the PTY", async () => {

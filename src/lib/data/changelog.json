@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.2.1",
+		"date": "",
+		"summary": {
+			"en": "A Ctrl+clicked link in Claude Code opens in the browser again.",
+			"fr": "Un lien cliqué avec Ctrl dans Claude Code s'ouvre de nouveau dans le navigateur."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "A Ctrl+clicked link in Claude Code opens in the browser again, instead of a confirmation dialog that led nowhere.",
+					"fr": "Un lien cliqué avec Ctrl dans Claude Code s'ouvre de nouveau dans le navigateur, au lieu d'une demande de confirmation qui ne menait nulle part."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.2.0",
 		"date": "2026-11-23",
 		"summary": {
