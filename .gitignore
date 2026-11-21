@@ -13,3 +13,4 @@ vite.config.ts.timestamp-*
 /coverage
 .claude
 docs/plans
+docs/design
