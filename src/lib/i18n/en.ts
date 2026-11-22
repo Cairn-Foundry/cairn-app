@@ -653,10 +653,13 @@ export const en = {
 	},
 	agentDefs: {
 		title: "Agents",
-		refresh: "Rescan",
 		new: "New agent",
 		searchPlaceholder: "Search agents...",
-		noResults: "No match.",
+		noResults: "No agent matches",
+		noResultsText: (q: string) =>
+			`Nothing matches "${q}" in the name, description or project of your agents.`,
+		noResultsFiltered: "No agent is left with these filters.",
+		clearFilters: "Show every agent",
 		emptyTitle: "No agent defined",
 		emptyDesc:
 			"An agent is a definition your coding CLI reads on its own. Cairn Foundry edits it where the CLI already looks, so a change here is a change it sees on its next run.",
@@ -665,14 +668,14 @@ export const en = {
 		copyOf: (name: string) => `${name}-copy`,
 		invokeHint: "Name it in a prompt to ask the agent to delegate to it.",
 		nameClash: "An agent of that name is already defined there.",
+		pickTitle: "No agent selected",
+		pickDesc: "Pick one in the list to edit it, or create a new one.",
 		nameRequired: "An agent needs a name.",
 		willCreate: (slug: string) => `Will be written as ${slug}.md`,
 		unsaved: "Unsaved changes",
 		divergent:
 			"The copies of this agent differ. Saving realigns them on what is shown here.",
 		noRoster: "This agent has no subagents of its own.",
-		providersHint:
-			"The agents that will read this definition. One file can be read by several.",
 		promptStats: (words: number, lines: number) =>
 			`${words} words, ${lines} lines`,
 		newPromptPlaceholder: "You are a specialist in...",
@@ -680,7 +683,7 @@ export const en = {
 		groups: {
 			identity: "Identity",
 			instructions: "Instructions",
-			tools: "Tools",
+			behaviour: "Model and tools",
 			location: "Where it lives",
 			advanced: "Advanced",
 		},
@@ -695,38 +698,29 @@ export const en = {
 			name: "Name",
 			namePlaceholder: "code-reviewer",
 			description: "Description",
-			descriptionHint:
-				"What this agent is for. The provider reads it to decide when to delegate.",
+			descriptionHint: "The CLI reads it to decide when to delegate.",
 			descriptionPlaceholder: "Reviews a diff for correctness and style",
 			descriptionMissing:
 				"Without a description the provider cannot tell when to use it.",
 			descriptionTooLong: "Longer than the CLIs will read.",
 			color: "Colour",
-			colorHint: "Marks this agent in the prompt list and on its thread.",
 			systemPrompt: "System prompt",
-			systemPromptHint:
-				"The instructions the agent runs with, in its own context.",
 			systemPromptPlaceholder: "You are a specialist in...",
 			tools: "Tools",
-			toolsHint: "Leave empty to let it use everything the session has.",
-			toolsEmpty: "Every tool of the session.",
+			toolsEmpty: "Every tool of the session",
 			toolsPlaceholder: "Read, Grep, Bash(git diff)",
 			scope: "Scope",
 			project: "Project",
 			inherit: "Inherited from the session",
 			pickProviderFirst:
-				"Pick the agents this definition is for: what it may hold depends on what they accept.",
-			capabilitiesHint:
-				"Offered by the agents this definition is for, read from what they report themselves.",
+				"Pick the CLIs that read it under Where it lives to set its model, effort and permissions.",
 			model: "Model",
 			modelPlaceholder: "the CLI's default",
 			effort: "Reasoning effort",
 			memory: "Memory",
-			memoryHint:
-				"What the agent keeps between runs. The CLI documents no fixed list, so anything it accepts can be typed here.",
+			memoryHint: "What it keeps between runs.",
 			skills: "Skills",
-			skillsHint: "Loaded on top of the ones the session already has.",
-			skillsEmpty: "Only the skills of the session.",
+			skillsEmpty: "Only the skills of the session",
 			skillsPlaceholder: "pixel-art-textures",
 			permissionMode: "Permission mode",
 			extraFrontmatter: "Other frontmatter",
@@ -741,7 +735,6 @@ export const en = {
 		},
 		locations: {
 			title: "Files",
-			hint: "Every copy of this definition, and the agents that read it.",
 		},
 		delete: {
 			heading: "Delete",

@@ -670,10 +670,13 @@ export const fr = {
 	},
 	agentDefs: {
 		title: "Agents",
-		refresh: "Réanalyser",
 		new: "Nouvel agent",
 		searchPlaceholder: "Rechercher un agent...",
-		noResults: "Aucun résultat.",
+		noResults: "Aucun agent ne correspond",
+		noResultsText: (q: string) =>
+			`Rien ne correspond à "${q}" dans le nom, la description ou le projet de vos agents.`,
+		noResultsFiltered: "Aucun agent ne reste avec ces filtres.",
+		clearFilters: "Afficher tous les agents",
 		emptyTitle: "Aucun agent défini",
 		emptyDesc:
 			"Un agent est une définition que votre CLI de code lit de lui-même. Cairn Foundry la modifie là où le CLI la cherche déjà, donc un changement ici est un changement qu'il voit dès son prochain lancement.",
@@ -683,14 +686,15 @@ export const fr = {
 		invokeHint:
 			"Nommez-le dans une demande pour que l'agent lui délègue le travail.",
 		nameClash: "Un agent de ce nom est déjà défini à cet endroit.",
+		pickTitle: "Aucun agent choisi",
+		pickDesc:
+			"Choisissez-en un dans la liste pour le modifier, ou créez-en un.",
 		nameRequired: "Un agent a besoin d'un nom.",
 		willCreate: (slug: string) => `Sera écrit sous ${slug}.md`,
 		unsaved: "Modifications non enregistrées",
 		divergent:
 			"Les copies de cet agent diffèrent. L'enregistrement les réaligne sur ce qui est affiché ici.",
 		noRoster: "Cet agent n'a pas de sous-agents à lui.",
-		providersHint:
-			"Les agents qui liront cette définition. Un même fichier peut être lu par plusieurs.",
 		promptStats: (words: number, lines: number) =>
 			`${words} mots, ${lines} lignes`,
 		newPromptPlaceholder: "Vous êtes spécialiste de...",
@@ -698,7 +702,7 @@ export const fr = {
 		groups: {
 			identity: "Identité",
 			instructions: "Instructions",
-			tools: "Outils",
+			behaviour: "Modèle et outils",
 			location: "Emplacement",
 			advanced: "Avancé",
 		},
@@ -713,39 +717,29 @@ export const fr = {
 			name: "Nom",
 			namePlaceholder: "code-reviewer",
 			description: "Description",
-			descriptionHint:
-				"À quoi sert cet agent. Le fournisseur la lit pour décider quand lui déléguer.",
+			descriptionHint: "Le CLI la lit pour décider quand lui déléguer.",
 			descriptionPlaceholder: "Relit un diff pour la justesse et le style",
 			descriptionMissing:
 				"Sans description, le fournisseur ne peut pas savoir quand l'utiliser.",
 			descriptionTooLong: "Plus longue que ce que les CLI liront.",
 			color: "Couleur",
-			colorHint:
-				"Distingue cet agent dans la liste de la zone de saisie et sur son fil.",
 			systemPrompt: "Prompt système",
-			systemPromptHint:
-				"Les instructions avec lesquelles l'agent tourne, dans son propre contexte.",
 			systemPromptPlaceholder: "Vous êtes spécialiste de...",
 			tools: "Outils",
-			toolsHint: "Laissez vide pour lui laisser tous les outils de la session.",
-			toolsEmpty: "Tous les outils de la session.",
+			toolsEmpty: "Tous les outils de la session",
 			toolsPlaceholder: "Read, Grep, Bash(git diff)",
 			scope: "Portée",
 			project: "Projet",
 			inherit: "Hérité de la session",
 			pickProviderFirst:
-				"Choisissez les agents visés par cette définition : ce qu'elle peut contenir dépend de ce qu'ils acceptent.",
-			capabilitiesHint:
-				"Proposé par les agents visés par cette définition, d'après ce qu'ils déclarent eux-mêmes.",
+				"Choisissez sous Emplacement les CLI qui la lisent pour régler son modèle, son effort et ses permissions.",
 			model: "Modèle",
 			modelPlaceholder: "valeur par défaut du CLI",
 			effort: "Effort de raisonnement",
 			memory: "Mémoire",
-			memoryHint:
-				"Ce que l'agent conserve d'une exécution à l'autre. Le CLI ne documente aucune liste fixe, donc tout ce qu'il accepte peut être saisi ici.",
+			memoryHint: "Ce qu'il garde d'une exécution à l'autre.",
 			skills: "Skills",
-			skillsHint: "Chargés en plus de ceux dont la session dispose déjà.",
-			skillsEmpty: "Uniquement les skills de la session.",
+			skillsEmpty: "Uniquement les skills de la session",
 			skillsPlaceholder: "pixel-art-textures",
 			permissionMode: "Mode de permission",
 			extraFrontmatter: "Autre frontmatter",
@@ -760,7 +754,6 @@ export const fr = {
 		},
 		locations: {
 			title: "Fichiers",
-			hint: "Chaque copie de cette définition, et les agents qui la lisent.",
 		},
 		delete: {
 			heading: "Supprimer",

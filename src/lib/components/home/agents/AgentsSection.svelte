@@ -8,7 +8,6 @@
    * and every targeted provider. Edits go to a local draft; the files are only written on save.
    */
   import { onMount } from 'svelte';
-  import { fitToScrollport } from '#lib/utils/fit-to-scrollport';
   import { t } from '#lib/i18n';
   import Icon from '#lib/components/Icon.svelte';
   import Select from '#lib/components/Select.svelte';
@@ -17,6 +16,8 @@
   import Skeleton from '#lib/components/Skeleton.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
   import DeleteAgentModal from './DeleteAgentModal.svelte';
+  import SplitPanel from '#lib/components/SplitPanel.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
   import ProviderChips from '#lib/components/home/ProviderChips.svelte';
   import ProviderLogo from './ProviderLogo.svelte';
@@ -424,321 +425,366 @@
   }
 </script>
 
-<div class="ag-layout">
-  <aside class="ag-master" use:fitToScrollport>
-    <div class="ag-master-header">
-      <span class="ag-master-title">{t('agentDefs.title')}</span>
-      <span class="master-actions">
-        <button
-          class="icon-btn"
-          on:click={loadNativeAgents}
-          disabled={$nativeAgentsLoading}
-          title={t('agentDefs.refresh') as string}
-        >
-          {#if $nativeAgentsLoading}<Spinner size={12}/>{:else}<Icon name="refresh" size={13}/>{/if}
-        </button>
-        <button class="icon-btn" on:click={create} title={t('agentDefs.new') as string}>
-          <Icon name="plus" size={13}/>
-        </button>
-      </span>
-    </div>
+<header class="ag-page-head">
+  <h1>
+    {t('home.agents.title')}
+    {#if $nativeAgents.length > 0}<span class="head-count">{$nativeAgents.length}</span>{/if}
+  </h1>
+</header>
 
-    <SearchInput bind:value={search} placeholder={t('agentDefs.searchPlaceholder') as string}/>
-
-    <div class="filters">
-      {#each FILTERS as key (key)}
-        {#if key === 'all' || counts[key] > 0}
-          <button
-            class="chip {scopeFilter === key ? 'active' : ''}"
-            aria-pressed={scopeFilter === key}
-            on:click={() => scopeFilter = key}
-          >
-            {filterLabel(key)}<span class="chip-count">{counts[key]}</span>
-          </button>
-        {/if}
-      {/each}
-    </div>
-
-    <div class="filters agents">
-      <button
-        class="chip {providerFilter === 'all' ? 'active' : ''}"
-        aria-pressed={providerFilter === 'all'}
-        on:click={() => providerFilter = 'all'}
-      >
-        {t('cliProviders.allAgents')}
-      </button>
-      {#each $cliProviders as provider (provider.id)}
-        {@const count = $nativeAgents.filter((a) => a.providers.includes(provider.id)).length}
-        {#if count > 0}
-          <button
-            class="chip {providerFilter === provider.id ? 'active' : ''}"
-            aria-pressed={providerFilter === provider.id}
-            title={provider.label}
-            on:click={() => providerFilter = provider.id}
-          >
-            <ProviderLogo id={provider.id} size={12} fallback={provider.label.slice(0, 1)}/>
-            <span class="chip-count">{count}</span>
-          </button>
-        {/if}
-      {/each}
-    </div>
-
-    {#if $nativeAgentsLoading && $nativeAgents.length === 0}
-      <div class="master-skeleton"><Skeleton lines={5} height={34} gap={4}/></div>
-    {:else if $nativeAgents.length === 0}
-      <p class="ag-master-empty">{t('agentDefs.emptyTitle')}</p>
-    {:else if visible.length === 0}
-      <p class="ag-master-empty">{t('agentDefs.noResults')}</p>
-    {:else}
-      {#each groups as group (group.scope)}
-        <div class="group-label">{t(`agentDefs.scope.${group.scope}`)}</div>
-        {#each group.items as agent (agent.path)}
-          <div class="agent-row {selectedPath === agent.path ? 'active' : ''}">
+{#if !$nativeAgentsLoading && $nativeAgents.length === 0 && draft === null}
+  <section class="page-empty">
+    <Icon name="agent" size={22}/>
+    <h2>{t('agentDefs.emptyTitle')}</h2>
+    <p>{t('agentDefs.emptyDesc')}</p>
+    <button class="btn primary new-agent" on:click={create}>
+      <Icon name="plus" size={12}/> {t('agentDefs.new')}
+    </button>
+  </section>
+{:else}
+<SplitPanel>
+  <svelte:fragment slot="list">
+    <div class="list-tools">
+      <SearchInput bind:value={search} placeholder={t('agentDefs.searchPlaceholder') as string}/>
+      <div class="filters">
+        {#each FILTERS as key (key)}
+          {#if key === 'all' || counts[key] > 0}
             <button
-              class="ag-item {selectedPath === agent.path ? 'active' : ''}"
+              class="chip"
+              class:active={scopeFilter === key}
+              aria-pressed={scopeFilter === key}
+              on:click={() => scopeFilter = key}
+            >
+              {filterLabel(key)}<span class="chip-count">{counts[key]}</span>
+            </button>
+          {/if}
+        {/each}
+        {#each $cliProviders as provider (provider.id)}
+          {@const count = $nativeAgents.filter((a) => a.providers.includes(provider.id)).length}
+          {#if count > 0 && count < $nativeAgents.length}
+            <button
+              class="chip"
+              class:active={providerFilter === provider.id}
+              aria-pressed={providerFilter === provider.id}
+              title={provider.label}
+              on:click={() => providerFilter = providerFilter === provider.id ? 'all' : provider.id}
+            >
+              <ProviderLogo id={provider.id} size={11} fallback={provider.label.slice(0, 1)}/>
+              <span class="chip-count">{count}</span>
+            </button>
+          {/if}
+        {/each}
+      </div>
+    </div>
+
+    <div class="list-items">
+      {#if $nativeAgentsLoading && $nativeAgents.length === 0}
+        <Skeleton lines={4} height={36} gap={6}/>
+      {:else}
+        {#each groups as group (group.scope)}
+          <h2 class="group-label">{t(`agentDefs.scope.${group.scope}`)}</h2>
+          {#each group.items as agent (agent.path)}
+            <button
+              class="ag-item"
+              class:is-active={selectedPath === agent.path}
               aria-pressed={selectedPath === agent.path}
               on:click={() => select(agent)}
             >
-              <span class="ag-item-info">
-                <span class="ag-item-name">
-                  {#if agent.color}
-                    <span class="mention-dot" style="background: {agent.color}"></span>
-                  {/if}
-                  {agent.name}
-                </span>
-                <span class="ag-item-sub">{agent.description || scopeLabel(agent)}</span>
+              <span class="avatar" style={agent.color ? `--agent: ${agent.color}` : ''}>{initials(agent.name)}</span>
+              <span class="ag-item-text">
+                <span class="ag-item-name">{agent.name}</span>
+                <span class="ag-item-sub">{agent.scope === 'project' ? agent.projectName : agent.description}</span>
               </span>
             </button>
-            <button
-              class="icon-btn delete"
-              on:click={() => deleteTarget = agent}
-              title={t('agentDefs.delete.heading') as string}
-            >
-              <Icon name="trash" size={12}/>
-            </button>
-          </div>
+          {/each}
         {/each}
-      {/each}
-    {/if}
-  </aside>
+        {#if visible.length === 0 && $nativeAgents.length > 0}
+          <SearchEmpty
+            isCompact
+            title={t('agentDefs.noResults') as string}
+            text={(query ? (t('agentDefs.noResultsText') as (q: string) => string)(search.trim()) : t('agentDefs.noResultsFiltered')) as string}
+            clearLabel={(query ? t('common.clearSearch') : t('agentDefs.clearFilters')) as string}
+            on:clear={() => { search = ''; scopeFilter = 'all'; providerFilter = 'all'; }}
+          />
+        {/if}
+        {#if draft && selectedPath === null}
+          <button class="ag-item is-active" aria-pressed="true">
+            <span class="avatar" style={draft.color ? `--agent: ${draft.color}` : ''}>{initials(slug || '?')}</span>
+            <span class="ag-item-text">
+              <span class="ag-item-name">{slug || t('agentDefs.new')}</span>
+              <span class="ag-item-sub">{t('agentDefs.new')}</span>
+            </span>
+          </button>
+        {:else if visible.length > 0 || $nativeAgents.length === 0}
+          <button class="ag-item new-agent" on:click={create}>
+            <span class="avatar is-dashed"><Icon name="plus" size={14}/></span>
+            <span class="ag-item-name">{t('agentDefs.new')}</span>
+          </button>
+        {/if}
+      {/if}
+    </div>
+  </svelte:fragment>
 
-  <section class="ag-detail">
-    {#if draft === null}
-      <div class="ag-empty">
-        <span class="ag-empty-icon"><Icon name="agent" size={30} sw={1.2}/></span>
-        <p class="ag-empty-title">{t('agentDefs.emptyTitle')}</p>
-        <p class="ag-empty-desc">{t('agentDefs.emptyDesc')}</p>
-        <div class="empty-actions">
-          <button class="btn primary" on:click={create}>
-            <Icon name="plus" size={12}/> {t('agentDefs.new')}
+  {#if draft === null}
+    <div class="detail-none">
+      <span class="none-avatars" aria-hidden="true">
+        {#each $nativeAgents.slice(0, 3) as agent (agent.path)}
+          <span class="avatar is-large" style={agent.color ? `--agent: ${agent.color}` : ''}>{initials(agent.name)}</span>
+        {/each}
+      </span>
+      <h2>{t('agentDefs.pickTitle')}</h2>
+      <p>{t('agentDefs.pickDesc')}</p>
+      <button class="btn" on:click={create}>
+        <Icon name="plus" size={12}/> {t('agentDefs.new')}
+      </button>
+    </div>
+  {:else}
+    <div class="detail-head">
+      <span class="avatar is-large" style={draft.color ? `--agent: ${draft.color}` : ''}>{initials(slug || draft.name || '?')}</span>
+      <div class="detail-title">
+        <div class="title-row">
+          <h2>{slug || t('agentDefs.new')}</h2>
+          {#if slug}<code class="invoke selectable" title={t('agentDefs.invokeHint') as string}>@{slug}</code>{/if}
+        </div>
+        <p>{draft.scope === 'project' ? ($projects.find((p) => p.id === draft?.projectId)?.name ?? '') : t('agentDefs.scope.global')}</p>
+      </div>
+      {#if selected}
+        <div class="head-actions">
+          <button class="btn ghost icon-only" on:click={() => selected && duplicate(selected)} title={t('agentDefs.duplicate') as string} aria-label={t('agentDefs.duplicate') as string}>
+            <Icon name="copy" size={13}/>
+          </button>
+          <button class="btn ghost icon-only" on:click={() => selected && revealInFileManager(selected.path)} title={t('agentDefs.reveal') as string} aria-label={t('agentDefs.reveal') as string}>
+            <Icon name="folder-open" size={13}/>
+          </button>
+          <button class="btn ghost icon-only delete" on:click={() => deleteTarget = selected} title={t('agentDefs.delete.heading') as string} aria-label={t('agentDefs.delete.heading') as string}>
+            <Icon name="trash" size={13}/>
           </button>
         </div>
-      </div>
-    {:else}
-      <div class="ag-head">
-        <span class="ag-tile ag-tile-lg" style={draft.color ? `background: ${draft.color}` : ''}>
-          {initials(slug || draft.name || '?')}
-        </span>
-        <div class="ag-head-text">
-          <input
-            class="ag-input name-input"
-            type="text"
-            aria-label={t('agentDefs.fields.name') as string}
-            placeholder={t('agentDefs.fields.namePlaceholder') as string}
-            bind:value={draft.name}
-          />
-          <div class="head-meta">
-            {#if slug}
-              <code class="invoke selectable">@{slug}</code>
-              <span class="ag-hint">{t('agentDefs.invokeHint')}</span>
-            {/if}
-            {#if nameClash}
-              <span class="ag-hint bad">{t('agentDefs.nameClash')}</span>
-            {/if}
+      {/if}
+    </div>
+
+    <div class="detail-body">
+      <section class="section">
+        <h3>{t('agentDefs.groups.identity')}</h3>
+
+        <div class="field">
+          <label class="label" for="ag-name">{t('agentDefs.fields.name')}</label>
+          <div class="control">
+            <input
+              id="ag-name"
+              class="input name-input selectable"
+              type="text"
+              placeholder={t('agentDefs.fields.namePlaceholder') as string}
+              bind:value={draft.name}
+            />
+            {#if nameClash}<span class="hint bad">{t('agentDefs.nameClash')}</span>{/if}
           </div>
         </div>
-        <div class="head-actions">
-          {#if selected}
-            <button class="btn ghost" on:click={() => duplicate(selected)} title={t('agentDefs.duplicate') as string}>
-              <Icon name="copy" size={13}/>
-            </button>
-            <button
-              class="btn ghost"
-              on:click={() => revealInFileManager(selected.path)}
-              title={t('agentDefs.reveal') as string}
-            >
-              <Icon name="folder-open" size={13}/>
-            </button>
-          {/if}
-        </div>
-      </div>
 
-      {#if selected?.divergent}
-        <div class="banner warn">
-          <Icon name="alert" size={13}/>
-          <span>{t('agentDefs.divergent')}</span>
-        </div>
-      {/if}
-
-      {#if error}
-        <div class="banner bad"><Icon name="alert" size={13}/><span>{error}</span></div>
-      {/if}
-
-      <div class="ag-group">
-        <div class="ag-group-title">{t('agentDefs.groups.identity')}</div>
-
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <label class="ag-label" for="ag-desc">{t('agentDefs.fields.description')}</label>
-              <span class="ag-hint">{t('agentDefs.fields.descriptionHint')}</span>
-            </div>
+        <div class="field">
+          <label class="label" for="ag-desc">{t('agentDefs.fields.description')}</label>
+          <div class="control">
             <textarea
               id="ag-desc"
-              class="ag-textarea selectable"
+              class="input textarea selectable"
               rows="3"
               placeholder={t('agentDefs.fields.descriptionPlaceholder') as string}
               bind:value={draft.description}
             ></textarea>
-            <div class="counter {descriptionOver ? 'bad' : ''}">
-              {draft.description.length} / {MAX_DESCRIPTION}
-            </div>
-            {#if draft.description.trim() === ''}
-              <span class="ag-hint warn">{t('agentDefs.fields.descriptionMissing')}</span>
-            {:else if descriptionOver}
-              <span class="ag-hint bad">{t('agentDefs.fields.descriptionTooLong')}</span>
-            {/if}
-          </div>
-        </div>
-
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <span class="ag-label">{t('agentDefs.fields.color')}</span>
-              <span class="ag-hint">{t('agentDefs.fields.colorHint')}</span>
-            </div>
-            <div class="color-swatches">
-              {#each AGENT_COLORS as color (color)}
-                <button
-                  class="swatch {draft.color === color ? 'active' : ''}"
-                  style="background: {color}"
-                  aria-label={color}
-                  aria-pressed={draft.color === color}
-                  on:click={() => { if (draft) draft.color = color; }}
-                ></button>
-              {/each}
+            <div class="control-foot">
+              {#if draft.description.trim() === ''}
+                <span class="hint warn">{t('agentDefs.fields.descriptionMissing')}</span>
+              {:else if descriptionOver}
+                <span class="hint bad">{t('agentDefs.fields.descriptionTooLong')}</span>
+              {:else}
+                <span class="hint">{t('agentDefs.fields.descriptionHint')}</span>
+              {/if}
+              <span class="counter" class:bad={descriptionOver}>{draft.description.length} / {MAX_DESCRIPTION}</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('agentDefs.groups.instructions')}</div>
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <label class="ag-label" for="ag-prompt">{t('agentDefs.fields.systemPrompt')}</label>
-              <span class="ag-hint">{t('agentDefs.fields.systemPromptHint')}</span>
-            </div>
-            <textarea
-              id="ag-prompt"
-              class="ag-textarea body-input selectable"
-              rows="16"
-              spellcheck="false"
-              placeholder={t('agentDefs.fields.systemPromptPlaceholder') as string}
-              bind:value={draft.systemPrompt}
-            ></textarea>
-            <div class="counter">
-              {(t('agentDefs.promptStats') as (w: number, l: number) => string)(
-                draft.systemPrompt.trim() ? draft.systemPrompt.trim().split(/\s+/).length : 0,
-                draft.systemPrompt.split('\n').length,
-              )}
-            </div>
+        <div class="field">
+          <span class="label">{t('agentDefs.fields.color')}</span>
+          <div class="color-swatches">
+            {#each AGENT_COLORS as color (color)}
+              <button
+                class="swatch"
+                class:active={draft.color === color}
+                style="background: {color}"
+                aria-label={color}
+                aria-pressed={draft.color === color}
+                on:click={() => { if (draft) draft.color = color; }}
+              ></button>
+            {/each}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('agentDefs.groups.tools')}</div>
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <span class="ag-label">{t('agentDefs.fields.tools')}</span>
-              <span class="ag-hint">{t('agentDefs.fields.toolsHint')}</span>
-            </div>
-
-            {#if draft.tools.length > 0}
-              <div class="tool-chips">
-                {#each draft.tools as tool (tool)}
-                  <span class="tool-chip">
-                    <code>{tool}</code>
-                    <button on:click={() => removeTool(tool)} aria-label={t('common.remove') as string}>
-                      <Icon name="x" size={9}/>
-                    </button>
-                  </span>
-                {/each}
-              </div>
-            {:else}
-              <span class="ag-hint">{t('agentDefs.fields.toolsEmpty')}</span>
-            {/if}
-
-            <div class="inline-row">
-              <input
-                class="ag-input selectable"
-                type="text"
-                list="agent-tools"
-                placeholder={t('agentDefs.fields.toolsPlaceholder') as string}
-                bind:value={toolDraft}
-                on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTool(toolDraft); } }}
-              />
-              <datalist id="agent-tools">
-                {#each toolSuggestions as tool}<option value={tool}></option>{/each}
-              </datalist>
-              <button class="btn" on:click={() => addTool(toolDraft)} disabled={!toolDraft.trim()}>
-                <Icon name="plus" size={12}/> {t('common.add')}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="ag-group">
-        <div class="ag-group-title">{t('agentDefs.groups.location')}</div>
-        <div class="ag-card row-card">
-          <div class="row-fields">
-            <div class="ag-field">
-              <span class="ag-hint">{t('agentDefs.fields.scope')}</span>
-              <Select
-                value={draft.scope}
-                options={scopeOptions}
-                ariaLabel={t('agentDefs.fields.scope') as string}
-                on:change={(e) => setScope(e.detail as NativeAgentScope)}
-              />
-            </div>
-            {#if draft.scope === 'project'}
-              <div class="ag-field">
-                <span class="ag-hint">{t('agentDefs.fields.project')}</span>
-                <Select
-                  value={draft.projectId}
-                  options={projectOptions}
-                  ariaLabel={t('agentDefs.fields.project') as string}
-                  on:change={(e) => setProject(e.detail)}
-                />
-              </div>
-            {/if}
-          </div>
-          <span class="ag-hint">
-            {draft.scope === 'global'
-              ? t('agentDefs.scope.globalHint')
-              : t('agentDefs.scope.projectHint')}
+      <section class="section">
+        <div class="section-head">
+          <h3>{t('agentDefs.fields.systemPrompt')}</h3>
+          <div class="spacer"></div>
+          <span class="counter">
+            {(t('agentDefs.promptStats') as (w: number, l: number) => string)(
+              draft.systemPrompt.trim() ? draft.systemPrompt.trim().split(/\s+/).length : 0,
+              draft.systemPrompt.split('\n').length,
+            )}
           </span>
+          <CopyButton value={draft.systemPrompt} size={13}/>
+        </div>
+        <textarea
+          id="ag-prompt"
+          class="input textarea body-input selectable"
+          spellcheck="false"
+          aria-label={t('agentDefs.fields.systemPrompt') as string}
+          placeholder={t('agentDefs.fields.systemPromptPlaceholder') as string}
+          bind:value={draft.systemPrompt}
+        ></textarea>
+      </section>
+
+      <section class="section">
+        <h3>{t('agentDefs.groups.behaviour')}</h3>
+
+        {#if capabilityProviders.length === 0}
+          <p class="hint section-note">{t('agentDefs.fields.pickProviderFirst')}</p>
+        {:else}
+          <div class="field">
+            <label class="label" for="ag-model">{t('agentDefs.fields.model')}</label>
+            <!-- Typed rather than picked: Cairn no longer asks a provider what
+                 models it serves, and the CLI rejects an unknown id itself with
+                 a better message than a stale list could. -->
+            <input
+              id="ag-model"
+              class="input selectable"
+              value={draft.model}
+              placeholder={t('agentDefs.fields.modelPlaceholder') as string}
+              on:input={(e) => { if (draft) draft.model = e.currentTarget.value; }}
+            />
+          </div>
+          <div class="field">
+            <span class="label">{t('agentDefs.fields.effort')}</span>
+            <Select
+              value={draft.effort}
+              options={effortOptions}
+              ariaLabel={t('agentDefs.fields.effort') as string}
+              on:change={(e) => { if (draft) draft.effort = e.detail; }}
+            />
+          </div>
+          <div class="field">
+            <span class="label">{t('agentDefs.fields.permissionMode')}</span>
+            <Select
+              value={draft.permissionMode}
+              options={permissionOptions}
+              ariaLabel={t('agentDefs.fields.permissionMode') as string}
+              on:change={(e) => { if (draft) draft.permissionMode = e.detail; }}
+            />
+          </div>
+        {/if}
+
+        <div class="field">
+          <label class="label" for="ag-memory">{t('agentDefs.fields.memory')}</label>
+          <div class="control">
+            <input
+              id="ag-memory"
+              class="input selectable"
+              type="text"
+              list="agent-memory"
+              placeholder={t('agentDefs.fields.inherit') as string}
+              bind:value={draft.memory}
+            />
+            <span class="hint">{t('agentDefs.fields.memoryHint')}</span>
+          </div>
+          <datalist id="agent-memory">
+            {#each MEMORY_VALUES as value}<option value={value}></option>{/each}
+          </datalist>
         </div>
 
-        <div class="ag-card">
-          <div class="ag-card-info stacked">
-            <span class="ag-label">{t('cliProviders.title')}</span>
-            <span class="ag-hint">{t('agentDefs.providersHint')}</span>
+        {#each [
+          { list: 'agent-tools', label: t('agentDefs.fields.tools'), values: draft.tools, empty: t('agentDefs.fields.toolsEmpty'), placeholder: t('agentDefs.fields.toolsPlaceholder'), suggestions: toolSuggestions, isTools: true },
+          { list: 'agent-skills', label: t('agentDefs.fields.skills'), values: draft.skills, empty: t('agentDefs.fields.skillsEmpty'), placeholder: t('agentDefs.fields.skillsPlaceholder'), suggestions: skillOptions, isTools: false },
+        ] as picker (picker.list)}
+          <div class="field">
+            <span class="label">{picker.label}</span>
+            <div class="control">
+              {#if picker.values.length > 0}
+                <div class="tool-chips">
+                  {#each picker.values as value (value)}
+                    <span class="tool-chip">
+                      <code>{value}</code>
+                      <button on:click={() => picker.isTools ? removeTool(value) : removeSkill(value)} aria-label={t('common.remove') as string}>
+                        <Icon name="x" size={9}/>
+                      </button>
+                    </span>
+                  {/each}
+                </div>
+              {/if}
+              <div class="inline-row">
+                {#if picker.isTools}
+                  <input
+                    class="input selectable"
+                    type="text"
+                    list={picker.list}
+                    placeholder={(picker.values.length === 0 ? picker.empty : picker.placeholder) as string}
+                    bind:value={toolDraft}
+                    on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTool(toolDraft); } }}
+                  />
+                  <button class="btn" on:click={() => addTool(toolDraft)} disabled={!toolDraft.trim()}>
+                    <Icon name="plus" size={12}/> {t('common.add')}
+                  </button>
+                {:else}
+                  <input
+                    class="input selectable"
+                    type="text"
+                    list={picker.list}
+                    placeholder={(picker.values.length === 0 ? picker.empty : picker.placeholder) as string}
+                    bind:value={skillDraft}
+                    on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(skillDraft); } }}
+                  />
+                  <button class="btn" on:click={() => addSkill(skillDraft)} disabled={!skillDraft.trim()}>
+                    <Icon name="plus" size={12}/> {t('common.add')}
+                  </button>
+                {/if}
+              </div>
+            </div>
+            <datalist id={picker.list}>
+              {#each picker.suggestions as option}<option value={option}></option>{/each}
+            </datalist>
           </div>
+        {/each}
+      </section>
+
+      <section class="section">
+        <h3>{t('agentDefs.groups.location')}</h3>
+
+        <div class="field">
+          <span class="label">{t('agentDefs.fields.scope')}</span>
+          <div class="control">
+            <Select
+              value={draft.scope}
+              options={scopeOptions}
+              ariaLabel={t('agentDefs.fields.scope') as string}
+              on:change={(e) => setScope(e.detail as NativeAgentScope)}
+            />
+            <span class="hint">
+              {draft.scope === 'global' ? t('agentDefs.scope.globalHint') : t('agentDefs.scope.projectHint')}
+            </span>
+          </div>
+        </div>
+        {#if draft.scope === 'project'}
+          <div class="field">
+            <span class="label">{t('agentDefs.fields.project')}</span>
+            <Select
+              value={draft.projectId}
+              options={projectOptions}
+              ariaLabel={t('agentDefs.fields.project') as string}
+              on:change={(e) => setProject(e.detail)}
+            />
+          </div>
+        {/if}
+
+        <div class="field is-stacked">
+          <span class="label">{t('cliProviders.title')}</span>
           <ProviderPicker
             selected={draft.targets}
             {reached}
@@ -748,11 +794,8 @@
         </div>
 
         {#if selected && selected.locations.length > 0}
-          <div class="ag-card">
-            <div class="ag-card-info stacked">
-              <span class="ag-label">{t('agentDefs.locations.title')}</span>
-              <span class="ag-hint">{t('agentDefs.locations.hint')}</span>
-            </div>
+          <div class="field is-stacked">
+            <span class="label">{t('agentDefs.locations.title')}</span>
             <div class="locations">
               {#each selected.locations as location (location.path)}
                 <div class="location">
@@ -764,148 +807,53 @@
             </div>
           </div>
         {/if}
-      </div>
+      </section>
 
-      <div class="ag-group">
-        <button class="ag-group-title advanced" on:click={() => advancedOpen = !advancedOpen}>
-          <Icon name={advancedOpen ? 'chev-d' : 'chev-r'} size={11}/>
+      <section class="section">
+        <button class="advanced" aria-expanded={advancedOpen} on:click={() => advancedOpen = !advancedOpen}>
+          <Icon name={advancedOpen ? 'chev-d' : 'chev-r'} size={12}/>
           {t('agentDefs.groups.advanced')}
         </button>
         {#if advancedOpen}
-          {#if capabilityProviders.length === 0}
-            <div class="ag-card">
-              <span class="ag-hint">{t('agentDefs.fields.pickProviderFirst')}</span>
-            </div>
-          {:else}
-            <div class="ag-card row-card">
-              <div class="row-fields">
-                <div class="ag-field">
-                  <span class="ag-hint">{t('agentDefs.fields.model')}</span>
-                  <!-- Typed rather than picked: Cairn no longer asks a provider
-                       what models it serves, and the CLI rejects an unknown id
-                       itself with a better message than a stale list could. -->
-                  <input
-                    class="selectable"
-                    value={draft.model}
-                    placeholder={t('agentDefs.fields.modelPlaceholder') as string}
-                    aria-label={t('agentDefs.fields.model') as string}
-                    on:input={(e) => { if (draft) draft.model = e.currentTarget.value; }}
-                  />
-                </div>
-                <div class="ag-field">
-                  <span class="ag-hint">{t('agentDefs.fields.effort')}</span>
-                  <Select
-                    value={draft.effort}
-                    options={effortOptions}
-                    ariaLabel={t('agentDefs.fields.effort') as string}
-                    on:change={(e) => { if (draft) draft.effort = e.detail; }}
-                  />
-                </div>
-                <div class="ag-field">
-                  <span class="ag-hint">{t('agentDefs.fields.permissionMode')}</span>
-                  <Select
-                    value={draft.permissionMode}
-                    options={permissionOptions}
-                    ariaLabel={t('agentDefs.fields.permissionMode') as string}
-                    on:change={(e) => { if (draft) draft.permissionMode = e.detail; }}
-                  />
-                </div>
-              </div>
-              <span class="ag-hint">{t('agentDefs.fields.capabilitiesHint')}</span>
-            </div>
-          {/if}
-
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <span class="ag-label">{t('agentDefs.fields.skills')}</span>
-                <span class="ag-hint">{t('agentDefs.fields.skillsHint')}</span>
-              </div>
-
-              {#if draft.skills.length > 0}
-                <div class="tool-chips">
-                  {#each draft.skills as skill (skill)}
-                    <span class="tool-chip">
-                      <code>{skill}</code>
-                      <button on:click={() => removeSkill(skill)} aria-label={t('common.remove') as string}>
-                        <Icon name="x" size={9}/>
-                      </button>
-                    </span>
-                  {/each}
-                </div>
-              {:else}
-                <span class="ag-hint">{t('agentDefs.fields.skillsEmpty')}</span>
-              {/if}
-
-              <div class="inline-row">
-                <input
-                  class="ag-input selectable"
-                  type="text"
-                  list="agent-skills"
-                  placeholder={t('agentDefs.fields.skillsPlaceholder') as string}
-                  bind:value={skillDraft}
-                  on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(skillDraft); } }}
-                />
-                <datalist id="agent-skills">
-                  {#each skillOptions as skill}<option value={skill}></option>{/each}
-                </datalist>
-                <button class="btn" on:click={() => addSkill(skillDraft)} disabled={!skillDraft.trim()}>
-                  <Icon name="plus" size={12}/> {t('common.add')}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for="ag-memory">{t('agentDefs.fields.memory')}</label>
-                <span class="ag-hint">{t('agentDefs.fields.memoryHint')}</span>
-              </div>
-              <input
-                id="ag-memory"
-                class="ag-input selectable"
-                type="text"
-                list="agent-memory"
-                placeholder={t('agentDefs.fields.inherit') as string}
-                bind:value={draft.memory}
-              />
-              <datalist id="agent-memory">
-                {#each MEMORY_VALUES as value}<option value={value}></option>{/each}
-              </datalist>
-            </div>
-          </div>
-
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for="ag-extra">{t('agentDefs.fields.extraFrontmatter')}</label>
-                <span class="ag-hint">{t('agentDefs.fields.extraFrontmatterHint')}</span>
-              </div>
-              <textarea
-                id="ag-extra"
-                class="ag-textarea mono selectable"
-                rows="4"
-                spellcheck="false"
-                bind:value={draft.extraFrontmatter}
-              ></textarea>
-            </div>
+          <div class="field is-stacked advanced-body">
+            <label class="label" for="ag-extra">{t('agentDefs.fields.extraFrontmatter')}</label>
+            <textarea
+              id="ag-extra"
+              class="input textarea mono selectable"
+              rows="4"
+              spellcheck="false"
+              bind:value={draft.extraFrontmatter}
+            ></textarea>
+            <span class="hint">{t('agentDefs.fields.extraFrontmatterHint')}</span>
           </div>
         {/if}
-      </div>
+      </section>
+    </div>
 
-      <div class="save-bar" class:visible={dirty || selectedPath === null}>
+    {#if selected?.divergent || error}
+      <div class="notices">
+        {#if selected?.divergent}
+          <div class="banner warn"><Icon name="alert" size={13}/><span>{t('agentDefs.divergent')}</span></div>
+        {/if}
+        {#if error}
+          <div class="banner bad"><Icon name="alert" size={13}/><span>{error}</span></div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if dirty || selectedPath === null}
+      <div class="save-bar">
         <span class="save-note">
           {#if nameClash}
-            <span class="ag-hint bad">{t('agentDefs.nameClash')}</span>
+            <span class="hint bad">{t('agentDefs.nameClash')}</span>
           {:else if !slug}
-            <span class="ag-hint warn">{t('agentDefs.nameRequired')}</span>
+            <span class="hint warn">{t('agentDefs.nameRequired')}</span>
           {:else if draft.targets.length === 0}
-            <span class="ag-hint warn">{t('cliProviders.pickOne')}</span>
+            <span class="hint warn">{t('cliProviders.pickOne')}</span>
           {:else if selectedPath === null}
-            <span class="ag-hint">{(t('agentDefs.willCreate') as (n: string) => string)(slug)}</span>
+            <span class="hint">{(t('agentDefs.willCreate') as (n: string) => string)(slug)}</span>
           {:else}
-            <span class="ag-hint">{t('agentDefs.unsaved')}</span>
+            <span class="hint">{t('agentDefs.unsaved')}</span>
           {/if}
         </span>
         <button class="btn ghost" on:click={() => selectedPath ? revert() : reset()} disabled={saving}>
@@ -916,13 +864,14 @@
           on:click={save}
           disabled={saving || !slug || nameClash || draft.targets.length === 0}
         >
-          {#if saving}<Spinner size={11}/>{:else}<Icon name="save" size={12}/>{/if}
+          {#if saving}<Spinner size={11}/>{/if}
           {t('common.save')}
         </button>
       </div>
     {/if}
-  </section>
-</div>
+  {/if}
+</SplitPanel>
+{/if}
 
 {#if $nativeAgentsError}
   <div class="banner bad floating"><Icon name="alert" size={13}/><span>{$nativeAgentsError}</span></div>
@@ -937,190 +886,245 @@
 {/if}
 
 <style>
-  .master-actions { display: flex; align-items: center; gap: 2px; }
-
-  .icon-btn {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    padding: 0;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--r-sm);
-    color: var(--fg-3);
-    cursor: pointer;
-    transition: background .12s, color .12s, border-color .12s;
-  }
-  .icon-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-0); }
-  .icon-btn.delete:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
-  .icon-btn:disabled { opacity: .5; cursor: default; }
-
-  .filters {
+  /* -- page head -- */
+  .ag-page-head { margin-bottom: 32px; }
+  .ag-page-head h1 {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 0 8px 8px;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
   }
+  .head-count {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--fg-2);
+    background: var(--bg-3);
+    border-radius: 10px;
+  }
+
+  .page-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 0;
+    text-align: center;
+    color: var(--fg-3);
+  }
+  .page-empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
+  .page-empty p { max-width: 56ch; margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
+
+  /* -- list -- */
+  .list-tools { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 4px; }
+  .list-tools :global(.ag-search) { height: 28px; box-sizing: border-box; margin: 0; }
+  .filters { display: flex; flex-wrap: wrap; gap: 4px; }
   .chip {
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 8px;
-    background: none;
+    height: 22px;
+    padding: 0 8px;
     border: 1px solid var(--stroke-0);
-    border-radius: 99px;
-    font-size: 11px;
+    border-radius: 11px;
+    font-size: 11.5px;
     color: var(--fg-2);
-    cursor: pointer;
-    font-family: var(--font-ui);
   }
-  .chip:hover { background: var(--bg-3); color: var(--fg-0); }
-  .chip.active { background: var(--accent-weak); border-color: var(--accent-line); color: var(--fg-0); }
-  .chip-count { font-size: 10px; color: var(--fg-3); font-family: var(--font-mono); }
+  .chip:hover { color: var(--fg-0); }
+  .chip.active { background: var(--bg-3); border-color: var(--stroke-1); color: var(--fg-0); }
+  .chip-count { font-size: 11px; color: var(--fg-3); }
 
-  .master-skeleton { padding: 4px 8px; }
-
-  .group-label {
-    padding: 10px 10px 4px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--fg-4);
-  }
-
-  .agent-row {
+  .list-items {
     display: flex;
-    align-items: center;
+    flex: 1;
+    flex-direction: column;
     gap: 2px;
-    border-radius: var(--r-md);
+    min-height: 0;
+    padding: 4px 12px 12px;
+    overflow-y: auto;
   }
-  .agent-row :global(.ag-item) { min-width: 0; }
-
-  .name-input { font-size: 15px; font-weight: 600; }
-
-  .head-meta {
+  .group-label { margin: 12px 10px 6px; font-size: 11.5px; font-weight: 500; color: var(--fg-3); }
+  .ag-item {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 6px;
-  }
-  .invoke {
-    padding: 2px 7px;
-    background: var(--accent-weak);
-    border: 1px solid var(--accent-line);
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    flex-shrink: 0;
+    padding: 7px 10px;
     border-radius: var(--r-sm);
-    font-family: var(--font-mono);
-    font-size: 11px;
+    text-align: left;
+    color: var(--fg-1);
+  }
+  .ag-item:hover { background: var(--bg-2); }
+  .ag-item.is-active { background: var(--bg-2); color: var(--fg-0); }
+  .ag-item.new-agent { color: var(--fg-2); }
+  .ag-item.new-agent:hover { color: var(--fg-0); }
+  .ag-item-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  .ag-item-name,
+  .ag-item-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-item-name { font-size: 13px; font-weight: 500; }
+  .ag-item-sub { font-size: 11.5px; color: var(--fg-3); }
+
+  /* The agent's own colour, toned down so the initials stay readable in both themes. */
+  .avatar {
+    --agent: var(--fg-3);
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-sm);
+    /* srgb, not oklch: mixing two hues in oklch walks the hue wheel between
+       them, and a purple on the warm background came out red. */
+    background: color-mix(in srgb, var(--agent) 22%, var(--bg-1));
+    border: 1px solid color-mix(in srgb, var(--agent) 45%, var(--bg-1));
+    font-size: 10.5px;
+    font-weight: 600;
     color: var(--fg-0);
   }
+  .avatar.is-large { width: 40px; height: 40px; border-radius: var(--r-md); font-size: 13px; }
+  .avatar.is-dashed { background: transparent; border: 1px dashed var(--stroke-1); color: var(--fg-3); }
 
-  .head-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-
-  /* Everything stacked in .ag-detail shares one column and one rhythm: the
-     620px of .ag-group and its 28px above. A flex column never collapses
-     margins, so only the top one is set here. */
-  .banner {
+  /* -- detail -- */
+  .detail-none {
     display: flex;
+    flex: 1;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    margin-top: 28px;
-    max-width: 620px;
-    padding: 9px 12px;
-    background: var(--bg-3);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-md);
-    font-size: 12px;
-    color: var(--fg-2);
+    padding: 32px;
+    text-align: center;
+    color: var(--fg-3);
   }
-  .banner.bad {
-    background: var(--danger-weak);
-    border-color: transparent;
-    color: var(--danger);
+  .none-avatars { display: flex; gap: 8px; margin-bottom: 12px; opacity: 0.7; }
+  .detail-none h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--fg-0); }
+  .detail-none p { max-width: 42ch; margin: 0 0 8px; font-size: 12.5px; line-height: 1.55; }
+
+  .detail-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--stroke-0);
   }
-  .banner.warn {
-    background: var(--warning-weak);
-    border-color: transparent;
-    color: var(--warning);
-  }
-  .banner.floating {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 20;
+  .detail-title { flex: 1; min-width: 0; }
+  .title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .title-row h2 {
     margin: 0;
-    max-width: 420px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .counter {
-    align-self: flex-end;
+  .detail-title p { margin: 3px 0 0; font-size: 12px; color: var(--fg-3); }
+  .invoke {
+    flex: none;
+    padding: 0 6px;
     font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--fg-4);
+    font-size: 11px;
+    line-height: 18px;
+    color: var(--fg-2);
+    border: 1px solid var(--stroke-1);
+    border-radius: 4px;
   }
-  .counter.bad { color: var(--danger); }
+  .head-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+  .icon-only { width: 28px; height: 28px; padding: 0; justify-content: center; }
+  .icon-only.delete:hover { background: var(--danger-weak); color: var(--danger); }
 
+  .detail-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 12px; }
+  .section { padding: 20px 24px 6px; }
+  .section + .section { border-top: 1px solid var(--stroke-0); }
+  .section h3 { margin: 0 0 16px; font-size: 13px; font-weight: 600; color: var(--fg-0); }
+  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-head h3 { margin: 0; }
+  .section-note { margin: 0 0 14px; }
+  .spacer { flex: 1; }
+
+  .field {
+    display: grid;
+    grid-template-columns: 172px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 12px;
+    margin-bottom: 14px;
+  }
+  .field.is-stacked { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
+  .label { padding-top: 7px; font-size: 12.5px; color: var(--fg-2); }
+  .field.is-stacked .label { padding-top: 0; }
+  .control { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .control-foot { display: flex; align-items: baseline; gap: 12px; }
+  .control-foot .hint { flex: 1; }
+  .input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--fg-0);
+    outline: none;
+  }
+  .input:focus { border-color: var(--accent-line); }
+  .input::placeholder { color: var(--fg-4); opacity: 1; }
+  .textarea { height: auto; padding: 8px 10px; line-height: 1.5; resize: vertical; }
   .body-input {
     min-height: 260px;
     font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.6;
+    resize: vertical;
   }
-  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+  .hint { font-size: 12px; line-height: 1.5; color: var(--fg-3); }
+  .hint.warn { color: var(--warning); }
+  .hint.bad { color: var(--danger); }
+  .counter { font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .counter.bad { color: var(--danger); }
+
+  .color-swatches { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+  .swatch { width: 22px; height: 22px; padding: 0; border: 1px solid var(--stroke-1); border-radius: 50%; }
+  .swatch.active { border-color: var(--fg-0); box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 3px var(--fg-0); }
 
   .tool-chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .tool-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 4px 3px 8px;
-    background: var(--bg-1);
+    gap: 4px;
+    height: 24px;
+    padding: 0 4px 0 8px;
+    background: var(--bg-2);
     border: 1px solid var(--stroke-0);
     border-radius: var(--r-sm);
   }
-  .tool-chip code { font-family: var(--font-mono); font-size: 11px; color: var(--fg-1); }
+  .tool-chip code { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1); }
   .tool-chip button {
     display: grid;
     place-items: center;
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     padding: 0;
-    background: none;
-    border: none;
-    border-radius: var(--r-xs);
+    border-radius: 3px;
     color: var(--fg-3);
-    cursor: pointer;
   }
   .tool-chip button:hover { background: var(--danger-weak); color: var(--danger); }
+  .inline-row { display: flex; align-items: center; gap: 8px; }
+  .inline-row .input { flex: 1; min-width: 0; }
+  .inline-row .btn { flex: none; height: 32px; }
 
-  .inline-row { display: flex; align-items: center; gap: 6px; }
-  .inline-row .ag-input { flex: 1; min-width: 0; }
-
-  .row-card { display: flex; flex-direction: column; gap: 10px; }
-  .row-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-  }
-
-  .filters.agents { padding-top: 0; }
-  .filters.agents .chip { gap: 4px; padding: 3px 7px; }
-
-  .ag-card-info.stacked { margin-bottom: 10px; }
-
-  .locations { display: flex; flex-direction: column; gap: 4px; }
-  .location {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    padding: 5px 6px;
-    border-radius: var(--r-sm);
-  }
-  .location:hover { background: var(--bg-1); }
+  .locations { display: flex; flex-direction: column; gap: 2px; }
+  .location { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 0; }
   .location code {
     flex: 1;
     min-width: 0;
@@ -1128,55 +1132,43 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-3);
+    font-size: 11.5px;
+    color: var(--fg-2);
   }
-
 
   .advanced {
     display: flex;
     align-items: center;
-    gap: 5px;
-    background: none;
-    border: none;
+    gap: 6px;
     padding: 0;
-    cursor: pointer;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-1);
   }
+  .advanced:hover { color: var(--fg-0); }
 
-  .save-bar {
-    position: sticky;
-    bottom: 0;
+  .notices { display: flex; flex: none; flex-direction: column; gap: 8px; padding: 0 24px 16px; }
+  .banner {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 8px -4px -4px;
-    padding: 12px 4px;
-    background: linear-gradient(to top, var(--bg-0) 70%, transparent);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .14s;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
   }
-  .save-bar.visible { opacity: 1; pointer-events: auto; }
+  .banner.bad { background: var(--danger-weak); color: var(--danger); }
+  .banner.warn { background: var(--warning-weak); color: var(--warning); }
+  .banner.floating { position: fixed; right: 24px; bottom: 24px; z-index: 20; max-width: 420px; }
+
+  .save-bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-top: 1px solid var(--stroke-0);
+    background: var(--bg-0);
+  }
   .save-note { flex: 1; min-width: 0; }
-
-  .empty-actions { display: flex; align-items: center; gap: 8px; }
-  .color-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
-
-  .swatch {
-    border: 1px solid var(--stroke-1);
-    border-radius: 6px;
-    cursor: pointer;
-    height: 22px;
-    padding: 0;
-    width: 22px;
-  }
-
-  .swatch.active { border-color: var(--fg-0); box-shadow: 0 0 0 2px var(--bg-2); }
-
-  .mention-dot {
-    border-radius: 50%;
-    display: inline-block;
-    height: 8px;
-    width: 8px;
-  }
 </style>

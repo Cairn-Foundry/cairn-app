@@ -103,7 +103,9 @@ function mount() {
 }
 
 const items = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".ag-item"));
+	Array.from(
+		document.querySelectorAll<HTMLElement>(".ag-item:not(.new-agent)"),
+	);
 const itemNames = () =>
 	items().map((i) => i.querySelector(".ag-item-name")?.textContent?.trim());
 const itemFor = (name: string) =>
@@ -121,7 +123,7 @@ const saveButton = () =>
 const revertButton = () =>
 	document.querySelector(".save-bar .btn.ghost") as HTMLButtonElement;
 const searchField = () =>
-	document.querySelector(".ag-master input") as HTMLInputElement;
+	document.querySelector(".split-list input") as HTMLInputElement;
 const chips = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".filters .chip"));
 const chipBy = (re: RegExp) =>
@@ -140,9 +142,7 @@ const inputWithList = (list: string) =>
 	document.querySelector(`input[list="${list}"]`) as HTMLInputElement;
 /** Skills, memory and the raw frontmatter live behind the Advanced heading. */
 async function openAdvanced() {
-	await userEvent.click(
-		document.querySelector(".ag-group-title.advanced") as HTMLElement,
-	);
+	await userEvent.click(document.querySelector(".advanced") as HTMLElement);
 	await settle();
 }
 
@@ -265,9 +265,7 @@ describe("AgentsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.filters.agents .chip[title="Codex"]',
-				) as HTMLElement,
+				document.querySelector('.filters .chip[title="Codex"]') as HTMLElement,
 			);
 			await settle();
 			expect(itemNames()).toEqual(["for-codex"]);
@@ -278,7 +276,7 @@ describe("AgentsSection", () => {
 			await settle();
 			await userEvent.type(searchField(), "zzzz");
 			await settle();
-			expect(document.querySelector(".ag-master-empty")).not.toBeNull();
+			expect(document.querySelector(".search-empty, .page-empty")).not.toBeNull();
 		});
 	});
 
@@ -435,9 +433,7 @@ describe("AgentsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New agent"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-agent") as HTMLElement,
 			);
 			await settle();
 			expect(nameField().value).toBe("");
@@ -447,9 +443,7 @@ describe("AgentsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New agent"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-agent") as HTMLElement,
 			);
 			await settle();
 			await userEvent.type(nameField(), "fresh");
@@ -501,7 +495,7 @@ describe("AgentsSection", () => {
 			await settle();
 			await userEvent.type(inputWithList("agent-tools"), "   {Enter}");
 			await settle();
-			expect(chipsIn(".ag-detail")).toEqual([]);
+			expect(chipsIn(".split-detail")).toEqual([]);
 		});
 
 		it("removes the tool that was asked for", async () => {
@@ -577,7 +571,7 @@ describe("AgentsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".ag-master .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			expect(deleteNativeAgent).not.toHaveBeenCalled();
@@ -597,7 +591,7 @@ describe("AgentsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".ag-master .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			await userEvent.click(

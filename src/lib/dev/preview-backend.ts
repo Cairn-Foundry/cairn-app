@@ -379,6 +379,123 @@ const CLI_PROVIDERS: [string, string, string | null][] = [
 
 const DAY = 86_400_000;
 
+/** A native agent file as `list_native_agents` reads it back, with every field. */
+function previewAgent(
+	name: string,
+	fields: {
+		description: string;
+		model?: string;
+		effort?: string;
+		permissionMode?: string;
+		color?: string;
+		tools?: string[];
+		skills?: string[];
+		systemPrompt: string;
+		projectId?: string;
+		providers?: string[];
+	},
+) {
+	const providers = fields.providers ?? ["claude-code"];
+	const project = projects.find((p) => p.id === fields.projectId);
+	const dir = project
+		? `${project.path}/.claude/agents`
+		: "/Users/dev/.claude/agents";
+	const path = `${dir}/${name}.md`;
+	return {
+		id: path,
+		name,
+		description: fields.description,
+		model: fields.model ?? "",
+		effort: fields.effort ?? "",
+		permissionMode: fields.permissionMode ?? "",
+		memory: "",
+		skills: fields.skills ?? [],
+		color: fields.color ?? "",
+		tools: fields.tools ?? [],
+		extraFrontmatter: "",
+		systemPrompt: fields.systemPrompt,
+		scope: project ? "project" : "global",
+		projectId: project?.id ?? "",
+		projectName: project?.name ?? "",
+		path,
+		locations: [{ path, providers }],
+		providers,
+		divergent: false,
+	};
+}
+
+const NATIVE_AGENTS = [
+	previewAgent("reviewer", {
+		description:
+			"Reviews a diff before it is pushed: correctness first, then the conventions of the repository.",
+		model: "opus",
+		effort: "high",
+		color: "#a855f7",
+		tools: ["Read", "Grep", "Glob", "Bash"],
+		skills: ["code-review"],
+		systemPrompt:
+			"You review changes the way a careful senior engineer would. Read the whole diff before saying anything, then report what is wrong, worst first, with the line it is on.",
+	}),
+	previewAgent("test-writer", {
+		description:
+			"Writes the missing tests for a change, in the style the suite already uses.",
+		model: "sonnet",
+		color: "#22c55e",
+		tools: ["Read", "Edit", "Write", "Bash"],
+		systemPrompt:
+			"Find what the change does not cover yet and write the tests for it. Match the existing helpers and naming; never mock what the suite does not already mock.",
+		providers: ["claude-code", "opencode"],
+	}),
+	previewAgent("migration-planner", {
+		description: "Plans a database migration that can run without downtime.",
+		model: "opus",
+		effort: "max",
+		permissionMode: "plan",
+		color: "#f97316",
+		tools: ["Read", "Grep"],
+		systemPrompt:
+			"Plan the migration in steps that each keep the application working. Say for each step what runs, what it locks, and how to roll it back.",
+		projectId: "cowork-backend",
+	}),
+	previewAgent("docs", {
+		description: "Keeps the README and the docs folder in step with the code.",
+		color: "#3b82f6",
+		tools: ["Read", "Edit", "Glob"],
+		systemPrompt:
+			"When the code changes what a user or a contributor does, update the docs that say so. Keep the existing tone and structure.",
+		projectId: "cairn",
+	}),
+];
+
+const PREVIEW_SKILLS = ["code-review", "release-notes", "sql-style"].map(
+	(name) => {
+		const path = `/Users/dev/.claude/skills/${name}`;
+		return {
+			id: path,
+			name,
+			description: `The ${name} conventions of the team.`,
+			whenToUse: "",
+			allowedTools: [],
+			paths: "",
+			model: "",
+			license: "",
+			disableModelInvocation: false,
+			extraFrontmatter: "",
+			body: "",
+			scope: "global",
+			projectId: "",
+			projectName: "",
+			plugin: "",
+			path,
+			locations: [{ path, providers: ["claude-code"], readOnly: false }],
+			providers: ["claude-code"],
+			divergent: false,
+			readOnly: false,
+			resources: [],
+		};
+	},
+);
+
 let integrationConnections: Record<string, unknown>[] = [
 	{
 		id: "jira",
@@ -485,6 +602,9 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 			version,
 			resumable: true,
 		})),
+	list_native_agents: () => (isEmpty ? [] : NATIVE_AGENTS),
+	list_skills: () => (isEmpty ? [] : PREVIEW_SKILLS),
+	reached_providers: (a) => a.targets,
 	integration_kinds: () => INTEGRATION_KINDS,
 	list_integration_connections: () => (isEmpty ? [] : integrationConnections),
 	save_integration_connection: (a) => {
