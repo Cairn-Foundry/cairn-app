@@ -2613,57 +2613,58 @@ export const en = {
 		},
 		features: {
 			title: "Features",
-			desc: "Which CLI answers each AI assist, and the prompt it asks with.",
+			groupWrites: "Writes the text",
+			groupHandsOver: "Prepares a prompt for the Agent",
+			agentStep: "Agent step",
+			answeredBy: "Answered by",
+			handsToAgentNote:
+				"The prompt is handed to the Agent step, and the CLI chosen there answers it.",
 			provider: "Provider",
 			model: "Model",
 			modelDefault: "The CLI's default",
 			noAssistCli:
 				"No assist CLI is installed. The assists need one that can be held to a JSON schema - Claude Code or Codex.",
-			handsToAgent: "Runs in the Agent step",
 			assistCliMissing: (name: string) =>
 				`${name} is not installed. The assists run it headlessly - install it to use them.`,
 			noProvider:
 				"No CLI provider is enabled. Enable one under Providers - an assist explores the worktree itself, which an API provider cannot do.",
 			promptTemplate: "Prompt template",
-			editTemplate: "Edit the prompt",
 			saveTemplate: "Save",
 			cancel: "Cancel",
 			resetTemplate: "Reset to default",
 			customTemplate: "Customised",
-			promptPlaceholders:
-				"{{ticket}} expands to the instance ticket, or to nothing when there is none. {{ticket.key}}, {{ticket.title}} and {{ticket.url}} expand to the linked ticket's fields.",
 			defs: {
 				commitMessage: {
 					label: "Commit message",
-					desc: "Writes the commit title and description from what is staged, in the Git step.",
+					desc: "Writes the commit message from the staged changes.",
 				},
 				testFix: {
 					label: "Test fix",
-					desc: "Turns a failing test into a ready-made prompt and hands it to the Agent step.",
+					desc: "Turns a failing test into a prompt.",
 				},
 				mrDescription: {
 					label: "Merge request description",
-					desc: "Writes the title and description of a merge request from the commits and the diff of the branch.",
+					desc: "Writes the merge request title and description from the branch.",
 				},
 				ciFix: {
 					label: "CI fix",
-					desc: "Turns a failed CI job and its log excerpt into a prompt and hands it to the Agent step.",
+					desc: "Turns a failed CI job and its log into a prompt.",
 				},
 				reviewGuide: {
 					label: "Review guide",
-					desc: "Reads the branch diff and writes the guided tour of it: chapters, extracts and remarks.",
+					desc: "Walks through the branch diff in chapters.",
 				},
 				ticketPlan: {
 					label: "Ticket plan",
-					desc: "Reads the open tickets of every project and writes the order they should be taken on.",
+					desc: "Orders the open tickets of every project.",
 				},
 				reviewComment: {
 					label: "Review comment",
-					desc: "Turns a remark of the guide into the comment draft the reviewer edits before sending.",
+					desc: "Drafts a review comment from a remark of the guide.",
 				},
 				branchName: {
 					label: "Branch name",
-					desc: "Reads a ticket and names the branch after what the work produces, in the new instance dialog.",
+					desc: "Names the branch of a new instance after its ticket.",
 				},
 			},
 		},

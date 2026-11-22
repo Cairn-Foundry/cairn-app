@@ -361,6 +361,22 @@ const INTEGRATION_KINDS = [
 	},
 ];
 
+/** The CLI registry, with the version of the ones installed on this machine. */
+const CLI_PROVIDERS: [string, string, string | null][] = [
+	["claude-code", "Claude Code", "2.4.1"],
+	["codex", "Codex", "0.48.0"],
+	["gemini", "Gemini CLI", "0.21.3"],
+	["opencode", "OpenCode", null],
+	["copilot", "Copilot CLI", null],
+	["antigravity", "Antigravity", null],
+	["vibe", "Mistral Vibe", null],
+	["cursor", "Cursor CLI", null],
+	["amp", "Amp", null],
+	["goose", "Goose", null],
+	["qwen", "Qwen Code", null],
+	["droid", "Droid", null],
+];
+
 const DAY = 86_400_000;
 
 let integrationConnections: Record<string, unknown>[] = [
@@ -458,6 +474,17 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 		watched: (a.dirs as unknown[] | undefined)?.length ?? 0,
 		failed: [],
 	}),
+	list_cli_providers: () =>
+		CLI_PROVIDERS.map(([id, label, version]) => ({
+			id,
+			label,
+			hasLocalScope: id === "claude-code",
+			installed: version !== null,
+			configured: version !== null,
+			path: version ? `/usr/local/bin/${id}` : null,
+			version,
+			resumable: true,
+		})),
 	integration_kinds: () => INTEGRATION_KINDS,
 	list_integration_connections: () => (isEmpty ? [] : integrationConnections),
 	save_integration_connection: (a) => {

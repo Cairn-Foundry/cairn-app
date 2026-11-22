@@ -16,6 +16,7 @@
   import SearchInput from '#lib/components/SearchInput.svelte';
   import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import RemoveConnectionModal from './RemoveConnectionModal.svelte';
+  import SplitPanel from '#lib/components/SplitPanel.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import Skeleton from '#lib/components/Skeleton.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
@@ -250,8 +251,8 @@
     </button>
   </section>
 {:else}
-<div class="in-layout">
-  <aside class="in-list">
+<SplitPanel>
+  <svelte:fragment slot="list">
     <div class="in-list-tools">
       <SearchInput bind:value={search} placeholder={t('integrations.searchPlaceholder') as string}/>
     </div>
@@ -303,9 +304,8 @@
         {/if}
       {/if}
     </div>
-  </aside>
+  </svelte:fragment>
 
-  <section class="in-detail">
     {#if draft === null || descriptor === null}
       <div class="in-detail-none">
         <span class="in-none-tiles" aria-hidden="true">
@@ -500,8 +500,7 @@
         </div>
       {/if}
     {/if}
-  </section>
-</div>
+</SplitPanel>
 {/if}
 
 {#if $connectionsError}
@@ -520,13 +519,6 @@
 {/if}
 
 <style>
-  /* The panel takes the height the page has left: the scrolling main area
-     becomes a column it can grow in, and the list and the form scroll inside. */
-  :global(.home-main:has(> .in-head)) {
-    display: flex;
-    flex-direction: column;
-  }
-
   /* -- head -- */
   .in-head { margin-bottom: 32px; }
   .in-head h1 {
@@ -564,27 +556,7 @@
   .in-empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
   .in-empty p { max-width: 52ch; margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
 
-  /* -- layout: one framed panel, the list in a darker column on its left -- */
-  .in-layout {
-    display: grid;
-    flex: 1 1 0;
-    grid-template-columns: 248px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 420px;
-    border: 1px solid color-mix(in oklch, var(--stroke-0) 60%, var(--stroke-1));
-    border-radius: var(--r-md);
-    background: var(--bg-1);
-    overflow: hidden;
-  }
-
   /* -- list -- */
-  .in-list {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    background: var(--bg-0);
-    border-right: 1px solid var(--stroke-0);
-  }
   .in-list-tools { padding: 12px 12px 8px; }
   .in-list-tools :global(.ag-search) { height: 28px; box-sizing: border-box; margin: 0; }
   .in-list-items {
@@ -639,7 +611,6 @@
   .in-dot.off { border: 1.5px solid var(--fg-4); box-sizing: border-box; }
 
   /* -- detail -- */
-  .in-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .in-detail-none {
     display: flex;
     flex: 1;

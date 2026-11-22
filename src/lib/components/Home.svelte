@@ -128,13 +128,7 @@
       </div>
 
     {:else if activeSection === 'features'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.features.title')}</h1>
-        <div class="sub">{t('home.features.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <FeaturesSection />
-      </div>
+      <FeaturesSection />
 
     {:else if activeSection === 'agents'}
       <div class="home-hero" style="padding-bottom: 0">

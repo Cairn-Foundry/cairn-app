@@ -77,9 +77,9 @@ const dotIn = (row: HTMLElement) => row.querySelector(".in-dot") as HTMLElement;
 const addButton = () => document.querySelector(".in-add") as HTMLElement;
 const emptyNote = () => document.querySelector(".search-empty, .in-empty");
 const labelField = () =>
-	document.querySelector(".in-detail input") as HTMLInputElement;
+	document.querySelector(".split-detail input") as HTMLInputElement;
 const detailButtons = () =>
-	Array.from(document.querySelectorAll<HTMLButtonElement>(".in-detail .btn"));
+	Array.from(document.querySelectorAll<HTMLButtonElement>(".split-detail .btn"));
 /** The form offers "Test" (which saves then tests) and "Save anyway". */
 const detailButtonNamed = (pattern: RegExp) =>
 	detailButtons().find((b) =>
@@ -154,7 +154,7 @@ describe("IntegrationsSection", () => {
 			render(IntegrationsSection, {});
 			await settle();
 			const search = document.querySelector(
-				".in-list input",
+				".split-list input",
 			) as HTMLInputElement;
 			await userEvent.type(search, "alph");
 			expect(rows()).toHaveLength(1);
@@ -165,7 +165,7 @@ describe("IntegrationsSection", () => {
 			render(IntegrationsSection, {});
 			await settle();
 			const search = document.querySelector(
-				".in-list input",
+				".split-list input",
 			) as HTMLInputElement;
 			await userEvent.type(search, "zzz");
 			expect(rows()).toHaveLength(0);
@@ -256,7 +256,7 @@ describe("IntegrationsSection", () => {
 			await userEvent.click(addButton());
 			await tick();
 			const inputs = Array.from(
-				document.querySelectorAll<HTMLInputElement>(".in-detail input"),
+				document.querySelectorAll<HTMLInputElement>(".split-detail input"),
 			);
 			await userEvent.type(inputs[0], "My GitHub");
 			await userEvent.type(inputs[2], "a-token");
@@ -280,7 +280,7 @@ describe("IntegrationsSection", () => {
 			await userEvent.click(addButton());
 			await tick();
 			const inputs = Array.from(
-				document.querySelectorAll<HTMLInputElement>(".in-detail input"),
+				document.querySelectorAll<HTMLInputElement>(".split-detail input"),
 			);
 			await userEvent.clear(inputs[1]);
 			await userEvent.type(inputs[1], "not-a-url");

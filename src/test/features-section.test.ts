@@ -107,4 +107,61 @@ describe("FeaturesSection", () => {
 		await tick();
 		expect(cards()[0].querySelector(".bad")?.textContent).toContain("Codex");
 	});
+
+	describe("the list and the selected assist", () => {
+		const items = () =>
+			Array.from(document.querySelectorAll<HTMLElement>(".ft-item"));
+		const template = () =>
+			document.querySelector(".ft-template") as HTMLTextAreaElement;
+
+		it("opens the first assist and switches to the one clicked", async () => {
+			render(FeaturesSection);
+			await tick();
+			expect(items()[0].classList.contains("is-active")).toBe(true);
+			await userEvent.click(items()[1]);
+			expect(items()[1].classList.contains("is-active")).toBe(true);
+			expect(document.querySelector(".ft-detail-title h2")?.textContent).toBe(
+				items()[1].querySelector(".ft-item-name")?.textContent,
+			);
+		});
+
+		/** An assist that only hands a prompt over has no CLI of its own to pick. */
+		it("offers no CLI for an assist that runs in the Agent step", async () => {
+			render(FeaturesSection);
+			await tick();
+			const testFix = items().find((i) =>
+				i.textContent?.includes("Test fix"),
+			) as HTMLElement;
+			await userEvent.click(testFix);
+			expect(document.querySelector(".feat-select")).toBeNull();
+			expect(document.querySelector(".ft-note")).not.toBeNull();
+		});
+
+		it("saves an edited prompt only once it is confirmed", async () => {
+			render(FeaturesSection);
+			await tick();
+			expect(document.querySelector(".ft-save-bar")).toBeNull();
+			await userEvent.type(template(), " Keep it short.");
+			expect(saved).not.toHaveBeenCalled();
+			await userEvent.click(
+				document.querySelector(".ft-save-bar .btn.primary") as HTMLElement,
+			);
+			const next = saved.mock.calls[0][0] as {
+				aiFeatures: Record<string, { promptTemplate: string }>;
+			};
+			expect(next.aiFeatures.commitMessage.promptTemplate).toContain(
+				"Keep it short.",
+			);
+		});
+
+		it("offers the placeholders of the prompt as buttons", async () => {
+			render(FeaturesSection);
+			await tick();
+			const variable = document.querySelector(".ft-var") as HTMLElement;
+			expect(variable.textContent).toBe("{{ticket}}");
+			template().setSelectionRange(0, 0);
+			await userEvent.click(variable);
+			expect(template().value.startsWith("{{ticket}}")).toBe(true);
+		});
+	});
 });

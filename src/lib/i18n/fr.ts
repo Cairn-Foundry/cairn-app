@@ -2655,57 +2655,58 @@ export const fr = {
 		},
 		features: {
 			title: "Fonctionnalités",
-			desc: "Le CLI qui répond à chaque assistance IA, et le prompt qu'il utilise.",
+			groupWrites: "Rédige le texte",
+			groupHandsOver: "Prépare un prompt pour l'Agent",
+			agentStep: "Étape Agent",
+			answeredBy: "Répondu par",
+			handsToAgentNote:
+				"Le prompt est confié à l'étape Agent, et c'est le CLI choisi là-bas qui y répond.",
 			provider: "Fournisseur",
 			model: "Modèle",
 			modelDefault: "Le modèle par défaut du CLI",
 			noAssistCli:
 				"Aucun CLI d'assistance n'est installé. Les assistances ont besoin d'un CLI que l'on peut contraindre à un schéma JSON : Claude Code ou Codex.",
-			handsToAgent: "S'exécute dans la step Agent",
 			assistCliMissing: (name: string) =>
 				`${name} n'est pas installé. Les assistances l'exécutent en mode headless : installez-le pour les utiliser.`,
 			noProvider:
 				"Aucun fournisseur CLI n'est activé. Activez-en un dans Fournisseurs : une assistance explore le worktree elle-même, ce qu'un fournisseur API ne peut pas faire.",
 			promptTemplate: "Modèle de prompt",
-			editTemplate: "Modifier le prompt",
 			saveTemplate: "Enregistrer",
 			cancel: "Annuler",
 			resetTemplate: "Réinitialiser",
 			customTemplate: "Personnalisé",
-			promptPlaceholders:
-				"{{ticket}} est remplacé par le ticket de l'instance, ou par rien s'il n'y en a pas. {{ticket.key}}, {{ticket.title}} et {{ticket.url}} sont remplacés par les champs du ticket lié.",
 			defs: {
 				commitMessage: {
 					label: "Message de commit",
-					desc: "Rédige le titre et la description du commit à partir du contenu stage, dans la step Git.",
+					desc: "Rédige le message de commit à partir des changements indexés.",
 				},
 				testFix: {
 					label: "Correction de test",
-					desc: "Transforme un test en échec en prompt prêt à l'emploi et le passe à la step Agent.",
+					desc: "Transforme un test en échec en prompt.",
 				},
 				mrDescription: {
 					label: "Description de merge request",
-					desc: "Rédige le titre et la description d'une merge request à partir des commits et du diff de la branche.",
+					desc: "Rédige le titre et la description de la merge request à partir de la branche.",
 				},
 				ciFix: {
 					label: "Correction de CI",
-					desc: "Transforme un job CI en échec et son extrait de journal en prompt et le passe à la step Agent.",
+					desc: "Transforme un job CI en échec et son journal en prompt.",
 				},
 				reviewGuide: {
 					label: "Guide de review",
-					desc: "Lit le diff de la branche et en écrit la visite guidée : chapitres, extraits et remarques.",
+					desc: "Parcourt le diff de la branche en chapitres.",
 				},
 				ticketPlan: {
 					label: "Plan des tickets",
-					desc: "Lit les tickets ouverts de tous les projets et écrit l'ordre dans lequel les traiter.",
+					desc: "Ordonne les tickets ouverts de tous les projets.",
 				},
 				reviewComment: {
 					label: "Commentaire de review",
-					desc: "Transforme une remarque du guide en brouillon de commentaire que le reviewer modifie avant de l'envoyer.",
+					desc: "Rédige un commentaire de revue à partir d'une remarque du guide.",
 				},
 				branchName: {
 					label: "Nom de branche",
-					desc: "Lit un ticket et nomme sa branche d'après ce que le travail produit, dans la fenêtre de nouvelle instance.",
+					desc: "Nomme la branche d'une nouvelle instance d'après son ticket.",
 				},
 			},
 		},

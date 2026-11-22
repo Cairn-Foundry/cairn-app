@@ -20,7 +20,8 @@ export function renderPromptTemplate(
 	return template.replace(PLACEHOLDER, (_, name: string) => values[name] ?? "");
 }
 
-function templateOf(
+/** The template a feature asks with: the user's own when set, the default otherwise. */
+export function templateOf(
 	id: AiFeatureId,
 	assignments?: Record<string, AiFeatureAssignment>,
 ): string {

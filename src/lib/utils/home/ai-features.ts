@@ -61,6 +61,21 @@ Answer with the merge request itself and nothing else: no preamble, no reasoning
 The very first line of your answer is the title: one line, 80 characters maximum, imperative mood, no trailing period.
 Then one blank line, then the description in markdown: what changed, why, and how to test it. Keep it factual and short.{{ticket}}`;
 
+const DEFAULT_TEST_FIX_TEMPLATE = `A test is failing in this worktree. Find out why and fix it.
+
+Test: {{test}}
+Location: {{location}}
+{{comparison}}
+
+{{failure}}
+
+{{stack}}
+
+Re-run just this test to check your fix:
+\`\`\`
+{{command}}
+\`\`\``;
+
 const DEFAULT_CI_FIX_TEMPLATE = `A CI job is failing on this branch. Find out why and fix it in this worktree.
 
 Job: {{job}}
@@ -150,7 +165,7 @@ export const AI_FEATURES: AiFeatureDef[] = [
 		icon: "beaker",
 		runsProvider: false,
 		context: "repository",
-		defaultPromptTemplate: "",
+		defaultPromptTemplate: DEFAULT_TEST_FIX_TEMPLATE,
 	},
 	{
 		id: "mrDescription",

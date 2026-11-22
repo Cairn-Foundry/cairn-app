@@ -29,7 +29,7 @@
   import { supportsFileScope } from '#lib/utils/tests/test-scope';
   import { buildTestFixPrompt } from '#lib/utils/tests/test-fix-prompt';
   import { requestAgentDraft } from '#lib/stores/agent-draft';
-  import { aiEnabled } from '#lib/stores/settings';
+  import { aiEnabled, settings } from '#lib/stores/settings';
   import { activeStep } from '#lib/stores/ui';
   import { IS_WINDOWS } from '#lib/utils/platform';
 
@@ -162,7 +162,7 @@
     if (!instance || !selected || !runner) return;
     requestAgentDraft(
       instance.id,
-      buildTestFixPrompt(selected, runner.id, runner.command, IS_WINDOWS),
+      buildTestFixPrompt(selected, runner.id, runner.command, IS_WINDOWS, $settings.aiFeatures),
     );
     activeStep.set('agent');
   }

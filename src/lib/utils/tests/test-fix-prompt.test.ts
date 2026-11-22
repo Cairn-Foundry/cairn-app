@@ -72,6 +72,36 @@ describe("buildTestFixPrompt", () => {
 		expect(prompt).not.toContain("Expected:");
 	});
 
+	/** The default lays the parts out one block apart, whichever are missing. */
+	it("leaves no run of blank lines where a part is missing", () => {
+		const prompt = buildTestFixPrompt(
+			{ ...failing, failure: null },
+			"vitest",
+			"npx vitest run",
+		);
+		expect(prompt).not.toMatch(/\n{3,}/);
+	});
+
+	/** The template edited on the Features page is the one the Agent step receives. */
+	it("renders the template the user wrote", () => {
+		const prompt = buildTestFixPrompt(
+			failing,
+			"vitest",
+			"npx vitest run",
+			false,
+			{
+				testFix: {
+					providerId: "",
+					model: "",
+					promptTemplate: "Fix {{test}} at {{location}}, then run {{command}}.",
+				},
+			},
+		);
+		expect(prompt).toBe(
+			"Fix totp > rejects old tokens at src/auth/totp.test.ts:51, then run npx vitest run 'src/auth/totp.test.ts' -t 'rejects old tokens'.",
+		);
+	});
+
 	it("works with no failure detail at all", () => {
 		const prompt = buildTestFixPrompt(
 			{ ...failing, failure: null },
