@@ -123,7 +123,9 @@ function mount() {
 }
 
 const items = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".ag-item"));
+	Array.from(
+		document.querySelectorAll<HTMLElement>(".ag-item:not(.new-server)"),
+	);
 const itemNames = () =>
 	items().map((i) => i.querySelector(".ag-item-name")?.textContent?.trim());
 const itemFor = (name: string) =>
@@ -137,7 +139,7 @@ const argsField = () =>
 const saveButton = () =>
 	document.querySelector(".save-bar .btn.primary") as HTMLButtonElement;
 const searchField = () =>
-	document.querySelector(".ag-master input") as HTMLInputElement;
+	document.querySelector(".split-list input") as HTMLInputElement;
 const chips = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".filters .chip"));
 const chipBy = (re: RegExp) =>
@@ -273,9 +275,7 @@ describe("McpSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.filters.agents .chip[title="Codex"]',
-				) as HTMLElement,
+				document.querySelector('.filters .chip[title="Codex"]') as HTMLElement,
 			);
 			await settle();
 			expect(itemNames()).toEqual(["for-codex"]);
@@ -286,7 +286,9 @@ describe("McpSection", () => {
 			await settle();
 			await userEvent.type(searchField(), "zzzz");
 			await settle();
-			expect(document.querySelector(".ag-master-empty")).not.toBeNull();
+			expect(
+				document.querySelector(".search-empty, .page-empty"),
+			).not.toBeNull();
 		});
 	});
 
@@ -345,6 +347,11 @@ describe("McpSection", () => {
 			mcpServers.set([server({ command: "" })]);
 			mount();
 			await settle();
+			// The save bar only shows once the draft differs from the file.
+			await userEvent.type(
+				document.getElementById("mcp-name") as HTMLInputElement,
+				"x",
+			);
 			expect(saveButton().disabled).toBe(true);
 		});
 
@@ -352,6 +359,11 @@ describe("McpSection", () => {
 			mcpServers.set([server({ transport: "http", command: "", url: "" })]);
 			mount();
 			await settle();
+			// The save bar only shows once the draft differs from the file.
+			await userEvent.type(
+				document.getElementById("mcp-name") as HTMLInputElement,
+				"x",
+			);
 			expect(saveButton().disabled).toBe(true);
 		});
 
@@ -475,9 +487,7 @@ describe("McpSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New server"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-server") as HTMLElement,
 			);
 			await settle();
 			expect(nameField().value).toBe("");
@@ -594,7 +604,7 @@ describe("McpSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".server-row .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			expect(deleteMcpServer).not.toHaveBeenCalled();
@@ -605,11 +615,11 @@ describe("McpSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".server-row .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			await userEvent.click(
-				document.querySelector(".modal .btn.danger") as HTMLElement,
+				document.querySelector(".modal .cm-confirm") as HTMLElement,
 			);
 			await settle();
 			expect(deleteMcpServer).toHaveBeenCalledTimes(1);
@@ -638,7 +648,7 @@ describe("McpSection", () => {
 			await settle();
 			await userEvent.click(
 				document.querySelector(
-					'.master-actions .icon-btn[title="Export"]',
+					'.split-actions [title="Export"]',
 				) as HTMLElement,
 			);
 			await settle();
@@ -652,7 +662,7 @@ describe("McpSection", () => {
 			await settle();
 			await userEvent.click(
 				document.querySelector(
-					'.master-actions .icon-btn[title="Export"]',
+					'.split-actions [title="Export"]',
 				) as HTMLElement,
 			);
 			await settle();
@@ -668,7 +678,7 @@ describe("McpSection", () => {
 			await settle();
 			await userEvent.click(
 				document.querySelector(
-					'.master-actions .icon-btn[title="Export"]',
+					'.split-actions [title="Export"]',
 				) as HTMLElement,
 			);
 			await settle();

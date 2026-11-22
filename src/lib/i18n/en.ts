@@ -1620,25 +1620,26 @@ export const en = {
 
 	mcp: {
 		title: "MCP servers",
-		desc: "The tools your agents reach outside the repository: databases, browsers, issue trackers, anything speaking MCP.",
-		refresh: "Reload",
 		new: "New server",
 		export: "Export",
 		reveal: "Show the file",
 		test: "Test",
 		searchPlaceholder: "Search a server",
-		noResults: "No server matches that search.",
+		noResults: "No server matches",
+		noResultsText: (q: string) =>
+			`Nothing matches "${q}" in the name, command, URL or project of your servers.`,
+		noResultsFiltered: "No server is left with these filters.",
+		clearFilters: "Show every server",
+		pickTitle: "No server selected",
+		pickDesc: "Pick one in the list to edit and test it, or add a new one.",
 		emptyTitle: "No MCP server yet",
 		emptyDesc:
 			"An MCP server hands your agent tools it does not have on its own. Declare one here, or paste the JSON a server's documentation gives you.",
 		filter: { all: "All" },
-		providersHint:
-			"Every agent speaks MCP, so one server can serve several at once. Cairn Foundry writes it into each one's configuration, in the spelling that one expects.",
 		divergent:
 			"The declarations of this server no longer agree. Saving writes what is shown here to all of them.",
 		locations: {
 			title: "On disk",
-			hint: "The files it is declared in, and the agents that read each one.",
 		},
 		scope: {
 			needsProject: "Pick a project first.",
@@ -1675,17 +1676,11 @@ export const en = {
 			namePlaceholder: "my-server",
 			transport: "Transport",
 			command: "Command",
-			commandHint:
-				"A name looked up in the PATH, or an absolute path to the binary.",
 			args: "Arguments",
 			argsHint: "One per line, in the order the command expects them.",
 			env: "Environment",
-			envHint:
-				"Passed to the process. ${VAR} and ${VAR:-default} are expanded when it starts.",
 			url: "URL",
-			urlHint: "The endpoint the server answers MCP calls on.",
 			headers: "Headers",
-			headersHint: "Sent with every call. This is where a token goes.",
 			scope: "Scope",
 			project: "Project",
 			enabled: "Enabled",
@@ -1728,8 +1723,9 @@ export const en = {
 		delete: {
 			heading: "Remove a server",
 			title: (name: string) => `Remove ${name}?`,
-			description:
-				"The declaration is removed from the file below. The server itself is untouched - Cairn Foundry never installed it.",
+			filesTitle: "Removed from",
+			effect: (prefix: string) =>
+				`The CLIs that read these files lose its ${prefix} tools. The server itself stays installed.`,
 			confirm: "Remove the server",
 		},
 	},

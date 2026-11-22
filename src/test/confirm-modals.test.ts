@@ -161,7 +161,19 @@ const CASES: ModalCase[] = [
 			const onConfirm = vi.fn();
 			const onClose = vi.fn();
 			render(DeleteMcpModal, {
-				props: { name: "my-server", sourcePath: "/repo/.mcp.json" },
+				props: {
+					server: {
+						name: "my-server",
+						transport: "stdio",
+						scope: "project",
+						projectName: "repo",
+						sourcePath: "/repo/.mcp.json",
+						providers: ["claude-code"],
+						locations: [
+							{ path: "/repo/.mcp.json", providers: ["claude-code"] },
+						],
+					} as never,
+				},
 				events: { confirm: () => onConfirm(), close: () => onClose() },
 			});
 			return { onConfirm, onClose };
@@ -343,7 +355,17 @@ describe.each(CASES)("$name", ({ mount, names }) => {
 describe("what each modal says beyond the shared contract", () => {
 	it("DeleteMcpModal names the file the server is declared in", () => {
 		render(DeleteMcpModal, {
-			props: { name: "my-server", sourcePath: "/repo/.mcp.json" },
+			props: {
+				server: {
+					name: "my-server",
+					transport: "stdio",
+					scope: "project",
+					projectName: "repo",
+					sourcePath: "/repo/.mcp.json",
+					providers: ["claude-code"],
+					locations: [{ path: "/repo/.mcp.json", providers: ["claude-code"] }],
+				} as never,
+			},
 		});
 		expect(body().textContent).toContain("/repo/.mcp.json");
 	});

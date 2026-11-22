@@ -1645,25 +1645,27 @@ export const fr = {
 
 	mcp: {
 		title: "Serveurs MCP",
-		desc: "Les outils que vos agents atteignent hors du dépôt : bases de données, navigateurs, gestionnaires de tickets, tout ce qui parle MCP.",
-		refresh: "Recharger",
 		new: "Nouveau serveur",
 		export: "Exporter",
 		reveal: "Afficher le fichier",
 		test: "Tester",
 		searchPlaceholder: "Rechercher un serveur",
-		noResults: "Aucun serveur ne correspond à cette recherche.",
+		noResults: "Aucun serveur ne correspond",
+		noResultsText: (q: string) =>
+			`Rien ne correspond à "${q}" dans le nom, la commande, l'URL ou le projet de vos serveurs.`,
+		noResultsFiltered: "Aucun serveur ne reste avec ces filtres.",
+		clearFilters: "Afficher tous les serveurs",
+		pickTitle: "Aucun serveur choisi",
+		pickDesc:
+			"Choisissez-en un dans la liste pour le modifier et le tester, ou ajoutez-en un.",
 		emptyTitle: "Aucun serveur MCP",
 		emptyDesc:
 			"Un serveur MCP donne à votre agent des outils qu'il n'a pas seul. Déclarez-en un ici, ou collez le JSON que sa documentation vous donne.",
 		filter: { all: "Tous" },
-		providersHint:
-			"Tous les agents parlent MCP : un serveur peut donc en servir plusieurs à la fois. Cairn Foundry l'écrit dans la configuration de chacun, dans l'orthographe qu'il attend.",
 		divergent:
 			"Les déclarations de ce serveur ne concordent plus. Enregistrer écrit dans toutes ce qui est affiché ici.",
 		locations: {
 			title: "Sur le disque",
-			hint: "Les fichiers où il est déclaré, et les agents qui lisent chacun.",
 		},
 		scope: {
 			needsProject: "Choisissez d'abord un projet.",
@@ -1701,17 +1703,11 @@ export const fr = {
 			namePlaceholder: "mon-serveur",
 			transport: "Transport",
 			command: "Commande",
-			commandHint:
-				"Un nom cherché dans le PATH, ou un chemin absolu vers le binaire.",
 			args: "Arguments",
 			argsHint: "Un par ligne, dans l'ordre attendu par la commande.",
 			env: "Environnement",
-			envHint:
-				"Transmis au processus. ${VAR} et ${VAR:-défaut} sont résolus à son démarrage.",
 			url: "URL",
-			urlHint: "Le point d'entrée sur lequel le serveur répond aux appels MCP.",
 			headers: "En-têtes",
-			headersHint: "Envoyés à chaque appel. C'est là que va un jeton.",
 			scope: "Portée",
 			project: "Projet",
 			enabled: "Activé",
@@ -1754,8 +1750,9 @@ export const fr = {
 		delete: {
 			heading: "Retirer un serveur",
 			title: (name: string) => `Retirer ${name} ?`,
-			description:
-				"La déclaration est retirée du fichier ci-dessous. Le serveur lui-même n'est pas touché : Cairn Foundry ne l'a jamais installé.",
+			filesTitle: "Retiré de",
+			effect: (prefix: string) =>
+				`Les CLI qui lisent ces fichiers perdent ses outils ${prefix}. Le serveur lui-même reste installé.`,
 			confirm: "Retirer le serveur",
 		},
 	},

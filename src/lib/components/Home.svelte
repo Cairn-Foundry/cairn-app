@@ -137,13 +137,7 @@
       <SkillsSection />
 
     {:else if activeSection === 'mcp'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('mcp.title')}</h1>
-        <div class="sub">{t('mcp.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <McpSection />
-      </div>
+      <McpSection />
 
     {:else if activeSection === 'ports'}
       <div class="home-hero" style="padding-bottom: 0">

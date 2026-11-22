@@ -8,7 +8,6 @@
    * and export the visible list. Nothing is written to disk before Save.
    */
   import { onMount } from 'svelte';
-  import { fitToScrollport } from '#lib/utils/fit-to-scrollport';
   import { t } from '#lib/i18n';
   import Icon from '#lib/components/Icon.svelte';
   import Select from '#lib/components/Select.svelte';
@@ -19,6 +18,8 @@
   import KeyValueEditor from './KeyValueEditor.svelte';
   import DeleteMcpModal from './DeleteMcpModal.svelte';
   import ImportMcpModal from './ImportMcpModal.svelte';
+  import SplitPanel from '#lib/components/SplitPanel.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
   import ProviderChips from '#lib/components/home/ProviderChips.svelte';
   import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
@@ -339,377 +340,356 @@
   }
 </script>
 
-<div class="ag-layout">
-  <aside class="ag-master" use:fitToScrollport>
-    <div class="ag-master-header">
-      <span class="ag-master-title">{t('mcp.title')}</span>
-      <span class="master-actions">
-        <button
-          class="icon-btn"
-          on:click={loadMcpServers}
-          disabled={$mcpLoading}
-          title={t('mcp.refresh') as string}
-        >
-          {#if $mcpLoading}<Spinner size={12}/>{:else}<Icon name="refresh" size={13}/>{/if}
-        </button>
-        <button class="icon-btn" on:click={() => importOpen = true} title={t('mcp.import.title') as string}>
-          <Icon name="download" size={13}/>
-        </button>
-        <button
-          class="icon-btn"
-          on:click={exportAll}
-          disabled={visible.length === 0}
-          title={t('mcp.export') as string}
-        >
-          <Icon name="upload" size={13}/>
-        </button>
-        <button class="icon-btn" on:click={create} title={t('mcp.new') as string}>
-          <Icon name="plus" size={13}/>
-        </button>
-      </span>
-    </div>
-
-    <SearchInput bind:value={search} placeholder={t('mcp.searchPlaceholder') as string}/>
-
-    <div class="filters">
-      {#each FILTERS as key (key)}
-        {#if key === 'all' || counts[key] > 0}
-          <button
-            class="chip {scopeFilter === key ? 'active' : ''}"
-            aria-pressed={scopeFilter === key}
-            on:click={() => scopeFilter = key}
-          >
-            {filterLabel(key)}<span class="chip-count">{counts[key]}</span>
-          </button>
-        {/if}
-      {/each}
-    </div>
-
-    <div class="filters agents">
-      <button
-        class="chip {providerFilter === 'all' ? 'active' : ''}"
-        aria-pressed={providerFilter === 'all'}
-        on:click={() => providerFilter = 'all'}
-      >
-        {t('cliProviders.allAgents')}
+{#if !$mcpLoading && $mcpServers.length === 0 && draft === null}
+  <header class="page-head"><h1>{t('mcp.title')}</h1></header>
+  <section class="page-empty">
+    <Icon name="server" size={22}/>
+    <h2>{t('mcp.emptyTitle')}</h2>
+    <p>{t('mcp.emptyDesc')}</p>
+    <div class="empty-actions">
+      <button class="btn primary new-server" on:click={create}>
+        <Icon name="plus" size={12}/> {t('mcp.new')}
       </button>
-      {#each $cliProviders as provider (provider.id)}
-        {@const count = $mcpServers.filter((s) => s.providers.includes(provider.id)).length}
-        {#if count > 0}
-          <button
-            class="chip {providerFilter === provider.id ? 'active' : ''}"
-            aria-pressed={providerFilter === provider.id}
-            title={provider.label}
-            on:click={() => providerFilter = provider.id}
-          >
-            <ProviderLogo id={provider.id} size={12} fallback={provider.label.slice(0, 1)}/>
-            <span class="chip-count">{count}</span>
-          </button>
-        {/if}
-      {/each}
+      <button class="btn" on:click={() => importOpen = true}>
+        <Icon name="download" size={12}/> {t('mcp.import.title')}
+      </button>
+    </div>
+  </section>
+{:else}
+<SplitPanel title={t('mcp.title') as string} count={$mcpServers.length}>
+  <svelte:fragment slot="actions">
+    <button class="btn ghost icon-only" on:click={() => importOpen = true} title={t('mcp.import.title') as string} aria-label={t('mcp.import.title') as string}>
+      <Icon name="download" size={13}/>
+    </button>
+    <button class="btn ghost icon-only" on:click={exportAll} disabled={visible.length === 0} title={t('mcp.export') as string} aria-label={t('mcp.export') as string}>
+      <Icon name="upload" size={13}/>
+    </button>
+  </svelte:fragment>
+
+  <svelte:fragment slot="list">
+    <div class="list-tools">
+      <SearchInput bind:value={search} placeholder={t('mcp.searchPlaceholder') as string}/>
+      <div class="filters">
+        {#each FILTERS as key (key)}
+          {#if key === 'all' || counts[key] > 0}
+            <button
+              class="chip"
+              class:active={scopeFilter === key}
+              aria-pressed={scopeFilter === key}
+              on:click={() => scopeFilter = key}
+            >
+              {filterLabel(key)}<span class="chip-count">{counts[key]}</span>
+            </button>
+          {/if}
+        {/each}
+        {#each $cliProviders as provider (provider.id)}
+          {@const count = $mcpServers.filter((s) => s.providers.includes(provider.id)).length}
+          {#if count > 0 && count < $mcpServers.length}
+            <button
+              class="chip"
+              class:active={providerFilter === provider.id}
+              aria-pressed={providerFilter === provider.id}
+              title={provider.label}
+              on:click={() => providerFilter = providerFilter === provider.id ? 'all' : provider.id}
+            >
+              <ProviderLogo id={provider.id} size={11} fallback={provider.label.slice(0, 1)}/>
+              <span class="chip-count">{count}</span>
+            </button>
+          {/if}
+        {/each}
+      </div>
     </div>
 
-    {#if $mcpLoading && $mcpServers.length === 0}
-      <div class="master-skeleton"><Skeleton lines={5} height={34} gap={4}/></div>
-    {:else if $mcpServers.length === 0}
-      <p class="ag-master-empty">{t('mcp.emptyTitle')}</p>
-    {:else if visible.length === 0}
-      <p class="ag-master-empty">{t('mcp.noResults')}</p>
-    {:else}
-      {#each groups as group (group.scope)}
-        <div class="group-label">{t(`mcp.scope.${group.scope}`)}</div>
-        {#each group.items as server (server.id)}
-          <div class="server-row">
+    <div class="list-items">
+      {#if $mcpLoading && $mcpServers.length === 0}
+        <Skeleton lines={4} height={36} gap={6}/>
+      {:else}
+        {#each groups as group (group.scope)}
+          <h2 class="group-label">{t(`mcp.scope.${group.scope}`)}</h2>
+          {#each group.items as server (server.id)}
             <button
-              class="ag-item {selectedId === server.id ? 'active' : ''}"
+              class="ag-item"
+              class:is-active={selectedId === server.id}
               aria-pressed={selectedId === server.id}
               on:click={() => select(server)}
             >
-              <span class="ag-tile"><Icon name={transportIcon(server.transport)} size={14}/></span>
-              <span class="ag-item-info">
-                <span class="ag-item-name">
-                  {server.name}
-                  {#if probes[server.id]}
-                    <span class="ag-dot {probes[server.id].ok ? 'ok' : 'ko'}"></span>
-                  {/if}
-                </span>
-                <span class="ag-item-sub">{subtitleOf(server)}</span>
+              <span class="tile"><Icon name={transportIcon(server.transport)} size={13}/></span>
+              <span class="ag-item-text">
+                <span class="ag-item-name">{server.name}</span>
+                <span class="ag-item-sub">{server.scope === 'user' ? subtitleOf(server) : server.projectName}</span>
               </span>
               {#if server.approval === 'rejected'}
                 <span class="row-flag off">{t('mcp.approval.rejectedShort')}</span>
               {:else if server.approval === 'pending'}
                 <span class="row-flag">{t('mcp.approval.pendingShort')}</span>
+              {:else if probes[server.id]}
+                <span class="dot" class:ok={probes[server.id].ok} class:ko={!probes[server.id].ok}></span>
               {/if}
             </button>
-            <button
-              class="icon-btn delete"
-              on:click={() => deleteTarget = server}
-              title={t('mcp.delete.heading') as string}
-            >
-              <Icon name="trash" size={12}/>
-            </button>
-          </div>
+          {/each}
         {/each}
-      {/each}
-    {/if}
-  </aside>
-
-  <section class="ag-detail">
-    {#if draft === null}
-      <div class="ag-empty">
-        <span class="ag-empty-icon"><Icon name="link" size={30} sw={1.2}/></span>
-        <p class="ag-empty-title">{t('mcp.emptyTitle')}</p>
-        <p class="ag-empty-desc">{t('mcp.emptyDesc')}</p>
-        <div class="empty-actions">
-          <button class="btn primary" on:click={create}>
-            <Icon name="plus" size={12}/> {t('mcp.new')}
-          </button>
-          <button class="btn" on:click={() => importOpen = true}>
-            <Icon name="download" size={12}/> {t('mcp.import.title')}
-          </button>
-        </div>
-      </div>
-    {:else}
-      <div class="ag-head">
-        <span class="ag-tile ag-tile-lg"><Icon name={transportIcon(draft.transport)} size={20}/></span>
-        <div class="ag-head-text">
-          <input
-            class="ag-input name-input"
-            type="text"
-            aria-label={t('mcp.fields.name') as string}
-            placeholder={t('mcp.fields.namePlaceholder') as string}
-            bind:value={draft.name}
+        {#if visible.length === 0 && $mcpServers.length > 0}
+          <SearchEmpty
+            isCompact
+            title={t('mcp.noResults') as string}
+            text={(query ? (t('mcp.noResultsText') as (q: string) => string)(search.trim()) : t('mcp.noResultsFiltered')) as string}
+            clearLabel={(query ? t('common.clearSearch') : t('mcp.clearFilters')) as string}
+            on:clear={() => { search = ''; scopeFilter = 'all'; providerFilter = 'all'; }}
           />
-          <div class="head-meta">
-            <span class="ag-badge">{draft.transport}</span>
-            {#if nameClash}
-              <span class="ag-hint bad">{t('mcp.nameClash')}</span>
-            {:else if draft.name.trim()}
-              <span class="ag-hint">
-                {(t('mcp.toolPrefix') as (p: string) => string)(`mcp__${draft.name.trim()}__`)}
-              </span>
-            {/if}
-          </div>
-        </div>
-        <div class="head-actions">
-          {#if selected}
-            <button class="btn ghost" on:click={() => duplicate(selected)} title={t('common.duplicate') as string}>
-              <Icon name="copy" size={13}/>
-            </button>
-            <button
-              class="btn ghost"
-              on:click={() => revealInFileManager(selected.sourcePath)}
-              title={t('mcp.reveal') as string}
-            >
-              <Icon name="folder-open" size={13}/>
-            </button>
-          {/if}
-          <button class="btn" on:click={runTest} disabled={testing || incomplete}>
-            {#if testing}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
-            {t('mcp.test')}
-          </button>
-        </div>
-      </div>
-
-      {#if selected?.divergent}
-        <div class="banner warn">
-          <Icon name="alert" size={13}/>
-          <span>{t('mcp.divergent')}</span>
-        </div>
-      {/if}
-
-      {#if error}
-        <div class="banner bad"><Icon name="alert" size={13}/><span>{error}</span></div>
-      {/if}
-
-      {#if probe}
-        <div class="probe {probe.ok ? 'ok' : 'ko'}">
-          <div class="probe-head">
-            <Icon name={probe.ok ? 'check' : 'alert'} size={14}/>
-            <span class="probe-title">
-              {#if probe.ok}
-                {probe.serverName || t('mcp.probe.connected')}
-                {#if probe.serverVersion}<span class="probe-version">{probe.serverVersion}</span>{/if}
-              {:else}
-                {t('mcp.probe.failed')}
-              {/if}
+        {/if}
+        {#if draft && selectedId === null}
+          <button class="ag-item is-active" aria-pressed="true">
+            <span class="tile"><Icon name={transportIcon(draft.transport)} size={13}/></span>
+            <span class="ag-item-text">
+              <span class="ag-item-name">{draft.name.trim() || t('mcp.new')}</span>
+              <span class="ag-item-sub">{t('mcp.new')}</span>
             </span>
-            <span class="probe-time">{probe.durationMs} ms</span>
-          </div>
+          </button>
+        {:else if visible.length > 0}
+          <button class="ag-item new-server" on:click={create}>
+            <span class="tile is-dashed"><Icon name="plus" size={14}/></span>
+            <span class="ag-item-name">{t('mcp.new')}</span>
+          </button>
+        {/if}
+      {/if}
+    </div>
+  </svelte:fragment>
 
-          {#if probe.ok}
-            <div class="probe-stats">
-              <span><strong>{probe.tools.length}</strong> {t('mcp.probe.tools')}</span>
-              <span><strong>{probe.promptCount}</strong> {t('mcp.probe.prompts')}</span>
-              <span><strong>{probe.resourceCount}</strong> {t('mcp.probe.resources')}</span>
-              {#if probe.protocolVersion}
-                <span class="probe-proto">{t('mcp.probe.protocol')} {probe.protocolVersion}</span>
-              {/if}
-            </div>
-            {#if probe.partial}
-              <p class="probe-note">{t('mcp.probe.partial')}</p>
-            {/if}
-            {#if probe.tools.length > 0}
-              <button class="probe-toggle" on:click={() => toolsOpen = !toolsOpen}>
-                <Icon name={toolsOpen ? 'chev-d' : 'chev-r'} size={11}/>
-                {t('mcp.probe.showTools')}
-              </button>
-              {#if toolsOpen}
-                <div class="tool-list">
-                  {#each probe.tools as tool (tool.name)}
-                    <div class="tool">
-                      <code class="selectable">{tool.name}</code>
-                      {#if tool.description}<span>{tool.description}</span>{/if}
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-            {/if}
-          {:else}
-            <p class="probe-note">{probe.error}</p>
-            {#if probe.logs}
-              <pre class="probe-logs selectable">{probe.logs}</pre>
-            {/if}
-          {/if}
+  {#if draft === null}
+    <div class="detail-none">
+      <span class="none-tiles" aria-hidden="true">
+        {#each $mcpServers.slice(0, 3) as server (server.id)}
+          <span class="tile is-large"><Icon name={transportIcon(server.transport)} size={16}/></span>
+        {/each}
+      </span>
+      <h2>{t('mcp.pickTitle')}</h2>
+      <p>{t('mcp.pickDesc')}</p>
+      <button class="btn" on:click={create}>
+        <Icon name="plus" size={12}/> {t('mcp.new')}
+      </button>
+    </div>
+  {:else}
+    <div class="detail-head">
+      <span class="tile is-large"><Icon name={transportIcon(draft.transport)} size={18}/></span>
+      <div class="detail-title">
+        <div class="title-row">
+          <h2>{draft.name.trim() || t('mcp.new')}</h2>
+          <span class="badge">{draft.transport}</span>
         </div>
+        <p>
+          {#if draft.name.trim()}
+            {(t('mcp.toolPrefix') as (p: string) => string)(`mcp__${draft.name.trim()}__`)}
+          {:else}
+            {t(`mcp.scope.${draft.scope}`)}
+          {/if}
+        </p>
+      </div>
+      <div class="head-actions">
+        <button class="btn" on:click={runTest} disabled={testing || incomplete}>
+          {#if testing}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
+          {t('mcp.test')}
+        </button>
+        {#if selected}
+          <button class="btn ghost icon-only" on:click={() => selected && duplicate(selected)} title={t('common.duplicate') as string} aria-label={t('common.duplicate') as string}>
+            <Icon name="copy" size={13}/>
+          </button>
+          <button class="btn ghost icon-only" on:click={() => selected && revealInFileManager(selected.sourcePath)} title={t('mcp.reveal') as string} aria-label={t('mcp.reveal') as string}>
+            <Icon name="folder-open" size={13}/>
+          </button>
+          <button class="btn ghost icon-only delete" on:click={() => deleteTarget = selected} title={t('mcp.delete.heading') as string} aria-label={t('mcp.delete.heading') as string}>
+            <Icon name="trash" size={13}/>
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <div class="detail-body">
+      {#if probe}
+        <section class="section">
+          <div class="probe {probe.ok ? 'ok' : 'ko'}">
+            <div class="probe-head">
+              <Icon name={probe.ok ? 'check' : 'alert'} size={14}/>
+              <span class="probe-title">
+                {#if probe.ok}
+                  {probe.serverName || t('mcp.probe.connected')}
+                  {#if probe.serverVersion}<span class="probe-version">{probe.serverVersion}</span>{/if}
+                {:else}
+                  {t('mcp.probe.failed')}
+                {/if}
+              </span>
+              <span class="probe-time">{probe.durationMs} ms</span>
+            </div>
+            {#if probe.ok}
+              <div class="probe-stats">
+                <span><strong>{probe.tools.length}</strong> {t('mcp.probe.tools')}</span>
+                <span><strong>{probe.promptCount}</strong> {t('mcp.probe.prompts')}</span>
+                <span><strong>{probe.resourceCount}</strong> {t('mcp.probe.resources')}</span>
+                {#if probe.protocolVersion}
+                  <span class="probe-proto">{t('mcp.probe.protocol')} {probe.protocolVersion}</span>
+                {/if}
+              </div>
+              {#if probe.partial}<p class="probe-note">{t('mcp.probe.partial')}</p>{/if}
+              {#if probe.tools.length > 0}
+                <button class="probe-toggle" on:click={() => toolsOpen = !toolsOpen}>
+                  <Icon name={toolsOpen ? 'chev-d' : 'chev-r'} size={11}/>
+                  {t('mcp.probe.showTools')}
+                </button>
+                {#if toolsOpen}
+                  <div class="tool-list">
+                    {#each probe.tools as tool (tool.name)}
+                      <div class="tool">
+                        <code class="selectable">{tool.name}</code>
+                        {#if tool.description}<span>{tool.description}</span>{/if}
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              {/if}
+            {:else}
+              <p class="probe-note">{probe.error}</p>
+              {#if probe.logs}<pre class="probe-logs selectable">{probe.logs}</pre>{/if}
+            {/if}
+          </div>
+        </section>
       {/if}
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('mcp.groups.connection')}</div>
+      <section class="section">
+        <h3>{t('mcp.groups.connection')}</h3>
 
-        <div class="ag-card row-card">
-          <div class="ag-field">
-            <span class="ag-hint">{t('mcp.fields.transport')}</span>
+        <div class="field">
+          <label class="label" for="mcp-name">{t('mcp.fields.name')}</label>
+          <div class="control">
+            <input
+              id="mcp-name"
+              class="input name-input selectable"
+              type="text"
+              spellcheck="false"
+              placeholder={t('mcp.fields.namePlaceholder') as string}
+              bind:value={draft.name}
+            />
+            {#if nameClash}<span class="hint bad">{t('mcp.nameClash')}</span>{/if}
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">{t('mcp.fields.transport')}</span>
+          <div class="control">
             <Select
               value={draft.transport}
               options={transportOptions}
               ariaLabel={t('mcp.fields.transport') as string}
               on:change={(e) => setTransport(e.detail as McpTransport)}
             />
+            <span class="hint">{t(`mcp.transportHint.${draft.transport}`)}</span>
           </div>
-          <span class="ag-hint">{t(`mcp.transportHint.${draft.transport}`)}</span>
         </div>
 
         {#if draft.transport === 'stdio'}
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for="mcp-command">{t('mcp.fields.command')}</label>
-                <span class="ag-hint">{t('mcp.fields.commandHint')}</span>
-              </div>
-              <input
-                id="mcp-command"
-                class="ag-input selectable"
-                type="text"
-                spellcheck="false"
-                placeholder="npx"
-                bind:value={draft.command}
-              />
-            </div>
+          <div class="field">
+            <label class="label" for="mcp-command">{t('mcp.fields.command')}</label>
+            <input id="mcp-command" class="input mono selectable" type="text" spellcheck="false" placeholder="npx" bind:value={draft.command}/>
           </div>
-
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for="mcp-args">{t('mcp.fields.args')}</label>
-                <span class="ag-hint">{t('mcp.fields.argsHint')}</span>
-              </div>
+          <div class="field">
+            <label class="label" for="mcp-args">{t('mcp.fields.args')}</label>
+            <div class="control">
               <textarea
                 id="mcp-args"
-                class="ag-textarea mono selectable"
+                class="input textarea mono selectable"
                 rows="3"
                 spellcheck="false"
                 placeholder={'-y\nmy-mcp-server'}
                 bind:value={argsText}
               ></textarea>
+              <span class="hint">{t('mcp.fields.argsHint')}</span>
             </div>
           </div>
-
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <span class="ag-label">{t('mcp.fields.env')}</span>
-                <span class="ag-hint">{t('mcp.fields.envHint')}</span>
-              </div>
-              <KeyValueEditor
-                pairs={draft.env}
-                secret
-                keyPlaceholder="API_KEY"
-                valuePlaceholder={t('mcp.fields.valuePlaceholder') as string}
-                on:change={(e) => setPairs('env', e.detail)}
-              />
-            </div>
+          <div class="field">
+            <span class="label">{t('mcp.fields.env')}</span>
+            <KeyValueEditor
+              pairs={draft.env}
+              secret
+              keyPlaceholder="API_KEY"
+              valuePlaceholder={t('mcp.fields.valuePlaceholder') as string}
+              on:change={(e) => setPairs('env', e.detail)}
+            />
           </div>
         {:else}
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for="mcp-url">{t('mcp.fields.url')}</label>
-                <span class="ag-hint">{t('mcp.fields.urlHint')}</span>
-              </div>
-              <input
-                id="mcp-url"
-                class="ag-input selectable"
-                type="text"
-                spellcheck="false"
-                placeholder="https://example.com/mcp"
-                bind:value={draft.url}
-              />
-            </div>
+          <div class="field">
+            <label class="label" for="mcp-url">{t('mcp.fields.url')}</label>
+            <input id="mcp-url" class="input mono selectable" type="text" spellcheck="false" placeholder="https://example.com/mcp" bind:value={draft.url}/>
           </div>
+          <div class="field">
+            <span class="label">{t('mcp.fields.headers')}</span>
+            <KeyValueEditor
+              pairs={draft.headers}
+              secret
+              keyPlaceholder="Authorization"
+              valuePlaceholder={t('mcp.fields.valuePlaceholder') as string}
+              on:change={(e) => setPairs('headers', e.detail)}
+            />
+          </div>
+        {/if}
+      </section>
 
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <span class="ag-label">{t('mcp.fields.headers')}</span>
-                <span class="ag-hint">{t('mcp.fields.headersHint')}</span>
+      <section class="section">
+        <h3>{t('mcp.groups.availability')}</h3>
+
+        <div class="field">
+          <span class="label">{t('mcp.fields.scope')}</span>
+          <div class="control">
+            <Select
+              value={draft.scope}
+              options={scopeOptions}
+              ariaLabel={t('mcp.fields.scope') as string}
+              on:change={(e) => setScope(e.detail as McpScope)}
+            />
+            <span class="hint">{t(`mcp.scopeHint.${draft.scope}`)}</span>
+          </div>
+        </div>
+        {#if draft.scope !== 'user'}
+          <div class="field">
+            <span class="label">{t('mcp.fields.project')}</span>
+            <Select
+              value={draft.projectId}
+              options={projectOptions}
+              ariaLabel={t('mcp.fields.project') as string}
+              on:change={(e) => setProject(e.detail)}
+            />
+          </div>
+        {/if}
+
+        {#if selected && selected.scope === 'project'}
+          <div class="field">
+            <span class="label">{t('mcp.approval.title')}</span>
+            <div class="control">
+              <div class="segmented">
+                <button class:active={selected.approval === 'approved'} on:click={() => selected && toggleApproval(selected, true)}>
+                  {t('mcp.approval.approve')}
+                </button>
+                <button class:active={selected.approval === 'rejected'} on:click={() => selected && toggleApproval(selected, false)}>
+                  {t('mcp.approval.reject')}
+                </button>
               </div>
-              <KeyValueEditor
-                pairs={draft.headers}
-                secret
-                keyPlaceholder="Authorization"
-                valuePlaceholder={t('mcp.fields.valuePlaceholder') as string}
-                on:change={(e) => setPairs('headers', e.detail)}
-              />
+              <span class="hint">{t(`mcp.approval.${selected.approval || 'pending'}Hint`)}</span>
             </div>
           </div>
         {/if}
-      </div>
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('mcp.groups.availability')}</div>
-
-        <div class="ag-card row-card">
-          <div class="row-fields">
-            <div class="ag-field">
-              <span class="ag-hint">{t('mcp.fields.scope')}</span>
-              <Select
-                value={draft.scope}
-                options={scopeOptions}
-                ariaLabel={t('mcp.fields.scope') as string}
-                on:change={(e) => setScope(e.detail as McpScope)}
-              />
+        {#if hasOffSwitch}
+          <div class="field">
+            <span class="label">{t('mcp.fields.enabled')}</span>
+            <div class="toggle-row">
+              <label class="ag-toggle">
+                <input type="checkbox" checked={draft.enabled} on:change={(e) => setEnabled(e.currentTarget.checked)}/>
+                <span class="ag-toggle-track"><span class="ag-toggle-thumb"></span></span>
+              </label>
+              <span class="hint">{t('mcp.fields.enabledHint')}</span>
             </div>
-            {#if draft.scope !== 'user'}
-              <div class="ag-field">
-                <span class="ag-hint">{t('mcp.fields.project')}</span>
-                <Select
-                  value={draft.projectId}
-                  options={projectOptions}
-                  ariaLabel={t('mcp.fields.project') as string}
-                  on:change={(e) => setProject(e.detail)}
-                />
-              </div>
-            {/if}
           </div>
-          <span class="ag-hint">{t(`mcp.scopeHint.${draft.scope}`)}</span>
-        </div>
+        {/if}
 
-        <div class="ag-card">
-          <div class="ag-card-info stacked">
-            <span class="ag-label">{t('cliProviders.title')}</span>
-            <span class="ag-hint">{t('mcp.providersHint')}</span>
-          </div>
+        <div class="field is-stacked">
+          <span class="label">{t('cliProviders.title')}</span>
           <ProviderPicker
             selected={draft.targets}
             {reached}
@@ -718,31 +698,9 @@
           />
         </div>
 
-        {#if hasOffSwitch}
-          <div class="ag-card">
-            <div class="ag-card-head">
-              <div class="ag-card-info">
-                <span class="ag-label">{t('mcp.fields.enabled')}</span>
-                <span class="ag-hint">{t('mcp.fields.enabledHint')}</span>
-              </div>
-              <label class="ag-toggle">
-                <input
-                  type="checkbox"
-                  checked={draft.enabled}
-                  on:change={(e) => setEnabled(e.currentTarget.checked)}
-                />
-                <span class="ag-toggle-track"><span class="ag-toggle-thumb"></span></span>
-              </label>
-            </div>
-          </div>
-        {/if}
-
         {#if selected && selected.locations.length > 0}
-          <div class="ag-card">
-            <div class="ag-card-info stacked">
-              <span class="ag-label">{t('mcp.locations.title')}</span>
-              <span class="ag-hint">{t('mcp.locations.hint')}</span>
-            </div>
+          <div class="field is-stacked">
+            <span class="label">{t('mcp.locations.title')}</span>
             <div class="locations">
               {#each selected.locations as location (location.path)}
                 <div class="location">
@@ -754,62 +712,47 @@
             </div>
           </div>
         {/if}
+      </section>
+    </div>
 
-        {#if selected && selected.scope === 'project'}
-          <div class="ag-card">
-            <div class="ag-card-head">
-              <div class="ag-card-info">
-                <span class="ag-label">{t('mcp.approval.title')}</span>
-                <span class="ag-hint">{t(`mcp.approval.${selected.approval || 'pending'}Hint`)}</span>
-              </div>
-              <div class="segmented">
-                <button
-                  class:active={selected.approval === 'approved'}
-                  on:click={() => toggleApproval(selected, true)}
-                >
-                  {t('mcp.approval.approve')}
-                </button>
-                <button
-                  class:active={selected.approval === 'rejected'}
-                  on:click={() => toggleApproval(selected, false)}
-                >
-                  {t('mcp.approval.reject')}
-                </button>
-              </div>
-            </div>
-          </div>
+    {#if selected?.divergent || error}
+      <div class="notices">
+        {#if selected?.divergent}
+          <div class="banner warn"><Icon name="alert" size={13}/><span>{t('mcp.divergent')}</span></div>
+        {/if}
+        {#if error}
+          <div class="banner bad"><Icon name="alert" size={13}/><span>{error}</span></div>
         {/if}
       </div>
+    {/if}
 
-      <div class="save-bar" class:visible={dirty || selectedId === null}>
+    {#if dirty || selectedId === null}
+      <div class="save-bar">
         <span class="save-note">
           {#if nameClash}
-            <span class="ag-hint bad">{t('mcp.nameClash')}</span>
+            <span class="hint bad">{t('mcp.nameClash')}</span>
           {:else if draft.targets.length === 0}
-            <span class="ag-hint warn">{t('cliProviders.pickOne')}</span>
+            <span class="hint warn">{t('cliProviders.pickOne')}</span>
           {:else if incomplete}
-            <span class="ag-hint warn">{t('mcp.incomplete')}</span>
+            <span class="hint warn">{t('mcp.incomplete')}</span>
           {:else if selectedId === null}
-            <span class="ag-hint">{t('mcp.willCreate')}</span>
+            <span class="hint">{t('mcp.willCreate')}</span>
           {:else}
-            <span class="ag-hint">{t('mcp.unsaved')}</span>
+            <span class="hint">{t('mcp.unsaved')}</span>
           {/if}
         </span>
-        <button
-          class="btn ghost"
-          on:click={() => selected ? select(selected) : select(null)}
-          disabled={saving}
-        >
+        <button class="btn ghost" on:click={() => selected ? select(selected) : select(null)} disabled={saving}>
           {selected ? t('common.revert') : t('common.cancel')}
         </button>
         <button class="btn primary" on:click={save} disabled={saving || incomplete || nameClash}>
-          {#if saving}<Spinner size={11}/>{:else}<Icon name="save" size={12}/>{/if}
+          {#if saving}<Spinner size={11}/>{/if}
           {t('common.save')}
         </button>
       </div>
     {/if}
-  </section>
-</div>
+  {/if}
+</SplitPanel>
+{/if}
 
 {#if $mcpError}
   <div class="banner bad floating"><Icon name="alert" size={13}/><span>{$mcpError}</span></div>
@@ -817,8 +760,7 @@
 
 {#if deleteTarget}
   <DeleteMcpModal
-    name={deleteTarget.name}
-    sourcePath={deleteTarget.sourcePath}
+    server={deleteTarget}
     on:close={() => deleteTarget = null}
     on:confirm={confirmDelete}
   />
@@ -837,119 +779,30 @@
 {/if}
 
 <style>
-  .master-actions { display: flex; align-items: center; gap: 2px; }
-
-  .icon-btn {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    padding: 0;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--r-sm);
-    color: var(--fg-3);
-    cursor: pointer;
-    transition: background .12s, color .12s, border-color .12s;
-  }
-  .icon-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-0); }
-  .icon-btn.delete:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
-  .icon-btn:disabled { opacity: .5; cursor: default; }
-
-  .filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 0 8px 8px;
-  }
-  .chip {
+  /* -- page head -- */
+  .page-head { margin-bottom: 32px; }
+  .page-head h1 {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    background: none;
-    border: 1px solid var(--stroke-0);
-    border-radius: 99px;
-    font-size: 11px;
-    color: var(--fg-2);
-    cursor: pointer;
-    font-family: var(--font-ui);
-  }
-  .chip:hover { background: var(--bg-3); color: var(--fg-0); }
-  .chip.active { background: var(--accent-weak); border-color: var(--accent-line); color: var(--fg-0); }
-  .chip-count { font-size: 10px; color: var(--fg-3); font-family: var(--font-mono); }
-
-  .master-skeleton { padding: 4px 8px; }
-
-  .group-label {
-    padding: 10px 10px 4px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--fg-4);
-  }
-
-  .server-row {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    border-radius: var(--r-md);
-  }
-  .server-row :global(.ag-item) { min-width: 0; }
-
-  .row-flag {
-    flex-shrink: 0;
-    padding: 1px 6px;
-    background: var(--warning-weak);
-    border-radius: 99px;
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--warning);
-  }
-  .row-flag.off { background: var(--danger-weak); color: var(--danger); }
-
-  .name-input { font-size: 15px; font-weight: 600; }
-
-  .head-meta {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 6px;
-  }
-
-  .head-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-
-  /* Everything stacked in .ag-detail shares one column and one rhythm: the
-     620px of .ag-group and its 28px above. A flex column never collapses
-     margins, so only the top one is set here. */
-  .banner {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 28px;
-    max-width: 620px;
-    padding: 9px 12px;
-    border-radius: var(--r-md);
-    font-size: 12px;
-  }
-  .banner.bad { background: var(--danger-weak); color: var(--danger); }
-  .banner.warn { background: var(--warning-weak); color: var(--warning); }
-  .banner.floating {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 20;
+    gap: 10px;
     margin: 0;
-    max-width: 420px;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
   }
-
+  .page-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 0;
+    text-align: center;
+    color: var(--fg-3);
+  }
+  .page-empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
+  .page-empty p { max-width: 56ch; margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
   .probe {
-    margin-top: 28px;
-    max-width: 620px;
     padding: 12px 14px;
     background: var(--bg-2);
     border: 1px solid var(--stroke-0);
@@ -957,7 +810,6 @@
   }
   .probe.ok { border-color: color-mix(in oklch, var(--success) 40%, transparent); }
   .probe.ko { border-color: color-mix(in oklch, var(--danger) 40%, transparent); }
-
   .probe-head {
     display: flex;
     align-items: center;
@@ -975,7 +827,6 @@
     color: var(--fg-3);
   }
   .probe-time { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
-
   .probe-stats {
     display: flex;
     flex-wrap: wrap;
@@ -986,14 +837,12 @@
   }
   .probe-stats strong { color: var(--fg-0); font-variant-numeric: tabular-nums; }
   .probe-proto { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
-
   .probe-note {
     margin: 10px 0 0;
     font-size: 12px;
     line-height: 1.6;
     color: var(--fg-2);
   }
-
   .probe-toggle {
     display: flex;
     align-items: center;
@@ -1008,7 +857,6 @@
     font-family: var(--font-ui);
   }
   .probe-toggle:hover { color: var(--fg-0); }
-
   .tool-list {
     display: flex;
     flex-direction: column;
@@ -1039,7 +887,6 @@
     font-size: 11px;
     color: var(--fg-3);
   }
-
   .probe-logs {
     margin: 10px 0 0;
     padding: 8px 10px;
@@ -1053,76 +900,57 @@
     color: var(--fg-3);
     white-space: pre-wrap;
   }
-
-  .row-card { display: flex; flex-direction: column; gap: 10px; }
-  .row-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-  }
-
-  .mono { font-family: var(--font-mono); font-size: 11px; line-height: 1.6; }
-
-  .filters.agents { padding-top: 0; }
-  .filters.agents .chip { gap: 4px; padding: 3px 7px; }
-
-  .ag-card-info.stacked { margin-bottom: 10px; }
-
-  .locations { display: flex; flex-direction: column; gap: 4px; }
-  .location {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    padding: 5px 6px;
-    border-radius: var(--r-sm);
-  }
-  .location:hover { background: var(--bg-1); }
-  .location code {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .badge {
+    flex: none;
+    padding: 0 6px;
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--fg-3);
-  }
-
-  .segmented {
-    display: flex;
-    flex-shrink: 0;
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-sm);
-    overflow: hidden;
-  }
-  .segmented button {
-    padding: 5px 12px;
-    background: none;
-    border: none;
-    font-size: 12px;
+    line-height: 18px;
     color: var(--fg-2);
-    cursor: pointer;
-    font-family: var(--font-ui);
+    border: 1px solid var(--stroke-1);
+    border-radius: 4px;
   }
-  .segmented button:hover { background: var(--bg-3); color: var(--fg-0); }
-  .segmented button.active { background: var(--accent-weak); color: var(--fg-0); }
-
-  .save-bar {
-    position: sticky;
-    bottom: 0;
+  .row-flag {
+    flex: none;
+    padding: 0 6px;
+    font-size: 10.5px;
+    line-height: 17px;
+    color: var(--warning);
+    border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+    border-radius: 4px;
+  }
+  .row-flag.off { color: var(--fg-3); border-color: var(--stroke-1); }
+  .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+  .dot.ok { background: var(--success); }
+  .dot.ko { background: var(--danger); }
+  .empty-actions { display: flex; gap: 8px; }
+  .segmented {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 2px;
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    background: var(--bg-0);
+  }
+  .segmented button { height: 26px; padding: 0 12px; border-radius: calc(var(--r-sm) - 2px); font-size: 12px; color: var(--fg-3); }
+  .segmented button:hover { color: var(--fg-0); }
+  .segmented button.active { background: var(--bg-3); color: var(--fg-0); }
+  .ag-item.new-server { color: var(--fg-2); }
+  .ag-item.new-server:hover { color: var(--fg-0); }
+  /* Outside the panel, so the panel's own banner styles do not reach it. */
+  .floating {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 20;
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 8px -4px -4px;
-    padding: 12px 4px;
-    background: linear-gradient(to top, var(--bg-0) 70%, transparent);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .14s;
+    max-width: 420px;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    background: var(--danger-weak);
+    font-size: 12px;
+    color: var(--danger);
   }
-  .save-bar.visible { opacity: 1; pointer-events: auto; }
-  .save-note { flex: 1; min-width: 0; }
-
-  .empty-actions { display: flex; align-items: center; gap: 8px; }
 </style>

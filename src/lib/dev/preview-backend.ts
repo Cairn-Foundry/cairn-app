@@ -379,6 +379,86 @@ const CLI_PROVIDERS: [string, string, string | null][] = [
 
 const DAY = 86_400_000;
 
+/** An MCP server as `list_mcp_servers` merges it across the config files that declare it. */
+function previewMcp(
+	name: string,
+	fields: {
+		transport: "stdio" | "http" | "sse";
+		command?: string;
+		args?: string[];
+		env?: Record<string, string>;
+		url?: string;
+		headers?: Record<string, string>;
+		projectId?: string;
+		enabled?: boolean;
+		approval?: "approved" | "rejected" | "pending" | "";
+		providers?: string[];
+	},
+) {
+	const project = projects.find((p) => p.id === fields.projectId);
+	const providers = fields.providers ?? ["claude-code"];
+	const path = project
+		? `${project.path}/.mcp.json`
+		: "/Users/dev/.claude.json";
+	return {
+		id: `${project?.id ?? "user"}:${name}`,
+		name,
+		scope: project ? "project" : "user",
+		projectId: project?.id ?? "",
+		projectName: project?.name ?? "",
+		projectPath: project?.path ?? "",
+		transport: fields.transport,
+		command: fields.command ?? "",
+		args: fields.args ?? [],
+		env: fields.env ?? {},
+		url: fields.url ?? "",
+		headers: fields.headers ?? {},
+		enabled: fields.enabled ?? true,
+		approval: fields.approval ?? "",
+		targets: providers,
+		locations: providers.map((provider) => ({
+			path:
+				provider === "codex" && !project
+					? "/Users/dev/.codex/config.toml"
+					: path,
+			providers: [provider],
+			dialect: provider,
+		})),
+		providers,
+		divergent: false,
+		sourcePath: path,
+	};
+}
+
+const MCP_SERVERS = [
+	previewMcp("playwright", {
+		transport: "stdio",
+		command: "npx",
+		args: ["@playwright/mcp@latest"],
+		providers: ["claude-code", "codex"],
+	}),
+	previewMcp("github", {
+		transport: "http",
+		url: "https://api.githubcopilot.com/mcp/",
+		headers: { Authorization: "Bearer ${GITHUB_TOKEN}" },
+	}),
+	previewMcp("postgres", {
+		transport: "stdio",
+		command: "uvx",
+		args: ["postgres-mcp", "--access-mode=restricted"],
+		env: { DATABASE_URI: "postgresql://localhost:5432/cowork" },
+		projectId: "cowork-backend",
+		approval: "approved",
+	}),
+	previewMcp("sentry", {
+		transport: "sse",
+		url: "https://mcp.sentry.dev/sse",
+		projectId: "cowork-backend",
+		enabled: false,
+		approval: "pending",
+	}),
+];
+
 /** A native agent file as `list_native_agents` reads it back, with every field. */
 function previewAgent(
 	name: string,
@@ -654,6 +734,31 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 			version,
 			resumable: true,
 		})),
+	list_mcp_servers: () => (isEmpty ? [] : MCP_SERVERS),
+	test_mcp_server: async (a) => {
+		await new Promise((resolve) => setTimeout(resolve, TRACKER_LATENCY_MS));
+		const server = a.server as { name: string };
+		return {
+			ok: true,
+			error: "",
+			serverName: server.name,
+			serverVersion: "1.4.0",
+			protocolVersion: "2025-06-18",
+			tools: [
+				{ name: "browser_navigate", description: "Open a URL in the browser." },
+				{ name: "browser_click", description: "Click an element of the page." },
+				{
+					name: "browser_snapshot",
+					description: "Read the accessibility tree of the page.",
+				},
+			],
+			promptCount: 0,
+			resourceCount: 2,
+			durationMs: 840,
+			partial: false,
+			logs: "",
+		};
+	},
 	list_native_agents: () => (isEmpty ? [] : NATIVE_AGENTS),
 	list_skills: () => (isEmpty ? [] : PREVIEW_SKILLS),
 	reached_providers: (a) => a.targets,
