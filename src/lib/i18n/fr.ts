@@ -758,8 +758,10 @@ export const fr = {
 		delete: {
 			heading: "Supprimer",
 			title: (name: string) => `Supprimer ${name} ?`,
-			description:
-				"Chaque copie de la définition est supprimée, donc les agents qui la lisaient la perdent aussi.",
+			filesTitle: "Fichiers supprimés",
+			effect: (name: string) =>
+				`Les CLI qui la lisent la perdent, et un prompt qui mentionne @${name} ne l'atteint plus.`,
+			confirm: "Supprimer l'agent",
 		},
 	},
 

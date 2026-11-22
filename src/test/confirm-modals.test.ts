@@ -135,7 +135,20 @@ const CASES: ModalCase[] = [
 			const onConfirm = vi.fn();
 			const onClose = vi.fn();
 			render(DeleteAgentModal, {
-				props: { name: "argus" },
+				props: {
+					agent: {
+						name: "argus",
+						color: "#a855f7",
+						scope: "global",
+						projectName: "",
+						locations: [
+							{
+								path: "/home/.claude/agents/argus.md",
+								providers: ["claude-code"],
+							},
+						],
+					} as never,
+				},
 				events: { confirm: () => onConfirm(), close: () => onClose() },
 			});
 			return { onConfirm, onClose };
@@ -353,6 +366,34 @@ describe("what each modal says beyond the shared contract", () => {
 			},
 		});
 		expect(body().textContent).toContain("Fix the login");
+	});
+
+	/** Every copy goes, so every file is named before it does. */
+	it("DeleteAgentModal names every file it removes", () => {
+		render(DeleteAgentModal, {
+			props: {
+				agent: {
+					name: "argus",
+					color: "",
+					scope: "global",
+					projectName: "",
+					locations: [
+						{
+							path: "/home/.claude/agents/argus.md",
+							providers: ["claude-code"],
+						},
+						{
+							path: "/home/.config/opencode/agent/argus.md",
+							providers: ["opencode"],
+						},
+					],
+				} as never,
+			},
+		});
+		expect(body().textContent).toContain("/home/.claude/agents/argus.md");
+		expect(body().textContent).toContain(
+			"/home/.config/opencode/agent/argus.md",
+		);
 	});
 
 	it("DeleteProjectModal names the path of the project", () => {

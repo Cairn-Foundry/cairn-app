@@ -16,6 +16,7 @@
   import Skeleton from '#lib/components/Skeleton.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
   import DeleteAgentModal from './DeleteAgentModal.svelte';
+  import AgentAvatar from './AgentAvatar.svelte';
   import SplitPanel from '#lib/components/SplitPanel.svelte';
   import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import ProviderPicker from '#lib/components/home/ProviderPicker.svelte';
@@ -338,20 +339,6 @@
     draft.skills = draft.skills.filter((x) => x !== skill);
   }
 
-  /** Two letters for the avatar, taken from the first two words of the name. */
-  function initials(name: string): string {
-    const words = name.split(/[-_\s]+/).filter(Boolean);
-    if (words.length === 0) return '?';
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-
-  function scopeLabel(agent: NativeAgent): string {
-    return agent.scope === 'project'
-      ? agent.projectName
-      : (t('agentDefs.scope.global') as string);
-  }
-
   $: toolSuggestions = KNOWN_TOOLS.filter((tool) => !draft?.tools.includes(tool));
 
   /**
@@ -484,7 +471,7 @@
               aria-pressed={selectedPath === agent.path}
               on:click={() => select(agent)}
             >
-              <span class="avatar" style={agent.color ? `--agent: ${agent.color}` : ''}>{initials(agent.name)}</span>
+              <AgentAvatar name={agent.name} color={agent.color}/>
               <span class="ag-item-text">
                 <span class="ag-item-name">{agent.name}</span>
                 <span class="ag-item-sub">{agent.scope === 'project' ? agent.projectName : agent.description}</span>
@@ -503,7 +490,7 @@
         {/if}
         {#if draft && selectedPath === null}
           <button class="ag-item is-active" aria-pressed="true">
-            <span class="avatar" style={draft.color ? `--agent: ${draft.color}` : ''}>{initials(slug || '?')}</span>
+            <AgentAvatar name={slug || '?'} color={draft.color}/>
             <span class="ag-item-text">
               <span class="ag-item-name">{slug || t('agentDefs.new')}</span>
               <span class="ag-item-sub">{t('agentDefs.new')}</span>
@@ -523,7 +510,7 @@
     <div class="detail-none">
       <span class="none-avatars" aria-hidden="true">
         {#each $nativeAgents.slice(0, 3) as agent (agent.path)}
-          <span class="avatar is-large" style={agent.color ? `--agent: ${agent.color}` : ''}>{initials(agent.name)}</span>
+          <AgentAvatar name={agent.name} color={agent.color} isLarge/>
         {/each}
       </span>
       <h2>{t('agentDefs.pickTitle')}</h2>
@@ -534,7 +521,7 @@
     </div>
   {:else}
     <div class="detail-head">
-      <span class="avatar is-large" style={draft.color ? `--agent: ${draft.color}` : ''}>{initials(slug || draft.name || '?')}</span>
+      <AgentAvatar name={slug || draft.name || '?'} color={draft.color} isLarge/>
       <div class="detail-title">
         <div class="title-row">
           <h2>{slug || t('agentDefs.new')}</h2>
@@ -873,7 +860,7 @@
 
 {#if deleteTarget}
   <DeleteAgentModal
-    name={deleteTarget.name}
+    agent={deleteTarget}
     on:close={() => deleteTarget = null}
     on:confirm={confirmDelete}
   />
@@ -956,25 +943,16 @@
   .ag-item-name { font-size: 13px; font-weight: 500; }
   .ag-item-sub { font-size: 11.5px; color: var(--fg-3); }
 
-  /* The agent's own colour, toned down so the initials stay readable in both themes. */
-  .avatar {
-    --agent: var(--fg-3);
+  .avatar.is-dashed {
     display: grid;
     flex: none;
     place-items: center;
     width: 28px;
     height: 28px;
+    border: 1px dashed var(--stroke-1);
     border-radius: var(--r-sm);
-    /* srgb, not oklch: mixing two hues in oklch walks the hue wheel between
-       them, and a purple on the warm background came out red. */
-    background: color-mix(in srgb, var(--agent) 22%, var(--bg-1));
-    border: 1px solid color-mix(in srgb, var(--agent) 45%, var(--bg-1));
-    font-size: 10.5px;
-    font-weight: 600;
-    color: var(--fg-0);
+    color: var(--fg-3);
   }
-  .avatar.is-large { width: 40px; height: 40px; border-radius: var(--r-md); font-size: 13px; }
-  .avatar.is-dashed { background: transparent; border: 1px dashed var(--stroke-1); color: var(--fg-3); }
 
   /* -- detail -- */
   .detail-none {

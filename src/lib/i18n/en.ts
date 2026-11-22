@@ -739,8 +739,10 @@ export const en = {
 		delete: {
 			heading: "Delete",
 			title: (name: string) => `Delete ${name}?`,
-			description:
-				"Every copy of the definition is removed, so the agents that read it lose it too.",
+			filesTitle: "Files deleted",
+			effect: (name: string) =>
+				`The CLIs that read it lose it, and a prompt mentioning @${name} no longer reaches it.`,
+			confirm: "Delete the agent",
 		},
 	},
 

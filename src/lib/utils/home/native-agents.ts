@@ -39,3 +39,11 @@ export const AGENT_COLORS = [
 
 /** What the CLIs truncate a description to when they load the roster. */
 export const MAX_DESCRIPTION = 1024;
+
+/** Two letters for an avatar, taken from the first two words of the name. */
+export function agentInitials(name: string): string {
+	const words = name.split(/[-_\s]+/).filter(Boolean);
+	if (words.length === 0) return "?";
+	if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+	return (words[0][0] + words[1][0]).toUpperCase();
+}

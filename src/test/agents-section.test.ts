@@ -595,7 +595,7 @@ describe("AgentsSection", () => {
 			);
 			await settle();
 			await userEvent.click(
-				document.querySelector(".modal .btn.danger") as HTMLElement,
+				document.querySelector(".modal .cm-confirm") as HTMLElement,
 			);
 			await settle();
 			expect(deleteNativeAgent).toHaveBeenCalledWith([
