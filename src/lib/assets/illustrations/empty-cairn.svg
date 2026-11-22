@@ -1,0 +1,11 @@
+<!--
+  Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="108" viewBox="0 0 48 27" shape-rendering="crispEdges" aria-hidden="true">
+  <path class="fill" d="M22 1h6v1h-6zM19 2h1v1h-1zM21 2h4v1h-4zM26 2h4v1h-4zM19 3h7v1h-7zM27 3h3v1h-3zM22 4h5v1h-5zM22 6h6v1h-6zM17 7h9v1h-9zM27 7h4v1h-4zM10 8h1v1h-1zM12 8h13v1h-13zM26 8h6v1h-6zM10 9h14v1h-14zM25 9h6v1h-6zM12 10h15v1h-15zM16 11h7v1h-7zM16 13h7v1h-7zM12 14h1v1h-1zM14 14h7v1h-7zM22 14h5v1h-5zM11 15h11v1h-11zM23 15h8v1h-8zM11 16h12v1h-12zM24 16h6v1h-6zM14 17h7v1h-7zM14 19h7v1h-7zM9 20h17v1h-17zM5 21h1v1h-1zM8 21h5v1h-5zM14 21h17v1h-17zM3 22h9v1h-9zM13 22h14v1h-14zM28 22h6v1h-6zM3 23h8v1h-8zM12 23h16v1h-16zM29 23h6v1h-6zM41 23h6v1h-6zM4 24h30v1h-30zM39 24h8v1h-8z"/>
+  <path class="outline" d="M22 0h6v1h-6zM19 1h3v1h-3zM28 1h2v1h-2zM18 2h1v1h-1zM30 2h1v1h-1zM18 3h1v1h-1zM30 3h1v1h-1zM19 4h3v1h-3zM27 4h3v1h-3zM22 5h6v1h-6zM17 6h5v1h-5zM28 6h3v1h-3zM10 7h7v1h-7zM31 7h1v1h-1zM9 8h1v1h-1zM32 8h1v1h-1zM9 9h1v1h-1zM31 9h1v1h-1zM10 10h2v1h-2zM27 10h4v1h-4zM12 11h4v1h-4zM23 11h4v1h-4zM16 12h7v1h-7zM12 13h4v1h-4zM23 13h4v1h-4zM11 14h1v1h-1zM27 14h4v1h-4zM10 15h1v1h-1zM31 15h1v1h-1zM10 16h1v1h-1zM30 16h1v1h-1zM11 17h3v1h-3zM21 17h9v1h-9zM14 18h7v1h-7zM9 19h5v1h-5zM21 19h5v1h-5zM5 20h4v1h-4zM26 20h5v1h-5zM3 21h2v1h-2zM31 21h3v1h-3zM2 22h1v1h-1zM34 22h1v1h-1zM41 22h6v1h-6zM2 23h1v1h-1zM35 23h1v1h-1zM39 23h2v1h-2zM47 23h1v1h-1zM3 24h1v1h-1zM34 24h1v1h-1zM38 24h1v1h-1zM47 24h1v1h-1zM4 25h30v1h-30zM39 25h8v1h-8z"/>
+  <path class="highlight" d="M20 2h1v1h-1zM11 8h1v1h-1zM13 14h1v1h-1zM6 21h2v1h-2z"/>
+  <path class="crack" d="M25 2h1v1h-1zM26 3h1v1h-1zM26 7h1v1h-1zM25 8h1v1h-1zM24 9h1v1h-1zM21 14h1v1h-1zM22 15h1v1h-1zM23 16h1v1h-1zM13 21h1v1h-1zM12 22h1v1h-1zM27 22h1v1h-1zM11 23h1v1h-1zM28 23h1v1h-1z"/>
+  <path class="ground" d="M4 26h3v1h-3zM9 26h10v1h-10zM20 26h11v1h-11zM33 26h2v1h-2zM40 26h5v1h-5z"/>
+</svg>

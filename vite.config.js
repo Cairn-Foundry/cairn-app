@@ -26,6 +26,7 @@ const vitestConfig = {
       "src/lib/**/*.test.ts",
       "src/lib/**/*.d.ts",
       "src/lib/utils/git/diff-highlight.worker.ts",
+      "src/lib/dev/**",
     ],
     thresholds: {
       statements: 72,
@@ -61,6 +62,7 @@ export default defineConfig(async () => ({
     include: [
       "@codemirror/language-data",
       "@codemirror/language-data > *",
+      "@tauri-apps/api/mocks",
       "@tauri-apps/plugin-clipboard-manager",
       "@tauri-apps/plugin-dialog",
       "@tauri-apps/plugin-process",

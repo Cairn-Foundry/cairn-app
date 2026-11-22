@@ -10,6 +10,7 @@
   "scripts": {
     "preinstall": "bun scripts/check-bun-version.mjs",
     "dev": "vite dev",
+    "dev:preview": "VITE_PREVIEW_BACKEND=1 vite dev --port 1430 --strictPort",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

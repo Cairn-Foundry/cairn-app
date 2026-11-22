@@ -2205,48 +2205,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   color: var(--fg-3);
 }
 
-.projects-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  margin-bottom: 40px;
-}
-.project-card {
-  border: 1px solid var(--stroke-0);
-  background: var(--bg-1);
-  border-radius: var(--r-md);
-  padding: 16px;
-  cursor: pointer;
-  transition: background-color .15s, color .15s, border-color .15s;
-}
-.project-card:hover { background: var(--bg-2); border-color: var(--stroke-1); }
-.project-card .pname {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 14px; color: var(--fg-0); font-weight: 500;
-  margin-bottom: 10px;
-}
-.project-card .pname .swatch {
-  width: 8px; height: 8px; border-radius: 2px;
-}
-.project-card .pfolder {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.project-card .pstats {
-  display: flex; gap: 14px;
-  font-size: 11px;
-  color: var(--fg-2);
-}
-.project-card .pstats .stat {
-  display: flex; align-items: center; gap: 5px;
-}
-.project-card .pstats .stat b {
-  color: var(--fg-0); font-weight: 500;
-  font-family: var(--font-mono);
-}
-
 .recent-tickets {
   border: 1px solid var(--stroke-0);
   border-radius: var(--r-md);

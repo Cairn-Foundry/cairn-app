@@ -7,8 +7,8 @@
 // each: the parity has to be checked rather than watched.
 
 import { describe, expect, it } from "vitest";
-import { en, enGreetings } from "./en";
-import { fr, frGreetings } from "./fr";
+import { en } from "./en";
+import { fr } from "./fr";
 
 type Tree = Record<string, unknown>;
 
@@ -158,35 +158,6 @@ describe("interpolation placeholders line up", () => {
 			return english.join(",") !== french.join(",");
 		});
 		expect(mismatched).toEqual([]);
-	});
-});
-
-describe("the greeting pools", () => {
-	it("offers the same buckets in both languages", () => {
-		expect(Object.keys(enGreetings).sort()).toEqual(
-			Object.keys(frGreetings).sort(),
-		);
-	});
-
-	it("fills every bucket in both languages", () => {
-		for (const [name, pool] of Object.entries(enGreetings)) {
-			expect(Array.isArray(pool), `en.${name}`).toBe(true);
-			expect((pool as string[]).length, `en.${name}`).toBeGreaterThan(0);
-		}
-		for (const [name, pool] of Object.entries(frGreetings)) {
-			expect(Array.isArray(pool), `fr.${name}`).toBe(true);
-			expect((pool as string[]).length, `fr.${name}`).toBeGreaterThan(0);
-		}
-	});
-
-	it("leaves no greeting empty", () => {
-		for (const pools of [enGreetings, frGreetings]) {
-			for (const [name, pool] of Object.entries(pools)) {
-				for (const greeting of pool as string[]) {
-					expect(greeting.length, name).toBeGreaterThan(0);
-				}
-			}
-		}
 	});
 });
 

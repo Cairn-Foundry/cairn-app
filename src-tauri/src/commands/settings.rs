@@ -149,6 +149,9 @@ pub struct CairnSettings {
     pub save_on: String,
     #[serde(rename = "gitProfiles", default)]
     pub git_profiles: Vec<GitProfile>,
+    /// How the home screen draws the projects: "list" or "grid".
+    #[serde(rename = "homeProjectsLayout", default = "default_home_projects_layout")]
+    pub home_projects_layout: String,
     #[serde(rename = "quickSearchShowGitignored", default = "default_quick_search_show_gitignored")]
     pub quick_search_show_gitignored: bool,
     #[serde(rename = "autoCheckUpdates", default = "default_auto_check_updates")]
@@ -242,6 +245,7 @@ fn default_quick_search_show_gitignored() -> bool { false }
 fn default_sidebar_position() -> String { "left".to_string() }
 fn default_show_whitespace() -> bool { false }
 fn default_save_on() -> String { "blur".to_string() }
+fn default_home_projects_layout() -> String { "list".to_string() }
 fn default_tree_panel_width() -> u32 { 220 }
 fn default_show_minimap() -> bool { true }
 fn default_sticky_scroll() -> bool { true }
@@ -290,6 +294,7 @@ impl Default for CairnSettings {
             show_whitespace: default_show_whitespace(),
             save_on: default_save_on(),
             git_profiles: Vec::new(),
+            home_projects_layout: default_home_projects_layout(),
             quick_search_show_gitignored: default_quick_search_show_gitignored(),
             auto_check_updates: default_auto_check_updates(),
             ai_enabled: default_ai_enabled(),
@@ -469,6 +474,7 @@ mod tests {
             "editorFontSize",
             "workflowTabs",
             "saveOn",
+            "homeProjectsLayout",
             "autoCheckUpdates",
         ] {
             assert!(object.contains_key(key), "{key} is missing from the payload");

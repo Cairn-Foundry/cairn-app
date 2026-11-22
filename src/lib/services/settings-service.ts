@@ -112,6 +112,7 @@ export interface CairnSettings {
 		| "instanceChange"
 		| "manual";
 	gitProfiles: GitProfile[];
+	homeProjectsLayout: "list" | "grid";
 	quickSearchShowGitignored: boolean;
 	autoCheckUpdates: boolean;
 	/** Master switch: false hides every AI surface and disables every assist. */

@@ -17,7 +17,10 @@ import {
 	setProjectGitProfile,
 	updateProject,
 } from "#lib/services/project-service";
-import { projectFolders } from "#lib/stores/project-folders";
+import {
+	projectFolders,
+	ungroupedCollapsed,
+} from "#lib/stores/project-folders";
 import { runProjectTeardowns } from "#lib/stores/project-teardown";
 import type { Project } from "#lib/types/project";
 
@@ -184,6 +187,7 @@ export function reorderProjects(ids: string[]): void {
 export async function loadListing(): Promise<void> {
 	const listing = await getListing();
 	projectFolders.init(listing.folders);
+	ungroupedCollapsed.set(listing.ungroupedCollapsed ?? false);
 	if (listing.projectOrder.length > 0) {
 		projects.update((list) => {
 			const map = new Map(list.map((p) => [p.id, p]));

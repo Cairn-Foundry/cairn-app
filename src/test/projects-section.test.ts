@@ -62,8 +62,37 @@ vi.mock("#lib/stores/agent-status", async (importOriginal) => ({
 	attentionByProject: { subscribe: attentionByProject.subscribe },
 }));
 
-const { projects, activeProjectId } = await import("#lib/stores/project");
-const { project } = await import("./fixtures");
+const settingsState = writable<Record<string, unknown>>({
+	homeProjectsLayout: "list",
+});
+const saveSettings = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("#lib/stores/settings", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	settings: {
+		subscribe: settingsState.subscribe,
+		save: (...a: unknown[]) => saveSettings(...a),
+	},
+}));
+
+const worktreeStates = writable<Record<string, unknown>>({});
+const loadProjectOverview = vi.fn<(...a: unknown[]) => unknown>();
+vi.mock("#lib/stores/project-overview", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	worktreeStates: { subscribe: worktreeStates.subscribe },
+	loadProjectOverview: (...a: unknown[]) => loadProjectOverview(...a),
+}));
+
+const loadedInstances = writable<Record<string, unknown[]>>({});
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	loadedInstances: { subscribe: loadedInstances.subscribe },
+}));
+
+const { projects, activeProjectId, openTabOrder } = await import(
+	"#lib/stores/project"
+);
+const { ungroupedCollapsed } = await import("#lib/stores/project-folders");
+const { project, instance } = await import("./fixtures");
 const { default: ProjectsSection } = await import(
 	"#lib/components/home/ProjectsSection.svelte"
 );
@@ -90,7 +119,9 @@ function mount() {
 }
 
 const cards = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".project-card"));
+	Array.from(
+		document.querySelectorAll<HTMLElement>(".project-groups .project-card"),
+	);
 const cardNames = () =>
 	cards().map((c) => c.querySelector(".pname")?.textContent?.trim());
 const folderBlocks = () =>
@@ -115,7 +146,7 @@ function pointer(type: string, x: number, y: number) {
 }
 
 /** Lays the ungrouped cards out in a single column so the grid math resolves. */
-function layOutCards(container = ".projects-grid") {
+function layOutCards(container = ".projects-list") {
 	const grid = document.querySelector(container) as HTMLElement;
 	Array.from(grid.querySelectorAll<HTMLElement>(".project-card")).forEach(
 		(card, i) => {
@@ -170,7 +201,14 @@ beforeEach(() => {
 	loadProjectInbox.mockReset().mockResolvedValue(undefined);
 	projectInbox.set({});
 	foldersState.set([]);
+	ungroupedCollapsed.set(false);
 	activeProjectId.set(null);
+	openTabOrder.set([]);
+	settingsState.set({ homeProjectsLayout: "list" });
+	saveSettings.mockReset().mockResolvedValue(undefined);
+	worktreeStates.set({});
+	loadedInstances.set({});
+	loadProjectOverview.mockReset().mockResolvedValue(undefined);
 	projects.set([
 		project("p1", { name: "Alpha", path: "/repos/alpha" }),
 		project("p2", { name: "Beta", path: "/repos/beta" }),
@@ -195,29 +233,11 @@ describe("ProjectsSection", () => {
 			expect(onOpenProject).toHaveBeenCalledWith("p1");
 		});
 
-		it("shows no badge on a project nothing waits on", async () => {
+		it("shows no agent status, even for a project a conversation waits on", async () => {
+			attentionByProject.set({ p1: 2 });
 			mount();
 			await settle();
 			expect(document.querySelector(".attention-pill")).toBeNull();
-		});
-
-		it("asks for the waiting conversation, not the project, from the badge", async () => {
-			attentionByProject.set({ p2: 2 });
-			const onOpenWaiting = vi.fn();
-			const onOpenProject = vi.fn();
-			render(ProjectsSection, {
-				props: {},
-				events: {
-					openProject: (e: CustomEvent) => onOpenProject(e.detail),
-					openWaiting: (e: CustomEvent) => onOpenWaiting(e.detail),
-				},
-			});
-			await settle();
-			const pill = document.querySelector(".attention-pill") as HTMLElement;
-			expect(pill.textContent?.trim()).toBe("2");
-			await userEvent.click(pill);
-			expect(onOpenWaiting).toHaveBeenCalledWith("p2");
-			expect(onOpenProject).not.toHaveBeenCalled();
 		});
 
 		it("reads the unread count of every project", async () => {
@@ -228,11 +248,11 @@ describe("ProjectsSection", () => {
 		});
 
 		it("shows the unread count of a project that has one", async () => {
-			projectInbox.set({ p1: 3 });
+			projectInbox.set({ p1: { tickets: 3, hasMore: false } });
 			mount();
 			await settle();
-			expect(cards()[0].querySelector(".inbox-pill")).not.toBeNull();
-			expect(cards()[1].querySelector(".inbox-pill")).toBeNull();
+			expect(cards()[0].querySelector(".tickets")).not.toBeNull();
+			expect(cards()[1].querySelector(".tickets")).toBeNull();
 		});
 	});
 
@@ -295,7 +315,7 @@ describe("ProjectsSection", () => {
 			mount();
 			await settle();
 			const grids = Array.from(
-				document.querySelectorAll<HTMLElement>(".projects-grid"),
+				document.querySelectorAll<HTMLElement>(".projects-list"),
 			);
 			const ungrouped = grids[grids.length - 1];
 			expect(
@@ -489,7 +509,7 @@ describe("ProjectsSection", () => {
 			mount();
 			await settle();
 			layOutCards();
-			await dragCard(cards()[0], 10, 250);
+			await dragCard(cards()[0], 10, 240);
 			expect(reorderProjects).toHaveBeenCalledWith(["p2", "p1", "p3", "p4"]);
 		});
 
@@ -607,21 +627,357 @@ describe("ProjectsSection", () => {
 	});
 
 	describe("the quick actions", () => {
-		/** Each quick action asks for its own kind of project. */
-		it("asks for a project of the kind that was chosen", async () => {
-			const { onAddProject } = mount();
-			await settle();
+		const clickActions = async () => {
 			const actions = Array.from(
 				document.querySelectorAll<HTMLElement>(".home-action"),
 			);
-			await userEvent.click(actions[0]);
-			await userEvent.click(actions[1]);
-			await userEvent.click(actions[2]);
+			for (const action of actions) await userEvent.click(action);
+		};
+
+		it("asks for a project of the kind that was chosen", async () => {
+			const { onAddProject } = mount();
+			await settle();
+			await clickActions();
 			expect(onAddProject.mock.calls.map((c) => c[0])).toEqual([
 				"new",
 				"open",
 				"clone",
 			]);
+		});
+
+		it("keeps the same choices while there is no project", async () => {
+			projects.set([]);
+			const { onAddProject } = mount();
+			await settle();
+			await clickActions();
+			expect(onAddProject.mock.calls.map((c) => c[0])).toEqual([
+				"new",
+				"open",
+				"clone",
+			]);
+		});
+
+		it("draws the empty state when there is no project", async () => {
+			projects.set([]);
+			mount();
+			await settle();
+			expect(document.querySelector(".projects-empty h2")?.textContent).toBe(
+				"No projects yet",
+			);
+		});
+
+		it("draws the no-match state and clears the search from it", async () => {
+			mount();
+			await settle();
+			const input = document.querySelector<HTMLInputElement>(".search-input");
+			if (!input) throw new Error("no search input");
+			await userEvent.type(input, "zzz");
+			await settle();
+			expect(
+				document.querySelector(".projects-empty p")?.textContent,
+			).toContain('"zzz"');
+			await userEvent.click(
+				document.querySelector(".projects-empty .btn") as HTMLElement,
+			);
+			await settle();
+			expect(input.value).toBe("");
+			expect(cards()).toHaveLength(2);
+		});
+
+		it("hides the choices during a search", async () => {
+			mount();
+			await settle();
+			const input = document.querySelector<HTMLInputElement>(".search-input");
+			if (!input) throw new Error("no search input");
+			await userEvent.type(input, "cairn");
+			await settle();
+			expect(document.querySelector(".home-actions")).toBeNull();
+		});
+	});
+
+	describe("the layout", () => {
+		it("draws the projects as rows by default", async () => {
+			mount();
+			await settle();
+			expect(document.querySelector(".projects-list")).not.toBeNull();
+			expect(document.querySelector(".projects-compact")).toBeNull();
+		});
+
+		it("draws the projects as cards once the setting asks for it", async () => {
+			settingsState.set({ homeProjectsLayout: "grid" });
+			mount();
+			await settle();
+			expect(document.querySelector(".projects-compact")).not.toBeNull();
+			expect(document.querySelector(".projects-list")).toBeNull();
+		});
+
+		it("saves the layout that was picked", async () => {
+			mount();
+			await settle();
+			await userEvent.click(
+				document.querySelector(
+					".mode-toggle [aria-pressed='false']",
+				) as HTMLElement,
+			);
+			expect(saveSettings).toHaveBeenCalledWith({ homeProjectsLayout: "grid" });
+		});
+	});
+
+	describe("what a project shows", () => {
+		function worktree(overrides: Record<string, unknown> = {}) {
+			return {
+				isGitRepo: true,
+				branch: "main",
+				added: 0,
+				removed: 0,
+				...overrides,
+			};
+		}
+
+		const worktreeTexts = (card: HTMLElement) =>
+			Array.from(card.querySelectorAll<HTMLElement>(".worktree")).map((w) =>
+				w.textContent?.replace(/\s+/g, " ").trim(),
+			);
+
+		it("reads the overview of every project", async () => {
+			mount();
+			await settle();
+			expect(
+				loadProjectOverview.mock.calls.map((c) => (c[0] as { id: string }).id),
+			).toEqual(["p1", "p2"]);
+		});
+
+		it("shows the repository branch with the lines added and removed", async () => {
+			worktreeStates.set({
+				"p1:__base__": worktree({ added: 120, removed: 4 }),
+			});
+			mount();
+			await settle();
+			expect(worktreeTexts(cards()[0])).toEqual(["main +120 -4"]);
+			expect(worktreeTexts(cards()[1])).toEqual([]);
+		});
+
+		it("stays quiet about a clean repository in step with its upstream", async () => {
+			worktreeStates.set({ "p1:__base__": worktree() });
+			mount();
+			await settle();
+			expect(worktreeTexts(cards()[0])).toEqual(["main"]);
+		});
+
+		it("lays out the repository and the first instances, counting the ones never read", async () => {
+			worktreeStates.set({
+				"p1:__base__": worktree(),
+				"p1:i1": worktree({ branch: "feat/a", added: 2, removed: 1 }),
+			});
+			loadedInstances.set({
+				p1: [
+					instance("i1", "p1", { branch: "feat/a" }),
+					instance("i2", "p1", { branch: "feat/b" }),
+					instance("i3", "p1", { branch: "feat/c" }),
+					instance("i4", "p1", { branch: "feat/d" }),
+					instance("i5", "p1", { branch: "feat/e" }),
+					instance("i6", "p1", { branch: "feat/f", status: "done" }),
+				],
+			});
+			mount();
+			await settle();
+			expect(worktreeTexts(cards()[0])).toEqual([
+				"main",
+				"feat/a +2 -1",
+				"feat/b",
+				"feat/c",
+				"feat/d",
+			]);
+			const others = cards()[0].querySelector(".others") as HTMLElement;
+			expect(others.getAttribute("title")?.split("\n")).toContain("feat/e");
+		});
+
+		it("says when a folder is not a git repository", async () => {
+			worktreeStates.set({
+				"p1:__base__": worktree({ isGitRepo: false, branch: "" }),
+			});
+			mount();
+			await settle();
+			expect(cards()[0].querySelector(".no-git")).not.toBeNull();
+			expect(worktreeTexts(cards()[0])).toEqual([]);
+			expect(cards()[1].querySelector(".no-git")).toBeNull();
+		});
+
+		it("draws no ticket tag for a count of zero", async () => {
+			projectInbox.set({
+				p1: { tickets: 0, hasMore: false },
+				p2: { tickets: 2, hasMore: false },
+			});
+			mount();
+			await settle();
+			expect(cards()[0].querySelector(".tickets")).toBeNull();
+			expect(cards()[1].querySelector(".tickets")?.textContent).toBe("2");
+		});
+
+		it.each(["list", "grid"] as const)(
+			"shows no Open tag in the %s view",
+			async (layout) => {
+				settingsState.set({ homeProjectsLayout: layout });
+				openTabOrder.set(["p2"]);
+				mount();
+				await settle();
+				expect(cards()[1].querySelector(".open-tag")).toBeNull();
+			},
+		);
+
+		it("does not open the project when Enter lands on one of its buttons", async () => {
+			const { onOpenProject } = mount();
+			await settle();
+			const more = cards()[0].querySelector(".card-more") as HTMLElement;
+			more.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await settle();
+			expect(onOpenProject).not.toHaveBeenCalled();
+			cards()[0].dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			expect(onOpenProject).toHaveBeenCalledWith("p1");
+		});
+	});
+
+	describe("the row actions", () => {
+		it("edits the project from its own button", async () => {
+			const { onEditProject, onOpenProject } = mount();
+			await settle();
+			await userEvent.click(
+				cards()[1].querySelector('[aria-label="Edit"]') as HTMLElement,
+			);
+			expect(onEditProject).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "p2" }),
+			);
+			expect(onOpenProject).not.toHaveBeenCalled();
+		});
+
+		it("reveals the project from its own button", async () => {
+			const { onOpenProject } = mount();
+			await settle();
+			await userEvent.click(
+				cards()[0].querySelector('[aria-label="Reveal"]') as HTMLElement,
+			);
+			expect(revealInFileManager).toHaveBeenCalledWith("/repos/alpha");
+			expect(onOpenProject).not.toHaveBeenCalled();
+		});
+
+		it("draws edit and reveal before the menu in the cards view too", async () => {
+			settingsState.set({ homeProjectsLayout: "grid" });
+			mount();
+			await settle();
+			const labels = Array.from(
+				cards()[0].querySelectorAll<HTMLElement>(".end button"),
+			).map((b) => b.getAttribute("aria-label"));
+			expect(labels.slice(0, 2)).toEqual(["Edit", "Reveal"]);
+			expect(
+				cards()[0].querySelector(".end button:last-child")?.className,
+			).toContain("card-more");
+		});
+	});
+
+	describe("the projects outside any folder", () => {
+		it("fold under their title like a folder does", async () => {
+			foldersState.set([folder("f1", ["p1"])]);
+			mount();
+			await settle();
+			const toggle = document.querySelector(
+				".group-title .chevron-btn",
+			) as HTMLElement;
+			await userEvent.click(toggle);
+			expect(cardNames()).toEqual(["Alpha"]);
+			expect(toggle.getAttribute("aria-expanded")).toBe("false");
+			await userEvent.click(toggle);
+			expect(cardNames()).toEqual(["Alpha", "Beta"]);
+		});
+
+		it("fold from a click anywhere on their title", async () => {
+			foldersState.set([folder("f1", ["p1"])]);
+			mount();
+			await settle();
+			const name = document.querySelector(
+				".group-title.is-toggle .group-name",
+			) as HTMLElement;
+			await userEvent.click(name);
+			expect(cardNames()).toEqual(["Alpha"]);
+			await userEvent.click(name);
+			expect(cardNames()).toEqual(["Alpha", "Beta"]);
+		});
+	});
+
+	describe("the open projects", () => {
+		const openNames = () =>
+			Array.from(
+				document.querySelectorAll<HTMLElement>(".open-projects .pname"),
+			).map((n) => n.textContent);
+
+		it("lists every open project, in tab order, above the projects", async () => {
+			openTabOrder.set(["p2", "p1"]);
+			mount();
+			await settle();
+			expect(openNames()).toEqual(["Beta", "Alpha"]);
+		});
+
+		it("is left out when no project is open", async () => {
+			mount();
+			await settle();
+			expect(document.querySelector(".open-projects")).toBeNull();
+		});
+
+		it("shows in the cards view too", async () => {
+			settingsState.set({ homeProjectsLayout: "grid" });
+			openTabOrder.set(["p1"]);
+			mount();
+			await settle();
+			expect(openNames()).toEqual(["Alpha"]);
+		});
+
+		it("steps aside while searching", async () => {
+			openTabOrder.set(["p1"]);
+			mount();
+			await settle();
+			await userEvent.type(searchField(), "Al");
+			await settle();
+			expect(document.querySelector(".open-projects")).toBeNull();
+		});
+
+		it("opens the project that was clicked", async () => {
+			openTabOrder.set(["p2"]);
+			const { onOpenProject } = mount();
+			await settle();
+			await userEvent.click(
+				document.querySelector(".open-projects .project-card") as HTMLElement,
+			);
+			expect(onOpenProject).toHaveBeenCalledWith("p2");
+		});
+
+		it("closes a project from its own button", async () => {
+			openTabOrder.set(["p2"]);
+			const { onCloseProject, onOpenProject } = mount();
+			await settle();
+			await userEvent.click(
+				document.querySelector(
+					'.open-projects [aria-label="Close the project"]',
+				) as HTMLElement,
+			);
+			expect(onCloseProject).toHaveBeenCalledWith("p2");
+			expect(onOpenProject).not.toHaveBeenCalled();
+		});
+
+		it("opens one menu only, beside the card it was asked from", async () => {
+			openTabOrder.set(["p1"]);
+			mount();
+			await settle();
+			await userEvent.click(
+				document.querySelector(".open-projects .card-more") as HTMLElement,
+			);
+			await settle();
+			expect(document.querySelectorAll(".card-menu").length).toBe(1);
+			expect(
+				document.querySelector(".open-projects .card-menu"),
+			).not.toBeNull();
 		});
 	});
 });

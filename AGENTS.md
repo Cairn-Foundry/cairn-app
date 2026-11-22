@@ -16,6 +16,7 @@ This file provides guidance when working with code in this repository.
 
 ```bash
 bun run dev              # frontend dev server only (no Tauri shell)
+bun run dev:preview      # the app in a plain browser on :1430, over an in-memory back end
 bun run tauri:dev        # full app with Tauri shell (requires Rust toolchain)
 bun run check            # svelte-check + TypeScript
 bun run lint             # Biome check --write (auto-fixes)
@@ -27,6 +28,24 @@ bun run test:coverage    # Vitest with Istanbul coverage
 ```
 
 Run a single frontend test file: `bun run test -- src/lib/stores/git.test.ts`.
+
+### Looking at the interface without the native shell
+
+`bun run dev:preview` serves the app on `http://localhost:1430` to any browser. `src/hooks.client.ts`
+replaces the Tauri IPC before the first `invoke()` with `src/lib/dev/preview-backend.ts`: the
+in-memory back end of the parcours tests (`src/test/fake-backend.ts`) seeded with a believable
+workspace (projects, a folder, instances, repositories with changes). Drive it with Playwright to
+screenshot and click through a screen after a UI change, in both themes and at several sizes,
+before asking the user to look. Screenshots go to `.playwright-mcp/` (ignored).
+
+A command the preview does not model answers null and is logged once as `[preview] no model for
+...`; a screen that needs real data for it gets an entry in `overrides` there. Native behaviour
+(PTY, windows, real git, the file protocol) is not simulated: confirm those in `bun run tauri:dev`.
+
+Model a payload with its full shape. A field left out can make a derived store throw while it is
+notified, and a throwing subscriber leaves the queue of `svelte/store` undrained: from then on no
+`writable` in the app notifies anyone, and the screen silently stops reacting. A preview that
+"freezes" after a navigation is this before it is anything else.
 
 `bun run tauri:dev` exports `.env` to the processes Tauri spawns (a bare `bun run` keeps it to
 bun's own runtime). Copy `env.example` to `.env` to pick a data directory (see "The data
@@ -538,6 +557,14 @@ commit message in the git panel (`GitView.svelte`, also `MergeRequestForm.svelte
   is still empty). The start and the result are announced through an `sr-only` live region.
 - **Master switch**: the whole surface sits behind `$settings.aiEnabled`; a feature with no
   provider leaves the button disabled with a `title` saying why.
+
+### Icons stay visible
+
+Never hide an icon or an icon button until hover (`opacity: 0` revealed by `:hover`,
+`visibility: hidden`, `display: none` toggled on hover). Every icon is always drawn: an action
+that only appears under the pointer cannot be found, does not exist for keyboard and touch users,
+and makes rows shift as the pointer moves. Hover may change an icon's colour or background, never
+whether it is there.
 
 ### Text selection
 

@@ -236,6 +236,7 @@ pub fn run() {
             get_listing,
             save_folders,
             save_project_order,
+            save_ungrouped_collapsed,
             read_dir_tree,
             quick_search,
             list_dir_names,

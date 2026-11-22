@@ -30,8 +30,6 @@
   import ConversationsSection from '#lib/components/home/ConversationsSection.svelte';
   import type { SettingsTab } from '#lib/utils/home/settings-registry';
   import { aiEnabled } from '#lib/stores/settings';
-  import { liveConversations } from '#lib/stores/agent-status';
-  import { needsAttention } from '#lib/utils/agent/agent-status';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
@@ -43,13 +41,6 @@
     startTicket: { projectId: string; ticket: Ticket };
     openConversation: { projectId: string; instanceId: string; conversationId: string };
   }>();
-
-  /** The conversation of that project that needs the user most, in the Agent step. */
-  function openWaiting(projectId: string) {
-    const c = $liveConversations.find((l) => l.projectId === projectId && needsAttention(l.status));
-    if (c) dispatch('openConversation', { projectId, instanceId: c.instanceId, conversationId: c.id });
-    else dispatch('openProject', projectId);
-  }
 
   export let openSection: HomeSection | null = null;
   export let openSettingsTab: string | null = null;
@@ -102,7 +93,6 @@
     {#if activeSection === 'projects'}
       <ProjectsSection
         on:openProject={(e) => dispatch('openProject', e.detail)}
-        on:openWaiting={(e) => openWaiting(e.detail)}
         on:closeProject={(e) => dispatch('closeProject', e.detail)}
         on:addProject={(e) => { addProjectMode = e.detail; addProjectPath = ''; addProjectCloneUrl = ''; }}
         on:editProject={(e) => editingProject = e.detail}

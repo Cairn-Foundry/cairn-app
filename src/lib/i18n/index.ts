@@ -1,26 +1,12 @@
 // Copyright (C) 2026 Benjamin Bonneton and the Cairn Foundry contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { en, enGreetings } from "./en";
-import { fr, frGreetings } from "./fr";
+import { en } from "./en";
+import { fr } from "./fr";
 
 const dictionaries = { en, fr } as const;
 
-/** Content pools too varied for the flat t() lookup - home-screen splash-style greetings. */
-export interface GreetingPools {
-	morning: string[];
-	afternoon: string[];
-	evening: string[];
-	night: string[];
-	weekend: string[];
-}
-
 export type Locale = keyof typeof dictionaries;
-
-const greetingPools: Record<Locale, GreetingPools> = {
-	en: enGreetings,
-	fr: frGreetings,
-};
 
 const DEFAULT_LOCALE: Locale = "en";
 const STORAGE_KEY = "cairn:locale";
@@ -100,10 +86,6 @@ export function t(
 
 export function getLocale(): Locale {
 	return loadLocale();
-}
-
-export function getGreetingPools(): GreetingPools {
-	return greetingPools[loadLocale()];
 }
 
 export function setLocale(locale: Locale): void {

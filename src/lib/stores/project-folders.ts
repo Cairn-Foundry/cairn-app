@@ -3,7 +3,10 @@
 
 /** Folders of the home project list: grouping, order and collapsed state. */
 import { writable } from "svelte/store";
-import { saveFolders } from "#lib/services/project-service";
+import {
+	saveFolders,
+	saveUngroupedCollapsed,
+} from "#lib/services/project-service";
 import type { ProjectFolder } from "#lib/types/project";
 
 /** Builds the store; every mutation writes listing.json back, fire and forget. */
@@ -135,3 +138,14 @@ function createFoldersStore() {
 
 /** The folders grouping the home project list, persisted in listing.json. */
 export const projectFolders = createFoldersStore();
+
+/** Whether the group of projects outside any folder is folded, like a folder is. */
+export const ungroupedCollapsed = writable(false);
+
+/** Folds or unfolds the projects outside any folder; the state is persisted. */
+export function toggleUngroupedCollapsed(): void {
+	ungroupedCollapsed.update((collapsed) => {
+		saveUngroupedCollapsed(!collapsed).catch(console.error);
+		return !collapsed;
+	});
+}

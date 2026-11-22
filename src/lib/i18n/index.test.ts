@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { getGreetingPools, getLocale, setLocale, t } from "./index";
+import { getLocale, setLocale, t } from "./index";
 
 const reloadMock = vi.fn();
 
@@ -44,19 +44,6 @@ describe("t", () => {
 		expect(spy).toHaveBeenCalledOnce();
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("nope.missing"));
 		spy.mockRestore();
-	});
-});
-
-describe("getGreetingPools", () => {
-	it("returns the English pools by default", () => {
-		const pools = getGreetingPools();
-		expect(pools.morning.length).toBeGreaterThan(0);
-	});
-
-	it("returns the French pools when French is stored", () => {
-		const english = getGreetingPools();
-		localStorage.setItem("cairn:locale", "fr");
-		expect(getGreetingPools()).not.toEqual(english);
 	});
 });
 

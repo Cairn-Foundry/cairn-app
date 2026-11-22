@@ -11,6 +11,8 @@ import type { Project, ProjectFolder } from "#lib/types/project.ts";
 export type ListingConfig = {
 	folders: ProjectFolder[];
 	projectOrder: string[];
+	/** Whether the group of projects outside any folder is folded. */
+	ungroupedCollapsed: boolean;
 };
 
 /** Reads projects.json; the home ordering lives in listing.json instead. */
@@ -122,6 +124,13 @@ export async function getListing(): Promise<ListingConfig> {
 /** Rewrites the folder groupings only, leaving the project order alone. */
 export async function saveFolders(folders: ProjectFolder[]): Promise<void> {
 	return invoke<void>("save_folders", { folders });
+}
+
+/** Folds or unfolds the group of projects outside any folder. */
+export async function saveUngroupedCollapsed(
+	collapsed: boolean,
+): Promise<void> {
+	return invoke<void>("save_ungrouped_collapsed", { collapsed });
 }
 
 /** Rewrites the project order only, leaving the folders alone. */

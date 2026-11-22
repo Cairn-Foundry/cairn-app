@@ -37,9 +37,13 @@ vi.mock("#lib/services/git-service", async (importOriginal) => ({
 
 const purgeProject = vi.hoisted(() => vi.fn());
 const init = vi.hoisted(() => vi.fn());
-vi.mock("#lib/stores/project-folders", () => ({
-	projectFolders: { purgeProject, init },
-}));
+vi.mock("#lib/stores/project-folders", async () => {
+	const { writable } = await import("svelte/store");
+	return {
+		projectFolders: { purgeProject, init },
+		ungroupedCollapsed: writable(false),
+	};
+});
 
 import {
 	activateInstance,

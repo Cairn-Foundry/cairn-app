@@ -8,12 +8,17 @@
    * both folders and cards (a card dropped on a folder joins it). Dispatches `openProject`,
    * `addProject`, `editProject` and `closeProject`.
    */
-  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import Icon from '#lib/components/Icon.svelte';
   import { t } from '#lib/i18n';
-  import { pickGreeting } from '#lib/utils/home/greeting';
-  import { projects, unregisterProject, openProjects, activeProjectId, lastOpenedProjectId } from '#lib/stores/project';
-  import { projectFolders } from '#lib/stores/project-folders';
+  import { projects, unregisterProject, openProjects, lastOpenedProjectId } from '#lib/stores/project';
+  import { loadedInstances } from '#lib/stores/instance';
+  import { activeInstancesOf, loadProjectOverview, summarizeWorktrees, worktreeStates } from '#lib/stores/project-overview';
+  import { settings } from '#lib/stores/settings';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import ProjectEntry from './ProjectEntry.svelte';
+  import ProjectsEmpty from './ProjectsEmpty.svelte';
+  import { projectFolders, toggleUngroupedCollapsed, ungroupedCollapsed } from '#lib/stores/project-folders';
   import { revealInFileManager } from '#lib/services/project-service';
   import type { Project, ProjectFolder } from '#lib/types/project';
   import DeleteProjectModal from './DeleteProjectModal.svelte';
@@ -25,25 +30,69 @@
   import { computeTabInsertIndex } from '#lib/utils/files/files-tab-drag';
   import { reorderProjects } from '#lib/stores/project';
   import { inboxLabel, loadProjectInbox, projectInbox } from '#lib/stores/project-inbox';
-  import { attentionByProject } from '#lib/stores/agent-status';
 
   const dispatch = createEventDispatcher<{
     openProject: string;
-    openWaiting: string;
     addProject: 'new' | 'open' | 'clone';
     editProject: Project;
     closeProject: string;
   }>();
 
-  onMount(() => {
-    for (const p of $projects) void loadProjectInbox(p.id);
-  });
+  const overviewRequested = new Set<string>();
+  $: for (const p of $projects) {
+    if (overviewRequested.has(p.id)) continue;
+    overviewRequested.add(p.id);
+    void loadProjectInbox(p.id);
+    void loadProjectOverview(p);
+  }
+
+  let layout: 'list' | 'grid';
+  $: layout = $settings.homeProjectsLayout === 'grid' ? 'grid' : 'list';
+  $: containerClass = layout === 'list' ? 'projects-list' : 'projects-compact';
+  $: entryLayout = (layout === 'list' ? 'list' : 'compact') as 'list' | 'compact';
+  const layoutOptions = [
+    { value: 'list', label: t('home.projects.layoutList') as string, icon: 'list' },
+    { value: 'grid', label: t('home.projects.layoutGrid') as string, icon: 'grid' },
+  ];
+
+  function setLayout(value: string) {
+    if (value !== 'list' && value !== 'grid') return;
+    void settings.save({ homeProjectsLayout: value });
+  }
+
+  $: openIds = new Set($openProjects.map((p) => p.id));
+
+  const NAME_COL_MAX_CH = 28;
+  /** The list is monospace: the name column fits the longest name, so the branches line up close to it. */
+  $: nameColumn = `calc(${Math.min(NAME_COL_MAX_CH, Math.max(0, ...$projects.map((p) => p.name.length)))}ch + 6ch)`;
+  $: overview = Object.fromEntries($projects.map((p) => [p.id, {
+    worktrees: summarizeWorktrees(p, activeInstancesOf($loadedInstances, p.id), $worktreeStates),
+    tickets: hasInbox($projectInbox[p.id]) ? inboxLabel($projectInbox[p.id]) : '',
+    isCurrent: openIds.has(p.id) && p.id === $lastOpenedProjectId,
+  }]));
+
+  /** The folder a project sits in, for the menu of the open projects drawn outside their group. */
+  function folderIdOf(projectId: string): string | null {
+    return $projectFolders.find((f) => f.projectIds.includes(projectId))?.id ?? null;
+  }
+
+  /** The menu of a project shown among the open ones is told apart from the one in its group. */
+  const openMenuKey = (projectId: string) => `open:${projectId}`;
+
+  /** A count of zero with nothing more to fetch says nothing worth a pill. */
+  function hasInbox(count: { tickets: number; hasMore: boolean } | undefined): boolean {
+    return !!count && (count.tickets > 0 || count.hasMore);
+  }
+
+  /** Enter on the row itself opens it; on one of its buttons it belongs to that button. */
+  function onEntryKeydown(e: KeyboardEvent, id: string) {
+    if (e.key === 'Enter' && e.target === e.currentTarget) dispatch('openProject', id);
+  }
 
   let search = '';
   let searchInputEl: HTMLInputElement | null = null;
   let prevWasSearching = false;
 
-  const greeting = pickGreeting();
 
   $: {
     const isSearching = !!search.trim();
@@ -159,12 +208,6 @@
 
   onDestroy(() => { if (isStickyDrag) cancelStickyDrag(); });
 
-  /** Parent directory name of a project path, shown instead of the full path. */
-  function parentFolderName(path: string): string {
-    const segments = path.split(/[\\/]/).filter(Boolean);
-    return segments.length > 1 ? segments[segments.length - 2] : '';
-  }
-
   /** Insert position for a card in a wrapping grid: row first, then the midpoint of the cell. */
   function computeGridInsertIndex(
     containerEl: HTMLElement | null,
@@ -202,11 +245,6 @@
     : null;
 
   // -- menus ----------------------------------------------------------------
-  function openWaiting(e: MouseEvent, id: string) {
-    e.stopPropagation();
-    dispatch('openWaiting', id);
-  }
-
   function openMenu(e: MouseEvent, id: string) {
     e.stopPropagation();
     menuFolderId = null;
@@ -339,7 +377,9 @@
     dragOverFolderId     = hoveredFolderId && !isSameFolder ? hoveredFolderId : null;
 
     if (!dragOverFolderId) {
-      projInsertIndex = computeGridInsertIndex(projDragBarEl, e.clientX, e.clientY, '.project-card');
+      projInsertIndex = layout === 'list'
+        ? computeTabInsertIndex(projDragBarEl, e.clientY, { axis: 'y', selector: '.project-card' })
+        : computeGridInsertIndex(projDragBarEl, e.clientX, e.clientY, '.project-card');
     }
   }
 
@@ -486,59 +526,37 @@
 
 </script>
 
-<!-- hero + quick actions - hidden via CSS when searching to keep DOM stable -->
-<div class="home-hero" class:hidden={!!search}>
-  <h1>{greeting}</h1>
-</div>
 
-<div class="home-actions" class:hidden={!!search}>
-  <div class="home-action primary" role="button" tabindex="0"
-       on:click={() => dispatch('addProject', 'new')}
-       on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'new')}>
-    <div class="aci"><Icon name="plus" size={22}/></div>
-    <div class="at">{t('home.projects.newProject')}</div>
-    <div class="ad">{t('home.projects.newProjectDesc')}</div>
+<header class="projects-head">
+  <div class="head-row">
+    <h1>{t('home.projects.title')}{#if $projects.length > 0}<span class="head-count">{$projects.length}</span>{/if}</h1>
   </div>
-  <div class="home-action" role="button" tabindex="0"
-       on:click={() => dispatch('addProject', 'open')}
-       on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'open')}>
-    <div class="aci"><Icon name="folder" size={22}/></div>
-    <div class="at">{t('home.projects.openProject')}</div>
-    <div class="ad">{t('home.projects.openProjectDesc')}</div>
-  </div>
-  <div class="home-action" role="button" tabindex="0"
-       on:click={() => dispatch('addProject', 'clone')}
-       on:keydown={(e) => e.key === 'Enter' && dispatch('addProject', 'clone')}>
-    <div class="aci"><Icon name="download" size={22}/></div>
-    <div class="at">{t('home.projects.cloneFromRemote')}</div>
-    <div class="ad">{t('home.projects.cloneFromRemoteDesc')}</div>
-  </div>
-</div>
+</header>
 
-{#if $openProjects.length > 0}
-  <div class="open-tabs" class:hidden={!!search}>
-    <div class="home-section-title">
-      <span class="section-label">
-        <Icon name="folder-open" size={13}/>
-        {(t('home.projects.openTabsCount') as (n: number) => string)($openProjects.length)}
-      </span>
-    </div>
-    <div class="open-tabs-row">
-      {#each $openProjects as p (p.id)}
-        <div class="open-tab" class:active={p.id === $activeProjectId} class:last-opened={p.id === $lastOpenedProjectId} role="button" tabindex="0"
-             on:click={() => dispatch('openProject', p.id)}
-             on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
-          <span class="open-tab-dot" style="background: {p.color}"></span>
-          <span class="open-tab-name">{p.name}</span>
-          <button class="open-tab-close" aria-label={t('common.close') as string}
-                  on:click|stopPropagation={() => dispatch('closeProject', p.id)}>
-            <Icon name="x" size={11}/>
-          </button>
-        </div>
-      {/each}
-    </div>
+{#if filteredProjects === null}
+  <div class="home-actions">
+    <button class="home-action primary" on:click={() => dispatch('addProject', 'new')}>
+      <span class="aci"><Icon name="plus" size={22}/></span>
+      <span class="at">{t('home.projects.newProject')}</span>
+      <span class="ad">{t('home.projects.newProjectDesc')}</span>
+    </button>
+    <button class="home-action" on:click={() => dispatch('addProject', 'open')}>
+      <span class="aci"><Icon name="folder" size={22}/></span>
+      <span class="at">{t('home.projects.openProject')}</span>
+      <span class="ad">{t('home.projects.openProjectDesc')}</span>
+    </button>
+    <button class="home-action" on:click={() => dispatch('addProject', 'clone')}>
+      <span class="aci"><Icon name="download" size={22}/></span>
+      <span class="at">{t('home.projects.cloneFromRemote')}</span>
+      <span class="ad">{t('home.projects.cloneFromRemoteDesc')}</span>
+    </button>
   </div>
 {/if}
+
+{#if $projects.length === 0}
+  <ProjectsEmpty kind="none"/>
+{/if}
+
 
 <!-- backdrop for menus -->
 {#if menuProjectId || menuFolderId}
@@ -546,50 +564,86 @@
   <div class="menu-backdrop" on:click={closeMenu} on:keydown={() => {}}></div>
 {/if}
 
-<!-- --- header bar (always rendered - keeps input in same DOM node) ------- -->
-<div class="home-section-title">
-  <span class="section-label">
-    <Icon name={filteredProjects !== null ? 'search' : 'folder'} size={13}/>
-    {(t('home.projects.projectsCount') as (n: number) => string)($projects.length)}
-  </span>
-  <div class="section-right">
-    {#if filteredProjects === null}
-      <button class="new-folder-btn" on:click={() => showCreateFolder = true}>
-        <Icon name="plus" size={13}/>
-        {t('home.projects.folders.newFolder')}
-      </button>
-    {/if}
-    {#if $projects.length > 0}
-      <div class="search-bar">
-        <Icon name="search" size={13}/>
-        <input class="search-input" bind:value={search} bind:this={searchInputEl}
-               placeholder={t('home.projects.filterPlaceholder') as string}
-               aria-label={t('home.projects.filterAriaLabel') as string}/>
-        {#if search}
-          <button class="search-clear" on:click={() => search = ''} aria-label={t('home.projects.clearSearch') as string}>
-            <Icon name="x" size={11}/>
-          </button>
-        {/if}
-      </div>
-    {/if}
+{#if filteredProjects === null && $openProjects.length > 0}
+  <section class="open-projects" aria-label={t('home.projects.openProjects') as string}>
+    <h2 class="group-title open-title">
+      <Icon name="folder-open" size={14} class="folder-icon"/>
+      <span class="group-name">{t('home.projects.openProjects')}</span>
+      <span class="folder-count">{$openProjects.length}</span>
+    </h2>
+    <div class="projects-compact">
+      {#each $openProjects as p (p.id)}
+        <ProjectEntry project={p} layout="compact" {...overview[p.id]} isCurrent={false} isClosable
+          on:click={() => dispatch('openProject', p.id)}
+          on:keydown={(e) => onEntryKeydown(e, p.id)}
+          on:more={(e) => openMenu(e.detail, openMenuKey(p.id))}
+          on:close={() => dispatch('closeProject', p.id)}
+        >
+          {#if menuProjectId === openMenuKey(p.id)}
+            <ProjectMenu folders={$projectFolders} currentFolderId={folderIdOf(p.id)}
+              on:edit={() => { closeMenu(); dispatch('editProject', p); }}
+              on:duplicate={() => handleDuplicate(p)}
+              on:copyPath={() => handleCopyPath(p.path)}
+              on:reveal={() => handleReveal(p.path)}
+              on:moveToFolder={(e) => moveToFolder(p.id, e.detail)}
+              on:removeFromFolder={() => removeFromFolder(p.id)}
+              on:delete={() => { closeMenu(); deletingProject = p; }}
+            />
+          {/if}
+        </ProjectEntry>
+      {/each}
+    </div>
+  </section>
+{/if}
+
+{#if $projects.length > 0}
+  <div class="all-head">
+    <h2 class="group-title open-title all-title">
+      <Icon name="folder" size={14} class="folder-icon"/>
+      <span class="group-name">{t('home.projects.allProjects')}</span>
+      <span class="folder-count">{$projects.length}</span>
+    </h2>
+    <button class="btn ghost" on:click={() => showCreateFolder = true}>
+      <Icon name="plus" size={13}/>{t('home.projects.folders.newFolderShort')}
+    </button>
+    <div class="search-bar">
+      <Icon name="search" size={13}/>
+      <input class="search-input" bind:value={search} bind:this={searchInputEl}
+             placeholder={t('home.projects.filterPlaceholder') as string}
+             aria-label={t('home.projects.filterAriaLabel') as string}/>
+      {#if search}
+        <button class="search-clear" on:click={() => search = ''} aria-label={t('home.projects.clearSearch') as string}>
+          <Icon name="x" size={11}/>
+        </button>
+      {/if}
+    </div>
+    <ModeToggle
+      options={layoutOptions}
+      value={layout}
+      ariaLabel={t('home.projects.layoutLabel') as string}
+      on:select={(e) => setLayout(e.detail)}
+    />
   </div>
-</div>
+{/if}
+
+<div class="project-groups" class:is-table={layout === 'list' && filteredProjects?.length !== 0} class:hidden={$projects.length === 0} style="--name-col: {nameColumn}">
+
 
 <!-- --- search mode --------------------------------------------------------- -->
 {#if filteredProjects !== null}
   {#if filteredProjects.length === 0}
-    <div class="empty-state">{(t('home.projects.emptyFiltered') as (q: string) => string)(search)}</div>
+    <ProjectsEmpty kind="no-match" query={search.trim()} on:clear={() => { search = ''; searchInputEl?.focus(); }}/>
   {:else}
-    <div class="projects-grid">
+    <div class={containerClass}>
       {#each filteredProjects as p (p.id)}
-        <div class="project-card" role="button" tabindex="0"
-             on:click={() => dispatch('openProject', p.id)}
-             on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}>
-          <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $attentionByProject[p.id]}<button class="attention-pill" title={t('home.projects.attentionOpen') as string} on:click={(e) => openWaiting(e, p.id)}><span class="attention-dot"></span>{$attentionByProject[p.id]}</button>{/if}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
-          {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
-          <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
-            <Icon name="more" size={15}/>
-          </button>
+        <ProjectEntry project={p} layout={entryLayout} {...overview[p.id]}
+          on:click={() => dispatch('openProject', p.id)}
+          on:keydown={(e) => onEntryKeydown(e, p.id)}
+          on:more={(e) => openMenu(e.detail, p.id)}
+              on:edit={() => dispatch('editProject', p)}
+              on:reveal={() => handleReveal(p.path)}
+          on:close={() => dispatch('closeProject', p.id)}
+        >
           {#if menuProjectId === p.id}
             <ProjectMenu folders={$projectFolders} currentFolderId={null}
               on:edit={() => { closeMenu(); dispatch('editProject', p); }}
@@ -600,7 +654,7 @@
               on:delete={() => { closeMenu(); deletingProject = p; }}
             />
           {/if}
-        </div>
+        </ProjectEntry>
       {/each}
     </div>
   {/if}
@@ -610,9 +664,6 @@
 
   <!-- --- Dossiers section ------------------------------------------- -->
   {#if $projectFolders.length > 0}
-    <div class="section-block">
-      <div class="section-block-title">{t('home.projects.folders.sectionLabel')}</div>
-
       <div class="folders-grid" bind:this={foldersDragBarEl}>
         {#each $projectFolders as folder, folderIdx (folder.id)}
           {@const fProjects = folderProjects(folder.id)}
@@ -695,28 +746,24 @@
               {#if fProjects.length === 0}
                 <div class="folder-empty">{t('home.projects.folders.dropHere')}</div>
               {:else}
-                <div class="projects-grid folder-projects">
+                <div class="{containerClass} folder-projects">
                   {#each fProjects as p, projIdx (p.id)}
-                    <div
-                      class="project-card"
-                      class:proj-drag-src={projDragActive && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projDragSrcIndex === projIdx}
-                      class:proj-drop-before={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
-                      class:proj-drop-after={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projIdx === fProjects.length - 1 && projInsertIndex === fProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
-                      role="button"
-                      tabindex="0"
+                    <ProjectEntry project={p} layout={entryLayout} {...overview[p.id]}
+                      isDragSource={projDragActive && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projDragSrcIndex === projIdx}
+                      isDropBefore={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
+                      isDropAfter={projDragActive && !dragOverFolderId && projDragCtx?.type === 'folder' && projDragCtx.folderId === folder.id && projIdx === fProjects.length - 1 && projInsertIndex === fProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
                       on:pointerdown={(e) => onProjCardPointerDown(e, projIdx, { type: 'folder', folderId: folder.id }, p.id)}
                       on:pointermove={onProjCardPointerMove}
                       on:pointerup={onProjCardPointerUp}
                       on:pointercancel={onProjCardPointerCancel}
                       on:contextmenu={(e) => onProjCardContextMenu(e, projIdx, { type: 'folder', folderId: folder.id }, p.id)}
                       on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
-                      on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
+                      on:keydown={(e) => onEntryKeydown(e, p.id)}
+                      on:more={(e) => openMenu(e.detail, p.id)}
+              on:edit={() => dispatch('editProject', p)}
+              on:reveal={() => handleReveal(p.path)}
+                      on:close={() => dispatch('closeProject', p.id)}
                     >
-                      <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $attentionByProject[p.id]}<button class="attention-pill" title={t('home.projects.attentionOpen') as string} on:click={(e) => openWaiting(e, p.id)}><span class="attention-dot"></span>{$attentionByProject[p.id]}</button>{/if}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
-                      {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
-                      <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
-                        <Icon name="more" size={15}/>
-                      </button>
                       {#if menuProjectId === p.id}
                         <ProjectMenu folders={$projectFolders} currentFolderId={folder.id}
                           on:edit={() => { closeMenu(); dispatch('editProject', p); }}
@@ -728,7 +775,7 @@
                           on:delete={() => { closeMenu(); deletingProject = p; }}
                         />
                       {/if}
-                    </div>
+                    </ProjectEntry>
                   {/each}
                 </div>
               {/if}
@@ -739,48 +786,58 @@
           <div class="folder-drop-indicator"></div>
         {/if}
       </div>
-    </div>
   {/if}
 
   <!-- --- Projets section -------------------------------------------- -->
-  {#if ungroupedProjects.length > 0 || $projects.length === 0 || projDragCtx?.type === 'folder'}
+  {#if ungroupedProjects.length > 0 || projDragCtx?.type === 'folder'}
     <div
       class="section-block"
       class:section-drag-over={dragOverUngrouped}
       data-drop-ungrouped
     >
       {#if $projectFolders.length > 0}
-        <div class="section-block-title">{t('home.projects.folders.ungrouped')}</div>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="group-title is-toggle" on:click={toggleUngroupedCollapsed}>
+          <button
+            class="chevron-btn"
+            on:click|stopPropagation={toggleUngroupedCollapsed}
+            aria-expanded={!$ungroupedCollapsed}
+            aria-label={t('home.projects.folders.ungrouped') as string}
+          >
+            <span class="chevron" class:collapsed={$ungroupedCollapsed}>
+              <Icon name="chev-d" size={13}/>
+            </span>
+          </button>
+          <Icon name="folder-dashed" size={14} class="folder-icon"/>
+          <span class="group-name">{t('home.projects.folders.ungrouped')}</span>
+          <span class="folder-count">{ungroupedProjects.length}</span>
+        </div>
       {/if}
 
-      {#if $projects.length === 0}
-        <div class="empty-state">{t('home.projects.emptyProjects')}</div>
+      {#if $projectFolders.length > 0 && $ungroupedCollapsed && projDragCtx?.type !== 'folder'}
+        <!-- folded: only the title stays, still a drop target -->
       {:else if ungroupedProjects.length === 0}
         <div class="ungrouped-drop-hint">{t('home.projects.folders.dropToUngrouped')}</div>
       {:else}
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div class="projects-grid">
+        <div class={containerClass}>
           {#each ungroupedProjects as p, projIdx (p.id)}
-            <div
-              class="project-card"
-              class:proj-drag-src={projDragActive && projDragCtx?.type === 'ungrouped' && projDragSrcIndex === projIdx}
-              class:proj-drop-before={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
-              class:proj-drop-after={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projIdx === ungroupedProjects.length - 1 && projInsertIndex === ungroupedProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
-              role="button"
-              tabindex="0"
+            <ProjectEntry project={p} layout={entryLayout} {...overview[p.id]}
+              isDragSource={projDragActive && projDragCtx?.type === 'ungrouped' && projDragSrcIndex === projIdx}
+              isDropBefore={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projInsertIndex === projIdx && !(projInsertIndex === projDragSrcIndex || projInsertIndex === (projDragSrcIndex ?? -1) + 1)}
+              isDropAfter={projDragActive && !dragOverFolderId && !dragOverUngrouped && projDragCtx?.type === 'ungrouped' && projIdx === ungroupedProjects.length - 1 && projInsertIndex === ungroupedProjects.length && projInsertIndex !== (projDragSrcIndex ?? -1) + 1}
               on:pointerdown={(e) => onProjCardPointerDown(e, projIdx, { type: 'ungrouped' }, p.id)}
               on:pointermove={onProjCardPointerMove}
               on:pointerup={onProjCardPointerUp}
               on:pointercancel={onProjCardPointerCancel}
               on:contextmenu={(e) => onProjCardContextMenu(e, projIdx, { type: 'ungrouped' }, p.id)}
               on:click={(e) => handleCardClick(e, () => dispatch('openProject', p.id))}
-              on:keydown={(e) => e.key === 'Enter' && dispatch('openProject', p.id)}
+              on:keydown={(e) => onEntryKeydown(e, p.id)}
+              on:more={(e) => openMenu(e.detail, p.id)}
+              on:edit={() => dispatch('editProject', p)}
+              on:reveal={() => handleReveal(p.path)}
+              on:close={() => dispatch('closeProject', p.id)}
             >
-              <div class="pname"><span class="swatch" style="background: {p.color}"></span>{p.name}{#if $attentionByProject[p.id]}<button class="attention-pill" title={t('home.projects.attentionOpen') as string} on:click={(e) => openWaiting(e, p.id)}><span class="attention-dot"></span>{$attentionByProject[p.id]}</button>{/if}{#if $projectInbox[p.id]}<span class="inbox-pill" title={t('home.projects.inboxTitle') as string}>{inboxLabel($projectInbox[p.id])}</span>{/if}</div>
-              {#if parentFolderName(p.path)}<div class="pfolder">{parentFolderName(p.path)}</div>{/if}
-              <button class="card-more" aria-label={t('home.projects.projectOptions') as string} on:click={(e) => openMenu(e, p.id)}>
-                <Icon name="more" size={15}/>
-              </button>
               {#if menuProjectId === p.id}
                 <ProjectMenu folders={$projectFolders} currentFolderId={null}
                   on:edit={() => { closeMenu(); dispatch('editProject', p); }}
@@ -791,13 +848,15 @@
                   on:delete={() => { closeMenu(); deletingProject = p; }}
                 />
               {/if}
-            </div>
+            </ProjectEntry>
           {/each}
         </div>
       {/if}
     </div>
   {/if}
 {/if}
+
+</div>
 
 {#if duplicatingProject}
   <DuplicateProjectModal
@@ -832,88 +891,55 @@
 <style>
   .hidden { display: none; }
 
-  /* -- open project tabs ------------------------------------------------- */
-  .open-tabs { margin-bottom: 40px; }
-
-  .open-tabs-row {
+  /* -- head -------------------------------------------------------------- */
+  .projects-head {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 32px;
   }
-
-  .open-tab {
+  .head-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 8px 6px 10px;
-    font-size: 12.5px;
-    color: var(--fg-1);
-    background: var(--bg-2);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-sm);
-    cursor: pointer;
-    transition: color .12s, background .12s, border-color .12s;
   }
-  .open-tab:hover { background: var(--bg-3); color: var(--fg-0); }
-  .open-tab.active { border-color: var(--accent-line); color: var(--fg-0); }
-  .open-tab.last-opened { border: 2px solid var(--accent); padding: 5px 7px 5px 9px; color: var(--fg-0); }
-
-  .open-tab-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .projects-head h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .head-count {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--fg-2);
+    background: var(--bg-3);
+    border-radius: 10px;
   }
 
-  .open-tab-name { white-space: nowrap; }
-
-  .open-tab-close {
-    display: grid;
-    place-items: center;
-    width: 16px; height: 16px;
-    padding: 0;
-    border-radius: 3px;
-    color: var(--fg-3);
+  /* -- first launch ------------------------------------------------------- */
+  .home-action {
+    align-items: flex-start;
+    text-align: left;
+    font-family: var(--font-ui);
   }
-  .open-tab-close:hover { background: var(--bg-4); color: var(--fg-0); }
+  .home-actions { margin-bottom: 28px; }
 
-  /* -- backdrop ---------------------------------------------------------- */
   .menu-backdrop {
     position: fixed;
     inset: 0;
     z-index: 50;
   }
 
-  /* -- header bar -------------------------------------------------------- */
-  .section-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .section-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .new-folder-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 10px;
-    border-radius: var(--r-sm);
-    border: 1px solid var(--stroke-1);
-    background: none;
-    font-size: 12px;
-    font-family: var(--font-ui);
-    color: var(--fg-2);
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s, border-color 0.1s;
-  }
-  .new-folder-btn:hover { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-2); }
-
   /* -- search ------------------------------------------------------------ */
   .search-bar {
+    flex: 0 1 260px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -932,102 +958,135 @@
     font-size: 12px;
     font-family: var(--font-ui);
     color: var(--fg-0);
-    width: 160px;
+    width: 100%;
   }
   .search-input::placeholder { color: var(--fg-4); }
   .search-clear {
-    background: none;
-    border: none;
     padding: 0;
-    cursor: pointer;
     color: var(--fg-3);
     display: flex;
     align-items: center;
   }
   .search-clear:hover { color: var(--fg-0); }
 
-  /* -- section blocks ---------------------------------------------------- */
-  .section-block {
-    margin-bottom: 28px;
+  /* -- groups ------------------------------------------------------------ */
+  .project-groups.is-table {
+    border: 1px solid color-mix(in oklch, var(--stroke-0) 60%, var(--stroke-1));
+    border-radius: var(--r-md);
+    background: var(--bg-1);
   }
+  .project-groups.is-table > :first-child .folder-block:first-child .folder-header,
+  .project-groups.is-table > .section-block:first-child .group-title {
+    border-top: 0;
+  }
+
+  .project-groups.is-table > .projects-list:first-child > :global(.entry:first-child) { border-top: 0; }
+
+  .open-projects { margin-bottom: 28px; }
+  .group-title.open-title { margin: 0 0 8px; padding-left: 0; font: inherit; }
+  .all-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .all-head .group-title.open-title { margin: 0; flex: 1 1 auto; min-width: 0; }
+  .all-head .btn,
+  .all-head .search-bar,
+  .all-head :global(.mode-toggle) { height: 28px; box-sizing: border-box; }
+  .project-groups.is-table > :first-child .folder-block:first-child .folder-header,
+  .project-groups.is-table > .section-block:first-child .group-title {
+    border-top-left-radius: calc(var(--r-md) - 1px);
+    border-top-right-radius: calc(var(--r-md) - 1px);
+  }
+  /* A folded group closing the table ends on its title band, which must follow the corners. */
+  .project-groups.is-table > .section-block:last-child .group-title:last-child,
+  .project-groups.is-table > .folders-grid:last-child .folder-block:last-child .folder-header:last-child {
+    border-bottom-left-radius: calc(var(--r-md) - 1px);
+    border-bottom-right-radius: calc(var(--r-md) - 1px);
+  }
+  .projects-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 8px;
+  }
+
+  .section-block { margin-bottom: 0; }
+  .project-groups:not(.is-table) .section-block,
+  .project-groups:not(.is-table) .folder-block { margin-bottom: 24px; }
   .section-block.section-drag-over {
     outline: 2px solid var(--accent-line);
-    outline-offset: 6px;
+    outline-offset: -2px;
     border-radius: var(--r-md);
   }
-  .ungrouped-drop-hint {
-    border: 2px dashed var(--stroke-1);
-    border-radius: var(--r-md);
-    padding: 20px;
-    text-align: center;
+  .ungrouped-drop-hint,
+  .folder-empty {
+    padding: 14px;
     font-size: 12px;
     color: var(--fg-3);
   }
 
-  .section-block-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--fg-4);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 10px;
-    padding: 0 2px;
-  }
-
-  /* -- folders grid ------------------------------------------------------ */
-  .folders-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .folder-block {
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-md);
-    background: var(--bg-1);
-    overflow: visible;
-    transition: border-color 0.1s, background 0.1s, box-shadow 0.1s;
-  }
 
 
-  /* -- folder header ----------------------------------------------------- */
+  .group-title,
   .folder-header {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 9px 10px 9px 6px;
-    cursor: pointer;
+    gap: 8px;
+    min-height: 38px;
+    box-sizing: border-box;
+    padding: 0 10px 0 8px;
     position: relative;
   }
+  .group-title { padding-left: 8px; }
+  .is-table .group-title,
+  .is-table .folder-header,
+  .is-table .ungrouped-drop-hint,
+  .is-table .folder-empty {
+    background: var(--bg-0);
+    border-top: 1px solid var(--stroke-0);
+  }
+  .is-table .ungrouped-drop-hint,
+  .is-table .folder-empty { background: transparent; }
+  .project-groups:not(.is-table) .group-title,
+  .project-groups:not(.is-table) .folder-header { padding-left: 0; margin-bottom: 8px; }
+  .project-groups:not(.is-table) .group-title { padding-left: 0; }
+
+  .group-name,
+  .folder-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+
+  /* -- folders ----------------------------------------------------------- */
+  .folders-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .folder-block { position: relative; }
   .folder-block.folder-dragging { opacity: 0.4; }
   .folder-block.folder-dragging .folder-header { cursor: grabbing; }
-  .folder-block.folder-drag-over {
-    border-color: var(--accent-line);
-    box-shadow: 0 0 0 1px var(--accent-line);
-  }
+  .folder-block.folder-drag-over { box-shadow: inset 0 0 0 2px var(--accent-line); border-radius: var(--r-sm); }
+  .folder-header,
+  .group-title.is-toggle { cursor: pointer; }
 
   .folder-drop-indicator {
     height: 2px;
     background: var(--accent);
     border-radius: 1px;
-    margin: 1px 0;
     pointer-events: none;
   }
 
   .chevron-btn {
-    background: none;
-    border: none;
     padding: 2px;
-    cursor: pointer;
     color: var(--fg-3);
     display: flex;
     align-items: center;
     border-radius: var(--r-sm);
     flex-shrink: 0;
-    transition: color 0.1s, background 0.1s;
   }
   .chevron-btn:hover { color: var(--fg-0); background: var(--bg-3); }
-
   .chevron {
     display: inline-flex;
     transition: transform 0.15s;
@@ -1040,81 +1099,29 @@
   }
 
   .folder-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--fg-1);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    cursor: pointer;
     min-width: 0;
     max-width: 260px;
   }
   .folder-name:hover { color: var(--fg-0); }
-
   .folder-spacer { flex: 1; }
-
-  .inbox-pill {
-    margin-left: auto;
-    margin-right: 22px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--fg-3);
-    background: var(--bg-3);
-    border-radius: 10px;
-    padding: 1px 7px;
-    line-height: 1.6;
-    flex-shrink: 0;
-  }
-
-  .attention-pill {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--warning);
-    background: var(--warning-weak);
-    border-radius: 10px;
-    padding: 1px 7px;
-    line-height: 1.6;
-    flex-shrink: 0;
-  }
-  .attention-pill:hover { background: color-mix(in oklch, var(--warning) 25%, transparent); }
-  .attention-pill:last-child { margin-right: 22px; }
-  .attention-pill + .inbox-pill { margin-left: 6px; }
-  .attention-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
 
   .folder-count {
     font-size: 11px;
-    color: var(--fg-4);
-    background: var(--bg-3);
-    border-radius: 10px;
-    padding: 1px 7px;
-    line-height: 1.6;
+    color: var(--fg-3);
     flex-shrink: 0;
   }
 
   .folder-more-btn {
-    background: none;
-    border: none;
     padding: 4px;
-    cursor: pointer;
-    color: var(--fg-4);
+    color: var(--fg-3);
     display: flex;
     align-items: center;
     border-radius: var(--r-sm);
     flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.1s, color 0.1s, background 0.1s;
   }
-  .folder-header:hover .folder-more-btn { opacity: 1; }
   .folder-more-btn:hover { color: var(--fg-0); background: var(--bg-4); }
 
   .folder-menu {
@@ -1128,32 +1135,14 @@
     border: 1px solid var(--accent-line);
     border-radius: var(--r-sm);
     padding: 3px 7px;
-    font-size: 13px;
+    font-size: 12px;
     font-family: var(--font-ui);
     color: var(--fg-0);
     outline: none;
     min-width: 0;
   }
 
-  /* -- folder expanded content ------------------------------------------- */
-  .folder-empty {
-    padding: 14px 12px;
-    font-size: 12px;
-    color: var(--fg-4);
-    border-top: 1px solid var(--stroke-0);
-  }
-
-  .folder-projects {
-    padding: 10px 10px 10px;
-    border-top: 1px solid var(--stroke-0);
-    margin-bottom: 0 !important;
-  }
-
-  /* -- project cards ----------------------------------------------------- */
-  :global(.project-card) {
-    position: relative;
-    overflow: visible !important;
-  }
+  /* -- drag -------------------------------------------------------------- */
   :global(.project-card.proj-drag-src) { opacity: 0.4; cursor: grabbing; }
 
   :global(.project-card.proj-drop-before)::before,
@@ -1169,28 +1158,15 @@
   }
   :global(.project-card.proj-drop-before)::before { left: -7px; }
   :global(.project-card.proj-drop-after)::after  { right: -7px; }
-
-  .card-more {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 26px;
-    height: 26px;
-    border-radius: var(--r-sm);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--fg-3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.1s, background 0.1s, color 0.1s;
-    z-index: 10;
+  .projects-list :global(.project-card.proj-drop-before)::before,
+  .projects-list :global(.project-card.proj-drop-after)::after {
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 2px;
   }
-  :global(.project-card:hover) .card-more,
-  .card-more:focus-visible { opacity: 1; }
-  .card-more:hover { background: var(--bg-4); color: var(--fg-0); }
+  .projects-list :global(.project-card.proj-drop-before)::before { top: -1px; bottom: auto; }
+  .projects-list :global(.project-card.proj-drop-after)::after { top: auto; bottom: -1px; }
 
   /* -- context menus ----------------------------------------------------- */
   .card-menu {
@@ -1216,24 +1192,14 @@
     width: 100%;
     padding: 7px 10px;
     border-radius: var(--r-sm);
-    background: none;
-    border: none;
     font-size: 13px;
     color: var(--fg-1);
     font-family: var(--font-ui);
-    cursor: pointer;
     text-align: left;
-    transition: background 0.08s, color 0.08s;
   }
   .card-menu-item:hover { background: var(--bg-4); color: var(--fg-0); }
-  .card-menu-item.danger { color: var(--danger, oklch(0.75 0.18 15)); }
-  .card-menu-item.danger:hover { background: var(--danger-weak, oklch(0.28 0.06 15)); }
+  .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item.danger:hover { background: var(--danger-weak); }
   .card-menu-sep { height: 1px; background: var(--stroke-0); margin: 4px 0; }
 
-  /* -- misc -------------------------------------------------------------- */
-  .empty-state {
-    padding: 32px 0;
-    color: var(--fg-3);
-    font-size: 13px;
-  }
 </style>

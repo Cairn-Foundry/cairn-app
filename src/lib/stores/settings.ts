@@ -45,6 +45,7 @@ const DEFAULTS: CairnSettings = {
 	showWhitespace: false,
 	saveOn: "blur",
 	gitProfiles: [],
+	homeProjectsLayout: "list",
 	quickSearchShowGitignored: false,
 	autoCheckUpdates: true,
 	aiEnabled: true,

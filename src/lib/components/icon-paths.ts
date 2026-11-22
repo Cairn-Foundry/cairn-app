@@ -86,6 +86,20 @@ export const ICONS: Record<string, IconDef> = {
 		solid: false,
 		body: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>',
 	},
+	/**
+	 * The folder outline broken in the middle of each side: a place for what
+	 * belongs to no folder. Corners and tab stay drawn so the shape still reads
+	 * at 14px, where an even dash pattern turns into noise.
+	 */
+	"folder-dashed": {
+		solid: false,
+		body:
+			'<path d="M3 10.5V7a2 2 0 012-2h4l2 2h1.5"/>' +
+			'<path d="M16 7h3a2 2 0 012 2v1.5"/>' +
+			'<path d="M21 14.5V17a2 2 0 01-2 2h-3"/>' +
+			'<path d="M8 19H5a2 2 0 01-2-2v-2.5"/>' +
+			'<path d="M11 19h2"/>',
+	},
 	"folder-open": {
 		solid: false,
 		body: '<path class="ic-fopen-back" d="M3 19V7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v2"/><path class="ic-fopen-front" d="M3 19l2.6-7.3a2 2 0 011.9-1.2h13a1 1 0 01.95 1.3L19 19a2 2 0 01-1.9 1.4H5a2 2 0 01-2-1.4z"/>',

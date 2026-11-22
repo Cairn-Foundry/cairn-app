@@ -327,6 +327,9 @@ pub struct ListingConfig {
     pub folders: Vec<ProjectFolder>,
     #[serde(rename = "projectOrder", default)]
     pub project_order: Vec<String>,
+    /// Whether the group of projects outside any folder is folded.
+    #[serde(rename = "ungroupedCollapsed", default)]
+    pub ungrouped_collapsed: bool,
 }
 
 /// Defaults to no folders and no explicit order.
@@ -353,6 +356,14 @@ pub fn get_listing() -> Result<ListingConfig, String> {
 pub async fn save_folders(folders: Vec<ProjectFolder>) -> Result<(), String> {
     let mut listing = read_listing()?;
     listing.folders = folders;
+    write_listing(&listing)
+}
+
+/// Folds or unfolds the group of projects outside any folder.
+#[tauri::command]
+pub async fn save_ungrouped_collapsed(collapsed: bool) -> Result<(), String> {
+    let mut listing = read_listing()?;
+    listing.ungrouped_collapsed = collapsed;
     write_listing(&listing)
 }
 
@@ -562,6 +573,7 @@ mod tests {
         let listing = listing_from_json("{}");
         assert!(listing.folders.is_empty());
         assert!(listing.project_order.is_empty());
+        assert!(!listing.ungrouped_collapsed);
     }
 
     #[test]
@@ -581,10 +593,12 @@ mod tests {
                 collapsed: true,
             }],
             project_order: vec!["p2".to_string(), "p1".to_string()],
+            ungrouped_collapsed: true,
         };
         let json = serde_json::to_string(&original).expect("should serialize");
         let back = listing_from_json(&json);
         assert_eq!(back.project_order, vec!["p2", "p1"]);
+        assert!(back.ungrouped_collapsed);
         assert_eq!(back.folders.len(), 1);
         assert_eq!(back.folders[0].name, "Travail");
         assert!(back.folders[0].collapsed);

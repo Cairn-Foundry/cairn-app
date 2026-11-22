@@ -8,6 +8,13 @@
 		},
 		"changes": [
 			{
+				"kind": "changed",
+				"text": {
+					"en": "The project list of the home screen is redesigned. Under the three cards to create, open or clone a project come the open projects, each with a button that closes it, then all the projects. The list shows each project on one line: its repository branch and as many of its instances as the row has room for, each with the lines added and removed, then its ticket count and buttons to edit it and show it in the file manager; the projects outside any folder fold like a folder, from a click on their title. The greeting gives way to a plain title, an empty list or a search that finds nothing shows a drawing and a centred message, and a zero ticket count no longer shows.",
+					"fr": "La liste des projets de l'accueil est repensée. Sous les trois cartes pour créer, ouvrir ou cloner un projet viennent les projets ouverts, chacun avec un bouton pour le fermer, puis tous les projets. La liste montre chaque projet sur une ligne : la branche de son dépôt et autant de ses instances que la ligne peut en contenir, chacune avec les lignes ajoutées et supprimées, puis son nombre de tickets et des boutons pour le modifier et l'afficher dans le gestionnaire de fichiers ; les projets hors dossier se replient comme un dossier, d'un clic sur leur titre. Le message d'accueil laisse place à un titre simple, une liste vide ou une recherche sans résultat affiche un dessin et un message centré, et un compteur de tickets à zéro ne s'affiche plus."
+				}
+			},
+			{
 				"kind": "fixed",
 				"text": {
 					"en": "The git markers in the editor gutter land on the same lines as git reports when an added or removed block sits next to identical lines.",

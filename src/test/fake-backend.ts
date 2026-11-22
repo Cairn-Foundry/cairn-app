@@ -163,6 +163,7 @@ export function createFakeBackend(seed: Partial<FakeWorld> = {}): FakeBackend {
 		get_listing: () => ({
 			folders: [],
 			projectOrder: world.projects.map((p) => p.id),
+			ungroupedCollapsed: false,
 		}),
 		list_instances: (a) =>
 			world.instances.filter((i) => i.projectId === a.projectId),
