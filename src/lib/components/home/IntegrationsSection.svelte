@@ -234,14 +234,8 @@
   }
 </script>
 
-<header class="in-head">
-  <h1>
-    {t('integrations.title')}
-    {#if $connections.length > 0}<span class="head-count">{$connections.length}</span>{/if}
-  </h1>
-</header>
-
 {#if ready && $connections.length === 0 && draft === null}
+  <header class="in-head"><h1>{t('integrations.title')}</h1></header>
   <section class="in-empty">
     <Icon name="link" size={22}/>
     <h2>{t('integrations.noConnections')}</h2>
@@ -251,7 +245,7 @@
     </button>
   </section>
 {:else}
-<SplitPanel>
+<SplitPanel title={t('integrations.title') as string} count={$connections.length}>
   <svelte:fragment slot="list">
     <div class="in-list-tools">
       <SearchInput bind:value={search} placeholder={t('integrations.searchPlaceholder') as string}/>
@@ -530,15 +524,6 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--fg-0);
-  }
-  .head-count {
-    padding: 1px 8px;
-    font-size: 11.5px;
-    font-weight: 400;
-    line-height: 1.6;
-    color: var(--fg-2);
-    background: var(--bg-3);
-    border-radius: 10px;
   }
   .in-icon-btn { flex: none; width: 28px; height: 28px; padding: 0; justify-content: center; }
   .in-icon-btn.delete:hover { background: var(--danger-weak); color: var(--danger); }

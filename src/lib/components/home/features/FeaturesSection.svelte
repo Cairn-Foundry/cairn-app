@@ -113,18 +113,7 @@
   </datalist>
 {/each}
 
-<header class="ft-head">
-  <h1>{t('home.features.title')}<span class="head-count">{AI_FEATURES.length}</span></h1>
-</header>
-
-{#if !$anyAssistCliInstalled}
-  <div class="ft-banner">
-    <Icon name="alert" size={14}/>
-    <span>{t('home.features.noAssistCli')}</span>
-  </div>
-{/if}
-
-<SplitPanel listWidth={256}>
+<SplitPanel title={t('home.features.title') as string} count={AI_FEATURES.length}>
   <svelte:fragment slot="list">
     <div class="ft-list">
       {#each [true, false] as runsProvider (runsProvider)}
@@ -152,6 +141,12 @@
     </div>
   </svelte:fragment>
 
+  {#if !$anyAssistCliInstalled}
+    <div class="ft-banner">
+      <Icon name="alert" size={14}/>
+      <span>{t('home.features.noAssistCli')}</span>
+    </div>
+  {/if}
   <div class="ft-detail-head">
     <span class="ft-tile is-large"><Icon name={selected.icon} size={18}/></span>
     <div class="ft-detail-title">
@@ -252,31 +247,12 @@
 </SplitPanel>
 
 <style>
-  .ft-head { margin-bottom: 32px; }
-  .ft-head h1 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    font-family: var(--font-ui);
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--fg-0);
-  }
-  .head-count {
-    padding: 1px 8px;
-    font-size: 11.5px;
-    font-weight: 400;
-    line-height: 1.6;
-    color: var(--fg-2);
-    background: var(--bg-3);
-    border-radius: 10px;
-  }
   .ft-banner {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
+    margin: 16px 24px 0;
     padding: 9px 12px;
     border-radius: var(--r-sm);
     background: var(--danger-weak);

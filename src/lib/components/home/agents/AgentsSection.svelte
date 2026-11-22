@@ -425,14 +425,8 @@
   }
 </script>
 
-<header class="ag-page-head">
-  <h1>
-    {t('home.agents.title')}
-    {#if $nativeAgents.length > 0}<span class="head-count">{$nativeAgents.length}</span>{/if}
-  </h1>
-</header>
-
 {#if !$nativeAgentsLoading && $nativeAgents.length === 0 && draft === null}
+  <header class="ag-page-head"><h1>{t('home.agents.title')}</h1></header>
   <section class="page-empty">
     <Icon name="agent" size={22}/>
     <h2>{t('agentDefs.emptyTitle')}</h2>
@@ -442,7 +436,7 @@
     </button>
   </section>
 {:else}
-<SplitPanel>
+<SplitPanel title={t('home.agents.title') as string} count={$nativeAgents.length}>
   <svelte:fragment slot="list">
     <div class="list-tools">
       <SearchInput bind:value={search} placeholder={t('agentDefs.searchPlaceholder') as string}/>
@@ -707,18 +701,6 @@
           <div class="field">
             <span class="label">{picker.label}</span>
             <div class="control">
-              {#if picker.values.length > 0}
-                <div class="tool-chips">
-                  {#each picker.values as value (value)}
-                    <span class="tool-chip">
-                      <code>{value}</code>
-                      <button on:click={() => picker.isTools ? removeTool(value) : removeSkill(value)} aria-label={t('common.remove') as string}>
-                        <Icon name="x" size={9}/>
-                      </button>
-                    </span>
-                  {/each}
-                </div>
-              {/if}
               <div class="inline-row">
                 {#if picker.isTools}
                   <input
@@ -746,6 +728,18 @@
                   </button>
                 {/if}
               </div>
+              {#if picker.values.length > 0}
+                <div class="tool-chips">
+                  {#each picker.values as value (value)}
+                    <span class="tool-chip">
+                      <code>{value}</code>
+                      <button on:click={() => picker.isTools ? removeTool(value) : removeSkill(value)} aria-label={t('common.remove') as string}>
+                        <Icon name="x" size={9}/>
+                      </button>
+                    </span>
+                  {/each}
+                </div>
+              {/if}
             </div>
             <datalist id={picker.list}>
               {#each picker.suggestions as option}<option value={option}></option>{/each}
@@ -897,15 +891,6 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--fg-0);
-  }
-  .head-count {
-    padding: 1px 8px;
-    font-size: 11.5px;
-    font-weight: 400;
-    line-height: 1.6;
-    color: var(--fg-2);
-    background: var(--bg-3);
-    border-radius: 10px;
   }
 
   .page-empty {
