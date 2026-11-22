@@ -379,6 +379,84 @@ const CLI_PROVIDERS: [string, string, string | null][] = [
 
 const DAY = 86_400_000;
 
+/** One socket `list_listening_ports` reports: [port, address, family, pid, process, command, user]. */
+const LISTENING: [number, string, string, number, string, string, string][] = [
+	[
+		5173,
+		"127.0.0.1",
+		"IPv4",
+		48211,
+		"node",
+		"/usr/local/bin/node /Users/dev/code/cairn/node_modules/.bin/vite dev",
+		"dev",
+	],
+	[
+		1430,
+		"127.0.0.1",
+		"IPv4",
+		48302,
+		"node",
+		"/usr/local/bin/node /Users/dev/code/cairn/node_modules/.bin/vite dev --port 1430",
+		"dev",
+	],
+	[
+		3000,
+		"*",
+		"IPv6",
+		51120,
+		"node",
+		"/usr/local/bin/node dist/server.js",
+		"dev",
+	],
+	[
+		9229,
+		"127.0.0.1",
+		"IPv4",
+		51120,
+		"node",
+		"/usr/local/bin/node dist/server.js",
+		"dev",
+	],
+	[
+		8000,
+		"0.0.0.0",
+		"IPv4",
+		53007,
+		"python3",
+		"/opt/homebrew/bin/python3 -m http.server 8000",
+		"dev",
+	],
+	[
+		6379,
+		"127.0.0.1",
+		"IPv4",
+		712,
+		"redis-server",
+		"/opt/homebrew/opt/redis/bin/redis-server 127.0.0.1:6379",
+		"dev",
+	],
+	[
+		5432,
+		"127.0.0.1",
+		"IPv4",
+		388,
+		"postgres",
+		"/opt/homebrew/opt/postgresql@16/bin/postgres -D /opt/homebrew/var/postgresql@16",
+		"_postgres",
+	],
+	[
+		5432,
+		"::1",
+		"IPv6",
+		388,
+		"postgres",
+		"/opt/homebrew/opt/postgresql@16/bin/postgres -D /opt/homebrew/var/postgresql@16",
+		"_postgres",
+	],
+	[631, "127.0.0.1", "IPv4", 201, "cupsd", "/usr/sbin/cupsd -l", "root"],
+];
+let stoppedPids = new Set<number>();
+
 /** An MCP server as `list_mcp_servers` merges it across the config files that declare it. */
 function previewMcp(
 	name: string,
@@ -734,6 +812,24 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 			version,
 			resumable: true,
 		})),
+	list_listening_ports: () =>
+		LISTENING.filter(([, , , pid]) => !stoppedPids.has(pid)).map(
+			([port, address, family, pid, process, command, user]) => ({
+				id: `${pid}:${address}:${port}`,
+				pid,
+				port,
+				address,
+				family,
+				process,
+				command,
+				user,
+				isOwned: user === "dev",
+			}),
+		),
+	kill_process: (a) => {
+		stoppedPids = new Set([...stoppedPids, a.pid as number]);
+		return null;
+	},
 	list_mcp_servers: () => (isEmpty ? [] : MCP_SERVERS),
 	test_mcp_server: async (a) => {
 		await new Promise((resolve) => setTimeout(resolve, TRACKER_LATENCY_MS));

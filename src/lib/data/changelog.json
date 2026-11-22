@@ -38,6 +38,13 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "The Ports & Processes screen lists processes rather than sockets: each one shows its command and every port it holds, a port reachable from the network marked apart from one bound to this machine only. Your own processes come first with a Stop button, those of other users follow, dimmed, with their owner. Stopping a process shows the ports it frees, the forced stop set apart; a search that finds nothing and an idle machine each say so.",
+					"fr": "L'écran Ports & processus liste des processus plutôt que des sockets : chacun montre sa commande et tous les ports qu'il occupe, un port accessible depuis le réseau étant signalé à part d'un port limité à cette machine. Vos propres processus viennent en premier avec un bouton Arrêter, ceux des autres utilisateurs suivent, atténués, avec leur propriétaire. Arrêter un processus montre les ports qu'il libère, l'arrêt forcé étant mis à part ; une recherche sans résultat et une machine au repos le disent chacune."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "The Tickets screen is redesigned. The title carries the count of open tickets, the plan of attack holds on one line until it is generated, and the tickets of every project sit in one list whose columns line up: the key, the title with its labels, the status with a dot for its stage, the time since the last update, a button that opens the ticket in the tracker and the one that starts working on it. A search that finds nothing shows a drawing and a message as the project list does, a project with no open ticket no longer folds onto nothing, the list keeps its shape while the tickets load, and with no tracker linked the screen says how to link one.",
 					"fr": "L'écran Tickets est repensé. Le titre porte le nombre de tickets ouverts, le plan d'attaque tient sur une ligne tant qu'il n'est pas généré, et les tickets de tous les projets forment une seule liste aux colonnes alignées : la clé, le titre avec ses étiquettes, le statut avec un point pour son avancement, le temps depuis la dernière mise à jour, un bouton qui ouvre le ticket dans le tracker et celui qui lance le travail dessus. Une recherche sans résultat affiche un dessin et un message comme la liste des projets, un projet sans ticket ouvert ne se replie plus sur du vide, la liste garde sa forme pendant le chargement des tickets, et sans tracker relié l'écran explique comment en relier un."
 				}

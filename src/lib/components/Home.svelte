@@ -140,13 +140,7 @@
       <McpSection />
 
     {:else if activeSection === 'ports'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.ports.title')}</h1>
-        <div class="sub">{t('home.ports.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <PortsSection />
-      </div>
+      <PortsSection />
 
     {:else if activeSection === 'changelog'}
       <div class="home-hero" style="padding-bottom: 0">

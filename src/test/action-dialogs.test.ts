@@ -11,6 +11,7 @@ import CreateFolderModal from "#lib/components/home/CreateFolderModal.svelte";
 import DuplicateInstanceModal from "#lib/components/home/DuplicateInstanceModal.svelte";
 import KillProcessModal from "#lib/components/home/KillProcessModal.svelte";
 import type { ListeningPort } from "#lib/services/ports-service";
+import { groupByProcess } from "#lib/utils/home/ports";
 import { instance } from "./fixtures";
 
 /**
@@ -170,6 +171,7 @@ describe("KillProcessModal", () => {
 			process: "node",
 			command: "node server.js",
 			user: "benjamin",
+			isOwned: true,
 			...overrides,
 		} as ListeningPort;
 	}
@@ -178,7 +180,7 @@ describe("KillProcessModal", () => {
 		const onConfirm = vi.fn();
 		const onClose = vi.fn();
 		render(KillProcessModal, {
-			props: { port: port(overrides) },
+			props: { target: groupByProcess([port(overrides)])[0] },
 			events: {
 				confirm: (e: CustomEvent) => onConfirm(e.detail),
 				close: () => onClose(),

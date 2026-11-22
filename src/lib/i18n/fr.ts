@@ -2594,29 +2594,35 @@ export const fr = {
 		},
 		ports: {
 			title: "Ports & processus",
-			desc: "Tous les ports TCP en écoute sur cette machine, et le processus qui les occupe.",
-			listening: "En écoute",
 			search: "Filtrer par port, processus ou PID",
 			countLabel: (n: number) => `${n} port${n > 1 ? "s" : ""}`,
 			refresh: "Rafraîchir",
-			empty: "Aucun port en écoute.",
-			noMatch: "Aucun port ne correspond à ce filtre.",
+			empty: "Rien n'est en écoute",
+			emptyDesc:
+				"Aucun processus n'occupe de port TCP sur cette machine pour l'instant.",
+			noMatch: "Aucun processus ne correspond",
+			noMatchText: (q: string) =>
+				`Rien ne correspond à "${q}" dans les ports, noms de processus, commandes ou PID.`,
+			live: "Rafraîchi toutes les 5 secondes",
+			freedTitle: "Ports libérés",
+			killConfirm: "Arrêter le processus",
+			killLabel: (name: string) => `Arrêter ${name}`,
+			exposed: (addresses: string) =>
+				`Accessible depuis le réseau (${addresses})`,
+			local: (addresses: string) => `Cette machine uniquement (${addresses})`,
 			kill: "Arrêter",
 			forceKill: "Forcer l'arrêt",
 			notOwned:
 				"Ce processus appartient à un autre utilisateur et ne peut pas être arrêté depuis ici.",
-			killHeading: "Arrêter un processus",
-			killTitle: (name: string) => `Arrêter ${name} ?`,
-			killDescription:
-				"Le processus est invité à se fermer et libère son port. Le travail non enregistré qu'il détient est perdu. Forcer l'arrêt le tue sur-le-champ, sans lui laisser le temps de se nettoyer.",
 			col: {
-				port: "Port",
 				process: "Processus",
-				address: "Adresse",
+				ports: "Ports",
 				pid: "PID",
-				command: "Commande",
 				actions: "Actions",
 			},
+			killTitle: (name: string) => `Arrêter ${name} ?`,
+			killDescription:
+				"Il est invité à se fermer, et le travail non enregistré qu'il détient est perdu. Forcer l'arrêt le tue sur-le-champ, sans lui laisser le temps de se nettoyer.",
 		},
 		changelog: {
 			title: "Nouveautés",

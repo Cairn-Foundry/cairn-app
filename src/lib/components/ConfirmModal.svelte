@@ -12,7 +12,8 @@
    * The slots share a few classes so every confirmation reads the same:
    * `cm-name` and `cm-sub` for the two lines of the subject, `cm-section` for a
    * titled block (an h3, then its content), `cm-list` for its rows and
-   * `cm-note` for a closing line with its icon.
+   * `cm-note` for a closing line with its icon. `footStart` holds a second,
+   * lesser way out at the left of the footer.
    */
   import { createEventDispatcher } from 'svelte';
   import { t } from '#lib/i18n';
@@ -22,6 +23,7 @@
   export let title: string;
   export let confirmLabel: string;
   export let isBusy = false;
+  export let confirmIcon = 'trash';
 
   const dispatch = createEventDispatcher<{ close: void; confirm: void }>();
 
@@ -58,10 +60,11 @@
     </div>
 
     <div class="modal-foot">
+      <slot name="footStart"/>
       <div class="spacer"></div>
       <button class="btn ghost" on:click={close} disabled={isBusy}>{t('common.cancel')}</button>
       <button class="btn cm-confirm" on:click={() => dispatch('confirm')} disabled={isBusy}>
-        {#if isBusy}<Spinner size={12}/>{:else}<Icon name="trash" size={13}/>{/if}
+        {#if isBusy}<Spinner size={12}/>{:else}<Icon name={confirmIcon} size={13}/>{/if}
         {confirmLabel}
       </button>
     </div>

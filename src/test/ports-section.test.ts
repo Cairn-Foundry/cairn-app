@@ -39,16 +39,22 @@ function port(
 }
 
 const rows = () =>
-	Array.from(document.querySelectorAll<HTMLElement>("tbody tr"));
-const ports = () => rows().map((r) => r.querySelector(".port")?.textContent);
+	Array.from(
+		document.querySelectorAll<HTMLElement>(".proc-row:not(.is-skeleton)"),
+	);
+const ports = () =>
+	rows().flatMap((r) =>
+		Array.from(r.querySelectorAll(".port")).map((p) => p.textContent),
+	);
 const commandIn = (row: HTMLElement) => row.querySelector(".cmd")?.textContent;
 const killIn = (row: HTMLElement) =>
-	row.querySelector(".icon-btn.danger") as HTMLElement | null;
+	row.querySelector(".stop") as HTMLElement | null;
 const lockIn = (row: HTMLElement) => row.querySelector(".foreign");
 const search = () => document.querySelector("input") as HTMLInputElement;
 const modal = () => document.querySelector(".modal");
 const errorText = () => document.querySelector(".error")?.textContent;
-const empty = () => document.querySelector(".empty")?.textContent;
+const empty = () =>
+	document.querySelector(".empty, .search-empty")?.textContent;
 
 async function settle() {
 	await tick();
@@ -132,6 +138,18 @@ describe("PortsSection", () => {
 			await settle();
 			expect(rows()[0].querySelector(".name")?.textContent).toBe("-");
 		});
+	});
+
+	/** Stopping a process frees every port it holds, so a process is one row. */
+	it("lists a process holding two ports once", async () => {
+		listListeningPorts.mockResolvedValue([
+			port(1, { port: 3000 }),
+			port(1, { id: "1b", port: 9229 }),
+		]);
+		render(PortsSection, {});
+		await settle();
+		expect(rows()).toHaveLength(1);
+		expect(ports()).toEqual(["3000", "9229"]);
 	});
 
 	describe("searching", () => {
@@ -236,9 +254,10 @@ describe("PortsSection", () => {
 			]);
 			render(PortsSection, {});
 			await settle();
-			expect(killIn(rows()[0])).toBeNull();
-			expect(lockIn(rows()[0])).not.toBeNull();
-			expect(killIn(rows()[1])).not.toBeNull();
+			// The user's own processes are listed first.
+			expect(killIn(rows()[0])).not.toBeNull();
+			expect(killIn(rows()[1])).toBeNull();
+			expect(lockIn(rows()[1])).not.toBeNull();
 		});
 
 		it("reports a failed stop", async () => {
@@ -279,9 +298,7 @@ describe("PortsSection", () => {
 		it("re-reads on request too", async () => {
 			render(PortsSection, {});
 			await settle();
-			const refresh = document.querySelector(
-				".toolbar .icon-btn",
-			) as HTMLElement;
+			const refresh = document.querySelector(".refresh") as HTMLElement;
 			await user.click(refresh);
 			expect(listListeningPorts).toHaveBeenCalledTimes(2);
 		});

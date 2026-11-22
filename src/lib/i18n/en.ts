@@ -2551,29 +2551,34 @@ export const en = {
 		},
 		ports: {
 			title: "Ports & Processes",
-			desc: "Every TCP port listening on this machine, and the process holding it.",
-			listening: "Listening",
 			search: "Filter by port, process or PID",
 			countLabel: (n: number) => `${n} port${n > 1 ? "s" : ""}`,
 			refresh: "Refresh",
-			empty: "No listening port.",
-			noMatch: "No port matches this filter.",
+			empty: "Nothing is listening",
+			emptyDesc: "No process holds a TCP port on this machine right now.",
+			noMatch: "No process matches",
+			noMatchText: (q: string) =>
+				`Nothing matches "${q}" in the ports, process names, commands or PIDs.`,
+			live: "Refreshed every 5 seconds",
+			freedTitle: "Ports freed",
+			killConfirm: "Stop the process",
+			killLabel: (name: string) => `Stop ${name}`,
+			exposed: (addresses: string) =>
+				`Reachable from the network (${addresses})`,
+			local: (addresses: string) => `This machine only (${addresses})`,
 			kill: "Stop",
 			forceKill: "Force stop",
 			notOwned:
 				"This process belongs to another user and cannot be stopped from here.",
-			killHeading: "Stop a process",
-			killTitle: (name: string) => `Stop ${name}?`,
-			killDescription:
-				"The process is asked to close and releases its port. Unsaved work it holds is lost. Force stop kills it outright, without letting it clean up.",
 			col: {
-				port: "Port",
 				process: "Process",
-				address: "Address",
+				ports: "Ports",
 				pid: "PID",
-				command: "Command",
 				actions: "Actions",
 			},
+			killTitle: (name: string) => `Stop ${name}?`,
+			killDescription:
+				"It is asked to close, and unsaved work it holds is lost. Force stop kills it outright, without letting it clean up.",
 		},
 		changelog: {
 			title: "What's new",

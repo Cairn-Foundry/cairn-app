@@ -4,60 +4,44 @@
 -->
 <script lang="ts">
   /**
-   * Listening TCP ports of the machine and the processes owning them, with a
-   * confirmed kill. Refreshes on a timer while the section is on screen.
+   * The listening TCP ports of the machine, gathered by the process holding
+   * them - stopping a process frees all of its ports, so the process is the
+   * row. The user's own processes come first and can be stopped, after a
+   * confirmation; the others follow, dimmed, with their owner. Refreshes on a timer while the
+   * section is on screen.
    */
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import Icon from '#lib/components/Icon.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import Skeleton from '#lib/components/Skeleton.svelte';
   import SearchInput from '#lib/components/SearchInput.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
   import KillProcessModal from '#lib/components/home/KillProcessModal.svelte';
   import { t } from '#lib/i18n';
   import { listListeningPorts, killProcess, type ListeningPort } from '#lib/services/ports-service';
+  import { groupByProcess, matchesProcess, shortCommand, type ProcessPorts } from '#lib/utils/home/ports';
   import { activeScreen } from '#lib/stores/ui';
-  import { get } from 'svelte/store';
 
   const REFRESH_MS = 5000;
 
-  let ports: ListeningPort[] = [];
+  let sockets: ListeningPort[] = [];
   let isLoading = true;
   let isRefreshing = false;
   let error = '';
   let query = '';
   let killingPid: number | null = null;
-  let pendingKill: ListeningPort | null = null;
+  let pendingKill: ProcessPorts | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  $: filtered = ports.filter((p) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      String(p.port).includes(q) ||
-      p.process.toLowerCase().includes(q) ||
-      p.command.toLowerCase().includes(q) ||
-      String(p.pid).includes(q)
-    );
-  });
-
-  /**
-   * The absolute path of the binary is noise - it repeats the process name and
-   * pushes the arguments, which is what tells one `node` from another, out of
-   * view. Each path-looking token is reduced to its basename.
-   */
-  function shortCommand(port: ListeningPort): string {
-    if (!port.command) return '';
-    const short = port.command
-      .split(' ')
-      .map((token) => (token.startsWith('/') ? (token.split('/').pop() ?? token) : token))
-      .join(' ');
-    return short === port.process ? '' : short;
-  }
+  $: processes = groupByProcess(sockets);
+  $: visible = processes.filter((group) => matchesProcess(group, query));
+  $: portCount = processes.reduce((n, p) => n + p.ports.length, 0);
 
   async function refresh() {
     try {
-      ports = await listListeningPorts();
+      sockets = await listListeningPorts();
       error = '';
     } catch (e) {
       error = String(e);
@@ -76,7 +60,7 @@
     }
   }
 
-  /** The list keeps moving under the pointer, so a kill is always confirmed. */
+  /** The list keeps moving under the pointer, so a stop is always confirmed. */
   async function confirmKill(force: boolean) {
     const target = pendingKill;
     pendingKill = null;
@@ -94,8 +78,12 @@
     }
   }
 
+  function addressLabel(addresses: string[]): string {
+    return addresses.join(', ');
+  }
+
   onMount(() => {
-    refresh();
+    void refresh();
     timer = setInterval(() => { if (get(activeScreen) === 'home') void refresh(); }, REFRESH_MS);
   });
 
@@ -104,219 +92,194 @@
   });
 </script>
 
-<div class="ports">
-  <div class="toolbar">
-    <SearchInput
-      bind:value={query}
-      placeholder={t('home.ports.search') as string}
-      ariaLabel={t('home.ports.search') as string}
-    />
-    <span class="count">
-      {(t('home.ports.countLabel') as (n: number) => string)(filtered.length)}
-    </span>
-    <button
-      class="icon-btn"
-      on:click={refreshNow}
-      disabled={isRefreshing}
-      title={t('home.ports.refresh') as string}
-      aria-label={t('home.ports.refresh') as string}
-    >
-      {#if isRefreshing}
-        <Spinner size={12} />
-      {:else}
-        <Icon name="refresh" size={13} />
-      {/if}
-    </button>
-  </div>
+<header class="pp-head">
+  <h1>
+    {t('home.ports.title')}
+    {#if !isLoading}<span class="head-count">{(t('home.ports.countLabel') as (n: number) => string)(portCount)}</span>{/if}
+  </h1>
+  <span class="live">{t('home.ports.live')}</span>
+</header>
 
-  {#if error}
-    <p class="error selectable">{error}</p>
-  {/if}
-
-  {#if isLoading}
-    <Skeleton lines={6} height={30} gap={4} />
-  {:else if filtered.length === 0}
-    <p class="empty">{query ? t('home.ports.noMatch') : t('home.ports.empty')}</p>
-  {:else}
-    <div class="scroller">
-      <table>
-        <thead>
-          <tr>
-            <th class="num">{t('home.ports.col.port')}</th>
-            <th>{t('home.ports.col.process')}</th>
-            <th class="addr">{t('home.ports.col.address')}</th>
-            <th class="num">{t('home.ports.col.pid')}</th>
-            <th class="actions"><span class="sr-only">{t('home.ports.col.actions')}</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filtered as port (port.id)}
-            <tr>
-              <td class="num mono port selectable">{port.port}</td>
-              <td title={port.command || port.process}>
-                <span class="proc">
-                  <span class="name selectable">{port.process || '-'}</span>
-                  {#if shortCommand(port)}
-                    <span class="cmd dim selectable">{shortCommand(port)}</span>
-                  {/if}
-                </span>
-              </td>
-              <td class="addr mono dim selectable">
-                {port.address}<span class="family">{port.family}</span>
-              </td>
-              <td class="num mono">
-                <span class="pid-cell">
-                  <span class="selectable">{port.pid}</span>
-                  <CopyButton value={String(port.pid)} />
-                </span>
-              </td>
-              <td class="actions">
-                {#if killingPid === port.pid}
-                  <Spinner size={12} />
-                {:else if port.isOwned}
-                  <button
-                    class="icon-btn danger"
-                    on:click={() => (pendingKill = port)}
-                    title={t('home.ports.kill') as string}
-                    aria-label={t('home.ports.kill') as string}
-                  >
-                    <Icon name="x" size={13} />
-                  </button>
-                {:else}
-                  <span class="foreign" title={t('home.ports.notOwned') as string}>
-                    <Icon name="lock" size={12} />
-                  </span>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
+<div class="pp-bar">
+  <SearchInput bind:value={query} placeholder={t('home.ports.search') as string} ariaLabel={t('home.ports.search') as string}/>
+  <button
+    class="btn ghost refresh"
+    on:click={refreshNow}
+    disabled={isRefreshing}
+    title={t('home.ports.refresh') as string}
+    aria-label={t('home.ports.refresh') as string}
+  >
+    {#if isRefreshing}<Spinner size={12}/>{:else}<Icon name="refresh" size={13}/>{/if}
+  </button>
 </div>
+
+{#if error}
+  <p class="error selectable"><Icon name="alert" size={13}/>{error}</p>
+{/if}
+
+{#if isLoading}
+  <div class="pp-list" aria-hidden="true">
+    {#each { length: 4 } as _, i (i)}
+      <div class="proc-row is-skeleton">
+        <Skeleton width="28px" height={28}/>
+        <Skeleton width="{[40, 55, 35, 48][i]}%" height={10}/>
+        <Skeleton width="120px" height={10}/>
+      </div>
+    {/each}
+  </div>
+{:else if processes.length === 0}
+  <section class="empty">
+    <Icon name="server" size={22}/>
+    <h2>{t('home.ports.empty')}</h2>
+    <p>{t('home.ports.emptyDesc')}</p>
+  </section>
+{:else if visible.length === 0}
+  <SearchEmpty
+    title={t('home.ports.noMatch') as string}
+    text={(t('home.ports.noMatchText') as (q: string) => string)(query.trim())}
+    clearLabel={t('common.clearSearch') as string}
+    on:clear={() => (query = '')}
+  />
+{:else}
+  <div class="pp-list" role="table" aria-label={t('home.ports.title') as string}>
+    <div class="col-head" role="row">
+      <span class="col-process" role="columnheader">{t('home.ports.col.process')}</span>
+      <span class="col-ports" role="columnheader">{t('home.ports.col.ports')}</span>
+      <span role="columnheader">{t('home.ports.col.pid')}</span>
+      <span class="col-actions" role="columnheader"><span class="sr-only">{t('home.ports.col.actions')}</span></span>
+    </div>
+    {#each visible as proc (proc.pid)}
+        {@const command = shortCommand(proc.process, proc.command)}
+        <div class="proc-row" class:is-foreign={!proc.isOwned}>
+          <span class="tile"><Icon name="terminal" size={13}/></span>
+          <div class="proc-text" title={proc.command || proc.process}>
+            <span class="name selectable">{proc.process || '-'}</span>
+            {#if command}<span class="cmd selectable">{command}</span>{/if}
+          </div>
+          <div class="ports">
+            {#each proc.ports as held (held.port)}
+              <span
+                class="port-chip"
+                class:is-exposed={held.isExposed}
+                title={held.isExposed
+                  ? (t('home.ports.exposed') as (a: string) => string)(addressLabel(held.addresses))
+                  : (t('home.ports.local') as (a: string) => string)(addressLabel(held.addresses))}
+              >
+                {#if held.isExposed}<Icon name="globe" size={11}/>{/if}
+                <span class="port selectable">{held.port}</span>
+              </span>
+            {/each}
+          </div>
+          <span class="pid">
+            <span class="selectable">{proc.pid}</span>
+            <CopyButton value={String(proc.pid)}/>
+          </span>
+          <span class="actions">
+            {#if killingPid === proc.pid}
+              <Spinner size={12}/>
+            {:else if proc.isOwned}
+              <button
+                class="btn stop"
+                on:click={() => (pendingKill = proc)}
+                aria-label={(t('home.ports.killLabel') as (n: string) => string)(proc.process || String(proc.pid))}
+              >
+                <Icon name="x" size={12}/> {t('home.ports.kill')}
+              </button>
+            {:else}
+              <span class="foreign" title={t('home.ports.notOwned') as string}>
+                <Icon name="lock" size={12}/> {proc.user}
+              </span>
+            {/if}
+          </span>
+        </div>
+    {/each}
+  </div>
+{/if}
 
 {#if pendingKill}
   <KillProcessModal
-    port={pendingKill}
+    target={pendingKill}
     on:close={() => (pendingKill = null)}
     on:confirm={(e) => confirmKill(e.detail.force)}
   />
 {/if}
 
 <style>
-  .ports { min-width: 0; }
-
-  .toolbar {
+  .pp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .pp-head h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 18px;
-  }
-  .toolbar :global(.ag-search) {
-    flex: 1;
     margin: 0;
-    max-width: 320px;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
   }
-  .count {
-    flex: 1;
-    font-size: 11px;
-    color: var(--fg-3);
+  .head-count {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--fg-2);
+    background: var(--bg-3);
+    border-radius: 10px;
   }
+  .live { margin-left: auto; font-size: 12px; color: var(--fg-3); }
+
+  .pp-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .pp-bar :global(.ag-search) { flex: 0 1 320px; height: 28px; box-sizing: border-box; margin: 0; }
+  .refresh { width: 28px; height: 28px; padding: 0; justify-content: center; margin-left: auto; }
 
   .error {
-    margin: 0 0 10px;
-    padding: 8px 10px;
-    background: var(--danger-weak);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 9px 12px;
     border-radius: var(--r-sm);
+    background: var(--danger-weak);
     font-size: 12px;
     color: var(--danger);
   }
+
   .empty {
-    margin: 0;
-    padding: 28px 0;
-    text-align: center;
-    font-size: 12px;
-    color: var(--fg-3);
-  }
-
-  .scroller {
-    overflow-x: auto;
-  }
-  table {
-    width: 100%;
-    min-width: 560px;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-  th {
-    padding: 0 8px 8px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--fg-3);
-    border-bottom: 1px solid var(--stroke-0);
-  }
-  td {
-    padding: 6px 8px;
-    font-size: 11.5px;
-    color: var(--fg-1);
-    border-bottom: 1px solid var(--stroke-0);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  tbody tr:hover td { background: var(--bg-2); }
-  tr:last-child td { border-bottom: none; }
-  .num { text-align: right; }
-  .mono { font-family: var(--font-mono); }
-  .dim { color: var(--fg-3); }
-
-  th:first-child, td:first-child { width: 72px; }
-  /* The one flexible column; `max-width: 0` is what makes a fixed-layout cell
-     actually clip its content instead of pushing the neighbours out. */
-  th:nth-child(2), td:nth-child(2) { width: auto; max-width: 0; }
-  th.addr, td.addr { width: 150px; }
-  th.num:not(:first-child), td.num:not(:first-child) { width: 92px; }
-  th.actions, td.actions { width: 44px; text-align: right; }
-  td.actions { overflow: visible; }
-
-  .port { color: var(--accent); font-weight: 600; }
-  /* Name and arguments share one line: the list stays scannable at a glance
-     rather than doubling in height for a path nobody reads. The flex box is a
-     span inside the cell, never the cell itself - `display: flex` on a `td`
-     drops it out of the table layout, and it stops honouring its column. */
-  .proc {
     display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-  }
-  .name { flex-shrink: 0; }
-  .cmd {
-    min-width: 0;
-    font-size: 10.5px;
-    font-family: var(--font-mono);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .family {
-    margin-left: 6px;
-    font-size: 9.5px;
-    color: var(--fg-4);
-  }
-  .pid-cell {
-    display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    padding: 64px 0;
+    text-align: center;
+    color: var(--fg-3);
   }
-  .foreign { color: var(--fg-4); }
-  .icon-btn.danger:hover { background: var(--danger-weak); color: var(--danger); }
-  .icon-btn:disabled { opacity: 0.45; pointer-events: none; }
+  .empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
+  .empty p { max-width: 52ch; margin: 0; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
 
+  /* One grid for the whole list: every row lines its columns up through subgrid. */
+  .pp-list {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    column-gap: 16px;
+    border: 1px solid color-mix(in oklch, var(--stroke-0) 60%, var(--stroke-1));
+    border-radius: var(--r-md);
+    background: var(--bg-1);
+    overflow: hidden;
+  }
+  .col-head {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px 0 16px;
+    border-bottom: 1px solid var(--stroke-1);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--fg-3);
+  }
+  .col-process { grid-column: 1 / 3; }
+  .col-ports { text-align: right; }
+  .col-actions { min-width: 84px; }
   .sr-only {
     position: absolute;
     width: 1px;
@@ -325,4 +288,70 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
+
+
+  .proc-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+    min-height: 52px;
+    padding: 0 12px 0 16px;
+    border-top: 1px solid var(--stroke-0);
+  }
+  .col-head + .proc-row { border-top: 0; }
+  .proc-row:hover { background: var(--bg-2); }
+  .proc-row.is-skeleton:hover { background: transparent; }
+  .tile {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    color: var(--fg-2);
+  }
+  .proc-row.is-foreign .tile { color: var(--fg-4); }
+  .proc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .name { font-size: 13px; font-weight: 500; color: var(--fg-0); }
+  .proc-row.is-foreign .name { color: var(--fg-2); }
+  .cmd {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-3);
+  }
+
+  .ports { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+  .port-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 7px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 22px;
+    color: var(--fg-1);
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
+  }
+  .port-chip.is-exposed { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 35%, transparent); }
+
+  .pid {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .actions { display: flex; justify-content: flex-end; min-width: 84px; }
+  .stop { height: 26px; padding: 0 9px; }
+  .stop:hover { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
+  .foreign { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--fg-3); }
 </style>
