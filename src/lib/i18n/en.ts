@@ -175,23 +175,31 @@ export const en = {
 
 	editProject: {
 		heading: "Edit project",
-		subheading: "Rename & recolor",
-		tabIdentity: "Identity",
-		tabGit: "Git",
-		tabIntegrations: "Integrations",
+		tabs: {
+			identity: "Identity",
+			git: "Git",
+			integrations: "Integrations",
+		},
+		titles: {
+			identity: "Name, color and location",
+			git: "Commits and branches",
+			integrations: "Tickets, merge requests and CI",
+		},
 		projectName: "Project name",
 		color: "Color",
 		gitProfile: "Git profile",
-		gitProfileHint:
-			"Written into the repository configuration, for every commit of this project.",
+		gitProfileHint: "Set in the repository config, for every commit.",
 		location: "Location",
-		changeLocation: "Change...",
-		locationHint:
-			"Point the project at its checkout after moving or renaming the folder. Nothing is moved on disk.",
+		locationHint: "Nothing is moved on disk.",
 		branchTemplate: "Branch name template",
-		branchTemplateHint:
-			"Overrides the global template for this repository. {{kind}} is the issue type as a conventional prefix, {{key}} the ticket key in its own case, {{slug}} the summary of its title. Leave it empty to follow the global setting.",
-		branchTemplatePreview: "Preview",
+		branchVars: {
+			kind: "issue type",
+			key: "ticket key",
+			slug: "title",
+		},
+		branchVarInsert: "Insert at the cursor",
+		branchTemplatePreview: "For example",
+		branchTemplateGlobal: "Global template, for example",
 		saveChanges: "Save changes",
 	},
 
@@ -1070,7 +1078,9 @@ export const en = {
 		noResultsText: (q: string) =>
 			`Nothing matches "${q}" in the name, account or server of your connections.`,
 		noConnections: "No connection yet",
-		pickConnection: "Pick a connection in the list to see and edit it.",
+		pickTitle: "No connection selected",
+		pickConnection:
+			"Pick one in the list to see and edit it, or add a new one.",
 		noConnectionsBody:
 			"Add a GitLab, GitHub or Jira connection to start instances from tickets, create merge requests and follow pipelines.",
 		kind: "Service",
@@ -1125,7 +1135,7 @@ export const en = {
 		bindings: {
 			title: "Integrations",
 			empty:
-				"No integration is configured yet. You can connect GitLab, GitHub or Jira later from the Integrations section of the home screen, then link them to this project.",
+				"No connection yet. Add GitLab, GitHub or Jira from the Integrations screen.",
 			desc: "Which connection this project uses for tickets, merge requests and CI.",
 			tracker: "Tickets",
 			forge: "Merge requests",
@@ -1137,17 +1147,15 @@ export const en = {
 			dismiss: "Not now",
 			trackerProject: "Tracker project",
 			trackerProjectPlaceholder: "Search a project...",
-			autoTransition: "Automatic transitions",
-			autoTransitionOnCreate: "When an instance is created, move the ticket to",
-			autoTransitionOnFinalize:
-				"When an instance is finalized, move the ticket to",
+			autoTransition: "Move the ticket automatically",
+			autoTransitionOnCreate: "When an instance starts",
+			autoTransitionOnFinalize: "When it is finalized",
 			transitionNone: "Do nothing",
 			repoPath: "Repository path",
 			repoPathPlaceholder: "group/repo",
 			trackerProjectKeyPlaceholder: "CAIRN",
 			transitionPlaceholder: "Select a status",
-			transitionHint: "The ticket will be moved to this status automatically.",
-			noConnectionForKind: "No connection provides this capability yet.",
+			noConnectionForKind: "No connection offers it",
 		},
 		terms: {
 			mr: {

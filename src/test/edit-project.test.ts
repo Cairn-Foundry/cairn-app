@@ -229,6 +229,43 @@ describe("EditProject", () => {
 		});
 	});
 
+	/** Each tab of the rail recalls what it holds, so the others need not be opened. */
+	describe("the rail", () => {
+		it("sums up each tab under its name", async () => {
+			mount();
+			await settle();
+			expect(tabs()[0].textContent).toContain(project("p1").name);
+			expect(tabs()[2].textContent).toContain("None");
+		});
+
+		it("follows the name as it is typed", async () => {
+			mount();
+			await settle();
+			const input = document.getElementById("edit-name") as HTMLInputElement;
+			await userEvent.clear(input);
+			await userEvent.type(input, "Renamed");
+			expect(tabs()[0].textContent).toContain("Renamed");
+		});
+	});
+
+	describe("the branch name template", () => {
+		/** The variables are offered as buttons, so they never need typing by hand. */
+		it("inserts a variable where the caret is", async () => {
+			mount();
+			await settle();
+			await userEvent.click(tabs()[1]);
+			const input = document.getElementById(
+				"edit-branch-template",
+			) as HTMLInputElement;
+			await userEvent.type(input, "feature/");
+			const keyButton = Array.from(
+				document.querySelectorAll<HTMLElement>(".ep-var"),
+			).find((b) => b.textContent?.includes("{{key}}")) as HTMLElement;
+			await userEvent.click(keyButton);
+			expect(input.value).toBe("feature/{{key}}");
+		});
+	});
+
 	describe("the two tabs", () => {
 		it("opens on the identity tab", async () => {
 			mount();

@@ -177,23 +177,32 @@ export const fr = {
 
 	editProject: {
 		heading: "Modifier le projet",
-		subheading: "Renommer & recolorer",
-		tabIdentity: "Identité",
-		tabGit: "Git",
-		tabIntegrations: "Intégrations",
+		tabs: {
+			identity: "Identité",
+			git: "Git",
+			integrations: "Intégrations",
+		},
+		titles: {
+			identity: "Nom, couleur et emplacement",
+			git: "Commits et branches",
+			integrations: "Tickets, merge requests et CI",
+		},
 		projectName: "Nom du projet",
 		color: "Couleur",
 		gitProfile: "Profil git",
 		gitProfileHint:
-			"Inscrit dans la configuration du dépôt, pour tous les commits de ce projet.",
+			"Inscrit dans la configuration du dépôt, pour chaque commit.",
 		location: "Emplacement",
-		changeLocation: "Modifier...",
-		locationHint:
-			"Rattache le projet à son dépôt après avoir déplacé ou renommé le dossier. Rien n'est déplacé sur le disque.",
+		locationHint: "Rien n'est déplacé sur le disque.",
 		branchTemplate: "Modèle de nom de branche",
-		branchTemplateHint:
-			"Redéfinit le modèle global pour ce dépôt. {{kind}} est le type du ticket ramené à un préfixe conventionnel, {{key}} la clé du ticket dans sa casse d'origine, {{slug}} le résumé de son titre. Laissez vide pour suivre le réglage global.",
-		branchTemplatePreview: "Aperçu",
+		branchVars: {
+			kind: "type du ticket",
+			key: "clé du ticket",
+			slug: "titre",
+		},
+		branchVarInsert: "Insérer au curseur",
+		branchTemplatePreview: "Par exemple",
+		branchTemplateGlobal: "Modèle global, par exemple",
 		saveChanges: "Enregistrer les modifications",
 	},
 
@@ -1091,8 +1100,9 @@ export const fr = {
 		noResultsText: (q: string) =>
 			`Rien ne correspond à "${q}" dans le nom, le compte ou le serveur de vos connexions.`,
 		noConnections: "Aucune connexion pour l'instant",
+		pickTitle: "Aucune connexion choisie",
 		pickConnection:
-			"Choisissez une connexion dans la liste pour la voir et la modifier.",
+			"Choisissez-en une dans la liste pour la voir et la modifier, ou ajoutez-en une.",
 		noConnectionsBody:
 			"Ajoutez une connexion GitLab, GitHub ou Jira pour démarrer des instances depuis des tickets, créer des merge requests et suivre les pipelines.",
 		kind: "Service",
@@ -1147,7 +1157,7 @@ export const fr = {
 		bindings: {
 			title: "Intégrations",
 			empty:
-				"Aucune intégration n'est configurée pour le moment. Vous pourrez connecter GitLab, GitHub ou Jira plus tard depuis la section Intégrations de l'accueil, puis les lier à ce projet.",
+				"Aucune connexion pour l'instant. Ajoutez GitLab, GitHub ou Jira depuis l'écran Intégrations.",
 			desc: "Quelle connexion ce projet utilise pour les tickets, les merge requests et la CI.",
 			tracker: "Tickets",
 			forge: "Merge requests",
@@ -1159,18 +1169,15 @@ export const fr = {
 			dismiss: "Pas maintenant",
 			trackerProject: "Projet du tracker",
 			trackerProjectPlaceholder: "Rechercher un projet...",
-			autoTransition: "Transitions automatiques",
-			autoTransitionOnCreate:
-				"À la création d'une instance, passer le ticket à",
-			autoTransitionOnFinalize:
-				"À la finalisation d'une instance, passer le ticket à",
+			autoTransition: "Déplacer le ticket automatiquement",
+			autoTransitionOnCreate: "Quand une instance démarre",
+			autoTransitionOnFinalize: "Quand elle est finalisée",
 			transitionNone: "Ne rien faire",
 			repoPath: "Chemin du dépôt",
 			repoPathPlaceholder: "groupe/depot",
 			trackerProjectKeyPlaceholder: "CAIRN",
 			transitionPlaceholder: "Sélectionner un statut",
-			transitionHint: "Le ticket sera automatiquement déplacé vers ce statut.",
-			noConnectionForKind: "Aucune connexion ne fournit encore cette capacité.",
+			noConnectionForKind: "Aucune connexion ne le propose",
 		},
 		terms: {
 			mr: {

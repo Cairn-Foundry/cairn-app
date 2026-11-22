@@ -26,15 +26,13 @@
 {/if}
 
 <style>
-  .gps { margin-bottom: 22px; }
+  .gps { margin-bottom: 24px; }
   .gps-label {
     display: block;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--fg-3);
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-2);
   }
   .gps-hint {
     margin: 8px 0 0;

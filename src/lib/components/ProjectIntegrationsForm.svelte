@@ -345,7 +345,6 @@
     {#if bindings.tracker}
       <div class="pi-transitions">
         <span class="pi-label">{t('integrations.bindings.autoTransition')}</span>
-        <p class="pi-hint">{t('integrations.bindings.transitionHint')}</p>
         {#if isLoadingStatuses}
           <div class="pi-status-loading"><Spinner size={11}/></div>
         {:else}
@@ -424,10 +423,10 @@
     gap: 12px;
     margin-bottom: 18px;
   }
-  .pi-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; position: relative; }
+  .pi-field { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; position: relative; }
   .pi-grid .pi-field { margin-bottom: 0; }
-  .pi-label { font-size: 11px; font-weight: 600; color: var(--fg-2); }
-  .pi-hint { margin: 0; font-size: 11px; color: var(--fg-3); line-height: 1.5; }
+  .pi-label { font-size: 12px; font-weight: 500; color: var(--fg-2); }
+  .pi-hint { margin: 0; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
 
   .pi-input {
     width: 100%;
@@ -435,15 +434,15 @@
     background: var(--bg-0);
     border: 1px solid var(--stroke-1);
     border-radius: var(--r-sm);
-    padding: 7px 10px;
-    font-size: 12.5px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
     color: var(--fg-0);
     font-family: var(--font-ui);
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
   }
   .pi-input.mono { font-family: var(--font-mono); font-size: 12px; }
-  .pi-input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .pi-input:focus { border-color: var(--accent-line); }
   .pi-input::placeholder { color: var(--fg-4); opacity: 1; }
 
   .pi-input-row { position: relative; }
@@ -490,8 +489,13 @@
   .pi-result code { flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-0); }
   .pi-result span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-3); }
 
-  .pi-transitions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  .pi-transition { display: flex; flex-direction: column; gap: 4px; }
-  .pi-transition-label { font-size: 11.5px; color: var(--fg-2); }
+  .pi-transitions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .pi-transition {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 12px;
+  }
+  .pi-transition-label { font-size: 12.5px; color: var(--fg-3); }
   .pi-status-loading { display: flex; align-items: center; padding: 8px 0; color: var(--fg-3); }
 </style>

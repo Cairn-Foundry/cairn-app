@@ -412,7 +412,18 @@ function changedFiles(repo: PreviewRepo): string[] {
 	return Array.from({ length: repo.files }, (_, i) => `src/file-${i}.ts`);
 }
 
-let storedSettings: Record<string, unknown> = { onboardingSeen: true };
+let storedSettings: Record<string, unknown> = {
+	onboardingSeen: true,
+	gitProfiles: [
+		{ id: "work", label: "Work", name: "Dev", email: "dev@cowork.io" },
+		{
+			id: "personal",
+			label: "Personal",
+			name: "Dev",
+			email: "dev@example.org",
+		},
+	],
+};
 
 const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 	get_listing: () =>
@@ -478,6 +489,24 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 			tested?.identity ?? { login: "dev", displayName: "Dev", avatarUrl: null }
 		);
 	},
+	tracker_list_statuses: () => [
+		{ id: "1", name: "To do", category: "todo" },
+		{ id: "2", name: "In progress", category: "in_progress" },
+		{ id: "3", name: "In review", category: "in_progress" },
+		{ id: "4", name: "Done", category: "done" },
+	],
+	list_tracker_projects: () => [
+		{
+			key: "CAIRN",
+			label: "Cairn",
+			url: "https://cowork.atlassian.net/browse/CAIRN",
+		},
+		{
+			key: "COWORK",
+			label: "Cowork backend",
+			url: "https://cowork.atlassian.net/browse/COWORK",
+		},
+	],
 	get_project_integrations: (a) => ({
 		tracker:
 			(a.projectId as string) in assignedTickets

@@ -307,7 +307,18 @@
 
   <section class="in-detail">
     {#if draft === null || descriptor === null}
-      <p class="in-detail-none">{t('integrations.pickConnection')}</p>
+      <div class="in-detail-none">
+        <span class="in-none-tiles" aria-hidden="true">
+          {#each $kindDescriptors as kind (kind.kind)}
+            <span class="in-tile"><Icon name={kind.icon} size={16}/></span>
+          {/each}
+        </span>
+        <h2>{t('integrations.pickTitle')}</h2>
+        <p>{t('integrations.pickConnection')}</p>
+        <button class="btn" on:click={create} disabled={!ready}>
+          <Icon name="plus" size={12}/> {t('integrations.addConnection')}
+        </button>
+      </div>
     {:else}
       <div class="in-detail-head">
         <span class="in-tile is-large">
@@ -629,7 +640,20 @@
 
   /* -- detail -- */
   .in-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .in-detail-none { margin: 0; padding: 24px; font-size: 13px; color: var(--fg-3); }
+  .in-detail-none {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px;
+    text-align: center;
+  }
+  .in-none-tiles { display: flex; gap: 8px; margin-bottom: 12px; }
+  .in-none-tiles .in-tile { width: 36px; height: 36px; border-radius: var(--r-md); color: var(--fg-3); }
+  .in-detail-none h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--fg-0); }
+  .in-detail-none p { max-width: 40ch; margin: 0 0 8px; font-size: 12.5px; line-height: 1.55; color: var(--fg-3); }
   .in-detail-head {
     display: flex;
     flex: none;
