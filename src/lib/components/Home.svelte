@@ -134,13 +134,7 @@
       <AgentsSection />
 
     {:else if activeSection === 'skills'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('skills.title')}</h1>
-        <div class="sub">{t('skills.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <SkillsSection />
-      </div>
+      <SkillsSection />
 
     {:else if activeSection === 'mcp'}
       <div class="home-hero" style="padding-bottom: 0">

@@ -174,7 +174,20 @@ const CASES: ModalCase[] = [
 			const onConfirm = vi.fn();
 			const onClose = vi.fn();
 			render(DeleteSkillModal, {
-				props: { name: "my-skill", path: "/repo/.claude/skills/my-skill" },
+				props: {
+					skill: {
+						name: "my-skill",
+						scope: "project",
+						projectName: "repo",
+						resources: [],
+						locations: [
+							{
+								path: "/repo/.claude/skills/my-skill",
+								providers: ["claude-code"],
+							},
+						],
+					} as never,
+				},
 				events: { confirm: () => onConfirm(), close: () => onClose() },
 			});
 			return { onConfirm, onClose };
@@ -337,7 +350,20 @@ describe("what each modal says beyond the shared contract", () => {
 
 	it("DeleteSkillModal names the folder that will be removed", () => {
 		render(DeleteSkillModal, {
-			props: { name: "my-skill", path: "/repo/.claude/skills/my-skill" },
+			props: {
+				skill: {
+					name: "my-skill",
+					scope: "project",
+					projectName: "repo",
+					resources: [],
+					locations: [
+						{
+							path: "/repo/.claude/skills/my-skill",
+							providers: ["claude-code"],
+						},
+					],
+				} as never,
+			},
 		});
 		expect(body().textContent).toContain("/repo/.claude/skills/my-skill");
 	});

@@ -1517,22 +1517,23 @@ export const en = {
 
 	skills: {
 		title: "Skills",
-		desc: "The know-how your agents pick up on their own: one folder, one SKILL.md, loaded when the work matches.",
-		refresh: "Rescan",
 		new: "New skill",
 		searchPlaceholder: "Search a skill",
-		noResults: "No skill matches that search.",
+		noResults: "No skill matches",
+		noResultsText: (q: string) =>
+			`Nothing matches "${q}" in the name, description or project of your skills.`,
+		noResultsFiltered: "No skill is left with these filters.",
+		clearFilters: "Show every skill",
+		pickTitle: "No skill selected",
+		pickDesc: "Pick one in the list to edit it, or create a new one.",
 		emptyTitle: "No skill yet",
 		emptyDesc:
 			"A skill is a folder holding a SKILL.md. Its description tells the agent when to reach for it; its body tells it what to do.",
 		filter: { all: "All" },
-		providersHint:
-			"The SKILL.md format is the same everywhere, so one skill can serve several agents at once. Cairn Foundry writes a copy wherever each one looks.",
 		divergent:
 			"The copies of this skill no longer say the same thing. Saving writes what is shown here to all of them.",
 		locations: {
 			title: "On disk",
-			hint: "Where the copies live, and the agents that read each one.",
 		},
 		scope: {
 			global: "Personal",
@@ -1550,22 +1551,19 @@ export const en = {
 		copyOf: (name: string) => `${name} copy`,
 		duplicate: "Duplicate",
 		reveal: "Show the folder",
-		invokeHint: "is what invokes it at the prompt",
+		invokeHint: "Type it at the prompt to load the skill.",
 		nameClash: "Another skill of that scope already answers to this name.",
 		nameRequired: "A skill needs a name before it can be written.",
 		willCreate: (slug: string) => `Will be created as ${slug}/SKILL.md`,
 		unsaved: "Unsaved changes",
-		pluginReadOnly: (plugin: string) =>
-			`This skill comes from the ${plugin} plugin. It is shown as it is installed and cannot be edited here.`,
+		pluginReadOnly: (plugin: string) => `From the ${plugin} plugin, read-only`,
 		bodyStats: (words: number, lines: number) =>
-			`${words} words · ${lines} lines`,
+			`${words} words, ${lines} lines`,
 		groups: {
 			discovery: "How it gets found",
-			instructions: "Instructions",
 			tools: "Tools",
 			location: "Where it lives",
 			advanced: "Advanced",
-			files: "Files",
 		},
 		fields: {
 			name: "Name",
@@ -1580,8 +1578,6 @@ export const en = {
 			descriptionTooLong:
 				"Past this length the description is cut, so its ending never reaches the agent.",
 			whenToUse: "When to use",
-			whenToUseHint:
-				"Optional, and read alongside the description. Useful when the trigger deserves its own sentence.",
 			whenToUsePlaceholder:
 				"Use when a query mentions migrations, indexes or a slow query.",
 			paths: "File patterns",
@@ -1591,12 +1587,8 @@ export const en = {
 			manualOnlyHint:
 				"The agent never loads it on its own; it answers to /name and nothing else.",
 			body: "Body",
-			bodyHint:
-				"Markdown, loaded whole once the skill triggers. This is the skill itself.",
 			bodyPlaceholder: "# Title\n\nThe steps to follow...",
 			allowedTools: "Allowed tools",
-			allowedToolsHint:
-				"While this skill is loaded the agent is held to these tools. Leave empty to keep its usual ones.",
 			allowedToolsEmpty: "No restriction: the agent keeps its usual tools.",
 			allowedToolsPlaceholder: "Read, or Bash(git status)",
 			scope: "Scope",
@@ -1610,15 +1602,18 @@ export const en = {
 		},
 		files: {
 			title: "Bundled files",
-			hint: "Scripts, templates and references the skill can point the agent to.",
 			add: "Add files",
 			empty: "This skill ships nothing besides its SKILL.md.",
 		},
 		delete: {
 			heading: "Delete a skill",
 			title: (name: string) => `Delete ${name}?`,
-			description:
-				"The whole folder goes, with the SKILL.md and everything it ships. This cannot be undone.",
+			foldersTitle: "Folders deleted",
+			onlySkillMd: "Each folder holds only its SKILL.md.",
+			withFiles: (n: number) =>
+				n === 1
+					? "Each folder goes with its SKILL.md and the file it ships."
+					: `Each folder goes with its SKILL.md and the ${n} files it ships.`,
 			confirm: "Delete the skill",
 		},
 	},

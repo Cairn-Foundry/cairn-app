@@ -1540,22 +1540,24 @@ export const fr = {
 
 	skills: {
 		title: "Compétences",
-		desc: "Le savoir-faire que vos agents mobilisent d'eux-mêmes : un dossier, un SKILL.md, chargé quand le travail s'y prête.",
-		refresh: "Réanalyser",
 		new: "Nouvelle compétence",
 		searchPlaceholder: "Rechercher une compétence",
-		noResults: "Aucune compétence ne correspond à cette recherche.",
+		noResults: "Aucune compétence ne correspond",
+		noResultsText: (q: string) =>
+			`Rien ne correspond à "${q}" dans le nom, la description ou le projet de vos compétences.`,
+		noResultsFiltered: "Aucune compétence ne reste avec ces filtres.",
+		clearFilters: "Afficher toutes les compétences",
+		pickTitle: "Aucune compétence choisie",
+		pickDesc:
+			"Choisissez-en une dans la liste pour la modifier, ou créez-en une.",
 		emptyTitle: "Aucune compétence",
 		emptyDesc:
 			"Une compétence est un dossier contenant un SKILL.md. Sa description dit à l'agent quand y recourir, son corps lui dit quoi faire.",
 		filter: { all: "Toutes" },
-		providersHint:
-			"Le format SKILL.md est le même partout : une compétence peut donc servir plusieurs agents à la fois. Cairn Foundry en écrit une copie là où chacun regarde.",
 		divergent:
 			"Les copies de cette compétence ne disent plus la même chose. Enregistrer écrit dans toutes ce qui est affiché ici.",
 		locations: {
 			title: "Sur le disque",
-			hint: "Où vivent les copies, et les agents qui lisent chacune.",
 		},
 		scope: {
 			global: "Personnelles",
@@ -1573,22 +1575,19 @@ export const fr = {
 		copyOf: (name: string) => `${name} copie`,
 		duplicate: "Dupliquer",
 		reveal: "Afficher le dossier",
-		invokeHint: "est ce qui l'invoque depuis le prompt",
+		invokeHint: "À taper dans le prompt pour charger la compétence.",
 		nameClash: "Une autre compétence de cette portée répond déjà à ce nom.",
 		nameRequired: "Une compétence a besoin d'un nom avant d'être écrite.",
 		willCreate: (slug: string) => `Sera créée sous ${slug}/SKILL.md`,
 		unsaved: "Modifications non enregistrées",
-		pluginReadOnly: (plugin: string) =>
-			`Cette compétence vient du plugin ${plugin}. Elle est affichée telle qu'installée et ne peut pas être modifiée ici.`,
+		pluginReadOnly: (plugin: string) => `Du plugin ${plugin}, en lecture seule`,
 		bodyStats: (words: number, lines: number) =>
-			`${words} mots · ${lines} lignes`,
+			`${words} mots, ${lines} lignes`,
 		groups: {
 			discovery: "Comment elle est trouvée",
-			instructions: "Instructions",
 			tools: "Outils",
 			location: "Où elle vit",
 			advanced: "Avancé",
-			files: "Fichiers",
 		},
 		fields: {
 			name: "Nom",
@@ -1603,8 +1602,6 @@ export const fr = {
 			descriptionTooLong:
 				"Au-delà de cette longueur la description est coupée, et sa fin n'atteint jamais l'agent.",
 			whenToUse: "Quand l'utiliser",
-			whenToUseHint:
-				"Facultatif, lu en complément de la description. Utile quand le déclencheur mérite sa propre phrase.",
 			whenToUsePlaceholder:
 				"À utiliser quand il est question de migrations, d'index ou d'une requête lente.",
 			paths: "Motifs de fichiers",
@@ -1614,12 +1611,8 @@ export const fr = {
 			manualOnlyHint:
 				"L'agent ne la charge jamais de lui-même : elle ne répond qu'à /nom.",
 			body: "Corps",
-			bodyHint:
-				"Du markdown, chargé en entier dès que la compétence se déclenche. C'est la compétence elle-même.",
 			bodyPlaceholder: "# Titre\n\nLes étapes à suivre...",
 			allowedTools: "Outils autorisés",
-			allowedToolsHint:
-				"Tant que cette compétence est chargée, l'agent s'en tient à ces outils. Laissez vide pour conserver les siens.",
 			allowedToolsEmpty:
 				"Aucune restriction : l'agent garde ses outils habituels.",
 			allowedToolsPlaceholder: "Read, ou Bash(git status)",
@@ -1634,15 +1627,18 @@ export const fr = {
 		},
 		files: {
 			title: "Fichiers embarqués",
-			hint: "Scripts, gabarits et références vers lesquels la compétence peut envoyer l'agent.",
 			add: "Ajouter des fichiers",
 			empty: "Cette compétence n'embarque rien d'autre que son SKILL.md.",
 		},
 		delete: {
 			heading: "Supprimer une compétence",
 			title: (name: string) => `Supprimer ${name} ?`,
-			description:
-				"Le dossier entier disparaît, avec le SKILL.md et tout ce qu'il embarque. C'est irréversible.",
+			foldersTitle: "Dossiers supprimés",
+			onlySkillMd: "Chaque dossier ne contient que son SKILL.md.",
+			withFiles: (n: number) =>
+				n === 1
+					? "Chaque dossier part avec son SKILL.md et le fichier qu'il embarque."
+					: `Chaque dossier part avec son SKILL.md et les ${n} fichiers qu'il embarque.`,
 			confirm: "Supprimer la compétence",
 		},
 	},

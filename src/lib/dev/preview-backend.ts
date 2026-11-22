@@ -467,34 +467,86 @@ const NATIVE_AGENTS = [
 	}),
 ];
 
-const PREVIEW_SKILLS = ["code-review", "release-notes", "sql-style"].map(
-	(name) => {
-		const path = `/Users/dev/.claude/skills/${name}`;
-		return {
-			id: path,
-			name,
-			description: `The ${name} conventions of the team.`,
-			whenToUse: "",
-			allowedTools: [],
-			paths: "",
-			model: "",
-			license: "",
-			disableModelInvocation: false,
-			extraFrontmatter: "",
-			body: "",
-			scope: "global",
-			projectId: "",
-			projectName: "",
-			plugin: "",
-			path,
-			locations: [{ path, providers: ["claude-code"], readOnly: false }],
-			providers: ["claude-code"],
-			divergent: false,
-			readOnly: false,
-			resources: [],
-		};
+/** A skill folder as `list_skills` reads it back, with every field. */
+function previewSkill(
+	name: string,
+	fields: {
+		description: string;
+		whenToUse?: string;
+		allowedTools?: string[];
+		body: string;
+		projectId?: string;
+		plugin?: string;
+		providers?: string[];
+		resources?: string[];
 	},
-);
+) {
+	const project = projects.find((p) => p.id === fields.projectId);
+	const scope = fields.plugin ? "plugin" : project ? "project" : "global";
+	const dir = fields.plugin
+		? `/Users/dev/.claude/plugins/${fields.plugin}/skills/${name}`
+		: project
+			? `${project.path}/.claude/skills/${name}`
+			: `/Users/dev/.claude/skills/${name}`;
+	const providers = fields.providers ?? ["claude-code"];
+	const isReadOnly = scope === "plugin";
+	return {
+		id: dir,
+		name,
+		description: fields.description,
+		whenToUse: fields.whenToUse ?? "",
+		allowedTools: fields.allowedTools ?? [],
+		paths: "",
+		model: "",
+		license: "",
+		disableModelInvocation: false,
+		extraFrontmatter: "",
+		body: fields.body,
+		scope,
+		projectId: project?.id ?? "",
+		projectName: project?.name ?? "",
+		plugin: fields.plugin ?? "",
+		path: dir,
+		locations: [{ path: dir, providers, readOnly: isReadOnly }],
+		providers,
+		divergent: false,
+		readOnly: isReadOnly,
+		resources: (fields.resources ?? []).map((file) => ({
+			name: file,
+			path: `${dir}/${file}`,
+			size: 1800,
+		})),
+	};
+}
+
+const PREVIEW_SKILLS = [
+	previewSkill("code-review", {
+		description:
+			"Reviews a diff the way the team does: correctness first, then naming, then tests.",
+		whenToUse: "Before a merge request is opened, or when asked to review.",
+		allowedTools: ["Read", "Grep", "Bash(git diff)"],
+		body: "# Code review\n\nRead the whole diff before commenting. Report what is wrong, worst first, with the file and line.\n\n## What to check\n\n- Errors that are swallowed\n- Names that lie about what they hold\n- Tests that would pass on a broken implementation\n",
+		providers: ["claude-code", "codex"],
+		resources: ["checklist.md"],
+	}),
+	previewSkill("release-notes", {
+		description:
+			"Writes the release notes of a version from its merged changes.",
+		body: "# Release notes\n\nGroup the changes by what a user notices: added, changed, fixed. One line each, in the words of the user.\n",
+	}),
+	previewSkill("sql-style", {
+		description:
+			"The SQL conventions of the backend: naming, migrations, indexes.",
+		body: "# SQL style\n\nTables are plural and snake_case. Every foreign key has an index. A migration never edits data and schema in the same step.\n",
+		projectId: "cowork-backend",
+	}),
+	previewSkill("pdf", {
+		description: "Reads, fills and merges PDF files.",
+		body: "# PDF\n\nUse the scripts next to this file to read the text layer before the rendered page.\n",
+		plugin: "document-skills",
+		resources: ["extract.py", "merge.py"],
+	}),
+];
 
 let integrationConnections: Record<string, unknown>[] = [
 	{

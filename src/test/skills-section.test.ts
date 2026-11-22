@@ -103,7 +103,9 @@ function mount() {
 }
 
 const items = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".ag-item"));
+	Array.from(
+		document.querySelectorAll<HTMLElement>(".ag-item:not(.new-skill)"),
+	);
 const itemNames = () =>
 	items().map((i) => i.querySelector(".ag-item-name")?.textContent?.trim());
 const itemFor = (name: string) =>
@@ -119,7 +121,7 @@ const saveButton = () =>
 const revertButton = () =>
 	document.querySelector(".save-bar .btn.ghost") as HTMLButtonElement;
 const searchField = () =>
-	document.querySelector(".ag-master input") as HTMLInputElement;
+	document.querySelector(".split-list input") as HTMLInputElement;
 const chips = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".filters .chip"));
 const chipBy = (re: RegExp) =>
@@ -134,6 +136,10 @@ const banners = () =>
 	);
 const resources = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".resource"));
+/** The save bar shows once the draft differs from the file, as a real edit makes it. */
+async function makeDirty() {
+	await userEvent.type(descriptionField(), " ");
+}
 const savedPayload = () =>
 	saveSkill.mock.calls[0]?.[0] as Record<string, unknown>;
 
@@ -273,9 +279,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.filters.agents .chip[title="Codex"]',
-				) as HTMLElement,
+				document.querySelector('.filters .chip[title="Codex"]') as HTMLElement,
 			);
 			await settle();
 			expect(itemNames()).toEqual(["for-codex"]);
@@ -286,7 +290,9 @@ describe("SkillsSection", () => {
 			await settle();
 			await userEvent.type(searchField(), "zzzz");
 			await settle();
-			expect(document.querySelector(".ag-master-empty")).not.toBeNull();
+			expect(
+				document.querySelector(".search-empty, .page-empty"),
+			).not.toBeNull();
 		});
 	});
 
@@ -358,7 +364,7 @@ describe("SkillsSection", () => {
 			await userEvent.type(nameField(), "review");
 			await settle();
 			expect(saveButton().disabled).toBe(true);
-			expect(document.querySelector(".ag-hint.bad")).not.toBeNull();
+			expect(document.querySelector(".hint.bad")).not.toBeNull();
 		});
 
 		/** The same name in another scope is a different skill. */
@@ -396,6 +402,7 @@ describe("SkillsSection", () => {
 			saveSkill.mockRejectedValue(new Error("read only volume"));
 			mount();
 			await settle();
+			await makeDirty();
 			await userEvent.click(saveButton());
 			await settle();
 			expect(banners().join(" ")).toContain("read only volume");
@@ -406,7 +413,9 @@ describe("SkillsSection", () => {
 			skillsStore.set([skill({ readOnly: true })]);
 			mount();
 			await settle();
-			expect(banners().join(" ")).not.toBe("");
+			expect(document.querySelector(".detail-title p")?.textContent).toMatch(
+				/read-only/,
+			);
 			expect(nameField().disabled).toBe(true);
 		});
 
@@ -423,9 +432,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New skill"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-skill") as HTMLElement,
 			);
 			await settle();
 			expect(nameField().value).toBe("");
@@ -447,9 +454,7 @@ describe("SkillsSection", () => {
 			await userEvent.click(chipBy(/project/i));
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New skill"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-skill") as HTMLElement,
 			);
 			await settle();
 			await userEvent.type(nameField(), "fresh");
@@ -462,9 +467,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(
-					'.master-actions .icon-btn[title="New skill"]',
-				) as HTMLElement,
+				document.querySelector(".ag-item.new-skill") as HTMLElement,
 			);
 			await settle();
 			await userEvent.type(nameField(), "fresh");
@@ -477,6 +480,7 @@ describe("SkillsSection", () => {
 		it("saves an existing skill over its own locations", async () => {
 			mount();
 			await settle();
+			await makeDirty();
 			await userEvent.click(saveButton());
 			await settle();
 			expect(savedPayload()).toMatchObject({
@@ -508,6 +512,7 @@ describe("SkillsSection", () => {
 			await userEvent.type(input, "Bash{Enter}");
 			await settle();
 			expect(toolChips()).toEqual(["Bash", "Read"]);
+			await makeDirty();
 			await userEvent.click(saveButton());
 			await settle();
 			expect(savedPayload()).toMatchObject({
@@ -541,6 +546,7 @@ describe("SkillsSection", () => {
 			skillsStore.set([skill({ allowedTools: ["Bash"] })]);
 			mount();
 			await settle();
+			await makeDirty();
 			await userEvent.click(saveButton());
 			await settle();
 			expect(savedPayload()).toMatchObject({ allowedTools: ["Bash"] });
@@ -572,7 +578,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			const add = Array.from(
-				document.querySelectorAll<HTMLButtonElement>(".ag-card-head .btn"),
+				document.querySelectorAll<HTMLButtonElement>(".add-files"),
 			).at(-1) as HTMLButtonElement;
 			await userEvent.click(add);
 			await settle();
@@ -593,7 +599,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				resources()[0].querySelector(".icon-btn.delete") as HTMLElement,
+				resources()[0].querySelector(".delete") as HTMLElement,
 			);
 			await settle();
 			expect(deleteSkillResource).toHaveBeenCalledWith(
@@ -622,7 +628,7 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".skill-row .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			expect(deleteSkill).not.toHaveBeenCalled();
@@ -642,11 +648,11 @@ describe("SkillsSection", () => {
 			mount();
 			await settle();
 			await userEvent.click(
-				document.querySelector(".skill-row .icon-btn.delete") as HTMLElement,
+				document.querySelector(".head-actions .delete") as HTMLElement,
 			);
 			await settle();
 			await userEvent.click(
-				document.querySelector(".modal .btn.danger") as HTMLElement,
+				document.querySelector(".modal .cm-confirm") as HTMLElement,
 			);
 			await settle();
 			expect(deleteSkill).toHaveBeenCalledWith([
@@ -659,7 +665,7 @@ describe("SkillsSection", () => {
 			skillsStore.set([skill({ readOnly: true })]);
 			mount();
 			await settle();
-			expect(document.querySelector(".skill-row .icon-btn.delete")).toBeNull();
+			expect(document.querySelector(".head-actions .delete")).toBeNull();
 		});
 	});
 });
