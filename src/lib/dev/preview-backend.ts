@@ -217,7 +217,95 @@ const assignedTickets: Record<string, number> = {
 	cairn: 4,
 	"cowork-backend": 27,
 	"atlas-api": 1,
+	"atlas-web": 0,
 };
+
+/** How long the tracker takes to answer, so the loading state shows. */
+const TRACKER_LATENCY_MS = 600;
+
+const TICKET_SEEDS: {
+	title: string;
+	status: string;
+	category: "todo" | "in_progress" | "done" | "unknown";
+	kind: string;
+	labels: string[];
+}[] = [
+	{
+		title: "Terminal loses its scrollback after a window resize",
+		status: "In progress",
+		category: "in_progress",
+		kind: "Bug",
+		labels: ["terminal"],
+	},
+	{
+		title: "Show the merge request pipeline in the instance header",
+		status: "To do",
+		category: "todo",
+		kind: "Story",
+		labels: ["ci", "ux"],
+	},
+	{
+		title: "Language server restarts in a loop on a missing toolchain",
+		status: "In review",
+		category: "in_progress",
+		kind: "Bug",
+		labels: ["lsp"],
+	},
+	{
+		title: "Export the review comments as a markdown summary",
+		status: "To do",
+		category: "todo",
+		kind: "Task",
+		labels: ["review"],
+	},
+	{
+		title: "Rate limit the invoice webhooks per customer",
+		status: "In progress",
+		category: "in_progress",
+		kind: "Story",
+		labels: ["billing"],
+	},
+	{
+		title: "Paginate the members endpoint",
+		status: "To do",
+		category: "todo",
+		kind: "Task",
+		labels: ["api"],
+	},
+	{
+		title: "Timezone drift in the weekly report job",
+		status: "Blocked",
+		category: "todo",
+		kind: "Bug",
+		labels: ["jobs"],
+	},
+	{
+		title: "Drop the legacy v1 session tokens",
+		status: "To do",
+		category: "todo",
+		kind: "Task",
+		labels: ["auth", "cleanup"],
+	},
+];
+
+/** A ticket with every field the tracker returns, varied by index. */
+function previewTicket(projectId: string, index: number) {
+	const seed = TICKET_SEEDS[index % TICKET_SEEDS.length];
+	const prefix = projectId.split("-")[0].toUpperCase();
+	return {
+		id: `${projectId}-${index}`,
+		key: `${prefix}-${142 - index * 7}`,
+		title: seed.title,
+		description: "",
+		status: seed.status,
+		statusCategory: seed.category,
+		kind: seed.kind,
+		labels: seed.labels,
+		assignees: [{ login: "dev", displayName: "Dev" }],
+		url: `https://tracker.example/${prefix}-${142 - index * 7}`,
+		updatedAt: new Date(Date.now() - index * 5 * 3600_000).toISOString(),
+	};
+}
 
 const CLEAN: PreviewRepo = {
 	isGitRepo: true,
@@ -280,12 +368,14 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 		ci: null,
 		autoTransition: { onCreate: null, onFinalize: null },
 	}),
-	tracker_list_tickets: (a) => {
-		const count = assignedTickets[a.projectId as string] ?? 0;
+	tracker_list_tickets: async (a) => {
+		const projectId = a.projectId as string;
+		const count = assignedTickets[projectId] ?? 0;
+		await new Promise((resolve) => setTimeout(resolve, TRACKER_LATENCY_MS));
 		return {
-			items: Array.from({ length: Math.min(count, 20) }, (_, i) => ({
-				id: `T-${i}`,
-			})),
+			items: Array.from({ length: Math.min(count, 20) }, (_, i) =>
+				previewTicket(projectId, i),
+			),
 			hasMore: count > 20,
 		};
 	},

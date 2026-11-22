@@ -2501,16 +2501,19 @@ export const en = {
 		scopeAssigned: "Assigned to me",
 		scopeAll: "All",
 		refresh: "Refresh",
-		total: "Open tickets",
 		start: "Work on it",
-		noTracker: "No project has a tracker bound yet.",
+		noTrackerTitle: "No tracker connected",
+		openInTracker: "Open in the tracker",
+		noTracker:
+			"Link Jira, GitLab or GitHub to a project and its open tickets show up here.",
 		configure: "Configure the integrations",
 		loadFailed: "The tickets of this project could not be loaded.",
-		groupEmpty: "No ticket matches the search.",
+		noMatchTitle: "No ticket matches",
+		noMatchText: (q: string) =>
+			`Nothing matches "${q}" in the key, title or labels of your tickets.`,
 		planTitle: "Plan of attack",
 		planGenerate: "Generate",
 		planRegenerate: "Regenerate",
-		planCancel: "Cancel",
 		planEmpty:
 			"Generate a plan to see in which order to take these tickets on.",
 		planFailed: "The plan could not be generated.",
@@ -2520,7 +2523,6 @@ export const en = {
 	home: {
 		sections: {
 			tickets: "Tickets",
-			ticketsDesc: "What is left to do across every project with a tracker.",
 			conversations: "Conversations",
 			conversationsDesc:
 				"Every running conversation, across projects and instances. What waits for you comes first.",

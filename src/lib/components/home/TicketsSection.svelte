@@ -35,12 +35,18 @@
   import { resolveAiFeature } from '#lib/utils/home/ai-features';
   import { buildTicketPlanPrompt } from '#lib/utils/integrations/prompts';
   import { renderRemoteMarkdown } from '#lib/utils/integrations/markdown';
+  import { formatDateTimeFull, relativeTime } from '#lib/utils/format';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
+  import { openUrl } from '#lib/services/opener-service';
   import type { Ticket } from '#lib/types/integrations';
 
   const dispatch = createEventDispatcher<{
     startTicket: { projectId: string; ticket: Ticket };
     goIntegrations: void;
   }>();
+
+  /** Rows per group of the placeholder list drawn while the tickets load. */
+  const SKELETON_GROUPS = [4, 2];
 
   let query = '';
   let plan = '';
@@ -54,10 +60,11 @@
 
   $: filteredGroups = groups
     .map((g) => ({ ...g, tickets: g.tickets.filter(matches) }))
-    .filter((g) => g.tickets.length > 0 || g.error || !query.trim());
+    .filter((g) => g.tickets.length > 0 || !query.trim());
 
   $: totalTickets = groups.reduce((n, g) => n + g.tickets.length, 0);
   $: anyMore = groups.some((g) => g.hasMore);
+
 
   $: resolvedFeature = resolveAiFeature('ticketPlan', $settings.aiFeatures, $isAssistCliInstalled);
   // The plan runs in a project directory, so it needs at least one project.
@@ -122,49 +129,38 @@
   onDestroy(() => planAbort?.abort());
 </script>
 
-<div class="bar">
-  <SearchInput bind:value={query} placeholder={t('tickets.search') as string} />
-  <ModeToggle
-    options={[
-      { value: 'assigned', label: t('tickets.scopeAssigned') as string },
-      { value: 'all', label: t('tickets.scopeAll') as string },
-    ]}
-    value={$ticketsScope}
-    ariaLabel={t('tickets.scopeLabel') as string}
-    on:select={(e) => setScope(e.detail as TicketScope)}
-  />
-  <div style="flex: 1"></div>
-  <button class="chip" on:click={() => loadTicketsOverview($ticketsScope, true)} disabled={$ticketsLoading}>
-    {#if $ticketsLoading}<Spinner size={12} />{:else}<Icon name="refresh" size={13} />{/if}
-    {t('tickets.refresh')}
-  </button>
-</div>
+<header class="tk-head">
+  <h1>
+    {t('home.sections.tickets')}
+    {#if totalTickets > 0}<span class="head-count">{totalTickets}{anyMore ? '+' : ''}</span>{/if}
+  </h1>
+</header>
 
-{#if $ticketsLoading && groups.length === 0}
-  <div class="pad"><Skeleton lines={6} /></div>
-{:else if groups.length === 0}
-  <div class="empty">
-    <div>{t('tickets.noTracker')}</div>
-    <button class="chip" on:click={() => dispatch('goIntegrations')}>
+{#if !$ticketsLoading && groups.length === 0}
+  <section class="tk-empty">
+    <Icon name="ticket" size={22} />
+    <h2>{t('tickets.noTrackerTitle')}</h2>
+    <p>{t('tickets.noTracker')}</p>
+    <button class="btn" on:click={() => dispatch('goIntegrations')}>
       <Icon name="link" size={13} /> {t('tickets.configure')}
     </button>
-  </div>
+  </section>
 {:else}
-  <div class="total">
-    {t('tickets.total')}: {totalTickets}{anyMore ? '+' : ''}
-  </div>
-
   {#if $aiEnabled}
-    <section class="plan">
-      <header>
+    <section class="tk-plan">
+      <div class="tk-plan-head">
         <Icon name="wand" size={14} />
-        <span class="plan-title">{t('tickets.planTitle')}</span>
-        <div style="flex: 1"></div>
+        <span class="tk-plan-title">{t('tickets.planTitle')}</span>
+        <span class="tk-plan-hint" class:is-error={planError}>
+          {#if resolvedFeature.unavailable}{t('tickets.planUnavailable')}
+          {:else if planError}{planError}
+          {:else if !plan && !isPlanning}{t('tickets.planEmpty')}{/if}
+        </span>
         {#if isPlanning}
-          <button class="chip ai-btn is-busy" on:click={cancelPlan}>{t('git.aiCancel')}</button>
+          <button class="btn ai-btn is-busy" on:click={cancelPlan}>{t('git.aiCancel')}</button>
         {:else}
           <button
-            class="chip ai-btn"
+            class="btn ai-btn"
             on:click={generatePlan}
             disabled={!canPlan}
             title={resolvedFeature.unavailable ? (t('git.aiUnavailable') as string) : undefined}
@@ -173,14 +169,10 @@
             {plan ? t('tickets.planRegenerate') : t('tickets.planGenerate')}
           </button>
         {/if}
-      </header>
+      </div>
       <span class="sr-only" role="status" aria-live="polite">{isPlanning ? t('tickets.planTitle') : ''}</span>
-      {#if resolvedFeature.unavailable}
-        <div class="hint">{t('tickets.planUnavailable')}</div>
-      {:else if planError}
-        <div class="hint error">{planError}</div>
-      {:else if plan || isPlanning}
-        <div class="ai-field" class:is-generating={isPlanning} aria-busy={isPlanning}>
+      {#if (plan || isPlanning) && !resolvedFeature.unavailable}
+        <div class="ai-field tk-plan-body" class:is-generating={isPlanning} aria-busy={isPlanning}>
           {#if plan}
             <div class="plan-body selectable">{@html renderRemoteMarkdown(plan)}</div>
           {/if}
@@ -191,113 +183,316 @@
             {/if}
           {/if}
         </div>
-      {:else}
-        <div class="hint">{t('tickets.planEmpty')}</div>
       {/if}
     </section>
   {/if}
 
-  {#each filteredGroups as group (group.project.id)}
-    {@const collapsed = $collapsedTicketProjects.includes(group.project.id)}
-    <section class="group">
-      <header
-        class="group-toggle"
-        class:collapsed
-        role="button"
-        tabindex="0"
-        aria-expanded={!collapsed}
-        on:click={() => toggleTicketProjectCollapse(group.project.id)}
-        on:keydown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleTicketProjectCollapse(group.project.id);
-          }
-        }}
-      >
-        <span class="chevron" class:collapsed>
-          <Icon name="chev-d" size={13} />
-        </span>
-        <span class="dot" style="background: {group.project.color}"></span>
-        <span class="proj">{group.project.name}</span>
-        <span class="count">{group.tickets.length}{group.hasMore ? '+' : ''}</span>
-      </header>
-      {#if collapsed}
-        <!-- Folded: the header keeps the count, which is what the fold is for. -->
-      {:else if group.error}
-        <div class="hint error">{t('tickets.loadFailed')}</div>
-      {:else}
-        {#each group.tickets as ticket (ticket.id)}
-          <div class="row">
-            <span class="key selectable">{ticket.key}</span>
-            <span class="title">{ticket.title}</span>
-            <span class="status s-{ticket.statusCategory}">{ticket.status}</span>
-            <button
-              class="chip start"
-              on:click={() => dispatch('startTicket', { projectId: group.project.id, ticket })}
+  <div class="tk-bar">
+    <ModeToggle
+      options={[
+        { value: 'assigned', label: t('tickets.scopeAssigned') as string },
+        { value: 'all', label: t('tickets.scopeAll') as string },
+      ]}
+      value={$ticketsScope}
+      ariaLabel={t('tickets.scopeLabel') as string}
+      on:select={(e) => setScope(e.detail as TicketScope)}
+    />
+    <div class="spacer"></div>
+    <SearchInput bind:value={query} placeholder={t('tickets.search') as string} />
+    <button
+      class="btn ghost tk-refresh"
+      on:click={() => loadTicketsOverview($ticketsScope, true)}
+      disabled={$ticketsLoading}
+      aria-label={t('tickets.refresh') as string}
+      title={t('tickets.refresh') as string}
+    >
+      {#if $ticketsLoading}<Spinner size={12} />{:else}<Icon name="refresh" size={13} />{/if}
+    </button>
+  </div>
+
+  {#if groups.length === 0}
+    <div class="tk-list" aria-hidden="true">
+      {#each SKELETON_GROUPS as rows, g (g)}
+        <section class="group">
+          <div class="group-toggle is-skeleton"><Skeleton width="140px" height={10} /></div>
+          {#each { length: rows } as _, i (i)}
+            <div class="row">
+              <Skeleton width="72px" height={10} />
+              <Skeleton width="{[62, 48, 70, 40][i % 4]}%" height={10} />
+              <Skeleton width="76px" height={10} />
+              <Skeleton width="22px" height={10} />
+              <Skeleton width="112px" height={10} />
+            </div>
+          {/each}
+        </section>
+      {/each}
+    </div>
+  {:else if filteredGroups.length === 0}
+    <SearchEmpty
+      title={t('tickets.noMatchTitle') as string}
+      text={(t('tickets.noMatchText') as (q: string) => string)(query.trim())}
+      clearLabel={t('common.clearSearch') as string}
+      on:clear={() => (query = '')}
+    />
+  {:else}
+    <div class="tk-list">
+      {#each filteredGroups as group (group.project.id)}
+        {@const isEmpty = group.tickets.length === 0 && !group.error}
+        {@const collapsed = !isEmpty && $collapsedTicketProjects.includes(group.project.id)}
+        <section class="group">
+          <!-- A project with no open ticket has nothing to fold: its header is plain. -->
+          {#if isEmpty}
+            <header class="group-toggle is-empty">
+              <span class="chevron"></span>
+              <span class="swatch" style="background: {group.project.color}"></span>
+              <span class="proj">{group.project.name}</span>
+              <span class="count">0</span>
+            </header>
+          {:else}
+            <header
+              class="group-toggle"
+              role="button"
+              tabindex="0"
+              aria-expanded={!collapsed}
+              on:click={() => toggleTicketProjectCollapse(group.project.id)}
+              on:keydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleTicketProjectCollapse(group.project.id);
+                }
+              }}
             >
-              <Icon name="branch" size={12} /> {t('tickets.start')}
-            </button>
-          </div>
-        {/each}
-        {#if group.tickets.length === 0}
-          <div class="hint">{t('tickets.groupEmpty')}</div>
-        {/if}
-      {/if}
-    </section>
-  {/each}
+              <span class="chevron" class:collapsed>
+                <Icon name="chev-d" size={13} />
+              </span>
+              <span class="swatch" style="background: {group.project.color}"></span>
+              <span class="proj">{group.project.name}</span>
+              <span class="count">{group.tickets.length}{group.hasMore ? '+' : ''}</span>
+            </header>
+          {/if}
+          {#if collapsed}
+            <!-- Folded: the header keeps the count, which is what the fold is for. -->
+          {:else if group.error}
+            <div class="hint error">{t('tickets.loadFailed')}</div>
+          {:else}
+            {#each group.tickets as ticket (ticket.id)}
+              <div class="row">
+                <span class="key selectable">{ticket.key}</span>
+                <span class="title-cell">
+                  <span class="title" title={ticket.title}>{ticket.title}</span>
+                  {#each ticket.labels.slice(0, 2) as label (label)}
+                    <span class="label">{label}</span>
+                  {/each}
+                </span>
+                <span class="status s-{ticket.statusCategory}">{ticket.status}</span>
+                <span class="age" title={formatDateTimeFull(ticket.updatedAt)}>{relativeTime(ticket.updatedAt)}</span>
+                <span class="actions">
+                  {#if ticket.url}
+                    <button
+                      class="row-action"
+                      aria-label={t('tickets.openInTracker') as string}
+                      title={t('tickets.openInTracker') as string}
+                      on:click={() => void openUrl(ticket.url)}
+                    >
+                      <Icon name="external" size={13} />
+                    </button>
+                  {/if}
+                  <button
+                    class="btn start"
+                    on:click={() => dispatch('startTicket', { projectId: group.project.id, ticket })}
+                  >
+                    <Icon name="branch" size={12} /> {t('tickets.start')}
+                  </button>
+                </span>
+              </div>
+            {/each}
+          {/if}
+        </section>
+      {/each}
+    </div>
+  {/if}
 {/if}
 
 <style>
-  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 9px; border: 1px solid var(--stroke-1); border-radius: var(--r-sm);
-    background: var(--bg-3); color: var(--fg-1); font-size: 12px;
-    font-family: var(--font-ui); cursor: pointer;
+  .tk-head { margin-bottom: 32px; }
+  .tk-head h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
   }
-  .chip:hover:not(:disabled) { background: var(--bg-4); color: var(--fg-0); }
-  .chip:disabled { opacity: 0.5; cursor: default; }
-  .total { color: var(--fg-2); font-size: 12px; margin-bottom: 10px; }
-  .pad { padding: 8px 0; }
-  .empty {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
-    color: var(--fg-2); font-size: 13px; padding: 24px 0;
+  .head-count {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--fg-2);
+    background: var(--bg-3);
+    border-radius: 10px;
   }
-  .plan, .group {
-    border: 1px solid var(--stroke-1); border-radius: var(--r-md);
-    background: var(--bg-2); margin-bottom: 12px; overflow: hidden;
+
+  /* -- no tracker -- */
+  .tk-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 0;
+    text-align: center;
+    color: var(--fg-3);
   }
-  header {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px; border-bottom: 1px solid var(--stroke-1);
+  .tk-empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
+  .tk-empty p { max-width: 52ch; margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
+
+  /* -- plan -- */
+  .tk-plan {
+    margin-bottom: 28px;
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-md);
+    background: var(--bg-1);
   }
-  .group-toggle { cursor: pointer; }
-  .group-toggle:hover { background: var(--bg-3); }
-  .group-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  /* Folded, the header is the whole card: the rule below it would draw a line
-     under nothing. */
-  .group-toggle.collapsed { border-bottom: none; }
-  .chevron { display: inline-flex; color: var(--fg-2); transition: transform 0.15s; }
-  .chevron.collapsed { transform: rotate(-90deg); }
-  .plan-title, .proj { font-size: 13px; color: var(--fg-0); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .count { color: var(--fg-2); font-size: 12px; font-family: var(--font-mono); }
-  .plan-body { padding: 10px 12px; font-size: 13px; color: var(--fg-1); line-height: 1.55; }
-  .hint { padding: 10px 12px; color: var(--fg-2); font-size: 12px; }
-  .hint.error { color: var(--danger); }
+  .tk-plan-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 10px 0 14px;
+    color: var(--fg-2);
+  }
+  .tk-plan-title { flex: none; font-size: 13px; font-weight: 600; color: var(--fg-0); }
+  .tk-plan-hint {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--fg-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tk-plan-hint.is-error { color: var(--danger); }
+  .tk-plan-body { border-top: 1px solid var(--stroke-0); }
+  .plan-body { padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--fg-1); }
+
+  /* -- toolbar -- */
+  .tk-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .tk-bar .spacer { flex: 1; }
+  .tk-bar :global(.ag-search) { flex: 0 1 260px; height: 28px; box-sizing: border-box; }
+  .tk-bar :global(.mode-toggle) { height: 28px; box-sizing: border-box; }
+  .tk-refresh { width: 28px; height: 28px; padding: 0; justify-content: center; }
+
+  /* -- list -- */
+  /* One grid for every group: the rows take its columns through subgrid, so a
+     key or a status is as wide as the widest one of the whole list. */
+  .tk-list {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    column-gap: 20px;
+    border: 1px solid color-mix(in oklch, var(--stroke-0) 60%, var(--stroke-1));
+    border-radius: var(--r-md);
+    background: var(--bg-1);
+    overflow: hidden;
+  }
+  .group,
   .row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 10px; border-bottom: 1px solid var(--stroke-0);
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
   }
-  .row:last-child { border-bottom: none; }
-  .key { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); flex-shrink: 0; }
+  .group + .group { border-top: 1px solid var(--stroke-1); }
+  .group-toggle {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px 0 10px;
+    background: var(--bg-2);
+    cursor: pointer;
+  }
+  .group-toggle:hover { background: var(--bg-3); }
+  .group-toggle.is-empty { cursor: default; }
+  .group-toggle.is-empty:hover { background: var(--bg-2); }
+  .group-toggle.is-empty .proj { color: var(--fg-2); }
+  .group-toggle.is-skeleton { cursor: default; padding-left: 33px; }
+  .group-toggle.is-skeleton:hover { background: var(--bg-2); }
+  .group-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chevron { display: inline-flex; width: 13px; color: var(--fg-3); }
+  .chevron.collapsed { transform: rotate(-90deg); }
+  .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .proj { font-size: 12.5px; font-weight: 600; color: var(--fg-0); }
+  .count { font-size: 11.5px; color: var(--fg-3); }
+  .hint { grid-column: 1 / -1; padding: 12px 16px; font-size: 12px; color: var(--fg-2); }
+  .hint.error { color: var(--danger); }
+
+  .row {
+    align-items: center;
+    min-height: 40px;
+    padding: 0 10px 0 33px;
+    border-top: 1px solid var(--stroke-0);
+  }
+  .row:hover { background: var(--bg-2); }
+  .key { font-family: var(--font-mono); font-size: 12px; color: var(--fg-3); }
+  .title-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .title {
-    flex: 1; font-size: 13px; color: var(--fg-0);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .status { font-size: 11px; color: var(--fg-2); flex-shrink: 0; }
-  .status.s-in_progress { color: var(--accent); }
-  .row .start { flex-shrink: 0; }
+  .label {
+    flex: none;
+    padding: 0 6px;
+    font-size: 11px;
+    line-height: 18px;
+    color: var(--fg-3);
+    border: 1px solid var(--stroke-1);
+    border-radius: 4px;
+  }
+  .status {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .status::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--fg-3);
+    box-sizing: border-box;
+  }
+  .status.s-in_progress { color: var(--fg-1); }
+  .status.s-in_progress::before { border-color: var(--accent); background: var(--accent); }
+  .status.s-done::before { border-color: var(--success); background: var(--success); }
+  .age { font-size: 11.5px; color: var(--fg-3); text-align: right; font-variant-numeric: tabular-nums; }
+  .actions { display: flex; align-items: center; gap: 4px; }
+  .row-action {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+  }
+  .row-action:hover { background: var(--bg-4); color: var(--fg-0); }
+  .start { height: 24px; padding: 0 8px; }
+
   .sr-only {
     position: absolute;
     width: 1px;

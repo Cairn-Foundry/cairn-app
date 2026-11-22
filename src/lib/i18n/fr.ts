@@ -2542,16 +2542,19 @@ export const fr = {
 		scopeAssigned: "Qui me sont assignés",
 		scopeAll: "Tous",
 		refresh: "Rafraîchir",
-		total: "Tickets ouverts",
 		start: "Travailler dessus",
-		noTracker: "Aucun projet n'a encore de tracker lié.",
+		noTrackerTitle: "Aucun tracker relié",
+		openInTracker: "Ouvrir dans le tracker",
+		noTracker:
+			"Reliez Jira, GitLab ou GitHub à un projet et ses tickets ouverts apparaîtront ici.",
 		configure: "Configurer les intégrations",
 		loadFailed: "Les tickets de ce projet n'ont pas pu être chargés.",
-		groupEmpty: "Aucun ticket ne correspond à la recherche.",
+		noMatchTitle: "Aucun ticket ne correspond",
+		noMatchText: (q: string) =>
+			`Rien ne correspond à "${q}" dans la clé, le titre ou les étiquettes de vos tickets.`,
 		planTitle: "Plan d'attaque",
 		planGenerate: "Générer",
 		planRegenerate: "Régénérer",
-		planCancel: "Annuler",
 		planEmpty: "Générez un plan pour voir dans quel ordre traiter ces tickets.",
 		planFailed: "Le plan n'a pas pu être généré.",
 		planUnavailable:
@@ -2560,8 +2563,6 @@ export const fr = {
 	home: {
 		sections: {
 			tickets: "Tickets",
-			ticketsDesc:
-				"Ce qu'il reste à faire sur tous les projets ayant un tracker.",
 			conversations: "Conversations",
 			conversationsDesc:
 				"Toutes les conversations lancées, sur tous les projets et toutes les instances. Ce qui vous attend passe en premier.",

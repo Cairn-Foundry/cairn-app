@@ -18,6 +18,7 @@
   import ModeToggle from '#lib/components/ModeToggle.svelte';
   import ProjectEntry from './ProjectEntry.svelte';
   import ProjectsEmpty from './ProjectsEmpty.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import { projectFolders, toggleUngroupedCollapsed, ungroupedCollapsed } from '#lib/stores/project-folders';
   import { revealInFileManager } from '#lib/services/project-service';
   import type { Project, ProjectFolder } from '#lib/types/project';
@@ -554,7 +555,7 @@
 {/if}
 
 {#if $projects.length === 0}
-  <ProjectsEmpty kind="none"/>
+  <ProjectsEmpty/>
 {/if}
 
 
@@ -632,7 +633,12 @@
 <!-- --- search mode --------------------------------------------------------- -->
 {#if filteredProjects !== null}
   {#if filteredProjects.length === 0}
-    <ProjectsEmpty kind="no-match" query={search.trim()} on:clear={() => { search = ''; searchInputEl?.focus(); }}/>
+    <SearchEmpty
+      title={t('home.projects.noMatchTitle') as string}
+      text={(t('home.projects.noMatchText') as (q: string) => string)(search.trim())}
+      clearLabel={t('home.projects.clearSearch') as string}
+      on:clear={() => { search = ''; searchInputEl?.focus(); }}
+    />
   {:else}
     <div class={containerClass}>
       {#each filteredProjects as p (p.id)}

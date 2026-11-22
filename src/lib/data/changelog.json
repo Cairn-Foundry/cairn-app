@@ -17,6 +17,13 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "The Tickets screen is redesigned. The title carries the count of open tickets, the plan of attack holds on one line until it is generated, and the tickets of every project sit in one list whose columns line up: the key, the title with its labels, the status with a dot for its stage, the time since the last update, a button that opens the ticket in the tracker and the one that starts working on it. A search that finds nothing shows a drawing and a message as the project list does, a project with no open ticket no longer folds onto nothing, the list keeps its shape while the tickets load, and with no tracker linked the screen says how to link one.",
+					"fr": "L'écran Tickets est repensé. Le titre porte le nombre de tickets ouverts, le plan d'attaque tient sur une ligne tant qu'il n'est pas généré, et les tickets de tous les projets forment une seule liste aux colonnes alignées : la clé, le titre avec ses étiquettes, le statut avec un point pour son avancement, le temps depuis la dernière mise à jour, un bouton qui ouvre le ticket dans le tracker et celui qui lance le travail dessus. Une recherche sans résultat affiche un dessin et un message comme la liste des projets, un projet sans ticket ouvert ne se replie plus sur du vide, la liste garde sa forme pendant le chargement des tickets, et sans tracker relié l'écran explique comment en relier un."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "The window that adds a project lists its steps in a column on the left, with what each finished step holds: the name, the folder, the repository, the linked integrations. A click on a step opens it as soon as the steps before it are filled, the checks following the fields as they change, and the window keeps the same size from one step to the next. Each step is titled after what it asks, and the HTTPS or SSH choice of a clone, which changed nothing, gives way to a line saying what git will need for the protocol of the url.",
 					"fr": "La fenêtre d'ajout d'un projet liste ses étapes dans une colonne à gauche, avec ce que contient chaque étape terminée : le nom, le dossier, le dépôt, les intégrations liées. Un clic sur une étape l'ouvre dès que les étapes précédentes sont remplies, les coches suivant les champs au fil de la saisie, et la fenêtre garde la même taille d'une étape à l'autre. Chaque étape porte le titre de ce qu'elle demande, et le choix HTTPS ou SSH d'un clone, qui ne changeait rien, laisse place à une ligne indiquant ce dont git aura besoin selon le protocole de l'URL."
 				}

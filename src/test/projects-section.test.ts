@@ -674,10 +674,10 @@ describe("ProjectsSection", () => {
 			await userEvent.type(input, "zzz");
 			await settle();
 			expect(
-				document.querySelector(".projects-empty p")?.textContent,
+				document.querySelector(".search-empty p")?.textContent,
 			).toContain('"zzz"');
 			await userEvent.click(
-				document.querySelector(".projects-empty .btn") as HTMLElement,
+				document.querySelector(".search-empty .btn") as HTMLElement,
 			);
 			await settle();
 			expect(input.value).toBe("");

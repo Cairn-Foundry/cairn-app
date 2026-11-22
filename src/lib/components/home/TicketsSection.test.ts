@@ -64,7 +64,7 @@ async function settle() {
 }
 
 const planButton = () =>
-	document.querySelector<HTMLButtonElement>(".plan header button.chip");
+	document.querySelector<HTMLButtonElement>(".tk-plan .ai-btn");
 
 beforeEach(() => {
 	runOneShot.mockReset().mockResolvedValue("a plan");
@@ -91,5 +91,56 @@ describe("TicketsSection", () => {
 		await settle();
 		expect(runOneShot).toHaveBeenCalled();
 		expect(runOneShot.mock.calls[0][3]).toMatchObject({ context: "prompt" });
+	});
+
+	it("counts the open tickets in the title", async () => {
+		render(TicketsSection);
+		await settle();
+		expect(document.querySelector(".head-count")?.textContent).toBe("1");
+	});
+
+	it("says so when the search matches no ticket", async () => {
+		render(TicketsSection);
+		await settle();
+		await userEvent.type(
+			document.querySelector(".ag-search input") as HTMLInputElement,
+			"nothing like it",
+		);
+		expect(document.querySelector(".search-empty h2")?.textContent).toBe(
+			"No ticket matches",
+		);
+		expect(document.querySelector(".row")).toBeNull();
+	});
+
+	/** Nothing to fold under a project with no open ticket, so its header does not pretend. */
+	it("draws a plain header for a project with no open ticket", async () => {
+		ticketsByProject.set({ p1: { tickets: [], hasMore: false, error: null } });
+		render(TicketsSection);
+		await settle();
+		const header = document.querySelector(".group-toggle");
+		expect(header?.classList.contains("is-empty")).toBe(true);
+		expect(header?.getAttribute("role")).toBeNull();
+		expect(header?.querySelector(".chevron svg")).toBeNull();
+	});
+
+	it("keeps the toolbar and draws the list shape while the tickets load", async () => {
+		ticketsByProject.set({});
+		const { ticketsLoading } = await import("#lib/stores/tickets-overview");
+		ticketsLoading.set(true);
+		render(TicketsSection);
+		await settle();
+		expect(document.querySelector(".tk-bar")).not.toBeNull();
+		expect(document.querySelectorAll(".tk-list .row").length).toBeGreaterThan(
+			0,
+		);
+		expect(document.querySelector(".tk-empty")).toBeNull();
+		ticketsLoading.set(false);
+	});
+
+	it("asks to link a tracker when no project has one", async () => {
+		ticketsByProject.set({});
+		render(TicketsSection);
+		await settle();
+		expect(document.querySelector(".tk-empty")).not.toBeNull();
 	});
 });

@@ -99,16 +99,10 @@
       />
 
     {:else if activeSection === 'tickets'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.sections.tickets')}</h1>
-        <div class="sub">{t('home.sections.ticketsDesc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <TicketsSection
-          on:startTicket={(e) => dispatch('startTicket', e.detail)}
-          on:goIntegrations={() => showSection('integrations')}
-        />
-      </div>
+      <TicketsSection
+        on:startTicket={(e) => dispatch('startTicket', e.detail)}
+        on:goIntegrations={() => showSection('integrations')}
+      />
 
     {:else if activeSection === 'integrations'}
       <div class="home-hero" style="padding-bottom: 0">
