@@ -12,11 +12,11 @@
   import Icon from '#lib/components/Icon.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import ProjectColorPicker from '#lib/components/ProjectColorPicker.svelte';
-  import ProjectPreviewPill from '#lib/components/ProjectPreviewPill.svelte';
   import ProjectIntegrationsForm from '#lib/components/ProjectIntegrationsForm.svelte';
   import GitProfileSelect from '#lib/components/GitProfileSelect.svelte';
   import { validateDirectory, cloneRepository } from '#lib/services/project-service';
   import { getRemoteUrl } from '#lib/services/git-service';
+  import { parseRemoteUrl } from '#lib/utils/git/remote-url';
   import { projects, registerProject } from '#lib/stores/project';
   import { EMPTY_BINDINGS, saveProjectIntegrations } from '#lib/stores/integrations';
   import type { Project } from '#lib/types/project';
@@ -37,27 +37,23 @@
   //   open:  [location] -> [identity]     -> [integrations]           (3 steps)
   //   clone: [source]   -> [identity]     -> [integrations] -> [dest] (4 steps)
 
-  const stepLabels: Record<typeof mode, string[]> = {
-    new:   [t('addProject.stepLabels.identity') as string,  t('addProject.stepLabels.integrations') as string, t('addProject.stepLabels.location') as string],
-    open:  [t('addProject.stepLabels.location') as string,  t('addProject.stepLabels.identity') as string,     t('addProject.stepLabels.integrations') as string],
-    clone: [t('addProject.stepLabels.source') as string,    t('addProject.stepLabels.identity') as string,     t('addProject.stepLabels.integrations') as string, t('addProject.stepLabels.destination') as string],
+  type StepId = 'identity' | 'integrations' | 'location' | 'source' | 'destination';
+
+  const STEPS: Record<typeof mode, StepId[]> = {
+    new:   ['identity', 'integrations', 'location'],
+    open:  ['location', 'identity', 'integrations'],
+    clone: ['source', 'identity', 'integrations', 'destination'],
   };
 
-  const modalTitles: Record<typeof mode, string[]> = {
-    new:   [t('addProject.modalTitles.nameYourProject') as string,    t('addProject.modalTitles.configureIntegrations') as string, t('addProject.modalTitles.chooseFolder') as string],
-    open:  [t('addProject.modalTitles.chooseFolder') as string,       t('addProject.modalTitles.nameYourProject') as string,       t('addProject.modalTitles.configureIntegrations') as string],
-    clone: [t('addProject.modalTitles.repositorySource') as string,   t('addProject.modalTitles.nameYourProject') as string,       t('addProject.modalTitles.configureIntegrations') as string, t('addProject.modalTitles.chooseDestination') as string],
-  };
-
-  const modeLabel: Record<typeof mode, string> = {
-    new:   t('addProject.modeLabels.new') as string,
-    open:  t('addProject.modeLabels.open') as string,
-    clone: t('addProject.modeLabels.clone') as string,
+  const STEP_HINTS: Partial<Record<StepId, string>> = {
+    integrations: t('addProject.hintIntegrations') as string,
+    location:     t('addProject.hintLocation') as string,
   };
 
   let step = 0;
-  $: totalSteps = stepLabels[mode].length;
-  $: isLastStep = step === totalSteps - 1;
+  $: steps = STEPS[mode];
+  $: current = steps[step];
+  $: isLastStep = step === steps.length - 1;
 
   let loading = false;
   let error = '';
@@ -68,18 +64,16 @@
   let color = '#6366f1';
   let gitProfileId = '';
   let cloneUrl = initialCloneUrl;
-  let cloneMethod: 'https' | 'ssh' = 'https';
   let bindings: ProjectIntegrations = EMPTY_BINDINGS;
   let openedRemoteUrl = '';
   let openedRemotePath = '';
 
-  $: isIdentityStep =
-    (mode === 'new' && step === 0) ||
-    (mode === 'open' && step === 1) ||
-    (mode === 'clone' && step === 1);
+  $: cloneProtocolHint = /^(git@|ssh:\/\/)/.test(cloneUrl.trim())
+    ? t('addProject.sshHint') as string
+    : /^https?:\/\//.test(cloneUrl.trim()) ? t('addProject.httpsHint') as string : '';
   $: remoteUrl = mode === 'clone' ? cloneUrl.trim() : openedRemoteUrl;
   $: hasBindings = bindings.tracker !== null || bindings.forge !== null || bindings.ci !== null;
-  $: if (mode === 'open' && isIdentityStep && path && path !== openedRemotePath) void resolveOpenedRemote(path);
+  $: if (mode === 'open' && current === 'identity' && path && path !== openedRemotePath) void resolveOpenedRemote(path);
 
   async function resolveOpenedRemote(target: string) {
     openedRemotePath = target;
@@ -118,34 +112,51 @@
     if (slug) name = slug;
   }
 
-  // -- canNext ----------------------------------------------------------------
-  $: canNext = (() => {
-    if (mode === 'new') {
-      if (step === 0) return name.trim().length > 0;
-      if (step === 1) return true;
-      return path.length > 0;
-    }
-    if (mode === 'open') {
-      if (step === 0) return path.length > 0;
-      if (step === 1) return name.trim().length > 0;
-      return true;
-    }
-    if (mode === 'clone') {
-      if (step === 0) return cloneUrl.trim().length > 0;
-      if (step === 1) return name.trim().length > 0;
-      if (step === 2) return true;
-      return path.length > 0;
-    }
-    return false;
-  })();
+  type Fields = { name: string; cloneUrl: string; path: string; linkedCount: number };
 
-  function next()  { if (canNext && !loading) step = Math.min(totalSteps - 1, step + 1); }
+  function isStepComplete(id: StepId, f: Fields): boolean {
+    if (id === 'identity') return f.name.trim().length > 0;
+    if (id === 'source') return f.cloneUrl.trim().length > 0;
+    if (id === 'location' || id === 'destination') return f.path.length > 0;
+    return true;
+  }
+
+  /** What the rail recalls of a step already passed. */
+  function stepSummary(id: StepId, f: Fields): string {
+    if (id === 'identity') return f.name.trim();
+    if (id === 'source') return parseRemoteUrl(f.cloneUrl)?.path || f.cloneUrl.trim();
+    if (id === 'location') return lastSegment(f.path);
+    if (id === 'destination') return `${lastSegment(f.path)}/${f.name.trim()}`;
+    return f.linkedCount === 0
+      ? t('addProject.noIntegration') as string
+      : (t('addProject.linkedIntegrations') as (n: number) => string)(f.linkedCount);
+  }
+
+  function lastSegment(value: string): string {
+    return value.trim().replace(/\/+$/, '').split('/').at(-1) ?? '';
+  }
+
+  $: linkedCount = [bindings.tracker, bindings.forge, bindings.ci].filter((b) => b !== null).length;
+  $: fields = { name, cloneUrl, path, linkedCount };
+  $: canNext = isStepComplete(current, fields);
+  $: canSubmit = steps.every((id) => isStepComplete(id, fields));
+
+  function next()  { if (canNext && !loading) step = Math.min(steps.length - 1, step + 1); }
   function back()  { if (!loading) { error = ''; step = Math.max(0, step - 1); } }
+  function goTo(index: number) { if (!loading && isReachable(index, fields)) { error = ''; step = index; } }
+
+  /** A step can be opened once every step before it holds what it needs. */
+  function isReachable(index: number, f: Fields): boolean {
+    return steps.slice(0, index).every((id) => isStepComplete(id, f));
+  }
+
+  let visited = new Set<number>([0]);
+  $: visited = visited.add(step);
   function close() { if (!loading) dispatch('close'); }
 
   /** Resolves the path (cloning first when needed), rejects duplicates, then registers the project. */
   async function submit() {
-    if (!canNext || loading) return;
+    if (!canSubmit || loading) return;
     loading = true;
     error = '';
     try {
@@ -178,158 +189,114 @@
 
   function handleKey(e: KeyboardEvent) {
     if (e.key === 'Escape' && !loading) close();
-    if (e.key === 'Enter' && canNext && !loading) { if (isLastStep) submit(); else next(); }
+    if (e.key === 'Enter' && (e.target as HTMLElement).closest('button')) return;
+    if (e.key === 'Enter' && canNext && !loading) { if (isLastStep) void submit(); else next(); }
   }
 </script>
+
+<svelte:window on:keydown={handleKey} />
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <div
   class="modal-backdrop"
   role="dialog"
   aria-modal="true"
+  aria-labelledby="ap-title"
   tabindex="-1"
   on:click={() => { if (!loading) close(); }}
-  on:keydown={handleKey}
+  on:keydown={() => {}}
 >
   <div class="modal ap-modal" on:click|stopPropagation role="presentation">
 
-    <!-- -- Head -- -->
-    <div class="modal-head">
-      <div>
-        <div class="step-count">
-          {modeLabel[mode]} · {(t('common.stepOf') as (s: number, t: number) => string)(step + 1, totalSteps)} - {stepLabels[mode][step]}
-        </div>
-        <h3>{modalTitles[mode][step]}</h3>
-      </div>
+    <div class="modal-head ap-head">
+      <h2 id="ap-title">{t(`addProject.modeLabels.${mode}`)}</h2>
       <button class="icon-btn close" on:click={close} aria-label={t('common.close') as string}>
         <Icon name="x" size={16}/>
       </button>
     </div>
 
-    <!-- -- Body -- -->
-    <div class="modal-body">
+    <div class="ap-main">
+      <ol class="ap-steps">
+        {#each steps as id, i (id)}
+          {@const isDone = i !== step && visited.has(i) && isStepComplete(id, fields)}
+          <li>
+            <button
+              class="ap-step"
+              class:is-done={isDone}
+              class:is-current={i === step}
+              disabled={i === step || loading || !isReachable(i, fields)}
+              aria-current={i === step ? 'step' : undefined}
+              on:click={() => goTo(i)}
+            >
+              <span class="ap-step-mark">
+                {#if isDone}<Icon name="check" size={13}/>{:else}{i + 1}{/if}
+              </span>
+              <span class="ap-step-text">
+                <span class="ap-step-label">{t(`addProject.stepLabels.${id}`)}</span>
+                {#if isDone}
+                  <span class="ap-step-sub" title={id === 'location' || id === 'destination' ? path : undefined}>
+                    {#if id === 'identity'}<span class="ap-swatch" style="background: {color}"></span>{/if}
+                    <span class="ap-step-value">{stepSummary(id, fields)}</span>
+                  </span>
+                {:else if id === 'integrations'}
+                  <span class="ap-step-sub">{t('addProject.optional')}</span>
+                {/if}
+              </span>
+            </button>
+          </li>
+        {/each}
+      </ol>
 
-      <!-- -- NEW - step 0: identity -- -->
-      {#if mode === 'new' && step === 0}
+      <div class="modal-body ap-body">
+        <h3 class:has-hint={STEP_HINTS[current]}>{t(`addProject.modalTitles.${current}`)}</h3>
+        {#if STEP_HINTS[current]}<p class="ap-hint">{STEP_HINTS[current]}</p>{/if}
 
-        <div class="form-section">
-          <label class="ap-label" for="new-name">
-            {t('addProject.projectName')} <span class="req">*</span>
-          </label>
-          <input
-            id="new-name"
-            class="ap-input"
-            bind:value={name}
-            placeholder={t('addProject.projectNamePlaceholder') as string}
-            autocomplete="off"
-          />
-        </div>
+        {#if current === 'identity'}
+          <div class="form-section">
+            <label class="ap-label" for="{mode}-name">{t('addProject.projectName')}</label>
+            <input
+              id="{mode}-name"
+              class="ap-input"
+              bind:value={name}
+              autocomplete="off"
+            />
+          </div>
 
-        <div class="form-section">
-          <div class="ap-label">{t('addProject.color')}</div>
-          <ProjectColorPicker bind:color idSuffix="new" />
-        </div>
+          <div class="form-section">
+            <div class="ap-label is-over-swatches">{t('addProject.color')}</div>
+            <ProjectColorPicker bind:color idSuffix={mode} />
+          </div>
 
-        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
+        {:else if current === 'integrations'}
+          <ProjectIntegrationsForm {remoteUrl} bind:bindings isTitled={false} />
 
-      <!-- -- NEW - step 1: integrations -- -->
-      {:else if mode === 'new' && step === 1}
+          <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
 
-        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
+        {:else if current === 'location' || current === 'destination'}
+          {#if current === 'destination'}
+            <label class="ap-label" for="ap-path">{t('addProject.parentFolder')}</label>
+          {/if}
+          <div class="path-row">
+            <input
+              id="ap-path"
+              aria-label={current === 'location' ? t('addProject.folder') as string : undefined}
+              class="ap-input mono"
+              bind:value={path}
+              on:blur={current === 'location' ? inferNameFromPath : undefined}
+              placeholder={t('addProject.pathInputPlaceholder') as string}
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="btn browse-btn" on:click={pickDirectory}>
+              <Icon name="folder" size={14}/> {t('addProject.browse')}
+            </button>
+          </div>
+          {#if current === 'destination' && path && name.trim()}
+            <p class="path-result">{t('addProject.clonedInto')} <span class="selectable">{path.replace(/\/+$/, '')}/{name.trim()}</span></p>
+          {/if}
 
-        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
-
-      <!-- -- NEW - step 2: location -- -->
-      {:else if mode === 'new' && step === 2}
-
-        <p class="ap-hint">{t('addProject.hintNew')}</p>
-        <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
-          <Icon name="folder" size={18}/>
-          <span class="dir-label">
-            {#if path}
-              <span class="dir-main">{t('addProject.folderSelectedMain')}</span>
-              <span class="dir-sub">{path}</span>
-            {:else}
-              <span class="dir-main">{t('addProject.browsMain')}</span>
-              <span class="dir-sub">{t('addProject.browseSub')}</span>
-            {/if}
-          </span>
-          {#if path}<Icon name="check" size={14}/>{/if}
-        </button>
-        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
-        <input
-          class="ap-input mono"
-          bind:value={path}
-          on:blur={inferNameFromPath}
-          placeholder={t('addProject.pathInputPlaceholder') as string}
-          autocomplete="off"
-          spellcheck="false"
-        />
-
-      <!-- -- OPEN - step 0: location -- -->
-      {:else if mode === 'open' && step === 0}
-
-        <p class="ap-hint">{t('addProject.hintOpen')}</p>
-        <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
-          <Icon name="folder" size={18}/>
-          <span class="dir-label">
-            {#if path}
-              <span class="dir-main">{t('addProject.folderSelectedMain')}</span>
-              <span class="dir-sub">{path}</span>
-            {:else}
-              <span class="dir-main">{t('addProject.browsMain')}</span>
-              <span class="dir-sub">{t('addProject.browseSub')}</span>
-            {/if}
-          </span>
-          {#if path}<Icon name="check" size={14}/>{/if}
-        </button>
-        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
-        <input
-          class="ap-input mono"
-          bind:value={path}
-          on:blur={inferNameFromPath}
-          placeholder={t('addProject.pathInputPlaceholder') as string}
-          autocomplete="off"
-          spellcheck="false"
-        />
-
-      <!-- -- OPEN - step 1: identity -- -->
-      {:else if mode === 'open' && step === 1}
-
-        <div class="form-section">
-          <label class="ap-label" for="open-name">
-            {t('addProject.projectName')} <span class="req">*</span>
-          </label>
-          <input
-            id="open-name"
-            class="ap-input"
-            bind:value={name}
-            placeholder={t('addProject.projectNamePlaceholder') as string}
-            autocomplete="off"
-          />
-        </div>
-
-        <div class="form-section">
-          <div class="ap-label">{t('addProject.color')}</div>
-          <ProjectColorPicker bind:color idSuffix="open" />
-        </div>
-
-        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
-
-      <!-- -- OPEN - step 2: integrations -- -->
-      {:else if mode === 'open' && step === 2}
-
-        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
-
-        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
-
-      <!-- -- CLONE - step 0: source -- -->
-      {:else if mode === 'clone' && step === 0}
-
-        <div class="form-section">
-          <label class="ap-label" for="clone-url">
-            {t('addProject.repoUrl')} <span class="req">*</span>
-          </label>
+        {:else if current === 'source'}
+          <label class="ap-label" for="clone-url">{t('addProject.repoUrl')}</label>
           <input
             id="clone-url"
             class="ap-input mono"
@@ -337,107 +304,20 @@
             on:blur={inferNameFromUrl}
             placeholder={t('addProject.repoUrlPlaceholder') as string}
             autocomplete="off"
+            spellcheck="false"
           />
-        </div>
+          {#if cloneProtocolHint}<p class="method-hint">{cloneProtocolHint}</p>{/if}
+        {/if}
 
-        <div class="form-section">
-          <div class="ap-label">{t('addProject.protocol')}</div>
-          <div class="method-row">
-            <button
-              class="method-btn {cloneMethod === 'https' ? 'active' : ''}"
-              on:click={() => cloneMethod = 'https'}
-            >
-              <Icon name="lock" size={14}/> HTTPS
-            </button>
-            <button
-              class="method-btn {cloneMethod === 'ssh' ? 'active' : ''}"
-              on:click={() => cloneMethod = 'ssh'}
-            >
-              <Icon name="key" size={14}/> SSH
-            </button>
+        {#if error}
+          <div class="ap-error" role="alert">
+            <Icon name="info" size={14}/> {error}
           </div>
-          <p class="method-hint">
-            {#if cloneMethod === 'https'}
-              {t('addProject.httpsHint')}
-            {:else}
-              {t('addProject.sshHint')}
-            {/if}
-          </p>
-        </div>
-
-      <!-- -- CLONE - step 1: identity -- -->
-      {:else if mode === 'clone' && step === 1}
-
-        <div class="form-section">
-          <label class="ap-label" for="clone-name">
-            {t('addProject.projectName')} <span class="req">*</span>
-          </label>
-          <input
-            id="clone-name"
-            class="ap-input"
-            bind:value={name}
-            placeholder={t('addProject.repoNamePlaceholder') as string}
-            autocomplete="off"
-          />
-        </div>
-
-        <div class="form-section">
-          <div class="ap-label">{t('addProject.color')}</div>
-          <ProjectColorPicker bind:color idSuffix="clone" />
-        </div>
-
-        <ProjectPreviewPill name={name || t('addProject.previewFallback') as string} {color} />
-
-      <!-- -- CLONE - step 2: integrations -- -->
-      {:else if mode === 'clone' && step === 2}
-
-        <ProjectIntegrationsForm {remoteUrl} bind:bindings />
-
-        <GitProfileSelect bind:value={gitProfileId} label={t('addProject.gitProfile') as string} hint={t('addProject.gitProfileHint') as string} />
-
-      <!-- -- CLONE - step 3: destination -- -->
-      {:else if mode === 'clone' && step === 3}
-
-        <p class="ap-hint">{t('addProject.hintClone')}</p>
-        <button class="dir-btn {path ? 'has-path' : ''}" on:click={pickDirectory}>
-          <Icon name="folder" size={18}/>
-          <span class="dir-label">
-            {#if path}
-              <span class="dir-main">{t('addProject.destinationSelectedMain')}</span>
-              <span class="dir-sub">{path}/{name}</span>
-            {:else}
-              <span class="dir-main">{t('addProject.browsMain')}</span>
-              <span class="dir-sub">{t('addProject.browseSub')}</span>
-            {/if}
-          </span>
-          {#if path}<Icon name="check" size={14}/>{/if}
-        </button>
-        <div class="path-or"><span>{t('addProject.orTypePath')}</span></div>
-        <input
-          class="ap-input mono"
-          bind:value={path}
-          placeholder={t('addProject.pathInputPlaceholder') as string}
-          autocomplete="off"
-          spellcheck="false"
-        />
-
-      {/if}
-
-      {#if error}
-        <div class="ap-error" role="alert">
-          <Icon name="info" size={14}/> {error}
-        </div>
-      {/if}
-
+        {/if}
+      </div>
     </div>
 
-    <!-- -- Foot -- -->
     <div class="modal-foot">
-      <div class="step-dots">
-        {#each { length: totalSteps } as _, i}
-          <span class="{i === step ? 'active' : i < step ? 'done' : ''}"></span>
-        {/each}
-      </div>
       <div class="spacer"></div>
       {#if step > 0}
         <button class="btn ghost" on:click={back} disabled={loading}>{t('common.back')}</button>
@@ -447,14 +327,14 @@
           {t('common.continue')} <Icon name="chev-r" size={14}/>
         </button>
       {:else}
-        <button class="btn primary" disabled={!canNext || loading} on:click={submit}>
+        <button class="btn primary" disabled={!canSubmit || loading} on:click={submit}>
           {#if loading}
             <Spinner />
             {#if mode === 'clone'}{t('common.cloning')}{:else}{t('common.creating')}{/if}
           {:else if mode === 'clone'}
-            <Icon name="download" size={14}/> {t('addProject.cloneAndOpen')}
+            {t('addProject.cloneAndOpen')}
           {:else}
-            <Icon name="sparkles" size={14}/> {t('addProject.addProject')}
+            {t('addProject.addProject')}
           {/if}
         </button>
       {/if}
@@ -464,140 +344,141 @@
 </div>
 
 <style>
-  .ap-modal { width: min(520px, 92vw); }
-
-  /* -- Labels & inputs -- */
-  .ap-hint {
-    font-size: 13px;
-    color: var(--fg-3);
-    margin: 0 0 20px;
-    line-height: 1.55;
+  .ap-modal {
+    width: min(760px, 92vw);
+    height: min(560px, 86vh);
   }
-  .form-section { margin-bottom: 22px; }
+  .ap-head { padding-block: 14px; }
+  .ap-head h2 {
+    margin: 0;
+    line-height: 1;
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--fg-0);
+  }
+
+  .ap-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  /* -- Steps rail -- */
+  .ap-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 20px 0;
+    list-style: none;
+    background: var(--bg-0);
+    border-right: 1px solid var(--stroke-0);
+  }
+  .ap-step {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    padding: 7px 20px 7px 22px;
+    box-shadow: inset 2px 0 0 transparent;
+    color: var(--fg-4);
+    text-align: left;
+  }
+  .ap-step:disabled { cursor: default; opacity: 1; }
+  .ap-step:not(:disabled):hover { color: var(--fg-0); }
+  .ap-step:not(:disabled) { color: var(--fg-3); }
+  .ap-step.is-done { color: var(--fg-2); }
+  .ap-step.is-current { color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
+  .ap-step-mark {
+    display: flex;
+    align-items: center;
+    height: 18px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ap-step.is-done .ap-step-mark { color: var(--fg-3); }
+  .ap-step-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ap-step-label { font-size: 13px; line-height: 18px; }
+  .ap-step.is-current .ap-step-label { font-weight: 600; }
+  .ap-step-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 11.5px;
+    color: var(--fg-3);
+  }
+  .ap-step-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ap-swatch { flex: none; width: 7px; height: 7px; border-radius: 2px; }
+
+  /* -- Step content -- */
+  .ap-body { padding: 24px 32px; }
+  .ap-body h3 {
+    margin: 0 0 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .ap-body h3.has-hint { margin-bottom: 4px; }
+  .ap-hint {
+    max-width: 60ch;
+    margin: 0 0 24px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--fg-3);
+  }
+  .form-section { margin-bottom: 28px; }
   .ap-label {
     display: block;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--fg-3);
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-2);
   }
-  .req { color: var(--accent); }
+
+  .ap-label.is-over-swatches { margin-bottom: 14px; }
 
   .ap-input {
     width: 100%;
     box-sizing: border-box;
+    height: 32px;
+    padding: 0 10px;
     background: var(--bg-0);
     border: 1px solid var(--stroke-1);
     border-radius: var(--r-sm);
-    padding: 10px 12px;
-    font-size: 14px;
-    color: var(--fg-0);
     font-family: var(--font-ui);
-    outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .ap-input:focus {
-    border-color: var(--accent-line);
-    box-shadow: 0 0 0 3px var(--accent-weak);
-  }
-  .ap-input::placeholder { color: var(--fg-4); opacity: 1; }
-  .ap-input.mono { font-family: var(--font-mono); font-size: 13px; }
-
-  /* -- Directory button -- */
-  .dir-btn {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 16px 18px;
-    background: var(--bg-0);
-    border: 1.5px dashed var(--stroke-1);
-    border-radius: var(--r-md);
-    cursor: pointer;
-    color: var(--fg-2);
-    text-align: left;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
-  }
-  .dir-btn:hover, .dir-btn:focus-visible {
-    border-color: var(--accent-line);
-    background: var(--accent-weak);
+    font-size: 13px;
     color: var(--fg-0);
     outline: none;
   }
-  .dir-btn.has-path {
-    border-style: solid;
-    border-color: var(--stroke-1);
-    color: var(--fg-1);
-  }
-  .dir-label { flex: 1; min-width: 0; }
-  .dir-main { display: block; font-size: 13px; font-weight: 500; }
-  .dir-sub {
-    display: block;
-    font-size: 11px;
-    font-family: var(--font-mono);
+  .ap-input:focus { border-color: var(--accent-line); }
+  .ap-input::placeholder { color: var(--fg-4); opacity: 1; }
+  .ap-input.mono { font-family: var(--font-mono); font-size: 12.5px; }
+
+  .path-row { display: flex; gap: 8px; }
+  .browse-btn { flex: none; height: 32px; }
+  .path-result {
+    margin: 8px 0 0;
+    font-size: 12px;
     color: var(--fg-3);
-    margin-top: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
+  .path-result span { font-family: var(--font-mono); color: var(--fg-1); }
 
-  /* -- Path or divider -- */
-  .path-or {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 0 12px;
-    color: var(--fg-4);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .path-or::before, .path-or::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--stroke-1);
-  }
+  .method-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-3); }
 
-  /* -- Clone method -- */
-  .method-row { display: flex; gap: 8px; margin-bottom: 10px; }
-  .method-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    border-radius: var(--r-sm);
-    border: 1px solid var(--stroke-1);
-    background: var(--bg-0);
-    color: var(--fg-2);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.1s, border-color 0.1s, color 0.1s;
-  }
-  .method-btn:hover { background: var(--bg-3); color: var(--fg-0); }
-  .method-btn.active { background: var(--accent-weak); border-color: var(--accent-line); color: var(--accent); }
-  .method-hint { font-size: 12px; color: var(--fg-3); margin: 0; line-height: 1.5; }
-
-
-  /* -- Error banner -- */
   .ap-error {
     display: flex;
     align-items: flex-start;
     gap: 8px;
     margin-top: 16px;
-    padding: 10px 14px;
+    padding: 10px 12px;
     background: var(--danger-weak, oklch(0.28 0.06 15));
     border: 1px solid var(--danger, oklch(0.62 0.18 15));
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
     font-size: 12px;
-    color: var(--danger, oklch(0.75 0.18 15));
     line-height: 1.5;
+    color: var(--danger, oklch(0.75 0.18 15));
   }
-
-
 </style>

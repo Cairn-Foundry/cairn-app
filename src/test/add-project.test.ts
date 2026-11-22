@@ -64,13 +64,13 @@ const primary = () =>
 	document.querySelector(".modal-foot .btn.primary") as HTMLButtonElement;
 const backButton = () =>
 	document.querySelector(".modal-foot .btn.ghost") as HTMLButtonElement;
-const stepCount = () =>
-	document.querySelector(".step-count")?.textContent?.trim() ?? "";
+const currentStep = () =>
+	document
+		.querySelector(".ap-step.is-current .ap-step-mark")
+		?.textContent?.trim() ?? "";
 const heading = () => document.querySelector("h3")?.textContent?.trim() ?? "";
-const dots = () =>
-	Array.from(document.querySelectorAll(".step-dots span")).map(
-		(d) => d.className,
-	);
+const railSteps = () =>
+	Array.from(document.querySelectorAll<HTMLButtonElement>(".ap-step"));
 const field = (id: string) =>
 	document.getElementById(id) as HTMLInputElement | null;
 const pathField = () =>
@@ -110,14 +110,14 @@ describe("AddProject", () => {
 		it("names the project before asking where it goes", () => {
 			mount({ mode: "new" });
 			expect(field("new-name")).not.toBeNull();
-			expect(stepCount()).toContain("1");
+			expect(currentStep()).toBe("1");
 		});
 
 		/** Opening an existing folder starts from the folder itself. */
 		it("asks for the folder first when opening one", () => {
 			mount({ mode: "open" });
 			expect(field("open-name")).toBeNull();
-			expect(document.querySelector(".dir-btn")).not.toBeNull();
+			expect(document.querySelector(".browse-btn")).not.toBeNull();
 		});
 
 		it("asks for the repository first when cloning", () => {
@@ -127,13 +127,12 @@ describe("AddProject", () => {
 
 		it("walks a new project through three steps", async () => {
 			mount({ mode: "new" });
-			expect(stepCount()).toMatch(/1.*3|3/);
-			expect(dots()).toHaveLength(3);
+			expect(railSteps()).toHaveLength(3);
 		});
 
 		it("walks a clone through four steps", () => {
 			mount({ mode: "clone" });
-			expect(dots()).toHaveLength(4);
+			expect(railSteps()).toHaveLength(4);
 		});
 
 		it("moves to the next step once it can", async () => {
@@ -141,7 +140,7 @@ describe("AddProject", () => {
 			await fill(field("new-name") as HTMLInputElement, "Cairn");
 			await advance();
 			expect(field("new-name")).toBeNull();
-			expect(dots()[1]).toBe("active");
+			expect(currentStep()).toBe("2");
 		});
 
 		it("goes back to the step before", async () => {
@@ -151,6 +150,42 @@ describe("AddProject", () => {
 			await userEvent.click(backButton());
 			await settle();
 			expect((field("new-name") as HTMLInputElement).value).toBe("Cairn");
+		});
+
+		/** The rail recalls what each passed step holds, and takes the user back to it. */
+		it("sums up a passed step in the rail and goes back to it", async () => {
+			mount({ mode: "new" });
+			await fill(field("new-name") as HTMLInputElement, "Cairn");
+			await advance();
+			expect(railSteps()[0].textContent).toContain("Cairn");
+			expect(railSteps()[1].textContent).toContain("Optional");
+			await userEvent.click(railSteps()[0]);
+			await settle();
+			expect((field("new-name") as HTMLInputElement).value).toBe("Cairn");
+		});
+
+		it("jumps ahead once every step before is filled", async () => {
+			mount({ mode: "new" });
+			expect(railSteps()[2].disabled).toBe(true);
+			await fill(field("new-name") as HTMLInputElement, "Cairn");
+			await userEvent.click(railSteps()[2]);
+			await settle();
+			expect(pathField()).not.toBeNull();
+			expect(currentStep()).toBe("3");
+		});
+
+		/** A passed step loses its check, and the steps after it close, as soon as it is emptied. */
+		it("keeps the checks in step with the fields", async () => {
+			mount({ mode: "new" });
+			await fill(field("new-name") as HTMLInputElement, "Cairn");
+			await advance();
+			await userEvent.click(railSteps()[0]);
+			await settle();
+			expect(railSteps()[1].classList.contains("is-done")).toBe(true);
+			await userEvent.clear(field("new-name") as HTMLInputElement);
+			await settle();
+			expect(railSteps()[1].disabled).toBe(true);
+			expect(railSteps()[2].disabled).toBe(true);
 		});
 
 		it("offers no way back from the first step", () => {
@@ -216,7 +251,9 @@ describe("AddProject", () => {
 	describe("filling the name in for the user", () => {
 		it("takes the name from the folder that was picked", async () => {
 			mount({ mode: "open" });
-			await userEvent.click(document.querySelector(".dir-btn") as HTMLElement);
+			await userEvent.click(
+				document.querySelector(".browse-btn") as HTMLElement,
+			);
 			await settle();
 			await advance();
 			expect((field("open-name") as HTMLInputElement).value).toBe("folder");
@@ -236,13 +273,17 @@ describe("AddProject", () => {
 		/** A name the user typed is never overwritten by a guess. */
 		it("leaves a name the user typed alone", async () => {
 			mount({ mode: "open" });
-			await userEvent.click(document.querySelector(".dir-btn") as HTMLElement);
+			await userEvent.click(
+				document.querySelector(".browse-btn") as HTMLElement,
+			);
 			await settle();
 			await advance();
 			await fill(field("open-name") as HTMLInputElement, "Mine");
 			await userEvent.click(backButton());
 			await settle();
-			await userEvent.click(document.querySelector(".dir-btn") as HTMLElement);
+			await userEvent.click(
+				document.querySelector(".browse-btn") as HTMLElement,
+			);
 			await settle();
 			await advance();
 			expect((field("open-name") as HTMLInputElement).value).toBe("Mine");
@@ -361,15 +402,22 @@ describe("AddProject", () => {
 			expect(onCreated).not.toHaveBeenCalled();
 		});
 
-		it("offers both protocols for the repository url", async () => {
+		/** The protocol is the url's own; the step only says what git will need for it. */
+		it("says what each protocol of the url needs", async () => {
 			mount({ mode: "clone" });
-			const buttons = Array.from(
-				document.querySelectorAll<HTMLElement>(".method-btn"),
+			const hint = () =>
+				document.querySelector(".method-hint")?.textContent ?? "";
+			expect(hint()).toBe("");
+			await fill(
+				field("clone-url") as HTMLInputElement,
+				"git@host:team/repo.git",
 			);
-			expect(buttons).toHaveLength(2);
-			await userEvent.click(buttons[1]);
-			expect(buttons[1].classList.contains("active")).toBe(true);
-			expect(buttons[0].classList.contains("active")).toBe(false);
+			expect(hint()).toContain("SSH");
+			await fill(
+				field("clone-url") as HTMLInputElement,
+				"https://host/team/repo.git",
+			);
+			expect(hint()).toContain("HTTPS");
 		});
 	});
 

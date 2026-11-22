@@ -23,6 +23,8 @@
   export let projectId = '';
   export let remoteUrl = '';
   export let bindings: ProjectIntegrations;
+  /** Off where the surrounding step already says what the block is for. */
+  export let isTitled = true;
 
   const NONE = '';
   const PICKER_DEBOUNCE_MS = 250;
@@ -210,8 +212,10 @@
 
 {#if $connections.length > 0}
   <div class="pi-block">
-    <div class="pi-title">{t('integrations.bindings.title')}</div>
-    <p class="pi-desc">{t('integrations.bindings.desc')}</p>
+    {#if isTitled}
+      <div class="pi-title">{t('integrations.bindings.title')}</div>
+      <p class="pi-desc">{t('integrations.bindings.desc')}</p>
+    {/if}
 
     {#if showSuggestion}
       <div class="pi-suggest">
@@ -369,7 +373,7 @@
   </div>
 {:else if isLoaded}
   <div class="pi-block">
-    <div class="pi-title">{t('integrations.bindings.title')}</div>
+    {#if isTitled}<div class="pi-title">{t('integrations.bindings.title')}</div>{/if}
     <div class="pi-empty">
       <Icon name="link" size={16}/>
       <p>{t('integrations.bindings.empty')}</p>
