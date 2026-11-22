@@ -13,12 +13,14 @@
   export let title: string;
   export let text: string;
   export let clearLabel: string;
+  /** Smaller drawing and spacing, for a narrow column such as a master list. */
+  export let isCompact = false;
 
   const dispatch = createEventDispatcher<{ clear: void }>();
 </script>
 
-<section class="search-empty" aria-live="polite">
-  <svg class="drawing" width="220" height="140" viewBox="0 0 220 140" aria-hidden="true">
+<section class="search-empty" class:is-compact={isCompact} aria-live="polite">
+  <svg class="drawing" width={isCompact ? 150 : 220} height={isCompact ? 96 : 140} viewBox="0 0 220 140" aria-hidden="true">
     <line class="ground" x1="24" y1="122" x2="196" y2="122"/>
     <path class="stone s0" d="M40 117c1-6 9-9 18-9s16 3 16 8-6 6-17 6-18-2-17-5z"/>
     <path class="stone s2" d="M150 118c1-4 6-7 12-7s10 3 10 6-4 5-11 5-12-1-11-4z"/>
@@ -63,4 +65,9 @@
     text-wrap: balance;
   }
   .btn { margin-top: 16px; }
+  .is-compact { padding-block: 32px 16px; }
+  .is-compact .drawing { margin-bottom: 12px; }
+  .is-compact h2 { font-size: 13px; }
+  .is-compact p { font-size: 12px; }
+  .is-compact .btn { margin-top: 12px; }
 </style>

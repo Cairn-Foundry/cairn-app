@@ -1087,8 +1087,12 @@ export const fr = {
 		page: "Intégrations",
 		addConnection: "Ajouter une connexion",
 		searchPlaceholder: "Rechercher une connexion",
-		noResults: "Aucune connexion ne correspond à cette recherche.",
+		noResults: "Aucune connexion ne correspond",
+		noResultsText: (q: string) =>
+			`Rien ne correspond à "${q}" dans le nom, le compte ou le serveur de vos connexions.`,
 		noConnections: "Aucune connexion pour l'instant",
+		pickConnection:
+			"Choisissez une connexion dans la liste pour la voir et la modifier.",
 		noConnectionsBody:
 			"Ajoutez une connexion GitLab, GitHub ou Jira pour démarrer des instances depuis des tickets, créer des merge requests et suivre les pipelines.",
 		kind: "Service",
@@ -1097,12 +1101,14 @@ export const fr = {
 		email: "E-mail",
 		test: "Tester",
 		testOk: "La connexion fonctionne",
-		identity: "Connecté en tant que",
 		scopes: "Portées requises",
 		createToken: "Créer un jeton",
 		remove: "Supprimer",
-		removeConfirm: (label: string) =>
-			`Supprimer la connexion ${label} ? Les projets qui y sont liés perdent leur suivi de tickets, leur forge et leur CI.`,
+		removeTitle: (label: string) => `Supprimer ${label} ?`,
+		removeProjectsTitle: "Projets qui l'utilisent",
+		removeNoProject: "Aucun projet n'utilise cette connexion.",
+		removeTokenNote: "Son jeton est effacé de cette machine.",
+		removeAction: "Supprimer la connexion",
 		noIdentity: "Pas encore testée",
 		connectedOn: (host: string) => `sur ${host}`,
 		status: {
@@ -1125,7 +1131,6 @@ export const fr = {
 			baseUrl: "URL du serveur",
 			token: "Jeton d'accès personnel",
 			email: "E-mail",
-			help: "Créez un jeton sur le service, puis collez-le ici.",
 			jiraGlobalKey:
 				"Jira demande un jeton d'API global, et non un jeton limité à une portée : un jeton limité est refusé par l'API REST utilisée par Cairn Foundry.",
 			scopes: "Portées requises",
@@ -2911,12 +2916,21 @@ export const fr = {
 	},
 
 	deleteProject: {
-		heading: "Confirmer la suppression",
-		title: (name: string) => `Supprimer "${name}" ?`,
-		description:
-			"Cela supprime le projet de Cairn Foundry et efface toutes ses instances et worktrees.",
-		filesNotTouched: "Vos fichiers dans",
-		filesNotTouchedSuffix: "ne seront pas modifiés.",
+		title: (name: string) => `Supprimer ${name} ?`,
+		removedTitle: "Supprimé avec lui",
+		instances: (n: number) =>
+			n === 1
+				? "1 instance et son worktree"
+				: `${n} instances et leurs worktrees`,
+		uncommitted: (n: number, total: number) =>
+			total === 1
+				? "Elle a des modifications non commitées, perdues avec elle."
+				: n === 1
+					? "L'une d'elles a des modifications non commitées, perdues avec elle."
+					: `${n} d'entre elles ont des modifications non commitées, perdues avec elles.`,
+		cairnData:
+			"Sa liste de conversations, ses terminaux et ses réglages dans Cairn",
+		keptNote: "Le dossier et son dépôt git restent tels quels sur le disque.",
 		deleteProject: "Supprimer le projet",
 	},
 

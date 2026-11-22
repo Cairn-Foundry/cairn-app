@@ -49,6 +49,26 @@ function languageServer(
 import type { ProjectFolder } from "#lib/types/project";
 import { instance, project } from "./fixtures";
 
+const loadedInstances = vi.hoisted(() => {
+	let value: Record<string, Instance[]> = {};
+	const subscribers = new Set<(v: Record<string, Instance[]>) => void>();
+	return {
+		subscribe(run: (v: Record<string, Instance[]>) => void) {
+			subscribers.add(run);
+			run(value);
+			return () => subscribers.delete(run);
+		},
+		set(next: Record<string, Instance[]>) {
+			value = next;
+			for (const run of subscribers) run(value);
+		},
+	};
+});
+vi.mock("#lib/stores/instance", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	loadedInstances: { subscribe: loadedInstances.subscribe },
+}));
+
 /**
  * The confirmation modals share one contract: they ask before a destructive
  * action, they never act on their own, and they can be dismissed four ways.
@@ -338,6 +358,35 @@ describe("what each modal says beyond the shared contract", () => {
 	it("DeleteProjectModal names the path of the project", () => {
 		render(DeleteProjectModal, { props: { project: project("my-project") } });
 		expect(body().textContent).toContain("/repos/my-project");
+	});
+
+	/** The worktrees go with the project, and with them any work not committed. */
+	it("DeleteProjectModal lists the instances deleted with the project", async () => {
+		const { worktreeStates, worktreeKey } = await import(
+			"#lib/stores/project-overview"
+		);
+		loadedInstances.set({
+			"my-project": [
+				instance("i1", "my-project", { branch: "feat/parser" }),
+				instance("i2", "my-project", { branch: "fix/login" }),
+			],
+		});
+		worktreeStates.set({
+			[worktreeKey("my-project", "i1")]: {
+				isGitRepo: true,
+				branch: "feat/parser",
+				added: 3,
+				removed: 1,
+			},
+		});
+		render(DeleteProjectModal, { props: { project: project("my-project") } });
+		expect(body().textContent).toContain("feat/parser");
+		expect(body().textContent).toContain("fix/login");
+		expect(document.querySelector(".dp-warn")?.textContent).toContain(
+			"1 of them",
+		);
+		loadedInstances.set({});
+		worktreeStates.set({});
 	});
 
 	/** What the command will actually run is what makes the choice informed. */

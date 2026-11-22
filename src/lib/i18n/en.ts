@@ -1066,8 +1066,11 @@ export const en = {
 		page: "Integrations",
 		addConnection: "Add a connection",
 		searchPlaceholder: "Search a connection",
-		noResults: "No connection matches that search.",
+		noResults: "No connection matches",
+		noResultsText: (q: string) =>
+			`Nothing matches "${q}" in the name, account or server of your connections.`,
 		noConnections: "No connection yet",
+		pickConnection: "Pick a connection in the list to see and edit it.",
 		noConnectionsBody:
 			"Add a GitLab, GitHub or Jira connection to start instances from tickets, create merge requests and follow pipelines.",
 		kind: "Service",
@@ -1076,12 +1079,14 @@ export const en = {
 		email: "Email",
 		test: "Test",
 		testOk: "Connection works",
-		identity: "Signed in as",
 		scopes: "Required scopes",
 		createToken: "Create a token",
 		remove: "Remove",
-		removeConfirm: (label: string) =>
-			`Remove the connection ${label}? Projects bound to it lose their tracker, forge and CI.`,
+		removeTitle: (label: string) => `Remove ${label}?`,
+		removeProjectsTitle: "Projects that use it",
+		removeNoProject: "No project uses this connection.",
+		removeTokenNote: "Its token is deleted from this machine.",
+		removeAction: "Remove the connection",
 		noIdentity: "Not tested yet",
 		connectedOn: (host: string) => `on ${host}`,
 		status: {
@@ -1104,7 +1109,6 @@ export const en = {
 			baseUrl: "Server URL",
 			token: "Personal access token",
 			email: "Email",
-			help: "Create a token on the service, then paste it here.",
 			jiraGlobalKey:
 				"Jira requires a global API token, not a scoped one: a scoped token is rejected by the REST API Cairn Foundry uses.",
 			scopes: "Required scopes",
@@ -2863,13 +2867,21 @@ export const en = {
 	},
 
 	deleteProject: {
-		heading: "Confirm deletion",
-		title: (name: string) => `Remove "${name}"?`,
-		description:
-			"This removes the project from Cairn Foundry and deletes all its instances and worktrees.",
-		filesNotTouched: "Your files at",
-		filesNotTouchedSuffix: "will not be touched.",
-		deleteProject: "Delete project",
+		title: (name: string) => `Remove ${name}?`,
+		removedTitle: "Deleted with it",
+		instances: (n: number) =>
+			n === 1
+				? "1 instance and its worktree"
+				: `${n} instances and their worktrees`,
+		uncommitted: (n: number, total: number) =>
+			total === 1
+				? "It has uncommitted changes, lost with it."
+				: n === 1
+					? "1 of them has uncommitted changes, lost with it."
+					: `${n} of them have uncommitted changes, lost with them.`,
+		cairnData: "Its conversation list, terminals and settings in Cairn",
+		keptNote: "The folder and its git repository stay as they are on disk.",
+		deleteProject: "Remove the project",
 	},
 
 	deleteInstance: {

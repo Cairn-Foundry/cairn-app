@@ -445,7 +445,7 @@ describe("ProjectsSection", () => {
 			await userEvent.click(menuItem(/delete|remove|supprimer/i));
 			await settle();
 			await userEvent.click(
-				document.querySelector(".modal .btn.danger") as HTMLElement,
+				document.querySelector(".modal .cm-confirm") as HTMLElement,
 			);
 			await settle();
 			expect(unregisterProject).toHaveBeenCalledWith("p1");

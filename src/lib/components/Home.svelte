@@ -105,13 +105,7 @@
       />
 
     {:else if activeSection === 'integrations'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('integrations.title')}</h1>
-        <div class="sub">{t('integrations.subtitle')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <IntegrationsSection />
-      </div>
+      <IntegrationsSection />
 
     {:else if activeSection === 'conversations'}
       <div class="home-hero" style="padding-bottom: 0">

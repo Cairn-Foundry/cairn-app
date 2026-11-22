@@ -68,19 +68,18 @@ function descriptor(kind = "github"): IntegrationKindDescriptor {
 }
 
 const rows = () =>
-	Array.from(document.querySelectorAll<HTMLElement>(".ag-item"));
+	Array.from(document.querySelectorAll<HTMLElement>(".in-item:not(.in-add)"));
 const rowFor = (label: string) =>
 	rows().find((r) =>
-		r.querySelector(".ag-item-name")?.textContent?.trim().startsWith(label),
+		r.querySelector(".in-item-name")?.textContent?.trim().startsWith(label),
 	) as HTMLElement;
-const dotIn = (row: HTMLElement) => row.querySelector(".ag-dot") as HTMLElement;
-const addButton = () =>
-	document.querySelector(".master-actions .icon-btn:last-child") as HTMLElement;
-const emptyNote = () => document.querySelector(".ag-master-empty");
+const dotIn = (row: HTMLElement) => row.querySelector(".in-dot") as HTMLElement;
+const addButton = () => document.querySelector(".in-add") as HTMLElement;
+const emptyNote = () => document.querySelector(".search-empty, .in-empty");
 const labelField = () =>
-	document.querySelector(".ag-detail input") as HTMLInputElement;
+	document.querySelector(".in-detail input") as HTMLInputElement;
 const detailButtons = () =>
-	Array.from(document.querySelectorAll<HTMLButtonElement>(".ag-detail .btn"));
+	Array.from(document.querySelectorAll<HTMLButtonElement>(".in-detail .btn"));
 /** The form offers "Test" (which saves then tests) and "Save anyway". */
 const detailButtonNamed = (pattern: RegExp) =>
 	detailButtons().find((b) =>
@@ -133,7 +132,7 @@ describe("IntegrationsSection", () => {
 			]);
 			render(IntegrationsSection, {});
 			await settle();
-			expect(rows()[0].querySelector(".ag-item-sub")?.textContent).toBe(
+			expect(rows()[0].querySelector(".in-item-sub")?.textContent).toBe(
 				"alice",
 			);
 		});
@@ -145,7 +144,7 @@ describe("IntegrationsSection", () => {
 			]);
 			render(IntegrationsSection, {});
 			await settle();
-			expect(rows()[0].querySelector(".ag-item-sub")?.textContent).toBe(
+			expect(rows()[0].querySelector(".in-item-sub")?.textContent).toBe(
 				"git.example.com",
 			);
 		});
@@ -155,7 +154,7 @@ describe("IntegrationsSection", () => {
 			render(IntegrationsSection, {});
 			await settle();
 			const search = document.querySelector(
-				".ag-master input",
+				".in-list input",
 			) as HTMLInputElement;
 			await userEvent.type(search, "alph");
 			expect(rows()).toHaveLength(1);
@@ -166,7 +165,7 @@ describe("IntegrationsSection", () => {
 			render(IntegrationsSection, {});
 			await settle();
 			const search = document.querySelector(
-				".ag-master input",
+				".in-list input",
 			) as HTMLInputElement;
 			await userEvent.type(search, "zzz");
 			expect(rows()).toHaveLength(0);
@@ -206,11 +205,9 @@ describe("IntegrationsSection", () => {
 			await settle();
 			expect(dotIn(rows()[0]).classList.contains("ok")).toBe(true);
 
-			// The list row's own test button reaches runTest for that connection.
-			const testButton = rows()[0].parentElement?.querySelector(
-				".icon-btn:not(.delete)",
-			) as HTMLElement;
-			await userEvent.click(testButton);
+			await userEvent.click(rows()[0]);
+			await tick();
+			await userEvent.click(detailButtonNamed(/^test$/i));
 			await settle();
 			await settle();
 			expect(dotIn(rowFor("a")).classList.contains("ko")).toBe(true);
@@ -218,6 +215,17 @@ describe("IntegrationsSection", () => {
 	});
 
 	describe("adding a connection", () => {
+		/** The connection being added joins the list, so the others stay in view. */
+		it("lists the connection being added beside the others", async () => {
+			connections.set([connection("a")]);
+			render(IntegrationsSection, {});
+			await settle();
+			await userEvent.click(addButton());
+			await tick();
+			expect(rows()).toHaveLength(2);
+			expect(rows()[1].classList.contains("is-active")).toBe(true);
+		});
+
 		/** The form opens named after its kind, so it is never nameless. */
 		it("opens a form prefilled from the kind", async () => {
 			render(IntegrationsSection, {});
@@ -248,7 +256,7 @@ describe("IntegrationsSection", () => {
 			await userEvent.click(addButton());
 			await tick();
 			const inputs = Array.from(
-				document.querySelectorAll<HTMLInputElement>(".ag-detail input"),
+				document.querySelectorAll<HTMLInputElement>(".in-detail input"),
 			);
 			await userEvent.type(inputs[0], "My GitHub");
 			await userEvent.type(inputs[2], "a-token");
@@ -272,7 +280,7 @@ describe("IntegrationsSection", () => {
 			await userEvent.click(addButton());
 			await tick();
 			const inputs = Array.from(
-				document.querySelectorAll<HTMLInputElement>(".ag-detail input"),
+				document.querySelectorAll<HTMLInputElement>(".in-detail input"),
 			);
 			await userEvent.clear(inputs[1]);
 			await userEvent.type(inputs[1], "not-a-url");
@@ -303,10 +311,11 @@ describe("IntegrationsSection", () => {
 			connections.set([connection("a")]);
 			render(IntegrationsSection, {});
 			await settle();
-			const remove = rows()[0].parentElement?.querySelector(
-				".icon-btn.delete",
-			) as HTMLElement;
-			await userEvent.click(remove);
+			await userEvent.click(rows()[0]);
+			await tick();
+			await userEvent.click(
+				document.querySelector(".in-icon-btn.delete") as HTMLElement,
+			);
 			await tick();
 			expect(deleteIntegrationConnection).not.toHaveBeenCalled();
 		});
@@ -315,13 +324,14 @@ describe("IntegrationsSection", () => {
 			connections.set([connection("a")]);
 			render(IntegrationsSection, {});
 			await settle();
-			const remove = rows()[0].parentElement?.querySelector(
-				".icon-btn.delete",
-			) as HTMLElement;
-			await userEvent.click(remove);
+			await userEvent.click(rows()[0]);
+			await tick();
+			await userEvent.click(
+				document.querySelector(".in-icon-btn.delete") as HTMLElement,
+			);
 			await tick();
 			const confirm = Array.from(
-				document.querySelectorAll<HTMLElement>(".btn.danger"),
+				document.querySelectorAll<HTMLElement>(".cm-confirm"),
 			).pop() as HTMLElement;
 			await userEvent.click(confirm);
 			await settle();

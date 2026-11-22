@@ -307,6 +307,94 @@ function previewTicket(projectId: string, index: number) {
 	};
 }
 
+const TOKEN_FIELD = {
+	key: "token",
+	labelKey: "integrations.token",
+	secret: true,
+};
+
+/** The catalogue `integration_kinds` returns, as the backend declares it. */
+const INTEGRATION_KINDS = [
+	{
+		kind: "gitlab",
+		label: "GitLab",
+		icon: "gitlab",
+		defaultBaseUrl: "https://gitlab.com",
+		credentialFields: [TOKEN_FIELD],
+		tokenHelpUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
+		tokenHelpPath: "/-/user_settings/personal_access_tokens",
+		requiredScopes: ["api"],
+		provides: ["tracker", "forge", "ci"],
+		terms: { mergeRequest: "mr" },
+	},
+	{
+		kind: "github",
+		label: "GitHub",
+		icon: "github",
+		defaultBaseUrl: "https://github.com",
+		credentialFields: [TOKEN_FIELD],
+		tokenHelpUrl: "https://github.com/settings/personal-access-tokens/new",
+		tokenHelpPath: "/settings/personal-access-tokens/new",
+		requiredScopes: [
+			"Issues: read",
+			"Pull requests: write",
+			"Actions: read/write",
+			"Metadata: read",
+		],
+		provides: ["tracker", "forge", "ci"],
+		terms: { mergeRequest: "pr" },
+	},
+	{
+		kind: "jira",
+		label: "Jira",
+		icon: "jira",
+		defaultBaseUrl: null,
+		credentialFields: [
+			{ key: "email", labelKey: "integrations.email", secret: false },
+			TOKEN_FIELD,
+		],
+		tokenHelpUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
+		tokenHelpPath: null,
+		requiredScopes: ["read:jira-work", "write:jira-work"],
+		provides: ["tracker"],
+		terms: { mergeRequest: "mr" },
+	},
+];
+
+const DAY = 86_400_000;
+
+let integrationConnections: Record<string, unknown>[] = [
+	{
+		id: "jira",
+		kind: "jira",
+		label: "Jira Cowork",
+		baseUrl: "https://cowork.atlassian.net",
+		hasCredentials: true,
+		identity: { login: "dev@cowork.io", displayName: "Dev", avatarUrl: null },
+		createdAt: Date.now() - 40 * DAY,
+		email: "dev@cowork.io",
+		deployment: "Cloud",
+	},
+	{
+		id: "gitlab-cowork",
+		kind: "gitlab",
+		label: "GitLab Cowork",
+		baseUrl: "https://gitlab.cowork.io",
+		hasCredentials: true,
+		identity: { login: "dev", displayName: "Dev", avatarUrl: null },
+		createdAt: Date.now() - 32 * DAY,
+	},
+	{
+		id: "github",
+		kind: "github",
+		label: "GitHub",
+		baseUrl: "https://github.com",
+		hasCredentials: false,
+		identity: null,
+		createdAt: Date.now() - 3 * DAY,
+	},
+];
+
 const CLEAN: PreviewRepo = {
 	isGitRepo: true,
 	branch: "main",
@@ -359,6 +447,37 @@ const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
 		watched: (a.dirs as unknown[] | undefined)?.length ?? 0,
 		failed: [],
 	}),
+	integration_kinds: () => INTEGRATION_KINDS,
+	list_integration_connections: () => (isEmpty ? [] : integrationConnections),
+	save_integration_connection: (a) => {
+		const connection = a.connection as Record<string, unknown>;
+		const credentials = a.credentials as Record<string, string>;
+		const id = (connection.id as string) || `conn-${Date.now()}`;
+		const saved = {
+			...connection,
+			id,
+			hasCredentials: Boolean(connection.hasCredentials || credentials.token),
+			createdAt: connection.createdAt || Date.now(),
+		};
+		const isKnown = integrationConnections.some((c) => c.id === id);
+		integrationConnections = isKnown
+			? integrationConnections.map((c) => (c.id === id ? saved : c))
+			: [...integrationConnections, saved];
+		return saved;
+	},
+	delete_integration_connection: (a) => {
+		integrationConnections = integrationConnections.filter(
+			(c) => c.id !== a.id,
+		);
+		return null;
+	},
+	test_integration_connection: async (a) => {
+		await new Promise((resolve) => setTimeout(resolve, TRACKER_LATENCY_MS));
+		const tested = integrationConnections.find((c) => c.id === a.id);
+		return (
+			tested?.identity ?? { login: "dev", displayName: "Dev", avatarUrl: null }
+		);
+	},
 	get_project_integrations: (a) => ({
 		tracker:
 			(a.projectId as string) in assignedTickets

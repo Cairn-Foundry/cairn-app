@@ -9,12 +9,13 @@
    * returns; the token never comes back from Rust, only whether one is stored.
    */
   import { onMount } from 'svelte';
-  import { fitToScrollport } from '#lib/utils/fit-to-scrollport';
   import { openUrl } from '#lib/services/opener-service';
   import { t, type TranslationKey } from '#lib/i18n';
   import Icon from '#lib/components/Icon.svelte';
   import Select from '#lib/components/Select.svelte';
   import SearchInput from '#lib/components/SearchInput.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
+  import RemoveConnectionModal from './RemoveConnectionModal.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import Skeleton from '#lib/components/Skeleton.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
@@ -211,11 +212,6 @@
     }
   }
 
-  async function testExisting(connection: IntegrationConnection) {
-    select(connection);
-    await runTest();
-  }
-
   async function confirmRemove() {
     if (!removeTarget) return;
     isRemoving = true;
@@ -237,135 +233,136 @@
   }
 </script>
 
-<div class="ag-layout">
-  <aside class="ag-master" use:fitToScrollport>
-    <div class="ag-master-header">
-      <span class="ag-master-title">{t('integrations.title')}</span>
-      <span class="master-actions">
-        <button class="icon-btn" on:click={loadConnections} title={t('integrations.refresh') as string}>
-          <Icon name="refresh" size={13}/>
-        </button>
-        <button class="icon-btn" on:click={create} title={t('integrations.addConnection') as string} disabled={!ready}>
-          <Icon name="plus" size={13}/>
-        </button>
-      </span>
+<header class="in-head">
+  <h1>
+    {t('integrations.title')}
+    {#if $connections.length > 0}<span class="head-count">{$connections.length}</span>{/if}
+  </h1>
+</header>
+
+{#if ready && $connections.length === 0 && draft === null}
+  <section class="in-empty">
+    <Icon name="link" size={22}/>
+    <h2>{t('integrations.noConnections')}</h2>
+    <p>{t('integrations.noConnectionsBody')}</p>
+    <button class="btn primary in-add" on:click={create}>
+      <Icon name="plus" size={12}/> {t('integrations.addConnection')}
+    </button>
+  </section>
+{:else}
+<div class="in-layout">
+  <aside class="in-list">
+    <div class="in-list-tools">
+      <SearchInput bind:value={search} placeholder={t('integrations.searchPlaceholder') as string}/>
     </div>
 
-    {#if ready && $connections.length > 0}
-      <SearchInput bind:value={search} placeholder={t('integrations.searchPlaceholder') as string}/>
-    {/if}
-
-    {#if !ready}
-      <div class="master-skeleton"><Skeleton lines={3} height={34} gap={4}/></div>
-    {:else if $connections.length === 0}
-      <p class="ag-master-empty">{t('integrations.noConnections')}</p>
-    {:else if visible.length === 0}
-      <p class="ag-master-empty">{t('integrations.noResults')}</p>
-    {:else}
-      {#each visible as connection (connection.id)}
-        {@const status = statusOf(connection)}
-        <div class="conn-row">
+    <div class="in-list-items">
+      {#if !ready}
+        <Skeleton lines={3} height={36} gap={6}/>
+      {:else}
+        {#each visible as connection (connection.id)}
+          {@const status = statusOf(connection)}
           <button
-            class="ag-item {selectedId === connection.id ? 'active' : ''}"
+            class="in-item"
+            class:is-active={selectedId === connection.id}
             aria-pressed={selectedId === connection.id}
             on:click={() => select(connection)}
           >
-            <span class="ag-tile"><Icon name={iconOf(connection.kind)} size={14}/></span>
-            <span class="ag-item-info">
-              <span class="ag-item-name">
-                {connection.label}
-                <span class="ag-dot {status === 'ok' ? 'ok' : status === 'failed' ? 'ko' : 'off'}" title={t(`integrations.status.${status}`) as string}></span>
-              </span>
-              <span class="ag-item-sub">{connection.identity?.login ?? hostOf(connection.baseUrl)}</span>
+            <span class="in-tile"><Icon name={iconOf(connection.kind)} size={14}/></span>
+            <span class="in-item-text">
+              <span class="in-item-name">{connection.label}</span>
+              <span class="in-item-sub">{connection.identity?.login ?? hostOf(connection.baseUrl)}</span>
+            </span>
+            <span class="in-dot {status === 'ok' ? 'ok' : status === 'failed' ? 'ko' : 'off'}" title={t(`integrations.status.${status}`) as string}></span>
+          </button>
+        {/each}
+        {#if visible.length === 0 && query !== ''}
+          <SearchEmpty
+            isCompact
+            title={t('integrations.noResults') as string}
+            text={(t('integrations.noResultsText') as (q: string) => string)(search.trim())}
+            clearLabel={t('common.clearSearch') as string}
+            on:clear={() => (search = '')}
+          />
+        {/if}
+        <!-- The connection being added sits in the list like the others, so the
+             ones already there stay in view. -->
+        {#if isNew && draft && descriptor}
+          <button class="in-item is-active" aria-pressed="true">
+            <span class="in-tile"><Icon name={descriptor.icon} size={14}/></span>
+            <span class="in-item-text">
+              <span class="in-item-name">{draft.label.trim() || t('integrations.form.title')}</span>
+              <span class="in-item-sub">{t('integrations.form.title')}</span>
             </span>
           </button>
-          <button
-            class="icon-btn"
-            on:click={() => testExisting(connection)}
-            disabled={isTesting || !connection.hasCredentials}
-            title={t('integrations.actions.test') as string}
-          >
-            {#if isTesting && selectedId === connection.id}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
+        {:else if visible.length > 0 || query === ''}
+          <button class="in-item in-add" on:click={create} disabled={!ready}>
+            <span class="in-tile is-dashed"><Icon name="plus" size={14}/></span>
+            <span class="in-item-name">{t('integrations.addConnection')}</span>
           </button>
-          <button
-            class="icon-btn delete"
-            on:click={() => removeTarget = connection}
-            title={t('integrations.actions.remove') as string}
-          >
-            <Icon name="trash" size={12}/>
-          </button>
-        </div>
-      {/each}
-    {/if}
+        {/if}
+      {/if}
+    </div>
   </aside>
 
-  <section class="ag-detail">
+  <section class="in-detail">
     {#if draft === null || descriptor === null}
-      <div class="ag-empty">
-        <span class="ag-empty-icon"><Icon name="link" size={30} sw={1.2}/></span>
-        <p class="ag-empty-title">{t('integrations.noConnections')}</p>
-        <p class="ag-empty-desc">{t('integrations.noConnectionsBody')}</p>
-        <div class="empty-actions">
-          <button class="btn primary" on:click={create} disabled={!ready}>
-            <Icon name="plus" size={12}/> {t('integrations.addConnection')}
-          </button>
-        </div>
-      </div>
+      <p class="in-detail-none">{t('integrations.pickConnection')}</p>
     {:else}
-      <div class="ag-head">
-        <span class="ag-tile ag-tile-lg">
+      <div class="in-detail-head">
+        <span class="in-tile is-large">
           {#if draft.identity?.avatarUrl}
             <img class="avatar" src={draft.identity.avatarUrl} alt=""/>
           {:else}
-            <Icon name={descriptor.icon} size={20}/>
+            <Icon name={descriptor.icon} size={18}/>
           {/if}
         </span>
-        <div class="ag-head-text">
-          <h2 class="ag-head-title">{isNew ? t('integrations.form.title') : draft.label}</h2>
-          <p class="ag-head-desc">
+        <div class="in-detail-title">
+          <div class="in-title-row">
+            <h2>{isNew ? t('integrations.form.title') : draft.label}</h2>
+            {#if !isNew}
+              {@const status = statusOf(draft)}
+              <span class="in-status">
+                <span class="in-dot {status === 'ok' ? 'ok' : status === 'failed' ? 'ko' : 'off'}"></span>
+                {t(`integrations.status.${status}`)}
+              </span>
+            {/if}
+          </div>
+          <p>
             {#if draft.identity}
-              {t('integrations.identity')} <span class="selectable">{draft.identity.displayName || draft.identity.login}</span>
-              <span class="login selectable">@{draft.identity.login}</span>
+              <span class="account selectable">{draft.identity.login}</span>
               {(t('integrations.connectedOn') as (h: string) => string)(hostOf(draft.baseUrl))}
             {:else}
               {t('integrations.noIdentity')}
             {/if}
           </p>
         </div>
-        <div class="head-actions">
-          {#if !isNew}
-            <span class="ag-badge {statusOf(draft) === 'ok' ? 'accent' : ''}">
-              {t(`integrations.status.${statusOf(draft)}`)}
-            </span>
-          {/if}
+        <!-- A new connection is tested from the save bar, which also saves it. -->
+        {#if !isNew}
           <button class="btn" on:click={runTest} disabled={isTesting || isSaving || isIncomplete}>
             {#if isTesting}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
             {t('integrations.test')}
           </button>
-        </div>
+        {/if}
+        {#if !isNew && stored}
+          <button
+            class="btn ghost in-icon-btn delete"
+            on:click={() => removeTarget = stored}
+            aria-label={t('integrations.actions.remove') as string}
+            title={t('integrations.actions.remove') as string}
+          >
+            <Icon name="trash" size={13}/>
+          </button>
+        {/if}
       </div>
 
-      {#if error}
-        <div class="banner bad">
-          <Icon name="alert" size={13}/>
-          <span>{errorText(error)}{#if isNew} {t('integrations.form.testFailedRemoved')}{/if}</span>
-        </div>
-      {:else if isTestedOk}
-        <div class="banner ok"><Icon name="check" size={13}/><span>{t('integrations.testOk')}</span></div>
-      {/if}
+      <div class="in-detail-body">
 
-      {#if isHttp}
-        <div class="banner warn"><Icon name="alert" size={13}/><span>{t('integrations.form.httpWarning')}</span></div>
-      {/if}
+        <div class="in-section">
+          <div class="in-section-head"><h3>{t('integrations.form.section')}</h3></div>
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('integrations.form.section')}</div>
-
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <span class="ag-label">{t('integrations.form.kind')}</span>
-            </div>
+          <div class="in-field">
+            <span class="in-label">{t('integrations.form.kind')}</span>
             <Select
               value={draft.kind}
               options={kindOptions}
@@ -374,219 +371,370 @@
               on:change={(e) => setKind(e.detail)}
             />
           </div>
-        </div>
 
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <label class="ag-label" for="integration-label">{t('integrations.form.label')}</label>
-            </div>
+          <div class="in-field">
+            <label class="in-label" for="integration-label">{t('integrations.form.label')}</label>
             <input
               id="integration-label"
-              class="ag-input selectable"
+              class="in-input selectable"
               type="text"
               placeholder={t('integrations.form.labelPlaceholder') as string}
               bind:value={draft.label}
             />
           </div>
-        </div>
 
-        <div class="ag-card">
-          <div class="ag-field">
-            <div class="ag-card-info">
-              <label class="ag-label" for="integration-url">{t('integrations.form.baseUrl')}</label>
-            </div>
-            <div class="url-row">
-              <input
-                id="integration-url"
-                class="ag-input selectable"
-                type="text"
-                spellcheck="false"
-                placeholder={descriptor.defaultBaseUrl ?? 'https://'}
-                bind:value={draft.baseUrl}
-                on:input={() => isTestedOk = false}
-              />
-              {#if draft.baseUrl.trim()}<CopyButton value={draft.baseUrl.trim()}/>{/if}
-            </div>
+          <div class="in-field">
+            <label class="in-label" for="integration-url">{t('integrations.form.baseUrl')}</label>
+            <input
+              id="integration-url"
+              class="in-input selectable"
+              type="text"
+              spellcheck="false"
+              placeholder={descriptor.defaultBaseUrl ?? 'https://'}
+              bind:value={draft.baseUrl}
+              on:input={() => isTestedOk = false}
+            />
+            {#if draft.baseUrl.trim()}<CopyButton value={draft.baseUrl.trim()}/>{/if}
           </div>
         </div>
-      </div>
 
-      <div class="ag-group">
-        <div class="ag-group-title">{t('integrations.token')}</div>
-
-        <div class="ag-card">
-          <div class="ag-card-info stacked">
-            <span class="ag-hint">{t('integrations.form.help')}</span>
-            {#if draft.kind === 'jira'}
-              <span class="ag-hint">{t('integrations.form.jiraGlobalKey')}</span>
-            {/if}
-          </div>
-          <div class="help-row">
-            <button class="btn ghost link" on:click={() => openUrl(buildTokenHelpUrl(descriptor, draft?.baseUrl ?? ''))}>
-              <Icon name="external" size={12}/> {t('integrations.createToken')}
+        <div class="in-section">
+          <div class="in-section-head">
+            <h3>{t('integrations.token')}</h3>
+            <button class="in-link" on:click={() => openUrl(buildTokenHelpUrl(descriptor, draft?.baseUrl ?? ''))}>
+              {t('integrations.createToken')} <Icon name="external" size={12}/>
             </button>
-            <span class="scopes">
-              <span class="ag-hint">{t('integrations.scopes')}</span>
-              {#each descriptor.requiredScopes as scope (scope)}
-                <code class="scope selectable">{scope}</code>
-              {/each}
-            </span>
           </div>
-        </div>
+          {#if draft.kind === 'jira'}
+            <p class="in-note">{t('integrations.form.jiraGlobalKey')}</p>
+          {/if}
 
-        {#each descriptor.credentialFields as field (field.key)}
-          <div class="ag-card">
-            <div class="ag-field">
-              <div class="ag-card-info">
-                <label class="ag-label" for={`integration-${field.key}`}>{t(field.labelKey as TranslationKey)}</label>
+          {#each descriptor.credentialFields as field (field.key)}
+            <div class="in-field">
+              <label class="in-label" for={`integration-${field.key}`}>{t(field.labelKey as TranslationKey)}</label>
+              <div class="in-control">
+                <input
+                  id={`integration-${field.key}`}
+                  class="in-input selectable"
+                  type={field.secret ? 'password' : 'text'}
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder={field.key !== 'token' && draft.email ? draft.email : ''}
+                  value={credentials[field.key] ?? ''}
+                  on:input={(e) => { credentials = { ...credentials, [field.key]: e.currentTarget.value }; isTestedOk = false; }}
+                />
                 {#if field.key === 'token' && draft.hasCredentials}
-                  <span class="ag-hint">{t('integrations.form.tokenKeep')}</span>
+                  <span class="in-hint">{t('integrations.form.tokenKeep')}</span>
                 {/if}
               </div>
-              <input
-                id={`integration-${field.key}`}
-                class="ag-input selectable"
-                type={field.secret ? 'password' : 'text'}
-                autocomplete="off"
-                spellcheck="false"
-                placeholder={field.key !== 'token' && draft.email ? draft.email : ''}
-                value={credentials[field.key] ?? ''}
-                on:input={(e) => { credentials = { ...credentials, [field.key]: e.currentTarget.value }; isTestedOk = false; }}
-              />
             </div>
-          </div>
-        {/each}
+          {/each}
+
+          {#if descriptor.requiredScopes.length > 0}
+            <div class="in-field">
+              <span class="in-label">{t('integrations.scopes')}</span>
+              <span class="scopes">
+                {#each descriptor.requiredScopes as scope (scope)}
+                  <code class="scope selectable">{scope}</code>
+                {/each}
+              </span>
+            </div>
+          {/if}
+        </div>
       </div>
 
-      {#if isDirty}
-      <div class="save-bar">
-        <span class="save-note">
-          {#if isNew && !isTestedOk}
-            <span class="ag-hint warn">{t('integrations.form.testFirst')}</span>
+      {#if error || isTestedOk || isHttp}
+        <div class="in-notices">
+          {#if error}
+            <div class="banner bad">
+              <Icon name="alert" size={13}/>
+              <span>{errorText(error)}{#if isNew} {t('integrations.form.testFailedRemoved')}{/if}</span>
+            </div>
           {:else if isTestedOk}
-            <span class="ag-hint">{t('integrations.form.testedOk')}</span>
+            <div class="banner ok"><Icon name="check" size={13}/><span>{t('integrations.testOk')}</span></div>
           {/if}
-        </span>
-        <button class="btn ghost" on:click={close} disabled={isSaving || isTesting}>
-          {t('integrations.form.cancel')}
-        </button>
-        {#if isNew && !isTestedOk}
-          <button class="btn" on:click={save} disabled={isSaving || isTesting || isIncomplete}>
-            {#if isSaving}<Spinner size={11}/>{/if}
-            {t('integrations.form.saveAnyway')}
+          {#if isHttp}
+            <div class="banner warn"><Icon name="alert" size={13}/><span>{t('integrations.form.httpWarning')}</span></div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if isDirty}
+        <div class="save-bar">
+          <span class="save-note">
+            {#if isNew && !isTestedOk}
+              <span class="in-hint warn">{t('integrations.form.testFirst')}</span>
+            {:else if isTestedOk}
+              <span class="in-hint">{t('integrations.form.testedOk')}</span>
+            {/if}
+          </span>
+          <button class="btn ghost" on:click={close} disabled={isSaving || isTesting}>
+            {t('integrations.form.cancel')}
           </button>
-          <button class="btn primary" on:click={runTest} disabled={isTesting || isSaving || isIncomplete}>
-            {#if isTesting}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
-            {t('integrations.test')}
-          </button>
-        {:else}
-          <button class="btn primary" on:click={save} disabled={isSaving || isTesting || isIncomplete}>
-            {#if isSaving}<Spinner size={11}/>{:else}<Icon name="save" size={12}/>{/if}
-            {t('integrations.form.save')}
-          </button>
-        {/if}
-      </div>
+          {#if isNew && !isTestedOk}
+            <button class="btn" on:click={save} disabled={isSaving || isTesting || isIncomplete}>
+              {#if isSaving}<Spinner size={11}/>{/if}
+              {t('integrations.form.saveAnyway')}
+            </button>
+            <button class="btn primary" on:click={runTest} disabled={isTesting || isSaving || isIncomplete}>
+              {#if isTesting}<Spinner size={11}/>{:else}<Icon name="zap" size={12}/>{/if}
+              {t('integrations.test')}
+            </button>
+          {:else}
+            <button class="btn primary" on:click={save} disabled={isSaving || isTesting || isIncomplete}>
+              {#if isSaving}<Spinner size={11}/>{:else}<Icon name="save" size={12}/>{/if}
+              {t('integrations.form.save')}
+            </button>
+          {/if}
+        </div>
       {/if}
     {/if}
   </section>
 </div>
+{/if}
 
 {#if $connectionsError}
   <div class="banner bad floating"><Icon name="alert" size={13}/><span>{errorText($connectionsError)}</span></div>
 {/if}
 
 {#if removeTarget}
-  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div
-    class="modal-backdrop"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    on:click={() => removeTarget = null}
-    on:keydown={(e) => e.key === 'Escape' && (removeTarget = null)}
-  >
-    <div class="modal remove-modal" on:click|stopPropagation role="presentation">
-      <div class="modal-head">
-        <div>
-          <div class="step-count">{t('integrations.remove')}</div>
-          <h3>{removeTarget.label}</h3>
-        </div>
-        <button class="icon-btn close" on:click={() => removeTarget = null} aria-label={t('common.close') as string}>
-          <Icon name="x" size={16}/>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p class="remove-desc">{(t('integrations.removeConfirm') as (l: string) => string)(removeTarget.label)}</p>
-      </div>
-      <div class="modal-foot">
-        <div class="spacer"></div>
-        <button class="btn ghost" on:click={() => removeTarget = null}>{t('common.cancel')}</button>
-        <button class="btn danger" on:click={confirmRemove} disabled={isRemoving}>
-          {#if isRemoving}<Spinner size={12}/>{:else}<Icon name="trash" size={14}/>{/if}
-          {t('integrations.remove')}
-        </button>
-      </div>
-    </div>
-  </div>
+  <RemoveConnectionModal
+    connection={removeTarget}
+    icon={iconOf(removeTarget.kind)}
+    host={hostOf(removeTarget.baseUrl)}
+    isRemoving={isRemoving}
+    on:close={() => removeTarget = null}
+    on:confirm={confirmRemove}
+  />
 {/if}
 
 <style>
-  .master-actions { display: flex; align-items: center; gap: 2px; }
-
-  .icon-btn {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    padding: 0;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--r-sm);
-    color: var(--fg-3);
-    cursor: pointer;
-    transition: background .12s, color .12s, border-color .12s;
+  /* The panel takes the height the page has left: the scrolling main area
+     becomes a column it can grow in, and the list and the form scroll inside. */
+  :global(.home-main:has(> .in-head)) {
+    display: flex;
+    flex-direction: column;
   }
-  .icon-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); border-color: var(--stroke-0); }
-  .icon-btn.delete:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
-  .icon-btn:disabled { opacity: .5; cursor: default; }
 
-  .master-skeleton { padding: 4px 8px; }
-
-  .conn-row {
+  /* -- head -- */
+  .in-head { margin-bottom: 32px; }
+  .in-head h1 {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 10px;
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .head-count {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--fg-2);
+    background: var(--bg-3);
+    border-radius: 10px;
+  }
+  .in-icon-btn { flex: none; width: 28px; height: 28px; padding: 0; justify-content: center; }
+  .in-icon-btn.delete:hover { background: var(--danger-weak); color: var(--danger); }
+
+  /* -- nothing connected -- */
+  .in-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 0;
+    text-align: center;
+    color: var(--fg-3);
+  }
+  .in-empty h2 { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-0); }
+  .in-empty p { max-width: 52ch; margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
+
+  /* -- layout: one framed panel, the list in a darker column on its left -- */
+  .in-layout {
+    display: grid;
+    flex: 1 1 0;
+    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 420px;
+    border: 1px solid color-mix(in oklch, var(--stroke-0) 60%, var(--stroke-1));
     border-radius: var(--r-md);
+    background: var(--bg-1);
+    overflow: hidden;
   }
-  .conn-row :global(.ag-item) { min-width: 0; }
 
-  .ag-dot.off { background: var(--fg-4); }
-
-  .avatar {
+  /* -- list -- */
+  .in-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--bg-0);
+    border-right: 1px solid var(--stroke-0);
+  }
+  .in-list-tools { padding: 12px 12px 8px; }
+  .in-list-tools :global(.ag-search) { height: 28px; box-sizing: border-box; margin: 0; }
+  .in-list-items {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    padding: 4px 12px 12px;
+    overflow-y: auto;
+  }
+  .in-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: inherit;
+    min-width: 0;
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border-radius: var(--r-sm);
+    text-align: left;
+    color: var(--fg-1);
   }
+  .in-item:hover { background: var(--bg-2); }
+  .in-item.is-active { background: var(--bg-2); color: var(--fg-0); }
+  .in-item.in-add { color: var(--fg-2); }
+  .in-item.in-add:hover { color: var(--fg-0); }
+  .in-item-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  .in-item-name,
+  .in-item-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .in-item-name { font-size: 13px; font-weight: 500; }
+  .in-item-sub { font-size: 11.5px; color: var(--fg-3); }
 
-  .login {
-    margin: 0 6px 0 4px;
+  .in-tile {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .in-tile.is-dashed { border: 1px dashed var(--stroke-1); background: transparent; color: var(--fg-3); }
+  .in-tile.is-large { width: 40px; height: 40px; border-radius: var(--r-md); }
+  .avatar { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+
+  .in-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+  .in-dot.ok { background: var(--success); }
+  .in-dot.ko { background: var(--danger); }
+  .in-dot.off { border: 1.5px solid var(--fg-4); box-sizing: border-box; }
+
+  /* -- detail -- */
+  .in-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .in-detail-none { margin: 0; padding: 24px; font-size: 13px; color: var(--fg-3); }
+  .in-detail-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--stroke-0);
+  }
+  .in-detail-title { flex: 1; min-width: 0; }
+  .in-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .in-title-row h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .in-detail-title p { margin: 3px 0 0; font-size: 12px; color: var(--fg-3); }
+  .account { color: var(--fg-1); }
+  .in-status {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 11.5px;
+    line-height: 20px;
+    color: var(--fg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: 10px;
+  }
+  .in-detail-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 12px; }
+
+  .in-section { padding: 20px 24px 6px; }
+  .in-section + .in-section { border-top: 1px solid var(--stroke-0); }
+  .in-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .in-section-head h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg-0); }
+  .in-note { max-width: 70ch; margin: -6px 0 16px; font-size: 12px; line-height: 1.55; color: var(--fg-3); }
+
+  /* Three columns: the last one holds the copy button of the server URL and
+     stays empty elsewhere, so every field ends on the same edge. */
+  .in-field {
+    display: grid;
+    grid-template-columns: 172px minmax(0, 1fr) 28px;
+    align-items: start;
+    column-gap: 12px;
+    margin-bottom: 14px;
+  }
+  .in-field > :nth-child(2) { grid-column: 2; }
+  .in-label { padding-top: 7px; font-size: 12.5px; color: var(--fg-2); }
+  .in-control { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .in-input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--bg-0);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-sm);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--fg-0);
+    outline: none;
+  }
+  .in-input:focus { border-color: var(--accent-line); }
+  .in-input::placeholder { color: var(--fg-4); opacity: 1; }
+  .in-field :global(.copy-btn) { align-self: center; justify-self: center; }
+  .in-hint { font-size: 12px; color: var(--fg-3); }
+  .in-hint.warn { color: var(--warning); }
+
+  .in-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+  .in-link:hover { text-decoration: underline; }
+  .scopes { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-top: 5px; }
+  .scope {
+    padding: 1px 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--stroke-0);
+    border-radius: 4px;
     font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--fg-2);
   }
 
-  .head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
+  .in-notices { display: flex; flex: none; flex-direction: column; gap: 8px; padding: 0 24px 16px; }
   .banner {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 28px;
-    max-width: 620px;
     padding: 9px 12px;
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
     font-size: 12px;
   }
   .banner.bad { background: var(--danger-weak); color: var(--danger); }
@@ -600,51 +748,16 @@
     margin: 0;
     max-width: 420px;
   }
-  .banner + .banner { margin-top: 8px; }
-
-  .url-row { display: flex; align-items: center; gap: 6px; }
-  .url-row :global(.ag-input) { flex: 1; min-width: 0; }
-
-  .ag-card-info.stacked { margin-bottom: 8px; }
-
-  .help-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-  }
-  .btn.link { padding-left: 6px; }
-  .scopes { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-  .scope {
-    padding: 1px 6px;
-    background: var(--bg-3);
-    border: 1px solid var(--stroke-0);
-    border-radius: 99px;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    color: var(--fg-2);
-  }
 
   .save-bar {
-    position: sticky;
-    bottom: 0;
     display: flex;
+    flex: none;
     align-items: center;
     gap: 8px;
-    max-width: 620px;
-    margin: 8px -4px -4px;
-    padding: 12px 4px;
-    background: linear-gradient(to top, var(--bg-0) 70%, transparent);
+    padding: 12px 24px;
+    border-top: 1px solid var(--stroke-0);
+    background: var(--bg-0);
   }
   .save-note { flex: 1; min-width: 0; }
 
-  .empty-actions { display: flex; align-items: center; gap: 8px; }
-
-  .remove-modal { width: min(460px, 92vw); }
-  .remove-desc {
-    margin: 0;
-    font-size: 13px;
-    color: var(--fg-2);
-    line-height: 1.6;
-  }
 </style>
