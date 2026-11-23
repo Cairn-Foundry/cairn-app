@@ -72,6 +72,10 @@ for image in "${images[@]}"; do
   fi
   chmod +x "$tool"
 
+  # mktemp creates the scratch directory 0700, and appimagetool refuses an
+  # AppDir other users could not read.
+  chmod -R a+rX "$work/squashfs-root"
+
   # The runner has no FUSE, so the tool unpacks itself instead of mounting.
   ARCH=$(uname -m) APPIMAGE_EXTRACT_AND_RUN=1 \
     "$tool" --no-appstream "$work/squashfs-root" "$image" >/dev/null
