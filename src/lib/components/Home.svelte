@@ -143,12 +143,7 @@
       <PortsSection />
 
     {:else if activeSection === 'changelog'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.changelog.title')}</h1>
-      </div>
-      <div style="margin-top: 24px;">
-        <ChangelogSection />
-      </div>
+      <ChangelogSection />
 
     {:else if activeSection === 'settings'}
       <SettingsPanel bind:settingsTab on:openSection={(e) => showSection(e.detail as HomeSection)}/>

@@ -202,89 +202,83 @@ describe("UpdateModal", () => {
 });
 
 describe("ChangelogSection", () => {
-	const nodes = () =>
-		Array.from(document.querySelectorAll<HTMLElement>(".timeline .node"));
-	const releases = () =>
-		Array.from(document.querySelectorAll<HTMLElement>(".release"));
-	const active = () => releases().filter((r) => r.classList.contains("active"));
+	const rows = () =>
+		Array.from(
+			document.querySelectorAll<HTMLElement>(".versions .version-row"),
+		);
+	const shownVersion = () =>
+		document.querySelector(".detail-head h2")?.textContent ?? "";
+	const kindSections = () => document.querySelectorAll(".kind-section");
 
 	/** The changelog is real data, so these are invariants, not fixed content. */
-	it("shows one timeline entry per release", () => {
+	it("lists one row per release", () => {
 		render(ChangelogSection, {});
-		expect(nodes()).toHaveLength(CHANGELOG.length);
-		expect(releases()).toHaveLength(CHANGELOG.length);
+		expect(rows()).toHaveLength(CHANGELOG.length);
 	});
 
-	it("opens on the newest release", () => {
+	it("opens on the newest release, and shows only that one", () => {
 		render(ChangelogSection, {});
-		expect(active()).toHaveLength(1);
-		expect(active()[0].id).toContain(CHANGELOG[0].version);
+		expect(shownVersion()).toContain(CHANGELOG[0].version);
+		expect(document.querySelectorAll(".release")).toHaveLength(1);
 	});
 
-	it("selects the release that was clicked", async () => {
+	it("shows the release that was clicked", async () => {
 		render(ChangelogSection, {});
-		if (nodes().length < 2) return;
-		await userEvent.click(nodes()[1]);
-		expect(active()[0].id).toContain(CHANGELOG[1].version);
+		if (rows().length < 2) return;
+		await userEvent.click(rows()[1]);
+		expect(shownVersion()).toContain(CHANGELOG[1].version);
 	});
 
-	it("marks the selected entry for a screen reader", async () => {
+	it("moves to the next release with the arrow keys", async () => {
 		render(ChangelogSection, {});
-		const current = nodes().filter(
+		if (rows().length < 2) return;
+		rows()[0].focus();
+		await userEvent.keyboard("{ArrowDown}");
+		expect(shownVersion()).toContain(CHANGELOG[1].version);
+		expect(document.activeElement).toBe(rows()[1]);
+		await userEvent.keyboard("{ArrowUp}");
+		expect(shownVersion()).toContain(CHANGELOG[0].version);
+	});
+
+	it("marks the selected row for a screen reader", async () => {
+		render(ChangelogSection, {});
+		const current = rows().filter(
 			(n) => n.getAttribute("aria-current") === "true",
 		);
 		expect(current).toHaveLength(1);
+		expect(current[0].dataset.version).toBe(CHANGELOG[0].version);
 	});
 
 	/** A version still being written has no date, and says so. */
 	it("says a release with no date is still in development", () => {
 		render(ChangelogSection, {});
-		const undated = CHANGELOG.filter((e) => !e.date);
-		for (const entry of undated) {
-			const node = nodes().find((n) =>
-				n.textContent?.includes(`v${entry.version}`),
-			);
-			expect(node?.querySelector(".marker")?.classList).toContain("unreleased");
+		for (const entry of CHANGELOG.filter((e) => !e.date)) {
+			const row = rows().find((n) => n.dataset.version === entry.version);
+			expect(row?.textContent).toContain("In development");
 		}
 	});
 
 	/**
-	 * A kind with no change renders no section at all - the view groups by kind
-	 * and an empty group would be a bare heading.
+	 * A kind with no change renders no section at all, and each count matches
+	 * its list - checked on every release in turn.
 	 */
-	it("shows only the kinds a release actually has", () => {
+	it("shows each release with its summary, its kinds and every change", async () => {
 		render(ChangelogSection, {});
-		for (const article of releases()) {
-			const sections = article.querySelectorAll(".kind-section");
-			for (const section of sections) {
-				expect(section.querySelectorAll(".change").length).toBeGreaterThan(0);
+		for (const [i, entry] of CHANGELOG.entries()) {
+			await userEvent.click(rows()[i]);
+			expect(
+				document.querySelector(".summary")?.textContent?.trim(),
+			).toBeTruthy();
+			const kinds = new Set(entry.changes.map((c) => c.kind));
+			expect(kindSections()).toHaveLength(kinds.size);
+			for (const section of kindSections()) {
+				const count = Number(section.querySelector(".kind-count")?.textContent);
+				expect(count).toBeGreaterThan(0);
+				expect(count).toBe(section.querySelectorAll(".change").length);
 			}
-		}
-	});
-
-	it("counts the changes of each kind", () => {
-		render(ChangelogSection, {});
-		for (const section of document.querySelectorAll(".kind-section")) {
-			const count = Number(
-				section.querySelector(".kind-count")?.textContent ?? "0",
+			expect(document.querySelectorAll(".change")).toHaveLength(
+				entry.changes.length,
 			);
-			expect(count).toBe(section.querySelectorAll(".change").length);
-		}
-	});
-
-	it("shows every change of every release", () => {
-		render(ChangelogSection, {});
-		const total = CHANGELOG.reduce((sum, e) => sum + e.changes.length, 0);
-		expect(document.querySelectorAll(".change")).toHaveLength(total);
-	});
-
-	it("shows the summary of each release", () => {
-		render(ChangelogSection, {});
-		expect(document.querySelectorAll(".summary")).toHaveLength(
-			CHANGELOG.length,
-		);
-		for (const s of document.querySelectorAll(".summary")) {
-			expect(s.textContent?.trim()).toBeTruthy();
 		}
 	});
 });

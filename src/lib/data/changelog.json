@@ -38,6 +38,13 @@
 			{
 				"kind": "changed",
 				"text": {
+					"en": "The What's new screen takes the panel of the Agents screen: the versions are listed on the left, the installed one marked, and the selected release fills the right side on its own, its summary first, then its changes by kind. The arrow keys move from one version to the next.",
+					"fr": "L'écran Nouveautés prend le panneau de l'écran Agents : les versions sont listées à gauche, celle qui est installée marquée, et la version choisie occupe seule la partie droite, son résumé d'abord, puis ses changements par type. Les flèches du clavier passent d'une version à l'autre."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
 					"en": "The Ports & Processes screen lists processes rather than sockets: each one shows its command and every port it holds, a port reachable from the network marked apart from one bound to this machine only. Your own processes come first with a Stop button, those of other users follow, dimmed, with their owner. Stopping a process shows the ports it frees, the forced stop set apart; a search that finds nothing and an idle machine each say so.",
 					"fr": "L'écran Ports & processus liste des processus plutôt que des sockets : chacun montre sa commande et tous les ports qu'il occupe, un port accessible depuis le réseau étant signalé à part d'un port limité à cette machine. Vos propres processus viennent en premier avec un bouton Arrêter, ceux des autres utilisateurs suivent, atténués, avec leur propriétaire. Arrêter un processus montre les ports qu'il libère, l'arrêt forcé étant mis à part ; une recherche sans résultat et une machine au repos le disent chacune."
 				}
