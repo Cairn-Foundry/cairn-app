@@ -673,9 +673,9 @@ describe("ProjectsSection", () => {
 			if (!input) throw new Error("no search input");
 			await userEvent.type(input, "zzz");
 			await settle();
-			expect(
-				document.querySelector(".search-empty p")?.textContent,
-			).toContain('"zzz"');
+			expect(document.querySelector(".search-empty p")?.textContent).toContain(
+				'"zzz"',
+			);
 			await userEvent.click(
 				document.querySelector(".search-empty .btn") as HTMLElement,
 			);

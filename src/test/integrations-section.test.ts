@@ -79,7 +79,9 @@ const emptyNote = () => document.querySelector(".search-empty, .in-empty");
 const labelField = () =>
 	document.querySelector(".split-detail input") as HTMLInputElement;
 const detailButtons = () =>
-	Array.from(document.querySelectorAll<HTMLButtonElement>(".split-detail .btn"));
+	Array.from(
+		document.querySelectorAll<HTMLButtonElement>(".split-detail .btn"),
+	);
 /** The form offers "Test" (which saves then tests) and "Save anyway". */
 const detailButtonNamed = (pattern: RegExp) =>
 	detailButtons().find((b) =>

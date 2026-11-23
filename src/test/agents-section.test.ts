@@ -276,7 +276,9 @@ describe("AgentsSection", () => {
 			await settle();
 			await userEvent.type(searchField(), "zzzz");
 			await settle();
-			expect(document.querySelector(".search-empty, .page-empty")).not.toBeNull();
+			expect(
+				document.querySelector(".search-empty, .page-empty"),
+			).not.toBeNull();
 		});
 	});
 
