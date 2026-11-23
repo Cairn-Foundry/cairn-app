@@ -1,388 +1,227 @@
 [
 	{
 		"version": "1.2.0",
-		"date": "",
+		"date": "2026-11-23",
 		"summary": {
-			"en": "Mermaid diagrams render with Mermaid 12, and the app's dependencies are updated to close known security vulnerabilities.",
-			"fr": "Les diagrammes Mermaid sont rendus avec Mermaid 12, et les dépendances de l'application sont mises à jour pour corriger des vulnérabilités connues."
+			"en": "The home screens share one list-and-form layout, and Settings gains a search that finds every setting. Cairn tracks which conversations are waiting for you, notifies you, and brings back the ones that were running. The Git view is steadier on huge worktrees, Mermaid 12 renders diagrams, and dependency updates close known security vulnerabilities.",
+			"fr": "Les écrans de l'accueil partagent une même disposition liste et formulaire, et les Réglages gagnent une recherche qui trouve chaque réglage. Cairn sait quelles conversations vous attendent, vous prévient et ramène celles qui tournaient. La vue Git tient mieux les très gros worktrees, Mermaid 12 rend les diagrammes, et les mises à jour de dépendances corrigent des vulnérabilités connues."
 		},
 		"changes": [
 			{
-				"kind": "changed",
+				"kind": "added",
 				"text": {
-					"en": "The project list of the home screen is redesigned. Under the three cards to create, open or clone a project come the open projects, each with a button that closes it, then all the projects. The list shows each project on one line: its repository branch and as many of its instances as the row has room for, each with the lines added and removed, then its ticket count and buttons to edit it and show it in the file manager; the projects outside any folder fold like a folder, from a click on their title. The greeting gives way to a plain title, an empty list or a search that finds nothing shows a drawing and a centred message, and a zero ticket count no longer shows. Removing a project first lists what goes with it, its instances by branch with those holding uncommitted changes, and says that the folder stays on disk.",
-					"fr": "La liste des projets de l'accueil est repensée. Sous les trois cartes pour créer, ouvrir ou cloner un projet viennent les projets ouverts, chacun avec un bouton pour le fermer, puis tous les projets. La liste montre chaque projet sur une ligne : la branche de son dépôt et autant de ses instances que la ligne peut en contenir, chacune avec les lignes ajoutées et supprimées, puis son nombre de tickets et des boutons pour le modifier et l'afficher dans le gestionnaire de fichiers ; les projets hors dossier se replient comme un dossier, d'un clic sur leur titre. Le message d'accueil laisse place à un titre simple, une liste vide ou une recherche sans résultat affiche un dessin et un message centré, et un compteur de tickets à zéro ne s'affiche plus. Supprimer un projet liste d'abord ce qui part avec lui, ses instances par branche et celles qui ont des modifications non commitées, et précise que le dossier reste sur le disque."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Agents screen takes the panel of the Integrations screen. Each agent is listed with its initials in its own colour, the project it belongs to and an entry at the end to create one; the selected agent shows its name and how to mention it, with duplicate, show in the file manager and delete in its header. The form reads as one page, each field labelled on the left: identity, system prompt with a copy button, model and tools, where it lives. Model, effort, permission mode, memory and skills no longer hide under Advanced, which keeps only the raw frontmatter. The Skills and MCP servers screens get the same treatment, the import and export of servers sitting beside the title and a test result opening the form, a plugin skill saying in its header that it is read-only, and deleting an agent, a skill or a server lists every file it leaves. The Integrations, Features, Agents, Skills and MCP servers screens fill the whole window, edge to edge, with their title at the top of the list.",
-					"fr": "L'écran Agents prend le panneau de l'écran Intégrations. Chaque agent est listé avec ses initiales dans sa couleur, le projet auquel il appartient et une entrée en fin de liste pour en créer un ; l'agent choisi montre son nom et la façon de le mentionner, avec dupliquer, afficher dans le gestionnaire de fichiers et supprimer dans son en-tête. Le formulaire se lit comme une seule page, chaque champ nommé à gauche : identité, prompt système avec un bouton de copie, modèle et outils, emplacement. Le modèle, l'effort, le mode de permission, la mémoire et les skills ne sont plus cachés sous Avancé, qui ne garde que le frontmatter brut. Les écrans Compétences et Serveurs MCP reçoivent le même traitement, l'import et l'export des serveurs se plaçant à côté du titre et un résultat de test ouvrant le formulaire, une compétence de plugin indiquant dans son en-tête qu'elle est en lecture seule, et supprimer un agent, une compétence ou un serveur liste chaque fichier qu'il quitte. Les écrans Intégrations, Fonctionnalités, Agents, Compétences et Serveurs MCP occupent toute la fenêtre, bord à bord, avec leur titre en haut de la liste."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Features screen is redesigned on the panel of the Integrations screen. The assists are listed on the left, those that write the text apart from those that prepare a prompt for the Agent step, each recalling the CLI that answers it and marked when its prompt was changed. The selected one shows its CLI and model, then its prompt, always open for editing, with its placeholders as buttons that insert them at the cursor and a bar to save or cancel the change. The prompt of the test fix becomes editable like the others, its parts (the test, its location, expected and received, the failure, the stack, the command that re-runs it) as placeholders, every prompt can be copied in one click, and every assist is described in one short line.",
-					"fr": "L'écran Fonctionnalités est repensé sur le panneau de l'écran Intégrations. Les assistants sont listés à gauche, ceux qui rédigent le texte à part de ceux qui préparent un prompt pour l'étape Agent, chacun rappelant le CLI qui y répond et signalé quand son prompt a été modifié. Celui qui est choisi montre son CLI et son modèle, puis son prompt, toujours ouvert à l'édition, avec ses variables en boutons qui les insèrent au curseur et une barre pour enregistrer ou annuler la modification. Le prompt de la correction de test devient modifiable comme les autres, ses parties (le test, son emplacement, attendu et reçu, l'échec, la pile, la commande qui le relance) en variables, chaque prompt se copie en un clic, et chaque assistant est décrit en une ligne courte."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Integrations screen is redesigned. The title carries the count of connections, and the list and the selected connection share one panel that takes the height of the page. The list, in a darker column, shows each connection's state as a dot and ends with the entry that adds one; the connection being added joins it while it is filled in. The selected connection reads as one form: its name with its state, the account and the server under it, the test and the removal beside, then the service and the access token, each field labelled on the left instead of sitting in a card of its own, the link that creates a token beside its title and the required scopes under the fields. With no connection, the screen says what one brings, and removing one first shows the projects that use it with what each of them loses.",
-					"fr": "L'écran Intégrations est repensé. Le titre porte le nombre de connexions, et la liste et la connexion choisie partagent un panneau qui prend la hauteur de la page. La liste, dans une colonne plus sombre, montre l'état de chaque connexion par un point et se termine par l'entrée qui en ajoute une ; la connexion en cours d'ajout s'y insère pendant qu'on la remplit. La connexion choisie se lit comme un seul formulaire : son nom avec son état, le compte et le serveur dessous, le test et la suppression à côté, puis le service et le jeton d'accès, chaque champ nommé à gauche au lieu d'occuper sa propre carte, le lien pour créer un jeton à côté de son titre et les permissions requises sous les champs. Sans connexion, l'écran dit ce qu'elle apporte, et supprimer une connexion montre d'abord les projets qui l'utilisent avec ce que chacun perd."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The settings search finds every setting: the AI switch, the cairn command, line wrapping, auto save, the Git profiles, the interface scale and the others it used to miss. The name of a tab or a group also finds every setting under it.",
-					"fr": "La recherche des paramètres trouve tous les réglages : l'interrupteur de l'IA, la commande cairn, le retour à la ligne, l'enregistrement auto, les profils Git, l'échelle de l'interface et les autres qu'elle manquait. Le nom d'un onglet ou d'un groupe trouve aussi tous les réglages qu'il contient."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "Providers leaves the home sidebar for a tab of the Settings screen, shown while AI features are on. The link of the Agent step leads there, and a state left on the old page reopens on the tab. The hint about detecting a CLI again is said once rather than under every CLI that is missing.",
-					"fr": "Fournisseurs quitte la barre latérale de l'accueil pour un onglet de l'écran Paramètres, affiché tant que les fonctions IA sont actives. Le lien de l'étape Agent y mène, et un état laissé sur l'ancienne page se rouvre sur l'onglet. L'indication pour détecter à nouveau un CLI est donnée une fois plutôt que sous chaque CLI absent."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Settings screen takes the panel of the Agents screen: its tabs are listed on the left with an icon, under the search, and export and import sit beside the title. Each tab opens with a line saying what it holds, and its settings lie on plain rows rather than in boxes. A search lists its results in place of the tab, each with the tab and group it belongs to. The texts are rewritten to say what each setting changes: the version and the update check share one row, and a shortcut whose name says it all no longer repeats it in a description, in the settings and in the command palette.",
-					"fr": "L'écran Paramètres prend le panneau de l'écran Agents : ses onglets sont listés à gauche avec une icône, sous la recherche, et l'export et l'import se placent à côté du titre. Chaque onglet s'ouvre sur une ligne qui dit ce qu'il contient, et ses réglages s'alignent sur des lignes simples plutôt que dans des cadres. Une recherche liste ses résultats à la place de l'onglet, chacun avec l'onglet et le groupe auxquels il appartient. Les textes sont réécrits pour dire ce que change chaque réglage : la version et la vérification des mises à jour partagent une ligne, et un raccourci dont le nom dit tout ne le répète plus dans une description, dans les paramètres comme dans la palette de commandes."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The What's new screen takes the panel of the Agents screen: the versions are listed on the left, the installed one marked, and the selected release fills the right side on its own, its summary first, then its changes by kind. The arrow keys move from one version to the next.",
-					"fr": "L'écran Nouveautés prend le panneau de l'écran Agents : les versions sont listées à gauche, celle qui est installée marquée, et la version choisie occupe seule la partie droite, son résumé d'abord, puis ses changements par type. Les flèches du clavier passent d'une version à l'autre."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Ports & Processes screen lists processes rather than sockets: each one shows its command and every port it holds, a port reachable from the network marked apart from one bound to this machine only. Your own processes come first with a Stop button, those of other users follow, dimmed, with their owner. Stopping a process shows the ports it frees, the forced stop set apart; a search that finds nothing and an idle machine each say so.",
-					"fr": "L'écran Ports & processus liste des processus plutôt que des sockets : chacun montre sa commande et tous les ports qu'il occupe, un port accessible depuis le réseau étant signalé à part d'un port limité à cette machine. Vos propres processus viennent en premier avec un bouton Arrêter, ceux des autres utilisateurs suivent, atténués, avec leur propriétaire. Arrêter un processus montre les ports qu'il libère, l'arrêt forcé étant mis à part ; une recherche sans résultat et une machine au repos le disent chacune."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The Tickets screen is redesigned. The title carries the count of open tickets, the plan of attack holds on one line until it is generated, and the tickets of every project sit in one list whose columns line up: the key, the title with its labels, the status with a dot for its stage, the time since the last update, a button that opens the ticket in the tracker and the one that starts working on it. A search that finds nothing shows a drawing and a message as the project list does, a project with no open ticket no longer folds onto nothing, the list keeps its shape while the tickets load, and with no tracker linked the screen says how to link one.",
-					"fr": "L'écran Tickets est repensé. Le titre porte le nombre de tickets ouverts, le plan d'attaque tient sur une ligne tant qu'il n'est pas généré, et les tickets de tous les projets forment une seule liste aux colonnes alignées : la clé, le titre avec ses étiquettes, le statut avec un point pour son avancement, le temps depuis la dernière mise à jour, un bouton qui ouvre le ticket dans le tracker et celui qui lance le travail dessus. Une recherche sans résultat affiche un dessin et un message comme la liste des projets, un projet sans ticket ouvert ne se replie plus sur du vide, la liste garde sa forme pendant le chargement des tickets, et sans tracker relié l'écran explique comment en relier un."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The window that adds a project lists its steps in a column on the left, with what each finished step holds: the name, the folder, the repository, the linked integrations. A click on a step opens it as soon as the steps before it are filled, the checks following the fields as they change, and the window keeps the same size from one step to the next. Each step is titled after what it asks, and the HTTPS or SSH choice of a clone, which changed nothing, gives way to a line saying what git will need for the protocol of the url. The window that edits a project takes the same look: its three tabs in that column, each recalling what it holds (the name, the git profile, the linked integrations), and fields labelled in plain case.",
-					"fr": "La fenêtre d'ajout d'un projet liste ses étapes dans une colonne à gauche, avec ce que contient chaque étape terminée : le nom, le dossier, le dépôt, les intégrations liées. Un clic sur une étape l'ouvre dès que les étapes précédentes sont remplies, les coches suivant les champs au fil de la saisie, et la fenêtre garde la même taille d'une étape à l'autre. Chaque étape porte le titre de ce qu'elle demande, et le choix HTTPS ou SSH d'un clone, qui ne changeait rien, laisse place à une ligne indiquant ce dont git aura besoin selon le protocole de l'URL. La fenêtre de modification d'un projet prend la même apparence : ses trois onglets dans cette colonne, chacun rappelant ce qu'il contient (le nom, le profil git, les intégrations liées), et des champs nommés en casse normale."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The git markers in the editor gutter land on the same lines as git reports when an added or removed block sits next to identical lines.",
-					"fr": "Les marqueurs git de la gouttière de l'éditeur tombent sur les mêmes lignes que celles indiquées par git quand un bloc ajouté ou supprimé jouxte des lignes identiques."
+					"en": "Conversations that were running when Cairn closed come back: the home Conversations section lists them, and opening one resumes its CLI where it stopped.",
+					"fr": "Les conversations qui tournaient à la fermeture de Cairn reviennent : la section Conversations de l'accueil les liste, et en ouvrir une relance son CLI là où il s'était arrêté."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "Conversations that were running when Cairn closed come back: the home Conversations section lists them, and opening one, or coming back to the one that was on screen, resumes its CLI where it stopped.",
-					"fr": "Les conversations en cours à la fermeture de Cairn reviennent : la section Conversations de l'accueil les liste, et en ouvrir une, ou revenir sur celle qui était à l'écran, reprend son CLI là où il s'était arrêté."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Claude Code started in Cairn saves its conversations again when Cairn itself was launched from a Claude Code terminal, so they can be resumed.",
-					"fr": "Claude Code lancé dans Cairn enregistre de nouveau ses conversations quand Cairn a lui-même été lancé depuis un terminal Claude Code, et elles peuvent donc être reprises."
+					"en": "Cairn knows which conversations are waiting for you. Claude Code reports its turn (working, asking for approval, finished), and the Conversations page lists every running conversation across projects and instances, what needs you first. Project cards and the conversation list carry the same marks. Cairn passes its hooks to Claude Code at launch and never writes into your Claude settings; other CLIs only show whether they are running.",
+					"fr": "Cairn sait quelles conversations vous attendent. Claude Code signale son tour (en cours, demande d'approbation, terminé), et la page Conversations liste toutes les conversations en cours, tous projets et instances confondus, celles qui vous attendent en premier. Les cartes de projet et la liste des conversations portent les mêmes repères. Cairn transmet ses hooks à Claude Code au lancement sans jamais écrire dans vos réglages Claude ; les autres CLI indiquent seulement s'ils tournent."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "The branch selector of the base instance creates a branch: its Create a branch entry opens the branch creation dialog off the current branch, prefilled with what was typed in the search.",
-					"fr": "Le sélecteur de branche de l'instance de base crée une branche : son entrée Créer une branche ouvre la fenêtre de création depuis la branche courante, préremplie avec le texte de la recherche."
+					"en": "A system notification tells you when a conversation finishes its turn or asks for approval while Cairn is in the background, and a notice in the corner of the window does the same for a conversation you are not looking at. A click opens that conversation. Both can be turned off in Settings > General.",
+					"fr": "Une notification système vous prévient quand une conversation termine son tour ou demande une approbation alors que Cairn est en arrière-plan, et une pastille dans le coin de la fenêtre en fait autant pour une conversation que vous ne regardez pas. Un clic ouvre cette conversation. Les deux se désactivent dans Réglages > Général."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "A click on a tag in the graph opens the branch creation dialog, with the tag as the starting point.",
-					"fr": "Un clic sur un tag du graphe ouvre la fenêtre de création de branche, avec le tag comme point de départ."
+					"en": "A terminal button in the conversation header continues the open conversation in the system terminal, in the same worktree: as a new tab of the terminal window already open on Linux and Windows when the emulator supports it, in a new Terminal window on macOS.",
+					"fr": "Un bouton terminal dans l'en-tête de la conversation la poursuit dans le terminal du système, dans le même worktree : en nouvel onglet de la fenêtre de terminal déjà ouverte sous Linux et Windows quand l'émulateur le permet, dans une nouvelle fenêtre Terminal sous macOS."
 				}
 			},
 			{
 				"kind": "added",
 				"text": {
-					"en": "Branch names can be copied: a copy button next to the current branch in the header and next to each branch of the branch list, and a Copy name entry in the right-click menu of the graph's branches and tags.",
-					"fr": "Les noms de branche se copient : un bouton de copie à côté de la branche courante dans l'en-tête et de chaque branche de la liste des branches, et une entrée Copier le nom dans le menu du clic droit sur les branches et les tags du graphe."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A merge can delete the merged branch once it is done, including after its conflicts are resolved.",
-					"fr": "Une fusion peut supprimer la branche fusionnée une fois terminée, y compris après la résolution de ses conflits."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "When origin has no branch at all, the Git view offers to create the default branch on it.",
-					"fr": "Quand origin n'a aucune branche, la vue Git propose d'y créer la branche par défaut."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The CI/CD step can show the pipelines of the tags instead of the branch's, so a manual job of a tag pipeline, such as a deployment, can be run from Cairn.",
-					"fr": "L'étape CI/CD peut afficher les pipelines des tags au lieu de ceux de la branche : un job manuel d'un pipeline de tag, comme un déploiement, peut être lancé depuis Cairn."
+					"en": "Hovering a conversation in the Agent history shows its full name, its CLI, when it was created and when you last typed in it.",
+					"fr": "Survoler une conversation dans l'historique de l'Agent affiche son nom complet, son CLI, sa date de création et la dernière fois que vous y avez écrit."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Mermaid diagrams, in Markdown files and in .mmd files, are rendered with Mermaid 12: its default layout engine changes, so some diagrams are laid out differently than before.",
-					"fr": "Les diagrammes Mermaid, dans les fichiers Markdown comme dans les fichiers .mmd, sont rendus avec Mermaid 12 : son moteur de mise en page par défaut change, certains diagrammes sont donc disposés autrement qu'avant."
+					"en": "The home screen is redesigned on one shared split panel. The project list shows each project on one line (branch, instances with their added and removed lines, tickets, edit and file manager buttons), and the Agents, Features, Integrations, Skills, MCP servers, Tickets, Ports & Processes and What's new screens share the same list-and-form layout, edge to edge.",
+					"fr": "L'accueil est refondu sur un panneau partagé. La liste des projets montre chaque projet sur une ligne (branche, instances avec leurs lignes ajoutées et supprimées, tickets, boutons d'édition et de gestionnaire de fichiers), et les écrans Agents, Fonctionnalités, Intégrations, Skills, Serveurs MCP, Tickets, Ports et processus et Nouveautés partagent la même disposition liste et formulaire, bord à bord."
 				}
 			},
 			{
 				"kind": "changed",
 				"text": {
-					"en": "Connections to GitLab, GitHub, Jira and HTTP MCP servers now trust the certificates of the operating system, so a self-hosted instance behind a company certificate authority installed on the machine is accepted.",
-					"fr": "Les connexions à GitLab, GitHub, Jira et aux serveurs MCP HTTP font désormais confiance aux certificats du système d'exploitation : une instance auto-hébergée derrière une autorité de certification d'entreprise installée sur la machine est acceptée."
+					"en": "Removing a project, an agent, a skill, an MCP server or an integration first lists everything that goes with it, and says that a project's folder stays on disk.",
+					"fr": "Supprimer un projet, un agent, un skill, un serveur MCP ou une intégration liste d'abord tout ce qui part avec, et précise que le dossier d'un projet reste sur le disque."
 				}
 			},
 			{
-				"kind": "fixed",
+				"kind": "changed",
 				"text": {
-					"en": "On Linux, terminals started with bash load ~/.bashrc again, so its aliases and functions are available in the terminal, in custom commands and in agent CLIs.",
-					"fr": "Sous Linux, les terminaux lancés avec bash chargent de nouveau ~/.bashrc : ses alias et ses fonctions sont disponibles dans le terminal, dans les commandes personnalisées et dans les CLI d'agent."
+					"en": "The Settings screen lists its tabs on the left under the search, with export and import beside the title. A search lists its results in place of the tab, and now finds every setting. Providers moves from the home sidebar to a tab of Settings, shown while AI features are on.",
+					"fr": "L'écran Réglages liste ses onglets à gauche sous la recherche, avec l'export et l'import à côté du titre. Une recherche affiche ses résultats à la place de l'onglet et trouve désormais tous les réglages. Les fournisseurs quittent la barre latérale de l'accueil pour un onglet des Réglages, visible tant que les fonctionnalités IA sont activées."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The prompt of every AI assist is editable, including the test fix, with its placeholders as buttons that insert them at the cursor, and can be copied in one click.",
+					"fr": "Le prompt de chaque assistant IA est modifiable, y compris la correction de test, avec ses variables en boutons qui les insèrent au curseur, et se copie en un clic."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Ports & Processes screen lists processes rather than sockets, with every port each one holds. Your own processes come first with a Stop button; stopping one shows the ports it frees.",
+					"fr": "L'écran Ports et processus liste des processus plutôt que des sockets, avec tous les ports de chacun. Vos propres processus viennent en premier avec un bouton Arrêter ; arrêter un processus montre les ports qu'il libère."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The window that adds or edits a project lists its steps in a column on the left, with what each finished step holds, and checks the fields as they change.",
+					"fr": "La fenêtre d'ajout ou d'édition d'un projet liste ses étapes dans une colonne à gauche, avec le contenu de chaque étape terminée, et vérifie les champs au fil de la saisie."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The git profile of a project is chosen when adding it and later in its settings (Git tab, which also holds the branch name template). It is written into the repository configuration (user.name and user.email), so every commit carries it, from Cairn, a terminal or a coding CLI.",
+					"fr": "Le profil git d'un projet se choisit à l'ajout puis dans ses réglages (onglet Git, qui accueille aussi le modèle de nom de branche). Il est écrit dans la configuration du dépôt (user.name et user.email), donc chaque commit le porte, depuis Cairn, un terminal ou un CLI de code."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The branch selector of the base instance creates a branch, and a click on a tag in the graph opens the branch creation dialog with the tag as the starting point.",
+					"fr": "Le sélecteur de branche de l'instance de base crée une branche, et un clic sur un tag dans le graphe ouvre la création de branche à partir de ce tag."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Branch names can be copied: from the header, from the branch list, and from the right-click menu of the graph's branches and tags.",
+					"fr": "Les noms de branche se copient : depuis l'en-tête, la liste des branches et le menu contextuel des branches et tags du graphe."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A merge can delete the merged branch once it is done, including after its conflicts are resolved. When origin has no branch at all, the Git view offers to create the default one.",
+					"fr": "Une fusion peut supprimer la branche fusionnée une fois terminée, y compris après la résolution de ses conflits. Quand origin n'a aucune branche, la vue Git propose de créer la branche par défaut."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Changes tab of the Git view shows the lines added and removed across the whole working tree, untracked files included, and a bar at the bottom right of the editor counts the changes of the open file and walks through them.",
+					"fr": "L'onglet Changements de la vue Git affiche les lignes ajoutées et supprimées sur tout l'arbre de travail, fichiers non suivis compris, et une barre en bas à droite de l'éditeur compte les changements du fichier ouvert et permet de les parcourir."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "The CI/CD step can show the pipelines of tags instead of the branch's, so a manual job of a tag pipeline, such as a deployment, can be run from Cairn.",
+					"fr": "L'étape CI/CD peut afficher les pipelines des tags plutôt que ceux de la branche, pour lancer depuis Cairn un job manuel d'un pipeline de tag, comme un déploiement."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "A trash button beside the commit options clears the commit message and its description. A middle click closes an editor tab (pinned tabs stay open) or a project tab. A detached editor window shows the project of the active file in its path bar.",
+					"fr": "Un bouton corbeille à côté des options de commit efface le message et la description. Un clic du milieu ferme un onglet d'éditeur (les onglets épinglés restent) ou un onglet de projet. Une fenêtre d'éditeur détachée affiche le projet du fichier actif dans sa barre de chemin."
+				}
+			},
+			{
+				"kind": "added",
+				"text": {
+					"en": "Cairn keeps a log of its own in the logs folder of its data directory: each start and exit, crashes with their trace, and the signal that ended it.",
+					"fr": "Cairn tient son propre journal dans le dossier logs de son répertoire de données : chaque démarrage et arrêt, les plantages avec leur trace, et le signal qui l'a terminé."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Mermaid diagrams, in Markdown and .mmd files, render with Mermaid 12: its default layout engine changes, so some diagrams are laid out differently than before.",
+					"fr": "Les diagrammes Mermaid, dans les fichiers Markdown et .mmd, sont rendus avec Mermaid 12 : son moteur de mise en page par défaut change, certains diagrammes sont donc disposés autrement."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Connections to GitLab, GitHub, Jira and HTTP MCP servers trust the certificates of the operating system, so a self-hosted instance behind a company certificate authority is accepted.",
+					"fr": "Les connexions à GitLab, GitHub, Jira et aux serveurs MCP HTTP font confiance aux certificats du système d'exploitation, ce qui accepte une instance auto-hébergée derrière une autorité de certification d'entreprise."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
 					"en": "Dependency updates close known vulnerabilities, among them TLS certificate checks on connections to integrations and the extraction of update archives.",
-					"fr": "Des mises à jour de dépendances corrigent des vulnérabilités connues, notamment dans la vérification des certificats TLS des connexions aux intégrations et dans l'extraction des archives de mise à jour."
+					"fr": "Les mises à jour de dépendances corrigent des vulnérabilités connues, dont la vérification des certificats TLS des connexions aux intégrations et l'extraction des archives de mise à jour."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "A quick click or a double-click on the title bar or the tab bar no longer leaves the mouse pointer stuck across the whole system: frozen on macOS, held as a move cursor on Linux until the next click.",
-					"fr": "Un clic rapide ou un double-clic sur la barre de titre ou la barre d'onglets ne laisse plus le pointeur de la souris bloqué sur tout le système : figé sous macOS, retenu en curseur de déplacement sous Linux jusqu'au clic suivant."
+					"en": "The Git view stays responsive on a worktree with tens of thousands of untracked or modified files: only the files on screen are read and diffed, the others as the list is scrolled.",
+					"fr": "La vue Git reste fluide sur un worktree de plusieurs dizaines de milliers de fichiers non suivis ou modifiés : seuls les fichiers à l'écran sont lus et comparés, les autres au fil du défilement."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The commit title and description no longer stay filled in when switching to another project or instance, or after committing, when the field still had the focus.",
-					"fr": "Le titre et la description du commit ne restent plus remplis en passant à un autre projet ou à une autre instance, ni après un commit, quand le champ avait encore le focus."
+					"en": "Git operations, in Cairn and in the agents running in its terminals, no longer fail so often on \"index.lock: File exists\".",
+					"fr": "Les opérations git, dans Cairn comme dans les agents lancés dans ses terminaux, échouent beaucoup moins souvent sur « index.lock: File exists »."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The history and the graph of the Git view follow a commit, reset or checkout made outside Cairn, without reloading the app.",
-					"fr": "L'historique et le graphe de la vue Git suivent un commit, un reset ou un checkout fait hors de Cairn, sans recharger l'application."
+					"en": "The Git view follows a commit, reset or checkout made outside Cairn without reloading the app, shows a file moved with git mv as a rename, and no longer shows as deleted a file that only lost lines. The editor gutter markers land on the lines git reports.",
+					"fr": "La vue Git suit un commit, un reset ou un checkout fait hors de Cairn sans recharger l'application, montre un fichier déplacé avec git mv comme un renommage, et ne présente plus comme supprimé un fichier qui a seulement perdu des lignes. Les repères de la gouttière de l'éditeur tombent sur les lignes indiquées par git."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "A file moved with git mv is shown as a rename, with its former path, instead of an empty change; unstaging it restores both paths.",
-					"fr": "Un fichier déplacé avec git mv s'affiche comme un renommage, avec son ancien chemin, au lieu d'une modification vide ; le retirer de l'index restaure les deux chemins."
+					"en": "Staging, unstaging or discarding a selection of files is done in one go: a file that cannot be processed no longer stops the others, and every failure is named in the error.",
+					"fr": "Indexer, désindexer ou annuler une sélection de fichiers se fait en une passe : un fichier impossible à traiter n'arrête plus les autres, et chaque échec est nommé dans l'erreur."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The Git view no longer takes minutes to open on a worktree with tens of thousands of untracked files: only the files on screen are read, and the others fill in as the list is scrolled.",
-					"fr": "La vue Git ne met plus plusieurs minutes à s'ouvrir sur un worktree contenant des dizaines de milliers de fichiers non suivis : seuls les fichiers affichés sont lus, les autres se remplissent au fil du défilement."
+					"en": "The commit title and description no longer stay filled in when switching project or instance, or after committing. Adopting a worktree prefills the base branch it was created from.",
+					"fr": "Le titre et la description du commit ne restent plus remplis quand on change de projet ou d'instance, ni après un commit. Adopter un worktree préremplit la branche de base dont il est issu."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "The Git view stays responsive on a worktree with tens of thousands of modified files: only the files on screen are diffed, the others as the list is scrolled, and the staged line totals are counted in the background.",
-					"fr": "La vue Git reste réactive sur un worktree contenant des dizaines de milliers de fichiers modifiés : seuls les fichiers affichés sont comparés, les autres au fil du défilement, et le total des lignes indexées est calculé en arrière-plan."
+					"en": "Claude Code started in Cairn saves its conversations again when Cairn was launched from a Claude Code terminal, so they can be resumed.",
+					"fr": "Claude Code lancé dans Cairn enregistre de nouveau ses conversations quand Cairn a été démarré depuis un terminal Claude Code, ce qui permet de les reprendre."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "A file that only lost lines is no longer shown as deleted in the Git view, and can be opened from its card.",
-					"fr": "Un fichier qui a seulement perdu des lignes n'est plus présenté comme supprimé dans la vue Git, et s'ouvre depuis sa carte."
+					"en": "On Linux, terminals started with bash load ~/.bashrc again, so its aliases and functions are available in the terminal, in custom commands and in agent CLIs.",
+					"fr": "Sous Linux, les terminaux lancés avec bash chargent de nouveau ~/.bashrc : ses alias et fonctions sont disponibles dans le terminal, les commandes personnalisées et les CLI d'agent."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Staging, unstaging or discarding a selection of files is done in one go: a file that cannot be processed no longer stops the others, and every file that failed is named in the error.",
-					"fr": "Indexer, retirer de l'index ou annuler une sélection de fichiers se fait en une seule fois : un fichier impossible à traiter n'arrête plus les autres, et chaque fichier en échec est nommé dans l'erreur."
+					"en": "A quick click or double-click on the title bar or the tab bar no longer leaves the mouse pointer stuck across the whole system. Ctrl+clicking a link in a Claude Code session no longer opens the page twice.",
+					"fr": "Un clic rapide ou un double-clic sur la barre de titre ou la barre d'onglets ne fige plus le pointeur de la souris sur tout le système. Ctrl+clic sur un lien dans une session Claude Code n'ouvre plus la page deux fois."
 				}
 			},
 			{
 				"kind": "fixed",
 				"text": {
-					"en": "Git operations, in Cairn and in the agents running in its terminals, no longer fail so often on \"index.lock: File exists\": the Git view no longer locks the index while it refreshes, and a write waits briefly for a lock another process is about to release.",
-					"fr": "Les opérations Git, dans Cairn comme dans les agents lancés dans ses terminaux, n'échouent plus aussi souvent sur « index.lock: File exists » : la vue Git ne verrouille plus l'index en se rafraîchissant, et une écriture patiente un instant quand un autre processus s'apprête à libérer le verrou."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A detached editor window shows the project of the active file at the left of its path bar.",
-					"fr": "Une fenêtre d'éditeur détachée affiche le projet du fichier actif à gauche de sa barre de chemin."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The selected project tab sits flush against its neighbours, with no gap left between them.",
-					"fr": "L'onglet du projet sélectionné est collé à ses voisins, sans espace entre eux."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The header of enclosing scopes pinned at the top of the editor no longer runs over the minimap.",
-					"fr": "Le bandeau des portées parentes épinglé en haut de l'éditeur ne déborde plus sur la minimap."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The list of skills, agents, MCP servers and integrations always fits in the window: it scrolls on its own when it is longer, without first scrolling the open item to its end.",
-					"fr": "La liste des skills, des agents, des serveurs MCP et des intégrations tient toujours dans la fenêtre : elle défile d'elle-même quand elle est plus longue, sans faire d'abord défiler l'élément ouvert jusqu'au bout."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Ctrl+clicking a link in a Claude Code session opened the page twice in the browser.",
-					"fr": "Un Ctrl+clic sur un lien dans une session Claude Code ouvrait la page deux fois dans le navigateur."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A trash button beside the commit options clears the commit message and its description in one click, and puts the cursor back in the message.",
-					"fr": "Un bouton corbeille à côté des options de commit efface le message de commit et sa description en un clic, et remet le curseur dans le message."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A middle click on an editor tab closes it, in the main window and in detached windows. Pinned tabs stay open.",
-					"fr": "Un clic molette sur un onglet de l'éditeur le ferme, dans la fenêtre principale comme dans les fenêtres détachées. Les onglets épinglés restent ouverts."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A middle click on a project tab closes it.",
-					"fr": "Un clic molette sur un onglet de projet le ferme."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Hovering a conversation in the Agent history shows its full name, its CLI, when it was created and when you last typed in it. An open conversation shows its creation date next to its title.",
-					"fr": "Au survol d'une conversation dans l'historique de l'Agent, son nom complet s'affiche avec son CLI, sa date de création et la date à laquelle vous y avez écrit pour la dernière fois. Une conversation ouverte affiche sa date de création à côté de son titre."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The git profile of a project is chosen when adding it, in the integrations step, and later in its settings (Git tab, which now also holds the branch name template), as well as from the commit form of the Git view.",
-					"fr": "Le profil git d'un projet se choisit à son ajout, à l'étape des intégrations, puis dans ses réglages (onglet Git, qui accueille aussi le modèle de nom de branche), en plus du formulaire de commit de la vue Git."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "The git profile of a project is written into its repository configuration (user.name and user.email), so every commit of the project carries it, from Cairn, a terminal or a coding CLI, instead of only the commits made from the Git view. Picking the default takes back what the profile wrote and leaves an identity set by hand alone; editing a profile updates the projects using it and deleting one takes its identity back; a folder initialised from Cairn afterwards receives the profile too.",
-					"fr": "Le profil git d'un projet est inscrit dans la configuration de son dépôt (user.name et user.email) : chaque commit du projet le porte, depuis Cairn, un terminal ou un CLI de code, et non plus seulement les commits faits depuis la vue Git. Revenir au défaut retire ce que le profil avait inscrit et laisse intacte une identité posée à la main ; modifier un profil met à jour les projets qui l'utilisent et en supprimer un retire son identité ; un dossier initialisé ensuite depuis Cairn reçoit aussi le profil."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A terminal button in the conversation header continues the open conversation in the system terminal: the embedded CLI is stopped and the same session is resumed outside, in the same worktree. On Linux and Windows it opens as a new tab of the terminal window already open when the emulator supports it (GNOME Terminal, Ptyxis, Konsole, Windows Terminal...), on macOS in a new Terminal window. The conversation then says in the app that it goes on outside, and resumes there by itself if no terminal could be opened. It appears once the CLI has saved the session; a running CLI asks for confirmation first, since it is stopped and reopened in the terminal.",
-					"fr": "Un bouton terminal dans l'en-tête de la conversation la poursuit dans le terminal du système : le CLI intégré est arrêté et la même session reprise à l'extérieur, dans le même worktree. Sous Linux et Windows elle s'ouvre dans un nouvel onglet de la fenêtre de terminal déjà ouverte quand l'émulateur le permet (GNOME Terminal, Ptyxis, Konsole, Windows Terminal…), sous macOS dans une nouvelle fenêtre de Terminal. La conversation indique alors dans l'application qu'elle se poursuit à l'extérieur, et y reprend d'elle-même si aucun terminal n'a pu s'ouvrir. Il apparaît dès que le CLI a enregistré la session ; un CLI en cours demande d'abord confirmation, car il est arrêté puis rouvert dans le terminal."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Cairn now knows which conversations are waiting for you. Claude Code reports its turn - working, asking for approval, finished - and the Conversations page of the home screen lists every running conversation across projects and instances, what needs you first; a click lands on that project, that instance and that conversation. Project cards and the conversation list carry the same marks, which clear once the conversation is on screen; clicking a card's count opens the conversation waiting, in the Agent step. Cairn passes its hooks to Claude Code at launch and never writes into your Claude settings; other CLIs only show whether they are running.",
-					"fr": "Cairn sait désormais quelles conversations vous attendent. Claude Code signale son tour - au travail, en attente d'un accord, terminé - et la page Conversations de l'accueil liste toutes les conversations lancées, sur tous les projets et toutes les instances, ce qui vous attend en premier ; un clic mène à ce projet, cette instance et cette conversation. Les cartes de projet et la liste des conversations portent les mêmes marques, qui s'effacent dès que la conversation est à l'écran ; un clic sur le compteur d'une carte ouvre la conversation qui attend, dans l'étape Agent. Cairn transmet ses hooks à Claude Code au lancement et n'écrit jamais dans vos réglages Claude ; les autres CLI indiquent seulement s'ils sont lancés."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A system notification tells you when a conversation finishes its turn or asks for approval while Cairn is in the background, and clicking it opens that conversation. It can be turned off in Settings > General.",
-					"fr": "Une notification système vous prévient quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan, et un clic dessus ouvre cette conversation. Désactivable dans Réglages > Général."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "While you work in Cairn, a notice in the corner of the window tells you when a conversation you are not looking at - in another project, another instance, or behind the Files or Git step - finishes its turn or asks for approval, on Home as in the workspace. A click opens that conversation; a finished turn goes away after a few seconds, a pending approval stays until you answer it. Past three, the rest fold into one line that opens Conversations. It has its own switch in Settings > General.",
-					"fr": "Pendant que vous travaillez dans Cairn, un avis dans le coin de la fenêtre vous prévient quand une conversation que vous n'avez pas sous les yeux - dans un autre projet, une autre instance, ou derrière l'étape Fichiers ou Git - termine son tour ou demande un accord, sur l'accueil comme dans l'espace de travail. Un clic ouvre cette conversation ; un tour terminé disparaît après quelques secondes, une demande d'accord reste jusqu'à ce que vous y répondiez. Au-delà de trois, les autres se regroupent en une ligne qui ouvre Conversations. Il a son propre interrupteur dans Réglages > Général."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "Cairn keeps a log of its own in the logs folder of its data directory (cairn.log, rotated at 1 MB with two older files kept): each start and exit, crashes of the app with their trace, and the signal that ended it along with the process that sent it, so a window that vanishes leaves its reason behind.",
-					"fr": "Cairn tient son propre journal dans le dossier logs de son répertoire de données (cairn.log, renouvelé à 1 Mo en gardant les deux précédents) : chaque démarrage et chaque fermeture, les plantages de l'application avec leur trace, et le signal qui l'a arrêtée avec le processus qui l'a envoyé, pour qu'une fenêtre qui disparaît laisse sa raison derrière elle."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "The Changes tab of the Git view shows the lines added and removed across the whole working tree, untracked files included, with the number of files, beside the search field, as the staged column already did. The counts follow every edit, even to a file that was already modified.",
-					"fr": "L'onglet Changements de la vue Git affiche les lignes ajoutées et supprimées sur tout l'arbre de travail, fichiers non suivis compris, avec le nombre de fichiers, à côté du champ de recherche, comme la colonne indexée le faisait déjà. Les décomptes suivent chaque modification, même sur un fichier déjà modifié."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "The line counts of the Git view no longer blink: the counts on screen stay up while the next ones are read, instead of giving way to a placeholder whenever the list of changed files moved.",
-					"fr": "Les décomptes de lignes de la vue Git ne clignotent plus : les chiffres affichés restent en place pendant la lecture des suivants, au lieu de céder la place à un indicateur d'attente dès que la liste des fichiers modifiés changeait."
-				}
-			},
-			{
-				"kind": "changed",
-				"text": {
-					"en": "In the Git view, the open-in-editor button of a changed or staged file opens it at the first change of its diff, instead of wherever the file was last left.",
-					"fr": "Dans la vue Git, le bouton d'ouverture dans l'éditeur d'un fichier modifié ou indexé l'ouvre à la première modification de son diff, et non plus là où le fichier avait été laissé."
-				}
-			},
-			{
-				"kind": "added",
-				"text": {
-					"en": "A bar at the bottom right of the editor counts the changes of the open file, shows which one the cursor is on, and walks through them, one arrow up and one down, wrapping at either end. Typing a number in it jumps to that change. It shows up only while the file differs from its git baseline.",
-					"fr": "Une barre en bas à droite de l'éditeur compte les modifications du fichier ouvert, indique celle où se trouve le curseur et les parcourt, une flèche vers le haut et une vers le bas, en bouclant aux extrémités. Saisir un numéro dans la barre mène à cette modification. Elle n'apparaît que lorsque le fichier diffère de sa version git de référence."
-				}
-			},
-			{
-				"kind": "fixed",
-				"text": {
-					"en": "Adopting a worktree prefills the base branch it was created from, as its reflog records it, and no longer suggests a branch that already merged it, a branch stacked on it, or its own copy on another remote.",
-					"fr": "Adopter un worktree préremplit la branche de base à partir de laquelle il a été créé, telle que son reflog l'enregistre, et ne propose plus une branche qui l'a déjà fusionné, une branche empilée dessus, ni sa propre copie sur un autre remote."
+					"en": "The lists of skills, agents, MCP servers and integrations always fit in the window, the selected project tab sits flush against its neighbours, and the scope header pinned at the top of the editor no longer runs over the minimap.",
+					"fr": "Les listes de skills, d'agents, de serveurs MCP et d'intégrations tiennent toujours dans la fenêtre, l'onglet de projet sélectionné est collé à ses voisins, et l'en-tête de portée épinglé en haut de l'éditeur ne déborde plus sur la minimap."
 				}
 			}
 		]
