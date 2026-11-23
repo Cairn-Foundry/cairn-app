@@ -74,19 +74,21 @@ describe("every translation says something", () => {
 	 * Any other empty entry is a translation nobody wrote.
 	 */
 	const DELIBERATELY_EMPTY = ["git.errors.codes.unknown.hint"];
+	/** A shortcut whose label says it all carries no description. */
+	const OPTIONAL = /^shortcuts\.defs\.[^.]+\.description$/;
+	const mayBeEmpty = (path: string) =>
+		DELIBERATELY_EMPTY.includes(path) || OPTIONAL.test(path);
 
 	it("leaves no English string empty by accident", () => {
 		const empty = ENGLISH.filter(
-			(path) =>
-				valueAt(en as Tree, path) === "" && !DELIBERATELY_EMPTY.includes(path),
+			(path) => valueAt(en as Tree, path) === "" && !mayBeEmpty(path),
 		);
 		expect(empty).toEqual([]);
 	});
 
 	it("leaves no French string empty by accident", () => {
 		const empty = FRENCH.filter(
-			(path) =>
-				valueAt(fr as Tree, path) === "" && !DELIBERATELY_EMPTY.includes(path),
+			(path) => valueAt(fr as Tree, path) === "" && !mayBeEmpty(path),
 		);
 		expect(empty).toEqual([]);
 	});

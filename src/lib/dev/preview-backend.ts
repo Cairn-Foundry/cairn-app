@@ -768,7 +768,70 @@ let storedSettings: Record<string, unknown> = {
 	],
 };
 
+/** A few catalogue entries in the states the Language servers tab draws. */
+function languageServer(
+	id: string,
+	name: string,
+	extensions: string[],
+	state: {
+		version?: string;
+		status?: "ready" | "stopped" | "failed";
+		custom?: boolean;
+	},
+) {
+	const installed = state.version !== undefined;
+	const npm = {
+		manager: "npm",
+		command: `npm install -g ${id}`,
+		available: true,
+	};
+	return {
+		id,
+		name,
+		binary: id,
+		args: ["--stdio"],
+		extensions,
+		languageIds: [],
+		rootMarkers: [],
+		custom: state.custom ?? false,
+		installOptions: state.custom ? [] : [npm],
+		uninstallOptions: installed && !state.custom ? [npm] : [],
+		updateOptions: installed && !state.custom ? [npm] : [],
+		alsoRemoves: [],
+		docUrl: "",
+		binaryPath: installed ? `/usr/local/bin/${id}` : null,
+		version: state.version ?? null,
+		status: state.status ?? "stopped",
+		runningRoot: state.status === "ready" ? "/home/dev/code/cairn" : null,
+	};
+}
+
+const LANGUAGE_SERVERS = [
+	languageServer(
+		"typescript-language-server",
+		"TypeScript",
+		["ts", "tsx", "js", "jsx", "mjs", "cjs"],
+		{ version: "4.3.3", status: "ready" },
+	),
+	languageServer("svelte-language-server", "Svelte", ["svelte"], {
+		version: "0.17.8",
+		status: "ready",
+	}),
+	languageServer("rust-analyzer", "Rust", ["rs"], { version: "2026-11-17" }),
+	languageServer("pyright", "Python", ["py", "pyi"], {
+		version: "1.1.389",
+		status: "failed",
+	}),
+	languageServer("gopls", "Go", ["go"], {}),
+	languageServer("lua-language-server", "Lua", ["lua"], {}),
+	languageServer("company-dsl-ls", "Company DSL", ["cdsl"], {
+		version: "0.4.0",
+		custom: true,
+	}),
+];
+
 const overrides: Record<string, (args: Record<string, unknown>) => unknown> = {
+	list_language_servers: () => LANGUAGE_SERVERS,
 	get_listing: () =>
 		isEmpty
 			? {

@@ -129,7 +129,7 @@
             </span>
           </div>
           <div class="cp-item-meta">
-            <span class="cp-item-desc">{entry.description}</span>
+            {#if entry.description}<span class="cp-item-desc">{entry.description}</span>{/if}
             {#if entry.kind === 'shortcut' && shortcuts[entry.def.id]}
               <span class="cp-item-keys">
                 {#each bindingToLabels(shortcuts[entry.def.id]) as key}

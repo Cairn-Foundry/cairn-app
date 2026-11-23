@@ -8,6 +8,9 @@
    */
   import { onMount, tick } from 'svelte';
   import Icon from '#lib/components/Icon.svelte';
+  import SettingsGroup from './SettingsGroup.svelte';
+  import SettingRow from './SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import { settings } from '#lib/stores/settings';
   import { pendingGitAction } from '#lib/stores/ui';
@@ -148,9 +151,7 @@
 
 <svelte:window on:keydown={modalOpen || confirmOpen ? handleKey : undefined} />
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.git.groupTitle')}</div>
-  <p class="group-desc">{t('settings.git.groupDesc')}</p>
+<SettingsGroup group={SETTINGS_SCHEMA.git.profiles}>
 
   {#each $settings.gitProfiles as profile (profile.id)}
     <div class="settings-row profile-row">
@@ -175,15 +176,10 @@
   <button class="add-profile-btn" on:click={openCreate}>
     <Icon name="plus" size={12} /> {t('settings.git.addProfile')}
   </button>
-</div>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.git.diffGroupTitle')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.git.maxDiffLines')}</span>
-      <span class="settings-row-desc">{t('settings.git.maxDiffLinesDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.git.diffs}>
+  <SettingRow row={SETTINGS_SCHEMA.git.diffs.rows.maxDiffLines}>
     <div class="settings-row-control">
       <input
         class="settings-number-input"
@@ -202,12 +198,10 @@
         <Icon name="undo" size={12}/>
       </button>
     </div>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.git.branchGroupTitle')}</div>
-  <p class="group-desc">{t('settings.git.branchGroupDesc')}</p>
+<SettingsGroup group={SETTINGS_SCHEMA.git.branches}>
 
   <div class="template-field">
     <input
@@ -230,7 +224,7 @@
     <span class="template-preview-label">{t('settings.git.branchTemplatePreview')}</span>
     <span class="mono selectable">{templatePreview}</span>
   </div>
-</div>
+</SettingsGroup>
 
 {#if modalOpen}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -386,11 +380,6 @@
   }
   .mono { font-family: var(--font-mono); }
 
-  .group-desc {
-    font-size: 12px;
-    color: var(--fg-3);
-    margin: -4px 0 12px;
-  }
 
   .profile-row { gap: 12px; }
 

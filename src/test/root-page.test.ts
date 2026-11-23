@@ -295,6 +295,17 @@ describe("application root", () => {
 			expect(home().getAttribute("data-open-settings-tab")).toBe("git");
 		});
 
+		/** Providers moved from a home section into a settings tab. */
+		it("reopens a state left on Providers on its settings tab", async () => {
+			getUiState.mockResolvedValue(
+				savedState({ homeSection: "providers", homeSettingsTab: "general" }),
+			);
+			render(Page);
+			await settle();
+			expect(home().getAttribute("data-open-section")).toBe("settings");
+			expect(home().getAttribute("data-open-settings-tab")).toBe("providers");
+		});
+
 		it("publishes the screen it settled on", async () => {
 			getUiState.mockResolvedValue(
 				savedState({ screen: "workspace", activeProjectId: "p1" }),

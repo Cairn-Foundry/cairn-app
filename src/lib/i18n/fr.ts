@@ -336,7 +336,7 @@ export const fr = {
 			},
 			toggleLineComment: {
 				label: "Commenter la ligne",
-				description: "Commenter ou décommenter la ligne courante",
+				description: "",
 			},
 			toggleBlockComment: {
 				label: "Commentaire de bloc",
@@ -344,23 +344,24 @@ export const fr = {
 			},
 			moveLineUp: {
 				label: "Déplacer la ligne vers le haut",
-				description: "Déplacer la ligne courante vers le haut",
+				description: "",
 			},
 			moveLineDown: {
 				label: "Déplacer la ligne vers le bas",
-				description: "Déplacer la ligne courante vers le bas",
+				description: "",
 			},
 			copyLineDown: {
 				label: "Copier la ligne vers le bas",
-				description: "Dupliquer la ligne courante en dessous",
+				description:
+					"Dupliquer la ligne en dessous et placer le curseur sur la copie",
 			},
 			deleteLine: {
 				label: "Supprimer la ligne",
-				description: "Supprimer la ligne courante",
+				description: "",
 			},
 			selectLine: {
 				label: "Sélectionner la ligne",
-				description: "Sélectionner toute la ligne courante",
+				description: "",
 			},
 			matchingBracket: {
 				label: "Aller au bracket correspondant",
@@ -368,11 +369,11 @@ export const fr = {
 			},
 			indentMore: {
 				label: "Indenter",
-				description: "Augmenter l'indentation de la ligne courante",
+				description: "",
 			},
 			indentLess: {
 				label: "Désindenter",
-				description: "Réduire l'indentation de la ligne courante",
+				description: "",
 			},
 			expandSelection: {
 				label: "Étendre la sélection",
@@ -380,19 +381,19 @@ export const fr = {
 			},
 			closeTab: {
 				label: "Fermer l'onglet",
-				description: "Fermer l'onglet d'éditeur actif",
+				description: "",
 			},
 			reopenClosedTab: {
 				label: "Rouvrir l'onglet fermé",
-				description: "Rouvrir le dernier onglet fermé",
+				description: "",
 			},
 			nextTab: {
 				label: "Onglet suivant",
-				description: "Passer à l'onglet ouvert suivant",
+				description: "",
 			},
 			prevTab: {
 				label: "Onglet précédent",
-				description: "Passer à l'onglet ouvert précédent",
+				description: "",
 			},
 			tabHistoryBack: {
 				label: "Historique d'onglets arrière",
@@ -417,29 +418,28 @@ export const fr = {
 			},
 			openSettings: {
 				label: "Ouvrir les paramètres",
-				description: "Ouvrir le panneau des paramètres",
+				description: "",
 			},
 			goToLine: {
 				label: "Aller à la ligne",
-				description: "Aller à un numéro de ligne spécifique",
+				description: "",
 			},
 			addCursorAbove: {
 				label: "Ajouter un curseur au-dessus",
-				description: "Ajouter un curseur supplémentaire sur la ligne au-dessus",
+				description: "",
 			},
 			addCursorBelow: {
 				label: "Ajouter un curseur en dessous",
-				description:
-					"Ajouter un curseur supplémentaire sur la ligne en dessous",
+				description: "",
 			},
 			saveFile: {
 				label: "Enregistrer le fichier",
-				description: "Enregistrer explicitement le fichier actif",
+				description: "",
 			},
 			duplicateLine: {
 				label: "Dupliquer la ligne",
 				description:
-					"Dupliquer la ligne courante, le curseur reste sur l'originale",
+					"Dupliquer la ligne en dessous, le curseur reste sur l'originale",
 			},
 			goToDefinition: {
 				label: "Aller à la définition",
@@ -467,13 +467,11 @@ export const fr = {
 			},
 			treeCopy: {
 				label: "Copier le(s) fichier(s)",
-				description:
-					"Copier le(s) fichier(s) sélectionné(s) dans le presse-papiers",
+				description: "",
 			},
 			treeCut: {
 				label: "Couper le(s) fichier(s)",
-				description:
-					"Couper le(s) fichier(s) sélectionné(s) dans le presse-papiers",
+				description: "",
 			},
 			treePaste: {
 				label: "Coller le(s) fichier(s)",
@@ -482,11 +480,11 @@ export const fr = {
 			},
 			treeDelete: {
 				label: "Supprimer le(s) fichier(s)",
-				description: "Supprimer le(s) fichier(s) et dossier(s) sélectionné(s)",
+				description: "",
 			},
 			treeRename: {
 				label: "Renommer le fichier",
-				description: "Renommer le fichier ou dossier sélectionné",
+				description: "",
 			},
 			treeNewFile: {
 				label: "Nouveau fichier",
@@ -498,7 +496,7 @@ export const fr = {
 			},
 			toggleFullscreen: {
 				label: "Basculer en plein écran",
-				description: "Entrer ou sortir du plein écran",
+				description: "",
 			},
 			toggleTools: {
 				label: "Basculer le panneau d'outils",
@@ -507,7 +505,7 @@ export const fr = {
 			},
 			openTerminal: {
 				label: "Ouvrir le terminal",
-				description: "Afficher l'outil terminal",
+				description: "",
 			},
 			openCommands: {
 				label: "Ouvrir les commandes",
@@ -2581,7 +2579,6 @@ export const fr = {
 			integrations: "Intégrations",
 			conversations: "Conversations",
 			ai: "Intelligences artificielles",
-			providers: "Fournisseurs",
 			features: "Fonctionnalités",
 			agents: "Agents",
 			skills: "Compétences",
@@ -2637,15 +2634,14 @@ export const fr = {
 			},
 		},
 		providers: {
-			title: "Fournisseurs",
-			desc: "Les CLI de code trouvés sur cette machine. Chacun se configure avec ses propres commandes ; Cairn Foundry le lance tel quel.",
+			groupTitle: "CLI de code",
 			installedCount: (n: number, total: number) =>
 				`${n} sur ${total} installés`,
 			refresh: "Détecter à nouveau",
 			installed: "Installé",
 			absent: "Introuvable",
 			absentHint:
-				"Installez-le puis relancez la détection pour l'utiliser dans la step Agent.",
+				"Un CLI installé après le lancement de Cairn apparaît une fois détecté à nouveau.",
 		},
 		features: {
 			title: "Fonctionnalités",
@@ -3040,13 +3036,12 @@ export const fr = {
 		title: "Paramètres",
 		searchPlaceholder: "Rechercher des paramètres...",
 		searchAriaLabel: "Rechercher des paramètres",
-		clearSearch: "Effacer la recherche",
 		exportTitle: "Exporter les paramètres en JSON",
 		importTitle: "Importer les paramètres depuis un JSON",
-		export: "Exporter",
-		import: "Importer",
 		importError:
 			"Impossible d'importer les paramètres : le fichier n'est pas un JSON valide.",
+		resultsTitle: "Recherche",
+		noResultsTitle: "Aucun réglage trouvé",
 		noResults: (q: string) => `Aucun paramètre ne correspond à "${q}".`,
 		tabs: {
 			general: "Général",
@@ -3056,28 +3051,45 @@ export const fr = {
 			shortcuts: "Raccourcis",
 			languages: "Langues",
 			languageServers: "Serveurs de langage",
+			providers: "Fournisseurs",
 			git: "Git",
+		},
+		tabDescs: {
+			general: "IA, notifications, la commande cairn et mises à jour.",
+			appearance: "Thème, couleur d'accent, police et taille de l'interface.",
+			editor: "L'arborescence, l'éditeur de code et ses couleurs de syntaxe.",
+			project:
+				"La barre latérale de l'espace de travail et ses onglets de workflow.",
+			git: "Profils d'auteur, diffs et nom des nouvelles branches.",
+			languageServers:
+				"Les serveurs derrière la complétion, les diagnostics et la navigation.",
+			providers:
+				"Les CLI de code trouvés sur cette machine. Chacun garde sa propre configuration : Cairn le lance tel quel.",
+			shortcuts:
+				"Cliquez sur un raccourci pour lui enregistrer de nouvelles touches.",
+			languages: "La langue dans laquelle Cairn s'affiche.",
 		},
 		general: {
 			ai: {
 				groupTitle: "Intelligence artificielle",
 				enable: "Activer les fonctionnalités IA",
 				enableDesc:
-					"L'étape Agent, les pages fournisseurs, agents, skills et MCP, le guide de revue et chaque brouillon assisté. Désactivée, plus rien de tout cela n'est affiché ni exécuté.",
-				notifications: "Prévenir quand un agent a besoin de vous",
+					"Désactivé, l'étape Agent, les pages fournisseurs, agents, skills et MCP, le guide de revue et tous les brouillons IA sont masqués et ne tournent jamais.",
+				notifications: "Notifications système",
 				notificationsDesc:
-					"Une notification système quand une conversation termine son tour ou demande un accord pendant que Cairn est en arrière-plan.",
-				toasts: "Signaler dans Cairn quand une autre conversation vous attend",
+					"Quand une conversation termine son tour ou demande une validation pendant que Cairn est en arrière-plan.",
+				toasts: "Avis dans la fenêtre",
 				toastsDesc:
-					"Un avis dans le coin de la fenêtre quand une conversation que vous n'avez pas sous les yeux termine son tour ou demande un accord pendant que vous travaillez dans Cairn.",
+					"La même chose, dans un coin de Cairn, pour une conversation qui n'est pas à l'écran pendant que vous travaillez dans l'app.",
 			},
 			cli: {
 				groupTitle: "Ligne de commande",
-				install: "Installer la commande cairn",
+				label: "La commande cairn",
+				install: "Installer",
 				installDesc:
-					"Ajoute une commande cairn a votre PATH. Lancez cairn pour ramener l'application au premier plan, ou cairn <fichier> pour ouvrir un fichier dans l'editeur.",
+					"Lancez cairn pour ramener l'app au premier plan, cairn <fichier> pour ouvrir un fichier, ou cairn . pour ouvrir le dossier courant comme projet.",
 				installedAt: (path: string) => `Installee dans ${path}.`,
-				uninstall: "Retirer la commande cairn",
+				uninstall: "Retirer",
 				unavailable:
 					"Le lanceur n'est disponible que dans une version installee de Cairn Foundry, pas en mode developpement.",
 			},
@@ -3085,17 +3097,15 @@ export const fr = {
 				groupTitle: "Tour guidé",
 				replay: "Tour de bienvenue",
 				replayDesc:
-					"Revoir l'introduction aux projets, aux instances et aux étapes.",
+					"L'introduction aux projets, aux instances et aux étapes du workflow.",
 				replayAction: "Revoir",
 			},
 			updates: {
 				groupTitle: "Mises à jour",
 				currentVersion: "Version installée",
-				currentVersionDesc: "La version actuellement lancée",
 				autoCheck: "Vérifier automatiquement",
-				autoCheckDesc: "Au lancement, puis toutes les six heures",
+				autoCheckDesc: "Au lancement, puis toutes les six heures.",
 				check: "Vérifier maintenant",
-				checkDesc: "Interroger le serveur de mise à jour",
 			},
 		},
 		syntax: {
@@ -3139,24 +3149,23 @@ export const fr = {
 
 		appearance: {
 			themeGroup: "Thème",
-			themeDesc: "Les couleurs de toute l'interface et de l'éditeur",
+			themeDesc: "Les couleurs de l'interface et de l'éditeur.",
 			accentGroup: "Couleur d'accentuation",
-			accentDesc: "Couleur de mise en évidence dans toute l'interface",
+			accentDesc: "Boutons, interrupteurs et sélections dans toute l'app.",
 			scaleGroup: "Taille de l'interface",
 			uiScale: "Échelle de l'interface",
 			uiScaleDesc:
-				"Met à l'échelle toute l'interface, pour qu'une fenêtre plus petite reste utilisable.",
+				"Agrandit texte et contrôles ensemble. Sous 100 %, une petite fenêtre en montre davantage.",
 			uiScaleResetTitle: "Revenir à 100%",
 			fontGroup: "Police",
-			fontDesc: "Police à espacement fixe pour l'éditeur de code",
+			fontDesc: "La police à chasse fixe de l'éditeur de code et du terminal.",
 			customColor: "Couleur personnalisée",
 			resetAppearance: "Réinitialiser l'apparence",
 			transparencyEffects: "Effets de transparence",
 			transparencyEffectsDesc:
-				"Laisse le bureau transparaître à travers la fenêtre. Les désactiver rend le défilement plus fluide ; effectif après un redémarrage.",
+				"Le bureau transparaît à travers la fenêtre. Désactivé, le défilement est plus fluide. S'applique après un redémarrage.",
 			iconAnimations: "Animations des icônes",
-			iconAnimationsDesc:
-				"Anime les icônes au survol du bouton ou de la ligne qui les contient.",
+			iconAnimationsDesc: "Les icônes bougent légèrement sous le pointeur.",
 			windowGroup: "Fenêtre",
 			titleBar: "Barre de titre",
 			titleBarDesc:
@@ -3167,7 +3176,7 @@ export const fr = {
 			},
 			titleBarColor: "Couleur de la barre de titre",
 			titleBarColorDesc:
-				"Choisissez la couleur de la barre. Couleur du projet suit le projet ouvert.",
+				"Couleur du projet reprend la couleur du projet ouvert.",
 			titleBarFills: {
 				theme: "Thème",
 				accent: "Couleur d'accent",
@@ -3191,38 +3200,37 @@ export const fr = {
 			codeEditorGroup: "Éditeur de code",
 			fileExplorerPosition: "Position de l'explorateur de fichiers",
 			fileExplorerPositionDesc:
-				"Déplacer l'explorateur de fichiers à gauche ou à droite de l'éditeur.",
+				"Côté de la vue Fichiers. Les étapes du workflow ont le leur, dans Projet.",
 			sidebarLeft: "Gauche",
 			sidebarRight: "Droite",
 			treePanelWidth: "Largeur de l'arborescence",
-			treePanelWidthDesc:
-				"Largeur du panneau d'exploration dans la vue Fichiers.",
+			treePanelWidthDesc: "Se règle aussi en tirant le bord de l'arborescence.",
 			treePanelWidthUnit: "px",
 			treePanelWidthResetTitle: "Réinitialiser à la valeur par défaut (220 px)",
 			fontSize: "Taille de police",
-			fontSizeDesc: "Taille de police de base de l'éditeur de code.",
+			fontSizeDesc:
+				"Change aussi depuis l'éditeur avec les raccourcis de taille de police.",
 			fontSizeUnit: "px",
 			fontSizeResetTitle: "Réinitialiser à la valeur par défaut (13 px)",
 			showMinimap: "Afficher la minimap",
 			showMinimapDesc:
-				"Panneau d'aperçu dans la barre de défilement droite de l'éditeur.",
+				"Une vue réduite du fichier à côté de la barre de défilement.",
 			toggleMinimap: "Basculer la minimap",
 			stickyScroll: "Défilement contextuel",
 			stickyScrollDesc:
-				"Garde les portées englobantes - fonction, classe, bloc - épinglées en haut de l'éditeur pendant le défilement.",
+				"La fonction, la classe ou le bloc englobant reste épinglé en haut pendant le défilement.",
 			toggleStickyScroll: "Basculer le défilement contextuel",
 			lineWrap: "Retour à la ligne automatique",
 			lineWrapDesc:
 				"Coupe les lignes à la largeur de l'éditeur au lieu de défiler horizontalement. Désactivé, le défilement des gros fichiers est plus fluide.",
 			toggleLineWrap: "Basculer le retour à la ligne",
 			quickSearchGroup: "Recherche rapide",
-			quickSearchGitignored:
-				"Afficher les fichiers gitignorés dans la recherche rapide",
+			quickSearchGitignored: "Inclure les fichiers ignorés",
 			quickSearchGitignoredDesc:
-				"Inclure les fichiers correspondant au .gitignore dans les résultats de la recherche rapide de fichiers.",
-			saveOn: "Enregistrer au",
+				"Les fichiers couverts par .gitignore, comme les sorties de build, apparaissent dans les résultats.",
+			saveOn: "Enregistrement auto",
 			saveOnDesc:
-				"Quand l'éditeur enregistre automatiquement les fichiers ouverts.",
+				"Quand les fichiers ouverts sont écrits sur le disque sans que vous le demandiez.",
 			resetEditor: "Réinitialiser l'éditeur",
 			saveOnOptions: {
 				blur: {
@@ -3246,8 +3254,7 @@ export const fr = {
 		},
 		project: {
 			workflowTabsGroup: "Onglets du workflow",
-			workflowTabsHint:
-				"Glisser pour réordonner · basculer pour afficher/masquer",
+			workflowTabsHint: "Glissez pour réordonner, désactivez pour masquer.",
 			showTab: (name: string) => `Afficher l'onglet ${name}`,
 			resetProject: "Réinitialiser le projet",
 			layoutGroup: "Disposition",
@@ -3258,11 +3265,11 @@ export const fr = {
 			sidebarRight: "Droite",
 			showPinnedCommandsSidebar: "Barre des commandes épinglées",
 			showPinnedCommandsSidebarDesc:
-				"Afficher la barre listant les commandes épinglées, du côté opposé aux étapes du workflow.",
+				"Vos commandes épinglées, du côté opposé aux étapes du workflow.",
 		},
 		languages: {
 			groupTitle: "Langue",
-			desc: "Langue d'affichage de l'interface",
+			desc: "La langue dans laquelle Cairn s'affiche.",
 			searchPlaceholder: "Rechercher une langue...",
 			searchAriaLabel: "Rechercher une langue",
 			clearSearch: "Effacer la recherche",
@@ -3271,12 +3278,13 @@ export const fr = {
 			noResults: (q: string) => `Aucune langue ne correspond à "${q}".`,
 		},
 		git: {
-			groupTitle: "Profils Git",
-			groupDesc: "Identités utilisées dans les commits",
+			groupTitle: "Profils d'auteur",
+			groupDesc:
+				"Le nom et l'e-mail qui signent les commits. Chaque projet choisit le sien dans ses propres réglages.",
 			diffGroupTitle: "Diffs",
 			maxDiffLines: "Seuil des gros diffs",
 			maxDiffLinesDesc:
-				"Au-delà de ce nombre de lignes, le diff d'un fichier n'est pas affiché et s'ouvre dans l'éditeur",
+				"Au-delà de ce nombre de lignes, le diff d'un fichier n'est pas affiché et un bouton ouvre le fichier dans l'éditeur.",
 			maxDiffLinesUnit: "lignes",
 			maxDiffLinesResetTitle: "Revenir à 2000",
 			noProfiles:
@@ -3299,7 +3307,7 @@ export const fr = {
 			deleteConfirm: "Supprimer",
 			branchGroupTitle: "Noms de branche",
 			branchGroupDesc:
-				"Comment la branche d'une nouvelle instance est nommée à partir de son ticket. {{kind}} est le type du ticket ramené à un préfixe conventionnel, {{key}} la clé du ticket dans sa casse d'origine, {{slug}} le résumé de son titre. Un projet peut le redéfinir dans ses propres réglages.",
+				"Comment la branche d'une nouvelle instance est nommée d'après son ticket : {{kind}} est le type du ticket en préfixe conventionnel (fix, feat...), {{key}} la clé du ticket, {{slug}} son titre. Un projet peut le remplacer.",
 			branchTemplate: "Modèle de nom de branche",
 			branchTemplatePreview: "Aperçu",
 			branchTemplateReset: "Par défaut",
@@ -3308,7 +3316,6 @@ export const fr = {
 			groupFallback: "Autre",
 			searchPlaceholder: "Rechercher des raccourcis...",
 			searchAriaLabel: "Rechercher des raccourcis",
-			clearSearch: "Effacer la recherche",
 			enableShortcut: "Activer le raccourci",
 			customized: "Personnalisé",
 			unbound: "Non défini",

@@ -64,7 +64,7 @@ const rowLabelled = (label: string) =>
 		r.querySelector(".settings-row-label")?.textContent?.includes(label),
 	) as HTMLElement;
 const cliRow = () => rowLabelled("cairn command");
-const updateRow = () => rows()[rows().length - 1];
+const updateRow = () => rowLabelled("Installed version");
 const buttonIn = (row: HTMLElement) =>
 	row.querySelector("button") as HTMLButtonElement | null;
 const descIn = (row: HTMLElement) =>
@@ -195,8 +195,8 @@ describe("GeneralTab updates", () => {
 	it("shows the version that is running", async () => {
 		render(GeneralTab, {});
 		await settle();
-		expect(document.querySelector(".settings-row-value")?.textContent).toMatch(
-			/^v/,
+		expect(updateRow().querySelector(".version")?.textContent).toBe(
+			__APP_VERSION__ ?? "dev",
 		);
 	});
 

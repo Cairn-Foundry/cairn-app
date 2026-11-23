@@ -7,6 +7,9 @@
    * Interface language picker, searchable over both the native and the English name.
    */
   import Icon from '#lib/components/Icon.svelte';
+  import SettingsGroup from './SettingsGroup.svelte';
+  import SettingRow from './SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import { getLocale, setLocale, LOCALE_META } from '#lib/i18n';
   import type { Locale } from '#lib/i18n';
@@ -30,8 +33,7 @@
     : allLocales;
 </script>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.languages.groupTitle')}</div>
+<SettingsGroup group={SETTINGS_SCHEMA.languages.language}>
 
   <div class="lang-search-bar">
     <Icon name="search" size={13} />
@@ -82,7 +84,7 @@
       {/each}
     </div>
   {/if}
-</div>
+</SettingsGroup>
 
 <style>
   .lang-search-bar {

@@ -4,12 +4,17 @@
 -->
 <script lang="ts">
   /**
-   * Settings screen: the tab strip, the cross-tab search, and import/export of the whole settings file.
+   * Settings screen on the shared split panel: the tabs and the cross-tab search in the
+   * list column, the tab on screen beside them, import/export of the whole settings file
+   * in the title row.
    */
   import Icon from '#lib/components/Icon.svelte';
+  import SplitPanel from '#lib/components/SplitPanel.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
+  import SearchEmpty from '#lib/components/SearchEmpty.svelte';
   import { createEventDispatcher } from 'svelte';
   import { t } from '#lib/i18n';
-  import { settings } from '#lib/stores/settings';
+  import { aiEnabled, settings } from '#lib/stores/settings';
   import GeneralTab from './settings/GeneralTab.svelte';
   import AppearanceTab from './settings/AppearanceTab.svelte';
   import EditorTab from './settings/EditorTab.svelte';
@@ -17,6 +22,7 @@
   import ProjectTab from './settings/ProjectTab.svelte';
   import LanguagesTab from './settings/LanguagesTab.svelte';
   import LanguageServersSection from './LanguageServersSection.svelte';
+  import ProvidersTab from './agents/ProvidersTab.svelte';
   import GitTab from './settings/GitTab.svelte';
   import { writeFile } from '#lib/services/file-service';
   import { searchSettings, type SettingsTab, type SettingEntry } from '#lib/utils/home/settings-registry';
@@ -25,11 +31,31 @@
 
   const dispatch = createEventDispatcher<{ openSection: string }>();
 
+  const TABS: { id: SettingsTab; icon: string }[] = [
+    { id: 'general', icon: 'settings' },
+    { id: 'appearance', icon: 'eye' },
+    { id: 'editor', icon: 'file-code' },
+    { id: 'project', icon: 'folder' },
+    { id: 'git', icon: 'branch' },
+    { id: 'languageServers', icon: 'server' },
+    { id: 'providers', icon: 'cloud' },
+    { id: 'shortcuts', icon: 'command' },
+    { id: 'languages', icon: 'globe' },
+  ];
+
   let settingsSearch = '';
   let importFileInput: HTMLInputElement;
   let importError = '';
 
-  $: settingsResults = searchSettings(settingsSearch);
+  $: settingsResults = searchSettings(settingsSearch).filter((entry) => entry.tab !== 'providers' || $aiEnabled);
+  $: isSearching = settingsSearch.trim() !== '';
+  $: visibleTabs = TABS.filter((tab) => tab.id !== 'providers' || $aiEnabled);
+  $: if (!$aiEnabled && settingsTab === 'providers') settingsTab = 'general';
+
+  function selectTab(tab: SettingsTab) {
+    settingsSearch = '';
+    settingsTab = tab;
+  }
 
   function goToSettingEntry(entry: SettingEntry) {
     settingsSearch = '';
@@ -69,110 +95,114 @@
   }
 </script>
 
-<div class="home-hero" style="padding-bottom: 0">
-  <h1 style="font-size: 22px">{t('settings.title')}</h1>
-</div>
-
-<div class="settings-header-bar">
-  <div class="settings-search-bar">
-    <Icon name="search" size={13}/>
+<SplitPanel title={t('settings.title') as string}>
+  <svelte:fragment slot="actions">
+    <button class="btn ghost icon-only settings-io-btn" on:click={exportSettings} title={t('settings.exportTitle') as string} aria-label={t('settings.exportTitle') as string}>
+      <Icon name="download" size={13}/>
+    </button>
+    <button class="btn ghost icon-only settings-io-btn" on:click={() => importFileInput.click()} title={t('settings.importTitle') as string} aria-label={t('settings.importTitle') as string}>
+      <Icon name="upload" size={13}/>
+    </button>
     <input
-      class="settings-search-input"
-      bind:value={settingsSearch}
-      placeholder={t('settings.searchPlaceholder') as string}
-      aria-label={t('settings.searchAriaLabel') as string}
+      bind:this={importFileInput}
+      type="file"
+      accept=".json"
+      hidden
+      on:change={handleImportFile}
     />
-    {#if settingsSearch}
-      <button class="search-clear" on:click={() => settingsSearch = ''} aria-label={t('settings.clearSearch') as string}>
-        <Icon name="x" size={11}/>
-      </button>
-    {/if}
-  </div>
-  <button class="btn ghost settings-io-btn" on:click={exportSettings} title={t('settings.exportTitle') as string}>
-    <Icon name="download" size={13}/> {t('settings.export')}
-  </button>
-  <button class="btn ghost settings-io-btn" on:click={() => importFileInput.click()} title={t('settings.importTitle') as string}>
-    <Icon name="upload" size={13}/> {t('settings.import')}
-  </button>
-  <input
-    bind:this={importFileInput}
-    type="file"
-    accept=".json"
-    style="display:none"
-    on:change={handleImportFile}
-  />
-</div>
+  </svelte:fragment>
 
-{#if importError}
-  <div class="settings-import-error" role="alert">{importError}</div>
-{/if}
-
-{#if settingsSearch.trim()}
-  {#if settingsResults.length > 0}
-    <div class="settings-search-results">
-      {#each settingsResults as entry}
-        <button class="settings-search-result" on:click={() => goToSettingEntry(entry)}>
-          <div class="settings-row-info">
-            <span class="settings-row-label">{entry.label}</span>
-            <span class="settings-row-desc">{entry.desc}</span>
-          </div>
-          <span class="ssr-breadcrumb">{entry.homeSection ? entry.group : `${entry.tab.charAt(0).toUpperCase() + entry.tab.slice(1)} › ${entry.group}`}</span>
+  <svelte:fragment slot="list">
+    <div class="list-tools">
+      <SearchInput
+        bind:value={settingsSearch}
+        placeholder={t('settings.searchPlaceholder') as string}
+        ariaLabel={t('settings.searchAriaLabel') as string}
+      />
+    </div>
+    <nav class="list-items" aria-label={t('settings.title') as string}>
+      {#each visibleTabs as tab (tab.id)}
+        <button
+          class="ag-item settings-tab"
+          class:is-active={!isSearching && settingsTab === tab.id}
+          aria-current={!isSearching && settingsTab === tab.id}
+          on:click={() => selectTab(tab.id)}
+        >
+          <span class="tile"><Icon name={tab.icon} size={13}/></span>
+          <span class="ag-item-text"><span class="ag-item-name">{t(`settings.tabs.${tab.id}`)}</span></span>
         </button>
       {/each}
-    </div>
-  {:else}
-    <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
-      {(t('settings.noResults') as (q: string) => string)(settingsSearch)}
-    </div>
-  {/if}
-{:else}
-  <div class="settings-layout">
-    <div class="settings-tabs">
-      <button class="settings-tab {settingsTab === 'general'    ? 'active' : ''}" on:click={() => settingsTab = 'general'}>{t('settings.tabs.general')}</button>
-      <button class="settings-tab {settingsTab === 'appearance' ? 'active' : ''}" on:click={() => settingsTab = 'appearance'}>{t('settings.tabs.appearance')}</button>
-      <button class="settings-tab {settingsTab === 'editor'     ? 'active' : ''}" on:click={() => settingsTab = 'editor'}>{t('settings.tabs.editor')}</button>
-      <button class="settings-tab {settingsTab === 'project'    ? 'active' : ''}" on:click={() => settingsTab = 'project'}>{t('settings.tabs.project')}</button>
-      <button class="settings-tab {settingsTab === 'git'        ? 'active' : ''}" on:click={() => settingsTab = 'git'}>{t('settings.tabs.git')}</button>
-      <button class="settings-tab {settingsTab === 'languageServers' ? 'active' : ''}" on:click={() => settingsTab = 'languageServers'}>{t('settings.tabs.languageServers')}</button>
-      <button class="settings-tab {settingsTab === 'shortcuts'  ? 'active' : ''}" on:click={() => settingsTab = 'shortcuts'}>{t('settings.tabs.shortcuts')}</button>
-      <button class="settings-tab {settingsTab === 'languages'  ? 'active' : ''}" on:click={() => settingsTab = 'languages'}>{t('settings.tabs.languages')}</button>
-    </div>
+    </nav>
+  </svelte:fragment>
 
-    <div class="settings-content">
-      {#if settingsTab === 'general'}
-        <GeneralTab/>
-      {:else if settingsTab === 'appearance'}
-        <AppearanceTab/>
-      {:else if settingsTab === 'editor'}
-        <EditorTab/>
-      {:else if settingsTab === 'shortcuts'}
-        <ShortcutsTab/>
-      {:else if settingsTab === 'project'}
-        <ProjectTab/>
-      {:else if settingsTab === 'languages'}
-        <LanguagesTab/>
-      {:else if settingsTab === 'languageServers'}
-        <LanguageServersSection/>
-      {:else if settingsTab === 'git'}
-        <GitTab/>
+  {#if isSearching}
+    <header class="detail-head">
+      <div class="detail-title">
+        <div class="title-row"><h2>{t('settings.resultsTitle')}</h2></div>
+        <p class="selectable">{settingsSearch.trim()}</p>
+      </div>
+    </header>
+    <div class="detail-body">
+      {#if settingsResults.length > 0}
+        <div class="settings-body settings-search-results">
+          {#each settingsResults as entry}
+            <button class="settings-search-result" on:click={() => goToSettingEntry(entry)}>
+              <span class="settings-row-info">
+                <span class="settings-row-label">{entry.label}</span>
+                {#if entry.desc}<span class="settings-row-desc">{entry.desc}</span>{/if}
+              </span>
+              <span class="ssr-breadcrumb">{entry.homeSection ? entry.group : `${t(`settings.tabs.${entry.tab}`)} / ${entry.group}`}</span>
+              <Icon name="chev-r" size={12}/>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <SearchEmpty
+          title={t('settings.noResultsTitle') as string}
+          text={(t('settings.noResults') as (q: string) => string)(settingsSearch.trim())}
+          clearLabel={t('common.clearSearch') as string}
+          on:clear={() => settingsSearch = ''}
+        />
       {/if}
     </div>
-  </div>
-{/if}
+  {:else}
+    <header class="detail-head">
+      <div class="detail-title">
+        <div class="title-row"><h2>{t(`settings.tabs.${settingsTab}`)}</h2></div>
+        <p>{t(`settings.tabDescs.${settingsTab}`)}</p>
+      </div>
+    </header>
+    {#if importError}
+      <div class="notices"><div class="banner bad" role="alert"><Icon name="alert" size={13}/><span class="settings-import-error">{importError}</span></div></div>
+    {/if}
+    <div class="detail-body">
+      <div class="settings-body">
+        {#if settingsTab === 'general'}
+          <GeneralTab/>
+        {:else if settingsTab === 'appearance'}
+          <AppearanceTab/>
+        {:else if settingsTab === 'editor'}
+          <EditorTab/>
+        {:else if settingsTab === 'shortcuts'}
+          <ShortcutsTab/>
+        {:else if settingsTab === 'project'}
+          <ProjectTab/>
+        {:else if settingsTab === 'languages'}
+          <LanguagesTab/>
+        {:else if settingsTab === 'languageServers'}
+          <LanguageServersSection/>
+        {:else if settingsTab === 'git'}
+          <GitTab/>
+        {:else if settingsTab === 'providers'}
+          <ProvidersTab/>
+        {/if}
+      </div>
+    </div>
+  {/if}
+</SplitPanel>
 
 <style>
   /* Shared styles for settings rows/groups/toggles - used by all tab subcomponents */
-  .settings-import-error {
-    max-width: 560px;
-    margin: 10px 0 0;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: var(--danger);
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
-    border-radius: var(--r-sm);
-  }
-
   :global(.settings-group) {
     margin-top: 28px;
     max-width: 560px;
@@ -284,129 +314,59 @@
     max-width: 560px;
   }
 
-  /* SettingsPanel-local styles */
-  .settings-layout {
-    display: flex;
-    align-items: flex-start;
-    gap: 32px;
-    margin-top: 32px;
-  }
-
-  .settings-tabs {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 3px;
-    background: var(--bg-0);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-sm);
-    width: 180px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-  }
-
-  .settings-content {
-    flex: 1;
-    min-width: 0;
-  }
-  .settings-content :global(> .settings-group:first-child) {
-    margin-top: 0;
-  }
-
-  .settings-tab {
-    padding: 7px 12px;
-    text-align: left;
-    font-size: 12px;
-    color: var(--fg-2);
-    border-radius: 4px;
-    transition: background .1s, color .1s;
-    font-family: var(--font-ui);
-  }
-  .settings-tab:hover { color: var(--fg-0); }
-  .settings-tab.active { background: var(--bg-3); color: var(--fg-0); }
-
-  .settings-header-bar {
+  /* -- the settings screen --
+     The shared rows above stay as they are for the other screens that borrow
+     them (formatting); inside this screen they lie flat in the detail column. */
+  .settings-body { max-width: 760px; padding: 4px 24px 12px; }
+  .settings-body :global(.settings-group) { max-width: none; margin-top: 0; padding: 22px 0 16px; }
+  .settings-body :global(.settings-group + .settings-group) { border-top: 1px solid var(--stroke-0); }
+  .settings-body :global(.settings-group-head) {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 18px;
-    max-width: 640px;
+    gap: 12px;
+    margin-bottom: 20px;
   }
-
-  .settings-search-bar {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: var(--bg-0);
-    border: 1px solid var(--stroke-1);
-    border-radius: var(--r-sm);
-    color: var(--fg-3);
-    transition: border-color 0.15s;
-  }
-  .settings-search-bar:focus-within {
-    border-color: var(--accent-line);
-    color: var(--fg-1);
-  }
-
-  .settings-search-input {
-    flex: 1;
-    background: transparent;
+  .settings-body :global(.settings-group-head:has(+ .settings-group-desc)) { margin-bottom: 6px; }
+  .settings-body :global(.settings-group-title) {
+    margin: 0;
+    padding: 0;
     border: none;
-    outline: none;
-    font-size: 12px;
     font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--fg-0);
-    min-width: 0;
   }
-  .settings-search-input::placeholder { color: var(--fg-4); }
-
-  .settings-io-btn { font-size: 12px; flex-shrink: 0; }
-
-  .search-clear {
+  .settings-body :global(.settings-group-actions) { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .settings-body :global(.settings-group-desc) { margin: 0 0 20px; font-size: 12px; line-height: 1.5; color: var(--fg-3); }
+  .settings-body :global(.settings-row) {
+    margin: 0;
+    padding: 16px 0;
     background: none;
     border: none;
-    padding: 0;
-    cursor: pointer;
-    color: var(--fg-3);
-    display: flex;
-    align-items: center;
+    border-radius: 0;
   }
-  .search-clear:hover { color: var(--fg-0); }
+  .settings-body :global(.settings-row + .settings-row) { border-top: 1px solid var(--stroke-0); }
+  .settings-body :global(.settings-group-head + .settings-row),
+  .settings-body :global(.settings-group-desc + .settings-row) { padding-top: 0; }
+  .settings-body :global(.settings-group > .settings-row:last-child) { padding-bottom: 0; }
+  .settings-body :global(.settings-row-info) { gap: 6px; }
+  .settings-body :global(.settings-row-desc) { font-size: 12px; line-height: 1.5; }
+  .settings-body :global(.settings-section-reset) { max-width: none; }
 
-  .settings-search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 16px;
-    max-width: 560px;
-  }
-
+  .settings-search-results { display: flex; flex-direction: column; padding-top: 8px; }
   .settings-search-result {
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--bg-2);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-md);
-    cursor: pointer;
+    width: calc(100% + 20px);
+    padding: 12px 10px;
+    margin: 0 -10px;
+    border-radius: var(--r-sm);
     text-align: left;
-    transition: background .1s, border-color .1s;
+    color: var(--fg-3);
   }
-  .settings-search-result:hover {
-    background: var(--bg-3);
-    border-color: var(--stroke-1);
-  }
-
-  .ssr-breadcrumb {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--accent);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
+  .settings-search-result:hover { background: var(--bg-2); color: var(--fg-1); }
+  .ssr-breadcrumb { flex-shrink: 0; font-size: 11.5px; color: var(--fg-3); white-space: nowrap; }
 </style>

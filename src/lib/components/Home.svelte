@@ -19,7 +19,6 @@
   import type { Project } from '#lib/types/project';
   import type { Ticket } from '#lib/types/integrations';
   import AgentsSection from '#lib/components/home/agents/AgentsSection.svelte';
-  import ProvidersTab from '#lib/components/home/agents/ProvidersTab.svelte';
   import FeaturesSection from '#lib/components/home/features/FeaturesSection.svelte';
   import ChangelogSection from '#lib/components/home/ChangelogSection.svelte';
   import PortsSection from '#lib/components/home/PortsSection.svelte';
@@ -58,7 +57,7 @@
     withViewTransition(() => { activeSection = section; });
   }
 
-  const AI_SECTIONS: HomeSection[] = ['conversations', 'providers', 'features', 'agents', 'skills', 'mcp'];
+  const AI_SECTIONS: HomeSection[] = ['conversations', 'features', 'agents', 'skills', 'mcp'];
   $: if (!$aiEnabled && AI_SECTIONS.includes(activeSection)) activeSection = 'projects';
 
   $: if (mounted) dispatch('sectionChange', { section: activeSection, settingsTab });
@@ -116,15 +115,6 @@
         <ConversationsSection
           onOpen={(c) => dispatch('openConversation', { projectId: c.projectId, instanceId: c.instanceId, conversationId: c.id })}
         />
-      </div>
-
-    {:else if activeSection === 'providers'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.providers.title')}</h1>
-        <div class="sub">{t('home.providers.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <ProvidersTab />
       </div>
 
     {:else if activeSection === 'features'}

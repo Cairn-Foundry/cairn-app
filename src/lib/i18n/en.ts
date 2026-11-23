@@ -332,7 +332,7 @@ export const en = {
 			},
 			toggleLineComment: {
 				label: "Toggle line comment",
-				description: "Comment or uncomment the current line",
+				description: "",
 			},
 			toggleBlockComment: {
 				label: "Toggle block comment",
@@ -340,23 +340,24 @@ export const en = {
 			},
 			moveLineUp: {
 				label: "Move line up",
-				description: "Move the current line up",
+				description: "",
 			},
 			moveLineDown: {
 				label: "Move line down",
-				description: "Move the current line down",
+				description: "",
 			},
 			copyLineDown: {
 				label: "Copy line down",
-				description: "Duplicate the current line below",
+				description:
+					"Duplicate the line below and move the cursor onto the copy",
 			},
 			deleteLine: {
 				label: "Delete line",
-				description: "Delete the current line",
+				description: "",
 			},
 			selectLine: {
 				label: "Select line",
-				description: "Select the entire current line",
+				description: "",
 			},
 			matchingBracket: {
 				label: "Jump to matching bracket",
@@ -364,11 +365,11 @@ export const en = {
 			},
 			indentMore: {
 				label: "Indent more",
-				description: "Increase indentation of the current line",
+				description: "",
 			},
 			indentLess: {
 				label: "Indent less",
-				description: "Decrease indentation of the current line",
+				description: "",
 			},
 			expandSelection: {
 				label: "Expand selection",
@@ -376,16 +377,16 @@ export const en = {
 			},
 			closeTab: {
 				label: "Close tab",
-				description: "Close the active editor tab",
+				description: "",
 			},
 			reopenClosedTab: {
 				label: "Reopen closed tab",
-				description: "Reopen the last closed tab",
+				description: "",
 			},
 			nextTab: { label: "Next tab", description: "Cycle to the next open tab" },
 			prevTab: {
 				label: "Previous tab",
-				description: "Cycle to the previous open tab",
+				description: "",
 			},
 			tabHistoryBack: {
 				label: "Tab history back",
@@ -409,27 +410,28 @@ export const en = {
 			},
 			openSettings: {
 				label: "Open settings",
-				description: "Open the settings panel",
+				description: "",
 			},
 			goToLine: {
 				label: "Go to line",
-				description: "Jump to a specific line number",
+				description: "",
 			},
 			addCursorAbove: {
 				label: "Add cursor above",
-				description: "Add an additional cursor on the line above",
+				description: "",
 			},
 			addCursorBelow: {
 				label: "Add cursor below",
-				description: "Add an additional cursor on the line below",
+				description: "",
 			},
 			saveFile: {
 				label: "Save file",
-				description: "Explicitly save the active file",
+				description: "",
 			},
 			duplicateLine: {
 				label: "Duplicate line",
-				description: "Duplicate the current line, cursor stays on original",
+				description:
+					"Duplicate the line below, the cursor stays on the original",
 			},
 			goToDefinition: {
 				label: "Go to definition",
@@ -456,11 +458,11 @@ export const en = {
 			},
 			treeCopy: {
 				label: "Copy file(s)",
-				description: "Copy the selected file(s) to the clipboard",
+				description: "",
 			},
 			treeCut: {
 				label: "Cut file(s)",
-				description: "Cut the selected file(s) to the clipboard",
+				description: "",
 			},
 			treePaste: {
 				label: "Paste file(s)",
@@ -469,11 +471,11 @@ export const en = {
 			},
 			treeDelete: {
 				label: "Delete file(s)",
-				description: "Delete the selected file(s) and folder(s)",
+				description: "",
 			},
 			treeRename: {
 				label: "Rename file",
-				description: "Rename the selected file or folder",
+				description: "",
 			},
 			treeNewFile: {
 				label: "New file",
@@ -485,7 +487,7 @@ export const en = {
 			},
 			toggleFullscreen: {
 				label: "Toggle fullscreen",
-				description: "Enter or leave fullscreen",
+				description: "",
 			},
 			toggleTools: {
 				label: "Toggle tools panel",
@@ -493,7 +495,7 @@ export const en = {
 			},
 			openTerminal: {
 				label: "Open terminal",
-				description: "Show the terminal tool",
+				description: "",
 			},
 			openCommands: {
 				label: "Open commands",
@@ -2538,7 +2540,6 @@ export const en = {
 			integrations: "Integrations",
 			conversations: "Conversations",
 			ai: "Artificial Intelligences",
-			providers: "Providers",
 			features: "Features",
 			agents: "Agents",
 			skills: "Skills",
@@ -2593,14 +2594,14 @@ export const en = {
 			},
 		},
 		providers: {
-			title: "Providers",
-			desc: "The coding CLIs Cairn Foundry found on this machine. Each one is configured with its own commands; Cairn Foundry runs it as it is.",
+			groupTitle: "Coding CLIs",
 			installedCount: (n: number, total: number) =>
 				`${n} of ${total} installed`,
 			refresh: "Detect again",
 			installed: "Installed",
 			absent: "Not found",
-			absentHint: "Install it and detect again to use it in the Agent step.",
+			absentHint:
+				"A CLI installed after Cairn started shows up once you detect again.",
 		},
 		features: {
 			title: "Features",
@@ -2985,12 +2986,11 @@ export const en = {
 		title: "Settings",
 		searchPlaceholder: "Search settings...",
 		searchAriaLabel: "Search settings",
-		clearSearch: "Clear search",
 		exportTitle: "Export settings to JSON",
 		importTitle: "Import settings from JSON",
-		export: "Export",
-		import: "Import",
 		importError: "Could not import settings: the file is not valid JSON.",
+		resultsTitle: "Search",
+		noResultsTitle: "No setting found",
 		noResults: (q: string) => `No settings match "${q}".`,
 		tabs: {
 			general: "General",
@@ -3000,28 +3000,43 @@ export const en = {
 			shortcuts: "Shortcuts",
 			languages: "Languages",
 			languageServers: "Language servers",
+			providers: "Providers",
 			git: "Git",
+		},
+		tabDescs: {
+			general: "AI, notifications, the cairn command and updates.",
+			appearance: "Theme, accent color, font and interface size.",
+			editor: "The file tree, the code editor and its syntax colors.",
+			project: "The workspace sidebar and its workflow tabs.",
+			git: "Author profiles, diffs and the names of new branches.",
+			languageServers:
+				"The servers behind completion, diagnostics and navigation.",
+			providers:
+				"The coding CLIs found on this machine. Each one keeps its own configuration: Cairn runs it as it is.",
+			shortcuts: "Click a shortcut to record new keys for it.",
+			languages: "The language Cairn is displayed in.",
 		},
 		general: {
 			ai: {
 				groupTitle: "Artificial intelligence",
 				enable: "Enable AI features",
 				enableDesc:
-					"The Agent step, the providers, agents, skills and MCP pages, the review guide and every assisted draft. Turned off, none of it is shown or run.",
-				notifications: "Notify when an agent needs you",
+					"Turned off, the Agent step, the providers, agents, skills and MCP pages, the review guide and every AI draft are hidden and never run.",
+				notifications: "System notifications",
 				notificationsDesc:
-					"A system notification when a conversation finishes its turn or asks for approval while Cairn is in the background.",
-				toasts: "Show in Cairn when another conversation needs you",
+					"When a conversation finishes its turn or asks for approval while Cairn is in the background.",
+				toasts: "Notices in the window",
 				toastsDesc:
-					"A notice in the corner of the window when a conversation you are not looking at finishes its turn or asks for approval while you work in Cairn.",
+					"The same, in a corner of Cairn, for a conversation that is not on screen while you work in the app.",
 			},
 			cli: {
 				groupTitle: "Command line",
-				install: "Install the cairn command",
+				label: "The cairn command",
+				install: "Install",
 				installDesc:
-					"Adds a cairn command to your PATH. Run cairn to bring the app forward, or cairn <file> to open a file in the editor.",
+					"Run cairn to bring the app forward, cairn <file> to open a file, or cairn . to open the current folder as a project.",
 				installedAt: (path: string) => `Installed at ${path}.`,
-				uninstall: "Remove the cairn command",
+				uninstall: "Remove",
 				unavailable:
 					"The launcher is only available in an installed build of Cairn Foundry, not in development mode.",
 			},
@@ -3029,17 +3044,15 @@ export const en = {
 				groupTitle: "Guided tour",
 				replay: "Welcome tour",
 				replayDesc:
-					"Go through the introduction to projects, instances and steps again.",
+					"The introduction to projects, instances and workflow steps.",
 				replayAction: "Replay",
 			},
 			updates: {
 				groupTitle: "Updates",
 				currentVersion: "Installed version",
-				currentVersionDesc: "The version currently running",
 				autoCheck: "Check automatically",
-				autoCheckDesc: "On launch, then every six hours",
+				autoCheckDesc: "At launch, then every six hours.",
 				check: "Check now",
-				checkDesc: "Ask the update server for a newer version",
 			},
 		},
 		syntax: {
@@ -3083,24 +3096,23 @@ export const en = {
 
 		appearance: {
 			themeGroup: "Theme",
-			themeDesc: "The colours of the whole interface and the editor",
+			themeDesc: "The colors of the interface and of the editor.",
 			accentGroup: "Accent color",
-			accentDesc: "Highlight color across the UI",
+			accentDesc: "Buttons, switches and selections across the app.",
 			scaleGroup: "Interface size",
 			uiScale: "Interface scale",
 			uiScaleDesc:
-				"Scales the whole interface, so a smaller window still shows a usable layout.",
+				"Zooms text and controls together. Below 100%, a small window shows more.",
 			uiScaleResetTitle: "Back to 100%",
 			fontGroup: "Font",
-			fontDesc: "Monospace font for code editor",
+			fontDesc: "The monospace font of the code editor and the terminal.",
 			customColor: "Custom color",
 			resetAppearance: "Reset appearance",
 			transparencyEffects: "Transparency effects",
 			transparencyEffectsDesc:
-				"Lets the desktop show through the window. Turning it off makes scrolling smoother; takes effect after a restart.",
+				"The desktop shows through the window. Off, scrolling is smoother. Applies after a restart.",
 			iconAnimations: "Icon animations",
-			iconAnimationsDesc:
-				"Animates icons when the button or row under the pointer is hovered.",
+			iconAnimationsDesc: "Icons move slightly under the pointer.",
 			windowGroup: "Window",
 			titleBar: "Title bar",
 			titleBarDesc:
@@ -3110,8 +3122,7 @@ export const en = {
 				custom: "Cairn",
 			},
 			titleBarColor: "Title bar color",
-			titleBarColorDesc:
-				"Choose the bar's color. Project color follows the open project when one is open.",
+			titleBarColorDesc: "Project color takes the color of the open project.",
 			titleBarFills: {
 				theme: "Theme",
 				accent: "Accent color",
@@ -3135,36 +3146,35 @@ export const en = {
 			codeEditorGroup: "Code editor",
 			fileExplorerPosition: "File explorer position",
 			fileExplorerPositionDesc:
-				"Move the file explorer to the left or right of the editor.",
+				"Side of the Files view. The workflow steps have their own, under Project.",
 			sidebarLeft: "Left",
 			sidebarRight: "Right",
-			treePanelWidth: "File tree panel width",
-			treePanelWidthDesc:
-				"Width of the file explorer sidebar in the Files view.",
+			treePanelWidth: "File tree width",
+			treePanelWidthDesc: "Also set by dragging the edge of the tree.",
 			treePanelWidthUnit: "px",
 			treePanelWidthResetTitle: "Reset to default (220 px)",
 			fontSize: "Font size",
-			fontSizeDesc: "Base font size for the code editor.",
+			fontSizeDesc:
+				"Also changes from the editor with the font size shortcuts.",
 			fontSizeUnit: "px",
 			fontSizeResetTitle: "Reset to default (13 px)",
 			showMinimap: "Show minimap",
-			showMinimapDesc:
-				"Scrollbar overview panel on the right side of the code editor.",
+			showMinimapDesc: "A zoomed-out view of the file beside the scrollbar.",
 			toggleMinimap: "Toggle minimap",
 			stickyScroll: "Sticky scroll",
 			stickyScrollDesc:
-				"Keep the enclosing scopes - function, class, block - pinned at the top of the editor while scrolling.",
+				"The enclosing function, class or block stays pinned at the top while you scroll.",
 			toggleStickyScroll: "Toggle sticky scroll",
 			lineWrap: "Wrap long lines",
 			lineWrapDesc:
 				"Break lines at the editor width instead of scrolling sideways. Off, scrolling large files is smoother.",
 			toggleLineWrap: "Toggle line wrapping",
 			quickSearchGroup: "Quick Search",
-			quickSearchGitignored: "Show gitignored files in quick search",
+			quickSearchGitignored: "Include ignored files",
 			quickSearchGitignoredDesc:
-				"Include files matched by .gitignore in the quick file search results.",
-			saveOn: "Save on",
-			saveOnDesc: "When the editor automatically saves open files to disk.",
+				"Files matched by .gitignore, such as build output, show up in the results.",
+			saveOn: "Auto save",
+			saveOnDesc: "When open files are written to disk without you asking.",
 			resetEditor: "Reset editor",
 			saveOnOptions: {
 				blur: { label: "Focus change", desc: "Save when editor loses focus" },
@@ -3185,7 +3195,7 @@ export const en = {
 		},
 		project: {
 			workflowTabsGroup: "Workflow tabs",
-			workflowTabsHint: "Drag to reorder · toggle to show/hide",
+			workflowTabsHint: "Drag to reorder, switch off to hide.",
 			showTab: (name: string) => `Show ${name} tab`,
 			resetProject: "Reset project",
 			layoutGroup: "Layout",
@@ -3196,11 +3206,11 @@ export const en = {
 			sidebarRight: "Right",
 			showPinnedCommandsSidebar: "Pinned commands bar",
 			showPinnedCommandsSidebarDesc:
-				"Show the bar listing your pinned commands, on the side opposite the workflow steps.",
+				"Your pinned commands, on the side opposite the workflow steps.",
 		},
 		languages: {
 			groupTitle: "Language",
-			desc: "UI display language",
+			desc: "The language Cairn is displayed in.",
 			searchPlaceholder: "Search languages...",
 			searchAriaLabel: "Search languages",
 			clearSearch: "Clear search",
@@ -3209,12 +3219,13 @@ export const en = {
 			noResults: (q: string) => `No languages match "${q}".`,
 		},
 		git: {
-			groupTitle: "Git Profiles",
-			groupDesc: "Author identities used in commits",
+			groupTitle: "Author profiles",
+			groupDesc:
+				"The name and email commits are signed with. Each project picks one in its own settings.",
 			diffGroupTitle: "Diffs",
 			maxDiffLines: "Large diff threshold",
 			maxDiffLinesDesc:
-				"Beyond this many lines, a file diff is not shown and opens in the editor instead",
+				"Beyond this many lines, a file diff is not drawn and a button opens the file in the editor.",
 			maxDiffLinesUnit: "lines",
 			maxDiffLinesResetTitle: "Reset to 2000",
 			noProfiles:
@@ -3237,7 +3248,7 @@ export const en = {
 			deleteConfirm: "Delete",
 			branchGroupTitle: "Branch names",
 			branchGroupDesc:
-				"How the branch of a new instance is named from its ticket. {{kind}} is the issue type as a conventional prefix, {{key}} the ticket key in its own case, {{slug}} the summary of its title. A project can override this in its own settings.",
+				"How the branch of a new instance is named from its ticket: {{kind}} is the issue type as a conventional prefix (fix, feat...), {{key}} the ticket key, {{slug}} its title. A project can override it.",
 			branchTemplate: "Branch name template",
 			branchTemplatePreview: "Preview",
 			branchTemplateReset: "Default",
@@ -3246,7 +3257,6 @@ export const en = {
 			groupFallback: "Other",
 			searchPlaceholder: "Search shortcuts...",
 			searchAriaLabel: "Search shortcuts",
-			clearSearch: "Clear search",
 			enableShortcut: "Enable shortcut",
 			customized: "Customized",
 			unbound: "Not set",

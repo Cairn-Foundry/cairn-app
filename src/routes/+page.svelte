@@ -303,14 +303,17 @@
 
     screen = saved.screen;
     // Usage & Stats is gone with the parsed runs it fed on; a state saved on it
-    // reopens on the default section rather than on nothing.
+    // reopens on the default section rather than on nothing. Providers moved
+    // into a settings tab.
     homeSection =
       saved.homeSection === 'usage'
         ? 'projects'
         : saved.homeSection === 'activity'
           ? 'conversations'
-          : saved.homeSection;
-    homeSettingsTab = saved.homeSettingsTab;
+          : saved.homeSection === 'providers'
+            ? 'settings'
+            : saved.homeSection;
+    homeSettingsTab = saved.homeSection === 'providers' ? 'providers' : saved.homeSettingsTab;
     collapsedTicketProjects.set(saved.collapsedTicketProjects ?? []);
     initViewStates(saved.projectStates ?? {});
 
@@ -331,13 +334,13 @@
       applyProjectState(saved.activeProjectId);
       if (saved.screen === 'workspace') {
         homeOpenSection = homeSection as HomeSection;
-        homeOpenSettingsTab = saved.homeSettingsTab;
+        homeOpenSettingsTab = homeSettingsTab;
       }
     }
 
     if (saved.screen === 'home') {
       homeOpenSection = homeSection as HomeSection;
-      homeOpenSettingsTab = saved.homeSettingsTab;
+      homeOpenSettingsTab = homeSettingsTab;
     }
 
     mounted = true;
@@ -653,7 +656,7 @@
       on:addProject={() => { isAddProjectChooserOpen = true; }}
       on:goHome={() => { homeOpenSection = null; goScreen('home'); }}
       on:goSettings={() => { homeOpenSection = 'settings'; goScreen('home'); }}
-      on:goProviders={() => { homeOpenSection = 'providers'; goScreen('home'); }}
+      on:goProviders={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'providers'; goScreen('home'); }}
       on:goShortcuts={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'shortcuts'; goScreen('home'); }}
       on:goLanguageServers={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'languageServers'; goScreen('home'); }}
       on:goGitSettings={() => { homeOpenSection = 'settings'; homeOpenSettingsTab = 'git'; goScreen('home'); }}

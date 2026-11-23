@@ -12,6 +12,9 @@
   import Icon from '#lib/components/Icon.svelte';
   import Skeleton from '#lib/components/Skeleton.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
+  import SettingsGroup from './settings/SettingsGroup.svelte';
+  import SettingRow from './settings/SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import InstallProgress from '#lib/components/InstallProgress.svelte';
   import UninstallServerModal from '#lib/components/home/UninstallServerModal.svelte';
@@ -180,15 +183,8 @@
   }
 </script>
 
-<div class="settings-group">
-  <div class="ls-group-head">
-    <span class="settings-group-title">{t('languageServers.behaviourGroup')}</span>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('languageServers.suggestOnOpen')}</span>
-      <span class="settings-row-desc">{t('languageServers.suggestOnOpenDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.languageServers.behaviour}>
+  <SettingRow row={SETTINGS_SCHEMA.languageServers.behaviour.rows.suggestOnOpen}>
     <label class="settings-toggle" aria-label={t('languageServers.suggestOnOpen') as string}>
       <input
         type="checkbox"
@@ -197,65 +193,59 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <!-- The actions sit on their own line: sharing one with the search left it
-       squeezed to nothing as soon as a third button appeared. -->
-  <div class="ls-group-head">
-    <div class="ls-head-top">
-      <span class="settings-group-title">{t('languageServers.serversGroup')}</span>
-      <div class="ls-actions">
-        <button
-          type="button"
-          class="ls-action"
-          on:click={checkUpdates}
-          disabled={checking || busyServerId !== null}
-          title={t('languageServers.checkUpdatesDesc') as string}
-        >
-          {#if checking}<Spinner size={11}/>{:else}<Icon name="download" size={12}/>{/if}
-          {t('languageServers.checkUpdates')}
-        </button>
-        <button
-          type="button"
-          class="ls-action icon-only"
-          on:click={reload}
-          disabled={refreshing}
-          aria-label={t('languageServers.rescan') as string}
-          title={t('languageServers.rescan') as string}
-        >
-          {#if refreshing}<Spinner size={11}/>{:else}<Icon name="refresh" size={12}/>{/if}
-        </button>
-        <button type="button" class="btn ls-add" on:click={() => { editing = { server: null }; }}>
-          <Icon name="plus" size={12}/>
-          {t('languageServers.customAdd')}
-        </button>
-      </div>
-    </div>
-    <div class="ls-search">
-      <Icon name="search" size={12}/>
-      <input
-        class="ls-search-input selectable"
-        type="text"
-        spellcheck="false"
-        autocomplete="off"
-        bind:value={query}
-        placeholder={t('languageServers.searchPlaceholder') as string}
-        aria-label={t('languageServers.searchPlaceholder') as string}
-      />
-      {#if query}
-        <button
-          type="button"
-          class="ls-search-clear"
-          on:click={() => { query = ''; }}
-          aria-label={t('common.clearSearch') as string}
-          title={t('common.clearSearch') as string}
-        >
-          <Icon name="x" size={12}/>
-        </button>
-      {/if}
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.languageServers.servers}>
+  <svelte:fragment slot="actions">
+    <button
+      type="button"
+      class="ls-action"
+      on:click={checkUpdates}
+      disabled={checking || busyServerId !== null}
+      title={t('languageServers.checkUpdatesDesc') as string}
+    >
+      {#if checking}<Spinner size={11}/>{:else}<Icon name="download" size={12}/>{/if}
+      {t('languageServers.checkUpdates')}
+    </button>
+    <button
+      type="button"
+      class="ls-action icon-only"
+      on:click={reload}
+      disabled={refreshing}
+      aria-label={t('languageServers.rescan') as string}
+      title={t('languageServers.rescan') as string}
+    >
+      {#if refreshing}<Spinner size={11}/>{:else}<Icon name="refresh" size={12}/>{/if}
+    </button>
+    <button type="button" class="btn ls-add" on:click={() => { editing = { server: null }; }}>
+      <Icon name="plus" size={12}/>
+      {t('languageServers.customAdd')}
+    </button>
+  </svelte:fragment>
+
+  <div class="ls-search">
+    <Icon name="search" size={12}/>
+    <input
+      class="ls-search-input selectable"
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      bind:value={query}
+      placeholder={t('languageServers.searchPlaceholder') as string}
+      aria-label={t('languageServers.searchPlaceholder') as string}
+    />
+    {#if query}
+      <button
+        type="button"
+        class="ls-search-clear"
+        on:click={() => { query = ''; }}
+        aria-label={t('common.clearSearch') as string}
+        title={t('common.clearSearch') as string}
+      >
+        <Icon name="x" size={12}/>
+      </button>
+    {/if}
   </div>
 
   {#if loading}
@@ -454,7 +444,7 @@
       </div>
     {/each}
   {/if}
-</div>
+</SettingsGroup>
 
 {#if editing}
   <CustomServerModal
@@ -483,26 +473,6 @@
 {/if}
 
 <style>
-  .ls-group-head {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--stroke-0);
-  }
-  .ls-head-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .ls-group-head :global(.settings-group-title) {
-    flex: 1;
-    margin: 0;
-    padding: 0;
-    border: none;
-  }
-  .ls-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .ls-action {
     display: flex;
     align-items: center;
@@ -548,6 +518,7 @@
   /* The catalogue is a list to sift, not to read, so the search keeps a full
      line to itself - sharing one with the actions squeezed it to nothing. */
   .ls-search {
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -696,7 +667,7 @@
      command to run when clicking cannot do it. Left as siblings they read as
      unrelated cards stacked underneath, so the row and its blocks share one
      border and only the outer corners are rounded. */
-  .ls-card { margin-bottom: 6px; }
+  .ls-card + .ls-card { border-top: 1px solid var(--stroke-0); }
   .ls-card :global(.settings-row) { margin-bottom: 0; }
   .ls-card.has-fallback :global(.settings-row) {
     border-bottom-left-radius: 0;

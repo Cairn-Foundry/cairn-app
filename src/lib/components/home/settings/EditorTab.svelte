@@ -7,6 +7,9 @@
    * Editor settings, plus the syntax theme library: create, duplicate, import and export themes.
    */
   import Icon from '#lib/components/Icon.svelte';
+  import SettingsGroup from './SettingsGroup.svelte';
+  import SettingRow from './SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import { settings } from '#lib/stores/settings';
   import { SAVE_ON_OPTIONS } from '#lib/utils/home/appearance';
@@ -102,13 +105,8 @@
 
 <svelte:window on:keydown={(e) => { if (e.key === 'Escape' && saveOnOpen) saveOnOpen = false; }} />
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.editor.layoutGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.fileExplorerPosition')}</span>
-      <span class="settings-row-desc">{t('settings.editor.fileExplorerPositionDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.editor.layout}>
+  <SettingRow row={SETTINGS_SCHEMA.editor.layout.rows.explorerPosition}>
     <div class="sidebar-pos-toggle">
       <button
         class="sidebar-pos-btn {($settings.sidebarPosition) === 'left' ? 'active' : ''}"
@@ -119,12 +117,8 @@
         on:click={() => settings.save({ sidebarPosition: 'right' })}
       >{t('settings.editor.sidebarRight')}</button>
     </div>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.treePanelWidth')}</span>
-      <span class="settings-row-desc">{t('settings.editor.treePanelWidthDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.editor.layout.rows.treeWidth}>
     <div class="settings-row-control">
       <input
         class="settings-number-input"
@@ -142,16 +136,11 @@
         <Icon name="undo" size={12}/>
       </button>
     </div>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.editor.codeEditorGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.fontSize')}</span>
-      <span class="settings-row-desc">{t('settings.editor.fontSizeDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.editor.codeEditor}>
+  <SettingRow row={SETTINGS_SCHEMA.editor.codeEditor.rows.fontSize}>
     <div class="settings-row-control">
       <input
         class="settings-number-input"
@@ -169,12 +158,8 @@
         <Icon name="undo" size={12}/>
       </button>
     </div>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.showMinimap')}</span>
-      <span class="settings-row-desc">{t('settings.editor.showMinimapDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.editor.codeEditor.rows.minimap}>
     <label class="settings-toggle" aria-label={t('settings.editor.toggleMinimap') as string}>
       <input
         type="checkbox"
@@ -183,12 +168,8 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.stickyScroll')}</span>
-      <span class="settings-row-desc">{t('settings.editor.stickyScrollDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.editor.codeEditor.rows.stickyScroll}>
     <label class="settings-toggle" aria-label={t('settings.editor.toggleStickyScroll') as string}>
       <input
         type="checkbox"
@@ -197,12 +178,8 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.lineWrap')}</span>
-      <span class="settings-row-desc">{t('settings.editor.lineWrapDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.editor.codeEditor.rows.lineWrap}>
     <label class="settings-toggle" aria-label={t('settings.editor.toggleLineWrap') as string}>
       <input
         type="checkbox"
@@ -211,12 +188,8 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.saveOn')}</span>
-      <span class="settings-row-desc">{t('settings.editor.saveOnDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.editor.codeEditor.rows.saveOn}>
     <div class="so-dropdown" class:so-open={saveOnOpen}>
       <button
         type="button"
@@ -254,16 +227,11 @@
         </div>
       {/if}
     </div>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.editor.quickSearchGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.editor.quickSearchGitignored')}</span>
-      <span class="settings-row-desc">{t('settings.editor.quickSearchGitignoredDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.editor.quickSearch}>
+  <SettingRow row={SETTINGS_SCHEMA.editor.quickSearch.rows.gitignored}>
     <label class="settings-toggle" aria-label={t('settings.editor.quickSearchGitignored') as string}>
       <input
         type="checkbox"
@@ -272,12 +240,10 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.syntax.groupTitle')}</div>
-  <p class="settings-group-hint">{t('settings.syntax.desc')}</p>
+<SettingsGroup group={SETTINGS_SCHEMA.editor.syntax}>
 
   <div class="syntax-cards">
     <button
@@ -335,7 +301,7 @@
   {#if syntaxError}
     <p class="syntax-error">{syntaxError}</p>
   {/if}
-</div>
+</SettingsGroup>
 
 {#if editing}
   <SyntaxThemeEditor
@@ -440,12 +406,6 @@
   .so-item-label { font-size: 12px; font-family: var(--font-ui); color: var(--fg-0); line-height: 1.3; }
   .so-item-desc { font-size: 11px; font-family: var(--font-ui); color: var(--fg-3); line-height: 1.3; }
 
-  .settings-group-hint {
-    margin: -4px 0 10px;
-    font-size: 11.5px;
-    color: var(--fg-3);
-    line-height: 1.5;
-  }
 
   .syntax-cards {
     display: flex;

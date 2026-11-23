@@ -27,6 +27,10 @@ const { settings } = await import("#lib/stores/settings");
 const { SETTINGS_REGISTRY, searchSettings } = await import(
 	"#lib/utils/home/settings-registry"
 );
+const { SETTINGS_SCHEMA } = await import("#lib/utils/home/settings-schema");
+type SettingGroupDef =
+	import("#lib/utils/home/settings-schema").SettingGroupDef;
+const { t } = await import("#lib/i18n");
 type SettingsTab = import("#lib/utils/home/settings-registry").SettingsTab;
 const { default: SettingsPanel } = await import(
 	"#lib/components/home/SettingsPanel.svelte"
@@ -43,9 +47,9 @@ function mount(settingsTab: SettingsTab = "languages") {
 
 const tabs = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".settings-tab"));
-const activeTab = () => tabs().find((t) => t.classList.contains("active"));
+const activeTab = () => tabs().find((t) => t.classList.contains("is-active"));
 const search = () =>
-	document.querySelector(".settings-search-input") as HTMLInputElement;
+	document.querySelector(".split-list .ag-search input") as HTMLInputElement;
 const results = () =>
 	Array.from(document.querySelectorAll<HTMLElement>(".settings-search-result"));
 const importError = () =>
@@ -65,6 +69,37 @@ beforeEach(() => {
 });
 
 describe("SettingsPanel tabs", () => {
+	/**
+	 * The search lists what the schema declares, so a group or row the tab
+	 * stopped drawing would be a search hit leading nowhere. The custom title
+	 * bar is on so that its colour row is drawn too.
+	 */
+	it.each(["general", "appearance", "editor", "project", "git"] as const)(
+		"draws every group and row the schema gives the %s tab",
+		async (tab) => {
+			await settings.save({ titleBar: "custom" });
+			mount(tab);
+			await tick();
+			const drawn = (selector: string) =>
+				Array.from(document.querySelectorAll(selector), (n) =>
+					n.textContent?.trim(),
+				);
+			const titles = drawn(".settings-group-title");
+			const labels = drawn(".settings-row-label");
+			for (const group of Object.values(
+				SETTINGS_SCHEMA[tab] as Record<string, SettingGroupDef>,
+			)) {
+				if (group.isAvailable === false) continue;
+				expect(titles).toContain(t(group.title));
+				for (const row of Object.values(group.rows)) {
+					expect(
+						labels.some((l) => l?.startsWith(t(row.label) as string)),
+					).toBe(true);
+				}
+			}
+		},
+	);
+
 	it("offers a tab per settings group", () => {
 		mount();
 		expect(tabs().length).toBeGreaterThan(5);
@@ -72,9 +107,9 @@ describe("SettingsPanel tabs", () => {
 
 	it("marks the tab on screen, and only that one", () => {
 		mount("languages");
-		expect(tabs().filter((t) => t.classList.contains("active"))).toHaveLength(
-			1,
-		);
+		expect(
+			tabs().filter((t) => t.classList.contains("is-active")),
+		).toHaveLength(1);
 	});
 
 	it("switches to the tab that was picked", async () => {
@@ -82,7 +117,7 @@ describe("SettingsPanel tabs", () => {
 		const before = activeTab()?.textContent;
 		const other = tabs().find(
 			(t) =>
-				!t.classList.contains("active") && /git/i.test(t.textContent ?? ""),
+				!t.classList.contains("is-active") && /git/i.test(t.textContent ?? ""),
 		) as HTMLElement;
 		await userEvent.click(other);
 		await tick();
@@ -147,7 +182,7 @@ describe("SettingsPanel search", () => {
 		mount();
 		await userEvent.type(search(), "theme");
 		await userEvent.click(
-			document.querySelector(".search-clear") as HTMLElement,
+			document.querySelector(".split-list .ag-search-clear") as HTMLElement,
 		);
 		expect(search().value).toBe("");
 	});
@@ -246,7 +281,7 @@ describe("SettingsPanel tab routing", () => {
 	);
 
 	const offered = Array.from(
-		source.matchAll(/settingsTab = '([a-zA-Z]+)'/g),
+		source.matchAll(/\{ id: '([a-zA-Z]+)', icon:/g),
 		(m) => m[1],
 	);
 	const routed = Array.from(
@@ -270,6 +305,20 @@ describe("SettingsPanel tab routing", () => {
 			(e) => !e.homeSection && !known.has(e.tab),
 		).map((e) => e.tab);
 		expect(unknown).toEqual([]);
+	});
+
+	/** The search is built from the schema the tabs draw: every row is found by its name. */
+	it("finds every row of every tab by its label", () => {
+		const missed = SETTINGS_REGISTRY.filter(
+			(e) => !e.homeSection && !searchSettings(e.label).includes(e),
+		).map((e) => e.label);
+		expect(missed).toEqual([]);
+	});
+
+	it("finds every row of a group by the group's name", () => {
+		const group = SETTINGS_REGISTRY.find((e) => !e.homeSection)?.group ?? "";
+		const inGroup = SETTINGS_REGISTRY.filter((e) => e.group === group);
+		expect(searchSettings(group)).toEqual(expect.arrayContaining(inGroup));
 	});
 
 	it("returns nothing for an empty search", () => {

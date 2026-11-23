@@ -41,7 +41,7 @@ const conflicts = () =>
 	rows().filter((r) => r.classList.contains("sc-conflict"));
 const notice = () => document.querySelector(".sc-conflict-notice")?.textContent;
 const search = () =>
-	document.querySelector(".sc-search-input") as HTMLInputElement;
+	document.querySelector(".sc-search input") as HTMLInputElement;
 const toggleIn = (row: HTMLElement) =>
 	row.querySelector('input[type="checkbox"]') as HTMLInputElement;
 const stored = () => {

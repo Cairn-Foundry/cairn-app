@@ -7,6 +7,9 @@
    * Project settings: which workflow tabs are enabled and in what order (pointer-event drag).
    */
   import Icon from '#lib/components/Icon.svelte';
+  import SettingsGroup from './SettingsGroup.svelte';
+  import SettingRow from './SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import { settings } from '#lib/stores/settings';
   import type { WorkflowTabConfig } from '#lib/services/settings-service';
@@ -54,13 +57,8 @@
   }
 </script>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.project.layoutGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.project.sidebarPosition')}</span>
-      <span class="settings-row-desc">{t('settings.project.sidebarPositionDesc')}</span>
-    </div>
+<SettingsGroup group={SETTINGS_SCHEMA.project.layout}>
+  <SettingRow row={SETTINGS_SCHEMA.project.layout.rows.sidebarPosition}>
     <div class="sidebar-pos-toggle">
       <button
         class="sidebar-pos-btn {($settings.workspaceSidebarPosition) === 'left' ? 'active' : ''}"
@@ -71,12 +69,8 @@
         on:click={() => settings.save({ workspaceSidebarPosition: 'right' })}
       >{t('settings.project.sidebarRight')}</button>
     </div>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.project.showPinnedCommandsSidebar')}</span>
-      <span class="settings-row-desc">{t('settings.project.showPinnedCommandsSidebarDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.project.layout.rows.pinnedCommands}>
     <label class="settings-toggle" aria-label={t('settings.project.showPinnedCommandsSidebar') as string}>
       <input
         type="checkbox"
@@ -85,12 +79,10 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-</div>
+  </SettingRow>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.project.workflowTabsGroup')}</div>
-  <p class="wf-hint">{t('settings.project.workflowTabsHint')}</p>
+<SettingsGroup group={SETTINGS_SCHEMA.project.workflowTabs}>
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="wf-list" bind:this={wfListEl}>
     {#each wfTabs as tab, i (tab.key)}
@@ -131,7 +123,7 @@
       <Icon name="undo" size={12}/> {t('settings.project.resetProject')}
     </button>
   </div>
-</div>
+</SettingsGroup>
 
 <style>
   .sidebar-pos-toggle {
@@ -154,11 +146,6 @@
   .sidebar-pos-btn:hover { color: var(--fg-0); }
   .sidebar-pos-btn.active { background: var(--bg-3); color: var(--fg-0); }
 
-  .wf-hint {
-    font-size: 11px;
-    color: var(--fg-3);
-    margin: 0 0 10px;
-  }
 
   .wf-list {
     display: flex;

@@ -16,7 +16,9 @@
   import Icon from '#lib/components/Icon.svelte';
   import Skeleton from '#lib/components/Skeleton.svelte';
   import ProviderLogo from '#lib/components/home/agents/ProviderLogo.svelte';
+  import SettingsGroup from '#lib/components/home/settings/SettingsGroup.svelte';
   import { t } from '#lib/i18n';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { type CliProviderDef, listCliProviders } from '#lib/services/cli-provider-service';
 
   let providers: CliProviderDef[] = [];
@@ -40,8 +42,8 @@
   $: installedCount = providers.filter((p) => p.installed).length;
 </script>
 
-<div class="providers">
-  <div class="providers-head">
+<SettingsGroup group={SETTINGS_SCHEMA.providers.clis}>
+  <svelte:fragment slot="actions">
     <span class="providers-count">
       {(t('home.providers.installedCount') as (n: number, total: number) => string)(
         installedCount,
@@ -51,7 +53,7 @@
     <button class="btn ghost" on:click={() => void load(true)} disabled={!ready}>
       <Icon name="refresh" size={12}/> {t('home.providers.refresh')}
     </button>
-  </div>
+  </svelte:fragment>
 
   {#if !ready}
     <Skeleton lines={5} height={56} gap={10}/>
@@ -82,55 +84,36 @@
                 <CopyButton value={provider.path}/>
               </span>
             {/if}
-          {:else}
-            <span class="prov-line">{t('home.providers.absentHint')}</span>
           {/if}
         </div>
       </div>
     {/each}
   {/if}
-</div>
+</SettingsGroup>
 
 <style>
-  .providers {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-width: 720px;
-  }
-
-  .providers-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .providers-count {
-    font-size: 12px;
-    color: var(--fg-2);
-  }
+  .providers-count { font-size: 12px; color: var(--fg-3); }
 
   .prov-card {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 12px 14px;
-    background: var(--bg-1);
-    border: 1px solid var(--stroke-0);
-    border-radius: 10px;
+    padding: 14px 0;
   }
+  .prov-card + .prov-card { border-top: 1px solid var(--stroke-0); }
+  .prov-card.absent { align-items: center; }
 
-  .prov-card.absent { opacity: 0.55; }
+  .prov-card.absent .prov-mark,
+  .prov-card.absent .prov-name { opacity: 0.55; }
 
   .prov-mark {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     width: 32px;
     height: 32px;
     flex-shrink: 0;
-    border-radius: 8px;
+    border: 1px solid var(--stroke-0);
+    border-radius: var(--r-sm);
     background: var(--bg-2);
     color: var(--fg-1);
     font-size: 13px;
@@ -140,7 +123,7 @@
   .prov-text {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 6px;
     min-width: 0;
   }
 
@@ -149,36 +132,36 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    font-weight: 600;
     color: var(--fg-0);
   }
 
   .prov-badge {
-    padding: 1px 6px;
-    font-size: 10px;
-    font-weight: 500;
-    border-radius: 4px;
-    background: var(--bg-2);
-    color: var(--fg-2);
+    padding: 0 7px;
+    font-size: 11px;
+    line-height: 18px;
+    border: 1px solid var(--stroke-1);
+    border-radius: 9px;
+    color: var(--fg-3);
   }
 
   .prov-badge.ok {
-    background: color-mix(in srgb, var(--ok, var(--accent)) 16%, transparent);
-    color: var(--ok, var(--accent));
+    border-color: currentColor;
+    color: var(--success);
   }
 
   .prov-line {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11.5px;
-    color: var(--fg-2);
     min-width: 0;
+    font-size: 12px;
+    color: var(--fg-3);
   }
 
   .prov-path .selectable {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: var(--font-mono);
   }
 </style>

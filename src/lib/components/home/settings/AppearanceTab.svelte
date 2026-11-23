@@ -8,12 +8,14 @@
    */
   import Icon from '#lib/components/Icon.svelte';
   import Select from '#lib/components/Select.svelte';
+  import SettingsGroup from './SettingsGroup.svelte';
+  import SettingRow from './SettingRow.svelte';
+  import { SETTINGS_SCHEMA } from '#lib/utils/home/settings-schema';
   import { t } from '#lib/i18n';
   import { settings } from '#lib/stores/settings';
   import { ACCENT_PRESETS, FONT_OPTIONS, DEFAULT_ACCENT } from '#lib/utils/home/appearance';
   import { availableThemes } from '#lib/utils/editor/themes';
   import { toHexColor } from '#lib/utils/editor/color';
-  import { IS_MAC } from '#lib/utils/platform';
   import type { TitleBarFill, TitleBarMode } from '#lib/services/settings-service';
 
   function themeTitleBarColor(): string {
@@ -26,8 +28,7 @@
   $: accentIsPreset = ACCENT_PRESETS.some(p => p.color === $settings.accentColor);
 </script>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.appearance.themeGroup')}</div>
+<SettingsGroup group={SETTINGS_SCHEMA.appearance.theme}>
   <div class="theme-cards">
     {#each themeOptions as option (option.id)}
       <button
@@ -49,10 +50,9 @@
       </button>
     {/each}
   </div>
-</div>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.appearance.accentGroup')}</div>
+<SettingsGroup group={SETTINGS_SCHEMA.appearance.accent}>
   <div class="accent-presets">
     {#each ACCENT_PRESETS as preset}
       <button
@@ -77,10 +77,9 @@
       {/if}
     </label>
   </div>
-</div>
+</SettingsGroup>
 
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.appearance.fontGroup')}</div>
+<SettingsGroup group={SETTINGS_SCHEMA.appearance.font}>
   <div class="font-cards">
     {#each FONT_OPTIONS as opt}
       <button
@@ -96,14 +95,9 @@
       </button>
     {/each}
   </div>
-</div>
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.appearance.scaleGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.appearance.uiScale')}</span>
-      <span class="settings-row-desc">{t('settings.appearance.uiScaleDesc')}</span>
-    </div>
+</SettingsGroup>
+<SettingsGroup group={SETTINGS_SCHEMA.appearance.scale}>
+  <SettingRow row={SETTINGS_SCHEMA.appearance.scale.rows.uiScale}>
     <div class="settings-row-control">
       <input
         class="settings-number-input"
@@ -126,12 +120,8 @@
         <Icon name="undo" size={12}/>
       </button>
     </div>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.appearance.iconAnimations')}</span>
-      <span class="settings-row-desc">{t('settings.appearance.iconAnimationsDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.appearance.scale.rows.iconAnimations}>
     <label class="settings-toggle" aria-label={t('settings.appearance.iconAnimations') as string}>
       <input
         type="checkbox"
@@ -140,12 +130,8 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.appearance.transparencyEffects')}</span>
-      <span class="settings-row-desc">{t('settings.appearance.transparencyEffectsDesc')}</span>
-    </div>
+  </SettingRow>
+  <SettingRow row={SETTINGS_SCHEMA.appearance.scale.rows.transparency}>
     <label class="settings-toggle" aria-label={t('settings.appearance.transparencyEffects') as string}>
       <input
         type="checkbox"
@@ -154,16 +140,10 @@
       />
       <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
     </label>
-  </div>
-</div>
-{#if !IS_MAC}
-<div class="settings-group">
-  <div class="settings-group-title">{t('settings.appearance.windowGroup')}</div>
-  <div class="settings-row">
-    <div class="settings-row-info">
-      <span class="settings-row-label">{t('settings.appearance.titleBar')}</span>
-      <span class="settings-row-desc">{t('settings.appearance.titleBarDesc')}</span>
-    </div>
+  </SettingRow>
+</SettingsGroup>
+<SettingsGroup group={SETTINGS_SCHEMA.appearance.window}>
+  <SettingRow row={SETTINGS_SCHEMA.appearance.window.rows.titleBar}>
     <div class="settings-row-control title-bar-select">
       <Select
         value={$settings.titleBar}
@@ -172,13 +152,9 @@
         on:change={(e) => settings.save({ titleBar: e.detail as TitleBarMode })}
       />
     </div>
-  </div>
+  </SettingRow>
   {#if $settings.titleBar === 'custom'}
-    <div class="settings-row">
-      <div class="settings-row-info">
-        <span class="settings-row-label">{t('settings.appearance.titleBarColor')}</span>
-        <span class="settings-row-desc">{t('settings.appearance.titleBarColorDesc')}</span>
-      </div>
+    <SettingRow row={SETTINGS_SCHEMA.appearance.window.rows.titleBarColor}>
       <div class="settings-row-control title-bar-select">
         {#if $settings.titleBarFill === 'custom'}
           <input
@@ -196,10 +172,9 @@
           on:change={(e) => settings.save({ titleBarFill: e.detail as TitleBarFill })}
         />
       </div>
-    </div>
+    </SettingRow>
   {/if}
-</div>
-{/if}
+</SettingsGroup>
 <div class="settings-section-reset">
   <button
     class="btn ghost"

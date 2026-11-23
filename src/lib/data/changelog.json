@@ -36,6 +36,27 @@
 				}
 			},
 			{
+				"kind": "fixed",
+				"text": {
+					"en": "The settings search finds every setting: the AI switch, the cairn command, line wrapping, auto save, the Git profiles, the interface scale and the others it used to miss. The name of a tab or a group also finds every setting under it.",
+					"fr": "La recherche des paramètres trouve tous les réglages : l'interrupteur de l'IA, la commande cairn, le retour à la ligne, l'enregistrement auto, les profils Git, l'échelle de l'interface et les autres qu'elle manquait. Le nom d'un onglet ou d'un groupe trouve aussi tous les réglages qu'il contient."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "Providers leaves the home sidebar for a tab of the Settings screen, shown while AI features are on. The link of the Agent step leads there, and a state left on the old page reopens on the tab. The hint about detecting a CLI again is said once rather than under every CLI that is missing.",
+					"fr": "Fournisseurs quitte la barre latérale de l'accueil pour un onglet de l'écran Paramètres, affiché tant que les fonctions IA sont actives. Le lien de l'étape Agent y mène, et un état laissé sur l'ancienne page se rouvre sur l'onglet. L'indication pour détecter à nouveau un CLI est donnée une fois plutôt que sous chaque CLI absent."
+				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The Settings screen takes the panel of the Agents screen: its tabs are listed on the left with an icon, under the search, and export and import sit beside the title. Each tab opens with a line saying what it holds, and its settings lie on plain rows rather than in boxes. A search lists its results in place of the tab, each with the tab and group it belongs to. The texts are rewritten to say what each setting changes: the version and the update check share one row, and a shortcut whose name says it all no longer repeats it in a description, in the settings and in the command palette.",
+					"fr": "L'écran Paramètres prend le panneau de l'écran Agents : ses onglets sont listés à gauche avec une icône, sous la recherche, et l'export et l'import se placent à côté du titre. Chaque onglet s'ouvre sur une ligne qui dit ce qu'il contient, et ses réglages s'alignent sur des lignes simples plutôt que dans des cadres. Une recherche liste ses résultats à la place de l'onglet, chacun avec l'onglet et le groupe auxquels il appartient. Les textes sont réécrits pour dire ce que change chaque réglage : la version et la vérification des mises à jour partagent une ligne, et un raccourci dont le nom dit tout ne le répète plus dans une description, dans les paramètres comme dans la palette de commandes."
+				}
+			},
+			{
 				"kind": "changed",
 				"text": {
 					"en": "The What's new screen takes the panel of the Agents screen: the versions are listed on the left, the installed one marked, and the selected release fills the right side on its own, its summary first, then its changes by kind. The arrow keys move from one version to the next.",

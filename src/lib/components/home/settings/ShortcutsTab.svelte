@@ -8,6 +8,7 @@
    * reset and disable, and highlighting of the bindings that collide.
    */
   import Icon from '#lib/components/Icon.svelte';
+  import SearchInput from '#lib/components/SearchInput.svelte';
   import { t } from '#lib/i18n';
   import { settings } from '#lib/stores/settings';
   import { shortcuts, SHORTCUT_DEFS, bindingToLabels, bindingKey, SHORTCUT_GROUP_LABELS } from '#lib/stores/shortcuts';
@@ -125,19 +126,12 @@
 <svelte:window on:keydown={handleRecordKeydown} on:mousedown|capture={handleRecordMousedown} />
 
 <div class="sc-toolbar">
-  <div class="sc-search-bar">
-    <Icon name="search" size={13}/>
-    <input
-      class="sc-search-input"
+  <div class="sc-search">
+    <SearchInput
       bind:value={shortcutSearch}
       placeholder={t('settings.shortcuts.searchPlaceholder') as string}
-      aria-label={t('settings.shortcuts.searchAriaLabel') as string}
+      ariaLabel={t('settings.shortcuts.searchAriaLabel') as string}
     />
-    {#if shortcutSearch}
-      <button class="search-clear" on:click={() => shortcutSearch = ''} aria-label={t('settings.shortcuts.clearSearch') as string}>
-        <Icon name="x" size={11}/>
-      </button>
-    {/if}
   </div>
   {#if conflictIds.size > 0}
     <span class="sc-conflict-notice">
@@ -152,7 +146,7 @@
 {#each GROUPS as { key: group, label }}
   {@const defs = filteredShortcutDefs.filter(d => d.group === group)}
   {#if defs.length > 0}
-    <div class="settings-group" style="margin-top: 20px; max-width: 640px;">
+    <div class="settings-group">
       <div class="settings-group-title">{label}</div>
       {#each defs as def}
         {@const binding = $shortcuts[def.id]}
@@ -188,7 +182,7 @@
               {def.label}
               {#if isCustom && !isDisabled}<span class="sc-custom-dot" title={t('settings.shortcuts.customized') as string}></span>{/if}
             </span>
-            <span class="settings-row-desc">{def.description}</span>
+            {#if def.description}<span class="settings-row-desc">{def.description}</span>{/if}
           </div>
 
           <span class="sc-keys">
@@ -225,7 +219,7 @@
   {/if}
 {/each}
 {#if filteredShortcutDefs.length === 0}
-  <div style="margin-top: 24px; color: var(--fg-3); font-size: 13px;">
+  <div class="sc-none">
     {(t('settings.shortcuts.noResults') as (q: string) => string)(shortcutSearch)}
   </div>
 {/if}
@@ -235,55 +229,17 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 16px;
-    max-width: 640px;
     flex-wrap: wrap;
+    padding-top: 20px;
   }
-
-  .sc-search-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    background: var(--bg-0);
-    border: 1px solid var(--stroke-1);
-    border-radius: var(--r-sm);
-    color: var(--fg-3);
-    transition: border-color 0.15s;
-    flex: 1;
-    min-width: 160px;
-  }
-  .sc-search-bar:focus-within {
-    border-color: var(--accent-line);
-    color: var(--fg-1);
-  }
-  .sc-search-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    font-size: 12px;
-    font-family: var(--font-ui);
-    color: var(--fg-0);
-    flex: 1;
-    min-width: 0;
-  }
-  .sc-search-input::placeholder { color: var(--fg-4); }
-
-  .search-clear {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    color: var(--fg-3);
-    display: flex;
-    align-items: center;
-  }
-  .search-clear:hover { color: var(--fg-0); }
+  .sc-search { flex: 1; min-width: 160px; }
+  .sc-search :global(.ag-search) { height: 28px; box-sizing: border-box; margin: 0; }
+  .sc-none { padding: 24px 0; font-size: 13px; color: var(--fg-3); }
 
   .sc-toggle { margin-right: 4px; }
 
   .sc-disabled { opacity: 0.45; cursor: default; }
-  .sc-disabled:hover { background: var(--bg-2); border-color: var(--stroke-0); }
+  .sc-disabled:hover { background: none; }
 
   .sc-conflict-notice {
     display: flex;
@@ -300,20 +256,15 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
-    background: var(--bg-2);
-    border: 1px solid var(--stroke-0);
-    border-radius: var(--r-md);
-    margin-bottom: 5px;
+    padding: 9px 10px;
+    margin: 0 -10px;
+    border-radius: var(--r-sm);
     cursor: pointer;
-    transition: background .1s, border-color .1s;
+    transition: background .1s;
   }
-  .sc-row:hover { background: var(--bg-3); border-color: var(--stroke-1); }
-  .sc-row.sc-recording {
-    background: var(--accent-weak);
-    border-color: var(--accent-line);
-  }
-  .sc-row.sc-conflict { border-color: oklch(0.80 0.14 75 / 0.5); }
+  .sc-row:hover { background: var(--bg-2); }
+  .sc-row.sc-recording { background: var(--accent-weak); }
+  .sc-row.sc-conflict { box-shadow: inset 2px 0 var(--warning); }
 
   .sc-keys {
     display: flex;
