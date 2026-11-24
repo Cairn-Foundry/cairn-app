@@ -58,7 +58,7 @@ export const fr = {
 		modeLabels: {
 			new: "Nouveau projet",
 			open: "Ouvrir un projet",
-			clone: "Cloner depuis un dépôt distant",
+			clone: "Cloner depuis Git",
 		},
 		projectName: "Nom du projet",
 		color: "Couleur",
@@ -2799,7 +2799,7 @@ export const fr = {
 			newProjectDesc: "Créer dans un dossier local",
 			openProject: "Ouvrir un projet",
 			openProjectDesc: "Importer un dossier local existant",
-			cloneFromRemote: "Cloner depuis un dépôt distant",
+			cloneFromRemote: "Cloner depuis Git",
 			cloneFromRemoteDesc: "GitHub, GitLab ou toute URL Git.",
 			layoutLabel: "Affichage des projets",
 			layoutList: "Liste",
