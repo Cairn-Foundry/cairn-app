@@ -203,6 +203,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); curso
   background: var(--stroke-1); margin: 0 6px;
 }
 
+/* Spans the row's bottom border, which the scroll slider is centred on. */
+.tabs-strip {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-bottom: -1px;
+  padding-bottom: 1px;
+}
 .tabs-scroll {
   display: flex;
   align-items: stretch;
