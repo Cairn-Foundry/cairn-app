@@ -1,5 +1,22 @@
 [
 	{
+		"version": "1.2.1",
+		"date": "",
+		"summary": {
+			"en": "The project tabs scroll without pushing the add button away.",
+			"fr": "Les onglets de projet défilent sans repousser le bouton d'ajout."
+		},
+		"changes": [
+			{
+				"kind": "fixed",
+				"text": {
+					"en": "With many projects open, the + Project button no longer slides out of the window: it stays beside the buttons on the right, and a scroll bar under the tabs leads to the hidden ones.",
+					"fr": "Avec beaucoup de projets ouverts, le bouton + Projet ne sort plus de la fenêtre : il reste à côté des boutons de droite, et une barre de défilement sous les onglets mène à ceux qui sont masqués."
+				}
+			}
+		]
+	},
+	{
 		"version": "1.2.0",
 		"date": "2026-11-23",
 		"summary": {

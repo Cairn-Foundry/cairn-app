@@ -256,6 +256,7 @@ export const en = {
 		instancesGroup: "Instances",
 		instancesNeedGit: "Instances need a git repository",
 		addProject: "Project",
+		projectTabsScroll: "Scroll the project tabs",
 		finalizeInstance: "Finalize instance",
 		createInstance: "Create an instance",
 		newInstance: "New instance",

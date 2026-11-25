@@ -259,6 +259,7 @@ export const fr = {
 		instancesGroup: "Instances",
 		instancesNeedGit: "Les instances nécessitent un dépôt git",
 		addProject: "Projet",
+		projectTabsScroll: "Faire défiler les onglets de projet",
 		finalizeInstance: "Finaliser l'instance",
 		createInstance: "Créer une instance",
 		newInstance: "Nouvelle instance",

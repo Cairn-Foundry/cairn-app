@@ -25,6 +25,7 @@
   import { cancelPrefetch, schedulePrefetch, scheduleWorktreePrefetch } from '#lib/utils/files/prefetch';
   import type { CustomCommand } from '#lib/services/custom-command-service';
   import ToolsPanel from '#lib/components/layout/ToolsPanel.svelte';
+  import ScrollSlider from '#lib/components/layout/ScrollSlider.svelte';
   import { hasPendingUpdate, openUpdateModal } from '#lib/stores/update';
   import QuickOpen from '#lib/components/files/QuickOpen.svelte';
   import CommandPalette from '#lib/components/files/CommandPalette.svelte';
@@ -322,11 +323,14 @@
 
   let hasHiddenTabsStart = false;
   let hasHiddenTabsEnd = false;
+  let tabsScrollMetrics = { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 };
 
   function updateTabsOverflow() {
     if (!tabsScrollEl) return;
-    hasHiddenTabsStart = tabsScrollEl.scrollLeft > 1;
-    hasHiddenTabsEnd = tabsScrollEl.scrollLeft + tabsScrollEl.clientWidth < tabsScrollEl.scrollWidth - 1;
+    const { scrollLeft, scrollWidth, clientWidth } = tabsScrollEl;
+    tabsScrollMetrics = { scrollLeft, scrollWidth, clientWidth };
+    hasHiddenTabsStart = scrollLeft > 1;
+    hasHiddenTabsEnd = scrollLeft + clientWidth < scrollWidth - 1;
   }
 
   $: if (tabsScrollEl) {
@@ -574,7 +578,8 @@
       <span>Cairn Foundry<sup class="tm">TM</sup></span>
     </button>
     <div class="tab-divider"></div>
-    <div class="tabs-scroll" class:fade-start={hasHiddenTabsStart} class:fade-end={hasHiddenTabsEnd} bind:this={tabsScrollEl} on:wheel={onTabsWheel} on:scroll={updateTabsOverflow}>
+    <div class="tabs-strip" data-tauri-drag-region="false">
+    <div class="tabs-scroll" id="project-tabs" class:fade-start={hasHiddenTabsStart} class:fade-end={hasHiddenTabsEnd} bind:this={tabsScrollEl} on:wheel={onTabsWheel} on:scroll={updateTabsOverflow}>
     {#each openProjects as p, i (p.id)}
       {#if dragActive && dragSrcIndex !== null && insertIndex === i && !(insertIndex === dragSrcIndex || insertIndex === dragSrcIndex + 1)}
         <div class="drop-indicator"></div>
@@ -605,10 +610,17 @@
     {#if dragActive && dragSrcIndex !== null && insertIndex === openProjects.length && insertIndex !== dragSrcIndex + 1}
       <div class="drop-indicator"></div>
     {/if}
+    </div>
+    <ScrollSlider
+      metrics={tabsScrollMetrics}
+      controls="project-tabs"
+      label={t('workspace.projectTabsScroll') as string}
+      onScroll={(left) => { if (tabsScrollEl) tabsScrollEl.scrollLeft = left; }}
+    />
+    </div>
     <button class="tab-add" on:click={() => dispatch('addProject')}>
       <Icon name="plus" size={12}/> {t('workspace.addProject')}
     </button>
-    </div>
     <div class="spacer"></div>
     <button class="icon-btn" aria-label={t('workspace.ariaSearch') as string} on:click={() => quickOpenVisible.set(true)}><Icon name="search" size={14}/></button>
     <button class="icon-btn" aria-label={t('workspace.ariaCommandPalette') as string} on:click={() => filesView?.openCommandPalette()}><Icon name="command" size={14}/></button>
