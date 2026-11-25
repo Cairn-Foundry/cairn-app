@@ -8,7 +8,12 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
-import { type ILink, type ILinkProvider, Terminal } from "@xterm/xterm";
+import {
+	type ILink,
+	type ILinkHandler,
+	type ILinkProvider,
+	Terminal,
+} from "@xterm/xterm";
 import { t } from "#lib/i18n";
 import { fileMtimes } from "#lib/services/file-service";
 import { osDropPoint } from "#lib/utils/files/files-editor-drop";
@@ -333,11 +338,21 @@ async function existingLinks(
 	);
 }
 
+function openLinkUrl(url: string): void {
+	void import("#lib/services/opener-service")
+		.then((m) => m.openUrl(url))
+		.catch(() => {});
+}
+
+function showLinkHint(host: HTMLElement): void {
+	host.title = (t("terminal.openLinkHint") as (key: string) => string)(
+		isMac ? "Cmd" : "Ctrl",
+	);
+}
+
 function activateLink(candidate: LinkCandidate, absolute: string | null): void {
 	if (candidate.kind === "url") {
-		void import("#lib/services/opener-service")
-			.then((m) => m.openUrl(candidate.url))
-			.catch(() => {});
+		openLinkUrl(candidate.url);
 		return;
 	}
 	const target = fileLinkTarget;
@@ -371,11 +386,7 @@ function linkProvider(term: Terminal, host: HTMLElement): ILinkProvider {
 						activate: (e) => {
 							if (isLinkClick(e)) activateLink(candidate, absolute);
 						},
-						hover: () => {
-							host.title = (
-								t("terminal.openLinkHint") as (key: string) => string
-							)(isMac ? "Cmd" : "Ctrl");
-						},
+						hover: () => showLinkHint(host),
 						leave: () => {
 							host.title = "";
 						},
@@ -383,6 +394,19 @@ function linkProvider(term: Terminal, host: HTMLElement): ILinkProvider {
 					callback(links.length ? links : undefined);
 				})
 				.catch(() => callback(undefined));
+		},
+	};
+}
+
+/** OSC 8 hyperlinks (Claude Code's): xterm.js would otherwise confirm() then window.open(), which the webview blocks. */
+function hyperlinkHandler(host: HTMLElement): ILinkHandler {
+	return {
+		activate: (e, url) => {
+			if (isLinkClick(e)) openLinkUrl(url);
+		},
+		hover: () => showLinkHint(host),
+		leave: () => {
+			host.title = "";
 		},
 	};
 }
@@ -473,6 +497,7 @@ function wake(id: string, m: ManagedTerminal): void {
 		scrollback: 2000,
 		allowProposedApi: true,
 		theme: buildTheme(),
+		linkHandler: hyperlinkHandler(m.el),
 	});
 	const fit = new FitAddon();
 	term.loadAddon(fit);
