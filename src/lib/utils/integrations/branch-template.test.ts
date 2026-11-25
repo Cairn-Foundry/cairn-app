@@ -37,6 +37,15 @@ describe("branchKindSegment", () => {
 		expect(branchKindSegment("Change Request")).toBe("change-request");
 	});
 
+	/** Jira names its types in the account's language, not in English. */
+	it("reads the French names a localized tracker answers", () => {
+		expect(branchKindSegment("Sous-tâche")).toBe("feat");
+		expect(branchKindSegment("Récit")).toBe("feat");
+		expect(branchKindSegment("Épopée")).toBe("feat");
+		expect(branchKindSegment("Problème")).toBe("fix");
+		expect(branchKindSegment("Correctif")).toBe("fix");
+	});
+
 	/**
 	 * GitHub answers `issue` or `pull_request` for everything it tracks and
 	 * GitLab defaults to `issue`, so kept as prefixes they would turn every

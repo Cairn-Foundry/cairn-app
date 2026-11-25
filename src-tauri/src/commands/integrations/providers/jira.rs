@@ -11,7 +11,7 @@ use crate::commands::integrations::provider::TrackerProvider;
 
 const TICKETS_PER_PAGE: u32 = 20;
 const PROJECTS_PER_PAGE: u32 = 50;
-const ISSUE_FIELDS: &str = "summary,description,status,issuetype,labels,assignee,updated";
+const ISSUE_FIELDS: &str = "summary,description,status,issuetype,parent,labels,assignee,updated";
 
 pub struct JiraApi {
     http: HttpClient,
@@ -75,6 +75,27 @@ fn map_description(description: Option<&Value>) -> String {
     }
 }
 
+/// The issue type that says what the work is. A sub-task's own type says only
+/// that it is a sub-task - "Sub-task", "Sous-tâche", "Unteraufgabe" depending on
+/// the Jira locale - so the nature comes from the story or bug it hangs under.
+/// `issuetype.subtask` is a boolean, which is the only part of that object a
+/// localized Jira spells the same way everywhere.
+fn issue_kind(fields: &Value) -> Option<String> {
+    let own = fields.get("issuetype");
+    let is_subtask = own.and_then(|t| t.get("subtask")).and_then(Value::as_bool).unwrap_or(false);
+    if is_subtask {
+        let parent = fields
+            .get("parent")
+            .and_then(|p| p.get("fields"))
+            .and_then(|f| f.get("issuetype"))
+            .and_then(|t| opt_str_of(t, "name"));
+        if parent.is_some() {
+            return parent;
+        }
+    }
+    own.and_then(|t| opt_str_of(t, "name"))
+}
+
 /// `v` is one issue of a search answer or of `issue/:key`; both carry the same
 /// `fields` object.
 pub fn map_ticket(v: &Value, base_url: &str) -> Ticket {
@@ -90,7 +111,7 @@ pub fn map_ticket(v: &Value, base_url: &str) -> Ticket {
         description: map_description(fields.get("description")),
         status: str_of(status, "name"),
         status_category: map_status_category(&str_of(status.get("statusCategory").unwrap_or(&empty), "key")),
-        kind: fields.get("issuetype").and_then(|t| opt_str_of(t, "name")),
+        kind: issue_kind(fields),
         labels: fields
             .get("labels")
             .and_then(Value::as_array)
@@ -583,6 +604,45 @@ mod tests {
             "| Browser | Result |\n| --- | --- |\n| WebKit | red \\| stuck |"
         );
         assert_eq!(t.description, expected);
+    }
+
+    fn subtask_of(parent_kind: &str, own_kind: &str) -> Value {
+        json!({
+            "id": "1",
+            "key": "PORE-123",
+            "fields": {
+                "summary": "Add the retry button",
+                "issuetype": { "name": own_kind, "subtask": true },
+                "parent": { "key": "PORE-100", "fields": { "issuetype": { "name": parent_kind, "subtask": false } } }
+            }
+        })
+    }
+
+    #[test]
+    fn subtask_takes_the_kind_of_the_issue_it_hangs_under() {
+        assert_eq!(map_ticket(&subtask_of("User Story", "Sub-task"), BASE).kind.as_deref(), Some("User Story"));
+        assert_eq!(map_ticket(&subtask_of("Bug", "Sous-tâche"), BASE).kind.as_deref(), Some("Bug"));
+    }
+
+    #[test]
+    fn subtask_without_a_reachable_parent_keeps_its_own_kind() {
+        let mut v = subtask_of("User Story", "Sous-tâche");
+        v["fields"]["parent"] = Value::Null;
+        assert_eq!(map_ticket(&v, BASE).kind.as_deref(), Some("Sous-tâche"));
+    }
+
+    #[test]
+    fn an_ordinary_issue_keeps_its_own_kind_even_under_an_epic() {
+        let v = json!({
+            "id": "2",
+            "key": "PORE-124",
+            "fields": {
+                "summary": "Retry a failed job",
+                "issuetype": { "name": "Bug", "subtask": false },
+                "parent": { "key": "PORE-90", "fields": { "issuetype": { "name": "Epic", "subtask": false } } }
+            }
+        });
+        assert_eq!(map_ticket(&v, BASE).kind.as_deref(), Some("Bug"));
     }
 
     #[test]

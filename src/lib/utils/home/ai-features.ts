@@ -148,9 +148,9 @@ Ticket: {{ticket.key}}
 Type: {{ticket.kind}}
 Title: {{ticket.title}}
 {{ticket.description}}
-Answer with the slug only, in the \`slug\` field: the descriptive part of the branch name, without the ticket key and without any prefix - Cairn adds those itself from its own template.
-
-Lower-case ASCII words joined by single hyphens, no accent, no slash, no underscore, five words at most. English, whatever language the ticket is written in, because that is what the rest of the repository is in. Name the outcome the work produces, not the ticket: \`drop-stale-sessions-on-logout\`, not \`fix-session-bug\`.`;
+Answer with two fields and nothing else - Cairn assembles the branch name itself from its own template:
+- \`slug\`: the descriptive part of the branch name, without the ticket key and without any prefix. Lower-case ASCII words joined by single hyphens, no accent, no slash, no underscore, five words at most. English, whatever language the ticket is written in, because that is what the rest of the repository is in. Name the outcome the work produces, not the ticket: \`drop-stale-sessions-on-logout\`, not \`fix-session-bug\`.
+- \`kind\`: the conventional prefix the work deserves, judged from what the ticket asks for rather than from its type, which a tracker often leaves generic. One of \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`perf\`, \`test\`, \`chore\`, \`build\`, \`ci\`.`;
 
 export const AI_FEATURES: AiFeatureDef[] = [
 	{
@@ -248,9 +248,16 @@ export const FEATURE_SCHEMAS: Record<string, Record<string, unknown>> = {
 	},
 	branchName: {
 		type: "object",
-		required: ["slug"],
+		required: ["slug", "kind"],
 		additionalProperties: false,
-		properties: { slug: { type: "string" } },
+		properties: {
+			slug: { type: "string" },
+			kind: {
+				type: "string",
+				description:
+					"The conventional commit type the work falls under, lower-case.",
+			},
+		},
 	},
 };
 
