@@ -7,13 +7,16 @@ import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	Container,
+	ContainerStats,
 	ContainersReport,
 } from "#lib/services/containers-service";
 
 const listContainers = vi.fn();
 const containerAction = vi.fn();
 const composeDown = vi.fn();
+const containerStats = vi.fn();
 vi.mock("#lib/services/containers-service", () => ({
+	containerStats: (...a: unknown[]) => containerStats(...a),
 	listContainers: (...a: unknown[]) => listContainers(...a),
 	containerAction: (...a: unknown[]) => containerAction(...a),
 	composeDown: (...a: unknown[]) => composeDown(...a),
@@ -101,7 +104,25 @@ beforeEach(() => {
 	openUrl.mockReset().mockResolvedValue(undefined);
 	containerAction.mockReset().mockResolvedValue(undefined);
 	composeDown.mockReset().mockResolvedValue(undefined);
+	containerStats.mockReset().mockResolvedValue([]);
 });
+
+const MiB = 1024 * 1024;
+const GiB = 1024 * MiB;
+function sample(
+	id: string,
+	cpuPercent: number,
+	memoryMiB: number,
+): ContainerStats {
+	return {
+		id,
+		cpuPercent,
+		memoryBytes: memoryMiB * MiB,
+		memoryLimitBytes: 4 * GiB,
+	};
+}
+const cell = (name: string, col: "cpu" | "memory") =>
+	rowOf(name)?.querySelector(`td.${col}`) as HTMLElement;
 
 const rowOf = (name: string) =>
 	Array.from(document.querySelectorAll<HTMLElement>("tbody tr")).find(
@@ -180,6 +201,85 @@ describe("ContainersSection", () => {
 		expect(
 			document.querySelector(".direction")?.getAttribute("aria-label"),
 		).toContain("Z to A");
+	});
+
+	describe("resource usage", () => {
+		beforeEach(() => {
+			containerStats.mockResolvedValue([
+				sample("web-app-1", 12.34, 512),
+				sample("redis", 0.5, 3584),
+			]);
+		});
+
+		it("shows the CPU and memory of each running container, and the totals", async () => {
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			expect(cell("app", "cpu").textContent?.trim()).toBe("12 %");
+			expect(cell("app", "memory").textContent).toContain("512.0 MB");
+			expect(cell("redis", "cpu").textContent?.trim()).toBe("0.5 %");
+			expect(
+				cell("redis", "memory").querySelector(".meter.high"),
+			).not.toBeNull();
+			expect(cell("app", "memory").querySelector(".meter.high")).toBeNull();
+			expect(
+				groupHeader("web").querySelector(".group-usage")?.textContent,
+			).toContain("512.0 MB");
+			expect(document.querySelector(".count")?.textContent).toContain(
+				"4.0 GB of memory",
+			);
+		});
+
+		it("leaves the cells of a stopped container empty", async () => {
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			await user.click(stoppedToggle());
+			expect(cell("worker", "cpu").textContent?.trim()).toBe("");
+			expect(
+				cell("worker", "memory").querySelector(".spinner, svg"),
+			).toBeNull();
+		});
+
+		it("spins in the cells until the first sample comes back", async () => {
+			containerStats.mockReturnValue(new Promise(() => {}));
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			expect(cell("app", "memory").children.length).toBeGreaterThan(0);
+			expect(cell("app", "memory").textContent?.trim()).toBe("");
+		});
+
+		it("sorts the heaviest first by memory, groups by what they use together", async () => {
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			await user.click(
+				document.querySelector(".sort .select-trigger") as HTMLElement,
+			);
+			const option = Array.from(
+				document.querySelectorAll<HTMLElement>("[role=option]"),
+			).find((o) => o.textContent?.trim() === "Memory");
+			await user.click(option as HTMLElement);
+			expect(groupTitles()).toEqual(["web", "Standalone containers"]);
+			await user.click(document.querySelector(".direction") as HTMLElement);
+			expect(
+				document.querySelector(".direction")?.getAttribute("aria-label"),
+			).toContain("Lightest first");
+		});
+
+		it("samples again only once the last sample is back", async () => {
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			expect(containerStats).toHaveBeenCalledTimes(1);
+			await vi.advanceTimersByTimeAsync(REFRESH_MS);
+			expect(containerStats).toHaveBeenCalledTimes(2);
+		});
+
+		it("keeps the list usable when docker stats fails", async () => {
+			containerStats.mockRejectedValue(new Error("boom"));
+			render(ContainersSection, {});
+			await vi.advanceTimersByTimeAsync(0);
+			expect(names()).toEqual(["app", "redis"]);
+			expect(cell("app", "cpu").textContent?.trim()).toBe("");
+			expect(cell("app", "cpu").children.length).toBe(0);
+		});
 	});
 
 	it("opens a published port in the browser", async () => {

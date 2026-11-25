@@ -17,15 +17,17 @@
   import {
     composeDown,
     containerAction,
+    containerStats,
     listContainers,
     type Container,
     type ContainerAction,
     type ContainersReport,
+    type ContainerStats,
   } from '#lib/services/containers-service';
   import { openUrl } from '#lib/services/opener-service';
   import { activeScreen } from '#lib/stores/ui';
-  import { formatDateTimeFull, relativeTime } from '#lib/utils/format';
-  import { displayName, groupContainers, portUrl, DEFAULT_SORT, type ContainerGroup, type ContainerSort } from '#lib/utils/home/containers';
+  import { formatBytes, formatDateTimeFull, relativeTime } from '#lib/utils/format';
+  import { displayName, formatCpu, groupContainers, portUrl, usageOf, DEFAULT_SORT, type ContainerGroup, type ContainerSort } from '#lib/utils/home/containers';
 
   const REFRESH_MS = 5000;
   const KNOWN_STATES = ['running', 'paused', 'restarting', 'created', 'exited', 'dead', 'removing'];
@@ -39,11 +41,16 @@
   let busy = new Set<string>();
   let terminals: ContainerTerminals;
   let actionError = '';
+  let stats: Map<string, ContainerStats> | null = null;
+  let statsTimer: ReturnType<typeof setTimeout> | null = null;
+  let isMounted = true;
   let pending: { kind: 'remove' | 'down'; name: string; containers: string[]; run: () => Promise<void> } | null = null;
 
   $: containers = report?.containers ?? [];
   $: running = containers.filter((c) => c.state === 'running').length;
-  $: groups = groupContainers(containers, query, showStopped, sort);
+  $: statsById = stats ?? new Map<string, ContainerStats>();
+  $: groups = groupContainers(containers, query, showStopped, sort, statsById);
+  $: total = usageOf(containers, statsById);
   $: unavailable = report && report.status !== 'ok' ? report.status : null;
 
   async function refresh() {
@@ -52,6 +59,24 @@
     } catch (e) {
       report = { status: 'error', containers: [], message: String(e) };
     }
+  }
+
+  /** `docker stats` takes about two seconds: the next sample waits for the last one. */
+  async function pollStats() {
+    if (!isMounted) return;
+    if (get(activeScreen) === 'home' && report?.status === 'ok' && running > 0) {
+      try {
+        const sample = await containerStats();
+        stats = new Map(sample.map((s) => [s.id, s]));
+      } catch {
+        stats = stats ?? new Map();
+      }
+    }
+    if (isMounted) statsTimer = setTimeout(pollStats, REFRESH_MS);
+  }
+
+  function memoryShare(s: ContainerStats): number {
+    return s.memoryLimitBytes > 0 ? Math.min(100, (s.memoryBytes / s.memoryLimitBytes) * 100) : 0;
   }
 
   async function refreshNow() {
@@ -161,12 +186,14 @@
   }
 
   onMount(() => {
-    refresh();
+    void refresh().then(pollStats);
     timer = setInterval(() => { if (get(activeScreen) === 'home') void refresh(); }, REFRESH_MS);
   });
 
   onDestroy(() => {
+    isMounted = false;
     if (timer) clearInterval(timer);
+    if (statsTimer) clearTimeout(statsTimer);
   });
 </script>
 
@@ -196,6 +223,9 @@
       <span class="count">
         {#if report}
           {(t('home.containers.countLabel') as (r: number, n: number) => string)(running, containers.length)}
+          {#if stats && running > 0}
+            · {(t('home.containers.memoryTotal') as (s: string) => string)(formatBytes(total.memoryBytes))}
+          {/if}
         {/if}
       </span>
       <div class="sort">
@@ -213,6 +243,8 @@
           options={[
             { value: 'name', label: t('home.containers.sort.name') as string },
             { value: 'uptime', label: t('home.containers.sort.uptime') as string },
+            { value: 'memory', label: t('home.containers.sort.memory') as string },
+            { value: 'cpu', label: t('home.containers.sort.cpu') as string },
           ]}
           ariaLabel={t('home.containers.sort.label') as string}
           on:change={(e) => sortBy(e.detail)}
@@ -268,6 +300,12 @@
               <span class="dir dim selectable" title={group.workingDir}>{group.workingDir}</span>
             {/if}
             <span class="group-count dim">{group.running}/{group.containers.length}</span>
+            {#if stats && group.running > 0}
+              {@const usage = usageOf(group.containers, statsById)}
+              <span class="group-usage dim" title={t('home.containers.cpuHint') as string}>
+                {formatCpu(usage.cpuPercent)} · {formatBytes(usage.memoryBytes)}
+              </span>
+            {/if}
             {#if group.project}
               <span class="group-actions">
                 {#if busy.has(`project:${group.project}`)}
@@ -301,6 +339,8 @@
                   <th class="image">{t('home.containers.col.image')}</th>
                   <th class="state">{t('home.containers.col.state')}</th>
                   <th class="ports">{t('home.containers.col.ports')}</th>
+                  <th class="cpu" title={t('home.containers.cpuHint') as string}>{t('home.containers.col.cpu')}</th>
+                  <th class="memory">{t('home.containers.col.memory')}</th>
                   <th class="since">{t('home.containers.col.since')}</th>
                   <th class="actions"><span class="sr-only">{t('home.containers.col.actions')}</span></th>
                 </tr>
@@ -335,6 +375,29 @@
                         {/if}
                       {/each}
                     </td>
+                    {#if c.state !== 'running'}
+                      <td class="cpu"></td>
+                      <td class="memory"></td>
+                    {:else if !stats}
+                      <td class="cpu"><Spinner size={10} /></td>
+                      <td class="memory"><Spinner size={10} /></td>
+                    {:else}
+                      {@const s = stats.get(c.id)}
+                      <td class="cpu mono">{s ? formatCpu(s.cpuPercent) : ''}</td>
+                      <td class="memory">
+                        {#if s}
+                          <span
+                            class="memory-cell"
+                            title={(t('home.containers.memoryOfLimit') as (u: string, l: string) => string)(formatBytes(s.memoryBytes), formatBytes(s.memoryLimitBytes))}
+                          >
+                            <span class="mono">{formatBytes(s.memoryBytes)}</span>
+                            <span class="meter" class:high={memoryShare(s) >= 80} aria-hidden="true">
+                              <span style="width: {memoryShare(s)}%"></span>
+                            </span>
+                          </span>
+                        {/if}
+                      </td>
+                    {/if}
                     <td class="since dim" title={since(c) ? formatDateTimeFull(since(c)) : ''}>
                       {since(c) ? relativeTime(since(c)) : ''}
                     </td>
@@ -534,7 +597,7 @@
   .scroller { overflow-x: auto; }
   table {
     width: 100%;
-    min-width: 780px;
+    min-width: 960px;
     border-collapse: collapse;
     table-layout: fixed;
   }
@@ -564,10 +627,23 @@
   .dim { color: var(--fg-3); }
 
   th:first-child, td:first-child { width: auto; max-width: 0; }
-  th.image, td.image { width: 26%; }
-  th.state, td.state { width: 150px; }
-  th.ports, td.ports { width: 150px; }
-  th.since, td.since { width: 80px; text-align: right; }
+  th.image, td.image { width: 18%; }
+  th.state, td.state { width: 130px; }
+  th.ports, td.ports { width: 130px; }
+  th.since, td.since { width: 64px; text-align: right; }
+  th.cpu, td.cpu { width: 60px; text-align: right; }
+  th.memory, td.memory { width: 96px; text-align: right; }
+  .memory-cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .meter {
+    width: 56px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+  .meter > span { display: block; height: 100%; background: var(--accent); }
+  .meter.high > span { background: var(--danger); }
+  .group-usage { font-size: 11px; white-space: nowrap; }
   th.actions, td.actions { width: 140px; text-align: right; }
   .row-actions {
     display: inline-flex;

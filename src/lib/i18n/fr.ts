@@ -2628,6 +2628,10 @@ export const fr = {
 			search: "Filtrer par nom, image, projet ou dossier",
 			countLabel: (running: number, total: number) =>
 				`${running} en cours · ${total} au total`,
+			memoryTotal: (size: string) => `${size} de mémoire`,
+			memoryOfLimit: (used: string, limit: string) => `${used} sur ${limit}`,
+			cpuHint:
+				"Rapporté à un cœur : un container qui occupe quatre cœurs affiche 400 %",
 			refresh: "Rafraîchir",
 			sort: {
 				label: "Trier par",
@@ -2637,6 +2641,12 @@ export const fr = {
 				nameReversed: "De Z à A - cliquer pour inverser",
 				uptimeNatural: "Les plus anciens d'abord - cliquer pour inverser",
 				uptimeReversed: "Les plus récents d'abord - cliquer pour inverser",
+				memory: "Mémoire",
+				cpu: "CPU",
+				memoryNatural: "Les plus gourmands d'abord - cliquer pour inverser",
+				memoryReversed: "Les plus légers d'abord - cliquer pour inverser",
+				cpuNatural: "Les plus actifs d'abord - cliquer pour inverser",
+				cpuReversed: "Les plus calmes d'abord - cliquer pour inverser",
 			},
 			showStopped: "Afficher les arrêtés",
 			empty: "Aucun container sur cette machine.",
@@ -2711,6 +2721,8 @@ export const fr = {
 				state: "État",
 				ports: "Ports",
 				since: "Depuis",
+				cpu: "CPU",
+				memory: "Mémoire",
 				actions: "Actions",
 			},
 		},

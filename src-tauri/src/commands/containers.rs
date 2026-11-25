@@ -302,9 +302,112 @@ pub async fn compose_down(project: String) -> Result<(), String> {
     run_docker(&["compose".into(), "--project-name".into(), project, "down".into()], true)
 }
 
+#[derive(Serialize, Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerStats {
+    pub id: String,
+    /// Of one core: a container busy on four cores reads 400.
+    pub cpu_percent: f64,
+    pub memory_bytes: u64,
+    /// The container's memory limit, the machine's memory when it has none.
+    pub memory_limit_bytes: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct StatsRow {
+    #[serde(rename = "ID")]
+    id: String,
+    #[serde(rename = "CPUPerc")]
+    cpu_perc: String,
+    mem_usage: String,
+}
+
+fn parse_percent(raw: &str) -> f64 {
+    raw.trim().trim_end_matches('%').parse().unwrap_or(0.0)
+}
+
+/// `85.16MiB`, `1.2GB`, `512B`: docker prints memory in binary units and I/O in decimal ones.
+fn parse_size(raw: &str) -> u64 {
+    let raw = raw.trim();
+    let split = raw.find(|c: char| c.is_ascii_alphabetic()).unwrap_or(raw.len());
+    let (number, unit) = raw.split_at(split);
+    let Ok(number) = number.trim().parse::<f64>() else { return 0 };
+    let factor: f64 = match unit.to_ascii_lowercase().as_str() {
+        "" | "b" => 1.0,
+        "kib" => 1024.0,
+        "mib" => 1024f64.powi(2),
+        "gib" => 1024f64.powi(3),
+        "tib" => 1024f64.powi(4),
+        "kb" => 1e3,
+        "mb" => 1e6,
+        "gb" => 1e9,
+        "tb" => 1e12,
+        _ => return 0,
+    };
+    (number * factor).round() as u64
+}
+
+fn parse_stats(out: &str) -> Vec<ContainerStats> {
+    out.lines()
+        .filter_map(|line| serde_json::from_str::<StatsRow>(line).ok())
+        .map(|row| {
+            let (used, limit) = row.mem_usage.split_once('/').unwrap_or((&row.mem_usage, ""));
+            ContainerStats {
+                id: row.id,
+                cpu_percent: parse_percent(&row.cpu_perc),
+                memory_bytes: parse_size(used),
+                memory_limit_bytes: parse_size(limit),
+            }
+        })
+        .collect()
+}
+
+/// One sample of the running containers. Docker measures the CPU over about
+/// two seconds, so this is kept apart from `list_containers`, which stays instant.
+#[tauri::command]
+pub async fn container_stats() -> Result<Vec<ContainerStats>, String> {
+    let out = child_env::command("docker")
+        .args(["stats", "--no-stream", "--no-trunc", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(parse_stats(&String::from_utf8_lossy(&out.stdout)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_stats_rows() {
+        let out = concat!(
+            r#"{"BlockIO":"25.2MB / 2.16MB","CPUPerc":"112.50%","Container":"abc","ID":"abc","MemPerc":"0.27%","MemUsage":"85.16MiB / 30.98GiB","Name":"web","NetIO":"69.4MB / 7.48MB","PIDs":"49"}"#,
+            "\n",
+            r#"{"BlockIO":"0B / 0B","CPUPerc":"--","Container":"def","ID":"def","MemPerc":"--","MemUsage":"0B / 0B","Name":"gone","NetIO":"0B / 0B","PIDs":"0"}"#,
+            "\nnot json\n",
+        );
+        let stats = parse_stats(out);
+        assert_eq!(stats.len(), 2);
+        assert_eq!(stats[0].id, "abc");
+        assert!((stats[0].cpu_percent - 112.5).abs() < 1e-9);
+        assert_eq!(stats[0].memory_bytes, (85.16 * 1024.0 * 1024.0_f64).round() as u64);
+        assert_eq!(stats[0].memory_limit_bytes, (30.98 * 1024f64.powi(3)).round() as u64);
+        assert_eq!(stats[1], ContainerStats { id: "def".into(), ..Default::default() });
+    }
+
+    #[test]
+    fn parses_sizes_in_both_unit_families() {
+        assert_eq!(parse_size("512B"), 512);
+        assert_eq!(parse_size(" 1.5KiB "), 1536);
+        assert_eq!(parse_size("2kB"), 2000);
+        assert_eq!(parse_size("1GB"), 1_000_000_000);
+        assert_eq!(parse_size("1GiB"), 1 << 30);
+        assert_eq!(parse_size("--"), 0);
+        assert_eq!(parse_size("3 parsecs"), 0);
+    }
 
     #[test]
     fn parses_ps_rows() {

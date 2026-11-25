@@ -368,6 +368,7 @@ pub fn run() {
             list_containers,
             container_action,
             compose_down,
+            container_stats,
             list_listening_ports,
             kill_process,
             get_commit_state,

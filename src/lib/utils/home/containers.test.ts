@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { Container } from "#lib/services/containers-service";
+import type {
+	Container,
+	ContainerStats,
+} from "#lib/services/containers-service";
 import {
 	displayName,
+	formatCpu,
 	groupContainers,
 	logsArgv,
 	portUrl,
 	shellArgv,
+	usageOf,
 } from "./containers";
 
 function container(
@@ -177,6 +182,93 @@ describe("reversing a sort", () => {
 
 	it("runs the names from Z to A, the standalone ones still last", () => {
 		expect(projects(reversed("name"))).toEqual(["b", "a", ""]);
+	});
+});
+
+describe("sorting by resource usage", () => {
+	const stat = (id: string, cpuPercent: number, memoryBytes: number) =>
+		[id, { id, cpuPercent, memoryBytes, memoryLimitBytes: 0 }] as [
+			string,
+			ContainerStats,
+		];
+	const stats = new Map([
+		stat("small", 80, 10),
+		stat("big", 1, 900),
+		stat("db-1", 5, 300),
+		stat("db-2", 5, 300),
+		stat("stopped", 99, 9999),
+	]);
+	const all = [
+		container("small"),
+		container("big"),
+		container("unsampled"),
+		container("stopped", { state: "exited" }),
+		container("db-1", { composeProject: "db" }),
+		container("db-2", { composeProject: "db" }),
+		container("api-1", { composeProject: "api" }),
+	];
+	const names = (groups: ReturnType<typeof groupContainers>) =>
+		groups.flatMap((g) => g.containers.map((c) => c.name));
+
+	it("puts the heaviest first, the unsampled after, the stopped last", () => {
+		const groups = groupContainers(
+			all,
+			"",
+			true,
+			{ key: "memory", reversed: false },
+			stats,
+		);
+		expect(names(groups.filter((g) => !g.project))).toEqual([
+			"big",
+			"small",
+			"unsampled",
+			"stopped",
+		]);
+	});
+
+	it("ranks the groups by what their running containers use together", () => {
+		const groups = groupContainers(
+			all,
+			"",
+			true,
+			{ key: "memory", reversed: false },
+			stats,
+		);
+		expect(projects(groups)).toEqual(["db", "api", ""]);
+		const reversed = groupContainers(
+			all,
+			"",
+			true,
+			{ key: "memory", reversed: true },
+			stats,
+		);
+		expect(projects(reversed)).toEqual(["api", "db", ""]);
+	});
+
+	it("sorts on CPU the same way", () => {
+		const groups = groupContainers(
+			all,
+			"",
+			false,
+			{ key: "cpu", reversed: false },
+			stats,
+		);
+		expect(names(groups.filter((g) => !g.project))).toEqual([
+			"small",
+			"big",
+			"unsampled",
+		]);
+	});
+
+	it("adds up the running containers only", () => {
+		expect(usageOf(all, stats)).toEqual({ cpuPercent: 91, memoryBytes: 1510 });
+		expect(usageOf(all, new Map())).toEqual({ cpuPercent: 0, memoryBytes: 0 });
+	});
+
+	it("keeps one decimal for a small CPU share", () => {
+		expect(formatCpu(0.04)).toBe("0.0 %");
+		expect(formatCpu(9.96)).toBe("10.0 %");
+		expect(formatCpu(250.4)).toBe("250 %");
 	});
 });
 

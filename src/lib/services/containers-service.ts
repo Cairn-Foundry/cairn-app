@@ -54,6 +54,19 @@ export async function containerAction(
 	await invoke("container_action", { ids, action });
 }
 
+export interface ContainerStats {
+	id: string;
+	/** Of one core: a container busy on four cores reads 400. */
+	cpuPercent: number;
+	memoryBytes: number;
+	memoryLimitBytes: number;
+}
+
+/** One sample of the running containers; docker takes about two seconds to measure it. */
+export async function containerStats(): Promise<ContainerStats[]> {
+	return await invoke<ContainerStats[]>("container_stats");
+}
+
 export async function composeDown(project: string): Promise<void> {
 	await invoke("compose_down", { project });
 }

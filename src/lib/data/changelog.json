@@ -3,10 +3,17 @@
 		"version": "1.2.1",
 		"date": "",
 		"summary": {
-			"en": "A Containers section lists the machine's Docker containers, grouped by Compose project.",
-			"fr": "Une section Containers liste les containers Docker de la machine, regroupés par projet Compose."
+			"en": "A Containers section lists the machine's Docker containers by Compose project, with what each uses in CPU and memory, and starts, stops or removes them, follows their logs or opens a shell in them.",
+			"fr": "Une section Containers liste les containers Docker de la machine par projet Compose, avec ce que chacun consomme en CPU et en mémoire, et permet de les démarrer, arrêter ou supprimer, de suivre leurs logs ou d'ouvrir un shell dedans."
 		},
 		"changes": [
+			{
+				"kind": "added",
+				"text": {
+					"en": "The Containers section shows the CPU and memory each running container uses, refreshed every few seconds, with a total per Compose project and for the machine, and sorts by memory or CPU to find what to stop when memory runs short. A bar under the memory turns red past 80 % of the container's limit.",
+					"fr": "La section Containers affiche le CPU et la mémoire de chaque container en cours, rafraîchis toutes les quelques secondes, avec un total par projet Compose et pour la machine, et trie par mémoire ou par CPU pour trouver quoi arrêter quand la mémoire manque. Une barre sous la mémoire passe au rouge au-delà de 80 % de la limite du container."
+				}
+			},
 			{
 				"kind": "added",
 				"text": {
