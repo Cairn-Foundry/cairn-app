@@ -13,6 +13,7 @@
   import Skeleton from '#lib/components/Skeleton.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
+  import ScrollSlider from '#lib/components/layout/ScrollSlider.svelte';
   import { t } from '#lib/i18n';
   import CodeEditor from './CodeEditor.svelte';
   import type { LspDiagnostic, LspDocRef } from '#lib/services/lsp-service';
@@ -142,15 +143,14 @@
 
   let hasHiddenTabsStart = false;
   let hasHiddenTabsEnd = false;
-  let tabsThumbLeft = 0;
-  let tabsThumbWidth = 100;
+  let tabsScrollMetrics = { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 };
 
   function updateTabsOverflow() {
     if (!tabsBarEl) return;
-    hasHiddenTabsStart = tabsBarEl.scrollLeft > 1;
-    hasHiddenTabsEnd = tabsBarEl.scrollLeft + tabsBarEl.clientWidth < tabsBarEl.scrollWidth - 1;
-    tabsThumbLeft = (tabsBarEl.scrollLeft / tabsBarEl.scrollWidth) * 100;
-    tabsThumbWidth = (tabsBarEl.clientWidth / tabsBarEl.scrollWidth) * 100;
+    const { scrollLeft, scrollWidth, clientWidth } = tabsBarEl;
+    tabsScrollMetrics = { scrollLeft, scrollWidth, clientWidth };
+    hasHiddenTabsStart = scrollLeft > 1;
+    hasHiddenTabsEnd = scrollLeft + clientWidth < scrollWidth - 1;
   }
 
   $: if (tabsBarEl) {
@@ -162,41 +162,6 @@
   $: if (tabs) void tick().then(updateTabsOverflow);
 
   const tabsBarId = `tabs-bar-${Math.random().toString(36).slice(2, 8)}`;
-  let isDraggingTabsThumb = false;
-  let tabsThumbGrabOffset = 0;
-
-  function scrollTabsToThumbPosition(e: PointerEvent) {
-    const bar = tabsBarEl;
-    const track = e.currentTarget as HTMLElement;
-    if (!bar) return;
-    const rect = track.getBoundingClientRect();
-    bar.scrollLeft = ((e.clientX - rect.left - tabsThumbGrabOffset) / rect.width) * bar.scrollWidth;
-  }
-
-  function startTabsThumbDrag(e: PointerEvent) {
-    const track = e.currentTarget as HTMLElement;
-    const rect = track.getBoundingClientRect();
-    const thumbLeft = (tabsThumbLeft / 100) * rect.width;
-    const thumbWidth = (tabsThumbWidth / 100) * rect.width;
-    const x = e.clientX - rect.left;
-    const isOnThumb = x >= thumbLeft && x <= thumbLeft + thumbWidth;
-    tabsThumbGrabOffset = isOnThumb ? x - thumbLeft : thumbWidth / 2;
-    track.setPointerCapture(e.pointerId);
-    isDraggingTabsThumb = true;
-    document.body.classList.add('dragging');
-    e.preventDefault();
-    scrollTabsToThumbPosition(e);
-  }
-
-  function moveTabsThumbDrag(e: PointerEvent) {
-    if (isDraggingTabsThumb) scrollTabsToThumbPosition(e);
-  }
-
-  function endTabsThumbDrag() {
-    if (!isDraggingTabsThumb) return;
-    isDraggingTabsThumb = false;
-    document.body.classList.remove('dragging');
-  }
 
   function scrollTabsWithWheel(e: WheelEvent) {
     const bar = tabsBarEl;
@@ -284,25 +249,12 @@
         <div class="drop-indicator"></div>
       {/if}
     </div>
-    {#if hasHiddenTabsStart || hasHiddenTabsEnd}
-      <div
-        class="tabs-track"
-        class:is-dragging={isDraggingTabsThumb}
-        role="scrollbar"
-        tabindex="-1"
-        aria-orientation="horizontal"
-        aria-controls={tabsBarId}
-        aria-valuenow={Math.round(tabsThumbLeft)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        on:pointerdown={startTabsThumbDrag}
-        on:pointermove={moveTabsThumbDrag}
-        on:pointerup={endTabsThumbDrag}
-        on:pointercancel={endTabsThumbDrag}
-      >
-        <div class="tabs-thumb" style="left: {tabsThumbLeft}%; width: {tabsThumbWidth}%"></div>
-      </div>
-    {/if}
+    <ScrollSlider
+      metrics={tabsScrollMetrics}
+      controls={tabsBarId}
+      label={t('files.tabsScroll') as string}
+      onScroll={(left) => { if (tabsBarEl) tabsBarEl.scrollLeft = left; }}
+    />
     </div>
   {/if}
 
@@ -534,25 +486,6 @@
     flex-shrink: 0;
     min-width: 0;
   }
-  .tabs-track {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 8px;
-    cursor: pointer;
-  }
-  .tabs-thumb {
-    position: absolute;
-    bottom: 0;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--stroke-2);
-    pointer-events: none;
-    transition: height 0.12s ease, background 0.12s ease;
-  }
-  .tabs-track:hover .tabs-thumb,
-  .tabs-track.is-dragging .tabs-thumb { height: 4px; background: var(--fg-3); }
   .tabs-bar {
     display: flex;
     align-items: stretch;

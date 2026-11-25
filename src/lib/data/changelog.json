@@ -13,6 +13,13 @@
 					"en": "With many projects open, the + Project button no longer slides out of the window: it stays beside the buttons on the right, and a scroll bar under the tabs leads to the hidden ones.",
 					"fr": "Avec beaucoup de projets ouverts, le bouton + Projet ne sort plus de la fenêtre : il reste à côté des boutons de droite, et une barre de défilement sous les onglets mène à ceux qui sont masqués."
 				}
+			},
+			{
+				"kind": "changed",
+				"text": {
+					"en": "The scroll bar of the editor tabs looks and behaves like the one of the project tabs: it sits on the edge under the tabs and its thumb stays wide enough to grab.",
+					"fr": "La barre de défilement des onglets de l'éditeur ressemble à celle des onglets de projet et se comporte pareil : elle est posée sur le bord sous les onglets et sa poignée reste assez large pour être attrapée."
+				}
 			}
 		]
 	},

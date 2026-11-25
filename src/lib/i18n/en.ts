@@ -1359,6 +1359,7 @@ export const en = {
 		unpinTab: "Unpin tab",
 		unpinTabTitle: "Unpin tab",
 		closeTab: "Close tab",
+		tabsScroll: "Scroll the tabs",
 		filePath: "File path",
 		unsaved: "● unsaved",
 		treeEmpty: "Empty worktree",

@@ -1376,6 +1376,7 @@ export const fr = {
 		unpinTab: "Désépingler l'onglet",
 		unpinTabTitle: "Désépingler l'onglet",
 		closeTab: "Fermer l'onglet",
+		tabsScroll: "Faire défiler les onglets",
 		filePath: "Chemin du fichier",
 		unsaved: "● non enregistré",
 		treeEmpty: "Worktree vide",
