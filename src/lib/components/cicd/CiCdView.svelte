@@ -15,6 +15,7 @@
   import Skeleton from '#lib/components/Skeleton.svelte';
   import CopyButton from '#lib/components/CopyButton.svelte';
   import PipelineSkeleton from './PipelineSkeleton.svelte';
+  import PlayJobModal from './PlayJobModal.svelte';
   import { t } from '#lib/i18n';
   import { activeInstance } from '#lib/stores/instance';
   import { activeProjectId } from '#lib/stores/project';
@@ -205,6 +206,25 @@
     }
   }
 
+  function manualJobsOf(pipeline: Pipeline): PipelineJob[] {
+    return pipeline.stages.flatMap((s) => s.jobs).filter((j) => j.isManual || j.declaredManual);
+  }
+
+  function manualJobIcon(job: PipelineJob): 'play' | 'refresh' | null {
+    if (job.isManual) return 'play';
+    return job.canRetry ? 'refresh' : null;
+  }
+
+  let playRequest: { pipeline: Pipeline; job: PipelineJob } | null = null;
+
+  function confirmPlay() {
+    if (!playRequest) return;
+    const { pipeline, job } = playRequest;
+    playRequest = null;
+    void runJobAction(job.id, () =>
+      job.isManual ? playJob(projectId, instanceId, pipeline.id, job.id) : retryJob(projectId, instanceId, pipeline.id, job.id));
+  }
+
   function toggleJobLog(pipeline: Pipeline, job: PipelineJob) {
     if (state.selectedPipelineId !== pipeline.id) selectPipeline(projectId, instanceId, pipeline.id);
     if (state.openJobId === job.id) closeJobLog(projectId, instanceId);
@@ -360,6 +380,18 @@
   .ci-search::placeholder { color: var(--fg-3); }
   .ci-status-filters { display: flex; gap: 4px; flex-wrap: wrap; }
   .ci-scope { display: flex; gap: 4px; }
+  .manual-jobs {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    margin: 10px 0; padding: 8px 12px;
+    border: 1px solid var(--stroke-0); border-radius: var(--r-md);
+    background: var(--bg-0);
+  }
+  .manual-label { font-size: 11px; color: var(--fg-3); margin-right: 4px; }
+  .manual-jobs .mono { font-family: var(--font-mono); }
+  .manual-job .job-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-3); }
+  .manual-job.passed .job-dot { background: var(--success); }
+  .manual-job.failed .job-dot { background: var(--danger); }
+  .manual-job.running .job-dot { background: var(--accent); }
   .ci-scope .filter-chip { display: inline-flex; align-items: center; gap: 4px; }
   .ref-tag {
     display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;
@@ -449,6 +481,7 @@
         {@const isExpanded = selected?.id === pipeline.id}
         {@const failedJob = pipeline.status === 'failed' ? failedJobOf(pipeline) : null}
         {@const openJob = isExpanded ? jobLogOf(pipeline) : null}
+        {@const manualJobs = isExpanded ? manualJobsOf(pipeline) : []}
         <div class="pipeline" class:dimmed={!isExpanded}>
           <div
             class="pipeline-head"
@@ -483,6 +516,25 @@
             </span>
           </div>
 
+          {#if manualJobs.length > 0}
+            <div class="manual-jobs" role="group" aria-label={t('cicd.manualJobs') as string}>
+              <span class="manual-label">{t('cicd.manualJobs')}</span>
+              {#each manualJobs as job (job.id)}
+                {@const icon = manualJobIcon(job)}
+                <button
+                  class="btn manual-job {pillClass(job.status)}"
+                  disabled={pendingJobIds.has(job.id) || !icon}
+                  title={icon === 'refresh' ? `${t('cicd.retry')} · ${statusLabel(job.status)}` : statusLabel(job.status)}
+                  on:click={() => (playRequest = { pipeline, job })}
+                >
+                  {#if pendingJobIds.has(job.id) || !icon}<Spinner size={12}/>{:else}<Icon name={icon} size={12}/>{/if}
+                  <span class="mono">{job.name}</span>
+                  {#if !job.isManual}<span class="job-dot"></span>{/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+
           <div class="stages">
             {#each pipeline.stages as stage, i (stage.name + i)}
               <div class="stage-card">
@@ -507,13 +559,15 @@
                         {:else}
                           {#if job.isManual}
                             <button class="job-action" title={t('cicd.play') as string} aria-label={t('cicd.play') as string}
-                              on:click|stopPropagation={() => runJobAction(job.id, () => playJob(projectId, instanceId, pipeline.id, job.id))}>
+                              on:click|stopPropagation={() => (playRequest = { pipeline, job })}>
                               <Icon name="play" size={10}/>
                             </button>
                           {/if}
                           {#if job.canRetry}
                             <button class="job-action" title={t('cicd.retry') as string} aria-label={t('cicd.retry') as string}
-                              on:click|stopPropagation={() => runJobAction(job.id, () => retryJob(projectId, instanceId, pipeline.id, job.id))}>
+                              on:click|stopPropagation={() => job.declaredManual
+                                ? (playRequest = { pipeline, job })
+                                : runJobAction(job.id, () => retryJob(projectId, instanceId, pipeline.id, job.id))}>
                               <Icon name="refresh" size={10}/>
                             </button>
                           {/if}
@@ -587,3 +641,12 @@
     {/if}
   {/if}
 </div>
+
+{#if playRequest}
+  <PlayJobModal
+    pipeline={playRequest.pipeline}
+    job={playRequest.job}
+    on:close={() => (playRequest = null)}
+    on:confirm={confirmPlay}
+  />
+{/if}

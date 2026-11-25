@@ -163,6 +163,7 @@ mod tests {
             can_retry: false,
             can_cancel: false,
             is_manual: false,
+            declared_manual: false,
             url: String::new(),
         }
     }

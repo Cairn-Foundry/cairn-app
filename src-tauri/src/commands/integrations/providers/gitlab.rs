@@ -308,7 +308,46 @@ pub fn map_job(v: &Value) -> PipelineJob {
         can_retry: matches!(status, PipelineStatus::Failed | PipelineStatus::Canceled | PipelineStatus::Success),
         can_cancel: matches!(status, PipelineStatus::Pending | PipelineStatus::Running),
         is_manual: status == PipelineStatus::Manual,
+        declared_manual: status == PipelineStatus::Manual,
         url: str_of(v, "web_url"),
+    }
+}
+
+/// REST forgets `when: manual` once a job has run; GraphQL keeps it as
+/// `manualJob`. One aliased query covers a whole page of pipelines.
+pub fn manual_jobs_query(project_path: &str, pipeline_ids: &[String]) -> Option<Value> {
+    let fields: String = pipeline_ids
+        .iter()
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        .map(|id| format!("p{id}: pipeline(id: \"gid://gitlab/Ci::Pipeline/{id}\") {{ jobs(first: 100) {{ nodes {{ id manualJob }} }} }} "))
+        .collect();
+    if fields.is_empty() {
+        return None;
+    }
+    Some(json!({
+        "query": format!("query($path: ID!) {{ project(fullPath: $path) {{ {fields}}} }}"),
+        "variables": { "path": project_path },
+    }))
+}
+
+pub fn manual_job_ids(answer: &Value) -> std::collections::HashSet<String> {
+    answer
+        .pointer("/data/project")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flat_map(|project| project.values())
+        .filter_map(|pipeline| pipeline.pointer("/jobs/nodes").and_then(Value::as_array))
+        .flatten()
+        .filter(|job| job.get("manualJob").and_then(Value::as_bool) == Some(true))
+        .filter_map(|job| job.get("id")?.as_str()?.rsplit('/').next().map(str::to_string))
+        .collect()
+}
+
+pub fn mark_declared_manual(pipelines: &mut [Pipeline], ids: &std::collections::HashSet<String>) {
+    for job in pipelines.iter_mut().flat_map(|p| p.stages.iter_mut()).flat_map(|s| s.jobs.iter_mut()) {
+        if ids.contains(&job.id) {
+            job.declared_manual = true;
+        }
     }
 }
 
@@ -427,6 +466,24 @@ impl GitLabApi {
 
     fn project(&self, rest: &str) -> String {
         format!("projects/{}/{}", encode_path(&self.project_path), rest.trim_start_matches('/'))
+    }
+
+    async fn fetch_pipeline(&self, id: &str) -> Result<Pipeline, IntegrationError> {
+        let pipeline = self.http.get_json(&self.project(&format!("pipelines/{id}")), &[]).await?;
+        let (jobs, _) = self
+            .http
+            .get_paged(&self.project(&format!("pipelines/{id}/jobs")), &[("per_page", "100".to_string())])
+            .await?;
+        Ok(map_pipeline(&pipeline, &jobs))
+    }
+
+    /// Best effort: without GraphQL a played manual job only loses its run-again button.
+    async fn mark_manual_jobs(&self, pipelines: &mut [Pipeline]) {
+        let ids: Vec<String> = pipelines.iter().map(|p| p.id.clone()).collect();
+        let Some(query) = manual_jobs_query(&self.project_path, &ids) else { return };
+        if let Ok(answer) = self.http.post_json(&format!("{}/api/graphql", self.base_url), &query).await {
+            mark_declared_manual(pipelines, &manual_job_ids(&answer));
+        }
     }
 
     async fn me(&self) -> Result<(u64, String), IntegrationError> {
@@ -802,18 +859,17 @@ impl CiProvider for GitLabApi {
         let has_more = ids.len() >= limit.clamp(1, PIPELINES_PER_PAGE);
         let mut pipelines = Vec::with_capacity(ids.len());
         for id in &ids {
-            pipelines.push(self.get_pipeline(id).await?);
+            pipelines.push(self.fetch_pipeline(id).await?);
         }
+        self.mark_manual_jobs(&mut pipelines).await;
         Ok(Page { items: filter_by_text(pipelines, text), has_more })
     }
 
     async fn get_pipeline(&self, id: &str) -> Result<Pipeline, IntegrationError> {
-        let pipeline = self.http.get_json(&self.project(&format!("pipelines/{id}")), &[]).await?;
-        let (jobs, _) = self
-            .http
-            .get_paged(&self.project(&format!("pipelines/{id}/jobs")), &[("per_page", "100".to_string())])
-            .await?;
-        Ok(map_pipeline(&pipeline, &jobs))
+        let mut pipelines = [self.fetch_pipeline(id).await?];
+        self.mark_manual_jobs(&mut pipelines).await;
+        let [pipeline] = pipelines;
+        Ok(pipeline)
     }
 
     async fn job_log(&self, job_id: &str) -> Result<JobLog, IntegrationError> {
@@ -969,7 +1025,41 @@ mod tests {
         assert_eq!(failed.duration_ms, Some(95_400));
         let manual = &p.stages[2].jobs[0];
         assert!(manual.is_manual);
+        assert!(manual.declared_manual);
+        assert!(!failed.declared_manual);
         assert_eq!(p.url, "https://gitlab.com/cairn/cairn/-/pipelines/8241");
+    }
+
+    #[test]
+    fn manual_jobs_query_aliases_each_pipeline_and_skips_odd_ids() {
+        let ids = ["8241".to_string(), "8240".to_string(), "1) { x }".to_string(), String::new()];
+        let query = manual_jobs_query("cairn/cairn", &ids).unwrap();
+        let text = query["query"].as_str().unwrap();
+        assert!(text.contains("p8241: pipeline(id: \"gid://gitlab/Ci::Pipeline/8241\")"));
+        assert!(text.contains("p8240: pipeline("));
+        assert!(!text.contains("x }"));
+        assert_eq!(query["variables"]["path"], "cairn/cairn");
+        assert!(manual_jobs_query("cairn/cairn", &[]).is_none());
+    }
+
+    #[test]
+    fn a_played_manual_job_stays_declared_manual() {
+        let mut pipelines = [map_pipeline(&parse(PIPELINE), parse(JOBS).as_array().unwrap())];
+        let failed_id = pipelines[0].stages[1].jobs[1].id.clone();
+        let answer = json!({ "data": { "project": {
+            "p8241": { "jobs": { "nodes": [
+                { "id": format!("gid://gitlab/Ci::Build/{failed_id}"), "manualJob": true },
+                { "id": "gid://gitlab/Ci::Build/1", "manualJob": false },
+            ] } },
+            "p8240": null,
+        } } });
+        let ids = manual_job_ids(&answer);
+        assert_eq!(ids.len(), 1);
+        mark_declared_manual(&mut pipelines, &ids);
+        let failed = &pipelines[0].stages[1].jobs[1];
+        assert!(failed.declared_manual);
+        assert!(!failed.is_manual);
+        assert!(manual_job_ids(&json!({ "errors": [{ "message": "boom" }] })).is_empty());
     }
 
     #[test]

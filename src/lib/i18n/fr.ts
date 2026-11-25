@@ -1300,6 +1300,18 @@ export const fr = {
 		retry: "Relancer",
 		cancel: "Annuler",
 		play: "Lancer",
+		manualJobs: "Jobs manuels",
+		playHeading: "Job manuel",
+		playTitle: (job: string) => `Lancer ${job} ?`,
+		playDescription:
+			"Le job démarre aussitôt sur la forge, sur le commit de ce pipeline.",
+		playPipeline: "Pipeline",
+		playRef: "Réf.",
+		playCommit: "Commit",
+		rerunTitle: (job: string) => `Relancer ${job} ?`,
+		rerunDescription:
+			"Une nouvelle exécution du job démarre aussitôt sur la forge, sur le commit de ce pipeline, avec les variables CI/CD du projet telles qu'elles sont maintenant.",
+		rerunLastRun: "Dernière exécution",
 		log: "Journal",
 		jumpToFailure: "Aller à l'échec",
 		ago: (ago: string) => `il y a ${ago}`,
