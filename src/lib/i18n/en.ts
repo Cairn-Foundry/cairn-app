@@ -2584,7 +2584,6 @@ export const en = {
 		},
 		containers: {
 			title: "Containers",
-			desc: "The Docker containers of this machine, grouped by Compose project.",
 			search: "Filter by name, image, project or folder",
 			countLabel: (running: number, total: number) =>
 				`${running} running · ${total} in all`,
@@ -2608,9 +2607,15 @@ export const en = {
 				cpuReversed: "Idlest first - click to reverse",
 			},
 			showStopped: "Show stopped",
-			empty: "No container on this machine.",
-			noRunning: "No container running.",
-			noMatch: "No container matches this filter.",
+			empty: "No container on this machine",
+			emptyDesc:
+				"Containers started with Docker or Docker Compose show up here, grouped by project.",
+			noRunning: "No container running",
+			noRunningDesc: 'The stopped ones are hidden: "Show stopped" lists them.',
+			noMatch: "No container matches",
+			noMatchText: (q: string) =>
+				`Nothing matches "${q}" in the names, images, projects or folders.`,
+			toggleGroup: (name: string) => `Fold or unfold ${name}`,
 			standalone: "Standalone containers",
 			openPort: (url: string) => `Open ${url}`,
 			state: {

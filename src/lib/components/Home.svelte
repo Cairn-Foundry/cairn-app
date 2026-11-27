@@ -134,13 +134,7 @@
       <PortsSection />
 
     {:else if activeSection === 'containers'}
-      <div class="home-hero" style="padding-bottom: 0">
-        <h1 style="font-size: 22px">{t('home.containers.title')}</h1>
-        <div class="sub">{t('home.containers.desc')}</div>
-      </div>
-      <div style="margin-top: 24px;">
-        <ContainersSection />
-      </div>
+      <ContainersSection />
 
     {:else if activeSection === 'changelog'}
       <ChangelogSection />

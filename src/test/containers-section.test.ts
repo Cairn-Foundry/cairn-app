@@ -131,7 +131,7 @@ const rowOf = (name: string) =>
 const button = (root: ParentNode, label: string) =>
 	root.querySelector(`[aria-label="${label}"]`) as HTMLElement;
 const groupHeader = (title: string) =>
-	Array.from(document.querySelectorAll<HTMLElement>(".group header")).find(
+	Array.from(document.querySelectorAll<HTMLElement>(".group-bar")).find(
 		(h) => h.querySelector(".project")?.textContent === title,
 	) as HTMLElement;
 
@@ -161,6 +161,32 @@ describe("ContainersSection", () => {
 		await user.click(stoppedToggle());
 		expect(names()).toEqual(["app", "worker", "redis"]);
 		expect(document.body.textContent).toContain("exit 137");
+	});
+
+	it("folds a Compose project down to its title, and unfolds it", async () => {
+		render(ContainersSection, {});
+		await settle();
+		await user.click(button(groupHeader("web"), "Fold or unfold web"));
+		expect(names()).toEqual(["redis"]);
+		expect(groupTitles()).toEqual(["web", "Standalone containers"]);
+		await user.click(groupHeader("web"));
+		expect(names()).toEqual(["app", "redis"]);
+	});
+
+	it("says what the filter missed, and clears it", async () => {
+		render(ContainersSection, {});
+		await settle();
+		await user.type(
+			document.querySelector(".ag-search input, input") as HTMLElement,
+			"nothing-like-this",
+		);
+		expect(document.body.textContent).toContain('"nothing-like-this"');
+		await user.click(
+			Array.from(document.querySelectorAll<HTMLElement>("button")).find(
+				(b) => b.textContent?.trim() === "Clear search",
+			) as HTMLElement,
+		);
+		expect(names()).toEqual(["app", "redis"]);
 	});
 
 	it("sorts by uptime from the dropdown, and reverses on picking it again", async () => {
@@ -224,7 +250,7 @@ describe("ContainersSection", () => {
 			expect(
 				groupHeader("web").querySelector(".group-usage")?.textContent,
 			).toContain("512.0 MB");
-			expect(document.querySelector(".count")?.textContent).toContain(
+			expect(document.querySelector(".head-total")?.textContent).toContain(
 				"4.0 GB of memory",
 			);
 		});

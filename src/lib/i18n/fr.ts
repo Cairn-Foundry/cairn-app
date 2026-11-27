@@ -2624,7 +2624,6 @@ export const fr = {
 		},
 		containers: {
 			title: "Containers",
-			desc: "Les containers Docker de cette machine, regroupés par projet Compose.",
 			search: "Filtrer par nom, image, projet ou dossier",
 			countLabel: (running: number, total: number) =>
 				`${running} en cours · ${total} au total`,
@@ -2649,9 +2648,16 @@ export const fr = {
 				cpuReversed: "Les plus calmes d'abord - cliquer pour inverser",
 			},
 			showStopped: "Afficher les arrêtés",
-			empty: "Aucun container sur cette machine.",
-			noRunning: "Aucun container en cours.",
-			noMatch: "Aucun container ne correspond à ce filtre.",
+			empty: "Aucun container sur cette machine",
+			emptyDesc:
+				"Les containers lancés avec Docker ou Docker Compose apparaissent ici, regroupés par projet.",
+			noRunning: "Aucun container en cours",
+			noRunningDesc:
+				"Les containers arrêtés sont masqués : « Afficher les arrêtés » les liste.",
+			noMatch: "Aucun container ne correspond",
+			noMatchText: (q: string) =>
+				`Rien ne correspond à « ${q} » dans les noms, images, projets ou dossiers.`,
+			toggleGroup: (name: string) => `Replier ou déplier ${name}`,
 			standalone: "Containers isolés",
 			openPort: (url: string) => `Ouvrir ${url}`,
 			state: {
