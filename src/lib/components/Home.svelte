@@ -22,6 +22,7 @@
   import FeaturesSection from '#lib/components/home/features/FeaturesSection.svelte';
   import ChangelogSection from '#lib/components/home/ChangelogSection.svelte';
   import PortsSection from '#lib/components/home/PortsSection.svelte';
+  import ContainersSection from '#lib/components/home/ContainersSection.svelte';
   import SkillsSection from '#lib/components/home/skills/SkillsSection.svelte';
   import McpSection from '#lib/components/home/mcp/McpSection.svelte';
   import IntegrationsSection from '#lib/components/home/IntegrationsSection.svelte';
@@ -131,6 +132,9 @@
 
     {:else if activeSection === 'ports'}
       <PortsSection />
+
+    {:else if activeSection === 'containers'}
+      <ContainersSection />
 
     {:else if activeSection === 'changelog'}
       <ChangelogSection />
